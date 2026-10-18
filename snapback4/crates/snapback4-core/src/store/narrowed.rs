@@ -12,9 +12,12 @@ pub(super) fn present(conn: &Connection) -> Result<bool, RuntimeError> {
 }
 
 fn incompatible(tx:&Tx<'_>,schema: &Schema, name: &str, row: &Value) -> Result<bool,RuntimeError> {
+    incompatible_except(tx,schema,name,row,&[])
+}
+fn incompatible_except(tx:&Tx<'_>,schema: &Schema,name:&str,row:&Value,authority:&[String])->Result<bool,RuntimeError> {
     let table = &schema.tables[name];
     for (column,kind) in &table.columns {
-        if table.engine_field(column) || table.maintained.contains_key(column) {continue;}
+        if table.engine_field(column) || table.maintained.contains_key(column) || authority.contains(column) {continue;}
         if let Ok(value)=row.field(column) {
             if incompatible_column(tx, table, name, column, kind, value)? { return Ok(true); }
         }
@@ -56,6 +59,7 @@ pub(super) fn transition(
     now: i64,
     restored_images: bool,
     source_definitions: &BTreeMap<String, Table>,
+    authority_sources: &BTreeMap<String, Table>,
 ) -> Result<(), RuntimeError> {
     // An expired predecessor must not be archived and later revived without its lifetime.
     if let Some(previous) = previous {
@@ -100,12 +104,17 @@ pub(super) fn transition(
     // Stream on the primary key. Do not retain a store-sized list of images.
     let mut cursor = (0i64, String::new());
     loop {
-        let item: Option<(i64,String,String,String)> = tx.conn().query_row(
-            "SELECT t,id,data,definition FROM _dormant_narrow_rows WHERE (t,id)>(?1,?2) ORDER BY t,id LIMIT 1",
+        let item: Option<(i64,String,i64,i64)> = tx.conn().query_row(
+            "SELECT t,id,octet_length(data),octet_length(definition) FROM _dormant_narrow_rows WHERE (t,id)>(?1,?2) ORDER BY t,id LIMIT 1",
             params![cursor.0,cursor.1],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional()?;
-        let Some((t, id, data, definition)) = item else {
-            break;
-        };
+        let Some((t,id,data_bytes,definition_bytes))=item else {break};
+        // Retain one admitted provenance/image unit through decode, overlays,
+        // reconciliation and encoding. Never own its blobs before this bound.
+        let mut admission=crate::meter::Meter::new(crate::meter::Ceilings::job(),crate::meter::Cut::Abort);
+        if super::live_activation::active(tx)? {
+            admission.heap((data_bytes as u64).saturating_add(definition_bytes as u64).saturating_mul(64).saturating_add(8192))?;
+        }
+        let (data,definition):(String,String)=tx.conn().query_row("SELECT data,definition FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|Ok((r.get(0)?,r.get(1)?)))?;
         cursor = (t, id.clone());
         let name: String =
             tx.conn()
@@ -121,7 +130,9 @@ pub(super) fn transition(
         super::dormant::check_owner(tx, &name, &old, next)?;
         let mut row: Value =
             serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        if incompatible(tx,next, &name, &row)? {
+        crate::schema::materialize_optional_fields(&mut row,&old);
+        let authority=crate::engine::through_activation::manual_authority_fields(next,&name,&old);
+        if incompatible_except(tx,next,&name,&row,&authority)? {
             continue;
         }
         // Retained source deadlines precede projection, including removal of read-through itself.
@@ -137,12 +148,20 @@ pub(super) fn transition(
             )?
             .query_map(params![t, id], |r| r.get::<_, String>(0))?
             .collect::<Result<Vec<_>, _>>()?;
-        let invalid = invalid_columns
-            .iter()
-            .any(|c| table.columns.contains_key(c));
+        let mut invalid=false;
+        for c in &invalid_columns {
+            if table.columns.contains_key(c) && !super::authority_origin::obsolete_ref(tx,t,&id,c,table,Some(&old))? {invalid=true;}
+        }
         if invalid {
             continue;
         }
+        if super::authority_origin::live_row(tx,t,&id,&old,table)? {
+            admission.heap(crate::engine::through_activation::restored_parent_scratch(next,source_definitions,&name,&old).saturating_add(crate::rows::disclosed::decode_reservation(table).saturating_mul(4)))?;
+        }
+        super::authority_origin::record(tx,t,&id,&old)?;
+        super::authority_origin::validate(tx,next,authority_sources,&name,&old,&row,now,true)?;
+        crate::engine::through_activation::forward_image(tx,next,authority_sources,&name,&old,&row,now)?;
+        if old.through.as_ref().is_some_and(|e|e.live.is_some()) {tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored(kind,t,col,id) VALUES('live-authority',?1,'',?2)",params![t,id])?;}
         for column in old.columns.keys() {
             if !table.columns.contains_key(column) {
                 super::dormant::definition(tx, &name, &old, column)?;
@@ -154,24 +173,13 @@ pub(super) fn transition(
         if let Value::Row(fields) | Value::Map(fields) = &mut row {
             fields.retain(|c, _| table.columns.contains_key(c));
         }
-        let values = tx
-            .conn()
-            .prepare_cached("SELECT column_name,data FROM _dormant_values WHERE t=?1 AND id=?2")?
-            .query_map(params![t, id], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-            })?
-            .collect::<Result<Vec<_>, _>>()?;
-        if let Value::Row(fields) | Value::Map(fields) = &mut row {
-            for (column, data) in values {
-                if table.columns.contains_key(&column) {
-                    fields.insert(
-                        column,
-                        serde_json::from_str(&data)
-                            .map_err(|e| RuntimeError::Store(e.to_string()))?,
-                    );
-                }
-            }
+        let values=super::dormant::restored_values(tx,t,&id,table,&mut admission)?;
+        super::authority_origin::overlay(tx,t,&id,Some(&old),table,&mut row,values)?;
+        if old.through.as_ref().is_none_or(|e|e.live.is_some()) {
+            for column in table.columns.keys() {super::dormant::mark_live_column(tx,t,&id,column)?;}
         }
+        crate::engine::through_activation::manual_image(tx,next,&name,&old,&mut row,now)?;
+        if incompatible(tx,next,&name,&row)? {continue;}
         crate::schema::materialize_optional_fields(&mut row, table);
         // Missing required new fields are a genuine backfill refusal, not dormancy.
         tx.conn().execute(
@@ -190,7 +198,7 @@ pub(super) fn transition(
         {
             let t = tx.num(name)?;
             super::activation::walk(tx, t, |id, mut row| {
-                if let Some(source)=source_definitions.get(name) {
+                if let Some(source)=authority_sources.get(name) {
                     if crate::engine::through_activation::Retirement::retires_image(table,source,&row,now) {
                         tx.delete(name,source,&row)?;
                         return Ok(());
@@ -208,7 +216,7 @@ pub(super) fn transition(
                     }
                     for (parent, parent_id) in edges {
                         let missing = next.table(&parent).is_none()
-                            || (tx.get(&parent, &parent_id)?.is_none()
+                            || (!tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t=?1 AND id=?2)",params![tx.num(&parent)?,parent_id],|r|r.get::<_,bool>(0))?
                                 && reserved(tx, tx.num(&parent)?, &parent_id)?);
                         if missing {
                             hidden = true;
@@ -225,7 +233,7 @@ pub(super) fn transition(
                 )?;
                 if !retained {
                     newly_retained += 1;
-                    let old = source_definitions.get(name).unwrap_or(table);
+                    let old = authority_sources.get(name).unwrap_or(table);
                     tx.conn().execute(
                         "INSERT INTO _dormant_narrow_rows VALUES(?1,?2,?3,?4,?5)",
                         params![
@@ -243,7 +251,7 @@ pub(super) fn transition(
                             continue;
                         }
                         if let Ok(value) = row.field(column) {
-                            super::dormant::capture_refs(tx, t, id, column, kind, value)?;
+                            if !super::authority_origin::live_input(old,column) {super::dormant::capture_refs(tx, t, id, column, kind, value)?;}
                         }
                         super::dormant::capture_through_parent(tx, name, old, id, column, &row)?;
                         // Nominal keep references may already be dangling. They have no bound lifetime.
@@ -262,12 +270,16 @@ pub(super) fn transition(
     }
     // Consume only rows that survived the closed population, not hidden dependents.
     let restored:u64=tx.conn().query_row("SELECT COUNT(*) FROM _dormant_narrow_rows n WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)",[],|r|r.get::<_,i64>(0).map(|n|n as u64))?;
+    if super::live_activation::active(tx)? {
+        tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'narrowed',n.t,'',n.id FROM _dormant_narrow_rows n WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)",[])?;
+    } else {
     let restored_rows=tx.conn().prepare("SELECT c.name,n.id FROM _dormant_narrow_rows n JOIN _catalog c ON c.num=n.t WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)")?.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?)))?.collect::<Result<Vec<_>,_>>()?;
     let mut restored_tables:std::collections::BTreeMap<String,Vec<String>>=std::collections::BTreeMap::new();
     for (name,id) in restored_rows {restored_tables.entry(name).or_default().push(id);}
     for (name, ids) in restored_tables {
         tx.set_meta(&format!("activation_narrowed_restored:{name}"),&ids.len().to_string())?;
         tx.set_meta(&format!("activation_narrowed_restored_ids:{name}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;
+    }
     }
     tx.set_meta("activation_narrowed_retained", &newly_retained.to_string())?;
     tx.set_meta("activation_narrowed_restored", &restored.to_string())?;

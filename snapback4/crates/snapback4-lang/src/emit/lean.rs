@@ -296,7 +296,7 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
         (t.receipts.is_some(), "receipts"),
         (t.ephemeral.is_some(), "ephemeral"),
         (!t.search.is_empty(), "search"),
-        (t.rules.iter().any(|rule| matches!(&rule.value, Expr::Call { name, .. } if name == "$readThrough")), "through"),
+        (t.rules.iter().any(|rule| matches!(&rule.value, Expr::Call { name, .. } if matches!(name.as_str(), "$readThrough" | "$readThroughLive"))), "through"),
         (!t.final_exists.is_empty(), "after-insert"),
         (t.retain.is_some(), "retain"),
     ] {

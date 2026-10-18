@@ -53,6 +53,13 @@ impl PostgresEngine {
         rows: impl IntoIterator<Item = (String, Value)>,
         now: i64,
     ) -> Result<u64, RuntimeError> {
+        if crate::schema::live::has_live(&self.schema) {
+            let tx=self.store.transaction(Some(WriteMode::Serialized))?;
+            let seq=tx.next_seq()?;
+            let (count,events,tables,seq)=super::super::live_bulk::restore(&tx,&self.schema,rows,seq,now)?;
+            if count>0 {tx.record_commit(seq,now,"restore",crate::SYSTEM_PRINCIPAL,"restore",&tables,count)?;partition::append(&tx,seq,&events)?;}
+            tx.commit()?;return Ok(count);
+        }
         let tx = self.store.transaction(Some(WriteMode::Serialized))?;
         let seq = tx.next_seq()?;
         let order = self.schema.through_order();
@@ -134,6 +141,19 @@ impl PostgresEngine {
             tx.execute("DELETE FROM r WHERE t=$1", &[name])?;
         }
         for (name, table) in &schema.tables {
+            if table.through.as_ref().is_some_and(|e|e.live.is_some()) || self.schema.table(name).and_then(|t|t.through.as_ref()).is_some_and(|e|e.live.is_some()) {
+                let d=crate::rows::disclosed::decode_reservation(table);
+                let source=self.schema.table(name).unwrap_or(table);
+                let key_heap=crate::rows::adoption::index_scratch(name,table);
+                tx.walk_adoption(name,crate::rows::disclosed::decode_reservation(source),4*d+2*key_heap,[1,table.columns.len() as u64+8,crate::rows::adoption::index_capacity(table).saturating_mul(2)],&mut |mut row| {
+                    let id=row.field("id")?.as_str()?.to_owned();
+                    if let Value::Row(fields)|Value::Map(fields)=&mut row {fields.retain(|f,_|table.columns.contains_key(f));}
+                    table.recompute_deadline(&mut row)?;
+                    validate::validate_row(&schema,name,&crate::schema::row_image(&row,table))?;
+                    tx.execute("DELETE FROM r WHERE t=$1 AND id=$2",&[name,&id])?;
+                    tx.put(name,table,&row,None)?;Ok(())
+                })?;
+            } else {
             let mut after = String::new();
             loop {
                 let page = tx.query(
@@ -155,7 +175,9 @@ impl PostgresEngine {
                     tx.put(name, table, &row, None)?;
                 }
             }
+                    }
         }
+
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(
             &tx,

@@ -254,7 +254,7 @@ fn epoch_identity_changes_for_each_interpretation_and_inherited_lifetime_input()
             parent.expire = Some("until".into());
             before.tables.insert("parents".into(), parent);
             before.tables.get_mut("members").unwrap().through =
-                Some(snapback4_core::schema::through::Through {
+                Some(snapback4_core::schema::through::Through { live: None,
                     reference: "parent".into(),
                     parent: "parents".into(),
                     fields: BTreeMap::new(),

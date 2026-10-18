@@ -1,0 +1,232 @@
+{
+  "diff-run": {
+    "cases": 20000,
+    "baseline": "ccb9f752d1",
+    "newSignatures": {},
+    "oracleCountsIdentical": true,
+    "oracles": {
+      "meter": {
+        "attempted": 544736,
+        "passed": 67880,
+        "unsupported": {
+          "examined-opening-no-position": 15543,
+          "heap_bytes-unwind-no-continuation": 147343,
+          "mutation-not-a-read": 3663,
+          "output_bytes-refusal-no-continuation": 13966,
+          "return-not-pageable": 43615,
+          "rule_probes-opening-no-position": 1573,
+          "steps-refusal-no-continuation": 217750,
+          "steps-unwind-no-continuation": 31032,
+          "timed-search-no-continuation": 410,
+          "uncut-refusal": 1961
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "repeat": {
+        "attempted": 20000,
+        "passed": 20000,
+        "unsupported": {},
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "rewrite-commute": {
+        "attempted": 20000,
+        "passed": 3160,
+        "unsupported": {
+          "rewrite-not-applicable": 16840
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 1683
+      },
+      "rewrite-declarations": {
+        "attempted": 20000,
+        "passed": 20000,
+        "unsupported": {},
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "rewrite-identity": {
+        "attempted": 20000,
+        "passed": 2751,
+        "unsupported": {
+          "rewrite-not-applicable": 17249
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 2751
+      },
+      "rewrite-lazy-and": {
+        "attempted": 20000,
+        "passed": 1145,
+        "unsupported": {
+          "rewrite-not-applicable": 18855
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 1145
+      },
+      "rewrite-lazy-or": {
+        "attempted": 20000,
+        "passed": 1250,
+        "unsupported": {
+          "rewrite-not-applicable": 18750
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 1250
+      },
+      "rewrite-let": {
+        "attempted": 20000,
+        "passed": 20000,
+        "unsupported": {},
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 20000
+      },
+      "timed-search-future-absence": {
+        "attempted": 415,
+        "passed": 415,
+        "unsupported": {},
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      }
+    },
+    "binderRefusedUnexpected": 0
+  },
+  "diff-devices": {
+    "cases": 1000,
+    "baseline": "ccb9f752d1",
+    "newSignatures": {},
+    "oracleCountsIdentical": true,
+    "oracles": {
+      "device-memory-converge": {
+        "attempted": 177,
+        "passed": 40,
+        "unsupported": {
+          "converge-observe-online-only-unknown-incomplete": 137
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "device-memory-cut": {
+        "attempted": 5700,
+        "passed": 5700,
+        "unsupported": {},
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "device-memory-read": {
+        "attempted": 823,
+        "passed": 448,
+        "unsupported": {
+          "online-only-unavailable": 75,
+          "online-only-unknown-incomplete": 300
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "device-memory-write": {
+        "attempted": 177,
+        "passed": 32,
+        "unsupported": {
+          "prediction-declined": 12,
+          "unpredictable-unsynced-table": 133
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "device-sqlite-converge": {
+        "attempted": 177,
+        "passed": 40,
+        "unsupported": {
+          "converge-observe-online-only-unknown-incomplete": 137
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "device-sqlite-cut": {
+        "attempted": 5700,
+        "passed": 5700,
+        "unsupported": {},
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "device-sqlite-read": {
+        "attempted": 823,
+        "passed": 448,
+        "unsupported": {
+          "online-only-unavailable": 75,
+          "online-only-unknown-incomplete": 300
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      },
+      "device-sqlite-write": {
+        "attempted": 177,
+        "passed": 32,
+        "unsupported": {
+          "prediction-declined": 12,
+          "unpredictable-unsynced-table": 133
+        },
+        "disagreeing": 0,
+        "signatures": {},
+        "meter_fields_omitted": 0
+      }
+    },
+    "binderRefusedUnexpected": 0
+  },
+  "diff-lean": {
+    "cases": 20000,
+    "baseline": "ccb9f752d1",
+    "newSignatures": {},
+    "oracleCountsIdentical": true,
+    "oracles": {
+      "lean": {
+        "attempted": 20000,
+        "passed": 16697,
+        "unsupported": {
+          "call-max": 319,
+          "call-min": 276,
+          "call-sum": 286,
+          "index-computed-or-words": 556,
+          "input-null": 2,
+          "loop": 449,
+          "now": 99,
+          "page-compound-where-branches": 22,
+          "page-static-key-expression": 12,
+          "prelude-now": 151,
+          "shape": 1001
+        },
+        "disagreeing": 130,
+        "signatures": {
+          "lean--code--E_RULE~NOT_FOUND": 3,
+          "lean--continuation-next--next~no-next": 35,
+          "lean--next--next~no-next": 67,
+          "lean--prelude-code--E_RULE~NOT_FOUND": 25
+        },
+        "meter_fields_omitted": 0
+      }
+    },
+    "binderRefusedUnexpected": 0
+  },
+  "_artifacts": {
+    "baselineCommit": "ccb9f752d1",
+    "nativeBinarySha256": "677c77eb54ab1f43c8014cfc5640d9cbd6892276fff56f3c0bf79b2e2ba87d26",
+    "baselineBinarySha256": "13e438989b9d8f594c98886eea9620636c4f5268f1376762113b7e1b98932c07",
+    "leanOracleSha256": "2cdad91b441ebac5034bf9b93a1dfee807c01ff0126eb5b8fe00f520a0d95619",
+    "note": "Lean source is unchanged versus ccb9f752d1. Campaigns qualify semantic inputs; later guide prose/census-only commits do not change generator, runtime or model."
+  }
+}

@@ -121,7 +121,7 @@ impl Catalog {
                 let mut seen_effects = std::collections::BTreeSet::new();
                 for rule in &table.rules {
                     if !seen_effects.insert(rule.effect) {
-                        if rule.effect == Effect::Read && table.rules.iter().any(|r| matches!(&r.value,Expr::Call{name,..} if name=="$readThrough")) {
+                        if rule.effect == Effect::Read && table.rules.iter().any(|r| matches!(&r.value,Expr::Call{name,..} if matches!(name.as_str(), "$readThrough" | "$readThroughLive"))) {
                             diagnostics.push(Diagnostic::new(&rule.site,"E_READ_THROUGH",format!("{} declares another read rule beside read through",table.name),"keep read through as the whole read rule; put service grants on the parent").guide("rules"));
                         } else {
                             let first = table.rules.iter().find(|first| first.effect == rule.effect).unwrap();

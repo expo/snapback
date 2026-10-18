@@ -1,0 +1,26 @@
+{
+  "linux": {
+    "snapback4/crates/snapback4-lang/src/guide.rs": "41719418f0066d36607f5f38cdcc1fe810cd2439fbf8ec7551bc864d33f059d6",
+    "snapback4/crates/snapback4-lang/src/guide/rules.md": "1f632b17a521c647e6001b6105253ebd3b8723efb4450d24e47e31ac49d007f3",
+    "snapback4/crates/snapback4-lang/src/guide/rule_recipes_wave14.md": "4d52033d00a68cb9e5a95f437e0bd4f80e0b3c9323817fc0320fbc9a51a8aa2d",
+    "snapback4/crates/snapback4-lang/src/guide/rule_recipes_wave15.md": "1cbabbf099bc894a3d32386ea6d874893d5663a864ed4ad6f2baea5fc3038689",
+    "snapback4/crates/snapback4-lang/tests/guide.rs": "95bbfc4a420bb5978fe68846f4d1b6baf96517b1019d145f5f0f501e1bcb9785",
+    "snapback4/crates/snapback4-lang/tests/ephemeral_compat.rs": "7545a12d7cf9a00c5cb4b4fa272397901b048164bcb7fd3c83573355771c6879",
+    "snapback4/crates/snapback4-lang/tests/wave12_rule_recipes.rs": "32c973c4816d8c932eaaa97cdc667d4bfd0fca8ef7cf4b598346e7145150acef",
+    "snapback4/crates/snapback4-device/tests/readauth/census.txt": "2dee501fd8f678c5ae3c1681ae9157563a33002398b5beb5154a77a2bcfeebea",
+    "snapback4/packages/snapback4/test/wave14-rule-recipes.test.mjs": "b2d6fe083cb6a826eb6b0af3462079c2637bbba81514076265ee527a51cb790c"
+  },
+  "mac": {
+    "snapback4/crates/snapback4-lang/src/guide.rs": "41719418f0066d36607f5f38cdcc1fe810cd2439fbf8ec7551bc864d33f059d6",
+    "snapback4/crates/snapback4-lang/src/guide/rules.md": "1f632b17a521c647e6001b6105253ebd3b8723efb4450d24e47e31ac49d007f3",
+    "snapback4/crates/snapback4-lang/src/guide/rule_recipes_wave14.md": "4d52033d00a68cb9e5a95f437e0bd4f80e0b3c9323817fc0320fbc9a51a8aa2d",
+    "snapback4/crates/snapback4-lang/src/guide/rule_recipes_wave15.md": "1cbabbf099bc894a3d32386ea6d874893d5663a864ed4ad6f2baea5fc3038689",
+    "snapback4/crates/snapback4-lang/tests/guide.rs": "95bbfc4a420bb5978fe68846f4d1b6baf96517b1019d145f5f0f501e1bcb9785",
+    "snapback4/crates/snapback4-lang/tests/ephemeral_compat.rs": "7545a12d7cf9a00c5cb4b4fa272397901b048164bcb7fd3c83573355771c6879",
+    "snapback4/crates/snapback4-lang/tests/wave12_rule_recipes.rs": "32c973c4816d8c932eaaa97cdc667d4bfd0fca8ef7cf4b598346e7145150acef",
+    "snapback4/crates/snapback4-device/tests/readauth/census.txt": "2dee501fd8f678c5ae3c1681ae9157563a33002398b5beb5154a77a2bcfeebea",
+    "snapback4/packages/snapback4/test/wave14-rule-recipes.test.mjs": "b2d6fe083cb6a826eb6b0af3462079c2637bbba81514076265ee527a51cb790c"
+  },
+  "differences": [],
+  "note": "Final source comparison after the prose and section-heading corrections. The earlier packed Mac snapshot differs only in guide prose/headings; every Quarry block remains byte-identical."
+}

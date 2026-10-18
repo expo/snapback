@@ -271,6 +271,8 @@ pub struct Runner<'a> {
     /// consults no rule of the row it writes (LLP 3000.039 §4.1).
     pub(crate) engine_action: bool,
     pub(crate) capture_prepaid: bool,
+    pub(crate) live_prepaid: bool,
+    pub(crate) live_heap: u64,
     pub(crate) maintain_heap: u64,
     pub(super) timeline_authority: Option<super::timeline_authority::Authority>,
     #[cfg(feature = "server-search")]
@@ -424,6 +426,8 @@ impl<'a> Runner<'a> {
             action_tables: BTreeSet::new(),
             engine_action: false,
             capture_prepaid: false,
+            live_prepaid: false,
+            live_heap: 0,
             maintain_heap: 0,
             timeline_authority: None,
             column_heap: 0,

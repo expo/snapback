@@ -1,0 +1,36 @@
+muse: workspace root: /home/ccheever/projects/sb4-w15-rules5 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=95ca43b1-ba9e-4c9d-94a7-e43c63b6b5e5]: Subscription quota exhausted. Your usage window resets at 2026-10-19T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-w15-rules5 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material blockers. This is a correct, safe-direction authorization package: every grant claimed is demonstrated runnable, every refusal claimed is retained as refused, and nothing in scope widens authority.
+
+## What I checked
+
+**Scope (no engine change).** Worktree + HEAD touch only the LLP amendment, the one-line `rule-recipes` card concat in [guide.rs](/home/ccheever/projects/sb4-w15-rules5/snapback4/crates/snapback4-lang/src/guide.rs), [CHANGELOG.md](/home/ccheever/projects/sb4-w15-rules5/snapback4/packages/snapback4/CHANGELOG.md) (0.4.32 entry, names LANG4 ownership), the packed test, the new [rule_recipes_wave15.md](/home/ccheever/projects/sb4-w15-rules5/snapback4/crates/snapback4-lang/src/guide/rule_recipes_wave15.md), and retained reports. No language, engine, protocol, or client-contract change. I did not read `llp/reviews/`, ran no test suites, and used only read-only commands with timeouts.
+
+**Preservation claim (verified, not assumed).** `rules.md` went 374 → 347 physical lines while adding 3 new ladder blocks: word-sequence diff old-vs-new shows zero deleted words (376 added), and all 7 original quarry blocks survive byte-identical. The line-budget claim holds (net −27 lines).
+
+**Privacy.** Totals pin `.owner = viewer` (carol sees `{0,0}`; alice's `{2,18}` excludes bob's 999). Handoff outbox/inbox pin sender/recipient; unenrolled carol gets `E_RULE`, third parties read empty. Booking counts expose only numbers (join/leave deltas honestly labeled intentional, "not anonymity against timing inference"). Leaderboard publishes principals by consent with the projection caveat stated. Drafts/history/attempts stay owner-private; hidden clashes return `E_RULE` with key and row redacted (pinned by `doesNotMatch`). The 35-second grace matches `PRESENCE_GRACE` in engine source; `handoffPresence` openness matches the platform's server-wide `connected` primitive, and the recipe documents it as snapshot-not-receipt.
+
+**Runnability.** All 8 wave-15 blocks plus all 4 ladder blocks execute through the packed CLI/client/native path, each with positive, hidden, and refused cases — including grace/reconnect (36s advance), withdrawal/edit/reapproval (rev 1 → v2), SLOT_FULL, consent withdrawal, ancestor transfer with invalidation, stale/hidden targets, and history-collision rollback (version stays 1 on `E_UNIQUE`).
+
+**Independent authority.** Each recipe enforces at both layers: mutation `require connected` + table enrollment/sender rules; version/edge requires + named `update (old, next)` edge rule; capacity require + principal insert rule; probe shapes use full positional unique keys with named extras per the documented rule form.
+
+**Boundaries vs LLP 3000.014.000 and evidence.** Flattened three-level form satisfies the authority (whole-rule inheritance, immutable required refs, per-reference caps, restrict-default refs, atomic maintenance — "updates both families in one transaction" is literally 014's maintained-copy model). 077's section-owner widening analysis matches the actual schema; `checks → live .section` passes survey while the chain refuses. 085's cascade refusal, total-unproved refusal, and restrict-only pass all match [live-shapes.json](/home/ccheever/projects/sb4-w15-rules5/snapback4/reports/wave15-rules5/live-shapes.json) exactly.
+
+**Notes.** Exactly one taught `N_UNREADABLE_PROBE` in scope (ladder probe block); no wave-15 block trips any other `clean()` exception, so `guide.rs` needed no widening. Retained logs corroborate (125/125 guide, 22/22 packed, 100/100 survey).
+
+## Material blockers
+
+None.
+
+## Suggestions (optional, in priority order)
+
+1. **Clarify the 085 hymnUsage sentence.** "Its unpinned cross-service hymnUsage total remains unproved after the live conversion; preserve its explicit probe rule" most naturally reads as keeping the total in the converted schema — but the retained `085-live-restrict` shape proves conversion + hymnUsage-as-written refuses. The paragraph's constraint-conjunction (conversion requires dropping/repinning the cross-service total, or staying on explicit probes) is never stated outright. Safe failure mode (loud `E_QUARRY_BOUND`, refused shape retained), so not blocking — but one sentence stating the conjunction would make the "exact boundary" claim exact.
+2. **Soften "pin its code and site" (§13.1).** Tests pin the probe note's code (both suites) plus the query name in the message (guide.rs); neither pins file/line/col site. Say "code and query" or add a site assertion.
+3. **Consider scoping `handoffPresence` to enrolled peers.** Platform-norm leaves it open, but the recipe could model least-privilege presence reads since only schema queries expose `connected`.
+4. **Cover "capped explicit child deletion" with a survey candidate.** It is the only operational 085 step with no executed evidence (survey covers cascade removal, not the replacement deletion flow).
+
+**Verdict: READY** for wave-15 fix-list #4 authorization on LIVE for 0.4.32.

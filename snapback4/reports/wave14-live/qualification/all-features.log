@@ -1,0 +1,4 @@
+Command: ['env', 'CARGO_INCREMENTAL=0', 'CARGO_PROFILE_DEV_DEBUG=0', 'CARGO_PROFILE_TEST_DEBUG=0', 'cargo', 'check', '-p', 'snapback4-core', '--all-features']
+    Blocking waiting for file lock on build directory
+    Checking snapback4-core v0.4.30 (/home/ccheever/projects/sb4-w14-live/snapback4/crates/snapback4-core)
+    Finished `dev` profile [unoptimized] target(s) in 40.38s

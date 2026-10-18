@@ -1,0 +1,35 @@
+muse: workspace root: /home/ccheever/projects/sb4-w15-rules5 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=f70555c2-69c6-416c-b170-bfa0e5b8af67]: Subscription quota exhausted. Your usage window resets at 2026-10-19T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-w15-rules5 (cwd default)
+muse: workspace trust: trusted source=run-flag
+# RULES5 wave-15 round-1 review: NOT READY
+
+One blocking completeness/coverage defect in the presence recipe. Everything else in scope verified against code and recorded qualification evidence. Do not land as-is; the fix is small and round 2 should be quick.
+
+## Blocking findings
+
+**B1. Presence recipe authorizes recipient reads it never provides or tests.**
+[rule_recipes_wave15.md](snapback4/crates/snapback4-lang/src/guide/rule_recipes_wave15.md) declares `read <- .sender = viewer or .recipient = viewer` on `durableHandoffs`, but ships only a sender outbox (`handoffs … where .sender = viewer`) and a presence check. No query pins `.recipient = viewer`, so a recipient cannot retrieve a handoff, and the new packed subtest (`presence gates durable writes…`, green in [packed-recipes.log](snapback4/reports/wave15-rules5/packed-recipes.log)) only ever reads as the sender. The recipient disjunct is dead, untested authorization surface in a recipe whose §13.2 bullet claims recipient rules are enforced. Fix: add a recipient-pinned inbox query (e.g. `inboxHandoffs` over `.recipient = viewer`) and assert bob reads alice's handoff while carol sees nothing. Related and also missing: a negative enrollment witness (handoff to an unenrolled recipient should hit `E_RULE` from the `exists handoffPeers[.recipient]` leg — currently no test proves that leg fires; every failure in the subtest is `PEER_AWAY`).
+
+## What I verified (not assumed)
+
+- **No language/engine semantics changed.** The working-tree diff touches only the [§13 amendment](llp/3000.036.002-intent-aware-lints-and-bootstrap.rfc.md), [guide.rs wiring](snapback4/crates/snapback4-lang/src/guide.rs) (one concat line), [rules.md ladder blocks](snapback4/crates/snapback4-lang/src/guide/rules.md) (+73), the new [wave15 recipe file](snapback4/crates/snapback4-lang/src/guide/rule_recipes_wave15.md), the [guide.rs exact-note exception](snapback4/crates/snapback4-lang/tests/guide.rs), [CHANGELOG](snapback4/packages/snapback4/CHANGELOG.md), and [new subtests](snapback4/packages/snapback4/test/wave14-rule-recipes.test.mjs) (+122). No parser, binder, core, or wire changes. LANG4's two note bullets are correctly untouched.
+- **Refusal ladder is behavior-accurate.** Statement-order ladder, hidden-lookup-before-require, and hidden-unique suppression of the authored `else KEY_TAKEN` into `E_RULE` match the engine: [write.rs](snapback4/crates/snapback4-core/src/engine/write.rs) routes unreadable collisions to `rule_refusal` (E_RULE) and keeps named `E_UNIQUE` for readable ones. The three ladder subtests pin exactly the right codes, including `NOT_FOUND`-for-bob vs `CLOSED`-for-alice on the same closed row.
+- **Blind-write disclosure is intentional and precedented**, not a leak: success revealing the rule held matches the existing upsert-counter contract, and the teaching block's one `N_UNREADABLE_PROBE` is pinned by exact block match in `guide.rs`, warning against global-absence use. Privacy redaction (`KEY_TAKEN|ladderKeys|private` absent) is asserted on the dev `why`.
+- **Three-level recipe is genuinely admissible under [LLP 3000.014.000](llp/3000.014.000-live-parent-authority.rfc.md).** I checked the validators, not just the RFC: `schema.children()` counts only Through-children, so the ordinary `folder` reference to a live table does not trigger the no-descendants refusal; caps sit exactly on the live reference; the read-probe walk starts at the parent whose rule (`Eq(Field,Viewer) or Eq(Viewer,Literal)`) satisfies the closed predicate; both children are online-only. The flattened-root design is valid exactly under the stated condition (all levels share the root's readers).
+- **077/085 claims check out against recorded admission evidence.** [live-shapes.json](snapback4/reports/wave15-rules5/live-shapes.json): single-level inheritance admitted (`077-checks-live-section` ok), chain refused (`077-live-chain` E_READ_THROUGH ×3), cascade retained refused (`085-authority-cascade`, including the on-delete-restrict diagnostic), cascade removed admitted (`085-authority-restrict` ok). The survey script enforces read-only evidence handling. 100-schema census passes 100/100.
+- **Aggregate/transactional claims hold.** Sum/count over empty authorized groups yield 0 (confirmed by existing `intent_aggregate_safety` expectations, covering the new `{n:0,cents:0}` and `myAttemptTotal==0` assertions); meter-cut aggregates return unavailable rather than partial (supports the "complete or unavailable" prose); writer transactions serialize behind the engine lock (no booking oversell across concurrent reserves); `disclosure reviewed` on the booking `view` follows the wave-13/14 view precedent; job full-sweep and `periodStart/periodEnd` schedule form are paved patterns; 35s grace matches `PRESENCE_GRACE`.
+- **Executable qualification is recorded and green**, not merely compiled: all 10 new packed subtests pass with 0 failures against a freshly built binary, and `every_card_compiles_clean` passes with only the one taught probe note.
+
+## Optional improvements (non-blocking)
+
+- §13.3's 085 sentence should add half a clause: removing the cascade admits the *authority composition*, but the full lane still needs its `hymnUsage` totals reworked (`085-live-restrict` still fails `E_QUARRY_BOUND`). The survey proves both halves; the text currently implies cascade removal suffices.
+- Assert bob's `ancestorFolder` read post-transfer (currently only alice-side nulls plus the file are checked).
+- Cover: unenrolled-recipient `E_RULE`, cancel-without-booking, leave-without-join, multi-draft sweep coalescing, and the offline-queue/no-prediction presence path (prose-accurate per the prediction model, but unexercised). One sentence documenting that peer enrollment is operator-seeded would close the provisioning question.
+- The `role-guard-before-lookup` ladder sentence is true but unwitnessed; either add a two-line witness or leave as prose corollary.
+
+## Verdict
+
+**NOT READY.** Add the recipient inbox query plus its packed assertions (B1); consider the 085 clarification alongside. The remaining six recipes, the ladder, the amendment text, authority/privacy/transactional behavior, and the recorded qualification are sound, so re-review should be fast. I deliberately did not read the untracked round-1 review artifacts to keep this independent, and per the task constraints I ran no commands beyond read-only inspection with timeouts (evidence above comes from the checkout's own retained logs and code).

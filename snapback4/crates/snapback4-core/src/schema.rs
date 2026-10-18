@@ -16,6 +16,7 @@ use std::fmt;
 pub mod columns;
 pub mod reservations;
 pub mod through;
+pub mod live;
 pub(crate) mod time_audience;
 pub mod references;
 mod reference;
@@ -1108,6 +1109,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     issues.extend(ephemeral::validate(schema));
     issues.extend(field_authority::validate(schema));
     issues.extend(through::validate(schema));
+    issues.extend(live::validate(schema));
     issues.extend(references::validate(schema));
     timeline::validate(schema, &mut issues);
     time_audience::validate(schema, &mut issues);

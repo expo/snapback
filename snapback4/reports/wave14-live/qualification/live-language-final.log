@@ -1,0 +1,156 @@
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.30 (/home/ccheever/projects/sb4-w14-live/snapback4/crates/snapback4-core)
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+   Compiling snapback4-lang v0.4.30 (/home/ccheever/projects/sb4-w14-live/snapback4/crates/snapback4-lang)
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.30 (/home/ccheever/projects/sb4-w14-live/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 39.70s
+     Running tests/live_parent.rs (target/debug/deps/live_parent-a83a4ddfaf5de798)
+
+running 48 tests
+test raw_live_rule_literals_obey_scalar_admission ... ok
+test raw_schema_cannot_forge_live_caps_indexes_or_whole_rules_and_old_engines_refuse ... ok
+test unsupported_shapes_refuse_with_live_diagnostic ... ok
+test raw_live_constraints_cannot_depend_on_mutable_engine_inputs ... ok
+test captured_only_adoption_preserves_actual_small_row_compatibility ... ok
+test cap_restore_selects_a_plain_index_instead_of_word_entries ... ok
+test complete_or_parent_rule_and_extra_probe_equalities_stay_live_online ... ok
+test bulk_duplicate_images_replace_indexes_and_cap_failures_roll_back ... ok
+test live_parent_deletion_cannot_cross_a_physical_child_lifetime ... ok
+test fixed_budget_cut_rolls_back_the_parent_and_all_copies ... ok
+test null_reference_cap_exemptions_survive_mixed_schema_restore ... ok
+test own_write_reads_and_parent_pinned_denials_use_current_authority ... ok
+test whole_rule_moves_existing_rows_and_failure_rolls_everything_back ... ok
+test unrelated_sequence_restoration_advances_its_counter_in_a_live_schema ... ok
+test disagreeing_copy_adoption_is_atomic ... ok
+test live_to_captured_adoption_prepays_word_index_fanout ... ok
+test trusted_parent_restore_updates_off_input_children_and_bulk_input_is_bounded ... ok
+test expiring_cap_uses_live_occupancy_during_mixed_schema_restore ... ok
+test empty_live_edge_does_not_reprice_an_unrelated_captured_population ... ok
+test adoption_reserves_destination_index_sets_before_live_callback ... ok
+test dormant_bad_manual_copy_cannot_silently_adopt_live ... ok
+test seed_prepays_source_index_vectors_before_ordinary_upsert ... ok
+test reverse_manual_adoption_reserves_destination_index_sets ... ok
+test dormant_live_columns_do_not_exempt_a_manual_copy_from_forward_agreement ... ok
+test dormant_live_cap_changes_restamp_current_authority_and_validate_occupancy ... ok
+test column_only_live_provenance_survives_manual_transfer ... ok
+test dormant_narrowed_live_rows_restamp_after_a_parent_move ... ok
+test whole_dormant_live_table_restores_manual_authority_from_current_parent ... ok
+test manual_adoption_and_reverse_release_reconcile_dormant_cells ... ok
+test narrowed_live_provenance_survives_an_intermediate_manual_release ... ok
+test captured_only_store_adopts_live_after_dormant_cell_format_upgrade ... ok
+test restored_live_provenance_cannot_become_historical_captured_authority ... ok
+test narrowed_manual_source_does_not_become_live_from_column_shape ... ok
+test live_policy_reference_does_not_bind_a_retired_audience_lifetime ... ok
+test published_manual_copy_recipe_adopts_live_and_back_without_changing_row_ids ... ok
+test incompatible_dormant_live_child_does_not_reprice_an_active_manual_child ... ok
+test narrowed_live_reverse_restoration_admits_current_parent_before_fetch ... ok
+test reverse_manual_correspondence_cannot_rewrite_immutable_parent_binding ... ok
+test dormant_captured_to_live_requires_current_copy_agreement ... ok
+test dormant_live_cells_require_immediate_manual_agreement_for_captured_adoption ... ok
+test captured_only_narrowed_rollback_keeps_actual_image_admission ... ok
+test hidden_child_population_cannot_change_parent_write_meter_or_event_count ... ok
+test reverse_live_authority_reconciles_before_destination_narrowing ... ok
+test mixed_captured_and_live_cells_keep_independent_origin_after_narrowed_restore ... ok
+test unused_live_cell_does_not_replace_a_captured_rows_own_audience ... ok
+test bulk_restore_reserves_all_index_vectors_before_put ... ok
+test a_small_restore_ignores_large_unrelated_populations ... ok
+test unchanged_captured_policy_does_not_enumerate_its_population_on_restore ... ok
+
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.63s
+
+     Running tests/live_parent_admission.rs (target/debug/deps/live_parent_admission-010b3bada9df4706)
+
+running 2 tests
+test dormant_column_forward_check_admits_parent_before_fetch ... ok
+test narrowed_manual_forward_check_admits_parent_before_fetch ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+

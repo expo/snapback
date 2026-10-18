@@ -1,0 +1,1195 @@
+{
+  "method": "Exact apps/*/snapback/schema.q copied to private temporary projects; built CLI check --json, 20s per schema. No evidence app modified.",
+  "source": "bbc4b4a9fd (product unchanged at design commit 3b6df35e59)",
+  "summary": {
+    "schemas": 100,
+    "ok": 100,
+    "errors": 0,
+    "notes": 372
+  },
+  "schemas": [
+    {
+      "lane": "001-scaffold-tag-board",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "c8febf719b79b0fdad000c8d654aef38c7b5812630496c09bc778a58ccd69523"
+    },
+    {
+      "lane": "002-day2-pawn-ticket-desk",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_CONDITIONAL_COMPLETE": 1
+      },
+      "problems": [],
+      "input_sha256": "043d2173e8a539483d75ce7e1772c7cafc7382baa37da0ca2e916d8a3bc1305e"
+    },
+    {
+      "lane": "003-arc-reviewer-copies",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "45fa8110a59e53497eb7d29da1175f91bd6cb9d9e60f3c8de2357f53ffebcb49"
+    },
+    {
+      "lane": "004-day2-lease-takeover-board",
+      "exit": 0,
+      "ok": true,
+      "notes": 7,
+      "codes": {
+        "N_NO_CURSOR": 6,
+        "N_NEVER_COMPLETE": 1
+      },
+      "problems": [],
+      "input_sha256": "b4018816c78c2f6f1c30c18a3f207ddfc7ec8d6ad71409647a054b405f0427b3"
+    },
+    {
+      "lane": "005-duplicate-bridge-boards",
+      "exit": 0,
+      "ok": true,
+      "notes": 4,
+      "codes": {
+        "N_NO_CURSOR": 3,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "b9a738a215c2999038cf97ec8a1ef1a819d2c59f7d5af06c6b02ecd098f9a1e5"
+    },
+    {
+      "lane": "006-day2-accountant-access-windows",
+      "exit": 0,
+      "ok": true,
+      "notes": 3,
+      "codes": {
+        "N_NO_CURSOR": 1,
+        "N_NEVER_COMPLETE": 1,
+        "N_UNREADABLE_PROBE": 1
+      },
+      "problems": [],
+      "input_sha256": "2c904d90ffb7fe00eeb7f85617e5c5fe563c81f45936c03bc5a9e7ea7b5f0b38"
+    },
+    {
+      "lane": "007-docket-deadline-calendar",
+      "exit": 0,
+      "ok": true,
+      "notes": 14,
+      "codes": {
+        "N_NO_CURSOR": 8,
+        "N_NEVER_COMPLETE": 5,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "1f73092ae90dceb76cd20b0ea9c1abfff1f2084846feee80475ad2152ee94786"
+    },
+    {
+      "lane": "008-day2-yearbook-photo-consents",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NEVER_COMPLETE": 1
+      },
+      "problems": [],
+      "input_sha256": "bd03574ca2f2f429c0679bea8682f1955ddeb5dc6d86acb72eff64b43dbdc58d"
+    },
+    {
+      "lane": "009-propane-tank-readings",
+      "exit": 0,
+      "ok": true,
+      "notes": 9,
+      "codes": {
+        "N_NO_CURSOR": 8,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "535b53611df5f51b0048afd45b282d8bf10e0e704924383b5e7caf877fa882b5"
+    },
+    {
+      "lane": "010-day2-sponsor-read-approvals",
+      "exit": 0,
+      "ok": true,
+      "notes": 7,
+      "codes": {
+        "N_NO_CURSOR": 7
+      },
+      "problems": [],
+      "input_sha256": "667d77508b57a61f929f0ca40944c414aa8cd923ab361d9fab4f257d56d4b466"
+    },
+    {
+      "lane": "011-pet-addendum-approvals",
+      "exit": 0,
+      "ok": true,
+      "notes": 11,
+      "codes": {
+        "N_IMMUTABLE_PATCH": 2,
+        "N_NO_CURSOR": 5,
+        "N_UNREADABLE_PROBE": 2,
+        "N_MAINTAIN_DELTA": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "4af30b6c809cf89a0f6018eb21bb531b3b561691a94f66424927e7c9cd588b11"
+    },
+    {
+      "lane": "012-day2-classroom-observation-notes",
+      "exit": 0,
+      "ok": true,
+      "notes": 7,
+      "codes": {
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_CURSOR": 4,
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_NEVER_COMPLETE": 1
+      },
+      "problems": [],
+      "input_sha256": "598fc63b216a9c05ba5c72ddd443248ee7da07d0dc681af98d820aface3915d8"
+    },
+    {
+      "lane": "013-venue-date-holds",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "e1aa263bf6807e90b751cc8dc73013b3cfea22dee0655e4caa157885f8cc083b"
+    },
+    {
+      "lane": "014-day2-guarantor-pledges",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "ee700c2299ae29836a86306066872b79808dce238e46c4f1c14116b7c5dd63a7"
+    },
+    {
+      "lane": "015-waste-accumulation-clock",
+      "exit": 0,
+      "ok": true,
+      "notes": 2,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "0e12d12c27ac4302791b9f743f0321ae8cc4eaefbdb8d66a664eb5919e6fae27"
+    },
+    {
+      "lane": "016-day2-spoiler-shield-groups",
+      "exit": 0,
+      "ok": true,
+      "notes": 2,
+      "codes": {
+        "N_IMMUTABLE_PATCH": 1,
+        "N_CONDITIONAL_COMPLETE": 1
+      },
+      "problems": [],
+      "input_sha256": "7d13e9275db26e6e6ae86693b3d1472d123a48257fdf18eb83f088b87ca268f6"
+    },
+    {
+      "lane": "017-bike-serial-registry",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "c8552e4dac87762f7f9d6e5029881a5c69f844db2af84ff89c74fb414bfd62e0"
+    },
+    {
+      "lane": "018-day2-offer-letter-advisors",
+      "exit": 0,
+      "ok": true,
+      "notes": 7,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_CURSOR": 3,
+        "N_CONDITIONAL_COMPLETE": 2
+      },
+      "problems": [],
+      "input_sha256": "846371eb281e42a141e4f086ae4e87b158625d13d50ec24d75f642cf8eed35ae"
+    },
+    {
+      "lane": "019-four-h-project-records",
+      "exit": 0,
+      "ok": true,
+      "notes": 8,
+      "codes": {
+        "N_NO_CURSOR": 6,
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "7bfa7b859085c58ea6b224e52170ad055f76a0af35e21436a2e04296c0849e07"
+    },
+    {
+      "lane": "020-day2-shared-rolodex-notes",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "4a8e52acfb9c2045401a94d015c7cf07ee803a3b3c0ecea17a537e5432f6d2f8"
+    },
+    {
+      "lane": "021-barrel-shipment-consolidation",
+      "exit": 0,
+      "ok": true,
+      "notes": 4,
+      "codes": {
+        "N_NO_CURSOR": 3,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "71dc54cd8b3225c42b3f1c08ea628fa355d1c788f86c5a25496d4e94cb3cb351"
+    },
+    {
+      "lane": "022-day2-audit-evidence-requests",
+      "exit": 0,
+      "ok": true,
+      "notes": 3,
+      "codes": {
+        "N_NO_CURSOR": 3
+      },
+      "problems": [],
+      "input_sha256": "a2673f13ffb64b772682f942c73d799730df723077cd01b69fbdcdcdef8d88f8"
+    },
+    {
+      "lane": "023-reading-room-pulls",
+      "exit": 0,
+      "ok": true,
+      "notes": 3,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_NEVER_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "f0992cde0522e8e76ff033e39bda690b0c7f17547cb1adc807e570746eff7f46"
+    },
+    {
+      "lane": "024-day2-guest-curator-takeovers",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "7788335cd738abb3e44c12c4e4769a8ee9012ac95381a3219daa4d769dd8204c"
+    },
+    {
+      "lane": "025-dropzone-load-manifest",
+      "exit": 0,
+      "ok": true,
+      "notes": 4,
+      "codes": {
+        "N_MAINTAIN_DELTA": 2,
+        "N_CASCADE_DORMANT": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "0fdae6006dde23cd1c701199edf86b1c6c41b6227d1c22ebf7f386a6eb8efe0a"
+    },
+    {
+      "lane": "026-day2-vendor-subdelegation",
+      "exit": 0,
+      "ok": true,
+      "notes": 2,
+      "codes": {
+        "N_NO_CURSOR": 1,
+        "N_MAINTAIN_DELTA": 1
+      },
+      "problems": [],
+      "input_sha256": "6a2e38a0c0a25a28aa682e2ba84776bbe7870838bd7d8372f2cb08f4b248df24"
+    },
+    {
+      "lane": "027-understudy-readiness",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "46cf887113e80936a36201ba945eceeeaeba845f217bedc1ed066087ce303173"
+    },
+    {
+      "lane": "028-day2-proxy-assignments",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "026a737ffbc38449657494ca031f4958967ed24832184c99b2d0b60edeb3970d"
+    },
+    {
+      "lane": "029-color-formula-cards",
+      "exit": 0,
+      "ok": true,
+      "notes": 2,
+      "codes": {
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "f081542ef86503fec3bcccde8493a82deca1e2c1ff500667ac558483af745c2f"
+    },
+    {
+      "lane": "030-day2-contractor-site-windows",
+      "exit": 0,
+      "ok": true,
+      "notes": 2,
+      "codes": {
+        "N_SPARSE_FILTER": 2
+      },
+      "problems": [],
+      "input_sha256": "031eef1c4f8893a80ec53765cb34326f3545ff69ac076fdcb13013f4fd8efa8b"
+    },
+    {
+      "lane": "031-dismissal-change-requests",
+      "exit": 0,
+      "ok": true,
+      "notes": 10,
+      "codes": {
+        "N_NO_CURSOR": 9,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "cb694f83de1cf02ca73fa9666400a7c2692523bb2769dc6677a75a11b6329370"
+    },
+    {
+      "lane": "032-day2-expiring-team-notes",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_DELETE_NEEDS_READ": 1
+      },
+      "problems": [],
+      "input_sha256": "b63158965318bcb74fd0669725253ce96484b01e109bfea7b06141fc36b97876"
+    },
+    {
+      "lane": "033-cla-signature-ledger",
+      "exit": 0,
+      "ok": true,
+      "notes": 4,
+      "codes": {
+        "N_NEVER_COMPLETE": 1,
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_UNREADABLE_PROBE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "d65d8abf5d4e6564ab23061973a1e00710c89619c92f3d8802a7bd402cfd39cc"
+    },
+    {
+      "lane": "034-day2-access-receipts-log",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "94b8e7a6f9040d8842268c494921fe5ed4af3fb476af20af781d532c9ce17a0c"
+    },
+    {
+      "lane": "035-jersey-number-requests",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "703873713d339072dd83bbacec08d3dfb555792f2655ca6062e6bd1de555d3fa"
+    },
+    {
+      "lane": "036-day2-performance-report-routing",
+      "exit": 0,
+      "ok": true,
+      "notes": 7,
+      "codes": {
+        "N_NO_CURSOR": 7
+      },
+      "problems": [],
+      "input_sha256": "1ec649eb08d6077f01d47e62f36df8c56de409e554da0249a66a2af11417eb0f"
+    },
+    {
+      "lane": "037-magic-method-vault",
+      "exit": 0,
+      "ok": true,
+      "notes": 7,
+      "codes": {
+        "N_NO_CURSOR": 4,
+        "N_MAINTAIN_AUTHORIZATION": 1,
+        "N_MAINTAIN_DELTA": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "01314107bedbc5bacebb18faa304ee01bc53a88ea22831c3d91c832a3c8dff9f"
+    },
+    {
+      "lane": "038-day2-whiteboard-rooms",
+      "exit": 0,
+      "ok": true,
+      "notes": 2,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_EPHEMERAL_SERVER": 1
+      },
+      "problems": [],
+      "input_sha256": "d62262a84b3a12cccd816ec1b46358b7555cce06fe921e0b119c43ef5c5e473b"
+    },
+    {
+      "lane": "039-doula-backup-rotation",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "83725ac9fe29374b177fb5c3be1b8f4577e4d9a7590d14967c9e99edb46eaaf9"
+    },
+    {
+      "lane": "040-day2-audience-reactions",
+      "exit": 0,
+      "ok": true,
+      "notes": 8,
+      "codes": {
+        "N_NO_CURSOR": 8
+      },
+      "problems": [],
+      "input_sha256": "67c646c9005de382fba6a3cb359093fecbe4c5cc7aa315dc5a4c6503aa78d289"
+    },
+    {
+      "lane": "041-bite-quarantine-checks",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "03fc295f45edf92cd1d747d7ab646558a04f0365535b749aca57e9de4eab5ec1"
+    },
+    {
+      "lane": "042-day2-live-trip-pins",
+      "exit": 0,
+      "ok": true,
+      "notes": 4,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_CONDITIONAL_COMPLETE": 2,
+        "N_UNREADABLE_PROBE": 1
+      },
+      "problems": [],
+      "input_sha256": "55691f72ac81de667fee87365f12a8fe364eac197e3ea4d73edd7321aefb49b5"
+    },
+    {
+      "lane": "043-screen-time-tokens",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "d7f247a262bb1037b621a32670ab22c9cd4c7107aae3e3f511f8cfaf3de454fc"
+    },
+    {
+      "lane": "044-day2-mind-map-jam",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_DELETE_RESTRICTED": 1
+      },
+      "problems": [],
+      "input_sha256": "28dbe68310bc88a1c40e1a669ebd4309cc242718f013f7006e0c86f239737beb"
+    },
+    {
+      "lane": "045-heritage-plaque-applications",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "bd0aab2c011ae7e31a9414a2d7629ba0e9a7483aba1e1c3e0d391ef3f65a64c7"
+    },
+    {
+      "lane": "046-day2-bughouse-pairs",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "0a7a2724659b017f19a6847159134e232eb33c59a5b0f9b150aa0dc7a32fb43a"
+    },
+    {
+      "lane": "047-hot-work-permits",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "04aa9c04866c4650374f05a2e7478f4c1d28825652b71ea0c4f0ae4dd0cf7eca"
+    },
+    {
+      "lane": "048-day2-planning-poker-rooms",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "f063d9948de083f311e3b993382579ad43236afbcee1c93f6bedd80c7524e5b0"
+    },
+    {
+      "lane": "049-impound-release-desk",
+      "exit": 0,
+      "ok": true,
+      "notes": 14,
+      "codes": {
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_CURSOR": 7,
+        "N_LOOKUP_HIDDEN": 1,
+        "N_UNREADABLE_PROBE": 1,
+        "N_REFERENCE_UNCHECKED": 1,
+        "N_NO_PRODUCTION_WRITER": 3
+      },
+      "problems": [],
+      "input_sha256": "f93a5e481f42df988e537ff954592f41317cc362b7ec0d62edca267355368a3c"
+    },
+    {
+      "lane": "050-day2-battle-map-fog",
+      "exit": 0,
+      "ok": true,
+      "notes": 2,
+      "codes": {
+        "N_NEVER_COMPLETE": 1,
+        "N_PATCH_CLEARS": 1
+      },
+      "problems": [],
+      "input_sha256": "f8991e04a1e16fa65d934fbea4dabc4c676baf6239521aaff6e399ffb5b992e3"
+    },
+    {
+      "lane": "051-furniture-bank-pickups",
+      "exit": 0,
+      "ok": true,
+      "notes": 13,
+      "codes": {
+        "N_SPARSE_FILTER": 2,
+        "N_NO_CURSOR": 9,
+        "N_UNREADABLE_PROBE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "9bf435c53a97c9c363c1c5e0105d0f737a545cdf4cb860a73e99618affe84014"
+    },
+    {
+      "lane": "052-day2-live-budget-meeting",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_IMMUTABLE_PATCH": 1
+      },
+      "problems": [],
+      "input_sha256": "97308e9e0b47634d2fd5afb3e4034adc895aaa5f4b3590b02d5b53229c83201c"
+    },
+    {
+      "lane": "053-ballot-drop-box-sweeps",
+      "exit": 0,
+      "ok": true,
+      "notes": 7,
+      "codes": {
+        "N_NO_HORIZON": 1,
+        "N_MAINTAIN_AUTHORIZATION": 1,
+        "N_UNREADABLE_PROBE": 1,
+        "N_MAINTAIN_SYNCED": 1,
+        "N_SYNC_ORDER": 1,
+        "N_CASCADE_DORMANT": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "1fe7fe4493151750f4d00a6d22510e6c999096cd4abd0f7e3d990e306ea895d0"
+    },
+    {
+      "lane": "054-day2-write-in-sprints",
+      "exit": 0,
+      "ok": true,
+      "notes": 5,
+      "codes": {
+        "N_NO_CURSOR": 5
+      },
+      "problems": [],
+      "input_sha256": "0972fce1663a69f70cd7c370d827d7f6b35f57f1e28ab31e82313811ca30e61d"
+    },
+    {
+      "lane": "055-shellfish-harvest-closures",
+      "exit": 0,
+      "ok": true,
+      "notes": 4,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_NO_HORIZON": 1,
+        "N_NO_CURSOR": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "4f206bf17d948d46d71761538c253a07d3fade1dd26957efb33c973483e0250b"
+    },
+    {
+      "lane": "056-day2-unconference-grid",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "fb0d34f7cc5611f3e0ccf3f098ef0f0e631fa0ff593854b4463224a4ea6da82f"
+    },
+    {
+      "lane": "057-guest-stay-limits",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "69c160b05227e0e3e9779583554ae757a6ba526ecdd08a365feee3eb6a524141"
+    },
+    {
+      "lane": "058-day2-precinct-poll-book",
+      "exit": 0,
+      "ok": true,
+      "notes": 3,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_WIDE_MERGE": 2
+      },
+      "problems": [],
+      "input_sha256": "aa6ff1cb37d151d9d62de0844dc3543a717abe9eb8ab679737dc3096bdcb4794"
+    },
+    {
+      "lane": "059-poster-session-gallery",
+      "exit": 0,
+      "ok": true,
+      "notes": 5,
+      "codes": {
+        "N_IMMUTABLE_PATCH": 2,
+        "N_NEVER_COMPLETE": 1,
+        "N_DELETE_RESTRICTED": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "9d4295eaa846ad07501429b841d64b6f6fe8cea1a74ebf6529118f2cd120d55c"
+    },
+    {
+      "lane": "060-day2-rig-safety-walkdown",
+      "exit": 0,
+      "ok": true,
+      "notes": 6,
+      "codes": {
+        "N_NO_HORIZON": 1,
+        "N_NO_CURSOR": 5
+      },
+      "problems": [],
+      "input_sha256": "3d5d2af13071daf857af1b23abdf467b365a3569af5fda68bdbd87ca91f9ec1d"
+    },
+    {
+      "lane": "061-burn-permit-days",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "d637c91a6bbaf20ec19831dc48c50c1d477badf629a51b49cd621b03890d2015"
+    },
+    {
+      "lane": "062-day2-auction-lot-walk",
+      "exit": 0,
+      "ok": true,
+      "notes": 14,
+      "codes": {
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_HORIZON": 4,
+        "N_NO_CURSOR": 9
+      },
+      "problems": [],
+      "input_sha256": "5ee5c584234aad11ebb35f5904990d12e17696d2395d25ac3c6ad98be79d9fa9"
+    },
+    {
+      "lane": "063-exhibit-label-review",
+      "exit": 0,
+      "ok": true,
+      "notes": 6,
+      "codes": {
+        "N_NO_CURSOR": 5,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "e923c5e6a30295cfa2f31f8b54caa424a4ae8dedd02399b5f2a879e36429b80f"
+    },
+    {
+      "lane": "064-day2-field-sales-orders",
+      "exit": 0,
+      "ok": true,
+      "notes": 8,
+      "codes": {
+        "N_NO_HORIZON": 2,
+        "N_NO_CURSOR": 5,
+        "N_NEVER_COMPLETE": 1
+      },
+      "problems": [],
+      "input_sha256": "2fa38e135efeb2c7a05fde1a7e65852f0cdb069f90e561172de369dcfbe7b091"
+    },
+    {
+      "lane": "065-quiz-pack-exchange",
+      "exit": 0,
+      "ok": true,
+      "notes": 5,
+      "codes": {
+        "N_MAINTAIN_DELTA": 1,
+        "N_MAINTAINED_COLUMN_DISCLOSURE": 2,
+        "N_NO_PRODUCTION_WRITER": 2
+      },
+      "problems": [],
+      "input_sha256": "eef018823201755722bed356f75877060647c7f0fa11e649b0767deaae5241c5"
+    },
+    {
+      "lane": "066-day2-sale-barn-weighins",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_CURSOR": 1
+      },
+      "problems": [],
+      "input_sha256": "6b7b4395ddd6921197dd6eab8ad813eea5499d9e5aa01732a9abc5298b3d78a0"
+    },
+    {
+      "lane": "067-two-bin-reorder-cards",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "d95606459d4abbff09a763af95ae24e280cca7b4a5de1c4416651d70962ded60"
+    },
+    {
+      "lane": "068-day2-claim-photo-packets",
+      "exit": 0,
+      "ok": true,
+      "notes": 7,
+      "codes": {
+        "N_NO_CURSOR": 7
+      },
+      "problems": [],
+      "input_sha256": "1d2d1702042b2647c7b506660589e29f7312a5f59320d54f1583443653c163bb"
+    },
+    {
+      "lane": "069-sealed-preregistration",
+      "exit": 0,
+      "ok": true,
+      "notes": 4,
+      "codes": {
+        "N_NO_CURSOR": 3,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "1636e734b93007501be18dfcacf977edede16e5c2830a4442ada4ef50454324d"
+    },
+    {
+      "lane": "070-day2-vintage-photo-id",
+      "exit": 0,
+      "ok": true,
+      "notes": 3,
+      "codes": {
+        "N_NEVER_COMPLETE": 3
+      },
+      "problems": [],
+      "input_sha256": "055929f3b6238c6de3f3ab110bc712a53b33ce538d3df14a5ceec1fc43825ca6"
+    },
+    {
+      "lane": "071-daycare-milk-bottles",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "96bfb2a8b897efe0e29f19f1b938a7e11506fcbc526a3d62e1735bce2bd2971e"
+    },
+    {
+      "lane": "072-day2-speech-video-feedback",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_CURSOR": 1
+      },
+      "problems": [],
+      "input_sha256": "78dec5bf9229b3306088fc4594d0afd98be9309b5cba6ce5e66e37306eb0b74d"
+    },
+    {
+      "lane": "073-ditch-rider-water-turns",
+      "exit": 0,
+      "ok": true,
+      "notes": 2,
+      "codes": {
+        "N_NO_HORIZON": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "e8964f138fd6e5388df8d27e6e24ffbfbea87bd067f730c16399efd4bcdee2b5"
+    },
+    {
+      "lane": "074-day2-thrift-resale-listings",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_SPARSE_FILTER": 1
+      },
+      "problems": [],
+      "input_sha256": "7af60259318a5fdcbcfbe689d6b1736880c5209bd103b95e35c5535fa6769515"
+    },
+    {
+      "lane": "075-rain-check-desk",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "2f7de85efbcb32846f00fa52be69baed0e3148bd7b7f21c644187b02d98d0d96"
+    },
+    {
+      "lane": "076-day2-podcast-rough-cuts",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "e3530d2251a40ff9a911769c03fbdd1540cc3ccaef2017e295bc0ffa1724ff2a"
+    },
+    {
+      "lane": "077-practicum-placements",
+      "exit": 0,
+      "ok": true,
+      "notes": 6,
+      "codes": {
+        "N_IMMUTABLE_PATCH": 2,
+        "N_NEVER_COMPLETE": 1,
+        "N_CASCADE_DORMANT": 2,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "7b91f2a7d2e65ab8504970902ea3234c190096c1215183589936e983e2e35d42"
+    },
+    {
+      "lane": "078-day2-herbarium-scans",
+      "exit": 0,
+      "ok": true,
+      "notes": 4,
+      "codes": {
+        "N_SPARSE_FILTER": 2,
+        "N_MAINTAIN_DELTA": 1,
+        "N_DELETE_NEEDS_READ": 1
+      },
+      "problems": [],
+      "input_sha256": "fafc18b2734b5b75fe35f58f3a154580b71fb34ab852950d85c0075f84a4a824"
+    },
+    {
+      "lane": "079-stop-headcount-tally",
+      "exit": 0,
+      "ok": true,
+      "notes": 10,
+      "codes": {
+        "N_NO_HORIZON": 1,
+        "N_NO_CURSOR": 4,
+        "N_NEVER_COMPLETE": 2,
+        "N_UNREADABLE_PROBE": 1,
+        "N_REQUIRE_REFUSED": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "82dfc937fa912b1954009178c7092bc13373ca874def34aac9e620ef770ed361"
+    },
+    {
+      "lane": "080-day2-fuel-price-board",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "0034efc47f4eca79af28fc71424800a2ee0bbfa74b0d97ecef08f2ba4c6441c8"
+    },
+    {
+      "lane": "081-roster-lock-window",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "92d480666914ec8b48884269346b435b83bb76f9921a867742f5eb12a9e90c6a"
+    },
+    {
+      "lane": "082-day2-public-collections",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NEVER_COMPLETE": 1
+      },
+      "problems": [],
+      "input_sha256": "8e4943a8192016b4ddd6e15327f1b4e9ef5fd040faa1d9fde67bdbd5c16592ae"
+    },
+    {
+      "lane": "083-cube-comp-scrambles",
+      "exit": 0,
+      "ok": true,
+      "notes": 11,
+      "codes": {
+        "N_SPARSE_FILTER": 3,
+        "N_NO_HORIZON": 1,
+        "N_NO_CURSOR": 6,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "130b90d76c70e53b595b758c6a25b9a931514f543920f06a30359735f6ff401a"
+    },
+    {
+      "lane": "084-day2-policy-handbook-acks",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "96eeecefd375c2a122dfaf714f79e7a7e2ae4a077be441d576759433043eb18d"
+    },
+    {
+      "lane": "085-patient-grievance-clock",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "7924824ff67f5fab2af01ea9a5dd520d4c95443a51a3884e569c7822a6c4389e"
+    },
+    {
+      "lane": "086-day2-expiring-album-links",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "507b848ef2cd6bfb37b12418e22f6bbc76d5ee3088efe158d8352e161a022b71"
+    },
+    {
+      "lane": "087-ppe-issue-ledger",
+      "exit": 0,
+      "ok": true,
+      "notes": 4,
+      "codes": {
+        "N_NO_CURSOR": 3,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "839105becbf9eb6b7d6f44f5a8b0939451bd24312becffc4d4a87622c1dc1171"
+    },
+    {
+      "lane": "088-day2-heat-complaint-log",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "015e801ae94a320510087795f8ab41af636a4bd51d58763b2409bc71413a50b2"
+    },
+    {
+      "lane": "089-custody-handoff-bag",
+      "exit": 0,
+      "ok": true,
+      "notes": 6,
+      "codes": {
+        "N_NO_CURSOR": 5,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "fcd8d00ce6eee8a6ae61a7432988838efb639a1e1b5052ef346a8a6a7f217cd1"
+    },
+    {
+      "lane": "090-day2-piano-tuning-routes",
+      "exit": 0,
+      "ok": true,
+      "notes": 8,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_IMMUTABLE_PATCH": 1,
+        "N_LOOKUP_HIDDEN": 6
+      },
+      "problems": [],
+      "input_sha256": "58c05818dcc1cbe31e370949b5ed36e8856373db4d9fc6483397e0c0f4659ad6"
+    },
+    {
+      "lane": "091-summit-register-book",
+      "exit": 0,
+      "ok": true,
+      "notes": 11,
+      "codes": {
+        "N_NO_HORIZON": 2,
+        "N_NO_CURSOR": 6,
+        "N_UNREADABLE_PROBE": 1,
+        "N_SYNC_ORDER": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "f105a3f84b577be19114e1355edc8c551daa0384f848910aae804a5c17c45383"
+    },
+    {
+      "lane": "092-day2-shot-list-coordination",
+      "exit": 0,
+      "ok": true,
+      "notes": 2,
+      "codes": {
+        "N_NO_CURSOR": 1,
+        "N_DELETE_NEEDS_READ": 1
+      },
+      "problems": [],
+      "input_sha256": "c6bd7e150533fe33acb0b660751c30c69672cb483c1598c2d4265a3ce3b67487"
+    },
+    {
+      "lane": "093-backflow-test-reports",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "429feb69b28796d8679b9852b611a6e7827d0959e02a1cba412cc93692e061f5"
+    },
+    {
+      "lane": "094-day2-conduct-incident-intake",
+      "exit": 0,
+      "ok": true,
+      "notes": 1,
+      "codes": {
+        "N_NO_CURSOR": 1
+      },
+      "problems": [],
+      "input_sha256": "088af5f2ba6d210e7eb790fc40ea2a779aba8c7ed7eab540eac82a4f32557718"
+    },
+    {
+      "lane": "095-litter-pick-order",
+      "exit": 0,
+      "ok": true,
+      "notes": 2,
+      "codes": {
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "acc45121e220b91b7ca39da7be2b5c48e53966b85c76c016db754d942dc6268b"
+    },
+    {
+      "lane": "096-day2-bowling-handicaps",
+      "exit": 0,
+      "ok": true,
+      "notes": 12,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_NO_CURSOR": 11
+      },
+      "problems": [],
+      "input_sha256": "d8e9a83463e39cce8420f21df87ce17e470b852d7a20ac3a98e745f83378c47a"
+    },
+    {
+      "lane": "097-giving-circle-pitches",
+      "exit": 0,
+      "ok": true,
+      "notes": 9,
+      "codes": {
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_CURSOR": 7,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "5a5d1ff8c24fece0c6dbcd4b8c54985ac118aafe21372c43cf282451fe0a7758"
+    },
+    {
+      "lane": "098-day2-listener-voicemail",
+      "exit": 0,
+      "ok": true,
+      "notes": 4,
+      "codes": {
+        "N_NO_CURSOR": 4
+      },
+      "problems": [],
+      "input_sha256": "f00fb9f0f962247294c8057e2d1505dd8299c476d8dd994cdfbbd15f108c4a0b"
+    },
+    {
+      "lane": "099-busking-pitch-rota",
+      "exit": 0,
+      "ok": true,
+      "notes": 3,
+      "codes": {
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_CURSOR": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "problems": [],
+      "input_sha256": "39cfbc54a0d4e48f8c9ef812e11d6aeb0d0880906abb98027561f509448df916"
+    },
+    {
+      "lane": "100-day2-pen-name-contest",
+      "exit": 0,
+      "ok": true,
+      "notes": 0,
+      "codes": {},
+      "problems": [],
+      "input_sha256": "ab083960dfee498dea6690c33fa861e3bf7c3172e24daaecbe90560647e35ea4"
+    }
+  ],
+  "prior_rules4_note_deltas": [
+    {
+      "lane": "063-exhibit-label-review",
+      "rules4": 7,
+      "live_baseline": 6
+    },
+    {
+      "lane": "065-quiz-pack-exchange",
+      "rules4": 6,
+      "live_baseline": 5
+    }
+  ],
+  "comparison_note": "Current evidence corpus differs in note counts from retained RULES4 survey; no LIVE product source change. Future comparison must use matching input hashes."
+}

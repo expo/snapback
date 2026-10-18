@@ -1,0 +1,15 @@
+Command: ['python3', '/tmp/live-final-survey.py']
+{
+  "method": "Exact apps/*/snapback/schema.q copied to private temporary projects; built CLI check --json, 20s per schema. No evidence app modified.",
+  "source": "edcbd2e479; frozen final CLI artifact",
+  "binary_sha256": "d0bbc928d78f2c804c83901f6334c29d8a90d0f887f2625123f0d11502764a55",
+  "summary": {
+    "schemas": 100,
+    "ok": 100,
+    "errors": 0,
+    "notes": 372
+  },
+  "baseline": "schema-before.json, bbc4b4a9fd",
+  "changed_inputs": [],
+  "changed_verdicts": []
+}

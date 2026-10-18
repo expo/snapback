@@ -548,3 +548,28 @@ fn read_authority_preserves_scope_cap_and_generation() {
     assert!(live_session(&tx, "read", 49).unwrap().is_none());
     tx.rollback().unwrap();
 }
+
+#[test]
+#[ignore = "requires isolated local Postgres"]
+fn live_adoption_rebuilds_indexes_from_rows_and_keeps_transfer_and_restore_atomic() {
+    use crate::rows::{Bounds,Dir};
+    let source=include_str!("../../../../snapback4-lang/tests/fixtures/live-parent.q");
+    let bind=|source:&str| {
+        let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let schema:Schema=serde_json::from_str(&serde_json::to_string(&b.schema).unwrap()).unwrap();
+        let programs=b.programs.into_iter().map(|p|serde_json::from_str::<Program>(&serde_json::to_string(&p.program).unwrap()).unwrap()).collect::<Vec<_>>();(schema,programs)
+    };
+    let (schema,programs)=bind(source);let url=std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();let name=format!("sb4_eval_live_{:x}",crate::ids::seed());
+    let mut e=PostgresEngine::create(Client::connect(&url,postgres::NoTls).unwrap(),&name,schema,programs).unwrap();
+    e.seed_at([("projects".into(),object([("id",Value::Id("p".into())),("owner",Value::Id("alice".into()))])),("tasks".into(),object([("id",Value::Id("c".into())),("project",Value::Id("p".into())),("body",Value::String("private".into()))]))],100).unwrap();
+    let (schema,programs)=bind(&format!("{source}\ntable unrelated:\n  public 'unrelated'\n  online only\n"));e.adopt_at(schema,programs,101).unwrap();
+    {let tx=e.store.transaction(None).unwrap();assert_eq!(tx.scan("tasks","byId",&[],&Bounds::default(),Dir::Asc,10).unwrap().len(),1);assert_eq!(tx.scan("tasks",crate::schema::through::LIVE_CHILDREN,&[Value::Id("p".into())],&Bounds::default(),Dir::Asc,3).unwrap().len(),1);tx.rollback().unwrap();}
+    let args=|owner:&str|Context::new("alice",[("project".into(),Value::Id("p".into())),("owner".into(),Value::Id(owner.into()))].into()).at(102);
+    assert!(matches!(e.mutate("transferAndFail",None,args("bob")).unwrap().state,WriteState::Failed{..}));
+    for (who,count) in [("alice",1),("bob",0)] {let out=e.query("all",Context::new(who,[("project".into(),Value::Id("p".into()))].into()).at(102)).unwrap();assert_eq!(out.data.as_array().unwrap().len(),count);}
+
+    assert!(matches!(e.mutate("transfer",None,args("bob")).unwrap().state,WriteState::Sent{..}));
+    let query=|who:&str|Context::new(who,[("project".into(),Value::Id("p".into()))].into()).at(103);
+    assert!(e.query("all",query("alice")).unwrap().data.as_array().unwrap().is_empty());assert_eq!(e.query("all",query("bob")).unwrap().data.as_array().unwrap().len(),1);
+    e.load_trusted([("projects".into(),object([("id",Value::Id("p".into())),("owner",Value::Id("carol".into()))]))],104).unwrap();assert!(e.query("all",query("bob")).unwrap().data.as_array().unwrap().is_empty());assert_eq!(e.query("all",query("carol")).unwrap().data.as_array().unwrap().len(),1);
+}

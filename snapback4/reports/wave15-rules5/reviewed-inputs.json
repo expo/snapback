@@ -1,0 +1,7 @@
+{
+  "llp/3000.036.002-intent-aware-lints-and-bootstrap.rfc.md": "ebdda1087f902341ff8cdda35e72e23d08571adc46df5aad5998d5ba28659bed",
+  "snapback4/crates/snapback4-lang/src/guide/rules.md": "1f632b17a521c647e6001b6105253ebd3b8723efb4450d24e47e31ac49d007f3",
+  "snapback4/crates/snapback4-lang/src/guide/rule_recipes_wave15.md": "e400f6e929c1437e446ddae6c6b35f022bb78612adf7a25e81ca41e36f1f0b27",
+  "snapback4/crates/snapback4-lang/tests/guide.rs": "ff5eb80e3a840b06bdd895ce7b626c979ab1412da63846a46220099ea8ecfe62",
+  "snapback4/packages/snapback4/test/wave14-rule-recipes.test.mjs": "b2d6fe083cb6a826eb6b0af3462079c2637bbba81514076265ee527a51cb790c"
+}

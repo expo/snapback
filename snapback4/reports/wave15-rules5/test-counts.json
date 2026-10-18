@@ -1,0 +1,780 @@
+{
+  "note": "Per-log counts include failed/setup/timeout attempts. Do not sum duplicate reruns. Only completed Rust targets are counted; in-flight successful cases before timeout are excluded. Final unique scope counts use successful replacements of corrected test targets. Original relative log paths and bytes are preserved inside raw-logs.tar.gz; per-log hashes bind the decompressed bytes.",
+  "completedScopes": {
+    "cli": {
+      "passed": 1303,
+      "ignored": 15,
+      "method": "Completed CLI portion of full-cargo.log."
+    },
+    "core": {
+      "passed": 765,
+      "ignored": 5,
+      "method": "748 unit/integration tests in full-engine-crates.log +17 doctests in core-docs.log."
+    },
+    "language": {
+      "passed": 2156,
+      "ignored": 14,
+      "method": "513 before old compatibility failure in full-language-recovered.log +1641 passed in language-remainder.log +2 formerly failed guide guards, successfully replaced by guide-inventory-recovered.log. Compatibility replacement already included in remainder. Doctests: zero tests, success."
+    },
+    "device": {
+      "passed": 1569,
+      "ignored": 4,
+      "method": "Complete mac-full-device.log invocation, exit 0. Also covered by Linux partial/remainder and selected Mac disclosure files."
+    },
+    "simulation": {
+      "passed": 749,
+      "ignored": 7,
+      "method": "Complete full-sim.log invocation, exit 0."
+    }
+  },
+  "recoveredCommandExits": {
+    "full-language-recovered": 101,
+    "language-remainder": 101,
+    "guide-inventory-recovered": 0,
+    "language-docs-recovered": 0,
+    "mac-compat-recovered": 0,
+    "mac-guide-inventory-recovered": 0,
+    "mac-full-device": 0,
+    "packed-recipes-final-source": 0,
+    "ref-check-final-source": 0
+  },
+  "logs": {
+    "affected-clients.log": {
+      "sha256": "75d75a31e12413eb01873b9e8514b6a416c23380393885ead02823fec4a8d4cc",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [
+        3
+      ],
+      "nodeFailed": [
+        2
+      ]
+    },
+    "baseline-build.log": {
+      "sha256": "34127ff2b752f442d3dd61c67091b0efb490db20b5c409dc1c57d5aa0a986f02",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "baseline-cli-build.log": {
+      "sha256": "236bb5f990b337f1a2c23ca5e614fd065f98922ca9e27a2afeb33411ad719e75",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "baseline-devices.log": {
+      "sha256": "010fcef537daf5e488c51448d2c9624409465328ff4dedbc76b8ca96459acc98",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "baseline-lean.log": {
+      "sha256": "ef49fb8c1f0f60edce4420a81469cb93f4a1e7d42ca5168ee59c1db11d36782a",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "baseline-run.log": {
+      "sha256": "cae63f9239ecd94d7d146be574c485d9db33dd51e86ab42609587cd457c6d3f3",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "cli-build-final-source.log": {
+      "sha256": "d3eb5a81b1b24be5f18a0e6f07cbcf44f30ebed0a6cbad8355565d7b80d8217e",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "cli-build-final.log": {
+      "sha256": "97f98e2ce8d9a8229c6125033940084dc1667df5708f1dc056171af419cb0567",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "cli-build-recovered.log": {
+      "sha256": "c1a4b964252c95fddcab9a770f6c2072cfb325e4c2d152bd654de5ee16619fdd",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "cli-build.log": {
+      "sha256": "091a1403d6e3a29224c50d2ebc93d1c17a5e66a75b1b786f66274fd4544859ef",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "client-presence-serial.log": {
+      "sha256": "24417e84a7a03f0c5d71dd20147d59a7aaa90f8ef13841c785fd074dc54c5ccd",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [
+        3
+      ],
+      "nodeFailed": [
+        0
+      ]
+    },
+    "client-residency.log": {
+      "sha256": "c37f1d3ffad53c41234341e9970bf5464cbdc27b8201f6407c7e0ce1ae5efc81",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [
+        10
+      ],
+      "nodeFailed": [
+        0
+      ]
+    },
+    "contract-artifacts.log": {
+      "sha256": "f849595db2fec177a3e608777e26278a982500e53fef711417694de6324b0d45",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "contract-install.log": {
+      "sha256": "7a785ad0c1bd9f4caee8a24a5ebfb58fe2cd2ab7b616786bd1d0bbfa5c12a7b1",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "core-docs.log": {
+      "sha256": "6b0b56276ba974217b4d27ca06e58c6b3ea00e962873b11397b1fdf3ab0b4c8b",
+      "completedRustTargets": 1,
+      "rustPassed": 17,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "core-integration-remainder.log": {
+      "sha256": "0fbe060fe48b990d050ebb37442cb1c04c4d6c3e6070271d2abbf0f927aa1ed8",
+      "completedRustTargets": 42,
+      "rustPassed": 378,
+      "rustFailed": 0,
+      "rustIgnored": 2,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "device-readauth-final.log": {
+      "sha256": "c0e23458540eaea508b6ab42e3c0324c591e337032a3c3859f4116e2be7d9506",
+      "completedRustTargets": 1,
+      "rustPassed": 88,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "device-readauth.log": {
+      "sha256": "c700844ae3550439b8f9ad14a09f8d6e0e3d1d87eb34841a8873adfd602a0a06",
+      "completedRustTargets": 1,
+      "rustPassed": 87,
+      "rustFailed": 1,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "device-remainder.log": {
+      "sha256": "c438164a90bf13dbde77183b62e3c1cf8a19849247ddfbfb6917556f6e65e838",
+      "completedRustTargets": 29,
+      "rustPassed": 308,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "diff-devices.log": {
+      "sha256": "8afec7b5fbcf64438415b5ca4a1295871a7948fcaeb7aca6105209c700dd104f",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "diff-lean.log": {
+      "sha256": "04e731417f1503425ac2f2726365f562af3df54928fcbed34d2eba7068616d15",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "diff-run.log": {
+      "sha256": "6477330b92071990165eb6d770278bf6f51b30b2d90d7dabe8c46b4cb23364c7",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "difftest-build.log": {
+      "sha256": "b4983d178214fa66780ad262ebb4dc321a7058eb78f6542f6d3ed998012e27e1",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "difftest-tests.log": {
+      "sha256": "33d032ea35f5d8d18661491ef458690ead2ed24b3b4c1e8d30a76ec02c7cdd3c",
+      "completedRustTargets": 12,
+      "rustPassed": 96,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "docs-budget-current.log": {
+      "sha256": "a1e25465c9cf594a08dceec879955ff4619c78dce215e360904aa33e6206ac73",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "docs-budget-final.log": {
+      "sha256": "a1e25465c9cf594a08dceec879955ff4619c78dce215e360904aa33e6206ac73",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "docs-budget-pass.log": {
+      "sha256": "3718eab5ba011ca109a2b232fb7a5bacb3666b95ff7e57d953f022b9d54188b8",
+      "completedRustTargets": 1,
+      "rustPassed": 1,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "docs-budget.log": {
+      "sha256": "a1e25465c9cf594a08dceec879955ff4619c78dce215e360904aa33e6206ac73",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "full-cargo.log": {
+      "sha256": "5894dc559170e4f145c86fc19a9b8dc3bbb5a2acf57462fc58daeab3998bdb79",
+      "completedRustTargets": 74,
+      "rustPassed": 1744,
+      "rustFailed": 0,
+      "rustIgnored": 19,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "full-device.log": {
+      "sha256": "a7dd9667c3c6698f49d3a153747f679987274e558d7ec09a9f7b39c8d0e8f07a",
+      "completedRustTargets": 73,
+      "rustPassed": 1255,
+      "rustFailed": 0,
+      "rustIgnored": 4,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "full-engine-crates.log": {
+      "sha256": "e26ed03ed54a252225c44e51e29e40a42285d0dc83a1890c43e12a08d9cce69a",
+      "completedRustTargets": 78,
+      "rustPassed": 1471,
+      "rustFailed": 0,
+      "rustIgnored": 7,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "full-language-recovered.log": {
+      "sha256": "6767b2fd3c9a9e9544302abbbec188d06c6b031969bc53ec45c1c33f50294c7e",
+      "completedRustTargets": 27,
+      "rustPassed": 513,
+      "rustFailed": 1,
+      "rustIgnored": 6,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "full-language.log": {
+      "sha256": "0805aed03d51168b1c26ca2dcc23f15bb3c7c528c8996feb64e62774ad36fa75",
+      "completedRustTargets": 17,
+      "rustPassed": 437,
+      "rustFailed": 2,
+      "rustIgnored": 5,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "full-sim.log": {
+      "sha256": "6b861a4beb7b87d60d7d111943e48c8b7d120cfc97950d3e226b5391ed541ce8",
+      "completedRustTargets": 45,
+      "rustPassed": 749,
+      "rustFailed": 0,
+      "rustIgnored": 7,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "generated-artifacts.log": {
+      "sha256": "547f3e32fab601015b71a19111d7dcb86de8a399d4d184e924ab409457b3d762",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "guide-compile.log": {
+      "sha256": "540984178eb2a363d753917526a4dc5b57cbb7c8386744ff9bd393a8ed4ca3ea",
+      "completedRustTargets": 1,
+      "rustPassed": 1,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "guide-full.log": {
+      "sha256": "bd578256d9d18516dedb4dfda83faf827a062722a69191a05d438df7e059701f",
+      "completedRustTargets": 1,
+      "rustPassed": 125,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "guide-inventory-recovered.log": {
+      "sha256": "95e36efac9a325dfbc75516d1ed940da2f3de7d98c0157485effe9724d151912",
+      "completedRustTargets": 3,
+      "rustPassed": 143,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "inventories-extra.log": {
+      "sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "inventories-final.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "inventories-final2.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "inventories-pass.log": {
+      "sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "inventories-qualified.log": {
+      "sha256": "b9df48a62431079f729f30e27132fdb03d5f66a195ab2a311a7bea82563d8264",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "inventories.log": {
+      "sha256": "718ab9aa4b63e45fa9b5bdc530017b4b3702650fbdd62a2efcf076e4d37152fc",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "inventory-components.log": {
+      "sha256": "5513074e3b2303780af4ffb55f0bcb79ae7d73b9d36f28da71ea78090d13e5ac",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "lang-allocation-replay.log": {
+      "sha256": "3b82e0a4f371cea3f40e3a8ea5233ca1f301d48b6b8652162c2ecca53317530e",
+      "completedRustTargets": 1,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "language-docs-recovered.log": {
+      "sha256": "4264b66510476017831759384b0a2568d98f42de6dd3d7e552598592e3586109",
+      "completedRustTargets": 1,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "language-remainder.log": {
+      "sha256": "947b42b952610ba8e4212a5ef6cb22643ee5f6718c84ea0d4dee8c59d47d13a3",
+      "completedRustTargets": 135,
+      "rustPassed": 1641,
+      "rustFailed": 2,
+      "rustIgnored": 8,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "lean-build.log": {
+      "sha256": "c78c24b52cbe97cd4888eae2e56f1d296827d55c0dda908a05bae1ecf63d8623",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "mac-affected-final.log": {
+      "sha256": "e2c31c922770253e2836b5f88e2a8b148f11aa8d3d086e533ffae6a605fcf00b",
+      "completedRustTargets": 3,
+      "rustPassed": 175,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [
+        22
+      ],
+      "nodeFailed": [
+        0
+      ]
+    },
+    "mac-affected.log": {
+      "sha256": "a2fa157c044b3053bce1587a061813843ee117e4689bad7feb909b483d97c8be",
+      "completedRustTargets": 1,
+      "rustPassed": 123,
+      "rustFailed": 2,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "mac-compat-recovered.log": {
+      "sha256": "e5adc17c4fcb94074377ce70ffce49ccac769f0c0429c50829cccdb36d3d100c",
+      "completedRustTargets": 2,
+      "rustPassed": 126,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "mac-disclosure.log": {
+      "sha256": "0f00c27df12b712e4bf43ee056ce667468f617f45803792a6d7f2fba82913ba2",
+      "completedRustTargets": 1,
+      "rustPassed": 21,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "mac-final.log": {
+      "sha256": "8a85fd97104e3acdf319b4804d0815d84e60c7fca87a80d1a489a169cc27b730",
+      "completedRustTargets": 3,
+      "rustPassed": 175,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [
+        22,
+        15
+      ],
+      "nodeFailed": [
+        0,
+        0
+      ]
+    },
+    "mac-full-device.log": {
+      "sha256": "a87d013a1a0f10a7f24ce5727a1262c269702b4fafa9368fd57b765110f99a69",
+      "completedRustTargets": 103,
+      "rustPassed": 1569,
+      "rustFailed": 0,
+      "rustIgnored": 4,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "mac-full-language.log": {
+      "sha256": "e2d8c741d10596a9ff485f35ee98c9187361c720c3618705f74babaa3110fb8f",
+      "completedRustTargets": 27,
+      "rustPassed": 513,
+      "rustFailed": 1,
+      "rustIgnored": 6,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "mac-guide-inventory-recovered.log": {
+      "sha256": "4e1abfc216abc77f873daa738a913396082c78703403882b83790e0ed7ef5081",
+      "completedRustTargets": 3,
+      "rustPassed": 143,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "mac-readauth.log": {
+      "sha256": "ec63e602a6b27bc4a2225343afa2cd177c7351bc9b82d59d982d83e2cdaf86b8",
+      "completedRustTargets": 1,
+      "rustPassed": 88,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "mac-row-view-disclosure.log": {
+      "sha256": "f106c9b1db9db35bd806a76236482dc23a033f59cf72cfa3bb4dc85ea3a06739",
+      "completedRustTargets": 1,
+      "rustPassed": 6,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "mac-setup.log": {
+      "sha256": "5116fa81c57fef861574e062d215c99d308a93bbcfa68c848affde058d2f29e3",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "merge-live-core.log": {
+      "sha256": "591a0fc1ad901d8fce5f934f15bb29c3d78185c2313403f265582fb954d84488",
+      "completedRustTargets": 43,
+      "rustPassed": 36,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "merge-live-lang.log": {
+      "sha256": "6d0e5539633e419ff6c203afe9e9b75e62f4b5e87baf4b2c1a95d7ae1c10bccf",
+      "completedRustTargets": 2,
+      "rustPassed": 50,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "packed-recipes-final-source.log": {
+      "sha256": "0b054fd57436a8a17efcc88ce015d9fa2c4f8ff884609d792277817b51e1c0df",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [
+        22
+      ],
+      "nodeFailed": [
+        0
+      ]
+    },
+    "packed-recipes-recovered.log": {
+      "sha256": "33119a589d96b1b95d92c963c8c6d2c9362d2b66b40cc01ad4b063a49c86665f",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [
+        22
+      ],
+      "nodeFailed": [
+        0
+      ]
+    },
+    "packed-recipes.log": {
+      "sha256": "8ed32810cfe32de03c5b4cff1db29e69bc9db2a34e8e2ed03b5e783ded116fe4",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [
+        22
+      ],
+      "nodeFailed": [
+        0
+      ]
+    },
+    "ref-check-current.log": {
+      "sha256": "c470b13f6d396f7b5ea6775bf71956b65bc77f4ebfbba0d1202b6722444987ac",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "ref-check-final-pass.log": {
+      "sha256": "174d611c67cb890b7416c15f25ff9b33b70a878dc4cb535e85965edd6a8128e7",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "ref-check-final-source.log": {
+      "sha256": "06df24ca01211083c3b81b170e811fcea84842fecbe46b8ae56557ce423cf781",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "ref-check-final.log": {
+      "sha256": "aab3f674eedd39fac93dbad0d3f52841814d239ca3ec280f7e0cb283727fff9d",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "ref-check-recovered.log": {
+      "sha256": "8e3dc492d5481488626c1f42bbbb951a391d1aa1fc4ea6d78a9e6027961b799e",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "ref-check.log": {
+      "sha256": "c470b13f6d396f7b5ea6775bf71956b65bc77f4ebfbba0d1202b6722444987ac",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "root-guide-final.log": {
+      "sha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "root-guide-pass.log": {
+      "sha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "root-guide.log": {
+      "sha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "root-install-final.log": {
+      "sha256": "27e379dac2ea3618b90c7e7e2c6bef9537111de9177ec364d858dde55327c642",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "root-install.log": {
+      "sha256": "48eb2e04ce550825149d212e1b65178541d114ae720ec1aa723537baab709136",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "sb4-docs-budget.log": {
+      "sha256": "047506b93edcfb52e62d47fd9589acd8eecde5c177fb0ab08b76c6ca6475b61e",
+      "completedRustTargets": 1,
+      "rustPassed": 1,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    },
+    "schema-survey.log": {
+      "sha256": "03f7b94cee8a3441c77a765fc7fda0bdd231c68c87f8ef3529c6b498052c9729",
+      "completedRustTargets": 0,
+      "rustPassed": 0,
+      "rustFailed": 0,
+      "rustIgnored": 0,
+      "nodePassed": [],
+      "nodeFailed": []
+    }
+  },
+  "rawLogArchive": "raw-logs.tar.gz"
+}

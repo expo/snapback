@@ -161,7 +161,7 @@ The child must spell its parent's whole rule, with `immutable message` and
 `immutable conversation`. Links must be required, without defaults. This adopts
 parent authorization, inherited expiry and deletion protection. Three-hop paths
 work through an already inherited parent: the same captures preserve audiences,
-acquisition, withdrawals, prediction and meters. E_READ_THROUGH rejects nullable
+acquisition, withdrawals, prediction and meters. `read through live .ref` instead owns cap-bounded atomic audience maintenance; it needs all-current until-revoked sync and the admitted nonexpiring shape (`guide rules`). E_READ_THROUGH rejects nullable
 or changing links and different child rules with a declaration repair; use it
 only to inherit the whole parent audience. Mismatched sync audiences get a
 schema-specific repair; see the sync-declaration refusal below.

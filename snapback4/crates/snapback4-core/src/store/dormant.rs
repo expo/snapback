@@ -21,14 +21,24 @@ pub(crate) fn enable(conn: &Connection) -> Result<(), RuntimeError> {
         CREATE TABLE IF NOT EXISTS _dormant_tables(table_name TEXT PRIMARY KEY, definition TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS _dormant_rows(t INTEGER NOT NULL,id TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(t,id)) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS _dormant_columns(table_name TEXT NOT NULL,column_name TEXT NOT NULL,definition TEXT NOT NULL,PRIMARY KEY(table_name,column_name)) WITHOUT ROWID;
-        CREATE TABLE IF NOT EXISTS _dormant_values(t INTEGER NOT NULL,id TEXT NOT NULL,column_name TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(t,id,column_name)) WITHOUT ROWID;
+        CREATE TABLE IF NOT EXISTS _dormant_values(t INTEGER NOT NULL,id TEXT NOT NULL,column_name TEXT NOT NULL,data TEXT NOT NULL,live_source INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(t,id,column_name)) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS _dormant_indexes(table_name TEXT NOT NULL,index_name TEXT NOT NULL,definition TEXT NOT NULL,PRIMARY KEY(table_name,index_name)) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS _dormant_refs(t INTEGER NOT NULL,id TEXT NOT NULL,column_name TEXT NOT NULL,parent_t INTEGER NOT NULL,parent_id TEXT NOT NULL,invalid INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(t,id,column_name,parent_t,parent_id)) WITHOUT ROWID;
         CREATE INDEX IF NOT EXISTS _dormant_parent ON _dormant_refs(parent_t,parent_id);
         CREATE TABLE IF NOT EXISTS _release_events(id INTEGER PRIMARY KEY,at INTEGER NOT NULL,operation TEXT NOT NULL,release INTEGER,previous INTEGER,generation INTEGER NOT NULL,revision INTEGER NOT NULL,summary TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS _release_event_items(event INTEGER NOT NULL,path TEXT NOT NULL,detail TEXT NOT NULL,PRIMARY KEY(event,path)) WITHOUT ROWID;")?;
+    if !live_cells_column(conn)? {
+        // Published predecessors have captured-only cells. Defaulting them
+        // to captured is conservative; shared definitions cannot prove a
+        // particular retained cell ever had live authority.
+        conn.execute_batch("ALTER TABLE _dormant_values ADD COLUMN live_source INTEGER NOT NULL DEFAULT 0;")?;
+    }
     conn.execute("UPDATE _meta SET value=?1 WHERE key='version'", [VERSION])?;
     Ok(())
+}
+
+pub(super) fn live_cells_column(conn:&Connection)->Result<bool,RuntimeError> {
+    Ok(conn.query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_dormant_values') WHERE name='live_source')",[],|r|r.get(0))?)
 }
 
 pub(super) fn enabled(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
@@ -184,7 +194,7 @@ fn add_reference(
     parent_id: &str,
 ) -> Result<(), RuntimeError> {
     let parent_t = tx.num(parent)?;
-    let invalid = tx.get(parent, parent_id)?.is_none()
+    let invalid = !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t=?1 AND id=?2)",params![parent_t,parent_id],|r|r.get::<_,bool>(0))?
         && !tx.conn().query_row(
             "SELECT EXISTS(SELECT 1 FROM _dormant_rows WHERE t=?1 AND id=?2) OR EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?1 AND id=?2)",
             params![parent_t, parent_id],
@@ -228,8 +238,10 @@ pub(super) fn save_cell(
     capture: bool,
 ) -> Result<(), RuntimeError> {
     let t = tx.num(name)?;
-    tx.conn().execute("INSERT INTO _dormant_values VALUES(?1,?2,?3,?4) ON CONFLICT(t,id,column_name) DO UPDATE SET data=excluded.data",params![t,id,column,canonical_json(value)])?;
-    if capture {
+    // @ref LLP 3000.014.000#implementation-proof-clarifications — another row cannot overwrite a cell's live origin.
+    let live=table.engine_field(column) && table.through.as_ref().is_some_and(|e|e.live.is_some());
+    tx.conn().execute("INSERT INTO _dormant_values(t,id,column_name,data,live_source) VALUES(?1,?2,?3,?4,?5) ON CONFLICT(t,id,column_name) DO UPDATE SET data=excluded.data,live_source=excluded.live_source",params![t,id,column,canonical_json(value),i64::from(live)])?;
+    if capture && !super::authority_origin::live_input(table,column) {
         capture_refs(tx, t, id, column, &table.columns[column], value)
     } else {
         Ok(())
@@ -314,7 +326,7 @@ pub(super) fn transition(
     if !enabled(tx)? {
         return Ok(BTreeSet::new());
     }
-    if !super::narrowed::present(tx.conn())? {enable(tx.conn())?;}
+    if !super::narrowed::present(tx.conn())? || !live_cells_column(tx.conn())? {enable(tx.conn())?;}
     let whole: Vec<(String, String)> = tx
         .conn()
         .prepare("SELECT table_name,definition FROM _dormant_tables ORDER BY table_name")?
@@ -344,6 +356,7 @@ pub(super) fn transition(
                 serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))?;
             if let Some(source)=&old.capture_source {
                 if source.through.is_some() && source.through == table.through {retained_through.insert(name.clone());}
+                else if source.through.as_ref().zip(table.through.as_ref()).is_some_and(|(a,b)| (a.live.is_some() || b.live.is_some()) && a.reference==b.reference && a.parent==b.parent) { /* Restamp destination; live provenance never retains historical authority. */ }
                 else if source.through.is_some() && table.through.is_some() {return Err(refuse(format!("{name}: retained engine captures belong to another read-through definition; restore the original definition before changing the audience")));}
             }
             if old.authoritative && !authoritative(table, column) {
@@ -423,7 +436,7 @@ pub(super) fn transition(
                     tx.conn().execute("INSERT INTO _dormant_rows VALUES(?1,?2,?3) ON CONFLICT(t,id) DO UPDATE SET data=excluded.data",params![tx.num(name)?,id,canonical_json(&row)])?;
                     for (column, kind) in &old.columns {
                         if let Ok(value) = row.field(column) {
-                            capture_refs(tx, tx.num(name)?, id, column, kind, value)?;
+                            if !super::authority_origin::live_input(old,column) {capture_refs(tx, tx.num(name)?, id, column, kind, value)?;}
                             capture_through_parent(tx, name, old, id, column, &row)?;
                         }
                     }
@@ -478,13 +491,21 @@ pub(super) fn transition(
             // Full source image/deadlines stay intact until lifetime retirement and narrowed classification.
             Ok(())
         })?;
-        let ids=tx.conn().prepare("SELECT id FROM _dormant_rows WHERE t=?1")?.query_map([t],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
-        tx.set_meta(&format!("activation_table_restored_ids:{name}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;
+        if super::live_activation::active(tx)? {
+            tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'table',t,'',id FROM _dormant_rows WHERE t=?1",[t])?;
+            if old.through.as_ref().is_some_and(|e|e.live.is_some()) {tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'live-authority',t,'',id FROM _dormant_rows WHERE t=?1",[t])?;}
+        } else {
+            let ids=tx.conn().prepare("SELECT id FROM _dormant_rows WHERE t=?1")?.query_map([t],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
+            tx.set_meta(&format!("activation_table_restored_ids:{name}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;
+        }
         tx.conn()
             .execute("DELETE FROM _dormant_rows WHERE t=?1", [t])?;
         tx.conn()
             .execute("DELETE FROM _dormant_tables WHERE table_name=?1", [name])?;
     }
+    let mut authority_sources=previous.map(|s|s.tables.clone()).unwrap_or_default();
+    for (name,table) in &restoring {authority_sources.insert(name.clone(),table.clone());}
+    crate::engine::through_activation::reconcile_manual(tx,next,&authority_sources,now)?;
     for (name, table) in next.tables.iter().filter(|(_, t)| t.ephemeral.is_none()) {
         let t = tx.num(name)?;
         if !cells
@@ -494,27 +515,23 @@ pub(super) fn transition(
         {
             continue;
         }
-        super::activation::walk(tx, t, |id, mut row| {
-            let values: Vec<(String, String)> = tx
-                .conn()
-                .prepare_cached(
-                    "SELECT column_name,data FROM _dormant_values WHERE t=?1 AND id=?2",
-                )?
-                .query_map(params![t, id], |r| Ok((r.get(0)?, r.get(1)?)))?
-                .collect::<Result<_, _>>()?;
-            for (column, data) in values
-                .into_iter()
-                .filter(|(c, _)| table.columns.contains_key(c))
-            {
-                let value: Value =
-                    serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
-                match &mut row {
-                    Value::Row(f) | Value::Map(f) => {
-                        f.insert(column, value);
-                    }
-                    _ => {}
-                }
+        let old=authority_sources.get(name);
+        let parent_scratch=if super::live_activation::active(tx)? {
+            old.map_or(0,|old|crate::engine::through_activation::restored_parent_scratch(next,&authority_sources,name,old))
+        } else {0};
+        let scratch=|row:&Value|->Result<crate::value::InternalPrice,RuntimeError> {
+            let fetch=super::authority_origin::forward_fetch(tx,t,row.field("id")?.as_str()?,old,table)?;
+            Ok(crate::value::InternalPrice::zero().fixed(if fetch {parent_scratch} else {0}))
+        };
+        super::activation_walk::walk_metered_checked(tx,t,crate::rows::adoption::Work::DECODE,if parent_scratch>0 {Some(&scratch)} else {None},|id,mut row,meter| {
+            let old=authority_sources.get(name);
+            if let Some(old)=old {
+                materialize_optional_fields(&mut row,old);
+                super::authority_origin::validate(tx,next,&authority_sources,name,old,&row,now,false)?;
+                if restoring.iter().any(|(n,_)|n==name) {super::authority_origin::record(tx,t,id,old)?;}
             }
+            let values=restored_values(tx,t,id,table,meter)?;
+            super::authority_origin::overlay(tx,t,id,old,table,&mut row,values)?;
             tx.conn().execute(
                 "UPDATE r SET data=?1 WHERE t=?2 AND id=?3",
                 params![canonical_json(&row), t, id],
@@ -527,11 +544,20 @@ pub(super) fn transition(
     }
     let mut source_definitions=previous.map(|s|s.tables.clone()).unwrap_or_default();
     for (name,table) in &restoring {source_definitions.insert(name.clone(),table.clone());}
+    crate::engine::through_activation::forward_sources(tx,next,&authority_sources,now)?;
     for (name,column,text) in &cells {
         if let Some(candidate)=next.table(name).filter(|t|t.columns.contains_key(column)) {
             let old:Column=serde_json::from_str(text).map_err(|e|RuntimeError::Store(e.to_string()))?;
             let source=source_definitions.entry(name.clone()).or_insert_with(||candidate.clone());
-            if let Some(capture)=&old.capture_source {source.through=capture.through.clone();source.expire=capture.expire.clone();}
+            if let Some(capture)=&old.capture_source {
+                source.through=capture.through.clone();source.expire=capture.expire.clone();
+
+            }
+            if super::live_activation::active(tx)? && authority_sources.get(name).is_none_or(|t|t.through.as_ref().is_none_or(|e|e.live.is_some())) {
+                // Cell provenance survives shared definition changes. Immediate
+                // manual correspondence above still precedes this marker.
+                tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'live-authority',v.t,'',v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND v.live_source=1 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",params![tx.num(name)?,column])?;
+            }
             source.columns.insert(column.clone(),old.kind);
             if let Some(default)=old.default {source.defaults.insert(column.clone(),default);}
             if !old.authoritative {
@@ -541,8 +567,14 @@ pub(super) fn transition(
         }
     }
     let restored_images=!restoring.is_empty() || cells.iter().any(|(n,c,_)|next.table(n).is_some_and(|t|t.columns.contains_key(c)));
-    super::narrowed::transition(tx,next,previous,now,restored_images,&source_definitions)?;
-    check_references(tx, next)?;
+    // Current authority cells precede destination narrowing: historical
+    // authored copies may be outside a newly narrowed type even though the
+    // current parent value fits it. Newly restored narrowed rows reconcile
+    // individually inside transition as well.
+    crate::engine::through_activation::reconcile_manual(tx,next,&authority_sources,now)?;
+    super::narrowed::transition(tx,next,previous,now,restored_images,&source_definitions,&authority_sources)?;
+    crate::engine::through_activation::reconcile_manual(tx,next,&authority_sources,now)?;
+    check_references(tx, next,&authority_sources)?;
     // Restored rows have no predecessor indexes. Install the identity scan
     // before the ordinary read-through barrier; preserve historical captures.
     let identity_tables:BTreeSet<String>=if tx.meta("activation_population")?.as_deref()==Some("true") {
@@ -566,8 +598,12 @@ pub(super) fn transition(
     for (name, table) in next.tables.iter().filter(|(_, t)| t.ephemeral.is_none()) {
         let t = tx.num(name)?;
         for column in table.columns.keys() {
-            let ids=tx.conn().prepare("SELECT v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)")?.query_map(params![t,column],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
-            if !ids.is_empty() {tx.set_meta(&format!("activation_column_restored_ids:{name}.{column}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;}
+            if super::live_activation::active(tx)? {
+                tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'column',v.t,v.column_name,v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",params![t,column])?;
+            } else {
+                let ids=tx.conn().prepare("SELECT v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)")?.query_map(params![t,column],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
+                if !ids.is_empty() {tx.set_meta(&format!("activation_column_restored_ids:{name}.{column}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;}
+            }
             tx.conn().execute(
                 "DELETE FROM _dormant_values WHERE t=?1 AND column_name=?2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=_dormant_values.t AND n.id=_dormant_values.id)",
                 params![t, column],
@@ -591,7 +627,7 @@ pub(super) fn transition(
     Ok(retained_through)
 }
 
-fn check_references(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
+fn check_references(tx: &Tx<'_>, next: &Schema,sources:&BTreeMap<String,Table>) -> Result<(), RuntimeError> {
     for (name, table) in next.tables.iter().filter(|(_, t)| t.ephemeral.is_none()) {
         let t = tx.num(name)?;
         let mut bad = super::adopt_refusals::Samples::default();
@@ -599,7 +635,8 @@ fn check_references(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
         let mut rows = statement.query([t])?;
         while let Some(row) = rows.next()? {
             let column: String = row.get(1)?;
-            if table.columns.contains_key(&column) {
+            let id:String=row.get(0)?;
+            if table.columns.contains_key(&column) && !super::authority_origin::obsolete_ref(tx,t,&id,&column,table,sources.get(name))? {
                 bad.add(
                     &row.get::<_, String>(0)?,
                     &format!(
@@ -618,7 +655,7 @@ fn check_references(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
         if let Some(through) = &table.through {
             {
                 let mut bad = super::adopt_refusals::Samples::default();
-                super::activation::walk(tx, t, |id, row| {
+                super::activation_walk::walk_metered(tx,t,crate::rows::adoption::Work::DECODE,None,|id,row,meter| {
                     let restored: bool = tx.conn().query_row(
                         "SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2)",
                         params![t, id],
@@ -663,10 +700,15 @@ fn check_references(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
                         }
                     }
                     if let Ok(Value::Id(parent_id)) = row.field(&through.reference) {
+                        if through.live.is_some() || crate::rows::Rows::restored_live_authority(tx,name,id)? {
+                            let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM r WHERE t=?1 AND id=?2",params![parent_t,parent_id],|r|r.get(0)).optional()?;
+                            meter.heap((bytes.unwrap_or(0) as u64).saturating_mul(64).saturating_add(4096))?;
+                        }
                         if let Some(parent) = tx.get(&through.parent, parent_id)? {
                             let parent =
                                 crate::schema::row_image(&parent, &next.tables[&through.parent]);
-                            if through.fields.iter().any(|(capture, field)| {
+                            // @ref LLP 3000.014.000#71-dormant-restoration-identities-are-a-relation — live policy restamps current inputs after preserving parent lifetime.
+                            if through.live.is_none() && !crate::rows::Rows::restored_live_authority(tx,name,id)? && through.fields.iter().any(|(capture, field)| {
                                 row.field(capture)
                                     .ok()
                                     .is_some_and(|value| Some(value) != parent.field(field).ok())
@@ -722,4 +764,30 @@ pub(super) fn holds_home(tx: &Tx<'_>, table: &str, column: &str) -> Result<bool,
     }
     let narrowed=if super::narrowed::present(tx.conn())? {" OR EXISTS(SELECT 1 FROM _dormant_narrow_rows n JOIN _catalog c ON n.t=c.num WHERE c.name=?1)"}else{""};
     Ok(tx.conn().query_row(&format!("SELECT EXISTS(SELECT 1 FROM _dormant_tables WHERE table_name=?1) OR EXISTS(SELECT 1 FROM _dormant_columns WHERE table_name=?1 AND column_name=?2){narrowed}"),params![table,column],|r|r.get(0))?)
+}
+
+/// Fetch only destination cells on live transitions, after paying their full
+/// serialized/decoded coexistence in the owning activation page/row account.
+pub(super) fn restored_values(tx:&Tx<'_>,t:i64,id:&str,table:&Table,meter:&mut crate::meter::Meter)->Result<Vec<(String,String)>,RuntimeError> {
+    if !super::live_activation::active(tx)? {
+        return Ok(tx.conn().prepare_cached("SELECT column_name,data FROM _dormant_values WHERE t=?1 AND id=?2")?.query_map(params![t,id],|r|Ok((r.get(0)?,r.get(1)?)))?.collect::<Result<_,_>>()?);
+    }
+    let mut values=Vec::new();
+    for column in table.columns.keys() {
+        let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0)).optional()?;
+        if let Some(bytes)=bytes {
+            meter.heap((bytes as u64).saturating_mul(64).saturating_add(1024+column.len() as u64*8))?;
+            let data:String=tx.conn().query_row("SELECT data FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0))?;
+            values.push((column.clone(),data));
+        }
+    }
+    Ok(values)
+}
+
+/// Narrowed forward correspondence has already run when this is called.
+/// Record cell-derived live provenance before consuming any source evidence.
+pub(super) fn mark_live_column(tx:&Tx<'_>,t:i64,id:&str,column:&str)->Result<(),RuntimeError> {
+    if super::live_activation::active(tx)? && super::authority_origin::mode(tx,t,id)? != Some(1) {
+        tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'live-authority',?1,'',?2 WHERE EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3 AND live_source=1)",params![t,id,column])?;
+    }Ok(())
 }

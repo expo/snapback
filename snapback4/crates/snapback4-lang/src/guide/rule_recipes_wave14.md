@@ -2,6 +2,83 @@
 ## Child readable by the parent's current roster
 
 `guide rule-recipes current-roster` follows a parent's mutable department.
+Write the live rule and a real per-folder product cap. The engine owns the
+private audience fields and updates every existing child in the parent's
+transaction, including when another mutation writes the parent. The child has
+no authored department copy and no application transfer loop.
+
+```quarry
+use personas alice, bob, carol
+table liveDepartments:
+  title: text 1..80
+  public 'department names are public'
+  online only
+table liveDepartmentRoster:
+  department: liveDepartments
+  principal: principal
+  unique department, principal
+  immutable department, principal
+  read <- .principal = viewer
+  sync
+table liveRosterFolders:
+  department: liveDepartments
+  read <- exists liveDepartmentRoster[.department, viewer] or viewer = 'service:ops'
+  update <- viewer = 'service:ops'
+  sync
+table liveRosterFiles:
+  folder: liveRosterFolders
+  body: text 1..200
+  immutable folder
+  cap 20 by folder
+  read through live .folder
+  insert <- allow
+  delete <- viewer = 'service:ops'
+  sync
+mutation addLiveRosterFile(folder: liveRosterFolders, body: text 1..200):
+  f = liveRosterFolders[folder] ! else NOT_FOUND
+  return insert liveRosterFiles { folder: f.id, body }
+mutation transferLiveRosterFolder(folder: liveRosterFolders, department: liveDepartments):
+  require viewer = 'service:ops' else OPERATOR_ONLY
+  require exists liveDepartments[department] else NOT_FOUND
+  update liveRosterFolders[folder] { department }
+query liveRosterFile(file: liveRosterFiles):
+  return liveRosterFiles[file]
+query liveFolderFiles(folder: liveRosterFolders, c: cursor ?):
+  return liveRosterFiles where .folder = folder first 20 by .id after c
+```
+
+This example prints `N_NO_HORIZON`: twenty files per folder does not bound
+files per department or how many departments a device holds. Keep full-current
+sync and measure `check --residency`, or choose `online only`; a horizon is
+refused for live authority. The cap is a product limit, not an acquisition window. Every parent write
+prepays the full schema-fixed fanout, even with no children. A write that
+cannot fit rolls back the parent and all children; parent writers queue on
+devices. Child-only writes keep the ordinary parent/coverage prediction rules.
+Sync carries ordinary row moves in one commit; acquisition catches up before
+publishing. Offline devices keep their last applied state. A parent verdict
+never substitutes for child coverage, and mismatched held copies take the
+server fallback. Service grants stay on the parent and add no device audience.
+
+This first live form requires one immutable required reference and its exact
+per-reference cap, ordinary nonexpiring endpoints and nonexpiring probe
+graphs. It refuses chains, derived/receipt/private-field endpoints, writing
+reference actions on endpoints, nonplain or oversized-key child indexes,
+horizons and retained history. Sync requires one exact public, principal or
+membership audience; a whole OR-heavy noninvertible parent rule is preserved
+with an `online only` child. `N_LIVE_PARENT_COST` warns when the fixed price
+already exceeds ordinary ceilings. Use `guide rules` for the complete boundary.
+
+For an existing manual recipe, keep the old copies consistent in a bridge
+release, then replace the child's copy/read rule with `read through live` and
+remove its transfer loop. Adoption validates correspondence before dropping
+columns. Rollback to the manual form fills its audience cells from the current
+parent, including formerly dormant cells. Inconsistent or ambiguous policies
+refuse atomically; ids do not change. Rebuild devices for `live-parent-copy-v1`.
+Bulk seed/import/restore uses one bounded job account; split large input into
+coherent parent-plus-children batches, never a partial parent transfer.
+
+## Manual copy alternative
+
 The child copy is mutable and maintained by the application's only transfer
 mutation, in the same transaction as the parent. Every child insert/update
 checks the live parent. This differs from an immutable copy, which preserves
@@ -56,8 +133,8 @@ or the whole transaction rolls back. Existing sync moves each row between its
 old and new audiences. A disconnected device keeps its last applied state;
 after synchronization, the former roster loses the rows. For existing rows, use a bridge release to add and backfill the copy before
 switching authority (`guide evolution`); route all future parent changes
-through this mutation. Live-parent language remains under design;
-`read through` still requires immutable captured parent fields. The transfer
+through this mutation. Bare `read through` requires immutable captured parent
+fields; `read through live` above delegates the maintenance to the engine. The transfer
 walks the entire capped group; see `guide reads` for completeness guidance.
 
 ## Private waitlist with anonymous occupancy

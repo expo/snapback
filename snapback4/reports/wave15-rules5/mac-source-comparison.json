@@ -1,0 +1,35 @@
+{
+  "linux": {
+    "snapback4/crates/snapback4-lang/src/guide.rs": "41719418f0066d36607f5f38cdcc1fe810cd2439fbf8ec7551bc864d33f059d6",
+    "snapback4/crates/snapback4-lang/src/guide/rules.md": "1f632b17a521c647e6001b6105253ebd3b8723efb4450d24e47e31ac49d007f3",
+    "snapback4/crates/snapback4-lang/src/guide/rule_recipes_wave15.md": "1cbabbf099bc894a3d32386ea6d874893d5663a864ed4ad6f2baea5fc3038689",
+    "snapback4/crates/snapback4-lang/tests/guide.rs": "95bbfc4a420bb5978fe68846f4d1b6baf96517b1019d145f5f0f501e1bcb9785",
+    "snapback4/crates/snapback4-lang/tests/ephemeral_compat.rs": "7545a12d7cf9a00c5cb4b4fa272397901b048164bcb7fd3c83573355771c6879",
+    "snapback4/crates/snapback4-device/tests/readauth/census.txt": "2dee501fd8f678c5ae3c1681ae9157563a33002398b5beb5154a77a2bcfeebea",
+    "snapback4/packages/snapback4/test/wave14-rule-recipes.test.mjs": "b2d6fe083cb6a826eb6b0af3462079c2637bbba81514076265ee527a51cb790c"
+  },
+  "mac": {
+    "snapback4/crates/snapback4-lang/src/guide.rs": "41719418f0066d36607f5f38cdcc1fe810cd2439fbf8ec7551bc864d33f059d6",
+    "snapback4/crates/snapback4-lang/src/guide/rules.md": "1f632b17a521c647e6001b6105253ebd3b8723efb4450d24e47e31ac49d007f3",
+    "snapback4/crates/snapback4-lang/src/guide/rule_recipes_wave15.md": "e400f6e929c1437e446ddae6c6b35f022bb78612adf7a25e81ca41e36f1f0b27",
+    "snapback4/crates/snapback4-lang/tests/guide.rs": "95bbfc4a420bb5978fe68846f4d1b6baf96517b1019d145f5f0f501e1bcb9785",
+    "snapback4/crates/snapback4-lang/tests/ephemeral_compat.rs": "7545a12d7cf9a00c5cb4b4fa272397901b048164bcb7fd3c83573355771c6879",
+    "snapback4/crates/snapback4-device/tests/readauth/census.txt": "2dee501fd8f678c5ae3c1681ae9157563a33002398b5beb5154a77a2bcfeebea",
+    "snapback4/packages/snapback4/test/wave14-rule-recipes.test.mjs": "b2d6fe083cb6a826eb6b0af3462079c2637bbba81514076265ee527a51cb790c"
+  },
+  "differences": [
+    "snapback4/crates/snapback4-lang/src/guide/rule_recipes_wave15.md"
+  ],
+  "recipeQuarryBlocksIdentical": true,
+  "recipeQuarryBlockSha256": [
+    "b90b174c91df7ba582672a23c544dfa93e19d1555d0f9b6d1161c937b7b7595b",
+    "7a56084a1d6858215c401563d88bd4cfeff4903604dc67a179e57bf44bd01515",
+    "f49638756ae7f7352a6b97341c2f9d2c608b8279da5905644294b750d30e5401",
+    "e76406d535a35fccde39db3b3cf5393bc4e7affe5ed98a5df96a0d3bcc7d6f88",
+    "300a93dfe43cd0cee64b07fd0191a268459b6805dabf9d48cbd61aa1623590c6",
+    "6a49d9b4e9263503cb2889daa3da5be03e0c3aaed7e0eb39d8101670bd713fca",
+    "70dc11bf8e6fff0f271f1e7da218be8d9be240898d97d2e8338428de66761872",
+    "f680bef996ba58407997175ca73310c69fe649060994b62772d3c35f4ca06ad2"
+  ],
+  "differenceReason": "The Mac recipe page predates only the five-line optional full-085 explanatory paragraph. Every executable block is byte-identical; no policy, program or test expectation differs."
+}

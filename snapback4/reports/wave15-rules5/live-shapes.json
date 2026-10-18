@@ -1,0 +1,294 @@
+[
+  {
+    "name": "077-original",
+    "exit": 0,
+    "ok": true,
+    "diagnostics": [],
+    "notes": [
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query team returns a page of 50 staff rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in team and append `after c` to this staff page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 94
+        }
+      },
+      {
+        "code": "N_NO_PRODUCTION_WRITER",
+        "guide": "deploy",
+        "mechanical": false,
+        "message": "persona-only: safe to ignore without `use identity`; no production identity; review bootstrap for checks, comments, drafts, proposals, sections, staff",
+        "rewrite": "safe to ignore without `use identity`; when moving to production, add use identity password, map roles and relationships to account principals, and provision the first admin; snapback4 guide deploy --section first admin",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 44
+        }
+      }
+    ]
+  },
+  {
+    "name": "077-checks-live-section",
+    "exit": 0,
+    "ok": true,
+    "diagnostics": [],
+    "notes": [
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query team returns a page of 50 staff rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in team and append `after c` to this staff page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 94
+        }
+      },
+      {
+        "code": "N_NO_PRODUCTION_WRITER",
+        "guide": "deploy",
+        "mechanical": false,
+        "message": "persona-only: safe to ignore without `use identity`; no production identity; review bootstrap for checks, comments, drafts, proposals, sections, staff",
+        "rewrite": "safe to ignore without `use identity`; when moving to production, add use identity password, map roles and relationships to account principals, and provision the first admin; snapback4 guide deploy --section first admin",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 44
+        }
+      }
+    ]
+  },
+  {
+    "name": "077-live-chain",
+    "exit": 1,
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_READ_THROUGH",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "live parent: endpoints must be ordinary nonexpiring tables without derivations, receipt-family roles, private owners, audience-target roles or writing reference actions; use guide rule-recipes current-roster for manual maintenance",
+        "rewrite": "use a capped ordinary nonexpiring parent/child pair; guide rule-recipes current-roster has the manual alternative",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 44
+        }
+      },
+      {
+        "code": "E_READ_THROUGH",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "live parent: the transitive read-probe graph must be ordinary and nonexpiring, without live/captured, derived or private inputs; use guide rule-recipes current-roster for manual maintenance",
+        "rewrite": "use a capped ordinary nonexpiring parent/child pair; guide rule-recipes current-roster has the manual alternative",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 44
+        }
+      },
+      {
+        "code": "E_READ_THROUGH",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "live parent: live and captured descendants of a live child are not admitted; use guide rule-recipes current-roster for manual maintenance",
+        "rewrite": "use a capped ordinary nonexpiring parent/child pair; guide rule-recipes current-roster has the manual alternative",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 30
+        }
+      }
+    ],
+    "notes": []
+  },
+  {
+    "name": "085-original",
+    "exit": 0,
+    "ok": true,
+    "diagnostics": [],
+    "notes": [
+      {
+        "code": "N_SPARSE_FILTER",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "read or declaration on hymns (title, id) at schema.q:53:10: this unscoped `where` pins no index prefix; sparse matches can exhaust the row meter and return short `complete: false` pages",
+        "rewrite": "pin a column with `where .col = value`, choose `by .col`, read a `view` for a count or total, or drop a `where` every row passes",
+        "site": {
+          "col": 45,
+          "file": "schema.q",
+          "line": 53
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query currentWeek returns a page of 10 services rows with no cursor, so the page cannot continue: rows past the first 10 are not reachable. Fine for a top-10 list, or a list that stays under 10 rows; a pinned unique key or a `cap` at or under 10 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in currentWeek and append `after c` to this services page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 58
+        }
+      },
+      {
+        "code": "N_NO_PRODUCTION_WRITER",
+        "guide": "deploy",
+        "mechanical": false,
+        "message": "staff: no production writer can bootstrap this root; entries, hymns, services depend on it; fixtures and /seed are dev-only",
+        "rewrite": "missing mutation path: no mutation inserts staff; add a bootstrapstaff mutation that requires `viewer = 'service:ops'`, allow that branch in staff's insert rule, and make its required probes readable to the seat. Mint `snapback4 token --service ops --release ./deployment`, then call the mutation with the real account principal and its bearer token. For synced rosters use the independent seat-or-member branch; snapback4 guide deploy --section first admin\nReview this proposal, add the explicit service:ops insert branch to the table, and run check. No role is granted by signup.\n```quarry\nmutation bootstrapstaffRole1(principal: principal):\n  require viewer = 'service:ops' else NOT_OPERATOR\n  return insert staff { principal, role: 'director' }\nmutation bootstrapstaffRole2(principal: principal):\n  require viewer = 'service:ops' else NOT_OPERATOR\n  return insert staff { principal, role: 'leader' }\n```",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 4
+        }
+      }
+    ]
+  },
+  {
+    "name": "085-live-with-cascade",
+    "exit": 1,
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_QUARRY_BOUND",
+        "guide": "bounds",
+        "mechanical": false,
+        "message": "read or declaration on entries (hymn, serviceDate, id) at schema.q:66:25: a total over rows the viewer may only partly read is not decided by its pinned columns, so no page bound makes it exact",
+        "rewrite": "pin .service with where equalities so one verdict covers every row (the total then covers only that scope); or keep the total in a view, which discloses the total, never the rows: `view entriesCount: count entries by .hymn` with `read <- allow` (everyone; narrow it to the readers the total is for), then read `entriesCount[hymn]`. If the maintained count keeps the source's private read rule, its group keys must carry every field that rule reads (including .service); a public total instead deliberately discloses the count across hidden rows; or return a `first N` page with a cursor and fold it in the client",
+        "site": {
+          "col": 25,
+          "file": "schema.q",
+          "line": 66
+        }
+      },
+      {
+        "code": "E_QUARRY_BOUND",
+        "guide": "bounds",
+        "mechanical": false,
+        "message": "read or declaration on entries (hymn, id) at schema.q:66:122: a total over rows the viewer may only partly read is not decided by its pinned columns, so no page bound makes it exact",
+        "rewrite": "pin .service with where equalities so one verdict covers every row (the total then covers only that scope); or keep the total in a view, which discloses the total, never the rows: `view entriesCount: count entries by .hymn` with `read <- allow` (everyone; narrow it to the readers the total is for), then read `entriesCount[hymn]`. If the maintained count keeps the source's private read rule, its group keys must carry every field that rule reads (including .service); a public total instead deliberately discloses the count across hidden rows; or return a `first N` page with a cursor and fold it in the client",
+        "site": {
+          "col": 122,
+          "file": "schema.q",
+          "line": 66
+        }
+      }
+    ],
+    "notes": []
+  },
+  {
+    "name": "085-live-restrict",
+    "exit": 1,
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_QUARRY_BOUND",
+        "guide": "bounds",
+        "mechanical": false,
+        "message": "read or declaration on entries (hymn, serviceDate, id) at schema.q:66:25: a total over rows the viewer may only partly read is not decided by its pinned columns, so no page bound makes it exact",
+        "rewrite": "pin .service with where equalities so one verdict covers every row (the total then covers only that scope); or keep the total in a view, which discloses the total, never the rows: `view entriesCount: count entries by .hymn` with `read <- allow` (everyone; narrow it to the readers the total is for), then read `entriesCount[hymn]`. If the maintained count keeps the source's private read rule, its group keys must carry every field that rule reads (including .service); a public total instead deliberately discloses the count across hidden rows; or return a `first N` page with a cursor and fold it in the client",
+        "site": {
+          "col": 25,
+          "file": "schema.q",
+          "line": 66
+        }
+      },
+      {
+        "code": "E_QUARRY_BOUND",
+        "guide": "bounds",
+        "mechanical": false,
+        "message": "read or declaration on entries (hymn, id) at schema.q:66:122: a total over rows the viewer may only partly read is not decided by its pinned columns, so no page bound makes it exact",
+        "rewrite": "pin .service with where equalities so one verdict covers every row (the total then covers only that scope); or keep the total in a view, which discloses the total, never the rows: `view entriesCount: count entries by .hymn` with `read <- allow` (everyone; narrow it to the readers the total is for), then read `entriesCount[hymn]`. If the maintained count keeps the source's private read rule, its group keys must carry every field that rule reads (including .service); a public total instead deliberately discloses the count across hidden rows; or return a `first N` page with a cursor and fold it in the client",
+        "site": {
+          "col": 122,
+          "file": "schema.q",
+          "line": 66
+        }
+      }
+    ],
+    "notes": []
+  },
+  {
+    "name": "085-authority-cascade",
+    "exit": 1,
+    "ok": false,
+    "diagnostics": [
+      {
+        "code": "E_READ_THROUGH",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "live parent: endpoints must be ordinary nonexpiring tables without derivations, receipt-family roles, private owners, audience-target roles or writing reference actions; use guide rule-recipes current-roster for manual maintenance",
+        "rewrite": "narrow indexed scalar bounds or use manual current-roster maintenance",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 35
+        }
+      },
+      {
+        "code": "E_READ_THROUGH",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "live parent: the live reference requires on delete restrict; use guide rule-recipes current-roster for manual maintenance",
+        "rewrite": "narrow indexed scalar bounds or use manual current-roster maintenance",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 35
+        }
+      }
+    ],
+    "notes": []
+  },
+  {
+    "name": "085-authority-restrict",
+    "exit": 0,
+    "ok": true,
+    "diagnostics": [],
+    "notes": [
+      {
+        "code": "N_SPARSE_FILTER",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "read or declaration on hymns (title, id) at schema.q:53:10: this unscoped `where` pins no index prefix; sparse matches can exhaust the row meter and return short `complete: false` pages",
+        "rewrite": "pin a column with `where .col = value`, choose `by .col`, read a `view` for a count or total, or drop a `where` every row passes",
+        "site": {
+          "col": 45,
+          "file": "schema.q",
+          "line": 53
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query currentWeek returns a page of 10 services rows with no cursor, so the page cannot continue: rows past the first 10 are not reachable. Fine for a top-10 list, or a list that stays under 10 rows; a pinned unique key or a `cap` at or under 10 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in currentWeek and append `after c` to this services page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 58
+        }
+      },
+      {
+        "code": "N_NO_PRODUCTION_WRITER",
+        "guide": "deploy",
+        "mechanical": false,
+        "message": "staff: no production writer can bootstrap this root; entries, hymns, services depend on it; fixtures and /seed are dev-only",
+        "rewrite": "missing mutation path: no mutation inserts staff; add a bootstrapstaff mutation that requires `viewer = 'service:ops'`, allow that branch in staff's insert rule, and make its required probes readable to the seat. Mint `snapback4 token --service ops --release ./deployment`, then call the mutation with the real account principal and its bearer token. For synced rosters use the independent seat-or-member branch; snapback4 guide deploy --section first admin\nReview this proposal, add the explicit service:ops insert branch to the table, and run check. No role is granted by signup.\n```quarry\nmutation bootstrapstaffRole1(principal: principal):\n  require viewer = 'service:ops' else NOT_OPERATOR\n  return insert staff { principal, role: 'director' }\nmutation bootstrapstaffRole2(principal: principal):\n  require viewer = 'service:ops' else NOT_OPERATOR\n  return insert staff { principal, role: 'leader' }\n```",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 4
+        }
+      }
+    ]
+  }
+]

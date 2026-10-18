@@ -118,7 +118,10 @@ impl MemoryStore {
     }
 
     /// Recompute effective instants, validate every immutable capture against
-    /// the final image, then atomically publish. This never resolves a capture.
+    /// the final image, then atomically publish. Captured-only schemas never
+    /// resolve a capture. Live schemas use the native final durable-image
+    /// contract and bounded recapture barrier; use seed_server_at for authored
+    /// source changes that need automatic derivation maintenance.
     pub fn restore_server_at(
         &mut self,
         rows: impl IntoIterator<Item = (String, Value)>,
@@ -128,6 +131,10 @@ impl MemoryStore {
             RuntimeError::Schema("install a server schema before restoring".into())
         })?;
         let tx = self.transaction()?;
+        if snapback4_core::schema::live::has_live(&schema) {
+            let count=through_activation::restore_server_images(&tx,&schema,rows,now)?;
+            tx.commit()?;return Ok(count);
+        }
         let mut count = 0;
         for (name, mut row) in rows {
             let table = schema

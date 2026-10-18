@@ -310,6 +310,27 @@ impl Rows for Tx<'_> {
     fn prefetch(&self, requests: &[crate::rows::PrefetchRequest]) { self.fill_prefetch(requests); }
     fn prefetch_enabled(&self) -> bool { self.prefetch_enabled }
 
+    // Rebuilds deliberately clear i first. Adoption walks durable r directly,
+    // with one byte-admitted unit and callback scratch in the same job meter.
+    fn walk_adoption(&self,table:&str,_declared:u64,scratch:u64,work:[u64;3],visit:&mut dyn FnMut(Value)->Result<(),RuntimeError>)->Result<(),RuntimeError> {
+        use crate::{meter::{Meter,Ceilings,Cut},error::MeterKind,rows::{adoption,word_heap as heap}};
+        let mut after:Option<String>=None;
+        loop {
+            let mut meter=Meter::new(Ceilings::job(),Cut::Abort);
+            meter.heap(DRIVER_SCRATCH+after.as_deref().map_or(0,heap::text))?;
+            let lengths=self.query("SELECT octet_length(id),octet_length(data) FROM r WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1",&[&table,&after])?;
+            let Some(length)=lengths.first() else {return Ok(())};
+            let bytes=length.get::<_,i32>(0) as u64+length.get::<_,i32>(1) as u64;drop(lengths);
+            meter.heap(bytes.saturating_mul(3).saturating_add(ROW_SCRATCH).saturating_add(scratch))?;
+            meter.charge(MeterKind::Examined,work[0])?;meter.step(work[1])?;meter.charge(MeterKind::IndexEntries,work[2])?;
+            let fetched=self.query("SELECT id,data FROM r WHERE t=$1 AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT 1",&[&table,&after])?;
+            let Some(item)=fetched.first() else {return Err(RuntimeError::Store("adoption row changed during its admitted read".into()))};
+            let data=item.get::<_,&str>(1);adoption::charge(&mut meter,adoption::decode_bytes(data))?;
+            let row:Value=decode(data)?;let id:String=item.get(0);
+            visit(row)?;after=Some(id);
+        }
+    }
+
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         if let Some(answer) = self.rows_cache.borrow().get(table, id) { return Ok(answer); }
         self.query("SELECT data FROM r WHERE t = $1 AND id = $2", &[&table, &id])?.first().map(|r| decode(r.get::<_, &str>(0))).transpose()

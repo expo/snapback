@@ -16,7 +16,7 @@ pub(super) fn sync_repair(catalog: &super::catalog::Catalog, info: &TableInfo) -
 
 fn reference(info: &TableInfo) -> Option<String> {
     info.decl.rules.iter().find_map(|rule| match &rule.value {
-        Expr::Call { name, args, .. } if name == "$readThrough" => match args.as_slice() {
+        Expr::Call { name, args, .. } if matches!(name.as_str(), "$readThrough" | "$readThroughLive") => match args.as_slice() {
             [Expr::Name { name, .. }] => Some(name.clone()),
             _ => None,
         },
@@ -57,6 +57,14 @@ fn one(
         return Ok(());
     }
     let info = tables[name].clone();
+    let live = info.decl.rules.iter().any(|r| matches!(&r.value, Expr::Call { name, .. } if name == "$readThroughLive"));
+    let through_word=if live {"read through live"}else{"read through"};
+    let live_cap = if live {
+        info.decl.caps.iter().filter(|c| c.by == [reference.clone()]).map(|c| c.max).min()
+    } else { None };
+    if live && live_cap.is_none() {
+        return Err(Diagnostic::new(&info.decl.site, "E_READ_THROUGH", "live parent authority needs a declared product cap per parent", format!("cap 20 by {reference}  -- choose this product's maximum; or guide rule-recipes current-roster for manual maintenance")).guide("rules"));
+    }
     let site = info
         .decl
         .rules
@@ -91,7 +99,7 @@ fn one(
     {
         return Err(fail(
             format!("{name}: read through must be the only read rule"),
-            format!("keep only `read through .{reference}`; put service grants on the parent"),
+            format!("keep only `{through_word} .{reference}`; put service grants on the parent"),
         ));
     }
     let parent = match info.columns.get(&reference) {
@@ -104,7 +112,7 @@ fn one(
                 format!(
                     "{name}.{reference} must be a required reference to an ordinary application table"
                 ),
-                format!("{reference}: {}\nimmutable {reference}\nread through .{reference}", match info.columns.get(&reference) { Some(ScalarType { kind: TypeKind::Ref { table }, .. }) => table.as_str(), _ => "parents" }),
+                format!("{reference}: {}\nimmutable {reference}\n{through_word} .{reference}", match info.columns.get(&reference) { Some(ScalarType { kind: TypeKind::Ref { table }, .. }) => table.as_str(), _ => "parents" }),
             ));
         }
     };
@@ -169,7 +177,7 @@ fn one(
                     .immutable
                     .iter()
                     .any(|(fs, _)| fs.contains(field));
-            if !immutable {
+            if !immutable && !live {
                 // @ref LLP 3000.036#15.6 — lane 082: a reassignable audience column cannot be
                 // captured; an online-only child can probe the live parent row instead.
                 let probes = (info.decl.sync.is_none()).then(|| parent_probes(&parent_read.value, &parent, &reference)).flatten()
@@ -202,7 +210,7 @@ fn one(
             }
         }
     });
-    if let Some((field, _)) = &parent_info.decl.expire
+    if !live && let Some((field, _)) = &parent_info.decl.expire
         && !parent_info
             .decl
             .immutable
@@ -234,6 +242,7 @@ fn one(
     let info = tables.get_mut(name).unwrap();
     paths::sync(&mut info.decl, &reference, &captures)?;
     info.through = Some(Through {
+        live: live_cap,
         reference: reference.clone(),
         parent,
         fields,
@@ -262,7 +271,8 @@ fn one(
             site: site.clone(),
         })
     };
-    add_index(CHILDREN, vec![reference, DEADLINE.into(), "id".into()]);
+    add_index(CHILDREN, vec![reference.clone(), DEADLINE.into(), "id".into()]);
+    if live { add_index(snapback4_core::schema::through::LIVE_CHILDREN, vec![reference, "id".into()]); }
     if expiring {
         add_index("$expiry", vec![DEADLINE.into(), "id".into()]);
     }
@@ -301,4 +311,21 @@ fn parent_probes(rule: &Expr, parent: &str, reference: &str) -> Option<String> {
         _ => None,
     }).collect::<Option<Vec<_>>>()?;
     Some(probes.join(" or "))
+}
+
+// @ref LLP 3000.014.000#5-reservation-and-accounting-contract — a product cap is not a promise that its full fixed charge fits.
+pub(super) fn notes(catalog:&super::catalog::Catalog,schema:&snapback4_core::Schema)->Vec<Diagnostic> {
+    let mut notes=Vec::new();
+    let c=snapback4_core::Ceilings::default();
+    let ceilings=[c.steps,c.index_entries,c.examined,c.rows_written,c.heap_bytes,c.output_bytes,c.rule_probes];
+    for name in schema.tables.keys().filter(|n|snapback4_core::schema::live::parent(schema,n)) {
+        if let Some(price)=snapback4_core::schema::live::write_price(schema,name) {
+            if price.price.iter().zip(ceilings).any(|(n,max)|*n>max) {
+                notes.push(Diagnostic::new(&catalog.site_for(&format!("tables.{name}")),"N_LIVE_PARENT_COST",
+                    format!("{name}: declared live-child caps reserve {:?} (steps, indexes, examined, written, heap, output, probes) before every parent target attempt, even with zero children; this exceeds ordinary mutation ceilings and parent writes queue on devices",price.price),
+                    "reduce the product cap or indexed/row bounds; use the manual current-roster recipe when a transfer needs a separately designed product bound").guide("rules"));
+            }
+        }
+    }
+    notes
 }

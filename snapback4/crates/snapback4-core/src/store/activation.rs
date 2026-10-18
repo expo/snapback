@@ -95,6 +95,7 @@ impl Store {
 
     fn activate_transaction_with<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl FnOnce(&Connection) -> Result<(), RuntimeError>, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>,
     ) -> Result<(u64, R), RuntimeError> {
+        super::live_activation::configure(&self.conn,schema)?;
         let mut report = super::adoption_report::AdoptionReport::default();
         let mut phase = std::time::Instant::now();
         if programs.is_some() {
@@ -208,6 +209,7 @@ impl Store {
             tx.conn().execute_batch("DELETE FROM r; DELETE FROM i;")?;
             if tx.has_sequence_table()? { tx.conn().execute_batch("DELETE FROM _sequences;")?; }
         }
+        super::live_activation::clear_stale(&tx)?;
         let mut retained_through=BTreeSet::new();
         let release_activation=programs.is_some() && tx.meta("activation_restore")?.is_some();
         if (schema_changed || release_activation) && programs.is_some() && !reset {
@@ -472,7 +474,9 @@ impl Store {
             }
         }
         let after = identity(tx.conn())?;
+        super::live_activation::finalize(&tx)?;
         let result = finish(&tx)?;
+        super::live_activation::cleanup(&tx)?;
         report.phase("metadata", &mut phase);
         tx.commit()?;
         report.phase("commit", &mut phase);

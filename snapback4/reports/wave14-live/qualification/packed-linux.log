@@ -1,0 +1,21 @@
+Command: ['env', 'PATH=/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.codex/packages/standalone/releases/0.162.1-x86_64-unknown-linux-musl/codex-path:/home/ccheever/.local/bin:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/bin:/home/ccheever/.local/bin:/home/ccheever/expose-build/tools/bin:/home/ccheever/expose-build/tools:/home/ccheever/.codex/tmp/arg0/codex-arg0IPqbgd:/home/ccheever/.codex/packages/standalone/releases/0.162.1-x86_64-unknown-linux-musl/codex-path:/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.cargo/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/bin:/home/ccheever/.opencode/bin:/home/ccheever/.bun/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/expose-build/tools/bin:/home/ccheever/expose-build/tools:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/bin:/home/ccheever/.opencode/bin:/home/ccheever/.bun/bin:/home/ccheever/.cargo/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/expose-build/tools/bin:/home/ccheever/expose-build/tools:/home/ccheever/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin', 'node', '--test', 'packages/snapback4/test/wave14-rule-recipes.test.mjs']
+▶ packed rule recipes run as written and preserve authority at boundaries
+  ✔ the compact opening recipe grants only its owner (221.434943ms)
+  ✔ current department transfer maintains every existing child atomically (1447.254022ms)
+  ✔ live parent transfers the packed guide authority, invalidates held reads and moves devices (1463.073966ms)
+  ✔ live asset placement follows the current parent without moving its home (281.373634ms)
+  ✔ private waitlist publishes occupancy without exposing membership (235.072466ms)
+  ✔ membership pages stop at grant expiry without relying on cleanup (292.966543ms)
+  ✔ bare union has an explicit cold-start tradeoff and both audiences read (282.536587ms)
+  ✔ public mirror requires its own image placement and never publishes private notes (237.734136ms)
+  ✔ staff guard and table read rule agree, with custom refusal before lookup (237.90369ms)
+  ✔ upsert refusal ladder executes before a later custom require and rolls back (271.923027ms)
+✔ packed rule recipes run as written and preserve authority at boundaries (16057.525159ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16159.204451

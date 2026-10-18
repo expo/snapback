@@ -53,6 +53,7 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    ("live-parent-copy-v1", |s| s.tables.values().any(|t| t.through.as_ref().is_some_and(|t| t.live.is_some()))),
     ("source-write-reservations-v2", |s| s.source_reservations.values().any(|p| p.birth.is_some())),
     ("source-write-reservations-v1", |s| !s.source_reservations.is_empty()),
     // @ref LLP 3000.022#14.3 — older devices must not execute newly eligible

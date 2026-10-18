@@ -2,6 +2,7 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("N_LIVE_PARENT_COST", &["Reduce caps or row/index bounds", "Parent writes queue on devices"]),
     ("E_EXPIRY_ORPHAN", &["After backup/review, stop the host", "restrict/read-through blockers refuse", "never reconstructs a parent"]),
 
     ("E_QUARRY_STATEMENT", &["Bind an assertion or read to a local", "return it when it is the result"]),

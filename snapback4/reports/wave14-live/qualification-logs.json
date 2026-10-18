@@ -1,0 +1,134 @@
+{
+  "root-install": {
+    "path": "qualification/root-install.log",
+    "sha256": "cb771b434b2cbf38d05df8236eb7b26d9ca2f83eb7d77c43a659fb6c40708b87",
+    "bytes": 1751,
+    "scope": "root setup once"
+  },
+  "generated-artifacts": {
+    "path": "qualification/generated-artifacts.log",
+    "sha256": "54e16f89664051d9080dacab78b2e5b2f5f7744d9a040a71c7c82e65046f029a",
+    "bytes": 60627,
+    "scope": "root setup once"
+  },
+  "inventories": {
+    "path": "qualification/inventories.log",
+    "sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+    "bytes": 3499,
+    "scope": "94b32b3714; final delta adds no test file or root registry input"
+  },
+  "root-guide": {
+    "path": "qualification/root-guide.log",
+    "sha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+    "bytes": 19451,
+    "scope": "94b32b3714; final delta changes no guide input"
+  },
+  "references": {
+    "path": "qualification/references.log",
+    "sha256": "535975d147256338292c4d6aac857a7539129da8bff60b47a1dd2b2702c652bb",
+    "bytes": 81,
+    "scope": "edcbd2e479 plus Implemented status and archive"
+  },
+  "core-library": {
+    "path": "qualification/core-library.log",
+    "sha256": "78631e9149f7a179ad53a3f3055797cc8da77d0589c61b2e4ff3489435f5f654",
+    "bytes": 75034,
+    "scope": "c2f5f6595c; 367 passed, 3 explicit ignores"
+  },
+  "core-store": {
+    "path": "qualification/core-store.log",
+    "sha256": "69c9e25f287d49c4e7174cbf0908b998e483bc7327ce27e8bd643e1d82aab542",
+    "bytes": 13648,
+    "scope": "edcbd2e479; 116 affected passed"
+  },
+  "device-affected": {
+    "path": "qualification/device-affected.log",
+    "sha256": "6c48789076bc5d7c6f5e48fac866b3123b92fd0aac30d204f3be765a2da6756e",
+    "bytes": 11791,
+    "scope": "c2f5f6595c; later delta is native dormant adoption only"
+  },
+  "language-affected": {
+    "path": "qualification/language-affected.log",
+    "sha256": "b9f08e5024d14928cc3740c5771dcd79b5480b0068578b67c418dccf588e9204",
+    "bytes": 22154,
+    "scope": "c2f5f6595c; later changed scope separately verified"
+  },
+  "live-language-final": {
+    "path": "qualification/live-language-final.log",
+    "sha256": "69ef99cfae649d5fb2bf9823b587eb2e72361cd25b64787b5f7315b59650286e",
+    "bytes": 7949,
+    "scope": "exact product content committed as edcbd2e479; 48 plus 2 passed"
+  },
+  "all-features": {
+    "path": "qualification/all-features.log",
+    "sha256": "bcb9c2bb77d13852d570b85d960db390f5923bee7a4c0f83673664be2b7a2b24",
+    "bytes": 381,
+    "scope": "edcbd2e479"
+  },
+  "postgres-live": {
+    "path": "qualification/postgres-live.log",
+    "sha256": "072d497e586fb91fd22fa7af69ec4d9e58e7198150b0e57789268ac18f527f98",
+    "bytes": 10698,
+    "scope": "c2f5f6595c; live regression 1 passed"
+  },
+  "postgres-expanded": {
+    "path": "qualification/postgres-expanded.log",
+    "sha256": "f4c81eb634405cd0f5c2884cef6e1f6ac512207c0f5dca43b26251c1224f31fc",
+    "bytes": 4820,
+    "scope": "earlier candidate; 29 pass, 1 inherited fixture failure"
+  },
+  "postgres-base-legacy": {
+    "path": "qualification/postgres-base-legacy.log",
+    "sha256": "50de3f21dc747b261bf8f54c5a12963a221a21231e22513d88cfef445b1d6c70",
+    "bytes": 5338,
+    "scope": "bbc4b4a9fd; same inherited fixture failure"
+  },
+  "postgres-stop": {
+    "path": "qualification/postgres-stop.log",
+    "sha256": "ca19178a35ab4153b75b494963b66ce8243e1b94c173107c87b44d09db23652d",
+    "bytes": 56,
+    "scope": "private temporary cluster stopped"
+  },
+  "packed-linux": {
+    "path": "qualification/packed-linux.log",
+    "sha256": "0aefb11f059fff68ffb21a9044aca5bb1f5942c65cd257c7302b01dcdc4e95bc",
+    "bytes": 2504,
+    "scope": "edcbd2e479 native artifact; 11 passed"
+  },
+  "mac-affected": {
+    "path": "qualification/mac-affected.log",
+    "sha256": "e32787d928b28fb51d916dc657ad196f5241231355da5635220f11b3e31d4251",
+    "bytes": 48880,
+    "scope": "edcbd2e479; 489 passed in authorized Mac scratch"
+  },
+  "wasm": {
+    "path": "qualification/wasm.log",
+    "sha256": "a74f3a417436fd3ed88ccff1882092ef3e2d2f2b2de907a7476b2da0df92d293",
+    "bytes": 69654,
+    "scope": "clean edcbd2e479; 725864 B gzip, exact budget 726364 B"
+  },
+  "difftest-run": {
+    "path": "qualification/difftest-run.log",
+    "sha256": "26e78b4f9c3b48701d21b71097760faf2f3da4aff4e5beaf49f3ea02b3572d2d",
+    "bytes": 19994,
+    "scope": "94b32b3714; 20000 cases"
+  },
+  "difftest-devices": {
+    "path": "qualification/difftest-devices.log",
+    "sha256": "e6344f0806e2d269f96ce44cc1d23665a30490be479bfa03e4064457a5db2e24",
+    "bytes": 14536,
+    "scope": "94b32b3714; seeds 0-999"
+  },
+  "difftest-lean": {
+    "path": "qualification/difftest-lean.log",
+    "sha256": "79746eb5f476a1f7ef7923cc029165ed564892bfcbe8da2481d9b791ae80654b",
+    "bytes": 19017,
+    "scope": "94b32b3714; 20000 cases; baseline signatures unchanged, expected exit 1"
+  },
+  "schema-survey": {
+    "path": "qualification/schema-survey.log",
+    "sha256": "35ea21c6417ac4ed1bbcc5518ad212ef58c8c754854bb0f47a6263e37ec33d00",
+    "bytes": 530,
+    "scope": "edcbd2e479 CLI; exact 100 wave14 input hashes"
+  }
+}

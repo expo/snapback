@@ -96234,6 +96234,60 @@ the code-owned E_FIELD_AUTHORITY explanation. The 125 guide, nine field
 authority and 88 read-authorization tests pass on Linux and Mac after these
 editorial/snapshot corrections; existing explanation byte ceilings hold.
 
+## 2026-10-17 — LIVE bounded current-parent authority candidate
+
+LLP 3000.014.000 revision 5 has independent Muse and fresh Codex READY on
+1d10663cf369e9237f44dcf31a4b0c42bf9f2ff9192d08a8a374d7cd2028162f.
+The candidate spells `read through live .parent` with an immutable required
+reference and exact per-parent product cap. Private policy copies move in the
+parent transaction under a fixed source reservation and bounded internal
+meter. Automatic event counts use a schema-selected disclosure mask. Ordinary
+snapshot/catch-up and row moves carry the change; parent predictions queue.
+
+The accepted form excludes time/chain/derived/receipt/private-owner/action and
+nonplain/oversized-key compositions; noninvertible whole rules remain online.
+Adoption compares manual inputs before projection, live restoration restamps,
+and reverse adoption fills manual cells from current parent values. Live
+bulk calls use one job account and restoration identities use a file-backed
+transaction-local relation. Qualification and remaining implementation checks
+are in WORKSTREAM-REPORT.md; no publication or 0.4.32 version bump is claimed.
+
+LIVE wasm measurement: 2,379,857 B raw / 725,958 B gzip, +2,798 B gzip
+against RULES4. Budget 726,458 B is measurement plus exactly 500 B. The
+additional bytes carry live-parent-copy-v1 metadata, admission and exported
+prices/device queuing; native fanout/bulk/adoption stays off the web path. No
+runtime ceiling is raised. Final qualification lives in reports/wave14-live.
+
+LIVE implementation review closure: recovered manual table rules are validated
+before live adoption, and narrowed rows retain their individual historical live
+provenance across intermediate manual generations. Key admission includes row
+id/tag/terminator bytes. Bulk puts prepay all simultaneous index vectors and
+reuse ordinary null/expiry cap semantics; unchanged capture inputs avoid a
+population walk. Authoritative memory restoration now uses the shared bounded
+final-image contract; source imports needing derivations use seed. Dormant
+images/provenance and destination-cell overlays are byte-admitted before
+ownership. New regressions cover all seven round-2 witnesses.
+
+LIVE final device artifact (91e06dc961): 2,379,928 B raw / 725,948 B gzip /
+547,539 B Brotli. Set budget 726,448 B: exactly measured gzip + 500 B, a
+10-byte ratchet from the first LIVE budget. Whole-artifact +2,788 B gzip from
+RULES4; no runtime ceiling increase or independent feature attribution.
+
+LIVE final adoption qualification (041313aafb): 2,379,908 B raw / 726,039 B gzip /
+547,306 B Brotli; budget 726,539 B is measured gzip plus exactly 500 B.
+Whole-artifact +2,879 B gzip versus RULES4 includes the scoped restoration
+provenance interface; native PG keyset rebuilding and word-index admission do
+not ship as web writer paths. Strict family/absence audits pass; no runtime
+ceiling increase or independent feature attribution.
+
+### LIVE final row-source and restoration admission
+
+Live-parent implementation now distinguishes each restored row's actual authority mode from dormant column shape and cell provenance. Immediate manual agreement precedes captured/live recapture; original captured history and immutable parent lifetime remain bound. Column restoration reserves possible current-parent scratch before callbacks. Captured-only narrowed rollback retains actual-image admission. Paired implementation review records and each finding's response are under LLP 3000.014.000 and reports/wave14-live.
+
+Clean Linux web measurement at c2f5f6595c: 2,379,943 B raw / 725,864 B gzip / 547,431 B Brotli; strict family/absence audits pass. Ratchet 726,364 B is exactly measured gzip + 500 B, +2,704 B gzip versus RULES4. Whole-artifact growth includes live metadata/admission/queuing and the shared source-mode interface; subsequent restoration admission corrections are SQLite-only. No independent feature attribution or runtime ceiling increase. Mac Studio affected checks at this candidate: 485 passed.
+
+LIVE completion: design rev5 paired READY; implementation through edcbd2e479, final scoped r14 paired READY after shared per-row fetch/admission correction. Linux affected store 116, live-language 48 plus allocation probes 2, all-features compile, packed tarballs 11/11 and exact 100-schema survey pass. Mac Studio final affected run: 489 passed. Differential qualification at 94b32b3714: run 20k and devices 0–999 have no disagreement; Lean 20k matches every baseline oracle count/signature (130 inherited C2/W4 mismatches, four signatures). Root guide/inventory checks pass; final reference audit accompanies the evidence bundle. RFC marked Implemented and its current link archived. No push/publication; coordinator integration targets 0.4.32 after 0.4.31.
+
 ## 2026-10-17 — LANG3 wave 14: readable snapshots and truthful diagnostics
 
 For 0.4.31 (integration bumps the version), held readable point snapshots and
@@ -96492,3 +96546,40 @@ complete affected files pass on Linux and Mac. The census is 504 mutations,
 failed checks but retain three missing Snapback1 generated-artifact
 preconditions; inventory has the same missing transclusions. These are
 explicit qualification limits, not passing publication evidence.
+
+## 2026-10-18 — RULES5 wave 15: authorization recipes on LIVE
+
+Merged origin/main into LIVE before editing. No language, interpreter, protocol,
+adoption or client-contract change: three new rules-card programs demonstrate
+hidden lookup before require, hidden uniqueness refusal and rule/program probes.
+Eight recipe programs cover the seven requested shapes, including flattened
+shared LIVE authority and an ordinary middle policy probing a mutable ancestor.
+The 077 check shape is admitted through its section; chained live inheritance
+is refused. The 085 authority subset admits restrict-only LIVE, while its full
+cross-service total and cascade remain unsupported in that composition. No
+branch or action is silently dropped. LANG4 owns both note bullets.
+
+Paired fresh Muse/Codex round-2 READY follows the recipient-inbox correction.
+Verbatim reviews and input digests accompany LLP 3000.036.002 §13. All guide
+blocks compile; exact packed CLI/client/native execution passes 22 tests,
+including withdrawal/reapproval, grace/reconnect and private-history rollback.
+The rules card retains every original word/source block while reflowing prose
+within its existing physical-line budget. No version bump or push.
+Qualification results and any inherited limitations are in reports/wave15-rules5
+and the root WORKSTREAM-REPORT.md; these are workstream checks, not publication.
+
+RULES5 authoring census refresh: 521 mutation occurrences, 95 eligible private
+write sites. All 22 added operations are server-class; existing prediction
+authority is unchanged. Readauth passes 88/88 on Linux and Mac Studio.
+
+RULES5 broad verification exposed a corpus-membership mismatch after the LIVE
+merge: the pre-ephemeral durable byte test automatically collected LIVE's new
+fixture without a historical capture. Exclude that later fixture alongside the
+existing PAGE4 exclusion; its dedicated LIVE compiler/execution tests remain.
+No frozen schema/type expectation or runtime behavior changes.
+
+The complete language scope also caught two guide inventory assumptions:
+separate the manual roster alternative into its own level-two section, keeping
+the existing 120-line section ceiling, and pin all 45 recipe blocks (36 existing,
+one LIVE roster, eight wave-15 programs). The roster's one documented
+N_NO_HORIZON is checked exactly. Every Quarry block remains byte-identical.

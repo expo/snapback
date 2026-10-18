@@ -85,8 +85,15 @@ pub(crate) fn fits(meter: &mut Meter, price: &InternalPrice) -> bool {
 }
 
 // @ref LLP 3000.007#20.9.3 — shrink pages before adoption writes when retained images plus row work cannot fit.
+#[cfg(feature="postgres")]
 pub(crate) fn page_fits<'a>(images: impl ExactSizeIterator<Item = &'a str>, meter: &mut Meter,
     work: Work, scratch: Option<&dyn Fn(&Value) -> InternalPrice>) -> Result<bool, RuntimeError> {
+    let checked=|row:&Value|Ok(scratch.map_or_else(InternalPrice::zero,|f|f(row)));
+    page_fits_checked(images,meter,work,scratch.map(|_|&checked as &dyn Fn(&Value)->Result<InternalPrice,RuntimeError>))
+}
+
+pub(crate) fn page_fits_checked<'a>(images: impl ExactSizeIterator<Item = &'a str>, meter: &mut Meter,
+    work: Work, scratch: Option<&dyn Fn(&Value) -> Result<InternalPrice,RuntimeError>>) -> Result<bool, RuntimeError> {
     // Fix every cumulative budget before admission decodes or callbacks. Heap
     // retries retain used work, so both this check and limit use the remainder.
     if !work.fits(meter, images.len())? { return Ok(false); }
@@ -98,7 +105,7 @@ pub(crate) fn page_fits<'a>(images: impl ExactSizeIterator<Item = &'a str>, mete
         charge(meter, decode)?;
         meter.charge(MeterKind::Examined, 1)?;
         let row: Option<Value> = scratch.map(|_| crate::json_codec::from_text(data).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?;
-        let work = match (scratch, row.as_ref()) { (Some(scratch), Some(row)) => scratch(row), _ => InternalPrice::zero() };
+        let work = match (scratch, row.as_ref()) { (Some(scratch), Some(row)) => scratch(row)?, _ => InternalPrice::zero() };
         let fits = fits(meter, &work);
         // Only a singleton may refuse for heap. Larger pages can be dropped
         // and fetched again with a smaller limit, without replaying a write.
@@ -108,4 +115,55 @@ pub(crate) fn page_fits<'a>(images: impl ExactSizeIterator<Item = &'a str>, mete
         if !fits { return Ok(false); }
     }
     Ok(true)
+}
+
+/// Full simultaneous old/new key-vector scratch, including bounded token
+/// cardinality. Live destinations are plain; captured/manual successors may
+/// add word indexes and must still be admitted before native index_write.
+pub(crate) fn index_capacity(table:&Table)->u64 {
+    table.indexes.values().map(|i|index_copies(table,i)).fold(0_u64,u64::saturating_add)
+}
+fn index_copies(table:&Table,index:&crate::schema::Index)->u64 {
+    if let Some((_,fields))=index.word_component() {
+        fields.iter().filter_map(|f|table.columns.get(f)).map(|k|match k.required(){crate::schema::ColumnType::Text{max}=>u64::from(*max),crate::schema::ColumnType::Enum{variants}=>variants.iter().map(|s|s.len() as u64).max().unwrap_or(0),_=>0}).fold(0_u64,u64::saturating_add).min(crate::words::MAX_TOKENS_PER_ROW as u64)
+    }else{1}
+}
+pub(crate) fn index_scratch(name:&str,table:&Table)->u64 {
+    table.indexes.iter().map(|(label,index)| {
+        // Legacy oversized keys may legally remain equal or shrink. Their
+        // buffers still coexist; the ordinary 2048-byte gate is not a bound
+        // on allocation before that gate runs.
+        let key=index.components.iter().fold(291_u64,|n,c|n.saturating_add(match c {
+            IndexComponent::Column(field)=>table.columns.get(field).and_then(crate::schema::live::key_column).unwrap_or_else(||super::disclosed::decode_reservation(table)),
+            IndexComponent::WordPrefixes{..}=>2*crate::words::MAX_TOKEN_BYTES as u64+3,
+            _=>super::disclosed::decode_reservation(table),
+        })).max(super::MAX_INDEX_KEY_BYTES as u64);
+        // Empty token sets still allocate an IndexWrite slot and the word
+        // field-reference vector. These are independent of emitted key count.
+        let fixed=512_u64.saturating_add(4*(name.len()+label.len()) as u64)
+            .saturating_add(index.word_component().map_or(0,|(_,fields)|(fields.len() as u64).saturating_mul(32)));
+        fixed.saturating_add(index_copies(table,index).saturating_mul(key.saturating_mul(4).saturating_add(128*(index.components.len() as u64+1)+512+4*(name.len()+label.len()) as u64)))
+    }).fold(0_u64,u64::saturating_add)
+}
+
+#[cfg(test)]
+mod live_index_scratch_tests {
+    use super::*;
+    #[test]
+    fn empty_word_sets_still_reserve_native_index_slots() {
+        use crate::schema::{ColumnType,Index,IndexComponent,public_table};
+        let table=public_table([("id".into(),ColumnType::Id),("body".into(),ColumnType::Text{max:0})].into(),[("words".into(),Index{components:vec![IndexComponent::WordPrefixes{fields:vec!["body".into()],contract:serde_json::Value::String(crate::words::CONTRACT.into())},IndexComponent::Column("id".into())],unique:false})].into());
+        assert_eq!(index_capacity(&table),0);
+        // A nonempty vector of zero-key IndexWrite records remains retained.
+        assert!(index_scratch("t",&table)>=512);
+    }
+    #[test]
+    fn enum_words_reserve_the_tokens_the_native_index_will_emit() {
+        use crate::schema::{ColumnType,Index,IndexComponent,public_table};
+        let table=public_table([("id".into(),ColumnType::Id),("body".into(),ColumnType::Enum{variants:vec!["one two".into()]})].into(),[("words".into(),Index{components:vec![IndexComponent::WordPrefixes{fields:vec!["body".into()],contract:serde_json::Value::String(crate::words::CONTRACT.into())},IndexComponent::Column("id".into())],unique:false})].into());
+        let row=crate::value::object([("id",Value::Id("r".into())),("body",Value::String("one two".into()))]);
+        let keys=super::super::index_keys(&table.indexes["words"],&row,"r");assert_eq!(keys.len(),2);
+        assert!(index_capacity(&table)>=keys.len() as u64);
+        assert!(index_scratch("t",&table)>=keys.iter().map(|k|k.len() as u64*4).sum());
+    }
 }

@@ -25,6 +25,8 @@ mod activation_index;
 mod activation_plan;
 mod activation_scan;
 mod activation_walk;
+mod live_activation;
+mod authority_origin;
 mod adopt_refusals;
 pub mod adoption_estimate;
 pub mod adoption_report;
@@ -1072,6 +1074,11 @@ mod tests {
 pub const SCAN_MEMORY_GUARD: u64 = 256 << 20;
 
 impl crate::rows::Rows for Tx<'_> {
+    fn walk_adoption(&self, table:&str, _decode:u64, scratch:u64, work:[u64;3], visit:&mut dyn FnMut(Value)->Result<(),RuntimeError>) -> Result<(),RuntimeError> {
+        let extra=|_:&Value| crate::value::InternalPrice::zero().fixed(scratch);
+        activation_walk::walk_metered(self,self.num(table)?,crate::rows::adoption::Work {examined:work[0],steps:work[1],index_entries:work[2]},Some(&extra),|_,row,_| visit(row))
+    }
+
     fn change_footprint(&self) -> crate::revocation::Footprint { self.changes.borrow().footprint() }
     fn widen_change_evidence(&self) { self.changes.borrow_mut().widen(); }
     fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
@@ -1119,6 +1126,21 @@ impl crate::rows::Rows for Tx<'_> {
         Ok(self.conn().execute("INSERT OR IGNORE INTO _effect_keys(effect, key) VALUES (?1, ?2)", params![effect, key])? != 0)
     }
 
+    fn has_restored_live_authority(&self,table:&str)->Result<bool,RuntimeError> {
+        if !live_activation::active(self)? {return Ok(false);}
+        Ok(self.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._live_restored x JOIN r ON r.t=x.t AND r.id=x.id WHERE x.kind='live-authority' AND x.t=?1 AND x.col='')",[self.num(table)?],|r|r.get(0))?)
+    }
+    fn restored_live_authority(&self,table:&str,id:&str)->Result<bool,RuntimeError> {
+        if !live_activation::active(self)? {return Ok(false);}
+        Ok(self.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._live_restored WHERE kind='live-authority' AND t=?1 AND col='' AND id=?2)",params![self.num(table)?,id],|r|r.get(0))?)
+    }
+    fn restored_authority_mode(&self,table:&str,id:&str)->Result<Option<u8>,RuntimeError> {
+        authority_origin::mode(self,self.num(table)?,id)
+    }
+    fn restored_narrowed(&self,table:&str,id:&str)->Result<bool,RuntimeError> {
+        if !live_activation::active(self)? {return Ok(false);}
+        Ok(self.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._live_restored WHERE kind='narrowed' AND t=?1 AND col='' AND id=?2)",params![self.num(table)?,id],|r|r.get(0))?)
+    }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         Tx::get(self, table, id)
     }

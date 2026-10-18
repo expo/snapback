@@ -534,7 +534,23 @@ fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
         assert!(card("rule-recipes").unwrap().contains("runtime equality"));
         return bound;
     }
-    // LLP 3000.017 requires the ephemeral recipe to teach this server-only note.
+    // @ref LLP 3000.036.002#13 — caller-visible existence is the lesson, not global absence.
+    // This exact ladder example intentionally contrasts a hidden rule probe
+    // with caller-visible existence; its one advisory note is part of the lesson.
+    if quarry(card("rules").unwrap()).iter().any(|block| block == source && block.contains("query canReadLadderGrant(")) {
+        assert_eq!(bound.notes.len(), 1, "{label}: {:?}", bound.notes);
+        assert_eq!(bound.notes[0].code, "N_UNREADABLE_PROBE");
+        assert!(bound.notes[0].message.contains("canReadLadderGrant"));
+        assert!(card("rules").unwrap().contains("caller-visible existence is intended here"));
+        return bound;
+    }
+    // The live recipe deliberately teaches its full-current acquisition note.
+    if source.contains("table liveRosterFiles:") {
+        assert_eq!(bound.notes.len(),1,"{label}: {:?}",bound.notes);
+        assert_eq!(bound.notes[0].code,"N_NO_HORIZON");
+        assert!(bound.notes[0].rewrite.contains("online only") && !bound.notes[0].rewrite.contains("last 500"));
+        return bound;
+    }
     let unexpected: Vec<_> = notes.into_iter().filter(|note| !(source.contains("ephemeral ") && note.code == "N_EPHEMERAL_SERVER")).cloned().collect();
     assert!(unexpected.is_empty(), "{label} compiles with notes:\n{}", list(&unexpected));
     bound
@@ -810,7 +826,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 22, "Start here, paved introduction, familiar forms, the core program in twelve headed parts, four more preserved language blocks, field-authority, ephemeral declarations and membership paths");
+    assert_eq!(quarry(LANGUAGE).len(), 22, "Start here, paved introduction, familiar forms, the core program, four more preserved language blocks, field-authority, ephemeral declarations and membership paths");
     // The parts are one program: each compiles only as the whole, which the card runs against the engine.
     let parts: Vec<_> = quarry(LANGUAGE).into_iter().filter(|block| guide::language_part(block)).collect();
     assert_eq!((parts.len(), parts.concat()), (12, guide::language()));
