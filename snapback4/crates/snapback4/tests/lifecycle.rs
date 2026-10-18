@@ -769,7 +769,7 @@ fn development_banner_and_release_auth_boundary() {
     assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
     let release = Host::start(&dir, &["serve", deployment.to_str().unwrap()]);
     let (status, seed) = request(release.port, "/seed", rows, "");
-    assert_eq!(status, 403); assert!(seed["denied"]["message"].as_str().unwrap().contains("development doors are closed"));
+    assert_eq!(status, 403); assert_eq!(seed["denied"]["message"], "seeding is a development door");
     let (status, persona) = request(release.port, "/q/all", json!({"args":{}}), "x-snapback-persona: alice\r\n");
     assert_eq!(status, 401); assert_eq!(persona["denied"]["code"], "E_AUTH");
     let (status, guest) = request(release.port, "/auth/guest", json!({}), "");

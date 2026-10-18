@@ -243,7 +243,7 @@ fn dev_refuses_an_undeclared_persona() {
     let open = Project::new("query whoAmI():\n  return viewer\n");
     let (_dev, url) = open.dev(0);
     let (status, body) = http(&url, "POST", "/q/whoAmI", Some("anyone"), "{}");
-    assert_eq!((status, body["data"].as_str()), (200, Some("dev:anyone")), "{body}");
+    assert_eq!((status, body["data"].as_str()), (401, None), "{body}");
 }
 
 const FIXTURE_SCHEMA: &str = "use personas alice, bob

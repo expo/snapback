@@ -1,6 +1,6 @@
 use super::*;
 
-const ADOPTION_SOURCE: &str = "table expiring:\n  expiresAt: time ?\n  by byExpiry: expiresAt\n  expire at .expiresAt\n  read <- allow\nquery version():\n  return 1\n";
+const ADOPTION_SOURCE: &str = "use personas alice\ntable expiring:\n  expiresAt: time ?\n  by byExpiry: expiresAt\n  expire at .expiresAt\n  read <- allow\nquery version():\n  return 1\n";
 
 #[test]
 fn populated_adoption_preview_is_read_only_and_names_its_measured_rate() {
