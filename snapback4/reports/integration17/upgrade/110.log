@@ -1,0 +1,10 @@
+
+changed 2 packages in 2s
+
+3 packages are looking for funding
+  run `npm fund` for details
+project integ17-store32: snapback4@0.4.33; regenerate with check, run acceptance tests
+check: ok — 1 table (0 synced), 2 operations, no problems, 4.4 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+upgrade: snapback4 pinned to 0.4.33 with npm; commit the lockfile, run check and acceptance tests
+N_SECURITY_INTENT: 1 tables have access rules and no security invariants: notes; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted

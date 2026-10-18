@@ -1,0 +1,4 @@
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+

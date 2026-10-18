@@ -1,0 +1,207 @@
+[
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+      "--version"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/exact2",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "300s",
+      "npm",
+      "install",
+      "--ignore-scripts",
+      "--omit=optional",
+      "--no-audit",
+      "--no-fund",
+      "/tmp/integ17/client-dev/snapback4-0.4.33.tgz"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/synced",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "/home/ccheever/sb4-loop/prewave17/exact2/scripts/exact.mjs",
+      "new",
+      "/home/ccheever/sb4-loop/prewave17/synced/app",
+      "--snapback",
+      "--port",
+      "43225"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/synced",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "snapback",
+      "--rebuild",
+      "--port",
+      "43225"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/synced/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "contract",
+      "migrate",
+      "app.contract"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/synced/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "contract",
+      "types",
+      "app.contract",
+      "-o",
+      "app.contract.d.ts"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/synced/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:43225"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/synced/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "300s",
+      "npm",
+      "install",
+      "--ignore-scripts",
+      "--omit=optional",
+      "--no-audit",
+      "--no-fund",
+      "/tmp/integ17/client-dev/snapback4-0.4.33.tgz"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/online",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "/home/ccheever/sb4-loop/prewave17/exact2/scripts/exact.mjs",
+      "new",
+      "/home/ccheever/sb4-loop/prewave17/online/app",
+      "--snapback",
+      "--online",
+      "--port",
+      "37917"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/online",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "snapback",
+      "--rebuild",
+      "--port",
+      "37917"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/online/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "contract",
+      "migrate",
+      "app.contract"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/online/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "contract",
+      "types",
+      "app.contract",
+      "-o",
+      "app.contract.d.ts"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/online/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:37917"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/online/app",
+    "exit": 0
+  }
+]

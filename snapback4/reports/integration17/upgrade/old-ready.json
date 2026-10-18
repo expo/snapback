@@ -1,0 +1,16 @@
+{
+  "id": "01M58MWXGCTFTXWN1DQS8ECND2",
+  "before": [
+    {
+      "body": "preserved-from-0.4.32",
+      "id": "01M58MWXGCTFTXWN1DQS8ECND2",
+      "owner": "dev:alice"
+    }
+  ],
+  "hashes": {
+    "snapback/schema.q": "a1c06a211c98399f9b5e8fc0a99bdc88b7f69e0804ac333ac6ab461c6f489ff4",
+    "package.json": "9530a4a248e7fcd981c20c0563648dba52864932de41faf09609b44bd86da7ac",
+    "package-lock.json": "36a789ea9153783200a83f2d4192b900c81b79d9a90a3b229fb603767e8c2c11"
+  },
+  "expoSourceHash": "75eae1b8a13b20ef6d9c3e919dbf49d2250cb7d04f52fb1e2077a7d941768de0"
+}

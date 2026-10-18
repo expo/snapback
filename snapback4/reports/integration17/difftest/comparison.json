@@ -1,0 +1,33 @@
+{
+  "native": {
+    "base": "8416d092c3",
+    "baseEvidence": "reports/integration16/difftest/native.json",
+    "generated": 20000,
+    "executed": 1220035,
+    "oraclesIdentical": true,
+    "signatures": {}
+  },
+  "devices": {
+    "base": "8416d092c3",
+    "baseEvidence": "reports/integration16/difftest/devices.json",
+    "generated": 1000,
+    "executed": 27922,
+    "oraclesIdentical": true,
+    "signatures": {}
+  },
+  "lean": {
+    "base": "8416d092c3",
+    "baseEvidence": "reports/integration16/difftest/lean.json",
+    "generated": 20000,
+    "executed": 56917,
+    "oraclesIdentical": true,
+    "signatures": {
+      "lean": {
+        "lean--code--E_RULE~NOT_FOUND": 3,
+        "lean--continuation-next--next~no-next": 35,
+        "lean--next--next~no-next": 67,
+        "lean--prelude-code--E_RULE~NOT_FOUND": 25
+      }
+    }
+  }
+}

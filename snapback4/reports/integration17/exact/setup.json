@@ -1,0 +1,73 @@
+{
+  "exact_origin": "https://github.com/ccheever/exact2.git",
+  "exact_commit": "b28c0c1a64226420e43f0786f072e1a852287a3b",
+  "clean_clone_before_local_dependency_binding": true,
+  "setup": [
+    {
+      "cwd": "/home/ccheever/sb4-loop/prewave17/exact2",
+      "command": "timeout 240s /home/ccheever/.bun-1.4.2/bin/bun install --frozen-lockfile",
+      "exit": 0
+    },
+    {
+      "cwd": "/home/ccheever/sb4-loop/prewave17/exact2",
+      "command": "timeout 1800s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=4 PATH=/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.cargo/bin:/usr/local/bin:/usr/bin:/bin cargo build -q -p contract --bin contract",
+      "exit": 0
+    },
+    {
+      "cwd": "/home/ccheever/sb4-loop/prewave17/exact2",
+      "command": "timeout 300s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=4 PATH=/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.cargo/bin:/home/ccheever/.local/bin:/usr/local/bin:/usr/bin:/bin cargo update --workspace --manifest-path snapback4/Cargo.toml",
+      "exit": 0
+    }
+  ],
+  "merged_device_prebuild": {
+    "command": "timeout 1800s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=4 PATH=/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.cargo/bin:/home/ccheever/.local/bin:/usr/local/bin:/usr/bin:/bin node snapback4/web/build.mjs /home/ccheever/sb4-loop/prewave17/prebuilt-device.wasm",
+    "cwd": "/home/ccheever/sb4-loop/prewave17/exact2",
+    "exit": 0,
+    "raw_bytes": 2591178,
+    "gzip_bytes": 789768,
+    "sha256": "97bf37b94fff9a858a16df73c63eb3a8290af33c867581c5bb779bf647a2c99b",
+    "stamp": {
+      "format": 1,
+      "version": "0.4.33",
+      "capabilities": [
+        "branch-membership-v1",
+        "branch-membership-v2",
+        "branch-merge-v1",
+        "branch-pages-v2",
+        "branch-pages-v3",
+        "branch-pages-v4",
+        "branch-pages-v5",
+        "calendar-month",
+        "calendar-schedule",
+        "declarative-receipts-v4",
+        "ephemeral",
+        "expiry-reference-actions-v1",
+        "field-authority",
+        "insert-rule-order",
+        "insert-rule-order-units",
+        "int-range",
+        "live-parent-copy-v1",
+        "maintained-column",
+        "maintained-id-sha256-v1",
+        "owner-key-coverage",
+        "read-through",
+        "receipt-derived-prediction-v1",
+        "recorded-attribution",
+        "reference-actions",
+        "row-keyed-view",
+        "rule-reference",
+        "rule-reference-v2",
+        "sequence-by",
+        "source-write-reservations-v1",
+        "source-write-reservations-v2",
+        "sync-generation-v1",
+        "time-audiences-v1",
+        "timeline",
+        "timeline-event-slots",
+        "timeline-v2",
+        "union-audience"
+      ],
+      "sha256": "97bf37b94fff9a858a16df73c63eb3a8290af33c867581c5bb779bf647a2c99b"
+    }
+  }
+}

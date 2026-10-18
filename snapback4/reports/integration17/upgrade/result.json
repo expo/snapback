@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "from": "0.4.32",
+  "to": "0.4.33",
+  "storeOldRowPreserved": true,
+  "passwordDefaultDevDoorsClosed": true,
+  "passwordRealSignupMutationQuery": true,
+  "unsafeDevDoorsRestoresOldPersonaWorkflow": true,
+  "noInvariantCheckPasses": true,
+  "aggregateIntentNotes": 1,
+  "expoExactPins": true,
+  "expoAdapt": true,
+  "expoTypecheck": true,
+  "expoWebExport": true,
+  "packageHashes": {
+    "snapback4": "sha512-KxoL4Vo3QvfDK2XBTKoKSm9j2+328O8vIwE4fyUhE6OIBRfWK02O8mWtN9XoOh8neNl1AUzhcdGj8lgWergf3w==",
+    "snapback4-expo": "sha512-QBLxaJQdgkTcFEF80bThejO5aCnOCJDieENmb/ZaQ7h3wxgI9GhDbY4MaWiDL2QqawWClf2cOoBO23n7FU9c9w==",
+    "snapback4-linux-x64": "sha512-cSFTL8U16cDIM6wUoGg5Q9HQhmyW5SWvKokcj8M5iai3/Y82TyXeg93lz6+Hycy/qn0P2DnSK08eaaajiXEOOw=="
+  },
+  "nativeBinarySha256": "890ba80d8c48e98a1fa68ffb93362056a46e1da20de32b9962c43d02301c1bb5",
+  "oldNativeBinarySha256": "8d7c0c24d613e2b0d0948bc84fa6100d00239368dcf381bcfa954dd160ed0ae4",
+  "provisionalClientPack": "/tmp/integ17/client-dev/snapback4-0.4.33.tgz"
+}

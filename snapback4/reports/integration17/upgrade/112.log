@@ -1,0 +1,4 @@
+init --adapt: planned changes (only unmodified starter files):
+  replace scripts/frontend-proof.mjs — inherited proof infrastructure
+init --adapt: preview only; no files changed. Apply with:
+snapback4 init --adapt --apply

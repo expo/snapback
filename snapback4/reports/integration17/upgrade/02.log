@@ -1,0 +1,6 @@
+init: wrote 22 files in /tmp/integ17-upgrade/expo32 — Expo todos: native when available, online in Expo Go — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, recipes/{production/schema.q, production/fixtures/test.cases.jsonl, production/App.tsx, production/client.ts}, scripts/{frontend-proof.mjs, launch.mjs}
+init: Expo dependencies are pinned; next: `npm install`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `--port N` sets the client's backend URL and the README and launchers together
+npm install

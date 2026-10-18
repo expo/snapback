@@ -1,0 +1,254 @@
+[
+  {
+    "cmd": "/tmp/integ17-upgrade/old-tools/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "--version"
+    ],
+    "cwd": "/tmp/integ17-upgrade",
+    "exit": 0
+  },
+  {
+    "cmd": "/tmp/integ17-upgrade/old-tools/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "init",
+      "/tmp/integ17-upgrade/expo32",
+      "--expo"
+    ],
+    "cwd": "/tmp/integ17-upgrade",
+    "exit": 0
+  },
+  {
+    "cmd": "npm",
+    "args": [
+      "install",
+      "--save-exact",
+      "snapback4@0.4.32",
+      "snapback4-expo@0.4.32",
+      "--registry",
+      "http://127.0.0.1:4873/",
+      "--no-audit",
+      "--no-fund"
+    ],
+    "cwd": "/tmp/integ17-upgrade/expo32",
+    "exit": 0
+  },
+  {
+    "cmd": "/tmp/integ17-upgrade/old-tools/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "check"
+    ],
+    "cwd": "/tmp/integ17-upgrade/expo32",
+    "exit": 0
+  },
+  {
+    "cmd": "npm",
+    "args": [
+      "run",
+      "typecheck"
+    ],
+    "cwd": "/tmp/integ17-upgrade/expo32",
+    "exit": 0
+  },
+  {
+    "cmd": "npm",
+    "args": [
+      "install",
+      "--save-exact",
+      "snapback4@0.4.32",
+      "--registry",
+      "http://127.0.0.1:4873/",
+      "--no-audit",
+      "--no-fund"
+    ],
+    "cwd": "/tmp/integ17-upgrade/store32",
+    "exit": 0
+  },
+  {
+    "cmd": "/tmp/integ17-upgrade/old-tools/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "check"
+    ],
+    "cwd": "/tmp/integ17-upgrade/store32",
+    "exit": 0
+  },
+  {
+    "cmd": "/tmp/integ17-upgrade/old-tools/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "dev",
+      "--port",
+      "26917",
+      "--no-watch"
+    ],
+    "cwd": "/tmp/integ17-upgrade/store32",
+    "kind": "temporary host"
+  },
+  {
+    "cmd": "/tmp/integ17-upgrade/old-tools/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "data",
+      "notes",
+      "--json"
+    ],
+    "cwd": "/tmp/integ17-upgrade/store32",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "--version"
+    ],
+    "cwd": "/tmp/integ17-upgrade",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "check",
+      "--json"
+    ],
+    "cwd": "/tmp/integ17-upgrade/store32",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "data",
+      "notes",
+      "--json"
+    ],
+    "cwd": "/tmp/integ17-upgrade/store32",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "dev",
+      "--port",
+      "26917",
+      "--no-watch"
+    ],
+    "cwd": "/tmp/integ17-upgrade/store32",
+    "kind": "temporary host"
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "dev",
+      "--port",
+      "26917",
+      "--no-watch",
+      "--unsafe-dev-doors"
+    ],
+    "cwd": "/tmp/integ17-upgrade/store32",
+    "kind": "temporary host"
+  },
+  {
+    "cmd": "npm",
+    "args": [
+      "pack",
+      "--json",
+      "--pack-destination",
+      "/tmp/integ17-upgrade"
+    ],
+    "cwd": "/tmp/integ17-upgrade/upgrade-platform",
+    "exit": 0
+  },
+  {
+    "cmd": "tar",
+    "args": [
+      "-xzOf",
+      "/tmp/integ17-upgrade/snapback4-0.4.33.tgz",
+      "package/package.json"
+    ],
+    "cwd": "/tmp/integ17-upgrade",
+    "exit": 0
+  },
+  {
+    "cmd": "tar",
+    "args": [
+      "-xzOf",
+      "/tmp/integ17-upgrade/snapback4-expo-0.4.33.tgz",
+      "package/package.json"
+    ],
+    "cwd": "/tmp/integ17-upgrade",
+    "exit": 0
+  },
+  {
+    "cmd": "tar",
+    "args": [
+      "-xzOf",
+      "/tmp/integ17-upgrade/snapback4-linux-x64-0.4.33.tgz",
+      "package/package.json"
+    ],
+    "cwd": "/tmp/integ17-upgrade",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "upgrade",
+      "--to",
+      "0.4.33"
+    ],
+    "cwd": "/tmp/integ17-upgrade/store32",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "upgrade",
+      "--to",
+      "0.4.33"
+    ],
+    "cwd": "/tmp/integ17-upgrade/expo32",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "init",
+      "--adapt"
+    ],
+    "cwd": "/tmp/integ17-upgrade/expo32",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "check"
+    ],
+    "cwd": "/tmp/integ17-upgrade/expo32",
+    "exit": 0
+  },
+  {
+    "cmd": "npm",
+    "args": [
+      "run",
+      "typecheck"
+    ],
+    "cwd": "/tmp/integ17-upgrade/expo32",
+    "exit": 0
+  },
+  {
+    "cmd": "/tmp/integ17-upgrade/expo32/node_modules/.bin/expo",
+    "args": [
+      "export",
+      "-p",
+      "web",
+      "--max-workers",
+      "2"
+    ],
+    "cwd": "/tmp/integ17-upgrade/expo32",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "data",
+      "notes",
+      "--json"
+    ],
+    "cwd": "/tmp/integ17-upgrade/store32",
+    "exit": 0
+  }
+]

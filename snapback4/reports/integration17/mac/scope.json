@@ -1,0 +1,76 @@
+{
+  "source": "999598649f5323f14ff43fb577e54650352416e3",
+  "clients": [
+    "api-index.test.mjs",
+    "client-recipes.test.mjs",
+    "dev-reset.test.mjs",
+    "device-version.test.mjs",
+    "expo-media-storage.test.mjs",
+    "expo-save-asset.test.mjs",
+    "expo-scenes.test.mjs",
+    "expo-session-store.test.mjs",
+    "export-background.test.mjs",
+    "export-failure.test.mjs",
+    "export-native-round2.test.mjs",
+    "export-native.test.mjs",
+    "export-publication.test.mjs",
+    "front-data-react.test.mjs",
+    "init-recipe.test.mjs",
+    "linux-package.test.mjs",
+    "live-contention.test.mjs",
+    "maintenance-evidence.test.mjs",
+    "native-e2e.test.mjs",
+    "native-opening.test.mjs",
+    "native-smoke.test.mjs",
+    "periphery.test.mjs",
+    "production-starters.test.mjs",
+    "proof-fixtures.test.mjs",
+    "proof.test.mjs",
+    "publish-linux.test.mjs",
+    "publish-signing.test.mjs",
+    "qualify-linux.test.mjs",
+    "readme-examples.test.mjs",
+    "recorded-compatibility.test.mjs",
+    "rx-rule-hop-capability.test.mjs",
+    "schema-capabilities.test.mjs",
+    "security-packed.test.mjs",
+    "server-e2e.test.mjs",
+    "staging.test.mjs",
+    "sync-generation.test.mjs",
+    "test-file-runner.test.mjs",
+    "test-platform-audit.test.mjs",
+    "test-processes.test.mjs",
+    "test-signals.test.mjs",
+    "wave12-kit.test.mjs",
+    "wave14-rule-recipes.test.mjs",
+    "web-session-authority.test.mjs",
+    "worker-regressions.test.mjs",
+    "worker.test.mjs"
+  ],
+  "targets": {
+    "snapback4": [
+      "check",
+      "check_notes",
+      "cli_friction",
+      "init",
+      "lifecycle",
+      "run_admission"
+    ],
+    "snapback4-lang": [
+      "front_semantics",
+      "guide",
+      "security",
+      "security_custody",
+      "security_histories",
+      "security_observers",
+      "security_wave16"
+    ],
+    "snapback4-core": [],
+    "snapback4-device": [
+      "readauth"
+    ],
+    "snapback4-sim": [
+      "clique"
+    ]
+  }
+}

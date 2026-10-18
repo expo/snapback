@@ -1,0 +1,20 @@
+Starting Metro Bundler
+
+| (node:623442) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:623442) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 1832ms index.js (330 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.57ab24621d9f5b0a595366437898c85b.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/index-bd516a456e8b835cc7cc8d8fa07ad48c.js (844KB)
+_expo/static/js/web/web-worker-entry-709a59346b885c85345808b933f12cb9.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist

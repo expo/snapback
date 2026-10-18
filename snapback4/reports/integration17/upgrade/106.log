@@ -1,0 +1,26 @@
+[
+  {
+    "id": "snapback4-linux-x64@0.4.33",
+    "name": "snapback4-linux-x64",
+    "version": "0.4.33",
+    "size": 18448522,
+    "unpackedSize": 59783644,
+    "shasum": "979bf61c5e442ae8be3f75b026c1d4b44104f0f0",
+    "integrity": "sha512-cSFTL8U16cDIM6wUoGg5Q9HQhmyW5SWvKokcj8M5iai3/Y82TyXeg93lz6+Hycy/qn0P2DnSK08eaaajiXEOOw==",
+    "filename": "snapback4-linux-x64-0.4.33.tgz",
+    "files": [
+      {
+        "path": "package.json",
+        "size": 132,
+        "mode": 420
+      },
+      {
+        "path": "snapback4",
+        "size": 59783512,
+        "mode": 493
+      }
+    ],
+    "entryCount": 2,
+    "bundled": []
+  }
+]

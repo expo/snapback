@@ -1,0 +1,2 @@
+check: ok — 1 table (0 synced), 2 operations, no problems, 2.7 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation

@@ -1,0 +1,10 @@
+{
+  "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+  "binarySha256": "3c62cdd0f8505b68486777ef6833718bd400d723989a8f352dc835a994fa7764",
+  "source": "999598649f5323f14ff43fb577e54650352416e3",
+  "baseline": "reports/integration16/schemas.json.gz 0.4.32 merged entries",
+  "method": "copy only flat snapback/*.q modules into private temporary projects, preserve module names, check --json; original apps untouched",
+  "originalsVerifiedAgainAtCloseout": true,
+  "originalSchemaDirectories": 150,
+  "originalModules": 150
+}
