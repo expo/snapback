@@ -86,3 +86,6 @@ open Quarry
 
 #print axioms immutablePreserved_self
 #print axioms immutablePatch_hidden
+
+#print axioms Quarry.Security.sound
+#print axioms Quarry.Security.complete

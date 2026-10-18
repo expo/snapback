@@ -1,0 +1,63 @@
+{
+  "startedAt": "2026-10-18T21:39:40.363Z",
+  "status": "done",
+  "serve": {
+    "ready": true,
+    "readyMs": 4104,
+    "why": null,
+    "roles": [
+      "engineer",
+      "chief",
+      "contractor",
+      "manager"
+    ],
+    "usersPerRole": {
+      "engineer": 2,
+      "chief": 2,
+      "contractor": 2,
+      "manager": 2
+    },
+    "backendUrl": "http://127.0.0.1:26940",
+    "frontendUrl": "http://127.0.0.1:26941",
+    "aliveAtEnd": true
+  },
+  "agent": {
+    "code": 0,
+    "timedOut": false,
+    "minutes": 4.2,
+    "flagged": 0,
+    "providerErrors": 0,
+    "completed": true
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "low",
+      "rule": "The property manager sees compliance reports of completed rounds.",
+      "repro": "f1-manager-uncompleted-rounds.mjs",
+      "evidence": "A chief created a future shift and scheduled a round two hours ahead, with no readings or completion. POST /q/compliance as the manager returned HTTP 200 with that round's id, status:\"scheduled\", scheduledAt, completedAt:null, and the nested shift id, label, startsAt and endsAt. The query has no completed-status filter, exposing metadata about uncompleted future work.",
+      "reproExists": true,
+      "rerun": {
+        "status": 0,
+        "signal": null,
+        "out": "93d1f3ab61b72d29\"}}}\n{\"user\":\"probe-chief1@example.test\",\"request\":{\"method\":\"POST\",\"path\":\"/m/scheduleRound\",\"args\":{\"shiftId\":\"01M58FHCXDXA6DDA8BRJ8CCKT0\",\"scheduledAt\":1792367038612}},\"response\":{\"status\":200,\"body\":{\"generation\":1,\"head\":74,\"preserved\":[\"alerts\",\"assignments\",\"gauges\",\"readings\",\"readingsCount\",\"roles\",\"rounds\",\"shiftMembers\",\"shifts\"],\"result\":{\"completedAt\":null,\"id\":\"01M58FHCXQ4FNFTNREYPY8RGWY\",\"scheduledAt\":1792367038612,\"shift\":\"01M58FHCXDXA6DDA8BRJ8CCKT0\",\"status\":\"scheduled\"},\"seq\":74,\"state\":\"sent\",\"store_id\":\"fc1717b52ce8907b93d1f3ab61b72d29\"}}}\n{\"user\":\"probe-mgr1@example.test\",\"request\":{\"method\":\"POST\",\"path\":\"/q/compliance\",\"args\":{\"from\":1792367038611,\"to\":1792367038613}},\"response\":{\"status\":200,\"body\":{\"scopes\":{},\"generation\":1,\"complete\":true,\"cut\":null,\"data\":[{\"completedAt\":null,\"id\":\"01M58FHCXQ4FNFTNREYPY8RGWY\",\"scheduledAt\":1792367038612,\"shift\":{\"endsAt\":1792370638612,\"id\":\"01M58FHCXDXA6DDA8BRJ8CCKT0\",\"label\":\"F1 future 5857e247\",\"startsAt\":1792363438612},\"status\":\"scheduled\"}],\"next\":null,\"nextExpiry\":null,\"seq\":74,\"store_id\":\"fc1717b52ce8907b93d1f3ab61b72d29\",\"tables\":[\"roles\",\"rounds\",\"shiftMembers\",\"shifts\"],\"viewer\":\"user:01M58F9MBPHRYW4B4YPJ6EMG79\"}}}\nGAP PRESENT: manager sees an uncompleted future round: {\"completedAt\":null,\"id\":\"01M58FHCXQ4FNFTNREYPY8RGWY\",\"scheduledAt\":1792367038612,\"shift\":{\"endsAt\":1792370638612,\"id\":\"01M58FHCXDXA6DDA8BRJ8CCKT0\",\"label\":\"F1 future 5857e247\",\"startsAt\":1792363438612},\"status\":\"scheduled\"}\n"
+      },
+      "confirmed": true
+    }
+  ],
+  "counts": {
+    "high": 0,
+    "medium": 0,
+    "low": 1
+  },
+  "confirmed": {
+    "high": 0,
+    "medium": 0,
+    "low": 1
+  },
+  "tampered": [
+    "deployment/releases/2/snapback/schema.q"
+  ],
+  "swept": 0,
+  "finishedAt": "2026-10-18T21:44:03.740Z"
+}

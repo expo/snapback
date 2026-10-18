@@ -1,0 +1,27 @@
+{
+  "independence": "Families never saw each other; fresh continuation saw only its own retained reports/copies and installed docs. Initial cohort finding labels withheld. Primary replay reported separately.",
+  "sessions": [
+    {
+      "family": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
+      "workingDirectory": "/tmp/sec2-builders/codex",
+      "initialPromptSha256": "cc64a531f8850b5589050c2dcc761874deb032414f833e80381c892673d905bf",
+      "initialExit": "completed",
+      "freshContinuationPrompt": "final-doc-review-brief.md",
+      "continuationExit": 0,
+      "modelEvidence": "Codex metadata retained in stderr; Muse prescribed wrapper used plan-quota fallback. No key file read or logged."
+    },
+    {
+      "family": "muse",
+      "model": "muse-spark-1.3-contributor",
+      "reasoningEffort": "high",
+      "workingDirectory": "/tmp/sec2-builders/muse",
+      "initialPromptSha256": "3ba3b03e8eaff04ee47254044f62d1555041ed38fd8dd2f63604cf7b82ed7276",
+      "initialExit": "outer timeout before report; initial-attempt.json preserved",
+      "freshContinuationPrompt": "resume-brief.md",
+      "continuationExit": 0,
+      "modelEvidence": "Codex metadata retained in stderr; Muse prescribed wrapper used plan-quota fallback. No key file read or logged."
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "packed-security": 0,
+  "root-install": 0,
+  "root-hoist": 0,
+  "root-generated": 0,
+  "ref-check": 0,
+  "native-diff20k": 0,
+  "devices0-999": 0,
+  "lean-diff20k": {
+    "exit": 1,
+    "baselineSignatures": {
+      "lean--code--E_RULE~NOT_FOUND": 3,
+      "lean--continuation-next--next~no-next": 35,
+      "lean--next--next~no-next": 67,
+      "lean--prelude-code--E_RULE~NOT_FOUND": 25
+    }
+  },
+  "lean-build-check": 0,
+  "150-schema-survey": 0,
+  "prepare-client": 0
+}

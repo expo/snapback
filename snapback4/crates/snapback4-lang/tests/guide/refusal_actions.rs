@@ -8,6 +8,15 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_STAGING_TIMEOUT", &["Partial accounts/grants may exist", "inspect or discard the disposable deployment before retrying"]),
     ("E_STAGING_SIGNUP", &["Inspect the underlying refusal", "partial accounts/grants may exist"]),
     ("E_STAGING_PROVISION", &["Repair its arguments and operator-only rules", "partial accounts/grants may exist"]),
+    ("E_SECURITY_TARGET", &["Correct the target name", "inspect `audit`"]),
+    ("N_SECURITY_INTENT", &["Declare policy from the spec", "inspect `audit`"]),
+    ("N_BROAD_READ", &["Confirm the intended audience", "inspect `audit`"]),
+    ("N_GRANT_OUTLIVES_ROLE", &["Recheck the current reader role", "inspect `audit`"]),
+    ("N_ARGUMENT_GRANT", &["Validate the recipient role and relationship", "inspect `audit`"]),
+    ("N_OPTIONAL_EVIDENCE", &["Declare required media when the spec requires it", "inspect `audit`"]),
+    ("N_SWEEP_ONLY_DEADLINE", &["Enforce the deadline in the mutation", "inspect `audit`"]),
+    ("N_EXISTENCE_ORACLE", &["Unify the code and message when existence is private", "inspect `audit`"]),
+
     ("E_EXPIRY_ORPHAN", &["After backup/review, stop the host", "restrict/read-through blockers refuse", "never reconstructs a parent"]),
 
     ("E_QUARRY_STATEMENT", &["Bind an assertion or read to a local", "return it when it is the result"]),

@@ -1,7 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
-**Start here:** Declare typed tables, row rules, queries and mutations; indexes are inferred. Default-starter pattern; `guide from-sql` translates familiar idioms.
+**Start here:** Declare tables, rules, queries and mutations; indexes are inferred. Default-starter pattern; `guide from-sql` translates familiar idioms.
 
 ```quarry
 table todos:
@@ -33,7 +33,7 @@ mutation addNote(body: text):
 
 `where .x != null` narrows loop/shape rows.
 
-Tables have an implicit `id`. `query` pages newest first; pass `next` as `c`. `addNote` inserts atomically with default time.
+Implicit `id`; newest-first pages (`next` → `c`); atomic inserts default time.
 `not before .opensAt` sets a stored lower read lifetime; null is unbounded. With `expire at`, rows live in `[opensAt, expiresAt)`. See `guide timed disclosure`.
 
 
@@ -557,6 +557,8 @@ It is not password hashing, low-entropy email anonymization, a signature, a MAC,
 
 `unique principal, day(at)` enforces calendar uniqueness. `search body` declares word-prefix search. The planner builds indexes for predicates, order, rule probes, sync, caps and expiry (`guide indexes`).
 
+`invariant t.read only P`: intent (`guide security`).
+
 ## With `use server`
 
 ```quarry
@@ -574,7 +576,7 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 Cards: `snapback4 guide <keyword>`: cheatsheet, app, social, from-sql, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, deploy, release-json, expire, ephemeral, sequences,
 assets, client, wire, reads, shapes, writes, cleanup, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, receipts, read-only, manual-receipts, bounds, refusals, personas, testing, witness. `why
-<CODE>` explains refusals. Also: production, staging. `guide recipes`, `guide rule-recipes`, `guide deploy`, `guide changes`.
+<CODE>` explains refusals. Also: production, staging, security. Guides: `guide recipes`, `guide rule-recipes`, `guide deploy`, `guide changes`.
 
 ## An ID belongs to one intent
 

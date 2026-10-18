@@ -95,6 +95,16 @@ pub fn test(options: &Options) -> i32 {
             return 0;
         }
     }
+    let mut security_campaign = snapback4_lang::security::challenges::run(&bound);
+    snapback4_lang::security::challenges::operations(&bound,&engine,&mut security_campaign);
+    let security_http_ok=security::unauthenticated(&bound,&sources);
+    if security_http_ok{security_campaign.unsupported.retain(|s|!s.starts_with("unauthenticated HTTP attempts require"));}
+    println!("security histories: {} ordered short operation sequences replayed",security_campaign.sequences);
+    for why in &security_campaign.boundary_failures {println!("security boundary failure: {why}");}
+    println!("security operation matrix: {} operations exercised; unknown authorization intent is not inferred from success",security_campaign.operations.len());
+    println!("security tests: {} attempted, {} refused, {} violations; finite campaign, not proof",security_campaign.attempted,security_campaign.refused,security_campaign.violations.len());
+    for c in &security_campaign.violations {println!("security violation: {}",serde_json::to_string(c).unwrap());}
+    for reason in &security_campaign.unsupported {println!("security not covered: {reason}");}
     let (mut passed, mut failed_cases) = (0, 0);
     if let Some(fixture) = options.flags.get("fixture").filter(|_| !options.flags.contains_key("saved-fixture-fallback")) {
         match test_cases::run_verbose(&mut engine, &bound, fixture, &sources, fixture_now, options.flags.contains_key("verbose")) {
@@ -244,5 +254,5 @@ pub fn test(options: &Options) -> i32 {
     if no_cases {
         eprintln!("test: no business cases executed ({skipped_business_cases} skipped); add test.cases.jsonl, or use --fixture-only when fixture loading/query probes are the intended check");
     }
-    if failures > 0 || failed_cases > 0 || no_cases { 1 } else { 0 }
+    if failures > 0 || failed_cases > 0 || no_cases || !security_campaign.violations.is_empty() || !security_campaign.boundary_failures.is_empty() || !security_http_ok { 1 } else { 0 }
 }

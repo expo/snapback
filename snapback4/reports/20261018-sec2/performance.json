@@ -1,0 +1,16 @@
+{
+  "socialDebugCLI": {
+    "beforeSeconds": 28.12,
+    "afterSeconds": 16.77,
+    "securityJsonIdentical": true,
+    "before": "/tmp/sec2-speed-check.json",
+    "after": "/tmp/sec2-speed-cache.json"
+  },
+  "socialOriginalGuard": {
+    "milliseconds": 30000,
+    "afterTestMilliseconds": 19202.102091,
+    "result": "pass",
+    "log": "/tmp/sec2-social-cached.log"
+  },
+  "mechanism": "reuse only identical seeded-world final-exists validation rejection; no execution/policy/resource result cached"
+}

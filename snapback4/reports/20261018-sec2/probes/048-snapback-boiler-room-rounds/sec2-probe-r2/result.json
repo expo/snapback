@@ -1,0 +1,61 @@
+{
+  "startedAt": "2026-10-18T21:57:02.244Z",
+  "status": "done",
+  "serve": {
+    "ready": true,
+    "readyMs": 3452,
+    "why": null,
+    "roles": [
+      "engineer",
+      "chief",
+      "contractor",
+      "manager"
+    ],
+    "usersPerRole": {
+      "engineer": 2,
+      "chief": 2,
+      "contractor": 2,
+      "manager": 2
+    },
+    "backendUrl": "http://127.0.0.1:26940",
+    "frontendUrl": "http://127.0.0.1:26941",
+    "aliveAtEnd": true
+  },
+  "agent": {
+    "code": 0,
+    "timedOut": false,
+    "minutes": 4.1,
+    "flagged": 0,
+    "providerErrors": 0,
+    "completed": true
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "low",
+      "rule": "The property manager sees compliance reports of completed rounds but not individual readings.",
+      "repro": "f1-manager-future-shifts.mjs",
+      "evidence": "A chief created a future shift with no rounds at all; a chief shiftRounds control returned []. POST /q/shiftsList as each manager returned HTTP 200 with the new shift id, full label, startsAt and endsAt, along with the building-wide shift schedule. This exposes shift metadata unrelated to any completed round. The repaired compliance query itself correctly excludes uncompleted rounds.",
+      "reproExists": true,
+      "rerun": {
+        "status": 0,
+        "signal": null,
+        "out": "ndsAt\":1792389495118,\"id\":\"01M58GBHB5V2BF3M1SY7YERBBG\",\"label\":\"QA b60fdc69\",\"startsAt\":1792331895118},{\"endsAt\":1792389555434,\"id\":\"01M58GDC86J4KEQ2JXMBH67J1T\",\"label\":\"QA 1bc15220\",\"startsAt\":1792331955434},{\"endsAt\":1792389555483,\"id\":\"01M58GDC8VY4D5H5PP2718EWAS\",\"label\":\"QA 1bc15220\",\"startsAt\":1792331955483},{\"endsAt\":1792389664759,\"id\":\"01M58GGQ0J66XRDY82J356ARBF\",\"label\":\"QA 1e8412d9\",\"startsAt\":1792332064759},{\"endsAt\":1792396625731,\"id\":\"01M58G9DJ4S32MD4QAMQK14J1X\",\"label\":\"Probe shift\",\"startsAt\":1792353425731},{\"endsAt\":1792371471313,\"id\":\"01M58GAT3BHG07D6XDB2Q8G3Z4\",\"label\":\"F1 future 697bc066\",\"startsAt\":1792364271313},{\"endsAt\":1792371601091,\"id\":\"01M58GERTY6GRV6Z97SG49ZA7H\",\"label\":\"F1 future 2b5e22d4\",\"startsAt\":1792364401091},{\"endsAt\":1792475910155,\"id\":\"01M58GC0188C9ZRFC5BACDSJYR\",\"label\":\"F1 private future 8d578895\",\"startsAt\":1792447110155},{\"endsAt\":1792476064661,\"id\":\"01M58GGPXDM8DYSJF8VJ9R04J8\",\"label\":\"F1 private future 4b4ddeaf\",\"startsAt\":1792447264661},{\"endsAt\":1792476073318,\"id\":\"01M58GGZBXX5EVCQV0WFRDE0KE\",\"label\":\"F1 private future 5635649b\",\"startsAt\":1792447273318}],\"next\":null,\"nextExpiry\":null,\"seq\":99,\"store_id\":\"778bb4c30143c375d39cb1996f7fe92b\",\"tables\":[\"roles\",\"shiftMembers\",\"shifts\"],\"viewer\":\"user:01M58G9DH2WMRVQXNBJ124BB03\"}}}\nGAP PRESENT: manager received an empty future shift outside any completed-round report: {\"endsAt\":1792476073318,\"id\":\"01M58GGZBXX5EVCQV0WFRDE0KE\",\"label\":\"F1 private future 5635649b\",\"startsAt\":1792447273318}\n"
+      },
+      "confirmed": true
+    }
+  ],
+  "counts": {
+    "high": 0,
+    "medium": 0,
+    "low": 1
+  },
+  "confirmed": {
+    "high": 0,
+    "medium": 0,
+    "low": 1
+  },
+  "tampered": [],
+  "swept": 0,
+  "finishedAt": "2026-10-18T22:01:18.432Z"
+}

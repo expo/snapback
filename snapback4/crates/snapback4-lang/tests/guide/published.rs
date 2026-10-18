@@ -44,6 +44,7 @@ const APP_FILES: &[&str] = &[
     "snapback/workers/<service>.mjs", "snapback/workers/push.mjs",
     "snapback/workers/notifications.mjs", "/durable/path/effects.sqlite",
     "snapback/generated/api.ts", "snapback/generated/server.ts",
+    "snapback/generated/security-invariants.q.draft",
     "snapback/generated/native.rs", "snapback/generated/native.wasm",
     "snapback/generated/package.json", "snapback/generated/residency.json",
     "snapback/native/Cargo.toml", ".snapback4/store.sqlite",

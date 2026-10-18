@@ -1,0 +1,108 @@
+{
+  "harness": "~/sb4-loop/bakeoff/probe.mjs --minutes 30 --force; original brief-probe.md",
+  "result": "five repaired copies; finite probe evidence, not zero-hole proof",
+  "sessions": "two real ordinary password users per role; only temporary operator bootstrap; real serve development=false; no credentials retained",
+  "rounds": "prior confirmed findings retained with sanitized results; initial serve failures recorded separately in workstream report",
+  "lanes": [
+    {
+      "lane": "019-snapback-apiary-hive-inspections",
+      "status": "done",
+      "confirmed": {
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "ports": [
+        26900,
+        26909
+      ],
+      "minutes": 2.3,
+      "tampered": [],
+      "binarySha256": "a739c17994983e98c2d2e2ad67a331ae796cff23446202ad6083a22a957a368f",
+      "source": {
+        "sec2-security.q": "ceb5546a2265041ed7d355a9f0b53f3ef46a3d08f8532ad9a4d3c4010a651887",
+        "schema.q": "9bfd9c2551aa7c2dc4666a45d0c40401d6b1ba3a393842417677a0b483ad4921"
+      }
+    },
+    {
+      "lane": "020-snapback-tow-yard-release",
+      "status": "done",
+      "confirmed": {
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "ports": [
+        26910,
+        26919
+      ],
+      "minutes": 1.8,
+      "tampered": [],
+      "binarySha256": "a739c17994983e98c2d2e2ad67a331ae796cff23446202ad6083a22a957a368f",
+      "source": {
+        "sec2-security.q": "73218a3020fde1bee22161c538c3cdc8687d97c27c9931863608cf22afbdf073",
+        "schema.q": "f35bfa807676d58ea0e5ca6cd645726f4f04ea6ee53d2114fd1321429e415125"
+      }
+    },
+    {
+      "lane": "021-snapback-moot-court-scoring",
+      "status": "done",
+      "confirmed": {
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "ports": [
+        26920,
+        26929
+      ],
+      "minutes": 4.2,
+      "tampered": [],
+      "binarySha256": "a739c17994983e98c2d2e2ad67a331ae796cff23446202ad6083a22a957a368f",
+      "source": {
+        "sec2-security.q": "5b8da082d8b4dcc95a4b492791e69403d0f5d220b8b6e115ba66dbb77ee1add3",
+        "schema.q": "04d1010bd3e10c044b505abcf202df7092b2e37e76e7b05d660bfb2fd5cb7dd6"
+      }
+    },
+    {
+      "lane": "045-snapback-instrument-loan-bank",
+      "status": "done",
+      "confirmed": {
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "ports": [
+        26930,
+        26939
+      ],
+      "minutes": 6.3,
+      "tampered": [],
+      "binarySha256": "a739c17994983e98c2d2e2ad67a331ae796cff23446202ad6083a22a957a368f",
+      "source": {
+        "sec2-security.q": "0006111360f503efff21afbb0d7a2e5d8625cbf255f4c99a78fd68b01729a462",
+        "schema.q": "b276174d0e64d628f0bdf8fe964984f260fcd231443b36843b1c99bd19f60f53"
+      }
+    },
+    {
+      "lane": "048-snapback-boiler-room-rounds",
+      "status": "done",
+      "confirmed": {
+        "high": 0,
+        "medium": 0,
+        "low": 0
+      },
+      "ports": [
+        26940,
+        26949
+      ],
+      "minutes": 3.6,
+      "tampered": [],
+      "binarySha256": "a739c17994983e98c2d2e2ad67a331ae796cff23446202ad6083a22a957a368f",
+      "source": {
+        "sec2-security.q": "c12fc50cfc97935f519953f3ffe11cb658f72748f478e62b600125f0575d55d7",
+        "schema.q": "856c513c2c7275248e1ff70203dcc5a3fb5884b2947847f15488bf21830f3718"
+      }
+    }
+  ]
+}

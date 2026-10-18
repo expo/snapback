@@ -1,0 +1,139 @@
+{
+  "source": "2ba00705fc",
+  "reviewedVerifier": "685364545e",
+  "workspace": {
+    "initialExit": 124,
+    "reason": "3600-second timeout in clique after 251 passed/one intentionally ignored; three active cases resumed",
+    "initialFailedTargets": [
+      "snapback4 bin",
+      "snapback4 check",
+      "device readauth census",
+      "lang guide"
+    ],
+    "remainingSimulationTargets": 41,
+    "remainingTargetsExit": 0,
+    "remainingCliqueCasesExit": [
+      0,
+      0,
+      0
+    ],
+    "documentationExit": 0,
+    "explanation": "initial affected failures repaired; latest CLI has one unmodified shutdown-test flake, isolated rerun passes"
+  },
+  "currentTargets": {
+    "guide": {
+      "passed": 125,
+      "failed": 0
+    },
+    "readauth": {
+      "passed": 88,
+      "failed": 0
+    },
+    "check": {
+      "passed": 105,
+      "failed": 0
+    },
+    "security": {
+      "passed": 16,
+      "failed": 0
+    },
+    "securityWave16": {
+      "passed": 2,
+      "failed": 0
+    },
+    "CLI": {
+      "earlierWholeTargetPassed": 471,
+      "latestWholePassed": 470,
+      "latestWholeFailed": 1,
+      "isolatedFailureRerunPassed": 1,
+      "ticket": "issues/20261018-sb4-refusal-shutdown-test-flake.md"
+    }
+  },
+  "clients": {
+    "files": 412,
+    "initialFailedFiles": 7,
+    "initialTests": 7671,
+    "initialSkipped": 56,
+    "affectedReruns": {
+      "files": 8,
+      "passed": 168,
+      "failed": 0
+    },
+    "fullCountModels": {
+      "files": 2,
+      "passed": 81,
+      "failed": 0
+    }
+  },
+  "packedCurrent": {
+    "exit": 0,
+    "source": "2ba00705fc",
+    "starters": [
+      "online",
+      "web",
+      "social",
+      "production recipe",
+      "chat web",
+      "chat Expo"
+    ],
+    "artifacts": "current-packs/packs.json",
+    "platformProfile": "debug CLI fixture; test-only, not a production publication artifact"
+  },
+  "LinuxConsumer": {
+    "exit": 0,
+    "source": "6cdeef3c1ae236134665298891645fb1a5656375",
+    "mode": "consumer-only",
+    "environments": [
+      "ubuntu:24.04",
+      "alpine"
+    ],
+    "publicationQualified": false,
+    "laterDelta": "chat intent declarations, glossary prose, census/test/evidence metadata; tested through latest retained installed packs",
+    "platformProfile": "production musl"
+  },
+  "Mac": {
+    "host": "macstudio-charlie-apt101-a",
+    "directory": "~/sb4-ws-sec",
+    "securityTests": 18,
+    "textMinimumTests": 2,
+    "packedStarters": "passed including both chat variants"
+  },
+  "wasm": {
+    "source": "685364545e",
+    "dirty": false,
+    "raw": 2372893,
+    "gzip": 723411,
+    "brotli": 545200,
+    "budget": 723911,
+    "headroom": 500
+  },
+  "root": {
+    "inventories": "passed",
+    "guide": {
+      "passed": 22,
+      "failed": 0,
+      "warnings": 121
+    },
+    "refs": {
+      "LLPs": 552,
+      "refs": 12011,
+      "errors": 0,
+      "unchecked": 0
+    },
+    "docsBudget": {
+      "lines": 319,
+      "limit": 320
+    }
+  },
+  "cargoEnvironment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "cleanup": {
+    "deadProcessSQLiteFilesRemoved": 1636,
+    "remainingTargetSQLiteFiles": 0,
+    "qualificationNodeModulesDirectoriesRemoved": 28
+  },
+  "claim": "conservative verification foundation; no zero-security-holes or publication qualification claim"
+}

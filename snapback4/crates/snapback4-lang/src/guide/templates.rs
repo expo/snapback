@@ -13,6 +13,8 @@ table todos:
   delete <- .ownerId = viewer
   sync to .ownerId                        -- each owner's device holds its own todos
 
+invariant todos.read only .ownerId = viewer
+
 query list(c: cursor ?):
   return todos where .ownerId = viewer after c first 100 by .id
 
@@ -42,6 +44,8 @@ table todos:
   insert <- .ownerId = viewer
   update <- .ownerId = viewer
   delete <- .ownerId = viewer
+
+invariant todos.read only .ownerId = viewer
 
 query list(c: cursor ?):
   return todos where .ownerId = viewer after c first 100 by .id

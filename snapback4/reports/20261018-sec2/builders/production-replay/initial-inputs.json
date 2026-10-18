@@ -1,0 +1,202 @@
+[
+  {
+    "family": "codex",
+    "app": "005-snapback-kiln-firing-queue",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/codex/005-snapback-kiln-firing-queue/authored-final",
+    "sources": {
+      "security.q": "abd735bdf12269281eb72dc349ab6dcbb6f5f1ab0101babd5ba4921cbbb4985c",
+      "schema.q": "aff811f525352e8c5249cbf2246c9c67b862e4f29588a7d6b375ed1032aed633"
+    }
+  },
+  {
+    "family": "codex",
+    "app": "007-snapback-farrier-hoof-rota",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/codex/007-snapback-farrier-hoof-rota/authored-final",
+    "sources": {
+      "security.q": "49ab70ff9acae2f0c4ccc630e1702b96d9a59eb56a47044ec2422df1b9875944",
+      "schema.q": "5622cd648fd058260a50fed034682f14befff320552cbfaf0620ba7a28857dc9"
+    }
+  },
+  {
+    "family": "codex",
+    "app": "008-snapback-sublet-key-escrow",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/codex/008-snapback-sublet-key-escrow/authored-final",
+    "sources": {
+      "security.q": "dc12b38cbaad9b86404aaf9c5f93fd236ecb61639674ae2037b605f98b69d0a7",
+      "schema.q": "24f4f8f220c0cd05b302005ce1fd1b036fd566284fa9db4bdfc14bfbdfa9c88a"
+    }
+  },
+  {
+    "family": "codex",
+    "app": "009-snapback-choir-part-tracks",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/codex/009-snapback-choir-part-tracks/authored-final",
+    "sources": {
+      "security.q": "40c506fad9e06f19de6e45228728f45f3034d26a822accfa8df1116df3f2b93e",
+      "schema.q": "e0c969d8acc685e20c6fb166771fbd43c1bee73b956fa0ca9f90c932d81c8452"
+    }
+  },
+  {
+    "family": "codex",
+    "app": "010-snapback-allotment-water-turns",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/codex/010-snapback-allotment-water-turns/authored-final",
+    "sources": {
+      "security.q": "a1f0d2ade7446423df0aece3e6fcdff0fd6637d897f235c0839bc222f4ef0fbc",
+      "schema.q": "cf13320623c63d33c454b180807c5d0da9c754c92c34f62eb127938d2a68aac1"
+    }
+  },
+  {
+    "family": "codex",
+    "app": "019-snapback-apiary-hive-inspections",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/codex/019-snapback-apiary-hive-inspections/authored-final",
+    "sources": {
+      "security.q": "3f66f58d6164600cf81826550620ba52a9a17d7b491c6b543bc0460d39f01e3f",
+      "schema.q": "d3e629c6830a7a129f3b2c107b4a8b0e9777743a7c84875dba146dd6cc7e6a6a"
+    }
+  },
+  {
+    "family": "codex",
+    "app": "020-snapback-tow-yard-release",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/codex/020-snapback-tow-yard-release/authored-final",
+    "sources": {
+      "security.q": "13527833b23a440b710b9b552e2f6d1391474cc87084347fb5fca567d43f77d0",
+      "schema.q": "1d1ed14eaf38dc66f41045629ef7f93a25589a71fd6f3dc185b84c5f585b1d45"
+    }
+  },
+  {
+    "family": "codex",
+    "app": "021-snapback-moot-court-scoring",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/codex/021-snapback-moot-court-scoring/authored-final",
+    "sources": {
+      "security.q": "f9fbb22a3e5aa5f93210385accccab320f2b4516f86a4835f73f8eb17bba5a7f",
+      "schema.q": "079191eab06b2d8088062d3fe4700f65d1b01476692d24ebc996a6275d58588e"
+    }
+  },
+  {
+    "family": "codex",
+    "app": "045-snapback-instrument-loan-bank",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/codex/045-snapback-instrument-loan-bank/authored-final",
+    "sources": {
+      "security.q": "a2fd25031a4c17774b116f53e5a71673b0682fdffa8daa910bf9c9d9111390ac",
+      "schema.q": "bffebb7ec99e42dd6a6c798ab963fdec85041a8485a9272c59c4a651c38079d2"
+    }
+  },
+  {
+    "family": "codex",
+    "app": "048-snapback-boiler-room-rounds",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/codex/048-snapback-boiler-room-rounds/authored-final",
+    "sources": {
+      "security.q": "7a1468e0f3662153e83c71946d63c5aae2f923dfbb710f6add18f02c5fd115d3",
+      "schema.q": "78e3df80d2453016701ff81b2c3b11156b7aa2429e66a3637fb2934948781fd2"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "005-snapback-kiln-firing-queue",
+    "phase": "initial-annotated",
+    "cwd": "/tmp/sec2-study-replay/muse/005-snapback-kiln-firing-queue/initial-annotated",
+    "sources": {
+      "invariants.q": "985c738daa6a45052c113254944e2e628c4f66c5a3e83246092e7aedb9acd2bf",
+      "schema.q": "aff811f525352e8c5249cbf2246c9c67b862e4f29588a7d6b375ed1032aed633"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "007-snapback-farrier-hoof-rota",
+    "phase": "initial-annotated",
+    "cwd": "/tmp/sec2-study-replay/muse/007-snapback-farrier-hoof-rota/initial-annotated",
+    "sources": {
+      "invariants.q": "d8d644898f38cd2dbd08633fb12ba0e9b202b4f542fd1247ebeb9179a082ec40",
+      "schema.q": "5622cd648fd058260a50fed034682f14befff320552cbfaf0620ba7a28857dc9"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "008-snapback-sublet-key-escrow",
+    "phase": "initial-annotated",
+    "cwd": "/tmp/sec2-study-replay/muse/008-snapback-sublet-key-escrow/initial-annotated",
+    "sources": {
+      "invariants.q": "cbde7a6ae4a88d21961ba50a60e25ad9f8354d04cfd58ed1c96559be4c4deed6",
+      "schema.q": "23a7eafc8504e04f1e2234935cb4698a0eca608c49865a5374b690e9f0da30c4"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "009-snapback-choir-part-tracks",
+    "phase": "initial-annotated",
+    "cwd": "/tmp/sec2-study-replay/muse/009-snapback-choir-part-tracks/initial-annotated",
+    "sources": {
+      "invariants.q": "10c1170311c3e0272d2a24878f9cbdbca8d818fe36ff38728e3422cb43a001e4",
+      "schema.q": "e0c969d8acc685e20c6fb166771fbd43c1bee73b956fa0ca9f90c932d81c8452"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "010-snapback-allotment-water-turns",
+    "phase": "initial-annotated",
+    "cwd": "/tmp/sec2-study-replay/muse/010-snapback-allotment-water-turns/initial-annotated",
+    "sources": {
+      "invariants.q": "df1996205e536964878c52a969c4659e7d8b4412c6ce5c20fa35e4c546f1466e",
+      "schema.q": "b22c456b04ceeef14c57bdc0bae6e1ec1af02215f9bb63138d73f14ecd83fb3e"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "019-snapback-apiary-hive-inspections",
+    "phase": "initial-annotated",
+    "cwd": "/tmp/sec2-study-replay/muse/019-snapback-apiary-hive-inspections/initial-annotated",
+    "sources": {
+      "invariants.q": "3a601e666b3b13b1e170e2ab2edaccb69492d739d1111b0d9996cf8956b0dfac",
+      "schema.q": "67b76528e9ec9f7a3038440f8b53785339bb94a3c02451ec5de6242a545f6162"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "020-snapback-tow-yard-release",
+    "phase": "initial-annotated",
+    "cwd": "/tmp/sec2-study-replay/muse/020-snapback-tow-yard-release/initial-annotated",
+    "sources": {
+      "invariants.q": "2caee7eb6a90169bbac4a5ecdd8fcdc930327564e09c47cfcaf83798d519cd51",
+      "schema.q": "d170bd17498ce0672cf5161caab879d96084eb4fb65d26d1a51c1875b5e90996"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "021-snapback-moot-court-scoring",
+    "phase": "initial-annotated",
+    "cwd": "/tmp/sec2-study-replay/muse/021-snapback-moot-court-scoring/initial-annotated",
+    "sources": {
+      "invariants.q": "8ff4346f741a7e942609c6a04419e5b9edca9526a7c20c4d626a043db6177a3e",
+      "schema.q": "3908c6b10791d3ef3b42ed4c621beecf9fa5894186de2fc496b194b8e33dc6ec"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "045-snapback-instrument-loan-bank",
+    "phase": "initial-annotated",
+    "cwd": "/tmp/sec2-study-replay/muse/045-snapback-instrument-loan-bank/initial-annotated",
+    "sources": {
+      "invariants.q": "12eb2a5c0038935ca9147a3e9e8d516b2dadca9d7b6a87c364cdc016eb6d739e",
+      "schema.q": "7e9d7debe84fc24ee26d45b3c005373b0c879108f9d2031b30308e3065a0b717"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "048-snapback-boiler-room-rounds",
+    "phase": "initial-annotated",
+    "cwd": "/tmp/sec2-study-replay/muse/048-snapback-boiler-room-rounds/initial-annotated",
+    "sources": {
+      "invariants.q": "a9d36572bd9038862797acfdfdbf0b047ecfbd6839a85b976c7ccf614d5bedb8",
+      "schema.q": "ae682a6d3f3b279f23526f1a85ed81f46518f1e02ec540534f11c7d96d48a420"
+    }
+  }
+]

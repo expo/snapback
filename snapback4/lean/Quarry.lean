@@ -20,3 +20,5 @@ import Quarry.Proofs.ShortCircuit
 import Quarry.Proofs.Hoare
 import Quarry.Proofs.Continuation
 import Quarry.Proofs.Branches
+
+import Quarry.Security

@@ -1,0 +1,280 @@
+# LLP 3000.036.004: Security invariants and exposure
+
+**Type:** RFC
+**Status:** Review (design revision 3: Muse and fresh Codex READY; implementation in progress)
+**Systems:** Snapback 4 Quarry authorization, check, audit, generated security tests, validation
+**Author:** Codex for Charlie Cheever (SEC)
+**Date:** 2026-10-18
+**Revised:** 2026-10-18
+**Related:** [LLP 3000.036](./3000.036-what-the-app-farm-asks-of-the-rule-language.rfc.md), [LLP 3000.035](./3000.035-quarry-semantics-in-lean.plan.md), [LLP 3000.014](./3000.014-a-child-reads-through-its-parent.rfc.md), [LLP 3000.038](./3000.038-file-assets.rfc.md)
+
+## 1. Contract
+
+The wave-16 bakeoff found rules enforced correctly but policies encoded wrongly.
+A declaration of intent is independent of the rules implementing it. `check`
+reports each declaration as **proved**, **refuted**, or **unproved**. Refuted
+means a concrete, replayed database/rule counterexample, never merely a Boolean
+assignment. Unproved names the unsupported path or incomplete search. Neither
+unproved nor a finite passing test campaign may be described as proved.
+
+Implementer: SEC in this worktree, starting 2026-10-18. The author commissioned
+this semantic extension and two independent design reviews. No version bump
+or publication is part of this lane. STAGE owns provisioning/password dev doors;
+RULES5 owns live-parent rule semantics; FRONT owns general diagnostic triage.
+
+## 2. Surface
+
+Use the existing rule vocabulary rather than invent a second policy language:
+
+```
+invariant notes.read only .patient = viewer or .clinician = viewer
+invariant requests.update only .requester != viewer
+invariant members.role write only exists roles[viewer, role = 'owner']
+invariant photos always .image != null
+```
+
+The first target is a table, the second component an effect (`read`, `insert`,
+`update`, `delete`) or a column followed by `write`. `write` checks insert and
+update, including both images for ordinary updates; delete authority has its
+own declaration. A column invariant only concerns writes to that column, but
+must include every effective admission path. Owner-only field patches bypass
+an ordinary table update rule; invariants affected by `written by` stay
+unproved until that bypass is modeled. An implication from a denied table
+rule must never prove such an owned-field claim.
+`always` is a row-integrity assertion. Predicates parse as ordinary Quarry
+expressions; unsupported policy expressions are reported unproved with the
+reason. Unknown tables/columns/effects are authoring errors. Multiple source
+files and multiple declarations are supported. For update intent `.field` means both old and next images for mutable
+columns; named transitions require an explicit reviewed reduction or stay
+unproved. Once-judged immutable/id rules need a proved equal-image reduction
+or stay unproved. Both upsert arms and `insert if absent` are included, with
+their own collision/refusal observations. `always` quantifies over every
+committed row image from insert/update/upsert and trusted seed/import/restore/
+activation, not merely mutation inserts. Constraint-based row proof must use
+the actual validation on every ingress, including defaults and the exact
+non-whitespace minimum function, or stay unproved.
+
+No declaration changes runtime
+authority or replaces a rule. No implicit service-seat exemption is added.
+
+The proof fragment uses bound rule predicates. A row assertion can be proved
+from its required column type/constraints (not an optional type), or otherwise
+remains unproved. Aggregate/transition/temporal assertions outside that fragment
+remain explicitly unproved, not syntactically discarded. Syntax with `now`,
+counts, or other program expressions must retain that reason. This is a safe
+extension point, not a claim of a complete solver for arbitrary Quarry.
+
+## 3. Sound proof boundary
+
+For a table effect, prove `admission => policy` for **every database snapshot**,
+row image, ordinary authenticated viewer (including service seats) and clock.
+The engine system principal is explicitly outside this quantification: it is
+the trusted seed/import/job boundary, never an ordinary user or an implicit
+service-seat exemption. Tables touched by system/native/job/worker paths remain
+unproved absent a reviewed reduction, and audit lists those writers. This overapproximates every reachable history:
+an old assignment and a changed current role are independent facts. Grant
+creation never proves a current role. Required role predicates must be true at
+the access boundary. No fixture-specific assumption enters a proof.
+
+Translate Boolean connectives compositionally, retaining true/false/unknown
+truth for atomic predicates. Unknown never admits and `not unknown` is unknown.
+Atomic facts are keyed by their full bound structure, including table, index,
+keys, named equalities and old/next image. Symmetric equality may canonicalize by operand reordering only, preserving
+Value variants (Id is not Text), table, index, keys, image and predicate kind;
+other equalities and probes stay independent. A finite exhaustive implication
+check over this abstraction is sound because it includes every concrete
+valuation, even impossible ones. Cap atoms/work; cap exhaustion is unproved.
+Do not add database consistency axioms without a separate soundness argument.
+Never drop, assume true/false, or simplify an unsupported admission atom;
+keep it opaque with its full identity or report unproved. Concrete leaf
+semantics are the current `evaluate_leaf`/`term`, not stale Lean open points:
+null equals null, null differs from a non-null literal, Id differs from Text,
+noninteger ordered comparison returns false, and a missing live reference
+marks unknown (including under negation). Missing ordinary fields currently
+load null; missing reference and missing image are not conflated. Any semantic
+mismatch with the independent model is named, never normalized away. Runtime
+errors do not establish an admitted result; probe/storage/schema failure
+cannot be used as a successful counterexample or a proof fact.
+
+The Lean addition proves a three-valued Kleene kernel with admission only
+on Readable and the exact theorem: exhaustive checking implies that for every
+valuation, eval(admission) = Readable implies eval(policy) = Readable; the Quarry-to-kernel translation and runtime boundary remain reviewed
+Rust obligations, not a claim of whole-platform formal verification.
+
+For read intent, admission includes the ordinary read rule and every bypass:
+- point/list/view/filter/count/exists and live refetch use ruled reads;
+- sync acquisition and publication authorize at their own server snapshot. An
+  offline device cannot know a later server revocation, even with until-revoked.
+  A synced read invariant therefore reports the device access path unproved
+  for current-server-role intent, separately from its server proof. Delivered
+  history has an additional explicit retained-history blocker. No stale local
+  role is treated as a current server role;
+- inherited read-through rules are checked in their bound form, including
+  captures; live-parent semantics remain RULES5's responsibility;
+- valued write targets already reread through `get` before returning, and
+  generated insert results also use an ordinary ruled read. Verify those
+  reductions against the bound IR; any escaping image without that reduction
+  is a blocker or must satisfy the implication `effective write admission => read intent` for that image;
+  otherwise the declaration stays unproved;
+- maintained aggregates/columns and row views may expose source changes under
+  different rules: report such source claims unproved unless a reviewed exact
+  reduction proves them; projections narrow payload only; existence/count disclosure follows the
+  derived path's own rules, so each derived path needs its own reduction or
+  stays unproved;
+- table-rule probes see raw target rows, unlike program `exists`. Follow
+  reverse dependencies into every other table's read/write rules: the presence
+  of a marker row or a successful write can disclose the protected target's
+  existence or named fields without returning that target. Source privacy
+  intent remains unproved for such raw-probe observations unless a reviewed
+  reduction proves authorization or the policy explicitly permits disclosure;
+- incoming `on delete cascade` and `on delete set null` effects bypass child
+  delete/update rules. Report child delete/update/column-write invariants
+  unproved when affected, including transitive cascades, until initiating
+  authority and child-image policy are modeled. Enumerate these edges in audit;
+- asset reads inherit their owning row privacy, while upload/write authority
+  belongs to insert/update intent; applicable private-field authorities must be conjoined with owning-row
+  admission for asset reads;
+- jobs, schedules, native jobs, actions and external effects are trusted system
+  or worker boundaries. Read claims affected by opaque outputs/side effects
+  remain unproved. Job writes do not prove ordinary-user write authority;
+- refusal codes are observations: an authored difference between an absent
+  lookup and later denial is a reported exposure. A privacy proof must not
+  ignore that path. Unmodeled constraint/refusal observations remain unproved.
+
+Observer boundary: this verifies row payload and logical existence/refusal
+observations, not physical timing, runtime cost or all resource side channels.
+The platform's documented examined-count/meter-cut observations are explicitly
+excluded and reported as exclusions, not full noninterference. Read intent
+includes all logical exposures above. A component may be proved while the
+whole declaration remains unproved because another path is blocked.
+
+The implementation must build a closed-world census of bound IR read/write
+forms and schema-triggered paths. An unclassified form is a blocker, never
+silently omitted. Census includes sequence allocation/read admission, online
+and device query paths, ephemeral paths, owner fields, maintained writes and
+referential actions. System/job/action/native/external touched tables default
+unproved without a reviewed reduction, and are listed as grant-column writers.
+Every `read` declaration covers all enumerated logical paths, not just its
+direct rule. Authenticated viewer classes use engine operations; signed-out
+cases run only against HTTP/auth admission, never a fabricated principal.
+Retained-history observations are classified by leave policy and reported
+separately; they cannot refute the platform's retention contract or prove a
+current-role declaration. Test output names unsupported device freshness.
+
+The report enumerates the paths checked and blockers. A proof is never awarded
+just because the direct table rule passed while an indirect path is unmodeled.
+Conservative rejection/notes are acceptable; false proof is not.
+
+## 4. Counterexamples and generated tests
+
+Generate deterministic challenges from schema types, policy atoms and fixture
+rows. Use in-memory stores; never leave SQLite sidecars under target. Vary the
+viewer across owner/other-user/other-role/revoked-role/unauthenticated classes,
+policy literals, principal arguments and absent optional values. Existing role
+rows and retained grant rows form revoked-role snapshots. Do not call an
+arbitrary consistent snapshot a *reachable* application-operation sequence.
+
+Concrete counterexamples must replay the engine's actual rule admission and
+show the policy false, recording viewer, effect, row, supporting rows and rule
+path. The absence of a concrete witness when implication fails is **unproved**.
+Generated tests are a separate executable check, run by default `test`, with
+coverage counts and named unsupported cases. They use isolated state so they
+cannot corrupt the fixture business tests. For operations, derive arguments
+from fixtures and schema, substitute other principals and roles, and compare
+admitted effects/observations against the declared intent. Merely succeeding
+as another user is not a failure when policy permits that operation. Signed-out
+network admission cannot be tested by inventing a signed-in principal: label
+that boundary separately. No finite campaign promises arbitrary sequence
+coverage. `test` fails on replayed violations; unproved coverage is explicit.
+
+## 5. Exposure report
+
+`audit` and `check --audit`, both with `--json`, produce a stable structured
+report. This is a conservative permission map, not a claim every listed path
+is reachable. Enumerate each table/effect, row predicate, audience-readable
+and owner-private columns, operations touching it, sync/asset/derived paths,
+and inherited dependencies. List probes and the insert/update writers of the
+probed grant columns; include transitive dependencies with a visited set.
+Enumerate role alternatives found in rule probes/literals, including generic
+signed-in principals and service seats. Unmodeled role predicates retain their
+full expression rather than collapsing to an invented role name. Normal
+`check` lists broad signed-in reads and tables with no declared intent, with
+`guide security` as the next step. Do not claim `allow` admits signed-out
+requests; authentication precedes the operation.
+
+## 6. Bakeoff repairs
+
+Add advisory lints (not unsound policy proofs) for grants lacking current-role
+rechecks, argument writes into reader-grant columns, open `created` bootstrap
+of globally trusted authority (extend N_VACUOUS_RULE), optional evidence, and
+sweep-only status gates. Name the rule/column/operation and the safe recipe.
+An existence-oracle advisory compares distinct authored absent/denied codes;
+it must acknowledge the read rule may already hide the row. Do not silently
+rewrite authored codes, which are a public application contract; privacy intent
+must account for the resulting observation or remain unproved.
+
+Text minimums count non-whitespace Unicode scalar values (`char::is_whitespace`);
+maximums continue to count all scalar values. This applies to arguments, rows,
+optional/list-contained text on server/device, without changing stored bytes.
+Document the behavioral change and test ASCII/Unicode whitespace and mixed
+text. Media stays optional only when the product allows omission; required
+photos use required `image` or `[image] 1..N`, with existing content validation.
+
+## 7. Qualification and limits
+
+Add adversarial compiler/engine tests for proof soundness, unknown predicates,
+atom limits, indirect blockers, role revocation, grants and named transitions.
+Extend the independent Lean model for the propositional kernel. Include
+regressions for owned-field bypass with deny update, cascade and set-null
+against denied child rules, raw-rule existence observations, and disconnected
+server/replica role revocation. Pin original
+and repaired wave-16 reproductions with their intended policy; retain exact
+source provenance, and explain ambiguous specs (045) and missing transitions
+(015), never manufacture evidence for an operation the source lacks.
+Run all 50 wave-16 and 100 wave-15 schemas, reporting pre-existing diagnostics,
+new warnings and unproved assertions separately. Unannotated applications have
+no new false proof/refusal claims; they receive discoverability notes. Include
+actual default generated-test execution, not only parsing or lint counts.
+
+Guide cards, README and starters lead to `guide security`; runnable new Quarry
+examples must also compile using a freshly packed CLI. Add 0.4.32 guide changes.
+Run affected tests, full requested crate/client/differential qualifications,
+wasm measurement and budget (measurement + 500 B with reason), ref/docs/root
+checks. Record exact commands, results and any genuine environment limits in
+WORKSTREAM-REPORT.md. Do not count an incomplete qualification as green.
+
+## 8. Operation and general row assertions (SEC refinement)
+
+The table effect contract is intentionally stronger than a query/mutation
+contract. To state an operation-specific authority rule without overrestricting
+other writers, `invariant vehicles.liftHold only exists roster[viewer, role =
+'liaison']` targets the unique authored mutation `liftHold` on vehicles.
+Qualified operation names are allowed; ambiguous/unknown names are errors.
+Only writes to the named table by that operation are covered. Its earlier
+straight-line requirements may establish admission when they bind to existing
+rule predicates: positive caller-filtered existence implies raw existence,
+whereas negative existence is not assumed equivalent. Branch/loop guards,
+aliases, helper calls, changed viewer, prior writes, and unsupported flow remain
+unproved unless separately reduced. The current conservative implementation
+uses only leading straight-line requirements before any other statement, and
+only requirements without negative probes or live references. These require
+facts are evaluated before writes; a policy depending on a table any earlier
+statement can change cannot be proved. Require-to-write stability is checked
+against every intervening write. Failure to establish it is unproved. The
+actual effective write rule remains an additional obligation, including the
+field-owner bypass and implicit effects. No operation syntax grants authority.
+
+General `always` expressions can still receive concrete counterexamples even
+when outside the proof fragment. Preserve the original policy AST; a separate
+partial concrete evaluator can judge row-local values, Boolean connectives,
+comparisons, server clock and raw named-key existence over a schema-valid
+snapshot. Unsupported/unknown evaluation is not false and cannot refute.
+Nonunique raw existence is an explicit existential over all stored live rows,
+not a fabricated unique index or a caller-filtered program read. Unmodeled
+expiry/captures/derived tables block this evaluator. Snapshot-seeded violations
+are labeled as such, never reachable application traces. Actual authored
+operation challenges use the engine, check committed changed images and name
+the operation and arguments; no-op/rolled-back or merely successful unrelated
+operations cannot refute a write policy. Fixtures and generated cross-principal
+role rows may supply candidates, but never proof assumptions. Multi-operation
+history, HTTP and device traces remain separately named coverage obligations.

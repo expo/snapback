@@ -1,0 +1,59 @@
+{
+  "startedAt": "2026-10-18T21:39:39.203Z",
+  "status": "done",
+  "serve": {
+    "ready": true,
+    "readyMs": 2886,
+    "why": null,
+    "roles": [
+      "lead",
+      "inspector",
+      "landowner"
+    ],
+    "usersPerRole": {
+      "lead": 2,
+      "inspector": 2,
+      "landowner": 2
+    },
+    "backendUrl": "http://127.0.0.1:26900",
+    "frontendUrl": "http://127.0.0.1:26901/?api=http%3A%2F%2F127.0.0.1%3A26900",
+    "aliveAtEnd": true
+  },
+  "agent": {
+    "code": 0,
+    "timedOut": false,
+    "minutes": 5.8,
+    "flagged": 0,
+    "providerErrors": 0,
+    "completed": true
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "medium",
+      "rule": "Inspectors record each inspection with queen status and mite counts; a user changed to landowner should lose inspector write privileges.",
+      "repro": "f1-demoted-inspector-can-still-inspect.mjs",
+      "evidence": "A legitimate lead assigned a route to insp2, then changed its role to landowner. myRole returned landowner, but recordInspection on its fresh hive returned HTTP 200/state:sent with queenStatus:queenless, miteCount:9 and inspector set to that demoted account. The lead read back the persisted inspection. Existing route membership bypasses the current-role check (schema.q recordInspection and hives.update). Reproduced twice; script restores the original inspector role.",
+      "reproExists": true,
+      "rerun": {
+        "status": 0,
+        "signal": null,
+        "out": "\"id\":\"01M58FM6HV6RJSMJV61YH0N4T6\",\"inspector\":\"user:01M58F9HGWAM0ZCZ1C14Q41AE1\",\"miteCount\":9,\"notes\":\"Filed after inspector role was revoked\",\"photo\":null,\"queenStatus\":\"queenless\"},\"seq\":62,\"state\":\"sent\",\"store_id\":\"f84d655620142377a9ee539e6ac3f576\"}}}\n{\"user\":\"lead1@example.test\",\"method\":\"POST\",\"path\":\"/q/inspectionsOf\",\"request\":{\"args\":{\"hive\":\"01M58FM6HJXEZ4CJR2K56GCN35\"}},\"response\":{\"status\":200,\"body\":{\"scopes\":{},\"generation\":1,\"complete\":true,\"cut\":null,\"data\":[{\"at\":1792359930427,\"hive\":\"01M58FM6HJXEZ4CJR2K56GCN35\",\"id\":\"01M58FM6HV6RJSMJV61YH0N4T6\",\"inspector\":\"user:01M58F9HGWAM0ZCZ1C14Q41AE1\",\"miteCount\":9,\"notes\":\"Filed after inspector role was revoked\",\"photo\":null,\"queenStatus\":\"queenless\"}],\"next\":null,\"nextExpiry\":null,\"seq\":62,\"store_id\":\"f84d655620142377a9ee539e6ac3f576\",\"tables\":[\"hives\",\"inspections\",\"roles\",\"routes\"],\"viewer\":\"user:01M58F9GAQQFT17R1KJ8ND0W6R\"}}}\nGAP PRESENT: a current landowner recorded an inspection using an assignment left over from its revoked inspector role.\n{\"user\":\"lead1@example.test\",\"method\":\"POST\",\"path\":\"/m/grantRole\",\"request\":{\"id\":\"06NX2RR6QX2QXKCAHVDJKE5D1Z\",\"args\":{\"who\":\"user:01M58F9HGWAM0ZCZ1C14Q41AE1\",\"role\":\"inspector\"}},\"response\":{\"status\":200,\"body\":{\"generation\":1,\"head\":63,\"id\":\"06NX2RR6QX2QXKCAHVDJKE5D1Z\",\"preserved\":[\"listings\"],\"result\":{\"id\":\"01M58F9JA4HSSJ6N63BMECNC1W\",\"principal\":\"user:01M58F9HGWAM0ZCZ1C14Q41AE1\",\"role\":\"inspector\"},\"seq\":63,\"state\":\"sent\",\"store_id\":\"f84d655620142377a9ee539e6ac3f576\"}}}\n"
+      },
+      "confirmed": true
+    }
+  ],
+  "counts": {
+    "high": 0,
+    "medium": 1,
+    "low": 0
+  },
+  "confirmed": {
+    "high": 0,
+    "medium": 1,
+    "low": 0
+  },
+  "tampered": [],
+  "swept": 0,
+  "finishedAt": "2026-10-18T21:45:35.526Z"
+}

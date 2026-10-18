@@ -188,6 +188,12 @@ impl Project {
     pub(crate) fn write_generated_from(&self, bound: &Bound, original: &Project) -> std::io::Result<PathBuf> {
         let dir = self.generated_dir();
         std::fs::create_dir_all(&dir)?;
+        // @ref LLP 3000.036.004#103-adoption — draft is never part of compiled source discovery.
+        let draft = dir.join("security-invariants.q.draft");
+        let text = snapback4_lang::security::draft(bound);
+        if std::fs::read_to_string(&draft).ok().as_deref() != Some(text.as_str()) {
+            std::fs::write(draft, text)?;
+        }
         let path = dir.join("api.ts");
         let text = crate::client_compatibility::typescript(original, bound)?;
         // @ref LLP 3000.007#20.2 — the generated API's ESM boundary is rebuilt with its artifacts, not imposed on existing scripts.

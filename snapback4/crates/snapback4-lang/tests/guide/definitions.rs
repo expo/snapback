@@ -143,6 +143,15 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_STAGING_TIMEOUT", "E_STAGING_TIMEOUT means the setup deadline expired."),
     ("E_STAGING_SIGNUP", "E_STAGING_SIGNUP means password signup refused or returned an invalid session."),
     ("E_STAGING_PROVISION", "E_STAGING_PROVISION means the operator mutation refused or returned an invalid reply."),
+    ("E_SECURITY_TARGET", "the invariant target does not name a declared table, column or effect"),
+    ("N_SECURITY_INTENT", "access rules lack independent declared intent"),
+    ("N_BROAD_READ", "universal or roster-wide readership"),
+    ("N_GRANT_OUTLIVES_ROLE", "a stored grant may survive a later role change"),
+    ("N_ARGUMENT_GRANT", "an argument becomes a reader-grant column"),
+    ("N_OPTIONAL_EVIDENCE", "optional media permits omitted evidence"),
+    ("N_SWEEP_ONLY_DEADLINE", "sweeps leave time between a deadline and cleanup"),
+    ("N_EXISTENCE_ORACLE", "absence and later denial can reveal different outcomes"),
+
     ("E_EXPIRY_ORPHAN", "a stored reference points to a physically missing expiring parent"),
 
     ("E_QUARRY_STATEMENT", "A non-final expression must perform a write."),

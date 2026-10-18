@@ -1,0 +1,48 @@
+{
+  "startedAt": "2026-10-18T21:38:28.422Z",
+  "status": "done",
+  "serve": {
+    "ready": true,
+    "readyMs": 5475,
+    "why": null,
+    "roles": [
+      "student",
+      "parent",
+      "librarian",
+      "manager",
+      "luthier"
+    ],
+    "usersPerRole": {
+      "student": 2,
+      "parent": 2,
+      "librarian": 2,
+      "manager": 2,
+      "luthier": 2
+    },
+    "backendUrl": "http://127.0.0.1:26930",
+    "frontendUrl": "http://127.0.0.1:26931/?api=http%3A%2F%2F127.0.0.1%3A26930",
+    "aliveAtEnd": true
+  },
+  "agent": {
+    "code": 0,
+    "timedOut": false,
+    "minutes": 6.3,
+    "flagged": 0,
+    "providerErrors": 0,
+    "completed": true
+  },
+  "findings": [],
+  "counts": {
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "confirmed": {
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "tampered": [],
+  "swept": 0,
+  "finishedAt": "2026-10-18T21:44:56.363Z"
+}

@@ -46,3 +46,7 @@ mutation invite(teamId: teams, principal: principal, role: enum('member', 'admin
   require exists members[teamId = teamId, principal = viewer, role = 'admin'] else NOT_ADMIN
   team = teams[teamId] ! else NOT_FOUND
   return insert members { teamId, principal, role } if absent
+
+-- Independent privacy intent; guide security states unproved paths.
+invariant teams.read only exists members[teamId = .id, principal = viewer]
+invariant members.read only exists members[teamId = .teamId, principal = viewer]

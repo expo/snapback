@@ -20,6 +20,7 @@ pub(crate) use reserved::repeated_identity;
 mod programs;
 mod actions;
 mod routes;
+mod security;
 
 pub(crate) fn precedence(op: &str) -> Option<u8> {
     Some(match op {
@@ -60,7 +61,7 @@ struct Parser {
     repair_args: Option<(Site, Vec<ArgDecl>)>,
 }
 
-const TOP_LEVEL: [&str; 19] = ["view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
+const TOP_LEVEL: [&str; 20] = ["invariant", "view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
 
 impl Parser {
     fn document(&mut self) {
@@ -92,6 +93,7 @@ impl Parser {
         self.repair_args = None;
         let token = self.peek().clone();
         match token.value.as_str() {
+            "invariant" => self.parse_invariant(),
             "action" => self.parse_action(),
             "route" => self.parse_route(),
             "use" => self.parse_use(),

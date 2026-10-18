@@ -14,6 +14,7 @@ pub(crate) mod rule_operator;
 mod pin_rewrite;
 mod complete_form;
 mod auth_lints;
+pub mod security;
 mod owner_equality;
 mod write_affordances;
 mod rule_composition;
@@ -74,6 +75,7 @@ pub use aggregate_copies::truth as rule_truth;
 use snapback4_core::schema::Schema;
 
 pub struct Bound {
+    pub invariants: Vec<security::Invariant>,
     /// Receipt member operation names, needed only by TypeScript emission.
     pub receipt_members: std::collections::BTreeMap<String, String>,
     /// Compiler-side source map; never serialized into the client backend.
@@ -398,7 +400,8 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     private_scans::check(&catalog, &schema, &programs, &mut diagnostics);
     let mut refusal_sites = refusals::sites(&catalog);
     refusal_sites.extend(refusals::lookup_sites(&programs));
-    Bound { receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
+    let invariants = security::bind(&catalog, &mut diagnostics);
+    Bound { invariants, receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
 }
 
 /// A read-through child binds its parent's rule over hidden captures

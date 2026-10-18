@@ -1,0 +1,819 @@
+[
+  {
+    "lane": "015",
+    "campaign": {
+      "operations": {},
+      "attempted": 17,
+      "admitted": 1,
+      "refused": 0,
+      "violations": [
+        {
+          "invariant_site": "schema.q:249:1",
+          "args": {},
+          "viewer": "dev:security-a",
+          "operation": "$security.seed_at",
+          "effect": "always",
+          "row": {
+            "Row": {
+              "breed": {
+                "String": "x"
+              },
+              "currentFoster": {
+                "Id": "dev:security-a"
+              },
+              "description": {
+                "String": "xxxxxxxxxxxxxxxxxxxx"
+              },
+              "id": {
+                "Id": "security-pets"
+              },
+              "name": {
+                "String": "x"
+              },
+              "photo": {
+                "Map": {
+                  "bytes": {
+                    "Int": 24
+                  },
+                  "duration": "Null",
+                  "height": {
+                    "Int": 1
+                  },
+                  "id": {
+                    "Id": "01MCC5RM000M6NDMFHVX7FMTMD"
+                  },
+                  "type": {
+                    "String": "image/png"
+                  },
+                  "width": {
+                    "Int": 1
+                  }
+                }
+              },
+              "species": {
+                "String": "x"
+              },
+              "status": {
+                "String": "shelter"
+              }
+            }
+          },
+          "old": null,
+          "supporting_rows": {
+            "applications": [],
+            "handoffs": [],
+            "petCards": [],
+            "pets": [
+              {
+                "Row": {
+                  "breed": {
+                    "String": "x"
+                  },
+                  "currentFoster": {
+                    "Id": "dev:security-a"
+                  },
+                  "description": {
+                    "String": "xxxxxxxxxxxxxxxxxxxx"
+                  },
+                  "id": {
+                    "Id": "security-pets"
+                  },
+                  "name": {
+                    "String": "x"
+                  },
+                  "photo": {
+                    "Map": {
+                      "bytes": {
+                        "Int": 24
+                      },
+                      "duration": "Null",
+                      "height": {
+                        "Int": 1
+                      },
+                      "id": {
+                        "Id": "01MCC5RM000M6NDMFHVX7FMTMD"
+                      },
+                      "type": {
+                        "String": "image/png"
+                      },
+                      "width": {
+                        "Int": 1
+                      }
+                    }
+                  },
+                  "species": {
+                    "String": "x"
+                  },
+                  "status": {
+                    "String": "shelter"
+                  }
+                }
+              }
+            ],
+            "profiles": [
+              {
+                "Row": {
+                  "displayName": {
+                    "String": "x"
+                  },
+                  "id": {
+                    "Id": "security-profiles"
+                  },
+                  "principal": {
+                    "Id": "dev:security-a"
+                  },
+                  "role": {
+                    "String": "coordinator"
+                  }
+                }
+              }
+            ],
+            "vaccinations": []
+          },
+          "rule_path": "trusted seed ingress; all typed and final-exists constraints rechecked",
+          "scope": "actual seed_at commit/read-back; ordinary application reachability is not claimed"
+        }
+      ],
+      "unsupported": [
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  },
+  {
+    "lane": "019",
+    "campaign": {
+      "operations": {},
+      "attempted": 25,
+      "admitted": 1,
+      "refused": 24,
+      "violations": [
+        {
+          "invariant_site": "schema.q:193:1",
+          "args": {},
+          "viewer": "dev:security-a",
+          "operation": "$security.hives.read",
+          "effect": "read",
+          "row": {
+            "Row": {
+              "createdAt": {
+                "Int": 1799999999000
+              },
+              "id": {
+                "Id": "security-hives"
+              },
+              "landOwner": {
+                "Id": "dev:security-b"
+              },
+              "lastInspectedAt": "Null",
+              "lastMiteCount": "Null",
+              "name": {
+                "String": "x"
+              },
+              "route": {
+                "String": "x"
+              },
+              "seasonEnd": {
+                "Int": 1799999999000
+              },
+              "seasonStart": {
+                "Int": 1799999999000
+              },
+              "status": {
+                "String": "quarantined"
+              }
+            }
+          },
+          "old": null,
+          "supporting_rows": {
+            "alerts": [],
+            "hives": [
+              {
+                "Row": {
+                  "createdAt": {
+                    "Int": 1799999999000
+                  },
+                  "id": {
+                    "Id": "security-hives"
+                  },
+                  "landOwner": {
+                    "Id": "dev:security-b"
+                  },
+                  "lastInspectedAt": "Null",
+                  "lastMiteCount": "Null",
+                  "name": {
+                    "String": "x"
+                  },
+                  "route": {
+                    "String": "x"
+                  },
+                  "seasonEnd": {
+                    "Int": 1799999999000
+                  },
+                  "seasonStart": {
+                    "Int": 1799999999000
+                  },
+                  "status": {
+                    "String": "quarantined"
+                  }
+                }
+              }
+            ],
+            "inspections": [],
+            "listings": [],
+            "roles": [
+              {
+                "Row": {
+                  "id": {
+                    "Id": "security-roles"
+                  },
+                  "principal": {
+                    "Id": "dev:security-a"
+                  },
+                  "role": {
+                    "String": "landowner"
+                  }
+                }
+              }
+            ],
+            "routes": [
+              {
+                "Row": {
+                  "id": {
+                    "Id": "security-routes"
+                  },
+                  "inspector": {
+                    "Id": "dev:security-a"
+                  },
+                  "route": {
+                    "String": "x"
+                  }
+                }
+              }
+            ]
+          },
+          "rule_path": ".landOwner = viewer or exists routes[viewer, .route] or exists roles[viewer, role = 'lead']",
+          "scope": "schema-valid seeded snapshot; synthetic engine table operation; application reachability is not claimed"
+        }
+      ],
+      "unsupported": [
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  },
+  {
+    "lane": "020",
+    "campaign": {
+      "operations": {},
+      "attempted": 13,
+      "admitted": 1,
+      "refused": 11,
+      "violations": [
+        {
+          "invariant_site": "schema.q:193:1",
+          "args": {
+            "vehicle": {
+              "Id": "security-vehicles"
+            }
+          },
+          "viewer": "dev:security-a",
+          "operation": "liftHold",
+          "effect": "update",
+          "row": {
+            "Row": {
+              "color": {
+                "String": "x"
+              },
+              "dailyRate": {
+                "Int": 1
+              },
+              "holdAt": "Null",
+              "holdBy": "Null",
+              "holdReason": "Null",
+              "id": {
+                "Id": "security-vehicles"
+              },
+              "make": {
+                "String": "x"
+              },
+              "model": {
+                "String": "x"
+              },
+              "onHold": {
+                "Bool": false
+              },
+              "owner": "Null",
+              "photos": "Null",
+              "plate": {
+                "String": "x"
+              },
+              "releasedAt": "Null",
+              "status": {
+                "String": "impounded"
+              },
+              "towedAt": {
+                "Int": 1799999999000
+              },
+              "towedFrom": {
+                "String": "x"
+              },
+              "vin": "Null",
+              "waived": {
+                "Int": 1
+              }
+            }
+          },
+          "old": {
+            "Row": {
+              "color": {
+                "String": "x"
+              },
+              "dailyRate": {
+                "Int": 1
+              },
+              "holdAt": "Null",
+              "holdBy": "Null",
+              "holdReason": "Null",
+              "id": {
+                "Id": "security-vehicles"
+              },
+              "make": {
+                "String": "x"
+              },
+              "model": {
+                "String": "x"
+              },
+              "onHold": {
+                "Bool": true
+              },
+              "owner": "Null",
+              "photos": "Null",
+              "plate": {
+                "String": "x"
+              },
+              "releasedAt": "Null",
+              "status": {
+                "String": "impounded"
+              },
+              "towedAt": {
+                "Int": 1799999999000
+              },
+              "towedFrom": {
+                "String": "x"
+              },
+              "vin": "Null",
+              "waived": {
+                "Int": 1
+              }
+            }
+          },
+          "supporting_rows": {
+            "claims": [],
+            "roster": [
+              {
+                "Row": {
+                  "handle": {
+                    "String": "xxx"
+                  },
+                  "id": {
+                    "Id": "security-roster"
+                  },
+                  "principal": {
+                    "Id": "dev:security-a"
+                  },
+                  "role": {
+                    "String": "manager"
+                  }
+                }
+              }
+            ],
+            "vehicles": [
+              {
+                "Row": {
+                  "color": {
+                    "String": "x"
+                  },
+                  "dailyRate": {
+                    "Int": 1
+                  },
+                  "holdAt": "Null",
+                  "holdBy": "Null",
+                  "holdReason": "Null",
+                  "id": {
+                    "Id": "security-vehicles"
+                  },
+                  "make": {
+                    "String": "x"
+                  },
+                  "model": {
+                    "String": "x"
+                  },
+                  "onHold": {
+                    "Bool": true
+                  },
+                  "owner": "Null",
+                  "photos": "Null",
+                  "plate": {
+                    "String": "x"
+                  },
+                  "releasedAt": "Null",
+                  "status": {
+                    "String": "impounded"
+                  },
+                  "towedAt": {
+                    "Int": 1799999999000
+                  },
+                  "towedFrom": {
+                    "String": "x"
+                  },
+                  "vin": "Null",
+                  "waived": {
+                    "Int": 1
+                  }
+                }
+              }
+            ],
+            "waivers": []
+          },
+          "rule_path": "authored operation liftHold",
+          "scope": "actual authored mutation committed a changed image from a schema-valid seeded snapshot"
+        }
+      ],
+      "unsupported": [
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  },
+  {
+    "lane": "021",
+    "campaign": {
+      "operations": {},
+      "attempted": 2,
+      "admitted": 1,
+      "refused": 1,
+      "violations": [
+        {
+          "invariant_site": "schema.q:304:1",
+          "args": {
+            "briefDeadline": {
+              "Int": 1800086400000
+            },
+            "code": {
+              "String": "z"
+            },
+            "name": {
+              "String": "z"
+            }
+          },
+          "viewer": "dev:security-b",
+          "operation": "createTournament",
+          "effect": "insert",
+          "row": {
+            "Row": {
+              "id": {
+                "Id": "01MCC5RM00KC33NRB2TXYE5RQ0"
+              },
+              "principal": {
+                "Id": "dev:security-b"
+              },
+              "tournament": {
+                "Id": "01MCC5RM00KC33NRB2TXYE5RPZ"
+              }
+            }
+          },
+          "old": null,
+          "supporting_rows": {
+            "briefs": [],
+            "coaches": [
+              {
+                "Row": {
+                  "id": {
+                    "Id": "security-coaches"
+                  },
+                  "principal": {
+                    "Id": "dev:security-a"
+                  }
+                }
+              }
+            ],
+            "directors": [
+              {
+                "Row": {
+                  "id": {
+                    "Id": "security-directors"
+                  },
+                  "principal": {
+                    "Id": "dev:security-a"
+                  },
+                  "tournament": {
+                    "Id": "security-tournaments"
+                  }
+                }
+              }
+            ],
+            "judges": [
+              {
+                "Row": {
+                  "id": {
+                    "Id": "security-judges"
+                  },
+                  "principal": {
+                    "Id": "dev:security-a"
+                  }
+                }
+              }
+            ],
+            "members": [
+              {
+                "Row": {
+                  "id": {
+                    "Id": "security-members"
+                  },
+                  "student": {
+                    "Id": "dev:security-a"
+                  },
+                  "team": {
+                    "Id": "security-teams"
+                  }
+                }
+              }
+            ],
+            "profiles": [],
+            "roundTeams": [],
+            "rounds": [],
+            "scores": [],
+            "teams": [
+              {
+                "Row": {
+                  "bracket": {
+                    "String": "x"
+                  },
+                  "coach": "Null",
+                  "disqualified": {
+                    "Bool": true
+                  },
+                  "id": {
+                    "Id": "security-teams"
+                  },
+                  "name": {
+                    "String": "x"
+                  }
+                }
+              }
+            ],
+            "tournaments": [
+              {
+                "Row": {
+                  "briefDeadline": {
+                    "Int": 1799999999000
+                  },
+                  "code": {
+                    "String": "x"
+                  },
+                  "director": {
+                    "Id": "dev:security-a"
+                  },
+                  "id": {
+                    "Id": "security-tournaments"
+                  },
+                  "name": {
+                    "String": "x"
+                  }
+                }
+              }
+            ]
+          },
+          "rule_path": "authored operation createTournament",
+          "scope": "actual authored mutation committed a changed image from a schema-valid seeded snapshot"
+        }
+      ],
+      "unsupported": [
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  },
+  {
+    "lane": "045",
+    "campaign": {
+      "operations": {},
+      "attempted": 15,
+      "admitted": 1,
+      "refused": 14,
+      "violations": [
+        {
+          "invariant_site": "schema.q:161:1",
+          "args": {},
+          "viewer": "dev:security-a",
+          "operation": "$security.repairNotes.read",
+          "effect": "read",
+          "row": {
+            "Row": {
+              "at": {
+                "Int": 1799999999000
+              },
+              "author": {
+                "Id": "dev:security-a"
+              },
+              "id": {
+                "Id": "security-repairNotes"
+              },
+              "instrument": {
+                "Id": "security-instruments"
+              },
+              "note": {
+                "String": "x"
+              }
+            }
+          },
+          "old": null,
+          "supporting_rows": {
+            "deposits": [],
+            "instruments": [
+              {
+                "Row": {
+                  "detail": {
+                    "String": "xxxxxxxxxxxxxxxxxxxx"
+                  },
+                  "id": {
+                    "Id": "security-instruments"
+                  },
+                  "kind": {
+                    "String": "x"
+                  },
+                  "serial": {
+                    "String": "x"
+                  },
+                  "status": {
+                    "String": "loaned"
+                  }
+                }
+              }
+            ],
+            "loans": [],
+            "repairNotes": [
+              {
+                "Row": {
+                  "at": {
+                    "Int": 1799999999000
+                  },
+                  "author": {
+                    "Id": "dev:security-a"
+                  },
+                  "id": {
+                    "Id": "security-repairNotes"
+                  },
+                  "instrument": {
+                    "Id": "security-instruments"
+                  },
+                  "note": {
+                    "String": "x"
+                  }
+                }
+              }
+            ],
+            "roles": [
+              {
+                "Row": {
+                  "id": {
+                    "Id": "security-roles"
+                  },
+                  "principal": {
+                    "Id": "dev:security-a"
+                  },
+                  "role": {
+                    "String": "luthier"
+                  }
+                }
+              }
+            ],
+            "seasons": []
+          },
+          "rule_path": "exists roles[viewer, role = 'luthier'] or exists roles[viewer, role = 'librarian'] or exists roles[viewer, role = 'manager']",
+          "scope": "schema-valid seeded snapshot; synthetic engine table operation; application reachability is not claimed"
+        }
+      ],
+      "unsupported": [
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  },
+  {
+    "lane": "048",
+    "campaign": {
+      "operations": {},
+      "attempted": 10,
+      "admitted": 1,
+      "refused": 9,
+      "violations": [
+        {
+          "invariant_site": "schema.q:257:1",
+          "args": {},
+          "viewer": "dev:security-a",
+          "operation": "$security.gauges.read",
+          "effect": "read",
+          "row": {
+            "Row": {
+              "id": {
+                "Id": "security-gauges"
+              },
+              "location": {
+                "String": "x"
+              },
+              "maxPressure": {
+                "Int": 1
+              },
+              "maxTemp": {
+                "Int": 1
+              },
+              "minPressure": {
+                "Int": 1
+              },
+              "minTemp": {
+                "Int": 1
+              },
+              "name": {
+                "String": "x"
+              }
+            }
+          },
+          "old": null,
+          "supporting_rows": {
+            "alerts": [],
+            "assignments": [
+              {
+                "Row": {
+                  "contractor": {
+                    "Id": "dev:security-a"
+                  },
+                  "gauge": {
+                    "Id": "security-gauges"
+                  },
+                  "id": {
+                    "Id": "security-assignments"
+                  }
+                }
+              }
+            ],
+            "gauges": [
+              {
+                "Row": {
+                  "id": {
+                    "Id": "security-gauges"
+                  },
+                  "location": {
+                    "String": "x"
+                  },
+                  "maxPressure": {
+                    "Int": 1
+                  },
+                  "maxTemp": {
+                    "Int": 1
+                  },
+                  "minPressure": {
+                    "Int": 1
+                  },
+                  "minTemp": {
+                    "Int": 1
+                  },
+                  "name": {
+                    "String": "x"
+                  }
+                }
+              }
+            ],
+            "readings": [],
+            "readingsCount": [],
+            "roles": [
+              {
+                "Row": {
+                  "id": {
+                    "Id": "security-roles"
+                  },
+                  "principal": {
+                    "Id": "dev:security-a"
+                  },
+                  "role": {
+                    "String": "manager"
+                  }
+                }
+              }
+            ],
+            "rounds": [],
+            "shiftMembers": [],
+            "shifts": []
+          },
+          "rule_path": "exists roles[viewer, role = 'chief'] or exists roles[viewer, role = 'engineer'] or exists assignments[.id, viewer]",
+          "scope": "schema-valid seeded snapshot; synthetic engine table operation; application reachability is not claimed"
+        }
+      ],
+      "unsupported": [
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  }
+]

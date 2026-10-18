@@ -1,0 +1,40 @@
+{
+  "scope": "SEC2 changes only; reviews bind content, not future report-only commits",
+  "proofAndWitnessCorrections": {
+    "source": "4fc8d2a828",
+    "round": 7,
+    "codex": "READY",
+    "muse": "READY",
+    "manifest": "3000.036.004-sec2-r7.provenance.json"
+  },
+  "productionCredentialCampaign": {
+    "source": "a08f5b94ba",
+    "round": 13,
+    "codex": "READY",
+    "muse": "READY",
+    "manifest": "3000.036.004-sec2-r13.provenance.json"
+  },
+  "earlierObserverTemporalHistoryAssetAdoptionScope": {
+    "source": "2a086f204f",
+    "round": 5,
+    "codex": "READY",
+    "muse": "READY",
+    "manifest": "3000.036.004-sec2-r5.provenance.json"
+  },
+  "history": "All received NOT READY and READY artifacts retained verbatim. Muse plan-quota failures retained; wrapper fallback succeeded. No review fabricated.",
+  "allNamedSeats": {
+    "source": "4424bef458",
+    "round": 14,
+    "codex": "READY",
+    "muse": "READY",
+    "manifest": "3000.036.004-sec2-r14.provenance.json"
+  },
+  "invalidFixtureReuse": {
+    "source": "e58308724c",
+    "round": 15,
+    "codex": "READY",
+    "muse": "READY",
+    "manifest": "3000.036.004-sec2-r15.provenance.json",
+    "testOnlyDisposition": "../../snapback4/reports/20261018-sec2/r15-test-disposition.json"
+  }
+}

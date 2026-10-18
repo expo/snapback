@@ -1,0 +1,64 @@
+{
+  "startedAt": "2026-10-18T21:38:26.095Z",
+  "status": "done",
+  "serve": {
+    "ready": true,
+    "readyMs": 4649,
+    "why": null,
+    "roles": [
+      "owner",
+      "clerk",
+      "liaison",
+      "manager"
+    ],
+    "usersPerRole": {
+      "owner": 2,
+      "clerk": 2,
+      "liaison": 2,
+      "manager": 2
+    },
+    "backendUrl": "http://127.0.0.1:26910",
+    "frontendUrl": "http://127.0.0.1:26911/?api=http%3A%2F%2F127.0.0.1%3A26910",
+    "aliveAtEnd": true
+  },
+  "agent": {
+    "code": 0,
+    "timedOut": false,
+    "minutes": 4.9,
+    "flagged": 0,
+    "providerErrors": 0,
+    "completed": true
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "medium",
+      "rule": "The police liaison role sees only vehicles under an investigative hold.",
+      "repro": "f1-liaison-retains-unheld-vehicle-access.mjs",
+      "evidence": "A clerk created unheld vehicle 01M58FC2G9QBAJG4K8B7WBEF7E for owner 2. A legitimate manager changed owner 2 to the liaison role; myRole confirmed role=liaison. Both vehicleDetail and myVehicles then returned the unheld vehicle (onHold=false) with VIN, tow location, dailyRate, waived amount and photo references. The script restores the original owner role in finally. Source: vehicles.read grants owner=viewer without checking the current role, and myVehicles has no owner-role guard.",
+      "reproExists": true,
+      "rerun": {
+        "status": 0,
+        "signal": null,
+        "out": "87YGZT90KS71NHGKS9\",\"photos\":[{\"bytes\":70,\"duration\":null,\"height\":1,\"id\":\"01M58FC2G67CECZ9EXDEANNF4G\",\"type\":\"image/png\",\"width\":1}],\"plate\":\"QA2Z3V2PV4\",\"releasedAt\":null,\"status\":\"impounded\",\"towedAt\":1792186864136,\"towedFrom\":\"Private QA tow location 01M58FC2G8WJS1WD74H76GE5M5\",\"vin\":\"TESTVIN1234567890\",\"waived\":0},{\"color\":\"blue\",\"dailyRate\":3500,\"holdAt\":null,\"holdBy\":null,\"holdReason\":null,\"id\":\"01M58FAHFJR3HFBJHGFFJZPVR5\",\"make\":\"Test\",\"model\":\"QA\",\"onHold\":false,\"owner\":\"user:01M58F7A87YGZT90KS71NHGKS9\",\"photos\":[{\"bytes\":70,\"duration\":null,\"height\":1,\"id\":\"01M58FAHFGE757GQBAZDARD3J7\",\"type\":\"image/png\",\"width\":1}],\"plate\":\"QAZJ3GPZG7\",\"releasedAt\":null,\"status\":\"impounded\",\"towedAt\":1792186813937,\"towedFrom\":\"Private QA tow location 01M58FAHFHEZ5RFP5WG4BM4YJY\",\"vin\":\"TESTVIN1234567890\",\"waived\":0}],\"next\":null,\"nextExpiry\":null,\"seq\":46,\"store_id\":\"ef406f03072478653907b0ca7cdcbb74\",\"tables\":[\"roster\",\"vehicles\"],\"viewer\":\"user:01M58F7A87YGZT90KS71NHGKS9\"}}}\n{\"request\":{\"path\":\"/m/grantRole\",\"actor\":\"probe-mgr1@example.test\",\"body\":{\"id\":\"01M58FG96R8D8CENQMAP9WXEK4\",\"args\":{\"who\":\"user:01M58F7A87YGZT90KS71NHGKS9\",\"role\":\"owner\"}}},\"response\":{\"status\":200,\"body\":{\"generation\":1,\"head\":47,\"id\":\"01M58FG96R8D8CENQMAP9WXEK4\",\"preserved\":[],\"result\":null,\"seq\":47,\"state\":\"sent\",\"store_id\":\"ef406f03072478653907b0ca7cdcbb74\"}}}\nGAP PRESENT: A confirmed liaison role can read and list an unheld vehicle through retained ownership, including VIN, tow location, fees and photos.\n"
+      },
+      "confirmed": true
+    }
+  ],
+  "counts": {
+    "high": 0,
+    "medium": 1,
+    "low": 0
+  },
+  "confirmed": {
+    "high": 0,
+    "medium": 1,
+    "low": 0
+  },
+  "tampered": [
+    "deployment/releases/2/snapback/schema.q",
+    "deployment/releases/2/snapback/sec2-security.q"
+  ],
+  "swept": 0,
+  "finishedAt": "2026-10-18T21:43:27.176Z"
+}

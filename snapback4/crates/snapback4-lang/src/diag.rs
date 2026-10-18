@@ -182,6 +182,7 @@ pub fn sync_error(site: &Site, message: impl Into<String>, rewrite: impl Into<St
 /// The guide card a diagnostic points at; `language` is the language card.
 pub fn guide_for(code: &str) -> &'static str {
     match code {
+        "E_SECURITY_TARGET" | "N_SECURITY_INTENT" | "N_BROAD_READ" | "N_GRANT_OUTLIVES_ROLE" | "N_ARGUMENT_GRANT" | "N_OPTIONAL_EVIDENCE" | "N_SWEEP_ONLY_DEADLINE" | "N_EXISTENCE_ORACLE" => "security",
         "E_EXPIRY_ORPHAN" => "expire",
         "E_PROOF_BROWSER" | "E_PROOF_USAGE" => "testing",
         "E_QUARRY_IDENTITY_DUPLICATE" => "production",

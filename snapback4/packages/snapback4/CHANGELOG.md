@@ -21,6 +21,9 @@
 - completeness notes lead with the query's checked rewrite and explain when completeness matters; distinct findings at the same query site remain visible.
 - Money/decimal client arguments now have an executable example: pass integer minor units (`1234` cents for $12.34), with no implicit floating-point rounding.
 - `hourOfDay(t)` gives UTC hours 0..23; `hour(t)` remains continuous epoch hours. `N_SWEEP_DEADLINE` warns about direct scheduled status gates without a matching row-time comparison; it is advisory, not a safety proof.
+- Security follow-up: check generates an unaccepted invariant draft and one project-level missing-intent note; audit ends with uncovered conditional role/row effects, including owner-field patches. Observer components cover ordinary counts/sums/existence, bare-key maintained aggregates and exact server lifetime bounds; paired logical observations and between-ticks engine reads can refute privacy. Default tests also exercise short authored operation histories, named seats and nullable enum combinations, real foreign-file/non-image placement attempts, and unsigned/retired-credential calls against an isolated production host. Update intent covers both old and next images; immutable local fields support exact component proofs, and counterexamples record the actual committed patch. Whole-path blockers remain explicit.
+
+- Security: independent schema invariants, three-valued rule implication with explicit unproved paths, `audit`/`check --audit`, schema-derived engine challenges in default `test`, grant lifetime/writer/optional-evidence/existence advice. Text minimums count non-whitespace Unicode characters; maximums and stored bytes are unchanged. `guide security` states proof boundaries and coverage limits; todo, chat, social and production starters declare privacy intent.
 
 ## 0.4.31
 

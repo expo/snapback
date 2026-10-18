@@ -56,13 +56,14 @@ pub fn validate(args: &[String]) -> Result<(), String> {
     if verb == "check" {
         if has("release") && !has("store") { return Err("E_INPUT: check --release requires --store <path>".into()); }
         if has("as") && !has("residency") { return Err("E_INPUT: check --as requires --residency".into()); }
-        let incompatible = if has("emit-lean") { Some(("--emit-lean", &["cost","residency","fix","verbose","store","fixture","as","release","ack-notes"][..])) }
+        let incompatible = if has("emit-lean") { Some(("--emit-lean", &["cost","residency","fix","verbose","store","fixture","as","release","ack-notes","audit"][..])) }
             else if has("release") { Some(("--store --release", &["cost","residency","fix","fixture","as","ack-notes"][..])) } else { None };
         if let Some((mode,flags)) = incompatible {
             if let Some(flag) = flags.iter().find(|flag|has(flag)) { return Err(format!("E_INPUT: check {mode} does not accept --{flag}")); }
         }
     }
     if verb == "rollback" && has("bridge") && !has("check") { return Err("E_INPUT: rollback --bridge requires --check; it writes a bridge starter without activating it".into()); }
+    if verb == "check" && has("audit") && ["cost","residency","fix","store","fixture","as","release","emit-lean"].iter().any(|f|has(f)) { return Err("E_INPUT: check --audit takes only --json or --verbose".into()); }
     if verb == "test" && has("verbose") && !has("residency") { return Err("E_INPUT: test --verbose requires --residency".into()); }
     if verb == "run" && has("token-env") && !has("release") { return Err("E_INPUT: run --token-env requires --release".into()); }
     if verb == "why" && has("instance") && crate::verbs::parse(args).positionals.first().map(String::as_str) != Some("recent") { return Err("E_INPUT: why --instance requires why recent".into()); }
@@ -223,7 +224,7 @@ pub(crate) fn help(verb: &str) -> String {
 mod projection_tests {
     #[test]
     fn every_validated_flag_is_in_its_generated_help() {
-        for verb in ["init","new","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness"] {
+        for verb in ["init","new","audit","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness"] {
             let page = super::help(verb);
             for name in super::allowed(verb).split_whitespace() {
                 assert!(page.lines().any(|line|line.trim_start().starts_with(&format!("--{name}"))),"{verb}: {name}");
@@ -244,7 +245,7 @@ mod projection_tests {
 
 /// One synopsis for top-level help, per-verb help and usage errors. Flags come
 /// directly from the admission table, including value arity and retired forms.
-pub(crate) const VERBS: &[&str] = &["init","new","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness","web-shell"];
+pub(crate) const VERBS: &[&str] = &["init","new","audit","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness","web-shell"];
 pub(crate) fn synopsis(verb: &str) -> String {
     let positional = command(verb).map(|command|command.positional.as_str()).filter(|position|!position.is_empty()).map(|position|format!(" {position}")).unwrap_or_default();
     let mut out = format!("snapback4 {verb}{positional}");
@@ -259,6 +260,7 @@ pub(crate) fn top_help() -> String {
     for verb in VERBS { out.push_str(&format!("  {}\n      {}\n", synopsis(verb), match *verb {
         "init"=>"Create a schema or a web/Expo starter; init --adapt fits an existing starter.",
         "new"=>"Create a full reference app: --template social, or chat with --web/--expo.",
+        "audit"=>"Report security intent, conditional exposure paths and grant writers.",
         "check"=>"Compile the schema, check store adoption, write client types and report readiness.",
         "device"=>"Run the native device JSON protocol over stdin/stdout.", "types"=>"Compile and write generated client types.",
         "dev"=>"Serve a development backend; print its URL on stdout, readiness and refusals on stderr.",

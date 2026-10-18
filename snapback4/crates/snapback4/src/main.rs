@@ -106,6 +106,7 @@ fn main() -> ExitCode {
         "releases" => verbs::releases(&options),
         "serve" => lifecycle::run("serve", || verbs::serve_release(&options)),
         "check" => verbs::check(&options),
+        "audit" => verbs::security::audit(&options),
         "types" => verbs::types(&options),
         "run" => verbs::run(&options),
         "clock" => dev_clock::command(&options),

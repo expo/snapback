@@ -133,3 +133,11 @@ mutation markRead(conversationId: conversations):
   require exists memberships[conversationId, viewer] else NOT_MEMBER
   upsert readMarkers[conversationId, viewer] { at: now }
   return null
+
+-- Independent privacy intent; current server readership, with retained-history
+-- and device freshness obligations reported explicitly by guide security.
+invariant conversations.read only exists memberships[.id, viewer]
+invariant memberships.read only exists memberships[.conversationId, viewer]
+invariant messages.read only exists memberships[.conversationId, viewer]
+invariant messageCounts.read only exists memberships[.conversationId, viewer]
+invariant readMarkers.read only .principal = viewer

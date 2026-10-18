@@ -96674,3 +96674,40 @@ census entries, keyword-list integration, compact card openings and a cursor
 on the staging note list. These are now reconciled without raising budgets
 or weakening corpus checks. The updated guide schema and opening host fence
 are exercised from the final installed pack.
+## 2026-10-18 — SEC: non-whitespace text minimums and security intent
+
+The commissioned bakeoff security lane adds independent policy intent,
+exposure analysis and generated challenges under LLP 3000.036.004. Core design
+revision 3 and the operation/row refinement revision 5 each received READY
+from Muse and a fresh Codex session; verbatim reviews/provenance are retained.
+Text minimums now count non-whitespace Unicode scalars through the shared
+argument/row validator. Maxima count all scalars and stored bytes are unchanged.
+The two focused minimum tests pass, including optional/list arguments. Locked
+Linux wasm is 2,372,893 B raw / 723,411 B gzip (+136 B gzip versus 0.4.31);
+budget 723,911 B is measurement + exactly 500 B. Compiler security analysis
+adds no device protocol. Qualification continues; no zero-hole claim is made.
+STAGE owns first-admin/staging setup; RULES5 owns live-parent authority.
+
+
+## 2026-10-18 — SEC: independent intent, exposure and generated challenges
+
+LLP 3000.036.004 adds independent schema invariants, bounded exhaustive
+three-valued implication, separate Lean lemmas, `audit`/`check --audit`,
+and schema/fixture engine challenges in default `test`. Both independent
+design revisions and implementation round 5 are READY from Muse and fresh
+Codex. The checker preserves explicit unproved exposure paths and finite
+counterexamples never become reachability proofs. The exposure map includes
+inherited grants and their writers; new advice covers role/grant lifetimes,
+grant arguments/global bootstrap, omitted evidence, sweep timing and refusal
+oracles. The guide and all shipped todo/social/chat/production starter schemas
+state their privacy intent. One new online-only guide mutation updates the
+authoring census; the 94 private eligible sites stay unchanged.
+
+Reports and all 150 schema hashes: `reports/20261018-sec/`. Main 20k and device
+0–999 differentials have no disagreements; Lean's four known signature classes
+retain the exact integration15 counts. Whole-protocol/device freshness,
+general aggregate/time reductions, actual unauthenticated/revoked-device
+campaigns and the repaired 015 custody workflow remain explicit gaps in
+`../issues/20261018-sb4-security-proof-and-adversarial-qualification-gaps.md`.
+This is a conservative verification foundation, not a zero-holes capability
+claim. No version bump, push or publication.
