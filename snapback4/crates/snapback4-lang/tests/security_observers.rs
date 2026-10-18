@@ -104,3 +104,10 @@ fn synthetic_update_witness_records_the_committed_next_image_and_patch(){
  assert_ne!(v.old.as_ref(),Some(&v.row));
  assert!(v.args.contains_key("$syntheticPatch"));
 }
+
+#[test]
+fn paired_pruning_keeps_maintained_column_owning_tables(){
+ let b=bound("table posts:\n  likeCount: count likes\n  public 'public totals'\n  online only\ntable likes:\n  post: posts\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery total(post: posts):\n  return posts[post].likeCount\ninvariant likes.read only .owner = viewer\n");
+ let c=security::challenges::run(&b);
+ assert!(c.violations.iter().any(|v|v.observations.is_some()),"{c:?}");
+}

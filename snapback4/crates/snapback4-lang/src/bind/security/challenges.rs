@@ -162,6 +162,23 @@ fn replay(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&
 }
 fn readback(engine:&Engine)->Result<BTreeMap<String,Vec<Value>>,String>{engine.schema().tables.keys().map(|t|engine.store().rows(t).map(|rs|(t.clone(),rs)).map_err(|e|e.to_string())).collect()}
 
+fn operation_preflight(bound:&Bound,inv:&Invariant)->Result<(),String>{
+    let Some(name)=&inv.operation else{return Ok(());};
+    let p=&bound.programs.iter().find(|p|&p.program.name==name).ok_or("operation did not bind")?.program;
+    if !super::census::body(&p.body){return Err(format!("{name}: opaque/loop/scan path requires write-boundary tracing"));}
+    let rule=inv.policy.as_ref().ok_or("operation policy outside rule fragment")?;
+    if rule.any_term(&|t|!matches!(t,RuleTerm::Viewer|RuleTerm::Literal(_))){return Err("operation policy requires write-boundary row-image tracing".into());}
+    let writes=ir::write_tables(p);
+    if writes.iter().filter(|(t,_)|t==&inv.table).count()>1{return Err(format!("{name}: multiple target writes need executed-effect tracing; net images do not identify delete/reinsert"));}
+    let unstable=kernel::dependencies(rule).iter().any(|dep|{
+        let hits=writes.iter().filter(|(t,_)|t==dep).collect::<Vec<_>>();
+        !hits.is_empty()&&!(dep==&inv.table&&hits.len()==1&&hits[0].1=="insert")
+    });
+    if unstable||!bound.schema.maintains.is_empty()||bound.schema.tables.values().any(|t|!t.sequences.is_empty()||!t.maintained.is_empty()||t.on_delete.values().any(|a|a.writes())){
+        return Err("operation policy dependency may change before/after its write boundary; snapshot correspondence unproved".into());
+    }Ok(())
+}
+
 /// Schema-only engine challenges. Successful synthetic operations refute the
 /// declared table-authority contract, not application-operation reachability.
 pub fn run(bound:&Bound)->Campaign{run_selected(bound,None)}
@@ -187,7 +204,8 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
     }
     for inv in &assertions{
         if sites.is_some_and(|sites|!sites.contains(&inv.site.to_string())){continue;}
-        if discharged.contains(&inv.site.to_string()){continue;}
+        if inv.operation.is_none()&&discharged.contains(&inv.site.to_string()){continue;}
+        if let Err(why)=operation_preflight(bound,inv){out.unsupported.insert(why);continue;}
         let mut found=false;
         let combinations=bound.schema.tables.values().flat_map(|t|t.columns.values()).filter_map(|k|if let C::Enum{variants}=k.required(){Some(variants.len())}else{None}).fold(1usize,usize::saturating_mul).max(24);
         if combinations>512{out.unsupported.insert("schema enum Cartesian matrix exceeds 512 samples; remaining tuples are not covered".into());}
@@ -221,24 +239,6 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
                 }
                 if let Some(operation)=&inv.operation {
                     let Some(p)=bound.programs.iter().find(|p|&p.program.name==operation)else{continue;};
-                    if !super::census::body(&p.program.body){out.unsupported.insert(format!("{operation}: opaque/loop/scan path requires write-boundary tracing"));continue;}
-                    let Some(policy_rule)=&inv.policy else{out.unsupported.insert("operation policy outside rule fragment".into());continue;};
-                    if policy_rule.any_term(&|t| !matches!(t,snapback4_core::schema::RuleTerm::Viewer|snapback4_core::schema::RuleTerm::Literal(_))) {out.unsupported.insert("operation policy requires write-boundary row-image tracing".into());continue;}
-                    let writes=ir::write_tables(&p.program);
-                    if writes.iter().filter(|(table,_)|table==&inv.table).count()>1 {
-                        out.unsupported.insert(format!("{operation}: multiple target writes need executed-effect tracing; net images do not identify delete/reinsert"));continue;
-                    }
-                    let deps=kernel::dependencies(policy_rule);
-                    let unstable=deps.iter().any(|dep|{
-                        let hits=writes.iter().filter(|(t,_)|t==dep).collect::<Vec<_>>();
-                        // A single insertion of the grant row is judged just
-                        // before that insert; earlier unrelated writes cannot
-                        // establish the very authority being bootstrapped.
-                        !hits.is_empty() && !(dep==&inv.table&&hits.len()==1&&hits[0].1=="insert")
-                    });
-                    if unstable || !bound.schema.maintains.is_empty() || bound.schema.tables.values().any(|t|!t.sequences.is_empty()||!t.maintained.is_empty()||t.on_delete.values().any(|a|a.writes())) {
-                        out.unsupported.insert("operation policy dependency may change before/after its write boundary; snapshot correspondence unproved".into());continue;
-                    }
                     let permitted=policy(bound,inv,&rows,viewer,None,row);
                     let Some(args)=arguments(&p.program.args,variant)else{out.unsupported.insert(format!("{operation}: arguments need fixture assets or unsupported samples"));continue;};
                     out.attempted+=1;

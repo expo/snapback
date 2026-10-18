@@ -45,7 +45,10 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
         let mut observers=BTreeSet::from([inv.table.clone()]);
         loop {
             let before=observers.len();
-            for m in &bound.schema.maintains {if observers.contains(&m.source){observers.insert(m.target.clone());}}
+            for m in &bound.schema.maintains {if observers.contains(&m.source){
+                observers.insert(m.target.clone());
+                if let Some(owner)=&m.private{observers.insert(owner.table.clone());}
+            }}
             for (name,t) in &bound.schema.tables {
                 if t.through.as_ref().is_some_and(|p|observers.contains(&p.parent))
                     || [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|kernel::dependencies(r).iter().any(|d|observers.contains(d))) {
