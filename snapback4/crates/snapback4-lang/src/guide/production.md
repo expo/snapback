@@ -397,4 +397,3 @@ team selection and principal selection sit above release-sensitive reads;
 release gates and rollback preserve them. Account changes intentionally cross
 the AppProvider principal boundary. Exact's corresponding recipe is maintained
 in Exact2 (EX9); these source files target React and Expo.
-

@@ -96366,3 +96366,23 @@ then exposed a proof-fixture omission: its backend had no file column. The guide
 now states the exact optional file declaration, extracted into the qualification
 schema before executing the unchanged literal upload helper. Asset admission
 and schema ownership remain unchanged.
+
+### 2026-10-18 — PROD2 qualification and corpus closeout
+
+Fresh code0fea2ddb16 client/platform consumer qualification passed H9, all three
+original-preserving evidence copies, real PDF upload, current-authority role
+shell, six frontend cases, six starters and Ubuntu/Alpine userspaces. This is
+consumer-only evidence, not publication qualification. Both full Rust crates
+passed (language2116, CLI1297); all client files and both full model suites were
+verified, with failed attempts/reruns retained in the workstream report. Final
+Mac affected checks passed. Root inventories/guide, ref-check and docs budget
+were checked; closing results are in WORKSTREAM-REPORT.md.
+
+The scoped corpus audit aligned client §6.11 and release §3 with the unchanged
+reviewed revision-9 norms, marked implementation and archived its current link.
+No review snapshot or verbatim review was edited. An inherited qualification
+registry-proxy header retry crash was cleared by an unchanged-source retry and
+filed as issues/20261018-snapback4-qualification-registry-proxy-headers.md for the
+publication harness owners; PROD2 leaves that socket code alone. No version
+bump, push or publication. Completed build/test caches were discarded only
+inside this worktree to keep the shared disk usable.
