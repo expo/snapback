@@ -1,5 +1,10 @@
 # Proving it on an iOS simulator
 
+For browser proofs, `guide testing --section 5` documents the web witness.
+Use `beginForm(name, null, button)` when dynamic arguments should be claimed
+without exact argument matching; require its sent receipt before asserting UI.
+`guide testing --section proof-api` lists the packaged proof helpers.
+
 The iOS witness records native offline execution on macOS. It can prepare a bounded
 own Release build, or run an already installed app, then retain receipts and video.
 

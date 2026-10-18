@@ -13,6 +13,7 @@ import { proveExpoUpgrades } from "./publication-regressions.mjs";
 import { proveDay2 } from "./publication-day2.mjs";
 import { proveDay4 } from "./publication-day4.mjs";
 import { proveProduction } from "./publication-production.mjs";
+import { proveProofKit } from "./publication-proof-kit.mjs";
 import { proveClientRecipes } from "./publication-client-recipes.mjs";
 import { proveRules } from "./publication-rules.mjs";
 import { proveGeneratedProofs } from "./publication-frontend-proofs.mjs";
@@ -106,6 +107,7 @@ export async function qualify(args = process.argv.slice(2)) {
     save(join(out, "day4-proof.json"), day4Proof);
     const productionProofs = await proveProduction(client, tarball, expo, out);
     save(join(out, "production-proofs.json"), productionProofs);
+    const proofKit = await proveProofKit(client, tarball, out);
     const clientRecipes = await proveClientRecipes(client, tarball, out);
     save(join(out, "client-recipes.json"), clientRecipes);
     const ruleRecipes = proveRules(client, tarball, out);
@@ -129,7 +131,7 @@ export async function qualify(args = process.argv.slice(2)) {
         throw new Error("release source or client changed during consumer qualification");
       copyFileSync(tarball, join(out, packed.filename));
       const evidence = { format: 1, mode: "consumer-only", source, version, route: runtime,
-        clientIntegrity, expoIntegrity, platform, binarySha256, elf, regressions, day2Proof, day4Proof, productionProofs, clientRecipes, ruleRecipes, frontendProofs, starterProofs, proofs,
+        clientIntegrity, expoIntegrity, platform, binarySha256, elf, regressions, day2Proof, day4Proof, productionProofs, proofKit, clientRecipes, ruleRecipes, frontendProofs, starterProofs, proofs,
         suite: { status: "not-run" }, publicationQualified: false };
       save(join(out, "consumer.json"), evidence);
       console.log(JSON.stringify(evidence, null, 2));
@@ -137,7 +139,7 @@ export async function qualify(args = process.argv.slice(2)) {
     }
     if (!suitePassed) throw new Error(`Linux source suite failed: ${summary ?? result.error?.message ?? result.status}; see ${log}; consumer evidence in proofs.json (no qualification receipt)`);
     const cc = process.env.SNAPBACK4_MUSL_CC ?? join(process.env.HOME, ".local/share/snapback4-musl-1.2.5/bin/musl-gcc");
-    const receipt = { format: 1, route: runtime, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, regressions, day2Proof, day4Proof, productionProofs, clientRecipes, ruleRecipes, frontendProofs, starterProofs, elf, platform, binarySha256, clientIntegrity, expo: artifact(expo, "snapback4-expo", version) };
+    const receipt = { format: 1, route: runtime, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, regressions, day2Proof, day4Proof, productionProofs, proofKit, clientRecipes, ruleRecipes, frontendProofs, starterProofs, elf, platform, binarySha256, clientIntegrity, expo: artifact(expo, "snapback4-expo", version) };
     if (cleanSource(root) !== source || sri(client) !== clientIntegrity || sri(expo) !== expoIntegrity) throw new Error("release source or client changed during Linux qualification");
     validateLinux(receipt, tarball, { version, integrity: clientIntegrity }, source);
     copyFileSync(tarball, join(out, packed.filename));

@@ -73,7 +73,7 @@ what later cases see. The complete vocabulary is `as`, `op`, `args`, `expect`,
 {"as":"bob","op":"cardsOn","args":{"board":"board-alice"},"count":0}
 ```
 
-`save` names an answer: `$eggs` means its row id, `$eggs.text` its field.
+`save` names an answer: `$eggs` means its row id, `$eggs.text` its field; `$plans.0.id` selects the first row of a saved query list.
 A bare id/reference/principal/cursor/asset argument equal to a saved alias refuses
 with the `$name` rewrite (including optional/list leaves). Text, enum and JSON
 arguments remain literals. A root `$alias` saved as null refuses E_FIXTURE_ALIAS
@@ -99,8 +99,13 @@ sweep uses another literal-argument case or derives arguments for that query.
 For different authorization lanes, add `fixtures/test.sweep.json`:
 `{"hrStatus":["carol"],"policiesList":["alice","bob"]}`. Each named query uses
 its listed personas; other queries use the whole cast. `--as` explicitly overrides
-that matrix and names the queries whose sweep personas it overrides. Empty/unknown entries and undeclared personas fail before cases run.
+that matrix because it requests one deliberate global probe, and names the queries whose sweep personas it overrides. Empty/unknown entries and undeclared personas fail before cases run.
 It prints examined rows, entries, probes, steps, heap/output bytes and ceilings.
+The output legend: examined = rows visited; entries = index entries visited;
+probes = rule lookups; steps = interpreter work; heap B = charged heap bytes;
+output B = encoded answer bytes. The ceilings row gives the corresponding limits.
+OK cases passed their explicit expectations; complete is the whole answer;
+capped is a partial answer; denied is a refusal. A green sweep alone is no business assertion.
 `complete` is the whole answer; `capped` is a partial answer, not a refusal.
 Sweep refusals from a program's own require (family rule) are advisory and do
 not fail the run. Other refused sweep queries fail unless that query/persona's
@@ -241,7 +246,7 @@ A synchronous form onSubmit caused by that button also qualifies.
 Timers or later requestSubmit calls do not inherit a prior click.
 formResult() returns a Promise of { state, id, seq?, result?, why?, mutation }.
 Require state === "sent" before asserting the rendered business result.
-An unclaimable durable write settles failed/E_WITNESS_UNCLAIMED with provenance/operation/argument mismatch detail, without logging argument values.
+An unclaimable durable write settles failed/E_WITNESS_UNCLAIMED with provenance/operation detail or mismatched argument keys. Full armed/actual values are retained only in the proof log directory’s mode-0600 *.witness.private.jsonl file.
 Keep the promise outside components that may unmount. Four terminal outcomes:
 - sent: claimed write committed (a replay may omit its historical result);
 - failed with the app refusal: claimed write was refused;
@@ -315,7 +320,7 @@ production omits it. `guide wire --section envelopes` has full examples.
 Each dev memory start is empty. Between scenarios on one dev, POST `/dev/reset`
 with `{seed:[{table,row}]}` atomically clears rows, logs, queues, assets, accounts
 and sessions, retains schema/personas/seats, and returns `{reset:true}` with a
-new store identity. Reopen clients after reset. Seed persona rosters before
+new store identity. A stale online client refuses E_DEV_RESET: reopen the client after reset. Seed persona rosters before
 calling operations that use them: a fresh dev has no admins or memberships.
 `/seed` takes a **bare array**, beside reset's wrapper:
 
@@ -334,6 +339,13 @@ time afresh; use it instead of Date.now() for deadline arguments after advances.
 Default advance coalesces to the latest window. Add --each-boundary (HTTP
 eachBoundary:true) to admit each crossed window in order; jobs still see the
 final advanced now, so use periodStart/periodEnd for historical windows.
+For every five-minute window in an hour, use `clock advance 1h --each-boundary`;
+assert firedWindows rather than assuming coalesced work ran every period.
+The 10,000-window cap applies only to --each-boundary. Coalesced reports retain
+exact skipped counts and preview 32 replay commands per schedule.
+After an HTTP advance, `await waitForClock(page, advanced.now)` from snapback4/proof
+waits for the page's own signed-in client clock to reach that sample. It neither
+sets the browser clock nor treats the proof driver's time as a client sample.
 Clock controls are dev-only; `guide clock` covers status, reset and restart.
 One-shot HTTP reads after a not-before crossing wait for each encountered live
 publication dependency. A 30-second limit refuses retryable E_QUERY_RETRY
@@ -398,7 +410,7 @@ E_WITNESS_SENT means the write failed, stayed pending or timed out. Inspect the 
 
 E_WITNESS_WEB means the browser proof could not complete. Check the export, browser and application.
 
-`guide witness` has native and lifecycle proofs.
+`guide witness` has native and lifecycle proofs. `guide testing --section proof-api` lists every proof export; the day-two accounts section runs the complete production-account release loop.
 
 Full bodies for the preceding fixture (omitted request ids stay omitted):
 

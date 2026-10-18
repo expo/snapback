@@ -2,6 +2,7 @@ import { checkVerbHelp } from "./check-verb-help.mjs";
 import { mkdirSync, writeFileSync, copyFileSync, statSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { run, digest } from "./publication-artifacts.mjs";
+import { proveProofKit } from "./publication-proof-kit.mjs";
 import { proveStarters } from "./publication-starters.mjs";
 import { verifyDeveloperId } from "./signing.mjs";
 // @ref LLP 3000.021#3.3 — only Darwin is executed and signature-checked by the publisher
@@ -49,5 +50,6 @@ console.log(run("node", ["run.mjs"], { cwd: consumer }).trim());
 copyFileSync(new URL("./publication-roundtrip.mjs", import.meta.url), join(consumer, "roundtrip.mjs"));
 run("node", ["roundtrip.mjs", staged.version], { cwd: consumer, env, timeout: 90_000 });
 const starters = await proveStarters(staged.client.tarball, platform.tarball, staged.expo.tarball, work);
-return { status: "passed", starters, expoIntegrity: staged.expo.integrity, clientIntegrity: staged.client.integrity, platformIntegrity: platform.integrity };
+const proofKit = await proveProofKit(staged.client.tarball, platform.tarball, work);
+return { status: "passed", proofKit, starters, expoIntegrity: staged.expo.integrity, clientIntegrity: staged.client.integrity, platformIntegrity: platform.integrity };
 }

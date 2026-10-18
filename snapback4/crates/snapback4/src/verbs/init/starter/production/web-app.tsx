@@ -98,7 +98,7 @@ function Team(props: { teamId: TeamId; principal: string; setPrincipal: (value: 
       <Roster teamId={props.teamId} selected={props.selectedPrincipal} choose={props.selectPrincipal} />
       {member.role === "admin" && <fieldset><legend>Invite by principal</legend>
         <label>Principal<input value={props.principal} onChange={e => props.setPrincipal(e.target.value)} /></label>
-        <label>Role<select aria-label="Role" value={props.role} onChange={e => props.setRole(e.target.value as "member" | "admin")}><option value="member">Member</option><option value="admin">Admin</option></select></label>
+        <label htmlFor="invite-role">Role</label><select id="invite-role" value={props.role} onChange={e => props.setRole(e.target.value as "member" | "admin")}><option value="member">Member</option><option value="admin">Admin</option></select>
         <button disabled={!props.principal.trim() || !props.inviteAvailable} onClick={props.invite}>Invite</button>
       </fieldset>}
     </section>,
@@ -110,9 +110,9 @@ function Roster({ teamId, selected, choose }: { teamId: TeamId; selected: Princi
   return matchReadList(roster, {
     otherwise: () => <p>Roster unavailable; reconnect.</p>,
     loading: () => <p>Loading roster…</p>, denied: why => <p>Not available: {why.message}</p>, absent: () => <p>No members.</p>,
-    present: rows => <><label>Member principal<select aria-label="Member principal" value={selected ?? ""} onChange={e => choose(e.target.value as Principal)}>
+    present: rows => <><label htmlFor="member-principal">Member principal</label><select id="member-principal" value={selected ?? ""} onChange={e => choose(e.target.value as Principal)}>
       <option value="" disabled>Choose a principal</option>{rows.map(row => <option key={row.id} value={row.principal}>{row.principal} · {row.role}</option>)}
-    </select></label>{selected && <p>Selected principal: {selected}</p>}{roster.hasMore && <button onClick={roster.loadMore}>More members</button>}</>,
+    </select>{selected && <p>Selected principal: {selected}</p>}{roster.hasMore && <button onClick={roster.loadMore}>More members</button>}</>,
     partial: rows => <p>Roster incomplete ({rows.length} known); reconnect.</p>,
   });
 }
