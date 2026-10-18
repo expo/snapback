@@ -39,7 +39,7 @@ const APP_FILES: &[&str] = &[
     "package-lock.json", "app.json", "build.json", "proof.json", "acquire.json", "preparation-deadline.json",
     "artifacts/native-smoke/build.json",
     "snapback/client-compatibility.json", "snapback/check-notes.json",
-    "snapback/schema.q", "snapback/social.q", "snapback/jobs.q", "snapback/*.q",
+    "snapback/schema.q", "snapback/social.q", "snapback/jobs.q", "snapback/money.q", "snapback/*.q",
     "snapback/server.ts", "snapback/worker.ts", "snapback/worker.mts",
     "snapback/workers/<service>.mjs", "snapback/workers/push.mjs",
     "snapback/workers/notifications.mjs", "/durable/path/effects.sqlite",

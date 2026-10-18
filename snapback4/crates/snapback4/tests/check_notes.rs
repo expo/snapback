@@ -125,7 +125,7 @@ fn sync_order_note_is_printed_on_every_check_and_clears_with_matching_window() {
     let result: serde_json::Value = serde_json::from_str(&run(&["check", "--json"])).unwrap();
     assert_eq!(result["notes"].as_array().unwrap().iter().filter(|note| note["code"] == "N_SYNC_ORDER").count(), 1);
     assert!(run(&["why", "N_SYNC_ORDER"]).contains("newest-first"));
-    fs::write(dir.join("snapback/schema.q"), source).unwrap();
+    fs::write(dir.join("snapback/schema.q"), &source).unwrap();
     assert!(!run(&["check"]).contains("N_SYNC_ORDER"));
     fs::remove_dir_all(dir).unwrap();
 }
@@ -135,7 +135,7 @@ fn no_horizon_notes_are_compact_in_check_and_explained_by_verbose_or_why() {
     let dir = std::env::temp_dir().join(format!("sb4-check-notes-{}", std::process::id()));
     fs::create_dir_all(dir.join("snapback")).unwrap();
     let source = "table first:\n  body: text <=100\n  public\n  sync public\ntable second:\n  body: text <=100\n  public\n  sync public\n";
-    fs::write(dir.join("snapback/schema.q"), source).unwrap();
+    fs::write(dir.join("snapback/schema.q"), &source).unwrap();
     let run = |args: &[&str]| {
         let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
         assert!(output.status.success(), "{output:?}");
@@ -199,7 +199,7 @@ fn never_complete_is_compact_by_default_and_verbose_prints_each_compiled_form() 
 table tickets:\n  owner: principal\n  at: int\n  read <- .owner = viewer or exists staff[viewer]\n  online only\n\
 table sessions:\n  tutor: principal\n  learner: principal\n  at: int\n  read <- .tutor = viewer or .learner = viewer\n  online only\n\
 query queue(c: cursor ?):\n  return tickets last 50 by .at after c\nquery queue2(c: cursor ?):\n  return tickets last 20 by .at after c\nquery mySessions(c: cursor ?):\n  return sessions last 50 by .at after c\n";
-    fs::write(dir.join("snapback/schema.q"), source).unwrap();
+    fs::write(dir.join("snapback/schema.q"), &source).unwrap();
     let run = |args: &[&str]| {
         let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
         assert!(output.status.success(), "{output:?}");
@@ -208,16 +208,23 @@ query queue(c: cursor ?):\n  return tickets last 50 by .at after c\nquery queue2
     let merged = run(&["check"]);
     assert!(!merged.contains("N_NEVER_COMPLETE"), "{merged}");
     let source = source.replace(" last 50 by .at", " where .at + 1 > 0 last 50 by .at").replace(" last 20 by .at", " where .at + 1 > 0 last 20 by .at");
-    fs::write(dir.join("snapback/schema.q"), source).unwrap();
+    fs::write(dir.join("snapback/schema.q"), &source).unwrap();
     let plain = run(&["check"]);
-    assert_eq!(plain.matches(" — N_NEVER_COMPLETE — verdict:").count(), 1, "grouped default:\n{plain}");
-    assert!(plain.contains("note: N_NEVER_COMPLETE (as above) also for query queue2") && plain.contains("query mySessions"), "{plain}");
+    // FRONT: the checked source leads, including different queries sharing one explanation.
+    for query in ["queue", "queue2", "mySessions"] {
+        assert!(plain.contains(&format!("rewrite for query {query}:")), "{plain}");
+    }
+    assert!(plain.contains("  impact: fine for a screen showing returned rows") && plain.contains("  audience:"), "{plain}");
     let lines: Vec<_> = plain.lines().collect();
-    let note = lines.iter().position(|line| line.contains(" — N_NEVER_COMPLETE — verdict:")).unwrap();
-    assert_eq!(lines[note + 1], "  who: callers admitted by `exists staff[viewer]` have a complete page", "{plain}");
-    assert_eq!(lines[note + 2], "  what: query queue: missing pin .owner; choose the intended audience without dropping other readers; check --verbose shows the checked repair", "{plain}");
-    assert!(!lines[note + 3].starts_with("  "), "the default completeness note is exactly verdict/who/what: {plain}");
-    assert!(!plain.contains("  rewrite:") && !plain.contains("query mySessionsAsTutor"), "{plain}");
+    let note = lines.iter().position(|line| line.contains("rewrite for query queue:")).unwrap();
+    let repair = lines[note + 1..].iter().take_while(|line| line.starts_with("    "))
+        .map(|line| &line[4..]).collect::<Vec<_>>().join("\n");
+    let start = source.find("query queue(").unwrap();
+    let end = start + source[start..].find("\nquery queue2").unwrap();
+    let changed = format!("{}{}{}", &source[..start], repair, &source[end..]);
+    let checked = snapback4_lang::compile(&[("schema.q".into(), changed)]);
+    assert!(checked.diagnostics.is_empty(), "the default printed repair must compile: {:?}", checked.diagnostics);
+    assert!(!checked.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE" && n.message.starts_with("query queue:")), "the repair must settle this query: {:?}", checked.notes);
 
     let verbose = run(&["check", "--verbose"]);
     assert_eq!(verbose.matches("  rewrite: Branch on the grant").count(), 2, "one full grant form per affected query:\n{verbose}");
@@ -236,7 +243,7 @@ fn check_counts_views_apart_from_tables() {
     let dir = std::env::temp_dir().join(format!("sb4-check-views-{}", std::process::id()));
     fs::create_dir_all(dir.join("snapback")).unwrap();
     let source = "table slots:\n  seats: int\n  public 'p'\n  online only\ntable bookings:\n  slot: slots\n  guest: principal\n  read <- .guest = viewer\n  insert <- .guest = viewer\n  online only\nview taken: count bookings by .slot\n  read <- allow\n";
-    fs::write(dir.join("snapback/schema.q"), source).unwrap();
+    fs::write(dir.join("snapback/schema.q"), &source).unwrap();
     let run = |args: &[&str]| String::from_utf8(Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap().stdout).unwrap();
     let text = run(&["check"]);
     assert!(text.starts_with("check: ok — 2 tables, 1 view (0 synced), 0 operations"), "{text}");
@@ -269,13 +276,10 @@ fn an_online_only_check_drops_the_never_predict_paragraph_and_each_note_leads_wi
     let notes: Vec<&str> = plain.lines().filter(|line| line.starts_with("note: schema.q")).collect();
     assert!(!notes.is_empty(), "{plain}");
     for line in &notes {
-        assert!(line.contains(" — verdict:") || ["fix:", "review", "no action"].iter().any(|verdict| line.contains(&format!(": {verdict}"))), "{line}");
+        assert!(line.contains(" — rewrite for ") || line.contains(" — review ") || ["fix:", "review", "no action"].iter().any(|verdict| line.contains(&format!(": {verdict}"))), "{line}");
     }
-    let lines: Vec<_> = plain.lines().collect();
-    let completeness = lines.iter().position(|line| line.contains(" — N_NEVER_COMPLETE — verdict:")).expect("compact completeness note");
-    assert_eq!(lines[completeness + 1], "  who: callers admitted by `exists staff[viewer]` have a complete page", "{plain}");
-    assert!(lines[completeness + 2].starts_with("  what:") && lines[completeness + 2].contains("check --verbose"), "{plain}");
-    assert!(!lines[completeness + 3].starts_with("  "), "the default completeness note is exactly three lines: {plain}");
+    assert!(plain.contains("rewrite for query all:") && plain.contains("  audience: `exists staff[viewer]` is proved complete"), "{plain}");
+    assert!(plain.contains("  impact: fine for a screen showing returned rows"), "{plain}");
     assert!(plain.contains("N_NO_CURSOR: no action for a top-N list."), "{plain}");
     // A synced table keeps the paragraph.
     fs::write(dir.join("snapback/schema.q"), "table notes:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync\ntable log:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation add():\n  insert log { owner: viewer }\n  return insert notes { owner: viewer }\n").unwrap();
@@ -369,4 +373,22 @@ fn check_fix_replays_documented_unique_renames_without_touching_other_constraint
     assert_eq!(fs::read_to_string(&path).unwrap(),fixed);
     assert!(!dir.join(".snapback4/store.sqlite").exists(),"fixture replay must not create the dev store");
     fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn two_scans_in_one_query_keep_their_distinct_audiences() {
+    let dir = std::env::temp_dir().join(format!("sb4-front-two-scans-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    let mut source = String::new();
+    for (grant, table) in [("staff", "tickets"), ("tutors", "papers")] {
+        source.push_str(&format!("table {grant}:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable {table}:\n  owner: principal\n  at: int\n  read <- .owner = viewer or exists {grant}[viewer]\n  online only\n"));
+    }
+    source.push_str("query both():\n  a = tickets where .at + 1 > 0 last 20 by .at\n  b = papers where .at + 1 > 0 last 20 by .at\n  return {a, b}\n");
+    fs::write(dir.join("snapback/schema.q"), &source).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).arg("check").current_dir(&dir).output().unwrap();
+    fs::remove_dir_all(dir).unwrap();
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert!(output.status.success(), "{text} {:?}", output.stderr);
+    for audience in ["exists staff[viewer]", "exists tutors[viewer]"] { assert!(text.contains(audience), "{text}"); }
+    for table in ["tickets[..]", "papers[..]"] { assert!(text.contains(table), "{text}"); }
 }

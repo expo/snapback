@@ -1585,6 +1585,9 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `useAppReady()` | initial app.ready settled, current auth is signed-in without an admission refusal; later sign-in recovers failed restoration; gate initial write forms, not connectivity or permission |
 | `useAuth()` | `AuthSnapshot` plus `signup`, `login`, `guest`, `logout`, `logoutEverywhere`; `state === "signed-in"` narrows `viewer` |
 | `useClient()`, `useOnline()` | the `Client`; the app's server arm `Online` (under `AppProvider`) |
+| `SignedIn` | auth gate under AppProvider; signed-out fallback, restoring placeholder, signed-in children |
+| `useQueryData(op, args, options?)` | data or undefined; throws `QueryRefusal` carrying the original typed `why`; partial/stale data stays displayable |
+| `useQueryResult(op, args, options?)` | `{ data, why, read }`; inline refusal and the precise snapshot |
 | `useQuery(op, args, { keep, skip }?)` | `Read<R>` (`UseQuery<typeof op>`): narrow with `matchRead` or the guards; `skip: true` reads nothing (`loading`) |
 | `usePage(op, args, { keep, skip }?)` | `{ items, hasMore, read, loadMore }` (`UsePage<typeof op>`, a `PageHook<R>`); `op` declares `c: cursor ?` |
 | `useFollowing(op, args)` | Following history: the snapshot plus `loadMore`, `retry`, `refresh` (`guide feeds`) |
@@ -4126,3 +4129,58 @@ export function SharedList<T extends {id: string}>({page, remove, label}: {page:
     <button disabled={!page.hasMore} onClick={page.loadMore}>More</button></>; }
 ```
 Pass usePage(api.list) and useMutation(api.remove). Match page.read, render page.items. `absent` can be an authorised empty list; query myMembership for roles. createClient takes generated handles (api.op), never names.
+
+## Short screens
+
+`useQueryData(op,args)` returns data or undefined while loading. Refusals throw
+`QueryRefusal` (its `why` is a typed Refusal) for an error boundary. For an inline
+refusal use `useQueryResult`; `read` retains the full metadata. Both show partial
+and stale data as it arrives: use `useQuery`/`usePage` when completeness, freshness
+or pagination matters. Null, false, zero and empty lists remain data. Arguments
+are inferred from the generated operation. `SignedIn` mounts children only after
+sign-in; restoration defaults to null. Place it inside AppProvider.
+
+```tsx
+import { SignedIn, useQueryData, useQueryResult } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function QuickNotes({team}:{team:string}) {
+  const rows = useQueryData(api.staffNotes, {team});
+  return rows === undefined ? <p>Loading…</p> : <ul>{rows.map(row => <li key={row.id}>{row.title}</li>)}</ul>;
+}
+export function InlineNotes({team}:{team:string}) {
+  const {data,why} = useQueryResult(api.staffNotes, {team});
+  return why ? <p role="alert">{why.message}</p> : data === undefined ? <p>Loading…</p> : <ul>{data.map(row => <li key={row.id}>{row.title}</li>)}</ul>;
+}
+export function ShortScreen() {
+  return <SignedIn fallback={<p>Sign in</p>} restoring={<p>Restoring…</p>}><InlineNotes team="t" /></SignedIn>;
+}
+```
+
+## Money arguments from JavaScript
+
+`money USD` defaults to scale 2: pass integer cents, so 1234 is $12.34.
+`decimal 4` likewise uses integers scaled by 10,000. Fractions such as 12.34
+refuse E_INPUT; the SDK does not silently round. Declare this as
+`snapback/money.q`, then run check to generate its module handle:
+
+```quarry
+table prices:
+  owner: principal
+  amount: money USD
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+mutation recordPrice(amount: money USD):
+  return insert prices { owner: viewer, amount }
+```
+
+In a Node 24 module at the project root, use the generated operation exactly
+as in a React handler. Pass your authenticated client to this helper:
+
+```js
+import { api } from "./snapback/generated/api.ts";
+export function recordPrice(client) {
+  return client.mutate(api.money.recordPrice, { amount: 1234 });
+}
+```

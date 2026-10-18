@@ -1803,6 +1803,6 @@ fn w14_conditional_completeness_default_names_the_query_and_missing_pin() {
     let output=p.run(&["check"]);
     assert!(output.status.success(),"{output:?}");
     let text=String::from_utf8(output.stdout).unwrap();
-    assert!(text.contains("query overview: missing pin .owner"),"{text}");
+    assert!(text.contains("rewrite for query overview:") && text.contains(".owner = viewer") && text.contains("proving absence or all matches needs complete: true"),"{text}");
     assert!(text.contains("N_CONDITIONAL_COMPLETE")||text.contains("N_NEVER_COMPLETE"),"{text}");
 }

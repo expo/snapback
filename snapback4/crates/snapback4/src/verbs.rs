@@ -239,34 +239,31 @@ fn note_summary(note: &snapback4_lang::Diagnostic) -> String {
 
 fn completeness_note(note: &snapback4_lang::Diagnostic) -> Option<[String; 3]> {
     if !matches!(note.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE") { return None; }
-    let verdict = if note.code == "N_CONDITIONAL_COMPLETE" {
-        "verdict: complete for the pinned audience; capped for other callers"
+    // @ref LLP 3000.013.002#3 — the checked source repair leads, followed by impact and audience.
+    let subject = note.message.split(": ").next().unwrap_or("query");
+    let action = if let Some((_, code)) = crate::note_rank::compiled_form(&note.code, &note.rewrite) {
+        format!("rewrite for {subject}:\n{}", code.lines().map(|line| format!("    {line}")).collect::<Vec<_>>().join("\n"))
+    } else if note.rewrite.contains("no verified complete form for this read") {
+        format!("review {subject}: analyzer limitation; no verified complete rewrite; keep the query and handle partial data (check --verbose explains why)")
+    } else if note.rewrite.starts_with("add `cap ") {
+        format!("rewrite for {subject}: {}", note.rewrite)
+    } else if let Some(columns) = note.message.split("` reads ").nth(1).and_then(|tail| tail.split_once(", which the scan does not pin").map(|(columns,_)| columns)) {
+        format!("review {subject}: missing pin {columns}; choose the intended scope without dropping other readers (check --verbose)")
     } else {
-        "verdict: capped; the server cannot prove that this page contains every readable row"
+        format!("review {subject}: no checked rewrite; keep the query and handle partial data (check --verbose)")
     };
     let admitted = ["for callers `", "except for callers `"].into_iter().find_map(|needle| {
-        let rest = note.message.split_once(needle)?.1;
-        rest.split_once("` admits").map(|(rule, _)| rule)
+        note.message.split_once(needle)?.1.split_once("` admits").map(|(rule, _)| rule)
     });
-    let who = match admitted {
-        Some(rule) => format!("who: callers admitted by `{rule}` have a complete page"),
-        None if note.code == "N_CONDITIONAL_COMPLETE" => "who: callers admitted by the pinned parent guard have a complete page".into(),
-        None => "who: no caller group is proved complete by this page".into(),
+    let mut who = match admitted {
+        Some(rule) => format!("audience: `{rule}` is proved complete; other callers may be capped"),
+        None if note.code == "N_CONDITIONAL_COMPLETE" => "audience: pinned parent readers are proved complete; other callers may be capped".into(),
+        None => "audience: completeness is not proved for every caller; runtime complete may still be true".into(),
     };
-    let subject = note.message.split(": ").next().unwrap_or("query");
-    let missing = note.message.split("` reads ").nth(1).and_then(|tail| tail.split_once(", which the scan does not pin").map(|(columns,_)| columns));
-    let what = if let Some(columns) = missing {
-        format!("what: {subject}: missing pin {columns}; choose the intended audience without dropping other readers; check --verbose shows the checked repair")
-    } else if note.rewrite.starts_with("add `cap ") {
-        format!("what: {}", note.rewrite)
-    } else {
-        "what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair".into()
-    };
-    Some([
-        verdict.into(),
-        who,
-        what,
-    ])
+    if let Some(scan) = note.message.split_once(" over ").and_then(|(_, tail)| tail.split_once(" is ").map(|(scan, _)| scan)) {
+        who.push_str(&format!(" (scan {scan})"));
+    }
+    Some([action, "impact: fine for a screen showing returned rows; proving absence or all matches needs complete: true; keep partial data visible".into(), who])
 }
 
 /// `check --emit-lean <file.q>`: one file, checked, as the Lean model's

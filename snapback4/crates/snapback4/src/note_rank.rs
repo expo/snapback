@@ -17,7 +17,7 @@ pub(crate) enum Tier {
 pub(crate) fn tier(code: &str) -> Tier {
     match code {
         "N_IMMUTABLE_PATCH" | "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_QUERY_FILTERED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
-        | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
+        | "N_SWEEP_DEADLINE" | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
         | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
         "N_SYNC_ORDER" | "N_NO_HORIZON" | "N_MAINTAIN_SYNCED" | "N_TIMELINE_COMPAT" | "N_NO_CURSOR" => Tier::Design,
@@ -101,7 +101,7 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
     // Collapse one code's repeats at one site, keeping first-seen order.
     let mut unique: Vec<(Note, usize)> = Vec::new();
     for note in notes {
-        match unique.iter_mut().find(|(seen, _)| seen.site == note.site && seen.code == note.code) {
+        match unique.iter_mut().find(|(seen, _)| seen.site == note.site && seen.code == note.code && seen.summary == note.summary && seen.form == note.form && seen.compact == note.compact) {
             Some((_, count)) => *count += 1,
             None => unique.push((note, 1)),
         }
@@ -116,6 +116,9 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
     let mut current = None;
     let mut shown_codes = Vec::new();
     let mut shown_forms = Vec::new();
+    let mut shown_compacts = Vec::new();
+    let mut shown_actions = Vec::new();
+    let mut shown_context = Vec::new();
     // @ref LLP 3000.036#16.5 — wave 6 #25: a code's repeats share one line naming each subject.
     let mut repeats: Vec<(String, Vec<String>)> = Vec::new();
     let flush = |lines: &mut Vec<String>, repeats: &mut Vec<(String, Vec<String>)>| {
@@ -137,8 +140,9 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
             continue;
         }
         let times = if *count > 1 { format!(" (×{count} at this site)") } else { String::new() };
-        let new_form = note.form.as_ref().is_some_and(|(lead, _)| !shown_forms.contains(lead));
-        if shown_codes.contains(&note.code) && !new_form {
+        let new_form = note.form.as_ref().is_some_and(|(_, code)| !shown_forms.contains(code));
+        let new_compact = note.compact.as_ref().is_some_and(|parts| !shown_compacts.contains(parts));
+        if shown_codes.contains(&note.code) && !new_form && !new_compact {
             // A repeat of a code already explained above: its subject and site, on the code's one line.
             let subject = format!("{} ({}){times}", subject(&note.summary), note.site);
             match repeats.iter_mut().find(|(code, _)| *code == note.code) {
@@ -148,10 +152,22 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
             continue;
         }
         flush(&mut lines, &mut repeats);
-        if let Some([verdict, who, what]) = &note.compact {
-            lines.push(format!("note: {} — {} — {verdict}{times}", note.site, note.code));
-            lines.push(format!("  {who}"));
-            lines.push(format!("  {what}"));
+        if let Some(parts @ [action, impact, audience]) = &note.compact {
+            if !shown_actions.contains(action) {
+                let mut body = action.lines();
+                lines.push(format!("note: {} — {} — {}{times}", note.site, note.code, body.next().unwrap_or("review")));
+                lines.extend(body.map(str::to_owned));
+                shown_actions.push(action.clone());
+            } else {
+                lines.push(format!("note: {} — {} — {}: checked rewrite or limitation as above{times}", note.site, note.code, subject(&note.summary)));
+            }
+            for context in [impact, audience] {
+                if !shown_context.contains(&(note.code.clone(), context.clone())) {
+                    lines.push(format!("  {context}"));
+                    shown_context.push((note.code.clone(), context.clone()));
+                }
+            }
+            shown_compacts.push(parts.clone());
             shown_codes.push(note.code.clone());
             continue;
         }
@@ -159,15 +175,15 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
             // A repeat that carries a form not printed yet keeps its own line, then the form.
             lines.push(format!("note: {} — {}: (as above) {}{times}", note.site, note.code, short(&note.summary)));
         } else {
-            let below = note.form.as_ref().is_some_and(|(lead, _)| !shown_forms.contains(lead));
+            let below = note.form.as_ref().is_some_and(|(_, code)| !shown_forms.contains(code));
             let summary = match note.summary.strip_suffix(" (check --verbose)") { Some(text) if below => format!("{text} (below)"), _ => note.summary.clone() };
             lines.push(format!("note: {} — {}: {}. {summary}{times}", note.site, note.code, verdict(&note.code, &note.summary, below)));
             shown_codes.push(note.code.clone());
         }
-        if let Some((lead, code)) = &note.form && !shown_forms.contains(lead) {
+        if let Some((lead, code)) = &note.form && !shown_forms.contains(code) {
             lines.push(format!("  rewrite: {lead}"));
             lines.extend(code.lines().map(|line| format!("    {line}")));
-            shown_forms.push(lead.clone());
+            shown_forms.push(code.clone());
         }
     }
     flush(&mut lines, &mut repeats);
@@ -225,6 +241,24 @@ mod tests {
         ], "{lines:#?}");
         assert_eq!(lines.len(), 9, "the second note of the same form is the short repeat: {lines:#?}");
         assert_eq!(lines[8], "note: N_NEVER_COMPLETE (as above) also for query q (schema.q:9:1) — snapback4 why N_NEVER_COMPLETE", "{lines:#?}");
+    }
+
+    #[test]
+    fn distinct_scans_at_one_site_and_distinct_query_repairs_remain_visible() {
+        let n = |subject: &str, repair: &str| Note { compact: Some([repair.into(), "impact".into(), "audience".into()]), ..note("s.q:1:1", "N_NEVER_COMPLETE", subject) };
+        let lines = render(vec![n("query q: scan a", "rewrite a"), n("query q: scan b", "rewrite b"), n("query r", "rewrite r"), n("query r", "rewrite r")]);
+        let output = lines.join("\n");
+        for repair in ["rewrite a", "rewrite b", "rewrite r"] { assert_eq!(output.matches(repair).count(), 1, "{output}"); }
+        assert!(output.contains("×2 at this site"), "{output}");
+    }
+
+    #[test]
+    fn identical_actions_keep_different_scan_audiences() {
+        let with = |audience: &str| Note { compact: Some(["review query both: missing pin .owner".into(), "same impact".into(), audience.into()]), ..note("s.q:1:1", "N_NEVER_COMPLETE", "query both") };
+        let output = render(vec![with("staff are complete (scan tickets)"), with("tutors are complete (scan papers)")]).join("\n");
+        assert!(output.contains("staff are complete (scan tickets)"), "{output}");
+        assert!(output.contains("tutors are complete (scan papers)"), "{output}");
+        assert_eq!(output.matches("same impact").count(), 1, "{output}");
     }
 
     #[test]

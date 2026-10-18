@@ -1,0 +1,702 @@
+[
+  {
+    "pair": "001",
+    "slug": "ferry-deck-manifest",
+    "snapback": {
+      "app_and_client_lines": 73,
+      "trimmed_characters": 26016,
+      "structural_only_lines": 7
+    },
+    "convex": {
+      "app_and_client_lines": 30,
+      "trimmed_characters": 27575,
+      "structural_only_lines": 0
+    }
+  },
+  {
+    "pair": "002",
+    "slug": "orchard-spray-reentry",
+    "snapback": {
+      "app_and_client_lines": 346,
+      "trimmed_characters": 14856,
+      "structural_only_lines": 29
+    },
+    "convex": {
+      "app_and_client_lines": 436,
+      "trimmed_characters": 15766,
+      "structural_only_lines": 43
+    }
+  },
+  {
+    "pair": "003",
+    "slug": "specimen-courier-chain",
+    "snapback": {
+      "app_and_client_lines": 47,
+      "trimmed_characters": 23115,
+      "structural_only_lines": 4
+    },
+    "convex": {
+      "app_and_client_lines": 78,
+      "trimmed_characters": 23641,
+      "structural_only_lines": 6
+    }
+  },
+  {
+    "pair": "004",
+    "slug": "fly-rail-cue-locks",
+    "snapback": {
+      "app_and_client_lines": 220,
+      "trimmed_characters": 13865,
+      "structural_only_lines": 12
+    },
+    "convex": {
+      "app_and_client_lines": 864,
+      "trimmed_characters": 18687,
+      "structural_only_lines": 119
+    }
+  },
+  {
+    "pair": "005",
+    "slug": "kiln-firing-queue",
+    "snapback": {
+      "app_and_client_lines": 81,
+      "trimmed_characters": 22347,
+      "structural_only_lines": 10
+    },
+    "convex": {
+      "app_and_client_lines": 56,
+      "trimmed_characters": 35019,
+      "structural_only_lines": 3
+    }
+  },
+  {
+    "pair": "006",
+    "slug": "dive-boat-buddy-log",
+    "snapback": {
+      "app_and_client_lines": 48,
+      "trimmed_characters": 17933,
+      "structural_only_lines": 6
+    },
+    "convex": {
+      "app_and_client_lines": 43,
+      "trimmed_characters": 18034,
+      "structural_only_lines": 2
+    }
+  },
+  {
+    "pair": "007",
+    "slug": "farrier-hoof-rota",
+    "snapback": {
+      "app_and_client_lines": 67,
+      "trimmed_characters": 22796,
+      "structural_only_lines": 6
+    },
+    "convex": {
+      "app_and_client_lines": 30,
+      "trimmed_characters": 29805,
+      "structural_only_lines": 0
+    }
+  },
+  {
+    "pair": "008",
+    "slug": "sublet-key-escrow",
+    "snapback": {
+      "app_and_client_lines": 171,
+      "trimmed_characters": 24698,
+      "structural_only_lines": 19
+    },
+    "convex": {
+      "app_and_client_lines": 45,
+      "trimmed_characters": 15732,
+      "structural_only_lines": 2
+    }
+  },
+  {
+    "pair": "009",
+    "slug": "choir-part-tracks",
+    "snapback": {
+      "app_and_client_lines": 87,
+      "trimmed_characters": 18123,
+      "structural_only_lines": 13
+    },
+    "convex": {
+      "app_and_client_lines": 28,
+      "trimmed_characters": 14024,
+      "structural_only_lines": 0
+    }
+  },
+  {
+    "pair": "010",
+    "slug": "allotment-water-turns",
+    "snapback": {
+      "app_and_client_lines": 50,
+      "trimmed_characters": 11881,
+      "structural_only_lines": 2
+    },
+    "convex": {
+      "app_and_client_lines": 55,
+      "trimmed_characters": 15055,
+      "structural_only_lines": 4
+    }
+  },
+  {
+    "pair": "011",
+    "slug": "freezer-rack-ledger",
+    "snapback": {
+      "app_and_client_lines": 191,
+      "trimmed_characters": 10715,
+      "structural_only_lines": 17
+    },
+    "convex": {
+      "app_and_client_lines": 492,
+      "trimmed_characters": 15085,
+      "structural_only_lines": 69
+    }
+  },
+  {
+    "pair": "012",
+    "slug": "court-interpreter-slots",
+    "snapback": {
+      "app_and_client_lines": 107,
+      "trimmed_characters": 41438,
+      "structural_only_lines": 11
+    },
+    "convex": {
+      "app_and_client_lines": 40,
+      "trimmed_characters": 15981,
+      "structural_only_lines": 2
+    }
+  },
+  {
+    "pair": "013",
+    "slug": "hackathon-rubric-judging",
+    "snapback": {
+      "app_and_client_lines": 299,
+      "trimmed_characters": 16631,
+      "structural_only_lines": 29
+    },
+    "convex": {
+      "app_and_client_lines": 705,
+      "trimmed_characters": 19972,
+      "structural_only_lines": 83
+    }
+  },
+  {
+    "pair": "014",
+    "slug": "ice-rink-resurface-slots",
+    "snapback": {
+      "app_and_client_lines": 115,
+      "trimmed_characters": 19482,
+      "structural_only_lines": 17
+    },
+    "convex": {
+      "app_and_client_lines": 39,
+      "trimmed_characters": 13703,
+      "structural_only_lines": 1
+    }
+  },
+  {
+    "pair": "015",
+    "slug": "foster-pet-handoffs",
+    "snapback": {
+      "app_and_client_lines": 531,
+      "trimmed_characters": 24079,
+      "structural_only_lines": 44
+    },
+    "convex": {
+      "app_and_client_lines": 868,
+      "trimmed_characters": 19974,
+      "structural_only_lines": 94
+    }
+  },
+  {
+    "pair": "016",
+    "slug": "coworking-locker-leases",
+    "snapback": {
+      "app_and_client_lines": 60,
+      "trimmed_characters": 25655,
+      "structural_only_lines": 8
+    },
+    "convex": {
+      "app_and_client_lines": 66,
+      "trimmed_characters": 16578,
+      "structural_only_lines": 7
+    }
+  },
+  {
+    "pair": "017",
+    "slug": "trial-symptom-diary",
+    "snapback": {
+      "app_and_client_lines": 74,
+      "trimmed_characters": 20967,
+      "structural_only_lines": 8
+    },
+    "convex": {
+      "app_and_client_lines": 41,
+      "trimmed_characters": 14919,
+      "structural_only_lines": 2
+    }
+  },
+  {
+    "pair": "018",
+    "slug": "film-dailies-notes",
+    "snapback": {
+      "app_and_client_lines": 61,
+      "trimmed_characters": 26182,
+      "structural_only_lines": 7
+    },
+    "convex": {
+      "app_and_client_lines": 63,
+      "trimmed_characters": 27108,
+      "structural_only_lines": 6
+    }
+  },
+  {
+    "pair": "019",
+    "slug": "apiary-hive-inspections",
+    "snapback": {
+      "app_and_client_lines": 250,
+      "trimmed_characters": 11958,
+      "structural_only_lines": 22
+    },
+    "convex": {
+      "app_and_client_lines": 560,
+      "trimmed_characters": 19897,
+      "structural_only_lines": 69
+    }
+  },
+  {
+    "pair": "020",
+    "slug": "tow-yard-release",
+    "snapback": {
+      "app_and_client_lines": 352,
+      "trimmed_characters": 16187,
+      "structural_only_lines": 28
+    },
+    "convex": {
+      "app_and_client_lines": 475,
+      "trimmed_characters": 9640,
+      "structural_only_lines": 63
+    }
+  },
+  {
+    "pair": "021",
+    "slug": "moot-court-scoring",
+    "snapback": {
+      "app_and_client_lines": 402,
+      "trimmed_characters": 18093,
+      "structural_only_lines": 30
+    },
+    "convex": {
+      "app_and_client_lines": 823,
+      "trimmed_characters": 17704,
+      "structural_only_lines": 100
+    }
+  },
+  {
+    "pair": "022",
+    "slug": "glacier-rope-teams",
+    "snapback": {
+      "app_and_client_lines": 93,
+      "trimmed_characters": 21121,
+      "structural_only_lines": 11
+    },
+    "convex": {
+      "app_and_client_lines": 86,
+      "trimmed_characters": 20165,
+      "structural_only_lines": 11
+    }
+  },
+  {
+    "pair": "023",
+    "slug": "brew-comp-blind-flights",
+    "snapback": {
+      "app_and_client_lines": 69,
+      "trimmed_characters": 25746,
+      "structural_only_lines": 7
+    },
+    "convex": {
+      "app_and_client_lines": 63,
+      "trimmed_characters": 26781,
+      "structural_only_lines": 6
+    }
+  },
+  {
+    "pair": "024",
+    "slug": "cycle-count-tasks",
+    "snapback": {
+      "app_and_client_lines": 239,
+      "trimmed_characters": 10778,
+      "structural_only_lines": 16
+    },
+    "convex": {
+      "app_and_client_lines": 598,
+      "trimmed_characters": 12302,
+      "structural_only_lines": 61
+    }
+  },
+  {
+    "pair": "025",
+    "slug": "cemetery-plot-deeds",
+    "snapback": {
+      "app_and_client_lines": 59,
+      "trimmed_characters": 29145,
+      "structural_only_lines": 6
+    },
+    "convex": {
+      "app_and_client_lines": 60,
+      "trimmed_characters": 26133,
+      "structural_only_lines": 5
+    }
+  },
+  {
+    "pair": "026",
+    "slug": "dorm-noise-reports",
+    "snapback": {
+      "app_and_client_lines": 164,
+      "trimmed_characters": 9047,
+      "structural_only_lines": 16
+    },
+    "convex": {
+      "app_and_client_lines": 348,
+      "trimmed_characters": 10173,
+      "structural_only_lines": 48
+    }
+  },
+  {
+    "pair": "027",
+    "slug": "podcast-guest-releases",
+    "snapback": {
+      "app_and_client_lines": 475,
+      "trimmed_characters": 16265,
+      "structural_only_lines": 74
+    },
+    "convex": {
+      "app_and_client_lines": 618,
+      "trimmed_characters": 17366,
+      "structural_only_lines": 76
+    }
+  },
+  {
+    "pair": "028",
+    "slug": "tool-library-deposits",
+    "snapback": {
+      "app_and_client_lines": 61,
+      "trimmed_characters": 24312,
+      "structural_only_lines": 6
+    },
+    "convex": {
+      "app_and_client_lines": 55,
+      "trimmed_characters": 29455,
+      "structural_only_lines": 3
+    }
+  },
+  {
+    "pair": "029",
+    "slug": "fire-lookout-shifts",
+    "snapback": {
+      "app_and_client_lines": 52,
+      "trimmed_characters": 17495,
+      "structural_only_lines": 2
+    },
+    "convex": {
+      "app_and_client_lines": 39,
+      "trimmed_characters": 16530,
+      "structural_only_lines": 2
+    }
+  },
+  {
+    "pair": "030",
+    "slug": "harvest-bin-tickets",
+    "snapback": {
+      "app_and_client_lines": 411,
+      "trimmed_characters": 18992,
+      "structural_only_lines": 31
+    },
+    "convex": {
+      "app_and_client_lines": 581,
+      "trimmed_characters": 18319,
+      "structural_only_lines": 75
+    }
+  },
+  {
+    "pair": "031",
+    "slug": "piano-tuning-route",
+    "snapback": {
+      "app_and_client_lines": 215,
+      "trimmed_characters": 28704,
+      "structural_only_lines": 23
+    },
+    "convex": {
+      "app_and_client_lines": 93,
+      "trimmed_characters": 19111,
+      "structural_only_lines": 15
+    }
+  },
+  {
+    "pair": "032",
+    "slug": "scrim-vod-reviews",
+    "snapback": {
+      "app_and_client_lines": 117,
+      "trimmed_characters": 17520,
+      "structural_only_lines": 10
+    },
+    "convex": {
+      "app_and_client_lines": 61,
+      "trimmed_characters": 18245,
+      "structural_only_lines": 5
+    }
+  },
+  {
+    "pair": "033",
+    "slug": "compounding-dual-check",
+    "snapback": {
+      "app_and_client_lines": 69,
+      "trimmed_characters": 18251,
+      "structural_only_lines": 9
+    },
+    "convex": {
+      "app_and_client_lines": 56,
+      "trimmed_characters": 15768,
+      "structural_only_lines": 6
+    }
+  },
+  {
+    "pair": "034",
+    "slug": "marina-liveaboard-slips",
+    "snapback": {
+      "app_and_client_lines": 632,
+      "trimmed_characters": 16043,
+      "structural_only_lines": 81
+    },
+    "convex": {
+      "app_and_client_lines": 593,
+      "trimmed_characters": 13647,
+      "structural_only_lines": 68
+    }
+  },
+  {
+    "pair": "035",
+    "slug": "archive-reading-requests",
+    "snapback": {
+      "app_and_client_lines": 38,
+      "trimmed_characters": 13230,
+      "structural_only_lines": 3
+    },
+    "convex": {
+      "app_and_client_lines": 69,
+      "trimmed_characters": 17493,
+      "structural_only_lines": 6
+    }
+  },
+  {
+    "pair": "036",
+    "slug": "robotics-parts-ledger",
+    "snapback": {
+      "app_and_client_lines": 234,
+      "trimmed_characters": 10884,
+      "structural_only_lines": 24
+    },
+    "convex": {
+      "app_and_client_lines": 496,
+      "trimmed_characters": 12400,
+      "structural_only_lines": 62
+    }
+  },
+  {
+    "pair": "037",
+    "slug": "bus-roster-changes",
+    "snapback": {
+      "app_and_client_lines": 92,
+      "trimmed_characters": 17287,
+      "structural_only_lines": 10
+    },
+    "convex": {
+      "app_and_client_lines": 1014,
+      "trimmed_characters": 20899,
+      "structural_only_lines": 121
+    }
+  },
+  {
+    "pair": "038",
+    "slug": "hotel-lost-property",
+    "snapback": {
+      "app_and_client_lines": 228,
+      "trimmed_characters": 24773,
+      "structural_only_lines": 24
+    },
+    "convex": {
+      "app_and_client_lines": 76,
+      "trimmed_characters": 19814,
+      "structural_only_lines": 7
+    }
+  },
+  {
+    "pair": "039",
+    "slug": "glossary-term-reviews",
+    "snapback": {
+      "app_and_client_lines": 124,
+      "trimmed_characters": 23940,
+      "structural_only_lines": 15
+    },
+    "convex": {
+      "app_and_client_lines": 44,
+      "trimmed_characters": 17673,
+      "structural_only_lines": 4
+    }
+  },
+  {
+    "pair": "040",
+    "slug": "route-setting-rotation",
+    "snapback": {
+      "app_and_client_lines": 387,
+      "trimmed_characters": 16140,
+      "structural_only_lines": 55
+    },
+    "convex": {
+      "app_and_client_lines": 420,
+      "trimmed_characters": 11837,
+      "structural_only_lines": 46
+    }
+  },
+  {
+    "pair": "041",
+    "slug": "community-fridge-restocks",
+    "snapback": {
+      "app_and_client_lines": 320,
+      "trimmed_characters": 17460,
+      "structural_only_lines": 21
+    },
+    "convex": {
+      "app_and_client_lines": 556,
+      "trimmed_characters": 12926,
+      "structural_only_lines": 73
+    }
+  },
+  {
+    "pair": "042",
+    "slug": "sterile-tray-tracking",
+    "snapback": {
+      "app_and_client_lines": 272,
+      "trimmed_characters": 14611,
+      "structural_only_lines": 28
+    },
+    "convex": {
+      "app_and_client_lines": 1240,
+      "trimmed_characters": 28100,
+      "structural_only_lines": 150
+    }
+  },
+  {
+    "pair": "043",
+    "slug": "wedding-vendor-timeline",
+    "snapback": {
+      "app_and_client_lines": 59,
+      "trimmed_characters": 26995,
+      "structural_only_lines": 4
+    },
+    "convex": {
+      "app_and_client_lines": 53,
+      "trimmed_characters": 22381,
+      "structural_only_lines": 4
+    }
+  },
+  {
+    "pair": "044",
+    "slug": "ham-net-checkins",
+    "snapback": {
+      "app_and_client_lines": 178,
+      "trimmed_characters": 10712,
+      "structural_only_lines": 14
+    },
+    "convex": {
+      "app_and_client_lines": 366,
+      "trimmed_characters": 13291,
+      "structural_only_lines": 44
+    }
+  },
+  {
+    "pair": "045",
+    "slug": "instrument-loan-bank",
+    "snapback": {
+      "app_and_client_lines": 358,
+      "trimmed_characters": 16173,
+      "structural_only_lines": 26
+    },
+    "convex": {
+      "app_and_client_lines": 633,
+      "trimmed_characters": 14413,
+      "structural_only_lines": 86
+    }
+  },
+  {
+    "pair": "046",
+    "slug": "greenhouse-climate-alarms",
+    "snapback": {
+      "app_and_client_lines": 80,
+      "trimmed_characters": 16164,
+      "structural_only_lines": 10
+    },
+    "convex": {
+      "app_and_client_lines": 48,
+      "trimmed_characters": 18732,
+      "structural_only_lines": 8
+    }
+  },
+  {
+    "pair": "047",
+    "slug": "mural-wall-permits",
+    "snapback": {
+      "app_and_client_lines": 64,
+      "trimmed_characters": 30787,
+      "structural_only_lines": 8
+    },
+    "convex": {
+      "app_and_client_lines": 47,
+      "trimmed_characters": 29954,
+      "structural_only_lines": 4
+    }
+  },
+  {
+    "pair": "048",
+    "slug": "boiler-room-rounds",
+    "snapback": {
+      "app_and_client_lines": 466,
+      "trimmed_characters": 20558,
+      "structural_only_lines": 34
+    },
+    "convex": {
+      "app_and_client_lines": 728,
+      "trimmed_characters": 16069,
+      "structural_only_lines": 80
+    }
+  },
+  {
+    "pair": "049",
+    "slug": "cheese-cave-wheels",
+    "snapback": {
+      "app_and_client_lines": 83,
+      "trimmed_characters": 26471,
+      "structural_only_lines": 7
+    },
+    "convex": {
+      "app_and_client_lines": 48,
+      "trimmed_characters": 20981,
+      "structural_only_lines": 5
+    }
+  },
+  {
+    "pair": "050",
+    "slug": "ambulance-crew-checkout",
+    "snapback": {
+      "app_and_client_lines": 90,
+      "trimmed_characters": 23361,
+      "structural_only_lines": 9
+    },
+    "convex": {
+      "app_and_client_lines": 61,
+      "trimmed_characters": 19252,
+      "structural_only_lines": 4
+    }
+  }
+]

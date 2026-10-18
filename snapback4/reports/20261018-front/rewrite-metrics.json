@@ -1,0 +1,41 @@
+[
+  {
+    "pair": "002",
+    "before": {
+      "lines": 320,
+      "trimmed_chars": 13218,
+      "bytes": 14758
+    },
+    "after": {
+      "lines": 315,
+      "trimmed_chars": 13149,
+      "bytes": 14654
+    }
+  },
+  {
+    "pair": "026",
+    "before": {
+      "lines": 142,
+      "trimmed_chars": 7621,
+      "bytes": 8243
+    },
+    "after": {
+      "lines": 127,
+      "trimmed_chars": 8166,
+      "bytes": 8669
+    }
+  },
+  {
+    "pair": "048",
+    "before": {
+      "lines": 443,
+      "trimmed_chars": 19206,
+      "bytes": 21323
+    },
+    "after": {
+      "lines": 434,
+      "trimmed_chars": 19201,
+      "bytes": 21231
+    }
+  }
+]

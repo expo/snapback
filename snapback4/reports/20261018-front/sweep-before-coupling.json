@@ -1,0 +1,39 @@
+[
+  {
+    "pair": "020",
+    "notes": [
+      {
+        "code": "N_SWEEP_DEADLINE",
+        "guide": "time",
+        "mechanical": false,
+        "message": "mutation fileClaim tests v.status, which scheduled job auctionSweep changes using vehicles.towedAt; no direct comparison of v.towedAt with now was found. Between sweeps this status can lag the deadline; this syntactic advisory is not a proof of safety or a security finding",
+        "rewrite": "enforce the intended time boundary on v.towedAt against now inside this mutation, choosing the opening/closing direction and equality boundary explicitly; keep the sweep for notifications/cleanup. Review helper guards before changing behavior",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 141
+        }
+      },
+      {
+        "code": "N_SWEEP_DEADLINE",
+        "guide": "time",
+        "mechanical": false,
+        "message": "mutation releaseVehicle tests v.status, which scheduled job auctionSweep changes using vehicles.towedAt; no direct comparison of v.towedAt with now was found. Between sweeps this status can lag the deadline; this syntactic advisory is not a proof of safety or a security finding",
+        "rewrite": "enforce the intended time boundary on v.towedAt against now inside this mutation, choosing the opening/closing direction and equality boundary explicitly; keep the sweep for notifications/cleanup. Review helper guards before changing behavior",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 177
+        }
+      }
+    ]
+  },
+  {
+    "pair": "043",
+    "notes": []
+  },
+  {
+    "pair": "046",
+    "notes": []
+  }
+]

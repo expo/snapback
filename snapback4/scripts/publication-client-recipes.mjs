@@ -1,7 +1,7 @@
 // Packed client contracts: execute the guide's narrowing recipe verbatim and
 // typecheck the handler argument shapes against the installed declarations.
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -35,13 +35,27 @@ export async function proveClientRecipes(client, platform, directory) {
   const fileColumn = guide.stdout.match(/`(doc: file <=10000000 \?)`/)?.[1];
   assert.ok(fileColumn, "packed PDF recipe states its backend file-column declaration");
   writeFileSync(join(cwd, "snapback/schema.q"), schema.replace("  priority: text <=20 ?", `  priority: text <=20 ?\n  ${fileColumn}`));
+  const reference = readFileSync(join(cwd, "node_modules/snapback4/CLIENT-AND-OPERATIONS.md"), "utf8");
+  const short = [...reference.matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("function ShortScreen"));
+  assert.ok(short, "packed guide has the short-screen recipe");
+  writeFileSync(join(cwd, "src/short-screen.tsx"), short);
+  const time = spawnSync(process.execPath, [cli, "guide", "time", "--full"], { cwd, env, encoding: "utf8", timeout: 60_000 });
+  assert.equal(time.status, 0, time.stdout + time.stderr);
+  const clock = [...time.stdout.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(match => match[1]).find(source => source.includes("query clock(t:"));
+  assert.ok(clock, "packed time guide carries the UTC-hour recipe");
+  writeFileSync(join(cwd, "snapback/clock.q"), clock);
+  const moneySchema = [...reference.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("table prices:"));
+  const money = [...reference.matchAll(/```js\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("export function recordPrice"));
+  assert.ok(moneySchema && money, "packed reference carries the money argument recipe");
+  writeFileSync(join(cwd, "snapback/money.q"), moneySchema);
+  writeFileSync(join(cwd, "money.mjs"), money);
   await run(process.execPath, [cli, "check"]);
   await run(process.execPath, [join(cwd, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
     "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", "compiled", "recipe.ts", "handlers.ts", "pdf.ts"]);
   // Bundler resolution preserves the extensionless generated-api import exactly
   // as the guide writes it; this same form is used by both starter toolchains.
   await run(process.execPath, [join(cwd, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
-    "--module", "ESNext", "--moduleResolution", "Bundler", "--jsx", "react-jsx", "--noEmit", "src/workspace.tsx"]);
+    "--module", "ESNext", "--moduleResolution", "Bundler", "--jsx", "react-jsx", "--noEmit", "src/workspace.tsx", "src/short-screen.tsx"]);
 
   writeFileSync(join(cwd,"missing-store.ts"), 'import {createApp} from "snapback4/app"; createApp({url:"http://localhost:4400"});');
   const missing=spawnSync(process.execPath,[join(cwd,"node_modules/typescript/bin/tsc"),"--strict","--skipLibCheck","--target","ES2022","--module","NodeNext","--moduleResolution","NodeNext","--noEmit","missing-store.ts"],{cwd,env,encoding:"utf8",timeout:60000});
@@ -49,9 +63,11 @@ export async function proveClientRecipes(client, platform, directory) {
   assert.match(missing.stdout+missing.stderr,/Property 'sessionStore' is missing/);
   writeFileSync(join(cwd, "verify.mjs"), verify);
   await run(process.execPath, ["verify.mjs"]);
+  writeFileSync(join(cwd, "clock-proof.mjs"), clockProof);
+  await run(process.execPath, ["clock-proof.mjs"]);
   writeFileSync(join(cwd, "guide-client.md"), guide.stdout);
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-  await run(process.execPath, ["--test", join(root, "packages/snapback4/test/kit2-client-react.test.mjs")], {
+  await run(process.execPath, ["--test", join(root, "packages/snapback4/test/kit2-client-react.test.mjs"), join(root, "packages/snapback4/test/front-data-react.test.mjs")], {
     SNAPBACK4_CLIENT_GUIDE: join(cwd, "guide-client.md"), SNAPBACK4_CLIENT_DIST: join(cwd, "node_modules/snapback4/dist"),
   });
   return { status: "passed", recipes: ["guide client listLabel", "guide client StaffWorkspace", "guide client uploadPdf"], contracts: ["matchRead", "matchReadList", "otherwiseAll", "usePage", "useAuth configuration refusal"] };
@@ -79,6 +95,26 @@ query staffNotes(team: text <=80):
   return notes first 20 by .id
 mutation addStaffNote(team: text <=80, title: text <=200, category: text <=80):
   return insert notes {team, title, category, priority: null}
+`;
+
+const clockProof = String.raw`
+import assert from "node:assert/strict";
+import {startDev,cleanup,bounded} from "snapback4/proof";
+import {signup} from "snapback4/auth";
+import {createClient} from "snapback4/client";
+import {api} from "./snapback/generated/api.ts";
+import {recordPrice} from "./money.mjs";
+const dev=await startDev({args:["--no-watch"],timeoutMs:30000});let client;
+try {
+ const signed=await bounded(signup(dev.url,"clock@example.test","clock-proof-password"),15000,"signup");assert.ok(signed.ok);
+ client=createClient({url:dev.url,session:signed.session});
+ for(const t of [-1,0,1791739800000]){
+  const read=await bounded(client.query(api.clock.clock,{t}),30000,"clock");assert.ok("data" in read);
+  assert.equal(read.data.ordinal,Math.floor(t/3600000));assert.equal(read.data.clock,((Math.floor(t/3600000)%24)+24)%24);
+ }
+ const write=await bounded(recordPrice(client),30000,"money recipe");assert.equal(write.state,"sent");assert.equal(write.result.amount,1234);
+ const refused=await bounded(client.mutate(api.money.recordPrice,{amount:12.34}),30000,"fractional money refusal");assert.equal(refused.state,"failed");assert.equal(refused.why.code,"E_INPUT");
+} finally {await cleanup(()=>client?.close(),()=>dev.stop());}
 `;
 
 const handlers = String.raw`

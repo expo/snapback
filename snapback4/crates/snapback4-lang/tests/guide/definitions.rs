@@ -477,6 +477,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_MAINTAINED_COLUMN_STREAM", "A contributing commit streams the whole parent image to each parent partition, coalesced once per row. N_MAINTAINED_COLUMN_STREAM names that cost on the parent's sync line."),
     ("N_MAINTAIN_DELTA", "A readable aggregate view over a hidden source is a declared read channel: its delta can disclose the old contribution."),
     ("N_MAINTAIN_SYNCED", "N_MAINTAIN_SYNCED names public inherited aggregates and group audiences with unbounded recipients or multiple values per group."),
+    ("N_SWEEP_DEADLINE", "A scheduled job compares a row deadline with time and writes a status. A mutation tests that status, or tests and writes a flag also tested by the job, without a direct comparison of that row deadline with now."),
     ("N_NEVER_COMPLETE", "A page's read rule is checked once when the prefix decides it, else per row, and a page whose rule still depends on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names the missing equality columns and an existing compatible index when one is available)."),
     ("N_NOT_PREDICTABLE", "N_NOT_PREDICTABLE groups distinct root causes and deduplicated sites into one note per mutation for lost eligibility or an added horizon risk, explicitly distinguishing a call that may queue from an operation that never predicts."),
     ("N_NOW_SERVER", "N_NOW_SERVER names a newly server-run query."),

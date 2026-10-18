@@ -137,6 +137,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   const calls = new Set();
   for (const block of blocks) {
     const visit = (node) => {
+      if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) calls.add(unalias(checker.getSymbolAtLocation(ts.isPropertyAccessExpression(node.tagName) ? node.tagName.name : node.tagName)));
       if (ts.isCallExpression(node)) calls.add(unalias(checker.getSymbolAtLocation(ts.isPropertyAccessExpression(node.expression) ? node.expression.name : node.expression)));
       ts.forEachChild(node, visit);
     };

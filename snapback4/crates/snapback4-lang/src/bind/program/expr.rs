@@ -713,6 +713,18 @@ impl Binder<'_> {
                 out.push(Stmt::Let { name: runtime.clone(), value });
                 Ok((Expr::Builtin { builtin: Builtin::SearchPresent, args: vec![ir::var(&runtime)] }, Ty::Bool))
             }
+            // @ref LLP 3000.013.002#4 — UTC clock hours, lowered to the existing floor-calendar IR.
+            "hourOfDay" => {
+                arity(1, "hourOfDay(time); returns the UTC clock hour 0..23")?;
+                let (value, ty) = self.expr(&args[0], out)?;
+                if ty != Ty::Time { return Err(type_error(args[0].site(), format!("hourOfDay needs a required time, got {}", ty.name()), "hourOfDay(now), hourOfDay(.at), or hourOfDay(t ?? now)").guide("time")); }
+                let temp = self.temp("clockHour");
+                out.push(Stmt::Let { name: temp.clone(), value });
+                let calendar = |millis| Expr::Builtin { builtin: Builtin::Calendar { millis }, args: vec![ir::var(&temp)] };
+                Ok((Expr::Binary { op: BinaryOp::Sub, left: Box::new(calendar(3_600_000)), right: Box::new(Expr::Binary {
+                    op: BinaryOp::Mul, left: Box::new(calendar(86_400_000)), right: Box::new(Expr::Literal(Value::Int(24)))
+                }) }, Ty::Int))
+            }
             "day" | "hour" | "bucket" => {
                 let (millis, offset) = super::super::maintains::calendar(name, args, site)?;
                 let (value, ty) = self.expr(&args[0], out)?;
@@ -995,7 +1007,7 @@ impl Binder<'_> {
             other => Err(unknown(
                 site,
                 format!("unknown function {other}"),
-                name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "divide", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted", "lower", "trim", "sha256", "join", "group", "first", "last", "at", "day", "hour", "bucket", "month", "year", "monthStart", "yearStart"]), None),
+                name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "divide", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted", "lower", "trim", "sha256", "join", "group", "first", "last", "at", "day", "hour", "bucket", "month", "year", "monthStart", "yearStart", "hourOfDay"]), None),
             )),
         }
     }

@@ -1,0 +1,266 @@
+[
+  {
+    "pair": "002",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "002",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "004",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "004",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "011",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "011",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "013",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "013",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "015",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "015",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "019",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "019",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "020",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "020",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "021",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "021",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "023",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "023",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "024",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "024",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "026",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "026",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "027",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "027",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "028",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "028",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "030",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "030",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "036",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "036",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "039",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "039",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "040",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "040",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "041",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "041",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "042",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "042",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "044",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "044",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "045",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "045",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "048",
+    "file": "recipes/production/App.tsx",
+    "sameBytes": true,
+    "sameExceptLocalPort": true
+  },
+  {
+    "pair": "048",
+    "file": "recipes/production/client.ts",
+    "sameBytes": false,
+    "sameExceptLocalPort": true
+  }
+]

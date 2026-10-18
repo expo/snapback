@@ -1,0 +1,301 @@
+{
+  "source": "e485e8b902c95aa24f2abf22a1ee9c73d464a509",
+  "mode": "consumer-only",
+  "publicationQualified": false,
+  "client": {
+    "name": "snapback4",
+    "version": "0.4.31",
+    "filename": "snapback4-0.4.31.tgz",
+    "integrity": "sha512-jTDsS1khWt/NoSLjGBN4G2Qov7vfYOHgllzL07S/oujAZnNpAW4mvS6fk13zKF/iTy9VXEPHIoyY9tFZvv/Tdw==",
+    "bytes": 1289036,
+    "files": 317,
+    "tarball": "/tmp/front-prepared-r2/snapback4-0.4.31.tgz"
+  },
+  "expo": {
+    "name": "snapback4-expo",
+    "version": "0.4.31",
+    "filename": "snapback4-expo-0.4.31.tgz",
+    "integrity": "sha512-TAn7UYDp7uO8Vu0wNYkMCS1OpT9n00DALPV99WjIrEs9RcK4F/Ej0ePY2rnvf2hQ32pH4e4tq7qh4ZnwRiGYgw==",
+    "bytes": 22238
+  },
+  "binarySha256": "1305cdd2a0a3a28e000960ae8f5cb51cb4b112fb380b7bc5aefd45096c008abf",
+  "route": "proot",
+  "distributions": [
+    {
+      "base": "ubuntu:24.04",
+      "node": "24.13.1",
+      "status": "passed",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    },
+    {
+      "base": "alpine",
+      "node": "24.18.1",
+      "status": "passed",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    }
+  ],
+  "frontendProofs": [
+    {
+      "starter": "web",
+      "attempt": 1,
+      "status": "passed",
+      "listenerAudit": "passed"
+    },
+    {
+      "starter": "web",
+      "attempt": 2,
+      "status": "passed",
+      "listenerAudit": "passed"
+    },
+    {
+      "starter": "web-online",
+      "attempt": 1,
+      "status": "passed",
+      "listenerAudit": "passed"
+    },
+    {
+      "starter": "web-online",
+      "attempt": 2,
+      "status": "passed",
+      "listenerAudit": "passed"
+    },
+    {
+      "starter": "expo",
+      "attempt": 1,
+      "status": "passed",
+      "listenerAudit": "passed"
+    },
+    {
+      "starter": "expo",
+      "attempt": 2,
+      "status": "passed",
+      "listenerAudit": "passed"
+    },
+    {
+      "starter": "web-chat",
+      "attempt": 1,
+      "status": "passed",
+      "listenerAudit": "passed"
+    },
+    {
+      "starter": "web-chat",
+      "attempt": 2,
+      "status": "passed",
+      "listenerAudit": "passed"
+    },
+    {
+      "starter": "expo-chat",
+      "attempt": 1,
+      "status": "passed",
+      "listenerAudit": "passed"
+    },
+    {
+      "starter": "expo-chat",
+      "attempt": 2,
+      "status": "passed",
+      "listenerAudit": "passed"
+    },
+    {
+      "starter": "expo-social",
+      "attempt": 1,
+      "status": "passed",
+      "listenerAudit": "passed"
+    },
+    {
+      "starter": "expo-social",
+      "attempt": 2,
+      "status": "passed",
+      "listenerAudit": "passed"
+    }
+  ],
+  "starters": [
+    {
+      "starter": "web",
+      "kind": "web",
+      "status": "passed",
+      "fixtureGuide": "passed",
+      "adapted": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "status": "passed",
+      "fixtureGuide": "passed",
+      "adapted": "not-applicable",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "status": "passed",
+      "fixtureGuide": "passed",
+      "adapted": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "status": "passed",
+      "fixtureGuide": "passed",
+      "adapted": "not-applicable",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "status": "passed",
+      "fixtureGuide": "passed",
+      "adapted": "not-applicable",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "status": "passed",
+      "fixtureGuide": "passed",
+      "adapted": "not-applicable",
+      "typecheck": "passed",
+      "build": "passed"
+    }
+  ],
+  "production": "passed",
+  "clientRecipes": "passed",
+  "clientRecipesActuallyExecuted": [
+    "installed guide client listLabel",
+    "installed guide client StaffWorkspace",
+    "installed CLIENT reference ShortScreen",
+    "installed guide time clock with epoch/UTC-hour checks",
+    "installed CLIENT reference money QL and JS helper, integer/fraction refusal"
+  ],
+  "otherChecks": {
+    "day2Proof": "passed",
+    "day4Proof": "passed",
+    "ruleRecipes": "passed"
+  },
+  "cleanup": {
+    "sqlite_files_removed": 1636,
+    "sqlite_bytes_removed": 1638494968,
+    "incremental_bytes_removed": 1180359884,
+    "remaining_new_sqlite_files": 0,
+    "preserved_baseline_entries": 34,
+    "note": "Only actual SQLite DB/sidecar suffixes removed; compiled libsqlite artifacts preserved. Incremental generated by helper-invoked cargo was removed after completed tests.",
+    "other_test_artifacts_moved_outside_target": [
+      "assets",
+      "b3-r1-server-pids.log",
+      "event-slots-traces.json",
+      "image-list-fix-2",
+      "image-list-fix-3",
+      "kit12-browser-logs",
+      "unicode-device.json",
+      "unicode-fold.json"
+    ],
+    "test_artifacts_directory": "/tmp/front-test-artifacts"
+  },
+  "logs": [
+    {
+      "path": "/tmp/front-rust-full-r2.log",
+      "bytes": 248987,
+      "sha256": "9a9b7714e6a56a42cd595f1d39a952288ad0824ba29413a0449a7b02946c8ce2"
+    },
+    {
+      "path": "/tmp/front-lang-final-r4.log",
+      "bytes": 14400,
+      "sha256": "29701f9aefebe6be88cb6308316cd8dc75d10ded4a9dac6305270d438de5fe96"
+    },
+    {
+      "path": "/tmp/front-cli-final.log",
+      "bytes": 88974,
+      "sha256": "b64049caba080099dcee255992e5cbe1edfcb9a5b84a3a42cb344cb8ab02283c"
+    },
+    {
+      "path": "/tmp/front-qdiag-final.log",
+      "bytes": 4216,
+      "sha256": "6c2eb25d985c8f8b8b854232dc477e918c3fc28921d5abeb49be9add40e2ba2b"
+    },
+    {
+      "path": "/tmp/front-client-full.log",
+      "bytes": 2111601,
+      "sha256": "4fbbf4ee5ece62da09f6e5c75d082df6043d18fe85f7e20ebac5c5b47ec777bd"
+    },
+    {
+      "path": "/tmp/front-client-repairs.log",
+      "bytes": 5905,
+      "sha256": "0aa8169a62b5a4b04c2620e8cc11f6d1055410b07ecf73873cf8fe781c6d3e6a"
+    },
+    {
+      "path": "/tmp/front-mac.log",
+      "bytes": 2628,
+      "sha256": "1c336f7cf1cefb73638d25c06920285ac927372035cbc7baab3af76941ff6f7e"
+    },
+    {
+      "path": "/tmp/front-mac-repairs.log",
+      "bytes": 5716,
+      "sha256": "a0722cd048bd3dbe5a7ce854da7dae95c180ee9a78a45a52cc8c2454da40b84f"
+    },
+    {
+      "path": "/tmp/front-app-proofs-r2.log",
+      "bytes": 13957,
+      "sha256": "5a3bed6d87de26ba30e22520bd97f2afca8bfda4525fbf663b2c2910076888b1"
+    },
+    {
+      "path": "/tmp/front-root-setup.log",
+      "bytes": 62415,
+      "sha256": "aa6b83cad69884039052a884597ced7a7486ab23141aeb20815f314163ca41fb"
+    },
+    {
+      "path": "/tmp/front-root-final.log",
+      "bytes": 22950,
+      "sha256": "040a15d512093d1c8ced295562b9bbafafc57662ed87cf803d1004223a72d900"
+    },
+    {
+      "path": "/tmp/front-refcheck-r4.log",
+      "bytes": 81,
+      "sha256": "b0d44ef3aa5dc9ed528e75eacc4d7e79e00e6fc6f420aab2138a2d8090cd41ba"
+    },
+    {
+      "path": "/tmp/front-docs-budget-r4.log",
+      "bytes": 4616,
+      "sha256": "427703701c9ba24f8962dd2745f3fe3b4782cb61b666fc79268ed6b7b7b84f9d"
+    },
+    {
+      "path": "/tmp/front-prepare-r2.log",
+      "bytes": 11045,
+      "sha256": "006186262f807d80d3e9f3ccd3651f6c837f7888a4895fd616129972ab9d4f83"
+    },
+    {
+      "path": "/tmp/front-packed-recipes-r2.log",
+      "bytes": 4145,
+      "sha256": "f02b13a35ae610c2cba49e01887dd219d4ca25cdcdc9f4d7e3a25b40f27f689b"
+    },
+    {
+      "path": "/tmp/front-qualify-r2.log",
+      "bytes": 251468,
+      "sha256": "d807e02eda9b0dddc990e567c699e396b28d83393b01f6c0ab506d499d16aed5"
+    }
+  ],
+  "finalRefCheck": {
+    "status": "passed",
+    "docs": 552,
+    "refs": 12004,
+    "errors": 0,
+    "unchecked": 0,
+    "log": "/tmp/front-refcheck-close.log",
+    "sha256": "b7dbff70c103ed3f97ecc41e21c894523d01f8fb3b6e52c7ec16bd4c36044e79"
+  }
+}

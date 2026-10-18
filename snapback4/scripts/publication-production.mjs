@@ -116,7 +116,7 @@ export async function proveProduction(client, platform, expo, directory) {
     writeFileSync(join(cwd, "package.json"), JSON.stringify(pkg, null, 2));
     await run("npm", ["install", "--prefer-offline", "--no-audit", "--no-fund"], cwd);
     const guide = capture(cli, ["guide", "production", "--full"], cwd, env, join(cwd, "production-guide.log"));
-    const blocks = [...guide.matchAll(/```sh\n([\s\S]*?)\n```/g)].map(match => match[1]).filter(text => text.startsWith("cp recipes/production/schema.q"));
+    const blocks = [...guide.matchAll(/```sh\n([\s\S]*?)\n```/g)].map(match => match[1]).filter(text => text.startsWith("cp node_modules/snapback4/dist/recipes/production/"));
     assert.equal(blocks.length, 2, "packed guide carries React and Expo command recipes");
     if (kind === "web") {
       const entry=[...guide.matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(match=>match[1]).find(text=>text.includes("export function AccountEntry"));
@@ -140,8 +140,8 @@ export async function proveProduction(client, platform, expo, directory) {
   await run(process.execPath, ["--test", join(root, "packages/snapback4/test/production-starters.test.mjs")], root, {
     SNAPBACK4_PRODUCTION_GUIDE: join(web.cwd, "production-guide.log"),
     SNAPBACK4_BIN: join(web.cwd, "node_modules", `snapback4-${process.platform}-${process.arch}`, "snapback4"),
-    SNAPBACK4_PRODUCTION_WEB_APP: join(web.cwd, "recipes/production/App.tsx"),
-    SNAPBACK4_PRODUCTION_EXPO_APP: join(native.cwd, "recipes/production/App.tsx"),
+    SNAPBACK4_PRODUCTION_WEB_APP: join(web.cwd, "node_modules/snapback4/dist/recipes/production/web/App.tsx"),
+    SNAPBACK4_PRODUCTION_EXPO_APP: join(native.cwd, "node_modules/snapback4/dist/recipes/production/expo/App.tsx"),
     SNAPBACK4_PRODUCTION_NATIVE_SMOKE: join(native.cwd, "src/native-smoke.ts"),
     SNAPBACK4_PRODUCTION_CLIENT_DIST: join(web.cwd, "node_modules/snapback4/dist"),
   });

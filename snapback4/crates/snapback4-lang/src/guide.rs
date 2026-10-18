@@ -72,6 +72,7 @@ pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes
 pub const ALIASES: &[(&str, &str)] = &[
     ("bootstrap", "production"),
     ("schema", "language"), ("reference", "types"), ("references", "types"), ("principal", "personas"), ("principals", "personas"), ("first admin", "deploy"),
+    ("useQueryData", "client"), ("useQueryResult", "client"), ("SignedIn", "client"), ("hourOfDay", "time"),
     ("useAuth", "client"), ("useAppReady", "client"), ("useRelease", "client"), ("useClient", "client"), ("useViewer", "client"), ("useSignedInViewer", "client"), ("usePersonaApp", "client"), ("useSession", "client"), ("useQuery", "client"), ("usePage", "client"), ("useFollowing", "client"), ("useMutation", "client"), ("useAction", "client"), ("useAsset", "client"), ("useSaveAsset", "client"), ("useUpload", "client"), ("useLink", "client"), ("useOnline", "client"), ("useNow", "client"), ("useAcquired", "client"), ("useAcquisition", "client"), ("usePendingWrite", "client"), ("usePendingWrites", "client"), ("usePendingItems", "client"), ("usePendingState", "client"), ("useSeen", "client"), ("useInspection", "client"),
     ("release", "deploy"), ("serve", "deploy"), ("rollback", "deploy"), ("upgrade", "changes"), ("optional param", "types"), ("mutation default", "writes"), ("service seat", "deploy"),
     ("identity", "deploy"), ("password", "deploy"), ("tokens", "deploy"), ("migrations", "deploy"),

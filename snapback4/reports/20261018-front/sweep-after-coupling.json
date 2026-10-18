@@ -1,0 +1,52 @@
+[
+  {
+    "pair": "020",
+    "notes": [
+      {
+        "code": "N_SWEEP_DEADLINE",
+        "guide": "time",
+        "mechanical": false,
+        "message": "mutation fileClaim tests v.status (column vehicles.status); scheduled job auctionSweep has a literal update of that column; the job contains a time comparison on vehicles.towedAt; no direct comparison of v.towedAt with now was found. A sweep-written status can lag a time boundary; this syntactic advisory is not a proof of control flow, row identity or safety, or a security finding",
+        "rewrite": "if this is an operation deadline, enforce the intended time boundary on v.towedAt against now inside this mutation, choosing the opening/closing direction and equality boundary explicitly; keep the sweep for notifications/cleanup. Notification-only sweeps need no extra deadline guard; review row identity and helper guards before changing behavior",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 141
+        }
+      },
+      {
+        "code": "N_SWEEP_DEADLINE",
+        "guide": "time",
+        "mechanical": false,
+        "message": "mutation releaseVehicle tests v.status (column vehicles.status); scheduled job auctionSweep has a literal update of that column; the job contains a time comparison on vehicles.towedAt; no direct comparison of v.towedAt with now was found. A sweep-written status can lag a time boundary; this syntactic advisory is not a proof of control flow, row identity or safety, or a security finding",
+        "rewrite": "if this is an operation deadline, enforce the intended time boundary on v.towedAt against now inside this mutation, choosing the opening/closing direction and equality boundary explicitly; keep the sweep for notifications/cleanup. Notification-only sweeps need no extra deadline guard; review row identity and helper guards before changing behavior",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 177
+        }
+      }
+    ]
+  },
+  {
+    "pair": "043",
+    "notes": [
+      {
+        "code": "N_SWEEP_DEADLINE",
+        "guide": "time",
+        "mechanical": false,
+        "message": "mutation confirmItem tests i.confirmed and writes column items.confirmed; scheduled job flagUnconfirmed also tests that column; the job contains a time comparison on items.deadline; no direct comparison of i.deadline with now was found. A sweep-written status can lag a time boundary; this syntactic advisory is not a proof of control flow, row identity or safety, or a security finding",
+        "rewrite": "if this is an operation deadline, enforce the intended time boundary on i.deadline against now inside this mutation, choosing the opening/closing direction and equality boundary explicitly; keep the sweep for notifications/cleanup. Notification-only sweeps need no extra deadline guard; review row identity and helper guards before changing behavior",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 129
+        }
+      }
+    ]
+  },
+  {
+    "pair": "046",
+    "notes": []
+  }
+]

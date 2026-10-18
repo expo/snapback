@@ -335,7 +335,7 @@ pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("src/vite-env.d.ts", include_str!("../../../../../apps/chat/src/vite-env.d.ts").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
         ("README.md", identity_readme(Platform::Web, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline, shape.password)),
-    ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).chain(production_files(Platform::Web)).collect()
+    ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
 }
 
 fn html_text(text: &str) -> String {
@@ -370,7 +370,7 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("src/native-smoke.ts", native_smoke(shape.password)),
         ("snapback/schema.q", SCHEMA.to_owned()),
         ("README.md", identity_readme(Platform::Expo, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline, shape.password)),
-    ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).chain(production_files(Platform::Expo)).collect()
+    ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
 }
 
 pub(super) const EXPO_ENV: &str = include_str!("starter/expo-env.d.ts");
@@ -438,22 +438,7 @@ pub(super) fn native_smoke_version(password: bool, guest: &str) -> String {
 }
 
 
-/// An independent, runnable production slice. Kept application schemas and
-/// screens stay owned by the application; these files are examples to copy
-/// together into a separate starter, then check/build with the installed SDK.
-// @ref LLP 3000.011.003.000#8 — executable identity screens keep session-store custody.
-fn production_files(platform: Platform) -> Vec<(&'static str, String)> {
-    let (app, client) = match platform {
-        Platform::Web => (include_str!("starter/production/web-app.tsx"), include_str!("starter/production/web-client.ts")),
-        Platform::Expo => (include_str!("starter/production/expo-app.tsx"), include_str!("starter/production/expo-client.ts")),
-    };
-    vec![
-        ("recipes/production/schema.q", include_str!("starter/production/schema.q").to_owned()),
-        ("recipes/production/fixtures/test.cases.jsonl", include_str!("starter/production/test.cases.jsonl").to_owned()),
-        ("recipes/production/App.tsx", super::without_design_references(app)),
-        ("recipes/production/client.ts", super::without_design_references(client)),
-    ]
-}
+// FRONT: production examples ship in the packed guide assets; DAY5 owns starter adaptation.
 
 /// Wave 14's previous exact screen bytes remain recognizable after the
 /// improved complete-empty/denied rendering. Edited screens never match.

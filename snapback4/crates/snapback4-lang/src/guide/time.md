@@ -69,13 +69,21 @@ mutation checkIn():
 
 - `day(t)` is the UTC day number, `floor(t / 1d)`: 20737 is 2026-10-11, not a timestamp.
   `day(t) * 1d` is that day's midnight UTC as a time; in JS `new Date(day * 86_400_000)`.
-- `hour(t)` counts hours the same way; `bucket(t, 15m)` counts any period.
+- `hour(t)` counts **hours since the epoch**, not the hour on a clock.
+  `hourOfDay(t)` returns the UTC clock hour 0..23, including before 1970.
+  `bucket(t, 15m)` counts any period. At 2026-10-11 17:30 UTC,
+  `hour(t)` is 497705 and `hourOfDay(t)` is 17.
 - An offset moves the boundary: `day(t, 8h)` days start at 08:00 UTC (midnight at UTC-8, without DST),
   `hour(t, 30m)`, `bucket(t, 1d, 8h)`. The offset is fixed, so a zone with DST shifts by an hour.
 - Use them as group keys (`view … by .owner, day(.startsAt)`), in `unique person, day(at)` (one per day),
   and in range filters (`.at >= day(now) * 1d` is "since midnight UTC").
 - A `time` column accepts any integer, so storing `day(now)` there type-checks and reads as January 1970.
   Store `day(now) * 1d`, or keep the day number in an `int` column.
+
+```quarry
+query clock(t: time):
+  return {ordinal: hour(t), clock: hourOfDay(t)}
+```
 
 ## Months and years (UTC)
 
@@ -139,6 +147,13 @@ job closeDeparted(periodStart: time, periodEnd: time):
 schedule closer every 1m: closeDeparted
 ```
 
+- `N_SWEEP_DEADLINE` names a timed scheduled status update and a mutation
+  testing that status, or testing/writing a flag also tested by the job, without
+  a direct comparison on that row deadline. If this is an operation deadline,
+  enforce its boundary in the mutation; choose the opening or
+  closing direction and equality explicitly. The syntactic note can miss helper
+  paths, correlate unrelated rows/branches or warn when a helper guards time;
+  it proves no safety. Notification-only sweeps need no extra deadline guard.
 - Where the decision is made by a caller, compare with `now` instead and need no job:
   `require t.departsAt > now else DEPARTED`. `guide recipes --section schedules` has both together.
 - A period you still need runs by hand: `snapback4 run closeDeparted '{"periodStart":…,"periodEnd":…}'`.

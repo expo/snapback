@@ -194,6 +194,39 @@ export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ReadHookOptio
   return useSyncExternalStore(observed.subscribe, observed.getSnapshot, () => LOADING as Read<R>);
 }
 
+/** A refused data-only query. Error boundaries can render `why.message`. */
+// @ref LLP 3000.013.002#2 — refusals must not look like an endless loading state.
+export class QueryRefusal extends Error {
+  constructor(readonly why: Refusal) { super(why.message); this.name = "QueryRefusal"; }
+}
+
+/** Authorized data as it arrives, undefined while loading. Null and empty
+ * arrays remain data. Partial/stale answers remain data too: use useQuery or
+ * usePage when completeness, freshness or continuation matters. Refusals throw
+ * QueryRefusal; useQueryResult instead for an inline typed refusal. */
+export function useQueryData<A, R>(op: Query<A, R>, args: A, options?: ReadHookOptions): R | undefined {
+  const read = useQuery(op, args, options);
+  if ("denied" in read) throw new QueryRefusal(read.denied);
+  return "data" in read ? read.data : undefined;
+}
+
+/** The same observation with an inline refusal and its precise metadata. */
+export function useQueryResult<A, R>(op: Query<A, R>, args: A, options?: ReadHookOptions): {
+  readonly data: R | undefined; readonly why: Refusal | null; readonly read: Read<R>;
+} {
+  const read = useQuery(op, args, options);
+  return { data: "data" in read ? read.data : undefined, why: "denied" in read ? read.denied : null, read };
+}
+
+/** Mount account-owned components only after sign-in/restoration. */
+// @ref LLP 3000.013.002#2 — this gate uses AppProvider's own auth snapshot.
+export function SignedIn({ children, fallback = null, restoring = null }: {
+  children: ReactNode; fallback?: ReactNode; restoring?: ReactNode;
+}) {
+  const auth = useAuth();
+  return auth.state === "signed-in" ? children : auth.state === "restoring" ? restoring : fallback;
+}
+
 /** `useQuery`/`usePage` options: `keep` (as `client.observe`), and `skip`.
  * `skip: true` reads nothing: the hook returns `{ loading: true }` (a page:
  * no items, no more) and opens no observation, for a read whose arguments
