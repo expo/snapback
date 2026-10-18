@@ -534,7 +534,16 @@ fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
         assert!(card("rule-recipes").unwrap().contains("runtime equality"));
         return bound;
     }
-    // LLP 3000.017 requires the ephemeral recipe to teach this server-only note.
+    // This exact ladder example intentionally contrasts a hidden rule probe
+    // with caller-visible existence; its one advisory note is part of the lesson.
+    if quarry(card("rules").unwrap()).iter().any(|block| block == source && block.contains("query canReadLadderGrant(")) {
+        assert_eq!(bound.notes.len(), 1, "{label}: {:?}", bound.notes);
+        assert_eq!(bound.notes[0].code, "N_UNREADABLE_PROBE");
+        assert!(bound.notes[0].message.contains("canReadLadderGrant"));
+        assert!(card("rules").unwrap().contains("caller-visible existence is intended here"));
+        return bound;
+    }
+    // The live recipe deliberately teaches its full-current acquisition note.
     if source.contains("table liveRosterFiles:") {
         assert_eq!(bound.notes.len(),1,"{label}: {:?}",bound.notes);
         assert_eq!(bound.notes[0].code,"N_NO_HORIZON");

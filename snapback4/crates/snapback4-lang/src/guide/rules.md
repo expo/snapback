@@ -62,8 +62,7 @@ Each child expires no later than its parent, through any number of levels. A par
 
 `sync` infers exactly the parent's substituted audience after service grants are removed. A conjunction such as membership and an archived flag stays `online only`; `check --verbose` explains its server reads. A parent-pinned page resolves authorization once, while completeness still requires the child's own coverage. An unknown or mismatched parent takes the server fallback. Retained history stays marked `retained: true` beside the server's current page. On these syncing delivered-history children, `retained` is row metadata; name an application column `wasRetained` instead. Row shapes and spreads preserve the mark.
 
-A device predicts a plain child insert only with a live parent covered by its current partition, or one predicted in the same pending chain. An unheld, expired or retained-only parent queues without a row.
-Upserts and `insert … if absent` need complete child-group coverage to prove absence; changed unique keys or cap groups need their populations covered. A parent delete requires full current child coverage and no live children. Expiry uses the later of the device's supplied clock and the last atomically applied server time.
+A device predicts a plain child insert only with a live parent covered by its current partition, or one predicted in the same pending chain. An unheld, expired or retained-only parent queues without a row. Upserts and `insert … if absent` need complete child-group coverage to prove absence; changed unique keys or cap groups need their populations covered. A parent delete requires full current child coverage and no live children. Expiry uses the later of the device's supplied clock and the last atomically applied server time.
 
 ### A child follows a mutable parent audience
 
@@ -163,18 +162,7 @@ table editors:
   delete <- .principal = viewer
 ```
 
-Each of `read`, `insert`, `update` and `delete` takes one rule over the row
-(`.col`), `viewer` and literals. A table without a rule for an effect denies
-it. `public 'why'` on its own line is the read rule. The compiler supplies indexes for `exists` probes; named
-equalities may cover a total unique key and check extra columns on that one row,
-for both `exists` and `created`, without an extra index. A full positional unique
-key may come first, followed by named extra-column tests, as in
-`docs[.docId, ownerId = viewer]`. Every focal field used
-by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. A rule cannot vary
-with time (use `expire`). A read rule that is exactly
-`exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide
-sync). The system principal consults no rules, so `system` is never a rule word.
-An audience read rule may add `or viewer = 'service:pusher'` (or several service grants); sync infers its audience without them, and ordinary extra disjuncts still refuse.
+Each of `read`, `insert`, `update` and `delete` takes one rule over the row (`.col`), `viewer` and literals. A table without a rule for an effect denies it. `public 'why'` on its own line is the read rule. The compiler supplies indexes for `exists` probes; named equalities may cover a total unique key and check extra columns on that one row, for both `exists` and `created`, without an extra index. A full positional unique key may come first, followed by named extra-column tests, as in `docs[.docId, ownerId = viewer]`. Every focal field used by the key or extra tests must be pinned for one verdict to serve a whole page. `created t[..]` is valid in insert rules only. A rule cannot vary with time (use `expire`). A read rule that is exactly `exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide sync). The system principal consults no rules, so `system` is never a rule word. An audience read rule may add `or viewer = 'service:pusher'` (or several service grants); sync infers its audience without them, and ordinary extra disjuncts still refuse.
 
 E_QUARRY_RULE_SPELLING locates a guessed table rule: `select <-` and `view <-` become `read <-`, `create <-` becomes `insert <-`, `modify <-` and `edit <-` become `update <-`, and `remove <-` becomes `delete <-`. For `write <-`, declare separate insert, update and delete rules for the operations intended.
 
@@ -184,51 +172,76 @@ A mutation's `require` decides intent; each write still passes its table's rule.
 
 For update/upsert, "readable" means the read rule admits the old row in the pre-write state, before the patch or any of its effects. The engine resolves id and unique-key targets privately; the update rule judges old and next.
 
-A mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system. `check` also notes N_WRITE_DENIED (table authorization layer and contradictory old/next image) when preceding caller conditions provably contradict the update rule, including the update arm of an upsert; N_LOOKUP_NEVER_VISIBLE identifies a nullable point lookup whose read rule contradicts those conditions. Unknown role overlap is quiet. `check` notes N_WRITE_DENIED for a mutation's write (or upsert arm) whose rule is `deny` or omitted: write the rule its callers need, or do the write in a job. It notes the same code for a counter (`stock: v.stock - 1`) on a table whose update rule admits only a role, in a mutation that ordinary callers use and that never requires the role: keep the count as a maintained view over the rows they write instead. `check` notes N_READ_DENIED for a query or mutation that looks up an aggregate by key whose read rule is `deny`: every caller reads `null` for both a stored and absent group, so give it the rule its readers need over its group keys. In development, `snapback4 run` prints the clause that refused a write and its line; the refusal a client sees never names it. `insert` and `insert ... if absent` return E_RULE when the insert rule denies
-the viewer. A unique clash with a hidden row returns E_RULE for either insert
-form. For a readable secondary unique clash without a custom refusal, ordinary
-insert returns E_UNIQUE naming the declared key, while `insert ... if absent`
-succeeds with null. If the update rule denies an update or upsert-patch, it
-returns E_RULE for a readable target and NOT_FOUND for an unreadable target. A
-valid update or upsert-patch admitted by the update rule can change a hidden
-row; if the resulting row remains hidden, it returns null. Without a custom
-unique refusal, an update or upsert-patch with a secondary unique clash returns
-NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is
-unreadable, and E_UNIQUE naming the declared key if both are readable. An update
-condition on an unreadable target returns NOT_FOUND even if it would match; on a
-readable target, a false condition returns E_CONFLICT with a read-rule
-`current`. Delete returns NOT_FOUND for a missing id or an unreadable refused target, and E_RULE for a readable row whose delete rule refuses. Reading a
-hidden row returns null. Use a write admitted by its rule; NOT_FOUND on an
-update or upsert-patch does not prove absence.
+A mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system. `check` also notes N_WRITE_DENIED (table authorization layer and contradictory old/next image) when preceding caller conditions provably contradict the update rule, including the update arm of an upsert; N_LOOKUP_NEVER_VISIBLE identifies a nullable point lookup whose read rule contradicts those conditions. Unknown role overlap is quiet. `check` notes N_WRITE_DENIED for a mutation's write (or upsert arm) whose rule is `deny` or omitted: write the rule its callers need, or do the write in a job. It notes the same code for a counter (`stock: v.stock - 1`) on a table whose update rule admits only a role, in a mutation that ordinary callers use and that never requires the role: keep the count as a maintained view over the rows they write instead. `check` notes N_READ_DENIED for a query or mutation that looks up an aggregate by key whose read rule is `deny`: every caller reads `null` for both a stored and absent group, so give it the rule its readers need over its group keys. In development, `snapback4 run` prints the clause that refused a write and its line; the refusal a client sees never names it. `insert` and `insert ... if absent` return E_RULE when the insert rule denies the viewer. A unique clash with a hidden row returns E_RULE for either insert form. For a readable secondary unique clash without a custom refusal, ordinary insert returns E_UNIQUE naming the declared key, while `insert ... if absent` succeeds with null. If the update rule denies an update or upsert-patch, it returns E_RULE for a readable target and NOT_FOUND for an unreadable target. A valid update or upsert-patch admitted by the update rule can change a hidden row; if the resulting row remains hidden, it returns null. Without a custom unique refusal, an update or upsert-patch with a secondary unique clash returns NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is unreadable, and E_UNIQUE naming the declared key if both are readable. An update condition on an unreadable target returns NOT_FOUND even if it would match; on a readable target, a false condition returns E_CONFLICT with a read-rule `current`. Delete returns NOT_FOUND for a missing id or an unreadable refused target, and E_RULE for a readable row whose delete rule refuses. Reading a hidden row returns null. Use a write admitted by its rule; NOT_FOUND on an update or upsert-patch does not prove absence.
 
 | Update/upsert target before the write | Refusal details |
 | --- | --- |
 | Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_UNIQUE` for declared keys; `E_CONSTRAINT` for other constraints; `E_INPUT` |
 | Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
 
-Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
-write another principal's row. Success discloses the admitted row's existence
-and the update rule predicates. It grants no extra stream or snapshot row.
-A condition belongs on `update`; an upsert inserts or patches. A condition
-needs a row you can read; a blind patch needs none. A blind update or upsert-patch needs no read rule: the update rule judges the old and next images; a preceding program lookup still needs read access. On a row you cannot read,
-immutable columns in a patch are ignored. A readable immutable mismatch still
-names the column. Before target lookup, the engine reserves room for the rule
-probes and the largest merged image allowed by the schema and supplied patch;
-if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target.
-A readable aggregate view over a hidden source is a declared read channel: its
-delta can disclose the old contribution. `N_MAINTAIN_DELTA` notes potentially
-wider update authority under a separately readable aggregate view. Restrict its
-read audience or source write authority if that delta is private.
+Use `upsert counters[recipient] { count: 1 }` under an `update` rule to write another principal's row. Success discloses the admitted row's existence and the update rule predicates. It grants no extra stream or snapshot row. A condition belongs on `update`; an upsert inserts or patches. A condition needs a row you can read; a blind patch needs none. A blind update or upsert-patch needs no read rule: the update rule judges the old and next images; a preceding program lookup still needs read access. On a row you cannot read, immutable columns in a patch are ignored. A readable immutable mismatch still names the column. Before target lookup, the engine reserves room for the rule probes and the largest merged image allowed by the schema and supplied patch; if it cannot fit, `E_BOUND` refuses equally for a hidden or absent target. A readable aggregate view over a hidden source is a declared read channel: its delta can disclose the old contribution. `N_MAINTAIN_DELTA` notes potentially wider update authority under a separately readable aggregate view. Restrict its read audience or source write authority if that delta is private.
 
 ### Refusal ladder
 
+Run the statements from top to bottom. The first refusal wins, and the whole mutation rolls back. An asserted program read checks visibility before a later business `require`. Here bob gets `NOT_FOUND` for alice's row even if its state is already closed; alice gets `CLOSED`. Moving a role-only guard before the lookup gives that guard priority without revealing a hidden row.
+
+```quarry
+use personas alice, bob
+table ladderTickets:
+  owner: principal
+  state: enum('open', 'closed')
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  online only
+mutation closeLadderTicket(ticket: ladderTickets):
+  t = ladderTickets[ticket] ! else NOT_FOUND
+  require t.state = 'open' else CLOSED
+  update ladderTickets[ticket] { state: 'closed' }
+```
+
+A uniqueness constraint sees physical conflicts that program reads cannot. For this recipe alice inserting her own row with bob's hidden key gets `E_RULE`, not `KEY_TAKEN`; her own readable conflict gets `KEY_TAKEN`. The hidden refusal exposes neither the key name nor the conflicting row. Use a declared constraint for global uniqueness; a program `not exists` only proves caller-visible absence.
+
+```quarry
+use personas alice, bob
+table ladderKeys:
+  owner: principal
+  key: text 1..40
+  unique key else KEY_TAKEN
+  immutable owner, key
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+mutation claimLadderKey(key: text 1..40):
+  return insert ladderKeys { owner: viewer, key }
+```
+
+Rule `exists` and program `exists`, side by side: a rule probe evaluates the keyed target without borrowing its read rule. A program probe filters it by the caller's read authority. In this example bob's hidden grant lets alice write a note, while alice's `canReadLadderGrant(bob)` is false. A rule probe does not return the grant or make it program-readable. This deliberately allows the note writer to discover whether the grant permits that write. `check` deliberately prints `N_UNREADABLE_PROBE` for canReadLadderGrant: caller-visible existence is intended here; never use its false result to enforce global absence. The qualification test pins that one note.
+
+```quarry
+use personas alice, bob
+table ladderGrants:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+table ladderNotes:
+  grant: principal
+  author: principal
+  immutable grant, author
+  read <- .author = viewer
+  insert <- .author = viewer and exists ladderGrants[.grant]
+  online only
+mutation writeLadderNote(grant: principal):
+  return insert ladderNotes { grant, author: viewer }
+query canReadLadderGrant(grant: principal):
+  return exists ladderGrants[grant]
+```
+
 For a body written as asserted lookup → write → require, the ladder is: decode (`E_INPUT`) → hidden lookup (`NOT_FOUND`) → table rule (`E_RULE` on a readable denied target) → the authored `require` code. After decoding, actual statement order decides: a require before a write runs first; a later require cannot replace an earlier refusal. A nullable hidden lookup returns null; an asserted lookup uses its authored `else` code, conventionally NOT_FOUND. Hidden update/delete denial stays NOT_FOUND. Mutations roll back earlier writes.
 
-An upsert follows the same statement-order ladder. On a readable existing
-row whose update rule refuses, ladderPut returns E_RULE; on a hidden denied
-row it returns NOT_FOUND. An absent own row passes insert, then AFTER_WRITE
-refuses and rolls that insert back. The later require cannot rename the
-write's refusal.
+An upsert follows the same statement-order ladder. On a readable existing row whose update rule refuses, ladderPut returns E_RULE; on a hidden denied row it returns NOT_FOUND. An absent own row passes insert, then AFTER_WRITE refuses and rolls that insert back. The later require cannot rename the write's refusal.
 
 ```quarry
 use personas alice, bob, carol
@@ -257,11 +270,7 @@ cannot read must be your own upload, even if it equals the retained id. A rule
 probe costs one unit regardless of expired siblings; a uniform false page is
 decided from its pinned prefix and returns empty and complete at no charge.
 
-A filtered count can disclose whether a hidden row matched its predicate;
-computed groups disclose bucket membership and rank discloses relative values.
-The view's filter grants no source-row read. N_MAINTAIN_DELTA names the
-filter/key/value dependencies and the separately readable target, including
-insert/delete channels. Restrict its read audience to close the channel:
+A filtered count can disclose whether a hidden row matched its predicate; computed groups disclose bucket membership and rank discloses relative values. The view's filter grants no source-row read. N_MAINTAIN_DELTA names the filter/key/value dependencies and the separately readable target, including insert/delete channels. Restrict its read audience to close the channel:
 
 ```quarry
 table posts:
@@ -279,31 +288,13 @@ query ownOriginals():
   return originalPostCounts[viewer]
 ```
 
-Here a writer may update a hidden post, but cannot read that author's count.
-Changing the aggregate view to read <- allow deliberately grants the filtered-delta
-channel and produces N_MAINTAIN_DELTA. Hidden-target attempts reserve both
-possible aggregate groups, predicate/key work and indexes before inspecting
-the old source image.
+Here a writer may update a hidden post, but cannot read that author's count. Changing the aggregate view to read <- allow deliberately grants the filtered-delta channel and produces N_MAINTAIN_DELTA. Hidden-target attempts reserve both possible aggregate groups, predicate/key work and indexes before inspecting the old source image.
 
-A maintained column such as `likeCount: count likes by postId` belongs to the
-engine, while ordinary fields keep their existing writer rules. Source rules
-authorize contributions; parent readers receive the count, including counts
-over private sources. Rules and their probes cannot depend on maintained
-fields. Adding or redefining the column recounts and mirrors live parents
-without consulting parent write rules; its event-free generation barrier
-reacquires devices and wakes server-run parent watches. See `guide maintains`.
+A maintained column such as `likeCount: count likes by postId` belongs to the engine, while ordinary fields keep their existing writer rules. Source rules authorize contributions; parent readers receive the count, including counts over private sources. Rules and their probes cannot depend on maintained fields. Adding or redefining the column recounts and mirrors live parents without consulting parent write rules; its event-free generation barrier reacquires devices and wakes server-run parent watches. See `guide maintains`.
 
 ## Field authority: written by
 
-`readUpTo: int default 0 written by .principal` gives that field its own
-writer: the required `principal` column on the same row. An insert by anyone
-else omits it and receives the declared default. Supplying even the default
-explicitly requires ownership. On update and the patch arm of upsert, the old
-row's owner authorizes each touched owned field. Other touched fields still
-require the row's update rule. An owner can patch just their fields when the
-table has no update rule. A named `update (old, next)` rule also constrains
-owner writes; it can compare matching integers or times with `<`, `<=`, `>`
-and `>=`. Read rules keep their equality-only contract.
+`readUpTo: int default 0 written by .principal` gives that field its own writer: the required `principal` column on the same row. An insert by anyone else omits it and receives the declared default. Supplying even the default explicitly requires ownership. On update and the patch arm of upsert, the old row's owner authorizes each touched owned field. Other touched fields still require the row's update rule. An owner can patch just their fields when the table has no update rule. A named `update (old, next)` rule also constrains owner writes; it can compare matching integers or times with `<`, `<=`, `>` and `>=`. Read rules keep their equality-only contract.
 
 ### Private owned fields
 The field is private to its owner unless declared `readable by audience`.
@@ -326,10 +317,7 @@ visibility; ordinary writers cannot test another owner's private value.
 Accounting, nullable self-comparisons and expiring authority witnesses are
 specified in `snapback4 why E_FIELD_AUTHORITY`.
 
-Clique read marks use this recipe. Add `readable by audience` after
-`written by .principal` when other conversation members should see receipts.
-The monotonic rule is an application decision, enforced on the server and
-under prediction. `markRead` predicts on a held row, including offline.
+Clique read marks use this recipe. Add `readable by audience` after `written by .principal` when other conversation members should see receipts. The monotonic rule is an application decision, enforced on the server and under prediction. `markRead` predicts on a held row, including offline.
 
 ```quarry
 table conversations:
@@ -352,23 +340,8 @@ mutation markRead(memberId: members, readUpTo: int) predicts:
   update members[memberId] { readUpTo }
 ```
 
-E_FIELD_AUTHORITY means an owner declaration is invalid, or a supplied/updated
-field is not yours. Name a required principal column on this table, declare a
-default, and omit the field when writing another principal's row. A private
-field in an index or aggregate needs `readable by audience` (after `written by`)
-when that disclosure fits. An unreadable update or refused delete target, and an
-absent upsert refused by insert authority or field ownership, keep `NOT_FOUND`
-with the same refusal and meter. Direct inserts and readable targets keep
-`E_FIELD_AUTHORITY`; the system keeps its rule bypass. A page over private
-fields must "scope this read to a uniformly readable audience" (a walk over
-hidden rows counts them): `check` refuses a scan its pins do not decide, role
-guard or not. Pin the read rule's column (`visits where .parent = viewer`), move
-the field to its own table keyed by the row, or make it `readable by audience`.
+E_FIELD_AUTHORITY means an owner declaration is invalid, or a supplied/updated field is not yours. Name a required principal column on this table, declare a default, and omit the field when writing another principal's row. A private field in an index or aggregate needs `readable by audience` (after `written by`) when that disclosure fits. An unreadable update or refused delete target, and an absent upsert refused by insert authority or field ownership, keep `NOT_FOUND` with the same refusal and meter. Direct inserts and readable targets keep `E_FIELD_AUTHORITY`; the system keeps its rule bypass. A page over private fields must "scope this read to a uniformly readable audience" (a walk over hidden rows counts them): `check` refuses a scan its pins do not decide, role guard or not. Pin the read rule's column (`visits where .parent = viewer`), move the field to its own table keyed by the row, or make it `readable by audience`.
 
-Read-through repairs: `why E_READ_THROUGH`, `why E_READ_THROUGH_ADOPT`,
-`why E_PARENT_HAS_CHILDREN` and `why E_READ_THROUGH_SCAN`.
+Read-through repairs: `why E_READ_THROUGH`, `why E_READ_THROUGH_ADOPT`, `why E_PARENT_HAS_CHILDREN` and `why E_READ_THROUGH_SCAN`.
 
-Membership paths spelling the whole parent rule lower to `read through`. Without sync, a one-hop read-rule equality (`.author = viewer or .goal.owner = viewer`) is the probe `exists goals[.goal, owner = viewer]`;
-other read reference expressions (two hops, `!=`, a synced table) remain unsupported. Write rules admit live chains as above. Parent-key aggregates inherit the read rule. A diagnostic never suggests dropping the parent hop. An aggregate
-read line proved identical to the parent's rule has a whole-line repair;
-additional conditions remain a modeling choice and are not removed by `--fix`.
+Membership paths spelling the whole parent rule lower to `read through`. Without sync, a one-hop read-rule equality (`.author = viewer or .goal.owner = viewer`) is the probe `exists goals[.goal, owner = viewer]`; other read reference expressions (two hops, `!=`, a synced table) remain unsupported. Write rules admit live chains as above. Parent-key aggregates inherit the read rule. A diagnostic never suggests dropping the parent hop. An aggregate read line proved identical to the parent's rule has a whole-line repair; additional conditions remain a modeling choice and are not removed by `--fix`.
