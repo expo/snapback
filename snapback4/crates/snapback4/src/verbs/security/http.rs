@@ -17,12 +17,13 @@ fn wait(child:&mut Process,budget:Duration)->Result<(),String>{
     }}
 }
 fn request(address:SocketAddr,path:&str,persona:bool)->Result<(u16,serde_json::Value),String>{
+    exchange(address,"POST",path,if persona{"x-snapback-persona: security-forged\r\n"}else{""},"{\"id\":\"security-unauthenticated\",\"args\":{}}")
+}
+fn exchange(address:SocketAddr,method:&str,path:&str,header:&str,body:&str)->Result<(u16,serde_json::Value),String>{
     let mut stream=TcpStream::connect_timeout(&address,Duration::from_secs(2)).map_err(|e|e.to_string())?;
     stream.set_read_timeout(Some(Duration::from_secs(3))).map_err(|e|e.to_string())?;
     stream.set_write_timeout(Some(Duration::from_secs(3))).map_err(|e|e.to_string())?;
-    let header=if persona{"x-snapback-persona: security-forged\r\n"}else{""};
-    let body="{\"id\":\"security-unauthenticated\",\"args\":{}}";
-    let wire=format!("POST {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n{header}\r\n{body}",body.len());
+    let wire=format!("{method} {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n{header}\r\n{body}",body.len());
     stream.write_all(wire.as_bytes()).map_err(|e|e.to_string())?;
     let mut bytes=Vec::new();stream.take(1<<20).read_to_end(&mut bytes).map_err(|e|e.to_string())?;
     let wire=String::from_utf8(bytes).map_err(|e|e.to_string())?;
@@ -30,6 +31,42 @@ fn request(address:SocketAddr,path:&str,persona:bool)->Result<(u16,serde_json::V
     let body=wire.split_once("\r\n\r\n").map(|(_,b)|b).ok_or("malformed HTTP response")?;
     let json=serde_json::from_str(body).map_err(|e|format!("HTTP {status}: {e}"))?;
     Ok((status,json))
+}
+
+// An actual credential history at the production admission boundary. A stale
+// device's already copied bytes remain a separate, explicitly unproved path.
+fn revoked_sessions(bound:&Bound,address:SocketAddr)->Result<usize,String>{
+    if !bound.schema.auth.guests && !bound.schema.auth.password {
+        println!("security not covered: ordinary session revocation HTTP requires declared guest or password identity");return Ok(0);
+    }
+    let (path,payload)=if bound.schema.auth.guests{("/auth/guest","{}")}
+        else{("/auth/signup","{\"email\":\"security-campaign@example.test\",\"password\":\"Isolated-campaign-7842!\"}")};
+    let (status,session)=exchange(address,"POST",path,"",payload)?;
+    if status!=200{return Err(format!("private revocation campaign could not authenticate (HTTP {status}); no revocation claim"));}
+    let token=session["session"]["token"].as_str().ok_or("private revocation campaign did not receive a session")?;
+    let bearer=format!("Authorization: Bearer {token}\r\n");
+    if exchange(address,"GET","/schema",&bearer,"")?.0!=200{return Err("fresh session failed schema admission before revocation".into());}
+    let (status,rotated)=exchange(address,"POST","/auth/refresh",&bearer,"{}")?;
+    if status!=200{return Err("private revocation campaign could not rotate its live session".into());}
+    let successor=rotated["session"]["token"].as_str().ok_or("rotation did not return a successor session")?;
+    let next=format!("Authorization: Bearer {successor}\r\n");
+    if exchange(address,"GET","/schema",&next,"")?.0!=200{return Err("rotation successor failed admission before revocation".into());}
+    let (status,ended)=exchange(address,"POST","/auth/logout-all",&next,"{}")?;
+    if status!=200||ended["ok"]!=true||ended["revoked"].as_u64().unwrap_or(0)==0{return Err("private revocation campaign could not revoke its successor".into());}
+    let mut attempted=0;
+    for header in [&bearer,&next] {
+        let mut paths=vec![("GET","/schema".to_owned()),("GET","/changes?since=0&wait=0".to_owned()),("POST","/sync".to_owned()),("POST","/probe".to_owned()),("POST","/auth/refresh".to_owned())];
+        for p in &bound.programs{
+            let prefix=match p.program.kind{snapback4_core::ir::ProgramKind::Query=>"q",snapback4_core::ir::ProgramKind::Mutation=>"m",_=>continue};
+            paths.push(("POST",format!("/{prefix}/{}",p.program.name)));
+        }
+        for (method,path) in paths{
+            let (status,body)=exchange(address,method,&path,header,"{\"id\":\"security-revoked\",\"args\":{}}")?;attempted+=1;
+            if status!=401||body["denied"]["code"]!="E_AUTH"{return Err(format!("revoked credential admitted at {method} {path} (HTTP {status}); bearer omitted"));}
+        }
+    }
+    println!("security live-session revocation HTTP: {attempted} attempts refused after actual refresh and logout-all; disconnected device storage is not covered");
+    Ok(attempted)
 }
 
 pub(super) fn run(bound:&Bound,sources:&[(String,String)])->Result<usize,String>{
@@ -82,7 +119,8 @@ pub(super) fn run(bound:&Bound,sources:&[(String,String)])->Result<usize,String>
         let (status,_)=request(address,path,false)?;attempted+=1;
         if !matches!(status,401|403|404){return Err(format!("production development door {path} returned {status}"));}
     }
+    let revoked=revoked_sessions(bound,address)?;
     drop(host);drop(scratch);
     println!("security unauthenticated serve HTTP: {attempted} attempts refused (including forged personas and dev doors)");
-    Ok(attempted)
+    Ok(attempted+revoked)
 }

@@ -167,3 +167,9 @@ N_SWEEP_ONLY_DEADLINE means sweeps leave time between a deadline and cleanup. En
 ### N_EXISTENCE_ORACLE
 
 N_EXISTENCE_ORACLE means absence and later denial can reveal different outcomes. Unify the code and message when existence is private; inspect `audit` and the policy before changing a rule.
+
+The isolated production HTTP campaign also signs in, refreshes the session,
+logs out all sessions and retries both retired credentials against query,
+mutation, schema, changes, sync and probe doors. It reports missing coverage
+when ordinary identity or complete deployed worker artifacts are unavailable.
+This checks server admission; a disconnected device can still retain old bytes.
