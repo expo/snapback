@@ -23,3 +23,12 @@ fn all_named_service_seats_and_enum_argument_tuples_are_exercised(){
  // Four generic viewers, two personas and two declared service seats × six tuples.
  assert_eq!(c.operations["inspect"],8*6,"{c:?}");
 }
+
+#[test]
+fn generated_foreign_asset_and_non_image_challenges_use_real_ledgers(){
+ let b=compile(&[("schema.q".into(),"table photos:\n  owner: principal\n  image: image <=5000\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\ntable documents:\n  owner: principal\n  attachment: file <=5000 ('application/pdf')\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation photo(image: image <=5000):\n  return insert photos { owner: viewer, image }\nmutation attach(attachment: file <=5000 ('application/pdf')):\n  return insert documents { owner: viewer, attachment }\n".into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+ let fixture=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
+ let mut c=security::challenges::Campaign::default();security::challenges::operations(&b,&fixture,&mut c);
+ assert!(c.boundary_failures.is_empty(),"{c:?}");assert!(c.attempted>=3);
+ assert!(c.operations.contains_key("photo")&&c.operations.contains_key("attach"));
+}

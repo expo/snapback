@@ -68,3 +68,10 @@ fn aggregate_policy_dependency_cannot_be_changed_before_paired_disclosure(){
  assert!(c.violations.is_empty(),"{c:?}");
  assert!(c.unsupported.iter().any(|s|s.contains("complete bound policy dependencies")));
 }
+
+#[test]
+fn recorded_reference_group_keys_do_not_alias_source_fields_in_a_proof(){
+ let b=bound("table authors:\n  label: principal\n  immutable label\n  public 'authors'\n  online only\ntable notes:\n  author: authors\n  label: principal\n  immutable author\n  read <- .label = viewer\n  online only\nview totals: count notes by .author.label\n  read <- allow\n  online only\ninvariant notes.read only .label = viewer\n");
+ let r=security::analyze(&b);
+ assert!(r.invariants[0].obligations.iter().any(|o|o.status==Status::Unproved&&o.reason.contains("bare identically typed")),"{r:?}");
+}

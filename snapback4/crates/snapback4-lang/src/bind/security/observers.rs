@@ -36,6 +36,10 @@ pub(super) fn obligations(bound: &Bound, inv: &Invariant) -> Vec<Obligation> {
                 || table.read_lifetime_sensitive()
             { return Err(format!("{} -> {}: captured/private/computed/temporal maintenance needs a contributor reduction", m.source, m.target)); }
             let target = bound.schema.table(&m.target).ok_or_else(|| format!("{}: maintained-column observer needs its owning table/field authority", m.target))?;
+            if m.by.iter().any(|key|key.contains('.')||key.starts_with('$')||table.recorded.contains_key(key)
+                || table.columns.get(key).is_none() || table.columns.get(key)!=target.columns.get(key)) {
+                return Err(format!("{} -> {}: group keys are not bare identically typed source/target columns",m.source,m.target));
+            }
             if target.through.is_some() || target.read_lifetime_sensitive() {
                 return Err(format!("{}: derived observer has inherited/temporal authority", m.target));
             }
