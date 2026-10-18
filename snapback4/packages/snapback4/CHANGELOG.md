@@ -2,10 +2,10 @@
 
 ## 0.4.32
 
-- FRONT: React/Expo `useQueryData` returns data or undefined and throws a typed `QueryRefusal`; `useQueryResult` offers an inline refusal and the precise read. Partial/stale data remains displayable; use `useQuery`/`usePage` for completeness, freshness and pagination. `SignedIn` gates components on the app's auth snapshot.
-- FRONT: ordinary starters omit the unused production recipe; `guide production` copies the runnable slice from the installed package's guide assets. Native proof support and adaptation remain DAY5-owned.
-- FRONT: completeness notes lead with the query's checked rewrite and explain when completeness matters; distinct findings at the same query site remain visible. Other notes and rule implications remain LANG4/RULES5-owned.
-- FRONT: `hourOfDay(t)` gives UTC hours 0..23; `hour(t)` remains continuous epoch hours. `N_SWEEP_DEADLINE` warns about direct scheduled status gates without a matching row-time comparison; it is advisory, not a safety proof. Clock caps/session behavior remain KIT4-owned; provisioning remains STAGE-owned.
+- React/Expo `useQueryData` returns data or undefined and throws a typed `QueryRefusal`; `useQueryResult` offers an inline refusal and the precise read. Partial/stale data remains displayable; use `useQuery`/`usePage` for completeness, freshness and pagination. `SignedIn` gates components on the app's auth snapshot.
+- ordinary starters omit the unused production recipe; `guide production` copies the runnable slice from the installed package's guide assets.
+- completeness notes lead with the query's checked rewrite and explain when completeness matters; distinct findings at the same query site remain visible.
+- `hourOfDay(t)` gives UTC hours 0..23; `hour(t)` remains continuous epoch hours. `N_SWEEP_DEADLINE` warns about direct scheduled status gates without a matching row-time comparison; it is advisory, not a safety proof.
 
 ## 0.4.31
 
