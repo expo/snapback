@@ -96389,3 +96389,7 @@ The rules card retains every original word/source block while reflowing prose
 within its existing physical-line budget. No version bump or push.
 Qualification results and any inherited limitations are in reports/wave15-rules5
 and the root WORKSTREAM-REPORT.md; these are workstream checks, not publication.
+
+RULES5 authoring census refresh: 521 mutation occurrences, 95 eligible private
+write sites. All 22 added operations are server-class; existing prediction
+authority is unchanged. Readauth passes 88/88 on Linux and Mac Studio.

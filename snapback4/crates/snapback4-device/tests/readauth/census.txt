@@ -551,7 +551,26 @@ card/rule-recipes/36:publishImage | never
 card/rule-recipes/36:savePrivateImage | never
 card/rule-recipes/36:unpublishImage | never
 card/rule-recipes/37:newStaffCase | never
+card/rule-recipes/38:addPersonalCost | never
+card/rule-recipes/39:enrollHandoffPeer | never
+card/rule-recipes/39:handoff | never
 card/rule-recipes/3:submit | eligible
+card/rule-recipes/40:approveScheduledDraft | never
+card/rule-recipes/40:editScheduledDraft | never
+card/rule-recipes/40:newScheduledDraft | never
+card/rule-recipes/40:withdrawScheduledDraft | never
+card/rule-recipes/41:cancelAvailable | never
+card/rule-recipes/41:reserveAvailable | never
+card/rule-recipes/42:joinLeaderboard | never
+card/rule-recipes/42:leaveLeaderboard | never
+card/rule-recipes/42:recordAttempt | never
+card/rule-recipes/43:addAncestorFile | never
+card/rule-recipes/43:addAncestorFolder | never
+card/rule-recipes/43:transferAncestor | never
+card/rule-recipes/44:addPolicyCheck | never
+card/rule-recipes/44:signPolicyProposal | never
+card/rule-recipes/45:newVersionedTask | never
+card/rule-recipes/45:transitionTask | never
 card/rule-recipes/4:addLetter | never
 card/rule-recipes/5:addFile | eligible
 card/rule-recipes/5:addFile | files/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
@@ -567,9 +586,12 @@ card/rule-recipes/8:provisionLink | never
 card/rule-recipes/8:revokeLink | never
 card/rule-recipes/8:revokeReader | never
 card/rule-recipes/9:respond | never
-card/rules/5:ladderPut | never
-card/rules/7:markRead | eligible
-card/rules/7:markRead | members/update | {"Exists":{"table":"members","index":"$intent:byConversationIdPrincipal:55844466a293ca66","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/rules/10:markRead | eligible
+card/rules/10:markRead | members/update | {"Exists":{"table":"members","index":"$intent:byConversationIdPrincipal:55844466a293ca66","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/rules/5:closeLadderTicket | never
+card/rules/6:claimLadderKey | never
+card/rules/7:writeLadderNote | never
+card/rules/8:ladderPut | never
 card/sequences/1:createConversation | never
 card/sequences/1:delivered | never
 card/sequences/1:send | never
