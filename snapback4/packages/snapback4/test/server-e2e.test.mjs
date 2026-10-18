@@ -65,7 +65,7 @@ function project(t, source, entry) {
       assert.equal(deployed.status, 0, safe(deployed.stdout + deployed.stderr));
     }
     if (!serve) {
-      const initialized = command(["test", "--residency"]);
+      const initialized = command(["test", "--residency", "--fixture-only"]);
       assert.equal(initialized.status, 0, safe(initialized.stderr));
     }
     const minted = command(["token", ...(serve ? ["--release", release] : []), "--service", "test-driver"]);

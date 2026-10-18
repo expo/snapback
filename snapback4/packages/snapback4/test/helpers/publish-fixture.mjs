@@ -25,6 +25,7 @@ export function publish(t, scenario = {}, previousRoot) {
     writeFileSync(join(root, "packages/snapback4/CHANGELOG.md"), "# Fixture changes\n\n- deploy --schema and test --source select saved sources.\n");
     for (const dir of ["snapback4", "snapback4-expo", platform]) writeFileSync(join(root, "packages", dir, "package.json"), JSON.stringify({ name: dir, version: "0.0.0", ...(dir === "snapback4" ? { optionalDependencies: { "snapback4-darwin-arm64": "0.0.0", "snapback4-linux-x64": "0.0.0" } } : {}) }));
     writeFileSync(join(root, "scripts/publication-starters.mjs"), `export const starterCases = ${JSON.stringify(starterCases)}; export function proveStarters() { if (process.env.PUBLICATION_STARTERS_FAIL === '1') throw Error('starter export failed'); return [{kind:'expo', status:'passed'}, {kind:'web', status:'passed'}]; }`);
+    writeFileSync(join(root, "scripts/publication-proof-kit.mjs"), `export async function proveProofKit(){if(process.env.PUBLICATION_PROOF_KIT_FAIL==='1')throw Error('packed proof kit failed');return {status:'passed'};}`);
     writeFileSync(join(root, "scripts/publication-day5.mjs"), `export async function proveDay5(){if(process.env.PUBLICATION_DAY5_FAIL==='1')throw Error('packed DAY5 guide failed');return {status:'passed'};}`);
     writeFileSync(join(root, "target/production/snapback4"), "unsigned");
     writeFileSync(join(root, "packages", platform, "THIRD-PARTY-NOTICES"), "notices");

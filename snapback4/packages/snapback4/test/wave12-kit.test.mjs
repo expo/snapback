@@ -23,9 +23,8 @@ test('H8 custom-schema generated proof refuses success without a write', {timeou
   okay(invoke(cwd,['init','--web']));symlinkSync(join(root,'node_modules'),join(cwd,'node_modules'));
   okay(invoke(cwd,['check']));
   okay(spawnSync(join(root,'node_modules/.bin/vite'),['build'],{cwd,encoding:'utf8',timeout:120000}));
-  const result=spawnSync(process.execPath,['scripts/frontend-proof.mjs'],{cwd,encoding:'utf8',timeout:60000,env:{...process.env,SNAPBACK4_BIN:bin}});
-  assert.notEqual(result.status,0,'a read-only Home cannot pass a write proof');
-  assert.match(result.stderr,/no write scenario: replace the Home assertions/);
+  assert.equal(readdirSync(join(cwd,'scripts')).includes('frontend-proof.mjs'),false);
+  assert.equal(JSON.parse(readFileSync(join(cwd,'package.json'),'utf8')).scripts['frontend:proof'],undefined);
 });
 
 test('H8 withBrowser honors caller Playwright', {timeout:30000}, async t=>{
@@ -103,7 +102,7 @@ if (!baseline) {
    writeFileSync(join(cwd,'snapback/schema.q'),source);
    const before=snapshot(cwd),preview=invoke(cwd,['init','--adapt']);okay(preview);
    assert.deepEqual(snapshot(cwd),before);assert.equal(preview.stdout.trim().split('\n').at(-1),'snapback4 init --adapt --apply');
-   assert.match(preview.stdout,/no write scenario: replace the Home assertions/);
+   assert.match(preview.stdout,/remove scripts\/frontend-proof[.]mjs/);
    okay(invoke(cwd,['init','--adapt','--apply']));
   }
  });

@@ -73,10 +73,10 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   assert.equal(widening.stderr.trim(), "note: notes.status admits 'archived'; rows that later use those values become dormant on rollback to release 1; keep this value domain in a bridge if those rows must stay available");
   assert.doesNotMatch(widening.stderr, /WARNING|existing rows/);
   const zero = run('rollback', deployment, '--to', '1', '--check').stdout;
-  assert.ok(zero.split('\n').includes('  note: notes.status: no stored values are incompatible with release 1; no value repair is needed for this switch'), zero);
+  assert.match(zero, /note: notes: notes.status: no stored values are incompatible with release 1; no value repair is needed for this switch/);
   writeFileSync(schema, v3);
   const preview = run('deploy', deployment, '--check');
-  assert.ok(preview.stdout.split('\n').includes('  note: job remind compiles differently because notes changed (added color); schedule remindDaily remains; verify the scheduled result if these dependencies matter'), preview.stdout);
+  assert.match(preview.stdout, /note: release behavior: job remind compiles differently because notes changed \(added color\); schedule remindDaily remains; verify the scheduled result if these dependencies matter/);
   assert.doesNotMatch(preview.stdout, /WARNING.*job remind|lacks.*schedule/);
   run('deploy', deployment);
   assert.equal((await host.post('/m/archive', { note: ids[0] })).state, 'sent');
@@ -85,9 +85,9 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   const warning = "WARNING notes.status: 1 row holds 'archived', which release 1 cannot hold; it becomes dormant on this switch and is restored on compatible forward; accept their absence or preserve these values in a bridge release";
   const samples = `samples: cells notes.color [${ids.slice(1).sort().join(', ')}]; rows notes [${ids[0]}]`;
   const plan = run('rollback', deployment, '--to', '1', '--check');
-  assert.ok(plan.stdout.split('\n').includes(`  ${warning}`), plan.stdout);
+  assert.ok(plan.stdout.split('\n').some(line => line.startsWith('  WARNING notes:') && line.includes(warning.slice('WARNING '.length))), plan.stdout);
   assert.ok(plan.stdout.includes(`1 row, 2 cells, 0 index entries dormant; ${samples}`), plan.stdout);
-  assert.ok(plan.stdout.split('\n').includes(`  column:notes.color: 2 cells dormant (restored on compatible forward); sample ids [${ids.slice(1).sort().join(', ')}]`), plan.stdout);
+  assert.match(plan.stdout, /notes.color: column notes.color is removed; its cells become dormant \(2 cells; restored on forward\)/);
   assert.match(plan.stdout, /release 1 lacks operation archive/);
   const rolled = run('rollback', deployment, '--to', '1');
   assert.equal(rolled.stderr.trim(), warning);
@@ -112,8 +112,8 @@ test('rollback preview distinguishes missing schedules, edited source and curren
   writeFileSync(schema, v1); run('deploy', deployment);
   writeFileSync(schema, v1.replace('body: n.body', "body: 'edited'").replace('  update <- allow', "  update <- viewer = 'service:ops'")); run('deploy', deployment);
   const changed = run('rollback', deployment, '--to', '1', '--check').stdout;
-  assert.match(changed, /WARNING job remind source changes in release 1; schedule remindDaily remains/);
-  assert.match(changed, /WARNING release 1 loosens notes.update; old: viewer = 'service:ops' \| new: allow/);
+  assert.match(changed, /WARNING release behavior: job remind source changes in release 1; schedule remindDaily remains/);
+  assert.match(changed, /WARNING notes: release 1 loosens notes.update; old: viewer = 'service:ops' \| new: allow/);
   writeFileSync(schema, v1.replace('schedule remindDaily every 1d: remind', 'schedule otherDaily every 2d: remind')); run('deploy', deployment);
   assert.match(run('rollback', deployment, '--to', '1', '--check').stdout, /release 1 lacks schedule otherDaily \(job remind\)/);
 });
@@ -136,7 +136,7 @@ test('edited module-qualified job source is distinct from dependencies', t => {
   writeFileSync(job, source); run('deploy', deployment);
   writeFileSync(job, source.replace('body: n.body', "body: 'changed'"));
   const plan = run('deploy', deployment, '--check').stdout;
-  assert.match(plan, /WARNING job maintenance.remind source changes/); assert.doesNotMatch(plan, /dependencies changed|source comparison unavailable/);
+  assert.match(plan, /WARNING release behavior: job maintenance.remind source changes/); assert.doesNotMatch(plan, /dependencies changed|source comparison unavailable/);
 });
 
 test('stored sample text cannot suppress an incompatible-value warning', { timeout: hangBudget(2) }, async t => {

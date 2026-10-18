@@ -22,6 +22,7 @@ function qualify(t, scenario = {}) {
     return { status: "passed", savedSourceCompatibility: "passed", expoPrintedWrittenPorts: "passed", previewNoise: "passed", helperContracts: "passed", fixtureAgreement: "passed" };
   }`);
   writeFileSync(join(root, "scripts/publication-day4.mjs"), `export async function proveDay4() { return { status: "passed" }; }`);
+  writeFileSync(join(root, "scripts/publication-proof-kit.mjs"), `export async function proveProofKit(){if (${JSON.stringify(scenario.proofKitFail ?? false)}) throw Error('deliberately failing packed proof kit');return {status:'passed'};}`);
   writeFileSync(join(root, "scripts/publication-day5.mjs"), `export async function proveDay5() {if (${JSON.stringify(scenario.day5Fail ?? false)}) throw Error('deliberately failing packed DAY5 guide'); return { status: "passed" }; }`);
   writeFileSync(join(root, "scripts/publication-rules.mjs"), `export function proveRules() {
     if (${JSON.stringify(scenario.rulesFail ?? false)}) throw Error('deliberately failing packed rule recipes');

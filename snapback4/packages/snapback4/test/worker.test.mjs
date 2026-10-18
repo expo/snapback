@@ -64,7 +64,7 @@ test("a service mints sessions, the mutation reads presence, the worker settles 
   const directory = mkdtempSync(join(tmpdir(), "sb4-worker-"));
   mkdirSync(join(directory, "snapback"));
   writeFileSync(join(directory, "snapback/schema.q"), source);
-  const initialized = spawnSync(binary, ["test", "--residency"], { cwd: directory, encoding: "utf8" });
+  const initialized = spawnSync(binary, ["test", "--residency", "--fixture-only"], { cwd: directory, encoding: "utf8" });
   assert.equal(initialized.status, 0, initialized.stderr);
     const minted = spawnSync(binary, ["token", "--service", "pusher", "--days", "1"], { cwd: directory, encoding: "utf8" });
     assert.equal(minted.status, 0, minted.stderr);
@@ -186,7 +186,7 @@ async function actionFixture(t, { worker, source = actionSource, flags = [] } = 
     symlinkSync(join(root, "packages/snapback4"), join(directory, "node_modules/snapback4"));
     writeFileSync(join(directory, `snapback/worker.${worker.ext ?? "ts"}`), worker.text);
   }
-  const initialized = spawnSync(binary, ["test", "--residency"], { cwd: directory, encoding: "utf8" });
+  const initialized = spawnSync(binary, ["test", "--residency", "--fixture-only"], { cwd: directory, encoding: "utf8" });
   assert.equal(initialized.status, 0, initialized.stderr);
   const minted = spawnSync(binary, ["token", "--service", "worker"], { cwd: directory, encoding: "utf8" });
   assert.equal(minted.status, 0, minted.stderr);

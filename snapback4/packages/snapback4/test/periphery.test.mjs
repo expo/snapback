@@ -49,7 +49,7 @@ for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token
   } else {
     writeFileSync(join(dir, "snapback/worker.mjs"), 'console.log("worker stdout witness"); console.error("worker stderr witness"); setInterval(() => {}, 1000);\n');
   }
-  if (mode === "dev") run("test", "--residency");
+  if (mode === "dev") run("test", "--residency", "--fixture-only");
   const releaseFlags = mode === "serve" ? ["--release", release] : [];
   const mint = phase => [[], ["--days", "1"], ["--days=2", "--service=worker"], ["--quiet"], ["--json"]]
     .map(flags => ({ phase, flags, minted: run("token", "--service", "worker", ...releaseFlags, ...flags) }));
@@ -101,7 +101,7 @@ for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token
         else {
           const [status, ownership, end] = minted.stderr.split("\n");
           assert.match(status, /^token: a session for service:worker until \d+; printed once; keep it where the worker keeps secrets$/);
-          assert.equal(ownership, `store: ${store}; this token belongs only to this store; each isolated store needs its own`);
+          assert.equal(ownership, `store: ${realpathSync(store)}; this token belongs only to this store; each isolated store needs its own`);
           assert.equal(end, ""); assert.equal(minted.stderr.split("\n").length, 3);
         }
       }
@@ -487,8 +487,9 @@ test("SQL attaches to a release without source and never creates a missing store
   assert.deepEqual(catalog.tables.find(t => t.name === "todos").rows, {count: 0, exact: true});
   const missing = join(dir, "missing");
   const refused = invoke("sql", "SELECT 1", "--release", missing, "--json");
-  assert.equal(refused.status, 1);
-  assert.equal(JSON.parse(refused.stdout).denied.code, "E_STORE");
+  assert.equal(refused.status, 2);
+  assert.equal(refused.stdout, "");
+  assert.match(refused.stderr, /no current release.*run `snapback4 deploy/);
   assert.equal(existsSync(missing), false);
 });
 

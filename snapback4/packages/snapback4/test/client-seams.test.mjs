@@ -103,7 +103,7 @@ async function fixture(t, release = false, schema = source) {
     assert.equal(deployed.status, 0, deployed.stdout + deployed.stderr);
   }
   if (!release) {
-    const initialized = spawnSync(binary, ["test", "--residency"], { cwd: dir, encoding: "utf8" });
+    const initialized = spawnSync(binary, ["test", "--residency", "--fixture-only"], { cwd: dir, encoding: "utf8" });
     assert.equal(initialized.status, 0, initialized.stderr);
   }
   const meterToken = spawnSync(binary, ["token", "--service", "meter", ...(release ? ["--release", join(dir, "release")] : [])], { cwd: dir, encoding: "utf8" });

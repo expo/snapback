@@ -4007,7 +4007,7 @@ proof can compose the same bounded hosts, private logs and saved release inputs:
 
 ```ts
 import { startDev, startServe, startStatic, startVite, cli, command, deploy,
-  rollback, testSource, withBrowser, waitForFresh, fillRN, statusText,
+  rollback, testSource, withBrowser, waitForFresh, waitForClock, fillRN, statusText,
   selectByValue, renderedText, frontPage, logsDir, bounded, cleanup, stopChild, portRange, sandboxUnavailable, loadFixtures }
   from "snapback4/proof";
 
@@ -4058,6 +4058,11 @@ export async function developmentHosts(cwd: string) {
     const frontend = await startVite(cwd);
     await cleanup(() => frontend.stop());
   } finally { await cleanup(() => backend.stop()); }
+}
+
+// Pass a signed-in page with a registered witness after a dev clock advance.
+export async function advancedPageClock(page: import("playwright-core").Page, advanced: { now: number }) {
+  return waitForClock(page, advanced.now);
 }
 ```
 

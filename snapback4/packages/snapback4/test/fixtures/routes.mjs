@@ -102,7 +102,7 @@ export function fixture(t, schema, source) {
   };
   async function start({ env = {}, bind = "127.0.0.1", port: requestedPort = 0 } = {}) {
     const readyBefore = lines(join(directory, "ready.jsonl")).length;
-    const initialized = command(["test", "--residency"]);
+    const initialized = command(["test", "--residency", "--fixture-only"]);
     assert.equal(initialized.status, 0, safe(initialized.stderr));
     const minted = command(["token", "--service", "route-test-driver"]);
     assert.equal(minted.status, 0, safe(minted.stderr));

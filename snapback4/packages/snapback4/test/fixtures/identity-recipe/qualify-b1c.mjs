@@ -548,7 +548,7 @@ async function rawAuthorityWitness(paths, scratch) {
   const project = await prepareProject(scratch, "authority", paths, "raw");
   await assertScratch(scratch);
   safeCommand(paths.binary, project, ["check", "--json"]);
-  safeCommand(paths.binary, project, ["test", "--residency"]);
+  safeCommand(paths.binary, project, ["test", "--residency", "--fixture-only"]);
   const service = safeCommand(paths.binary, project, ["token", "--service", "worker", "--days", "30"]).stdout.trim();
   const operator = safeCommand(paths.binary, project, ["token", "--service", "operator", "--days", "30"]).stdout.trim();
   secrets.add(service); secrets.add(operator);
