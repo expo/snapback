@@ -78,3 +78,23 @@ intended opening/closing direction and equality, never invents a guard. The
 approximation, unrelated-row/branch correlations and helper/alias limitations
 are explicit; it is not a safety proof.
 KIT4 owns clock caps/session time; SEC owns stronger invariant verification.
+
+
+## Final qualification and limits
+
+The fresh prepare-client pack at e485e8b902 passed qualify-linux
+--consumer-only. All 12 host starter browser proofs passed, all six
+starters passed fixture/typecheck/build checks (including adaptation where
+applicable), and Ubuntu 24.04 and Alpine
+consumers passed their round trips and starter builds. The exact installed
+short-screen, UTC-hour and money recipes execute in the packed proof. See
+verification.json for source, client SRI, binary hash, statuses and log hashes.
+This is consumer qualification; publicationQualified is false. The full Rust
+and client inventories ran separately, with initial failures repaired and
+successful affected reruns; the root report preserves those original reds.
+
+DENSITY.md and density.json cross-check all 50 pairs after excluding starter
+support/config. Eight pairs have more Snapback app/client lines but fewer
+trimmed characters. The remainder in ATTRIBUTION.md is deliberately app/format,
+not a claim that an app has greater verified functionality. No fresh 50-builder
+bakeoff, population win, or builder-minute reduction is claimed.

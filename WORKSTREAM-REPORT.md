@@ -1,206 +1,130 @@
-# Integration 15 — Snapback 4 0.4.31
+# FRONT workstream — 2026-10-18
 
-Complete on `sb4-loop`; no push or publication. Base `4ef9f77fb3` (0.4.30).
-All seven current requested branch tips are integrated. `sb4-w14-live` is
-excluded; live-parent authority continues separately for 0.4.32.
+Branch sb4-b16-front. No push or version bump. The initial branch was clean,
+with no commits in sb4-loop..HEAD. Implementation and evidence are in this
+worktree only; original bakeoff lanes remain read-only.
 
-## Commits and integration
+## 1. Frontend attribution and common API
 
-| Workstream | Merge | Result |
-|---|---|---|
-| REG | `154f5e3b0f` | Persona-only fixture loading/dev catalog; Expo floor/upgrade; missing-export advice. |
-| DAY4 | `00081c70ad` | Full proof ownership, explicit day-two opt-in, custom/adapt custody and directional rollback advice. |
-| PROD | `e84766710d` | Independent production adapt module; explicit roster/first-writer plan, real-account and release-aware screen recipes. |
-| KIT3 | `07d9d4e36a` | Explicit async form claims, reason enum, fresh-text returns, dev clock/reporting and bounded overdue reads. |
-| RULES4 | `3a80814cbb` | Private refusal layers, conservative mixed-gate advice and executable bounded authorization recipes. |
-| LANG3 | `f5e63f9203` | Held-parent completeness, enum/sort facts, private readable P18 cases and precise note categories. |
-| SURF4 | `67c9b95849` | Captured host imports/package scopes, startup/shutdown, help/parser parity and truthful printed surfaces. |
-| 0.4.30 publication records | `61060eeeb1` | Integrates `7508c4ef2a`; preserves both journal entries. |
+[All 50 paired rows](snapback4/reports/20261018-front/ATTRIBUTION.md),
+[method/file digests](snapback4/reports/20261018-front/attribution.json),
+[all-50 source-density cross-check](snapback4/reports/20261018-front/DENSITY.md),
+[results and ownership ledger](snapback4/reports/20261018-front/RESULTS.md).
+The unchanged harness reproduces medians 200 vs 75.5. Removing unused
+production recipe files alone yields a counterfactual median 141; the report
+does not claim every remaining line is client overhead or extra functionality.
+Every counted line is attributed to recipe, native proof support, config,
+client/auth/state/type glue, or app/format residual. Residual functionality
+cannot be inferred from raw LOC alone. The all-50 source-density cross-check
+also finds eight pairs where Snapback has more app/client lines but fewer
+trimmed characters; the table keeps this formatting confound explicit.
 
-Version bump: **`8d068a7577` — `snapback4 0.4.31: reliable upgrades, proofs,
-production adaptation and precise diagnostics`**. Its exact ten-file scope
-matches `1f6b75ff27`'s 0.4.30 bump.
+Implemented useQueryData (data/undefined, typed throwing refusal),
+useQueryResult (inline why plus precise read), and SignedIn. The precise hooks
+and contract.ts remain unchanged. Ordinary init no longer emits recipes;
+production examples ship in installed dist/recipes and the packed guide's
+copy commands are qualification inputs. Native smoke remains DAY5 proof support.
 
-`201ec02ca3` writes one coherent 0.4.31 guide-changes entry, including runtime,
-existing-store/app behavior, Expo acquisition/floor, fixture credentials/catalog,
-clock reporting/each-boundary/deadline reads, day-two opt-in, production adapt,
-new notes/refusals and captured authority. `0130e0f041` adds LLP 3000.037 §18;
-the final evidence commit updates its revision and final-schema reconciliation.
+Three complete frontend copies retain their forms, mutations, assets, role
+branches and paginated lists. Same-harness frontend counts are 002: 489→354
+(Convex 455), 026 Expo: 354→197 (Convex 354), 048: 609→470 (Convex 748).
+Screen-only savings are 5, 15 and 9 lines; recipe removal is separate.
+Reproduce the copies with [rewrite.py](snapback4/reports/20261018-front/rewrite.py);
+rewritten screens are alongside it. Original lanes remain untouched.
+All three copied apps passed check and frontend:proof twice against the prepared installed client (six browser proof passes). Original lane SHA-256 digests are unchanged. Screen LOC is sensitive to JSX layout: trimmed-character counts are 002 13,218→13,149; 026 7,621→8,166; 048 19,206→19,201. The Expo rewrite adds inline refusals and correct partial/empty rendering; these results establish harness LOC changes, not universal byte reductions.
 
-Conflicts preserve both intents: production dispatch beside day-two adaptation;
-`startDev` has **personas and async now()**; todo screens retain denied/empty
-states and scoped proof results; diagnostic categories and private rule layers
-coexist; all new help flags and every consumer slice are retained. Overlapping
-LLP material is preserved under subheadings with repaired anchors. Root report
-conflicts keep the integration side. Generated records were regenerated rather
-than hand-merged.
+## 2. Completeness notes
 
-Additional integration corrections:
+Default output leads with the checked author-query repair; otherwise it names
+the exact missing pin or analyzer limit. Impact explicitly distinguishes
+showing returned rows from proving absence/all matches. Different scans at
+one site keep their own audience evidence. Identical repair bodies and
+repeated context deduplicate separately. A CLI test recompiles the actual
+printed repair and checks that it settles the relevant completeness note.
+No persistent suppression state or broad note acknowledgement syntax added.
+LANG4 owns other notes; RULES5 owns role/probe implication changes.
 
-- `ecc0f2c305`: qualify RULES4's guide blocks against the exact prepared packs;
-  preserve DAY4/PROD/client proof records in qualifier output.
-- `263f8b0d2e`, `516a73cb31`: canonical proof digests and delivery-await census,
-  fixture/module/mock updates; API/guide/message corrections across the small
-  integration commits. Structured error-code assertions remain intact.
-- `077fc71f81`: serialize two 130-socket overload cases so their parent respects
-  macOS's ordinary 256-descriptor limit; all saturation/recovery assertions stay.
-- `dc6f2b9de9`: worker error formatting contains E_EFFECT_LEASE exactly once,
-  while the wire message remains unprefixed. Four focused real-wire cases pass.
-- `19fbc756c0`: stop wire-fixture hosts before deleting directories. Mac exposed
-  ENOTEMPTY in the earlier after-hook, which skipped the stop hook and left a
-  server/pipe alive. Raw TAP/process sample retained; both wire cases pass on
-  Linux and Mac. No timeout, workload or assertion was weakened.
+## 3. Rules/schema/diagnostics/dev-server
 
-## Final verification
+Read every one of the 58 entries (194 self-estimated minutes); retained the
+entries with source line numbers and six clusters in friction.json and
+RESULTS.md. FRONT fixes the completeness presentation, read/UI boilerplate, and lane036
+money-argument documentation with an installed-package executable recipe.
+The largest remaining authority/fanout, refusal trace and staging clusters
+belong to RULES5/LANG4 and STAGE/KIT4 respectively; one-line pointers are in
+the RFC and result table; published changelog describes only user-visible changes. Existing working rewrites
+are preserved. No measured post-change builder-minute saving is invented.
 
-All Cargo invocations use `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
-CARGO_PROFILE_TEST_DEBUG=0`; build jobs are six. Every shell command is bounded
-by timeout. No full `scripts/test.sh` invocation, publication directory or
-publication worktree was used.
+## 4. Time
 
-| Check | Final result |
-|---|---|
-| Linux exact five-crate command, complete after last fix | PASS exit 0; 402 targets, 6467 passed, 0 failed, 45 ordinary ignores. |
-| Mac same complete five-crate command | PASS exit 0; 402 targets, 6502 passed, 0 failed, 45 ordinary ignores. |
-| Linux full client pool, one pass | PASS 411/411 files; 7660 passed, 0 failed, 56 ordinary platform/environment skips (7716 total). |
-| Full-default seeded client models | PASS 81/81, no skips; 5000/3000 sequence settings unchanged. |
-| Fixture wrapper | PASS 9/9. All three client invocation stages exit 0. |
-| Mac changed/platform-sensitive client scope | PASS 96/96 files; 1669 passed, 0 failed, 17 platform skips. |
-| Native difftest | PASS 20,000 cases, seed 0, six workers; no disagreement. |
-| Device difftest | PASS 1000 cases, seeds 0–999, both memory/SQLite; no disagreement. |
-| Lean differential control | 20,000 cases: exactly 130 baseline mismatches, no new signature; pinned oracle built successfully. |
-| Fresh packed consumers | PASS `qualify-linux.mjs --consumer-only` at `bbf8dfaae4`, including every new H9 case. |
-| 100 final-schema check survey | PASS 100/100, 358 notes, both Quarry-only and full source/metadata copies. |
-| 0.4.30 store/Expo upgrade | PASS real registry installation, adoption/open, upgrade, exact rows/store-id/file preservation, Expo floor repair, typecheck and web export. |
-| Exact synced and bare-identity online apps | PASS fresh clone, generation/types, two web-test repetitions per app: 8 authored tests. |
-| Mac native Expo peer floor | PASS Xcode 27.0, Expo 57.0.22/core 57.0.23, installed Release offline/restart witnesses. |
-| Docs budget | PASS 317/320 README lines and named self-contained screen test. |
-| Root inventories | PASS inventories of 365 package tests, 35 script tests, 31 demos/catalog entries, 487 publication leaves. |
-| Root guide | PASS 22 checks; 0 failed, 0 skipped, 0 preconditions; 162 pages/1937 snippets. |
-| References | PASS 551 LLP docs, 12,000 refs, 0 errors/unchecked. |
+hourOfDay(t) returns UTC 0..23; hour(t) remains epoch hours. Existing IR only,
+one input evaluation, negative/i53 boundaries tested. N_SWEEP_DEADLINE is a
+scheduled status/deadline advisory (including confirmation coupled to an overdue sweep), with named row deadline and explicit
+opening/closing/equality choice. It never invents a directed guard or claims
+a safety proof. Helper/alias/int/upsert limitations are documented. KIT4 owns
+clock caps and test-session time; SEC owns stronger invariant verification.
+Actual copied-schema checks: 020 retains two advisories, 043 gains the missing
+confirmItem advisory (a confirmed flag tested by the overdue job), and 046
+remains quiet because it already compares the deadline. Before/after JSON is
+in the results directory. Row/branch correlation is disclosed rather than
+presented as a security proof.
 
-The native command is:
+## Design reviews
 
-```sh
-cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast
-```
+LLP 3000.013.002, with verbatim provenance-tracked reviews under llp/reviews/.
+Muse round 1 and Codex rounds 1–2 identified guard direction and lost same-site
+scan/audience evidence. Revised implementation fixes both. Fresh Codex round 3
+and Muse round 2 returned READY. The source-repro coupling amendment received three additional independent
+rounds. Codex and Muse both returned READY in round 3; earlier wording and
+message-interpolation issues are corrected. All six amendment responses are
+preserved verbatim with frozen proposal SHA-256 provenance.
+Muse succeeded through the prescribed key
+fallback; no key was read or printed by this workstream.
 
-Linux's final full command starts after `19fbc756c0`. Mac uses eight libtest
-threads; no test content, count or deadline changes. Its two intermittent cases
-pass alone **and** in the complete repeat. Their investigation tickets remain
-open; passing repetitions do not identify a cause. The first runs and controlled
-cancellations are retained separately, never relabelled green. The final one-pass
-client invocation uses the rebuilt merged CLI for every helper, including legacy
-helpers which read target/debug directly.
+## Commits
 
-## Packed and platform evidence
+- a19d992f43: census, friction clusters and initial RFC.
+- 9e927d0ffb: short React hooks/auth gate, guide assets instead of emitted recipes, executable client/production tests.
+- 877c910fac: completeness rewrites/dedup, hourOfDay, sweep advisory, reviewed design and source-copy proofs.
+- 43a56bfee3: keep internal ownership pointers out of the published changelog.
+- e485e8b902: reviewed confirmation/overdue sweep coupling, money recipe and packed proof, client expectation/JSX census fixes, candid LOC/character evidence.
+- Final evidence commit: this report, RESULTS, all-50 density cross-check and verification.json (source/integrity/status/log digests).
 
-Fresh `publish.mjs --prepare-client --prepare-directory target/integ15-pack3`
-then `qualify-linux.mjs --consumer-only` with its client and Expo packs, output
-`target/integ15-qualification2`, exit 0. Includes verbatim guide loadFixtures on
-persona-only and identity apps, all three Expo acquisition paths (including the
-actual previous published starter), five DAY4 custom/removed/legacy/opt-in/template
-cases, production adapt/real accounts, KIT3 contracts and RULES4 exact-pack guide
-blocks. All 12 frontend proofs, six starter proofs and clean Alpine consumers pass.
-This mode emits **publicationQualified=false**; the full native/client suites above
-are separate. No publication qualification receipt or npm publication is claimed.
+## Verification ledger
 
-The packed snapshot is `bbf8dfaae4`; later changes are the two test-only fixes
-above and evidence/docs. Production source and prepared artifact bytes are
-unchanged. Pack integrities and static Linux binary digest are preserved in
-`packed-consumer.json` and component records.
+- Setup: Snapback 4 frozen Bun install, binary, wasm and client build passed.
+- Root frozen Bun install, ensure-workspace-hoist and check-generated-artifacts passed.
+- Root check-inventories passed: 365 package tests, 35 script tests, 31 demos, 487 publication leaves, 162 guide pages / 1937 snippets; existing expired-gap warnings remain.
+- Root check-guide passed twice, including the final repeat: 22 checks, zero failures/preconditions/skips. Root check-inventories also passed its final repeat with unchanged inventory totals.
+- ref-check passed: 552 LLP docs, 0 errors/unchecked.
+- Linux affected client tests: five passed, zero skips.
+- Mac Studio ~/sb4-ws-front: same five affected React/Expo tests passed, zero skips; package asset build passed. No M5 MacBook used.
+- Lean build passed (58 jobs), including quarry-oracle.
+- Full Rust workspace inventory (including difftest): 411 binaries / 1,129 executions plus doctests ran. Initial run exited 1 on four targets: builder_guidance, guide, check and wave11_qdiag. All four repaired targets passed reruns: current API census, pinned guide budgets, changed note wording, and built Lean oracle respectively. This is full inventory execution plus successful targeted repair, not a single all-green full run.
+- Affected reruns: lang builder_guidance 5 + front_semantics 3 + guide 125; CLI 473 passed / 5 ignored, check 105, check_notes 11, init 51; difftest wave11_qdiag 1.
+- docs-budget passed (README 317/320 physical lines).
+- Full client file pool executed all 412 files / 7,718 tests: initial 3 failed assertions in two files (stale emitted-recipe expectation and JSX/example index census); 56 platform/optional skips. Repaired files passed all 37 tests on Linux and Mac Studio with zero skips. Default-count models both passed: 5,000 seeded three-runtime histories per session tier and 3,000 online histories; 81 model tests, zero failures/skips. The original pool process exits 1 because it retains the two repaired initial file failures; it is not relabelled an all-green full run.
+- Final sweep/guide rerun passed: builder_guidance 5, front_semantics 4, guide 125.
+- ref-check rerun passed: 552 docs / 12,004 refs / zero errors or unchecked. docs-budget rerun passed.
+- First fresh prepared pack and qualify-linux --consumer-only passed at 43a56bfee3, using proot isolated consumers. Final source e485e8b902 has a new prepare-client pack (317 files, 1,289,036 bytes); the exact installed short screen, hour/time query and money JS/QL recipe passed in the packed proof. Final qualify-linux --consumer-only passed on this exact fresh pack and source, with 12/12 browser proofs, all six starters (adaptation where applicable) and both Ubuntu 24.04/Alpine consumers. [verification.json](snapback4/reports/20261018-front/verification.json) records the client SRI, binary digest and log hashes.
 
-Mac used only `ccheever@macstudio-charlie-apt101-a`, scratch `~/sb4-ws-integ15`,
-private Node 24.13.1/browser, Xcode 27.0. The black M5 was never used. The native
-floor framework was built for iOS device and simulator; actual installed versions
-are recorded in `mac-native-floor.json`. Native witness source `0130e0f041` has the
-same core/device/client/Expo production source as the final tree. Scratch reference
-app Babel/signing setup failures are retained along with the successful normally
-signed Release run. Owned simulator shut down/deleted. Generated witness metric
-append was preserved verbatim before restoring that file for a fast-forward;
-there was no hand merge of generated metrics.
+Qualification choice: use qualify-linux --consumer-only because the ordinary
+mode invokes the full scripts/test.sh, explicitly forbidden by this task.
+Run the full Rust inventory and full client pool separately; consumer-only
+proves the fresh packed frontend/toolchain and Linux runtime consumers but
+creates no publication receipt. This is an explicit scope decision, not a
+claim of full publication qualification.
 
-## Upgrade, Exact and schema controls
+No next-wave bakeoff was run, so population wins and builder-time reductions
+remain unmeasured. No public deployment, npm publication or push was performed.
 
-The upgrade begins with the requested
-`npm install --save-exact snapback4@0.4.30 snapback4-expo@0.4.30 --registry
-http://127.0.0.1:4873/`. A real row is written before upgrade. Candidate delivery
-uses a temporary read-only registry overlay, not publishing. Acquire the .31
-helper, then run `npx snapback4 upgrade --to 0.4.31`: valid Expo 57.0.30 stays;
-a deliberately lowered 57.0.20 manifest moves to 57.0.22/core 57.0.23. Exact
-row data, ids, store id and authored App/client/schema hashes remain unchanged.
-Check, typecheck, export and final row read pass; exact commands/results retained.
 
-Exact is a fresh `https://github.com/ccheever/exact2` origin/main clone at
-`85cc746b56437e8897720538cd9d8f9dbbb8cfc8`, `~/sb4-loop/prewave15/exact2`.
-`bun scripts/exact.mjs setup` installs tools; only scratch Cargo manifest/lock
-paths bind its core/lang/device to this merged .31 tree. Final projects
-`synced-final` (personas) and `online-guest-final` (bare `use identity`, await
-`guest()` before reads) install pack3. Each runs `bun exact.mjs snapback`,
-Contract type generation and `bun exact.mjs test web --backend <url>` twice.
-`exact-final-commands.json`, driver, manifest/lock patch and numbered logs record
-exactly what ran, including backend launch details in the evidence README.
-
-Both 100-schema surveys use read-only copies of wave14/apps/*/snapback;
-original source hashes are unchanged and identical between the .30 and merged
-checks. Current local-registry .30 control reports **371** notes; merged **358**.
-Every LANG3 final code count (357) matches, plus RULES4's N_REQUIRE_REFUSED in
-079. RULES4's earlier 373/374 record differs by one note each at 063 and 065;
-its absent source hashes do not establish the cause. The current controls do not
-reproduce those two notes. Delta: conditional completeness −2, immutable patch −5,
-hidden lookup −3, never-complete −1, unchecked reference −1, unreadable probe −2,
-require-refused +1; all other code counts stay unchanged.
-
-| Code | Count |
-|---|---:|
-| `N_CASCADE_DORMANT` | 4 |
-| `N_CONDITIONAL_COMPLETE` | 8 |
-| `N_DELETE_NEEDS_READ` | 3 |
-| `N_DELETE_RESTRICTED` | 2 |
-| `N_EPHEMERAL_SERVER` | 1 |
-| `N_IMMUTABLE_PATCH` | 11 |
-| `N_LOOKUP_HIDDEN` | 4 |
-| `N_MAINTAINED_COLUMN_DISCLOSURE` | 2 |
-| `N_MAINTAIN_AUTHORIZATION` | 2 |
-| `N_MAINTAIN_DELTA` | 7 |
-| `N_MAINTAIN_SYNCED` | 1 |
-| `N_NEVER_COMPLETE` | 20 |
-| `N_NO_CURSOR` | 193 |
-| `N_NO_HORIZON` | 14 |
-| `N_NO_PRODUCTION_WRITER` | 53 |
-| `N_PATCH_CLEARS` | 1 |
-| `N_REQUIRE_REFUSED` | 1 |
-| `N_SPARSE_FILTER` | 19 |
-| `N_SYNC_ORDER` | 2 |
-| `N_UNREADABLE_PROBE` | 8 |
-| `N_WIDE_MERGE` | 2 |
-
-Authoring census regenerated: **497 mutations, same 94 private eligible sites**.
-Delivery-await census regenerated: three proof files updated, **213 delivery sites
-and their fault recipes unchanged**. Proof digests regenerated canonically;
-root diagnostics/symbol registry and guide manifest regenerated and inventories
-checked. Root setup actually completed frozen Bun install, workspace hoist and
-check-generated-artifacts; no missing-artifact precondition was skipped.
-
-Lean's baseline has 16,697 agreements, 3,173 unsupported cases and 130 mismatches:
-3 E_RULE/NOT_FOUND, 25 prelude, 67 next and 35 continuation. All oracle counts
-and signatures exactly match RULES4's independently reproduced `4ef9f77fb3`
-control. This is a baseline limitation, not a green Lean equivalence claim.
-
-## Wasm and delivery
-
-Clean locked Linux measurement at `61060eeeb1`, recorded in `bbf8dfaae4`:
-**2,372,829 B raw / 723,275 B gzip / 545,364 B Brotli**. Strict family and
-absence audits pass; dirty=false, over=0. Budget **723,775 B = gzip + exactly
-500 B**, reason recorded in wasm-budget.json/JOURNAL. Whole artifact versus
-0.4.30: +392 B raw/+115 B gzip; no runtime ceiling increase or independent
-feature attribution. Brotli quality 11 uses Node zlib because the CLI is absent.
-
-Durable evidence index: `snapback4/reports/20261017-integration15/README.md`.
-Raw lane reports, final commands, source/artifact digests, JSON results and
-compressed raw logs are retained there; scratch apps/packs remain reviewable.
-
-No requested check is deferred. Full scripts/test.sh, push/publication and the
-live workstream are intentionally excluded as instructed. Ordinary test ignores
-and platform skips retain their reasons. No credentials were copied; no other
-worktree was modified; target/publication and publication worktrees were not touched.
+Cleanup: removed 1,636 test-created SQLite DBs/sidecars (1,638,494,968 bytes)
+from this worktree's snapback4/target, compared with the before-test inventory;
+zero new SQLite files remain. Compiled SQLite objects/libraries were preserved.
+A helper-invoked Cargo test produced incremental artifacts despite the direct
+Cargo commands' flags; those completed-test artifacts were removed (1.18 GB),
+and subsequent helper commands inherit all three required Cargo flags. Eight
+additional test-artifact paths (traces, logs and image fixtures) were moved
+out of target to /tmp/front-test-artifacts. No process using this worktree's
+debug test/backend binaries remained after the suite.
