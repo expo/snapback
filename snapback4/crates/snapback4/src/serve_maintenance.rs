@@ -64,6 +64,10 @@ fn phase<T: Default>(shared: &Shared, result: Result<T, RuntimeError>, drain: bo
 
 // @ref LLP 3000#7-decisions-during-execution — lifetimes are swept into the partition log; missed schedule boundaries fire once.
 fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+    work_at(shared, drain, tick, None)
+}
+
+fn work_at(shared: &Shared, drain: bool, tick: u64, schedule_sample: Option<i64>) -> Result<Work, RuntimeError> {
     let mut work = Work::default();
     shared.ephemeral.sweep(shared.now())?;
     work.delivery_chunks = delivery(shared, drain)?;
@@ -80,7 +84,15 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     }
     // @ref LLP 3000.007#20.2 — advancing a replay clock does not release its schedule hold.
     if !shared.hold_schedules {
-        let fired = phase(shared, engine_work(shared, |engine, _| engine.fire_schedules(shared.now())), drain, "schedules")?;
+        let fired = phase(shared, engine_work(shared, |engine, _| {
+            // @ref LLP 3000.007#20.12.2 — select advance windows before draining; admission deadlines still use the live advanced clock.
+            if let Some(sample) = schedule_sample {
+                let windows = engine.schema().schedules.iter().enumerate().map(|(index, schedule)| (index, schedule.boundary(sample))).collect::<Vec<_>>();
+                let mut fired = Vec::new();
+                for (index, boundary) in windows { fired.extend(engine.fire_schedule_boundary_at(shared.now(), index, boundary)?); }
+                Ok(fired)
+            } else { engine.fire_schedules(shared.now()) }
+        }), drain, "schedules")?;
         work.schedules = fired.len();
         for name in &fired { snapback4_core::diagnostic!("snapback4: schedule {name} fired"); }
         work.fired = fired;
@@ -402,10 +414,10 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let mut crossed = Vec::new();
         if each_boundary {
             for (index, at) in boundaries {
-                crossed.extend(engine_work(shared, |engine, _| engine.fire_schedule_boundary_at(now, index, at))?);
+                crossed.extend(engine_work(shared, |engine, _| engine.fire_schedule_boundary_at(shared.now(), index, at))?);
             }
         }
-        let mut work = work(shared, true, 0)?;
+        let mut work = work_at(shared, true, 0, Some(now))?;
         work.schedules += crossed.len();
         work.fired.extend(crossed);
         Ok::<_, RuntimeError>(work)
@@ -512,6 +524,38 @@ pub(super) fn clock_status(request: Request, shared: &Shared) {
 mod tests {
     use super::*;
     use super::super::tests::Host;
+
+    #[test]
+    fn kit4_slow_advance_reports_only_windows_it_actually_admitted() {
+        for each_boundary in [false, true] {
+            let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+                "table rows:\n  n: int\n  cap 1\n  public 'fixture'\njob tick():\n  for row in rows:\n    update rows[row.id] {n:1}\nschedule pulse every 1m: tick\n");
+            let shared = host.shared.clone();
+            let initial = (snapback4_core::now_ms().div_euclid(60_000) + 2) * 60_000 - 100;
+            lock(&shared.clock).freeze(initial);
+            lock(&shared.engine).fire_schedules(shared.now()).unwrap();
+            let (entered, resume) = shared.engine.pause_next_background(false);
+            let address = host.address;
+            let client = std::thread::spawn(move || {
+                let payload = json!({"duration":"100ms", "eachBoundary":each_boundary}).to_string();
+                super::super::tests::exchange(address, &format!("POST /dev/clock/advance HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{payload}", payload.len()))
+            });
+            entered.recv_timeout(Duration::from_secs(5)).unwrap();
+            // Model two minutes elapsing during the paused drain, without a real sleep.
+            let later = shared.now() + 120_000;
+            lock(&shared.clock).freeze(later);
+            resume.send(()).unwrap();
+            let response = client.join().unwrap();
+            assert_eq!(super::super::tests::status(&response), 200, "{response}");
+            let reply = super::super::tests::body(&response);
+            let windows = reply["schedules"][0]["firedWindows"].as_array().unwrap();
+            assert!(windows.iter().all(|window| window["periodEnd"].as_i64().unwrap() <= reply["now"].as_i64().unwrap()), "{reply}");
+            let jobs: i64 = lock(&shared.engine).store().conn().query_row("SELECT COUNT(*) FROM _jobs", [], |row| row.get(0)).unwrap();
+            assert_eq!(windows.len() as i64, jobs, "the report must not invent coalesced intermediate windows: {reply}");
+            assert_eq!(reply["work"]["schedules"], json!(jobs));
+            if !each_boundary { assert_eq!(jobs, 1); }
+        }
+    }
 
     #[test]
     fn kit4_clock_reply_samples_skew_before_a_delayed_drain() {

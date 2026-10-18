@@ -281,7 +281,7 @@ Dev only, same machine; `serve` refuses each one.
 - `/dev/clock/advance` with `{"duration":"+2m"}` moves the dev clock, sweeps
   expiry, fires due schedules and runs queued jobs (`snapback4 clock advance 2m`).
   The reply includes now, skewMs and each schedule’s firedWindows and skippedBoundaries,
-  with a literal run command per skipped job window. Add eachBoundary:true
+  with up to 32 literal replay commands per schedule and an exact omitted count. Add eachBoundary:true
   (`clock advance 2m --each-boundary`) to admit every crossed window in order.
   Jobs see the final advanced now; use periodStart/periodEnd for historical windows.
 - `/dev/jobs/<job>` with `{"args":{..}}` runs one job now and answers its run.

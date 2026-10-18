@@ -5,7 +5,7 @@
 - Clock advances coalesce arbitrarily many crossed windows; the 10,000-window cap applies only to `--each-boundary`. Skipped-window replies retain exact counts and preview up to 32 replay commands per schedule.
 - Witness mismatches name argument keys; full armed/actual values live in a private mode-0600 proof log. waitForFresh adds substring advice only within explicit scope and names visible headings on timeout.
 - Proof fixtures validate their URL first and identify refused personas or token fingerprints. Missing frontend output names the project's build:web/build script; withBrowser checks playwright-core first.
-- Clock replay commands carry the live dev port. Each-boundary reasons name every window; configured offsets remain exact. waitForClock waits for the page client's advanced clock sample.
+- Clock replay commands carry the live dev port. Each-boundary reasons name every admitted window through slow maintenance; configured offsets remain exact and skew uses the same sample as now. waitForClock waits for the page client's advanced clock sample.
 - Stale online clients after dev reset halt with E_DEV_RESET and instructions to reopen; outstanding writes retain unknown outcomes and are never retried automatically.
 - Fixture aliases support zero-based array paths such as $plans.0.id. Test output explains its columns and explicit --as sweep precedence.
 - The testing guide includes a complete production-account day-two proof and a source-generated proof API table. The wire guide opens with runnable literal envelopes, seed/reset forms and credential headers. Packed qualification runs the examples unchanged.

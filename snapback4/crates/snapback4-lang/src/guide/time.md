@@ -150,11 +150,13 @@ schedule closer every 1m: closeDeparted
 - `snapback4 clock advance 2m [--port N]` moves a running dev forward, sweeps expiry and runs due
   schedules and jobs; over HTTP: `POST /dev/clock/advance` with `{"duration":"2m"}`. An advance across
   many boundaries runs each schedule once, and its reply lists firedWindows and
-  skippedBoundaries with periodStart/periodEnd and a literal run command for each
-  skipped window. Add --each-boundary (HTTP eachBoundary:true) to admit every crossed
+  skippedBoundaries with periodStart/periodEnd and up to 32 literal replay commands
+  per schedule; skippedPeriods is exact and skippedBoundariesOmitted counts the rest. Add --each-boundary (HTTP eachBoundary:true) to admit every crossed
   window in chronological order. Jobs see final advanced now; use period arguments
   for historical windows, or separate advances to test now at each boundary.
-  The advance refuses more than 10000 total crossed windows before changing time.
+  Only --each-boundary refuses more than 10000 total crossed windows before changing time;
+  coalesced advances have no crossed-window cap. Windows are selected at the sampled
+  advance time; time spent draining maintenance cannot invent additional fired windows.
   If work fails after time advances, inspect now/skewMs; normal maintenance resumes
   queued work. Reset the scenario with reset --clock reset rather than repeating
   the advance blindly. E_CLOCK_INTERRUPTED means shutdown stopped the drain:
@@ -163,8 +165,9 @@ schedule closer every 1m: closeDeparted
 - The offset belongs to the process: restart with `dev --resume-clock` to continue from the store's
   newest stamp. `GET /dev/status` reports `now`, `skewMs` and `clockOffsetMs`. `/dev/clock/status` and reset
   also carry now/skewMs; `await dev.now()` from snapback4/proof reads it afresh.
-  They include a persisted timed-disclosure floor, which may hold served time
-  after restart; --resume-clock continues the store’s advanced clock.
+  now/skewMs include a persisted timed-disclosure floor, which may hold served time
+  after restart; --resume-clock continues the store’s advanced clock. clockOffsetMs
+  and offsetMs report the exact configured process offset, unchanged on refusal.
 - `snapback4 run <op> --now +2h` (or milliseconds) pins the clock for one local run.
 - In the client, `client.now()` is the server's time estimate; `useNow(deadline)` from `snapback4/react`
   re-renders at a deadline.
