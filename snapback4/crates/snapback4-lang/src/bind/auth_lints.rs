@@ -770,7 +770,16 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
             } else {
                 format!(" This require/read path already established a readable {} row; the note remains because the compiler cannot prove that fact admits every {} row this negative probe must observe.", established.join(" or "), read.table)
             };
-            let unique = pins(catalog, &read).and_then(|pins| {
+            let probe_pins = pins(catalog, &read).or_else(|| {
+                let [key] = read.keys.as_slice() else { return None };
+                let Expr::Name { name, .. } = &key.value else { return None };
+                let arg = catalog.documents.iter().flat_map(|d| &d.programs)
+                    .find(|p| p.name == program && p.site.file == read.site.file)?.args.iter().find(|a| a.name == *name)?;
+                (key.column.is_none() && read.index.is_none() && (matches!(&arg.type_.kind, TypeKind::Id)
+                    || matches!(&arg.type_.kind, TypeKind::Ref { table } if table == &read.table)))
+                    .then(|| BTreeMap::from([("id".into(), key.value.clone())]))
+            });
+            let unique = probe_pins.and_then(|pins| {
                 let info = catalog.tables.get(&read.table)?;
                 let key = info.indexes.iter().filter(|index| index.unique && index.is_plain()
                     && index.columns.iter().all(|column| pins.contains_key(column) && (column == "id" || info.columns.get(column).is_some_and(|ty| !ty.optional))))

@@ -131,7 +131,7 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
         let missing=schema.tables.keys().filter(|table|super::cascade_repair::reaches(schema,&parent,table)).flat_map(|table|schema.referencing(table))
             .filter(|r|r.action.writes() && schema.reference_cap(r.child,r.column).is_none())
             .map(|r|format!("{}.{} needs `cap N by {}` or plain single-column `unique {}`",r.child,r.column,r.column,r.column)).collect::<Vec<_>>().join("; ");
-        let enabling: Vec<_> = catalog.tables.iter().filter(|(table, _)| super::cascade_repair::reaches(schema, table, &parent))
+        let enabling: Vec<_> = catalog.tables.iter().filter(|(table, _)| super::cascade_repair::reaches(schema, table, &parent) && schema.table(table).is_some_and(|t| !matches!(t.rules.delete, core::RuleExpr::Deny)))
             .flat_map(|(table, info)| info.decl.rules.iter().filter(|rule| rule.effect == Effect::Delete && !matches!(&rule.value, Expr::Name { name, .. } if name == "deny"))
                 .map(move |rule| format!("{table}: `delete <- {}` at {}", crate::print::expression(&rule.value), rule.site))).collect();
         let source = if enabling.is_empty() { String::new() } else { format!("; enabled by {}", enabling.join("; ")) };

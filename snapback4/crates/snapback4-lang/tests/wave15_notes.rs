@@ -125,6 +125,16 @@ fn explicit_query_branch_names_a_narrower_table_rule_without_changing_it() {
     let assigned = format!("{AUTH}query listing(c: cursor ?):\n  page = []\n  if exists staff[viewer]:\n    page = rows first 20 by .id after c\n  return page\n");
     assert!(has(&checked(&assigned), "N_QUERY_FILTERED"));
     assert!(!has(&checked(&assigned.replace("if exists staff[viewer]:", "if exists staff[viewer, role = 'manager']:")), "N_QUERY_FILTERED"));
+    for expression in ["rows first 20 by .id after c", "{ page: rows first 20 by .id after c }"] {
+        let implicit = format!("{AUTH}query listing(c: cursor ?):\n  require exists staff[viewer] else NO_ROLE\n  {expression}\n");
+        assert!(has(&checked(&implicit), "N_QUERY_FILTERED"));
+        assert!(!has(&checked(&implicit.replace("require exists staff[viewer]", "require exists staff[viewer, role = 'manager']")), "N_QUERY_FILTERED"));
+    }
+    for transfer in ["break", "continue"] {
+        let looped = format!("{AUTH}query listing(c: cursor ?):\n  page = []\n  for item in [true, false]:\n    if exists staff[viewer]:\n      page = rows first 20 by .id after c\n      {transfer}\n  return page\n");
+        assert!(has(&checked(&looped), "N_QUERY_FILTERED"));
+        assert!(!has(&checked(&looped.replace("if exists staff[viewer]:", "if exists staff[viewer, role = 'manager']:")), "N_QUERY_FILTERED"));
+    }
 }
 
 #[test]
@@ -144,4 +154,40 @@ fn unreadable_guard_cites_its_backing_unique_key() {
     let b = checked("table rows:\n  owner: principal\n  name: text <=40\n  unique name\n  read <- .owner = viewer\n  insert <- .owner = viewer\nmutation add(name: text <=40):\n  require not exists rows[name = name] else TAKEN\n  return insert rows { owner: viewer, name }\n");
     let n = b.notes.iter().find(|n| n.code == "N_UNREADABLE_PROBE").unwrap();
     assert!(n.message.contains("Backing unique index: rows(name)"), "{n:?}");
+    let by_id = checked("table rows:\n  owner: principal\n  read <- .owner = viewer\n  online only\nmutation absent(row: rows):\n  require not exists rows[row] else PRESENT\n  return true\n");
+    let n = by_id.notes.iter().find(|n| n.code == "N_UNREADABLE_PROBE").unwrap();
+    assert!(n.message.contains("Backing unique index: rows(id)"), "{n:?}");
+}
+
+#[test]
+fn caller_absence_cannot_discharge_a_physical_negative_read_rule() {
+    let bans = "table bans:\n  principal: principal\n  unique principal\n  read <- deny\n  online only\n";
+    let auth = AUTH.replace("read <- .owner = viewer or exists staff[viewer, role = 'manager']", "read <- exists staff[viewer] and not exists bans[viewer]");
+    let query = "query listing(c: cursor ?):\n  require exists staff[viewer] and not exists bans[viewer] else NO_ROLE\n  return rows first 20 by .id after c\n";
+    assert!(has(&checked(&format!("{bans}{auth}{query}")), "N_QUERY_FILTERED"));
+    assert!(!has(&checked(&format!("{}{auth}{query}", bans.replace("read <- deny", "read <- allow"))), "N_QUERY_FILTERED"));
+}
+
+#[test]
+fn complex_query_branch_analysis_stops_with_an_honest_review_note() {
+    let args = (0..14).map(|i| format!("b{i}: bool")).collect::<Vec<_>>().join(", ");
+    let branches = (0..14).map(|i| format!("  if b{i}:\n    ignored{i} = true\n")).collect::<String>();
+    let source = format!("{AUTH}query complex({args}, c: cursor ?):\n{branches}  return rows first 20 by .id after c\n");
+    let b = checked(&source);
+    assert!(b.notes.iter().any(|n| n.code == "N_QUERY_FILTERED" && n.message.contains("source-analysis limit") && n.message.contains("rows")));
+}
+
+#[test]
+fn concatenation_and_loop_append_keep_only_returned_page_origins() {
+    for result in [
+        "  return [page] + []\n",
+        "  return [] + [page]\n",
+        "  pages = []\n  for item in [true, false]:\n    pages = pages + [page]\n  return pages\n",
+    ] {
+        let source = format!("{AUTH}query listing(c: cursor ?):\n  require exists staff[viewer] else NO_ROLE\n  page = rows first 20 by .id after c\n{result}");
+        assert!(has(&checked(&source), "N_QUERY_FILTERED"), "{source}");
+        assert!(!has(&checked(&source.replace("require exists staff[viewer]", "require exists staff[viewer, role = 'manager']")), "N_QUERY_FILTERED"));
+    }
+    let unused = format!("{AUTH}query listing(c: cursor ?):\n  require exists staff[viewer] else NO_ROLE\n  page = rows first 20 by .id after c\n  discarded = [page] + []\n  return []\n");
+    assert!(!has(&checked(&unused), "N_QUERY_FILTERED"));
 }

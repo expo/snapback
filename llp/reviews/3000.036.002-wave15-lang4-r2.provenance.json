@@ -12,5 +12,5 @@
       "empty-list scalar validation"
     ]
   },
-  "muse": "still running via required wrapper; record only when received"
+  "muse": "Source-audit attempt canceled after >20 minutes without a review; wrapper used plan-quota fallback. No verdict received. Superseded by the complete independent design review in round 4."
 }
