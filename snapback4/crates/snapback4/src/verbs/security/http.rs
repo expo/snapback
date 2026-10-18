@@ -3,6 +3,7 @@
 use std::{fs, io::{Read,Write}, net::{TcpListener,TcpStream,SocketAddr}, path::PathBuf,
     process::{Child,Command,Stdio}, time::{Duration,Instant,SystemTime,UNIX_EPOCH}};
 use snapback4_lang::Bound;
+#[path="http_image.rs"] mod image;
 
 struct Scratch(PathBuf);
 impl Drop for Scratch {fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
@@ -37,21 +38,25 @@ fn exchange(address:SocketAddr,method:&str,path:&str,header:&str,body:&str)->Res
 }
 fn framed(headers:&str,body:&[u8])->Result<Vec<u8>,String>{
     let mut length=None;let mut transfer=false;
-    for line in headers.lines().skip(1){
+    let mut lines=headers.split("\r\n");
+    let status=lines.next().ok_or("missing HTTP status line")?;
+    if !(status.starts_with("HTTP/1.1 ")||status.starts_with("HTTP/1.0 "))||status.bytes().any(|b|b<32||b==127){return Err("malformed HTTP status line".into());}
+    for line in lines{
         let (name,value)=line.split_once(':').ok_or("malformed HTTP header")?;
+        if name.is_empty()||!name.bytes().all(|b|b.is_ascii_alphanumeric()||b"!#$%&'*+-.^_`|~".contains(&b))||value.bytes().any(|b|b<32&&b!=b'\t'||b==127){return Err("malformed HTTP header field".into());}
         if name.eq_ignore_ascii_case("content-length"){
-            let value=value.trim();
+            let value=value.trim_matches([' ','\t']);
             if length.is_some()||value.is_empty()||!value.bytes().all(|b|b.is_ascii_digit()){return Err("invalid or duplicate HTTP content length".into());}
             length=Some(value.parse::<usize>().map_err(|_|"invalid HTTP content length")?);
         }
         if name.eq_ignore_ascii_case("transfer-encoding"){
-            if transfer||!value.trim().eq_ignore_ascii_case("chunked"){return Err("invalid or duplicate HTTP transfer encoding".into());}transfer=true;
+            if transfer||!value.trim_matches([' ','\t']).eq_ignore_ascii_case("chunked"){return Err("invalid or duplicate HTTP transfer encoding".into());}transfer=true;
         }
     }
     if transfer{
         if length.is_some(){return Err("conflicting HTTP body framing".into());}chunks(body)
     }else{
-        if length.is_some_and(|n|n!=body.len()){return Err("HTTP body differs from declared content length".into());}
+        if length!=Some(body.len()){return Err("HTTP body lacks complete declared content length".into());}
         Ok(body.to_vec())
     }
 }
@@ -60,7 +65,8 @@ fn chunks(mut wire:&[u8])->Result<Vec<u8>,String>{
     loop{
         let line=wire.windows(2).position(|b|b==b"\r\n").ok_or("incomplete HTTP chunk header")?;
         let size=std::str::from_utf8(&wire[..line]).map_err(|_|"invalid HTTP chunk header")?;
-        let count=usize::from_str_radix(size.split(';').next().unwrap_or(""),16).map_err(|_|"invalid HTTP chunk size")?;
+        if size.is_empty()||!size.bytes().all(|b|b.is_ascii_hexdigit()){return Err("invalid HTTP chunk size".into());}
+        let count=usize::from_str_radix(size,16).map_err(|_|"invalid HTTP chunk size")?;
         wire=&wire[line+2..];
         if count==0{if wire!=b"\r\n"{return Err("unexpected HTTP chunk trailer".into());}return Ok(out);}
         let end=count.checked_add(2).ok_or("HTTP chunk size overflow")?;
@@ -82,6 +88,9 @@ mod tests{
         assert!(super::framed("HTTP/1.1 401 Unauthorized\r\nContent-Length: 2\r\nContent-Length: 2",b"{}").is_err());
         assert!(super::framed("HTTP/1.1 401 Unauthorized\r\nTransfer-Encoding: chunked\r\nContent-Length: 2",b"{}").is_err());
         assert_eq!(super::framed("HTTP/1.1 200 OK\r\nContent-Length: 2",b"{}").unwrap(),b"{}");
+        assert!(super::framed("HTTP/1.1 401 Unauthorized\r\nContent-Length : 100",prefix).is_err());
+        assert!(super::framed("HTTP/1.1 401 Unauthorized\r\nContent-Length: \u{00a0}2",b"{}").is_err());
+        assert!(super::chunks(b"+2\r\n{}\r\n0\r\n\r\n").is_err());
     }
 }
 
@@ -140,14 +149,8 @@ pub(super) fn run(bound:&Bound,sources:&[(String,String)])->Result<usize,String>
         let file=std::path::Path::new(name).file_name().ok_or("source needs a file name")?;
         fs::write(scratch.0.join("snapback").join(file),text).map_err(|e|e.to_string())?;
     }
-    // Cargo can replace the executable pathname while a long fixture test is
-    // running. Snapshot this invocation's image before spawning the host.
-    #[cfg(target_os="linux")]
-    let source=PathBuf::from("/proc/self/exe");
-    #[cfg(not(target_os="linux"))]
-    let source=std::env::current_exe().map_err(|e|e.to_string())?;
     let executable=scratch.0.join("security-host");
-    fs::copy(source,&executable).map_err(|e|format!("private security host snapshot: {e}"))?;
+    image::snapshot(&executable)?;
     let output=fs::File::create(scratch.0.join("host.log")).map_err(|e|e.to_string())?;
     let command=|verb:&str|->Result<Command,String>{
         let mut c=Command::new(&executable);c.arg(verb).current_dir(&scratch.0)
