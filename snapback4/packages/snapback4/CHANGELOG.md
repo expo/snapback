@@ -1,5 +1,9 @@
 # Snapback 4 behavior changes
 
+## 0.4.32
+
+- Production entry opens the device and restores persisted sessions before refreshing `/auth/config`; an unreachable backend no longer replaces an offline account screen with an alert.
+
 ## 0.4.31
 
 - Existing stores keep their rows, ids, schema and captured `read through` authority. No automatic data repair or audience expansion occurs. Regenerate declarations and rebuild web, native and Exact clients to pick up the runtime and client changes below; review new correctness notes before deploying edited schemas.

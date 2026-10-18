@@ -106,7 +106,12 @@ nativeDevice and use SecureStore (`guide client`). Never keep credentials in an 
 ## Password plus development personas
 
 Keep the account form as the default. This outer selector reads the server's
-configuration before interpreting `?as=`. Its persona list is the application's
+cached development configuration when interpreting `?as=` and refreshes it in the
+background. A missing cache defaults to account sign-in. The SDK restores its
+last session and held data without waiting for the server. Cache failure or a
+failed refresh never replaces the account screen. The cache is discovery UI,
+not authority: serve still refuses every persona. On a first visit, wait for
+the development links before choosing a persona. Its persona list is the application's
 declared development list; it grants no production role. Mount `AccountEntry`
 above `AppProvider`; the `children` contain Gate/PasswordForm/AccountScreen from
 above. An account screen reads `myStaff` below to show roster roles and mounts
@@ -120,25 +125,26 @@ import {localStorageSessionStore} from "snapback4/auth";
 import {AppProvider} from "snapback4/react";
 export function AccountEntry({url, children}: {url: string; children: ReactNode}) {
   const [ready, setReady] = useState<{app: App; development: boolean} | null>(null);
-  const [error, setError] = useState("");
   useEffect(() => {
-    let closed = false, owned: App | undefined;
-    void (async () => {
-      try {
-        const response = await fetch(`${url}/auth/config`);
-        if (!response.ok) throw new Error("Authentication configuration unavailable");
+    const key = `snapback4:auth-config:${url}`;
+    let development = false;
+    try { development = JSON.parse(localStorage.getItem(key) ?? "null")?.development === true; } catch {}
+    const requested = new URLSearchParams(location.search).get("as");
+    const persona = development && ["alice", "bob"].includes(requested ?? "") ? requested! : undefined;
+    const owned = createApp({url, device: webDevice(), sessionStore: localStorageSessionStore(), ...(persona ? {persona} : {})});
+    setReady({app: owned, development});
+    const controller = new AbortController();
+    void fetch(`${url}/auth/config`, {method: "GET", signal: controller.signal})
+      .then(async response => {
+        if (!response.ok) return;
         const config = await response.json();
+        if (controller.signal.aborted) return;
         const development = config.development === true;
-        const requested = new URLSearchParams(location.search).get("as");
-        const persona = development && ["alice", "bob"].includes(requested ?? "") ? requested! : undefined;
-        if (closed) return;
-        owned = createApp({url, device: webDevice(), sessionStore: localStorageSessionStore(), ...(persona ? {persona} : {})});
+        try { localStorage.setItem(key, JSON.stringify({development})); } catch {}
         setReady({app: owned, development});
-      } catch (failure) { if (!closed) setError(String(failure)); }
-    })();
-    return () => { closed = true; void owned?.close(); };
+      }).catch(() => {});
+    return () => { controller.abort(); void owned.close(); };
   }, [url]);
-  if (error) return <p role="alert">{error}</p>;
   if (!ready) return <p>Loading sign-in…</p>;
   return <>{ready.development && <nav aria-label="Development identity">
     <a href="?">Password account</a> <a href="?as=alice">Alice</a> <a href="?as=bob">Bob</a>

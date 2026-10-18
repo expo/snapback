@@ -125,6 +125,8 @@ export async function proveProduction(client, platform, expo, directory) {
   writeFileSync(join(web.cwd, "production-accounts.mjs"), productionAccounts);
   await run(process.execPath, ["production-accounts.mjs"], web.cwd);
   await run(process.execPath, ["--test", join(root, "packages/snapback4/test/production-starters.test.mjs")], root, {
+    SNAPBACK4_PRODUCTION_GUIDE: join(web.cwd, "production-guide.log"),
+    SNAPBACK4_BIN: join(web.cwd, "node_modules", `snapback4-${process.platform}-${process.arch}`, "snapback4"),
     SNAPBACK4_PRODUCTION_WEB_APP: join(web.cwd, "recipes/production/App.tsx"),
     SNAPBACK4_PRODUCTION_EXPO_APP: join(native.cwd, "recipes/production/App.tsx"),
     SNAPBACK4_PRODUCTION_NATIVE_SMOKE: join(native.cwd, "src/native-smoke.ts"),
