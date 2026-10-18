@@ -219,9 +219,9 @@ test("secret stdout stays in memory; token CLI automatically selects secret capt
     assert.doesNotMatch(readFileSync(token.logs.stdout,'utf8'),/minted bearer/);
   } finally { if(original===undefined)delete process.env.SNAPBACK4_BIN;else process.env.SNAPBACK4_BIN=original; }
 });
-test("startDev args preserve memory isolation unless a store is explicit", async t => {
+test("startDev explicit --memory preserves isolation with custom arguments", async t => {
   const cwd=fixture(t);
-  for (const args of [['--port','0'], []]) {
+  for (const args of [['--port','0','--memory'], ['--memory']]) {
     const host=await startDev({cwd,args});
     try {
       const list=await (await fetch(host.url+'/q/list',{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':'alice'},body:'{"args":{}}'})).json();

@@ -153,6 +153,7 @@ impl Host {
             committed: Condvar::new(),
             seq: Mutex::new(0),
             personas: dev,
+            unsafe_dev_doors: dev,
             hold_effects: false,
             hold_schedules: false,
             time_audience_clock: AtomicI64::new(authoritative_now),
