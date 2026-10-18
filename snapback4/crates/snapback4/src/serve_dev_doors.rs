@@ -35,7 +35,7 @@ pub(super) fn persona_argument(shared: &Shared, kinds: &BTreeMap<String,snapback
 }
 // Rows are written as the system principal; each names its id because seed is an upsert by id.
 pub(super) fn seed(request: Request, shared: &Shared, body: &str) {
-    if !shared.personas || !request.remote_addr().is_some_and(|a| a.ip().is_loopback()) {
+    if !shared.dev_doors() || !request.remote_addr().is_some_and(|a| a.ip().is_loopback()) {
         respond_timed(request, shared, 403, json!({ "denied": refusal_json(&Refusal::new("E_AUTH", "auth", "seeding is a development door")) }));
         return;
     }
@@ -126,7 +126,7 @@ fn reset_request(body: &str) -> Result<ResetRequest, Refusal> {
 
 // @ref LLP 3000.007#20.25 — one transaction: empty, new identity, reseed; then the host's caches follow.
 pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
-    if !shared.personas || !request.remote_addr().is_some_and(|a| a.ip().is_loopback()) {
+    if !shared.dev_doors() || !request.remote_addr().is_some_and(|a| a.ip().is_loopback()) {
         respond_timed(request, shared, 403, json!({ "denied": refusal_json(&reset_release()) }));
         return;
     }

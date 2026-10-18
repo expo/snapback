@@ -25,6 +25,7 @@ fn a_request_after_engine_poison_still_serves() {
         committed: Condvar::new(),
         seq: Mutex::new(0),
         personas: true,
+        unsafe_dev_doors: true,
         hold_effects: false,
         hold_schedules: false,
         time_audience_clock: AtomicI64::new(authoritative_now),

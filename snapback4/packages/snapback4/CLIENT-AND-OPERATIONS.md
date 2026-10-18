@@ -2480,6 +2480,8 @@ the caller.
 
 #### Seed accounts headlessly (Node)
 
+For a complete serve staging release with real users per role, private credentials and first-admin setup, run `snapback4 guide staging`. `startServe` supplies operatorToken/seedAccounts; bulk setup refuses production. Password-only dev requires explicit --unsafe-dev-doors for fixture/clock/persona tools, and startDev persists unless --memory is explicit.
+
 `signup` and `login` below work in Node 24 with the same server password hashing,
 rate limits and application rules as browser sign-in. Run `snapback4 guide auth`
 for a runnable `seed.mjs`: declare `use identity password`, run `snapback4 check`,

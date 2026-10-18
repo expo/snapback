@@ -1,5 +1,7 @@
 # Deploy: upgrade, real accounts and schema evolution
 
+For a complete real-user staging script and first-admin setup, run `guide staging`. Bulk account setup is restricted to fresh `deploy --staging` stores.
+
 A release is immutable source over one durable store. JSON fields, bounded ready waits and worker roots: `guide release-json`. Deploy from the app directory:
 
 ```sh

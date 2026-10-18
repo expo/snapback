@@ -1,5 +1,7 @@
 # Testing: fixtures and the packaged proof kit
 
+For shared test releases and probe:serve, use `guide staging`: real password users and operator grants on serve. Password-only dev fixture/clock tools require explicit --unsafe-dev-doors; startDev persists unless --memory is explicit.
+
 Prove backend behavior with fixtures and the rendered UI with the packaged proof kit.
 Starters generate frontend:proof and day2:proof, and the kit owns server and browser lifecycles.
 

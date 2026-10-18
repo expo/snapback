@@ -100,6 +100,7 @@ pub struct Shared {
     pub seq: Mutex<u64>,
     /// `dev` admits loopback personas; a release refuses them.
     pub personas: bool,
+    pub unsafe_dev_doors: bool,
     pub hold_effects: bool,
     pub hold_schedules: bool,
     pub entropy: Mutex<snapback4_core::ids::Mint>,
@@ -151,6 +152,12 @@ pub struct Shared {
 }
 
 impl Shared {
+    // @ref LLP 3000.000.000.001#4-development-doors — current adopted auth policy closes test authority, independently of dev mode.
+    pub(crate) fn dev_doors(&self) -> bool {
+        if !self.personas { return false; }
+        let bound = lock(&self.bound);
+        self.unsafe_dev_doors || !(bound.schema.auth.password && !bound.schema.auth.guests)
+    }
     pub fn now(&self) -> i64 { lock(&self.clock).now().max(self.time_audience_clock.load(Ordering::Acquire)) }
     pub(crate) fn refresh_time_audience_clock(&self, engine: &Engine, now: i64) {
         if engine.schema().tables.values().any(|table| table.not_before.is_some()) {
@@ -303,7 +310,7 @@ pub(crate) fn test_work(hook: &WorkHook) {
 /// How the server is run: `dev` on a project (personas, watch), or a
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
-    Dev { trace_empty: bool, verbose: bool, watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
+    Dev { unsafe_dev_doors: bool, trace_empty: bool, verbose: bool, watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
     Release { expected: u64, worker: Option<std::path::PathBuf>, owner: Arc<crate::store_owner::Owner> },
 }
 
@@ -861,6 +868,11 @@ fn handle(mut request: Request, shared: &Shared) {
         respond_with_sync(request, 403, json!({ "denied": refusal_json(&refusal) }), false, None, Some(shared));
         return;
     }
+    // /dev/token has already been routed through its mutual local-owner proof.
+    if (path.starts_with("/dev/") || path == "/seed") && !shared.dev_doors() {
+        return respond_timed(request, shared, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth",
+            "development doors are closed; use serve staging with real users (guide deploy), or explicitly opt into dev --unsafe-dev-doors for local fixtures").guide("deploy"))}));
+    }
     if path.starts_with("/dev/clock") && !shared.personas {
         return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&crate::dev_clock::release()) }));
     }
@@ -1035,9 +1047,14 @@ fn handle(mut request: Request, shared: &Shared) {
             Err(refusal) => respond_timed(request, shared, if refusal.retryable { 503 } else { 401 }, json!({ "denied": refusal_json(&refusal) })),
         },
         (Method::Get, "/auth/config") => {
-            let auth = producing_engine(shared).schema().auth.clone();
+            let (auth, environment) = {
+                let engine = producing_engine(shared);
+                let environment = if shared.personas { "development" }
+                    else if engine.store().meta("deployment_environment").ok().flatten().as_deref() == Some("staging") { "staging" } else { "production" };
+                (engine.schema().auth.clone(), environment)
+            };
             // @ref LLP 3000.011.003.000.000#1 — an opt-in proof marker asserts the directly bound server, without granting authority.
-            let mut config = json!({ "guests": auth.guests, "password": auth.password, "development": shared.personas });
+            let mut config = json!({ "guests": auth.guests, "password": auth.password, "development": shared.personas, "devDoors": shared.dev_doors(), "environment": environment });
             if let Ok(id) = std::env::var("SNAPBACK4_PROOF_ID") && !id.is_empty() {
                 config["proof_id"] = json!(id);
             }

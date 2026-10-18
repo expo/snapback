@@ -96313,3 +96313,21 @@ under `--prefer-offline`; after refreshing it, Linux passed `== 0 failure(s) in
 steps reran after it appeared. Clean installs on Linux and the Mac print
 `snapback4 0.4.30` and pass `init` + `check`. Details:
 `reports/20261016-publication-0.4.30/REPORT.md`.
+
+
+## 2026-10-18 — STAGE: real-user staging, operator first admin, explicit dev tools
+
+Wave-16 bakeoff §1/§7 found ten Muse probes using dev to provision roles.
+LLP orient context: release ownership/retention (LLP 3000.000.000 §§2/5),
+local service proof (LLP 3000.019 §3.4), password authority (LLP 3000.007 §8),
+and packaged hosts (LLP 3000.011.003.000.000 §1). New child amendment
+LLP 3000.000.000.001 records a store-lifetime staging classification: fresh
+--staging only, no production relabelling or promotion. Real signup plus an
+operator-only mutation supplies roles; no serve system-seed endpoint.
+Password-only dev closes its tools unless --unsafe-dev-doors; development
+remains observable even when closed. startDev now follows native persistence.
+Focused staging tests cover real roles/login/data, self-grant refusal,
+production refusal, hot/cold classification, explicit tools, persistence and
+schema-adoption closure. Further packed/platform/full-suite results and blind
+reviews are recorded in the workstream report; no publication claim.
+SEC owns self-promotion lint, KIT4 the unrelated helper work, PROD2 starter adaptation.
