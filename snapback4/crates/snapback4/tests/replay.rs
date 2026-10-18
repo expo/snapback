@@ -361,7 +361,7 @@ fn w7c_service_token_output_names_its_owning_store() {
         assert_eq!(snapback4_core::identity::resolve(&own, token, now).unwrap().unwrap().0, "service:audit");
         assert!(snapback4_core::identity::resolve(&other, token, now).unwrap().is_none());
         assert!(out.stderr.is_empty());
-        let reported = if args.contains(&"--release") { path } else { path.canonicalize().unwrap() };
+        let reported = path.canonicalize().unwrap();
         assert_eq!(record["store"], reported.to_string_lossy().as_ref());
     }
 }
