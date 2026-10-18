@@ -25,6 +25,11 @@ export function registerWebWitness(app: App, api: Operations): void {
   Object.defineProperty(window, "__snapback4Witness", { configurable: true, value: {
     ready: () => app.ready,
     viewer: () => app.client?.viewer(),
+    clock: () => {
+      armed();
+      if (!app.client) throw Error("E_WITNESS_AUTH: no signed-in client clock");
+      return app.client.now();
+    },
     beginForm: (name: string | undefined, expected: Record<string, unknown> | null | undefined, button: Element) => {
       armed();
       if (!app.client) throw Error("E_WITNESS_AUTH: no signed-in client");

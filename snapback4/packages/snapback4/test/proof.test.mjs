@@ -46,7 +46,7 @@ test("native and static bind beyond an occupied port; identity and independent l
 test("exhausted range and missing export fail with bounded cleanup", async t => {
   const cwd = fixture(t), held = createServer(), port = await bind(held); t.after(() => held.close());
   await assert.rejects(startDev({ cwd, env: { PORT_LO: String(port), PORT_HI: String(port) }, timeoutMs: 5000 }), /before ready/);
-  await assert.rejects(startStatic("dist", { cwd, timeoutMs: 5000 }), /startStatic: .*dist does not exist; frontend proofs build their own dist \(await command\("npm", \["run", "build"\]\)\)/);
+  await assert.rejects(startStatic("dist", { cwd, timeoutMs: 5000 }), /startStatic: .*dist does not exist; frontend proofs build their own dist/);
   for (let attempt = 0; attempt < 3; attempt++) await assert.rejects(startStatic("snapback", { cwd, timeoutMs: 5000 }), /index.html/);
 });
 test("static host serves wasm correctly and refuses escaped symlink assets", async t => {
@@ -305,4 +305,12 @@ catch(error){if(!/timed out/.test(error.message))throw error;}`);
   });
   await bounded((async()=>{while(!holder){try{holder=JSON.parse(readFileSync(marker,'utf8')).pid;}catch(error){if(error.code!=='ENOENT')throw error;}if(!holder)await new Promise(resolve=>setTimeout(resolve,20));}})(),5000,'pipe holder spawned');
   assert.equal(await bounded(closed,5000,'secret driver exit'),0);
+});
+
+test('KIT4 missing static output names the app build script', async t => {
+  const cwd=mkdtempSync(join(tmpdir(),'kit4-build-script-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  for (const script of ['build:web','build']) {
+    writeFileSync(join(cwd,'package.json'),JSON.stringify({scripts:{[script]:'builder'}}));
+    await assert.rejects(startStatic('dist',{cwd}), error=>{assert.ok(error.message.includes(`run", "${script}"`),error.message);return true;});
+  }
 });

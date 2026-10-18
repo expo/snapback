@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
 const dist = process.env.KIT2_BASELINE_DIST ?? resolve(import.meta.dirname, '../dist');
@@ -131,11 +132,11 @@ test('KIT3 starter SVG box click and scoped text recipe run literally', {timeout
   const source=readFileSync(new URL('../../../crates/snapback4/src/verbs/init/frontend-proof.mjs',import.meta.url),'utf8');
   const body=source.match(/async function clickSvg\(page, control\) \{([\s\S]*?)\n\}/)[1];
   const clickSvg=new Function('assert',`return async function(page,control){${body}}`)(assert);
-  await page.setContent(`<svg width="160" height="80"><foreignObject width="160" height="80"><button style="width:160px;height:80px" onclick="document.querySelector('section p').textContent='fresh saved'">Save</button></foreignObject></svg><section aria-label="Rows"><p>old</p></section><p>fresh saved</p><label>Choice<select><option value="a">Alpha</option><option value="b">Beta</option></select></label>`);
+  await page.setContent(`<svg width="160" height="80"><foreignObject width="160" height="80"><button style="width:160px;height:80px" onclick="document.querySelector('section p').textContent='fresh saved'">Save</button></foreignObject></svg><section aria-label="Rows"><p>old</p></section><p>fresh saved</p><label for="choice">Choice</label><select id="choice"><option value="a">Alpha</option><option value="b">Beta</option></select>`);
   const within=page.getByRole('region',{name:'Rows'});
   await clickSvg(page,page.locator('svg'));
   assert.equal(await kit.waitForFresh(kit.renderedText(page,/fresh saved/,{within}),null,1000),'fresh saved');
-  const select=page.getByText('Choice',{exact:false}).locator('select');await kit.selectByValue(select,'b');assert.equal(await select.inputValue(),'b');
+  const select=page.getByLabel('Choice',{exact:true});await kit.selectByValue(select,'b');assert.equal(await select.inputValue(),'b');
 }));
 
 test('KIT3 dev.now reads the current served clock across advance and reset', {timeout:30000}, async t => {
@@ -149,4 +150,29 @@ test('KIT3 dev.now reads the current served clock across advance and reset', {ti
   assert.ok(await dev.now()>=advanced.now);
   const reset=await post('/dev/reset',{});assert.ok(reset.now>=advanced.now);assert.ok(reset.skewMs>=7_199_000);
   const wall=await post('/dev/reset',{clock:'reset'});assert.ok(Math.abs(wall.skewMs)<1000);assert.ok(Math.abs(await dev.now()-Date.now())<1000);
+});
+
+test('KIT4 stale online client names dev reset and a newly opened client works', {timeout:30000}, async t => {
+  const {createClient}=await import('../dist/client.js');
+  const cwd=mkdtempSync(join(tmpdir(),'kit4-reset-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  mkdirSync(join(cwd,'snapback'));writeFileSync(join(cwd,'snapback/schema.q'),'use personas alice\nquery time():\n  return now\n');
+  const dev=await kit.startDev({cwd});t.after(()=>dev.stop());
+  const before=createClient({url:dev.url,persona:'alice'});t.after(()=>before.close());
+  assert.equal((await before.query({kind:'query',name:'time'},{})).complete,true);
+  const reset=await fetch(dev.url+'/dev/reset',{method:'POST',body:'{}'});assert.equal(reset.status,200);
+  const reply=await before.query({kind:'query',name:'time'},{});
+  assert.equal(reply.denied.code,'E_DEV_RESET');assert.match(reply.denied.message,/reopen the client/);
+  const after=createClient({url:dev.url,persona:'alice'});t.after(()=>after.close());
+  assert.equal((await after.query({kind:'query',name:'time'},{})).complete,true);
+});
+test('KIT4 waitForClock observes the page client instead of the proof driver clock', {timeout:30000}, async t => browser(t, async page => {
+  await page.setContent('<h1>Clock</h1>');
+  await page.evaluate(()=>{window.sample=1;window.__snapback4Witness={clock:()=>window.sample};setTimeout(()=>window.sample=3600001,100);});
+  assert.equal(await kit.waitForClock(page,3600001,{timeoutMs:2000}),3600001);
+  await assert.rejects(kit.waitForClock(page,7200001,{timeoutMs:50}),/page client clock.*last=3600001/);
+  await assert.rejects(kit.waitForClock(page,NaN),/E_PROOF_USAGE/);
+}));
+
+test('KIT4 generated proof API table agrees with every source export', {timeout:60000},()=>{
+  execFileSync(process.execPath,[new URL('../../../scripts/generate-proof-api.mjs',import.meta.url).pathname,'--check'],{timeout:50000});
 });

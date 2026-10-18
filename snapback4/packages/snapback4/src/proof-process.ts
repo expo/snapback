@@ -38,6 +38,7 @@ export function deadline(ms: number | undefined, fallback: number): number {
   if (!Number.isFinite(value) || value < 1) throw new RangeError("proof timeout must be positive and finite");
   return value;
 }
+/** @throws deadline expires; work rejection propagates. */
 export async function bounded<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -47,6 +48,7 @@ export async function bounded<T>(work: Promise<T>, ms: number, label: string): P
   } finally { clearTimeout(timer); }
 }
 /** Attempts every cleanup, even if a preceding step fails or stalls. */
+/** @throws AggregateError after every cleanup was attempted; each step has a 10-second bound. */
 export async function cleanup(...steps: Array<(() => unknown | Promise<unknown>) | undefined>): Promise<void> {
   const errors: unknown[] = [];
   for (const step of steps) if (step) {
@@ -55,6 +57,7 @@ export async function cleanup(...steps: Array<(() => unknown | Promise<unknown>)
   }
   if (errors.length) throw new AggregateError(errors, "proof cleanup failed");
 }
+/** @throws invalid handle/deadline, host stop failure or TERM/KILL reap deadline. */
 export async function stopChild(child: ChildProcess | Pick<ProofHost, "url" | "stop">, graceMs = 5000): Promise<void> {
   deadline(graceMs, 5000);
   if (child && "url" in child && typeof child.url === "string" && typeof child.stop === "function") {
@@ -79,6 +82,7 @@ export async function stopChild(child: ChildProcess | Pick<ProofHost, "url" | "s
     }
   } finally { child.removeListener("exit", done); child.removeListener("error", done); }
 }
+/** @throws partial, invalid or reversed PORT_LO/PORT_HI pair. */
 export function portRange(env: NodeJS.ProcessEnv = process.env): string {
   const low = env.PORT_LO, high = env.PORT_HI;
   if (low === undefined && high === undefined) return "0";
@@ -89,6 +93,7 @@ export function portRange(env: NodeJS.ProcessEnv = process.env): string {
   return `${Number(low)}-${Number(high)}`;
 }
 /** App-local evidence survives harness cleanup of its temporary root. */
+/** @throws None; returns the resolved explicit or cwd/logs path. */
 export function logsDir(options: Pick<ProofOptions, "cwd" | "logsDir"> = {}): string {
   return resolve(options.cwd ?? ".", options.logsDir ?? "logs");
 }

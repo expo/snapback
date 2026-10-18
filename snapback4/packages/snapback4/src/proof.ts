@@ -47,6 +47,7 @@ export interface DevHost extends ProofHost {
   now(): Promise<number>;
 }
 /** The array form preserves the former startDev(args) recipe. */
+/** @throws invalid port range or conflicting memory flags; child exits, readiness deadline, PID/served identity mismatch, or unavailable dev clock. */
 export function startDev(options: ProofOptions | readonly string[] = {}): Promise<DevHost> {
   const opts: ProofOptions = Array.isArray(options) ? { args: options } : options as ProofOptions;
   const args = [...(opts.args ?? [])];
@@ -60,6 +61,7 @@ export function startDev(options: ProofOptions | readonly string[] = {}): Promis
     return body.now;
   } }));
 }
+/** @throws E_PROOF_USAGE for missing deployment directory; child exit, readiness deadline or served identity mismatch. */
 export function startServe(deployDir: string, options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
   if (typeof deployDir !== "string" || !deployDir.trim()) throw Object.assign(new TypeError("E_PROOF_USAGE: startServe(deployDir, options) requires a deployment directory as its first argument"), { code: "E_PROOF_USAGE" });
   return nativeHost("serve", [resolve(options && !Array.isArray(options) ? (options as ProofOptions).cwd ?? "." : ".", deployDir)],
@@ -86,15 +88,19 @@ async function frontend(kind: "static" | "vite", dir: string, options: ProofOpti
     return { url, pid: run.child.pid!, logs: run.logs, stop: () => stopChild(run.child, deadline(options.stopTimeoutMs, 5000)) };
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
 }
+/** @throws missing export/index or build script precondition; exhausted ports, readiness deadline or served identity mismatch. */
 export function startStatic(dir: string, options: ProofOptions = {}): Promise<ProofHost> { return frontend("static", dir, options); }
+/** @throws missing Vite dependency/configuration; exhausted ports, readiness deadline or served identity mismatch. */
 export function startVite(dir: string, options: ProofOptions = {}): Promise<ProofHost> { return frontend("vite", dir, options); }
 
 export interface CliResult { code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; logs: ProofHost["logs"] }
 /** Waits for close (stdio drained), never merges the two streams. Nonzero is returned for refusal assertions. */
+/** @throws spawn error or command deadline; nonzero exit is returned in code, not thrown. */
 export function cli(args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
   return command(process.execPath, [fileURLToPath(new URL("../bin/snapback4.js", import.meta.url)), ...args], { ...options, secret: options.secret || args[0] === "token" });
 }
 /** A bounded directly spawned build/tool command, with the same file logs. */
+/** @throws spawn error or command deadline; nonzero exit is returned in code, not thrown. */
 export async function command(binary: string, args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
   const run = logged(binary, args, { ...options, env: { ...process.env, ...options.env } });
   try {
@@ -113,10 +119,12 @@ async function successful(args: string[], options: ProofOptions) {
   }
   return result;
 }
+/** @throws missing explicit saved source, CLI failure, spawn error or deadline. */
 export function deploy(dir: string, schema: string, options: ProofOptions = {}) {
   if (typeof schema !== "string" || !schema) throw Error(`proof deploy requires an explicit saved schema file or directory; got ${JSON.stringify(schema) ?? String(schema)}: did npm run day2:proof pass versions/v1?`);
   return successful(["deploy", dir, "--schema", schema, ...(options.args ?? [])], options);
 }
+/** @throws invalid explicit release target, CLI failure, spawn error or deadline. */
 export function rollback(dir: string, to: number | "latest", options: ProofOptions = {}) {
   if (to !== "latest" && (!Number.isSafeInteger(to) || to < 1)) throw Error(`proof rollback requires an explicit immutable release target; got ${JSON.stringify(to) ?? String(to)}`);
   return successful(["rollback", dir, "--to", String(to), ...(options.args ?? [])], options);
@@ -124,6 +132,7 @@ export function rollback(dir: string, to: number | "latest", options: ProofOptio
 // @ref LLP 3000.011.003.000.000#11-wave-14-truthful-starter-custody-day4 — saved-source proof results expose authored cases separately from query sweeps.
 export interface TestSourceOptions extends ProofOptions { fixtureOnly?: boolean }
 export interface TestSourceResult extends CliResult { casesRun: number; casesSkipped: number }
+/** @throws missing source, CLI failure, invalid business-case summary or zero cases without fixtureOnly. */
 export function testSource(source: string, options: TestSourceOptions = {}): Promise<TestSourceResult> {
   if (typeof source !== "string" || !source) throw Error(`proof testSource requires an explicit saved source file or directory; got ${JSON.stringify(source) ?? String(source)}: pass versions/v1`);
   const { fixtureOnly = false, ...proofOptions } = options;
@@ -143,18 +152,17 @@ export function testSource(source: string, options: TestSourceOptions = {}): Pro
   });
 }
 
+/** @throws None; returns a boolean for recognized sandbox launch errors. */
 export function sandboxUnavailable(error: unknown): boolean {
   return /No usable sandbox|Running as root without --no-sandbox|Failed to move to new namespace|SUID sandbox|sandbox.*Operation not permitted|Failed to unshare.*Operation not permitted/i.test(String(error));
 }
+/** @throws E_PROOF_BROWSER for missing playwright-core; invalid deadline, browser launch failure or callback error; bounded context/browser cleanup failure. */
 export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions, "cwd" | "logsDir"> & { chromium?: BrowserType }, proof: (context: BrowserContext) => Promise<T>): Promise<T> {
-  const directory = logsDir(options); mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const err = openSync(join(directory, `${randomUUID()}.browser.stderr.log`), "wx", 0o600);
-  const diagnostic = openSync(join(directory, `${randomUUID()}.witness.private.jsonl`), "wx", 0o600);
   const { chromium: suppliedChromium, executablePath, cwd: _cwd, logsDir: _logs, ...other } = options;
   const requireCaller = createRequire(resolve(options.cwd ?? process.cwd(), "package.json"));
   let caller = suppliedChromium;
   if (!caller) {
-    for (const peer of ["@playwright/test", "playwright", "playwright-core"]) {
+    for (const peer of ["playwright-core", "@playwright/test", "playwright"]) {
       let path: string;
       try { path = requireCaller.resolve(peer); }
       catch (error) { if ((error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND") continue; throw error; }
@@ -163,7 +171,14 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
       break;
     }
   }
-  caller ??= (await import("playwright-core")).chromium;
+  if (!caller) {
+    try { caller = (await import("playwright-core")).chromium; }
+    catch (cause) { throw new Error("E_PROOF_BROWSER: withBrowser requires playwright-core; run npm install --save-dev playwright-core before deploying or starting proof hosts", { cause }); }
+  }
+  const directory = logsDir(options); mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const err = openSync(join(directory, `${randomUUID()}.browser.stderr.log`), "wx", 0o600);
+  const diagnostic = openSync(join(directory, `${randomUUID()}.witness.private.jsonl`), "wx", 0o600);
+
   const launch = { ...other, ...(executablePath === undefined ? {} : { executablePath }), timeout: deadline(options.timeout, 30_000), logger: {
     isEnabled: () => true,
     log: (name: string, severity: string, message: string | Error) => { writeSync(err, `${name} ${severity}: ${String(message)}\n`); },
@@ -203,6 +218,7 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
 }
 const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boolean }>();
 /** Strings match exactly by default; use exact:false or a RegExp for a row with more text. Excludes editable values. */
+/** @throws None at construction; locator observation can refuse ambiguous or invalid selectors. */
 export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
   const root = options.within ?? page, rendered = page.locator(":not(input):not(textarea)");
   const locator = root.getByText(text, { exact: options.exact ?? true }).and(rendered);
@@ -210,9 +226,11 @@ export function renderedText(page: Page, text: string | RegExp, options: { withi
   return locator;
 }
 /** Activate before taking a screenshot, particularly on loaded shared hosts. */
+/** @throws page closed or browser activation failed. */
 export async function frontPage(page: Page): Promise<Page> { await page.bringToFront(); return page; }
 export { logsDir } from "./proof-process.ts";
 /** Returns the fresh nonempty text as a string, after it differs from previous. */
+/** @throws observation deadline with scoped locator, last text and visible headings; selector ambiguity is propagated. */
 export async function waitForFresh(locator: Locator, previous: string | null, options: number | { within?: Locator; timeoutMs?: number } = 30_000): Promise<string> {
   const timeoutMs = deadline(typeof options === "number" ? options : options.timeoutMs, 30_000);
   let substring = substringLocators.get(locator);
@@ -237,11 +255,12 @@ export async function waitForFresh(locator: Locator, previous: string | null, op
   }
   const hint = count === 0 && substring?.scoped && await bounded(substring.locator.count(), 1000, "substring count").catch(() => 0)
     ? "; a substring match exists; pass a RegExp or `exact: false`" : "";
-  const headings = await bounded(locator.page().locator('h1:visible, h2:visible, [role="heading"]:visible').allTextContents(), 1000, "visible headings").catch(() => []);
+  const headings = await bounded(Promise.resolve().then(() => locator.page().locator('h1:visible, h2:visible, [role="heading"]:visible').allTextContents()), 1000, "visible headings").catch(() => []);
   const heading = headings.map(text => text.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 3).join(" | ").slice(0, 300);
   throw Error(`no fresh signal after ${timeoutMs} ms: ${String(locator)}; last count=${count}, text=${JSON.stringify(text)}; ${count ? "present but unchanged" : "absent"}; previous=${JSON.stringify(previous)}; visible heading=${JSON.stringify(heading || "(none)")}${hint}${detail ? `; ${detail}` : ""}`);
 }
 /** Poll authoritative server truth after a receipt; a pending prediction is not a commit. */
+/** @throws deadline naming label and last value; read or predicate errors propagate. */
 export async function waitForServer<T>(read: () => Promise<T>, accepts: (value: T) => boolean, options: { timeoutMs?: number; label?: string } = {}): Promise<T> {
   const timeoutMs = deadline(options.timeoutMs, 30_000), end = performance.now() + timeoutMs;
   let last: T | undefined;
@@ -258,9 +277,22 @@ export async function waitForServer<T>(read: () => Promise<T>, accepts: (value: 
   }
   throw Error(`${options.label ?? "server truth"} timed out after ${timeoutMs} ms; last=${JSON.stringify(last)}`);
 }
+/** Wait until the page's own client has sampled an advanced server clock. Does not advance or replace that clock. */
+/** @throws E_PROOF_USAGE for invalid advanced time; missing/disabled witness, signed-out client, page error or page-clock deadline. */
+export async function waitForClock(page: Page, advancedNow: number, options: { timeoutMs?: number } = {}): Promise<number> {
+  if (!Number.isSafeInteger(advancedNow) || advancedNow < 0) throw Error("E_PROOF_USAGE: waitForClock requires the clock advance reply's now");
+  return waitForServer(() => page.evaluate(() => {
+    const witness = (window as unknown as { __snapback4Witness?: { clock(): number } }).__snapback4Witness;
+    if (!witness?.clock) throw Error("E_WITNESS_DISABLED: registerWebWitness and use witness=web before waitForClock");
+    return witness.clock();
+  }), now => now >= advancedNow, { ...options, label: "page client clock" });
+}
+/** @throws locator ambiguity, disabled/closed control, or Playwright deadline. */
 export async function fillRN(locator: Locator, text: string): Promise<void> {
   await locator.focus(); await locator.press("ControlOrMeta+A"); await locator.press("Backspace");
   await locator.pressSequentially(text);
 }
+/** @throws None at construction; ambiguous text is refused when observed. */
 export function statusText(page: Page, text: string | RegExp = /^(?:Ready|pending|sent|failed)$/): Locator { return page.getByText(text, { exact: true }); }
+/** @throws locator ambiguity, unavailable option or Playwright deadline. */
 export async function selectByValue(locator: Locator, value: string): Promise<void> { await locator.selectOption({ value }); }

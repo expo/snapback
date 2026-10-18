@@ -1,4 +1,5 @@
 // @ref LLP 3000.000.000.000.000#3-proof-fixture-loading — only schema-typed time leaves resolve relative strings.
+import { createHash } from "node:crypto";
 import { readFile, readdir } from "node:fs/promises";
 import { resolve, join } from "node:path";
 
@@ -17,7 +18,9 @@ export interface LoadFixturesOptions {
 /** Read <table>.jsonl files, excluding cases; return one reset/seed-ready batch.
  * Schema and clock requests are bounded. Nothing is written to the server.
  */
+/** @throws E_PROOF_USAGE for missing url or invalid timeout; E_AUTH naming attempted credential; catalog, clock, filesystem, row JSON/table or E_FIXTURE_TIME validation failure. */
 export async function loadFixtures(directory: string, options: LoadFixturesOptions): Promise<FixtureRow[]> {
+  if (!options || typeof options.url !== "string" || !options.url.trim()) throw Error("E_PROOF_USAGE: loadFixtures requires options.url (the running dev URL)");
   const timeoutMs = options.timeoutMs ?? 10_000;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw Error("E_PROOF_USAGE: loadFixtures timeoutMs must be a positive integer");
   const headers = new Headers(options.headers);
@@ -26,7 +29,12 @@ export async function loadFixtures(directory: string, options: LoadFixturesOptio
     const response = await fetch(new URL(path, options.url), { headers, signal: AbortSignal.timeout(timeoutMs) });
     const body = await response.json() as Record<string, unknown>;
     if (response.status === 401 || response.status === 403 || (body.denied as { code?: string } | undefined)?.code === "E_AUTH")
-      throw Error("E_AUTH: loadFixtures could not read the catalog; pass { persona } or { headers }");
+      {
+      const persona = headers.get("x-snapback-persona"), authorization = headers.get("authorization");
+      const attempted = persona !== null ? `persona ${JSON.stringify(persona)}` : authorization !== null
+        ? `token sha256:${createHash("sha256").update(authorization).digest("hex").slice(0, 12)}` : "no credential (dev catalog)";
+      throw Error(`E_AUTH: loadFixtures could not read ${path} using ${attempted}; check the declared persona or sign in again for this server`);
+    }
     if (!response.ok || body.denied) throw Error(`E_INPUT: ${path}: ${JSON.stringify(body)}`);
     return body;
   };

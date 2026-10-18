@@ -65,5 +65,19 @@ test('loadFixtures preserves auth refusals', async t => {
   const server = createServer((req, res) => { res.writeHead(401, { 'content-type': 'application/json' }); res.end('{"denied":{"code":"E_AUTH"}}'); });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => new Promise(resolve => server.close(resolve)));
-  await assert.rejects(loadFixtures('.', { url: `http://127.0.0.1:${server.address().port}` }), /^Error: E_AUTH: loadFixtures could not read the catalog; pass \{ persona \} or \{ headers \}$/);
+  await assert.rejects(loadFixtures('.', { url: `http://127.0.0.1:${server.address().port}` }), /E_AUTH: loadFixtures could not read .* using no credential/);
+});
+
+test('KIT4 missing URL refuses before URL parsing', async () => {
+  for (const options of [undefined, {}, {url:''}, {url:42}]) await assert.rejects(loadFixtures('.', options), /loadFixtures requires options.url/);
+});
+test('KIT4 fixture auth errors identify persona or token fingerprint without leaking bearer bytes', async t => {
+  const server=createServer((req,res)=>{res.writeHead(401,{'content-type':'application/json'});res.end('{"denied":{"code":"E_AUTH"}}');});
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const url=`http://127.0.0.1:${server.address().port}`;
+  await assert.rejects(loadFixtures('.',{url,persona:'mallory'}),/using persona "mallory"/);
+  await assert.rejects(loadFixtures('.',{url,headers:{authorization:'Bearer private-token'}}),error=>{
+    assert.match(error.message,/using token sha256:[0-9a-f]{12}/);assert.doesNotMatch(error.message,/private-token/);return true;
+  });
 });
