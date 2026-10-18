@@ -644,7 +644,7 @@ query staffNotes(c: cursor ?):\n  require exists staff[viewer] else NOT_STAFF\n 
 fn the_acceptance_recipe_reads_both_refusal_envelopes_and_web_shell_names_its_wrapper() {
     let guide = Command::new(BIN).args(["guide", "testing", "--section", "acceptance"]).output().unwrap();
     let guide = text(&guide);
-    for term in ["snapback4/proof", "await startDev()", "await startStatic(\"dist\")", "PORT_LO..PORT_HI", "{state:'failed', why}", "HTTP acknowledgement is not React settlement"] {
+    for term in ["snapback4/proof", "await startDev({ args: [\"--memory\"] })", "await startStatic(\"dist\")", "PORT_LO..PORT_HI", "{state:'failed', why}", "HTTP acknowledgement is not React settlement"] {
         assert!(guide.contains(term), "guide testing's acceptance section names {term}:\n{guide}");
     }
     let output = Command::new(BIN).args(["web-shell", "dist"]).output().unwrap();

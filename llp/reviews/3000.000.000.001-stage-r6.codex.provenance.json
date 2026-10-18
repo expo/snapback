@@ -1,0 +1,10 @@
+{
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "candidate": "90b029573b3e6a53ec6b789f73983c05c682c117",
+  "verdict": "READY",
+  "transcript": "3000.000.000.001-stage-r6.codex.txt",
+  "sha256": "df7b9d43652658901c8300022eb4df5fe1e0fb2e65942938c883b6ba51498b92",
+  "brief": "3000.000.000.001-stage-r6.brief.md",
+  "method": "fresh mutually blind external CLI session; complete stdout/stderr preserved; Muse plan-quota fallback retained; no author report or other reviewer outputs supplied"
+}

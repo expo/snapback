@@ -72,8 +72,7 @@ browser `Origin` must all be literal loopback/local http(s) values. Foreign, opa
 Origins are refused before routing, and CORS reflects only an admitted local Origin. `snapback4 dev` is
 development only: password-only apps close fixture, clock and persona doors by default;
 `--unsafe-dev-doors` explicitly enables the unauthenticated local tools. Other development schemas keep
-the declared cast and `POST /seed` system door. For real-user staging run `guide staging`;
-deploy with `snapback4 deploy` + `snapback4 serve`. A deployed server (`snapback4 serve`) refuses personas and
+the declared cast and `POST /seed` system door. For real-user staging run `guide staging`; deploy with `snapback4 deploy` + `snapback4 serve`. A deployed server (`snapback4 serve`) refuses personas and
 seed, defaults to `127.0.0.1`, and requires `--i-understand-cleartext` for a non-loopback HTTP bind. Put a TLS
 terminator in front, preserve `Authorization` and `Origin`, strip persona headers, and rate-limit there by the
 actual client address; the binary trusts only its socket peer.

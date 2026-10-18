@@ -137,6 +137,11 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_STAGING", "E_STAGING refuses production relabelling or bulk account setup on a non-staging host."),
+    ("E_STAGING_INPUT", "E_STAGING_INPUT means the account plan is invalid."),
+    ("E_STAGING_TIMEOUT", "E_STAGING_TIMEOUT means the setup deadline expired."),
+    ("E_STAGING_SIGNUP", "E_STAGING_SIGNUP means password signup refused or returned an invalid session."),
+    ("E_STAGING_PROVISION", "E_STAGING_PROVISION means the operator mutation refused or returned an invalid reply."),
     ("E_EXPIRY_ORPHAN", "a stored reference points to a physically missing expiring parent"),
 
     ("E_QUARRY_STATEMENT", "A non-final expression must perform a write."),

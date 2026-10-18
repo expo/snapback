@@ -574,7 +574,7 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 Cards: `snapback4 guide <keyword>`: cheatsheet, app, social, from-sql, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, deploy, release-json, expire, ephemeral, sequences,
 assets, client, wire, reads, shapes, writes, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, receipts, read-only, manual-receipts, bounds, refusals, personas, testing, witness. `why
-<CODE>` explains refusals. Also: production. Guides: `guide recipes`, `guide rule-recipes`, `guide deploy`, `guide changes`.
+<CODE>` explains refusals. Also: production, staging. `guide recipes`, `guide rule-recipes`, `guide deploy`, `guide changes`.
 
 ## An ID belongs to one intent
 

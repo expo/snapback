@@ -1,7 +1,5 @@
 # Testing: fixtures and the packaged proof kit
 
-For shared test releases and probe:serve, use `guide staging`: real password users and operator grants on serve. Password-only dev fixture/clock tools require explicit --unsafe-dev-doors; startDev persists unless --memory is explicit.
-
 Prove backend behavior with fixtures and the rendered UI with the packaged proof kit.
 Starters generate frontend:proof and day2:proof, and the kit owns server and browser lifecycles.
 
@@ -10,6 +8,8 @@ import { startDev, cleanup } from "snapback4/proof";
 const dev = await startDev();
 try { console.log(dev.url); } finally { await cleanup(() => dev.stop()); }
 ```
+
+For shared test releases and probe:serve, use `guide staging`: real password users and operator grants on serve. Password-only dev fixture/clock tools require explicit --unsafe-dev-doors; startDev persists unless --memory is explicit.
 
 Raw HTTP starts with JSON envelopes: POST /q/name `{args:{...}}`, POST /m/name
 `{id:"stable-intent-id",args:{...}}`, POST /a/name `{id:"stable-action-id",args:{...}}`.

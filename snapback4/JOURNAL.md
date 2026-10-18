@@ -96359,3 +96359,12 @@ memory isolation. Fixture and browser proofs now explicitly request memory;
 fixture tools also opt into unsafe doors. Packed qualification runs the published
 fixture, client developmentHosts and browser fences verbatim and checks that
 fixture hosts preserve a prepopulated persistent developer database.
+
+### STAGE: complete guide corpus integration (2026-10-18)
+
+The full language guide suite additionally required the staging diagnostic
+family in why/definition/recovery registries, exact application-file and mutation
+census entries, keyword-list integration, compact card openings and a cursor
+on the staging note list. These are now reconciled without raising budgets
+or weakening corpus checks. The updated guide schema and opening host fence
+are exercised from the final installed pack.

@@ -1,16 +1,6 @@
 # Staging with real users
 
-Use `serve` for staging, shared previews and `probe:serve`. It enforces the same
-password identity and rules as production. `dev` always advertises
-`development:true` in `/auth/config`, even with closed doors; probes should
-refuse it. `guide deploy` covers release evolution; PROD2 owns starter adaptation.
-
-## Password roles and operator provisioning
-
-Save this complete source as `snapback/schema.q` in an app with snapback4 installed.
-Signup creates an account without a role. Only the local filesystem operator can
-bootstrap this roster. The insert rule enforces the boundary independently of
-the mutation. SEC owns self-promotion diagnostics and invariant proofs.
+Staging runs real password users and application rules under serve. Use it for shared previews and probe:serve, with roles provisioned by a local operator.
 
 ```quarry
 use identity password
@@ -36,9 +26,21 @@ table notes:
   online only
 mutation add(body: text 1..200):
   return insert notes { owner: viewer, body }
-query myNotes():
-  return notes where .owner = viewer first 20 by .id
+query myNotes(c: cursor ?):
+  return notes where .owner = viewer first 20 by .id after c
 ```
+
+Use `serve` for staging, shared previews and `probe:serve`. It enforces the same
+password identity and rules as production. `dev` always advertises
+`development:true` in `/auth/config`, even with closed doors; probes should
+refuse it. `guide deploy` covers release evolution; PROD2 owns starter adaptation.
+
+## Password roles and operator provisioning
+
+Save this complete source as `snapback/schema.q` in an app with snapback4 installed.
+Signup creates an account without a role. Only the local filesystem operator can
+bootstrap this roster. The insert rule enforces the boundary independently of
+the mutation. SEC owns self-promotion diagnostics and invariant proofs.
 
 ## Stand up staging
 
@@ -106,6 +108,23 @@ E_STAGING refuses production relabelling or bulk account setup on a non-staging
 host. Choose a separate fresh `deploy --staging` store; use the explicit
 first-admin recipe below for intended production users. Source edits and a
 directory named staging never change a production store's classification.
+
+
+### Account setup refusals
+
+E_STAGING_INPUT means the account plan is invalid. Provide 1..100 accounts,
+named roles, a declared mutation handle and a positive timeoutMs before setup.
+
+E_STAGING_TIMEOUT means the setup deadline expired. Partial accounts/grants
+may exist; inspect or discard the disposable deployment before retrying.
+
+E_STAGING_SIGNUP means password signup refused or returned an invalid session.
+Inspect the underlying refusal; partial accounts/grants may exist, so inspect
+or discard the disposable deployment before retrying.
+
+E_STAGING_PROVISION means the operator mutation refused or returned an invalid
+reply. Repair its arguments and operator-only rules; partial accounts/grants
+may exist, so inspect or discard the disposable deployment before retrying.
 
 ## First admin on production
 
