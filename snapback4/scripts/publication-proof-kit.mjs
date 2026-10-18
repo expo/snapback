@@ -17,7 +17,7 @@ export async function proveProofKit(client,platform,directory) {
     assert.equal(result.status,0,result.stdout+result.stderr);return result.stdout;
   };
   writeFileSync(join(cwd,'package.json'),'{"private":true,"type":"module"}');
-  await run('npm',['install','--ignore-scripts','--no-audit','--no-fund',resolve(client),resolve(platform)]);
+  await run('npm',['install','--no-save','--ignore-scripts','--no-audit','--no-fund',resolve(client),resolve(platform)]);
   const wrapper=join(cwd,'node_modules/snapback4/bin/snapback4.js');
   await run(process.execPath,[wrapper,'init','--web']);
   const pkg=JSON.parse(readFileSync(join(cwd,'package.json')));
