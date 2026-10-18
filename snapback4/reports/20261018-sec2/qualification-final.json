@@ -1,0 +1,176 @@
+{
+  "format": 1,
+  "base": "c4f7f08b4a",
+  "runtimeQualificationSource": "3b89b6300e1d97683538694cd9ec77a0d4f0f945",
+  "testOnlyCorrection": "4109fe2078",
+  "scope": "SEC2 only; no publication or universal zero-hole claim",
+  "fullRust": {
+    "completed": true,
+    "exit": 101,
+    "targetSummaries": 421,
+    "passed": 6509,
+    "failed": 5,
+    "ignored": 45,
+    "failedTargets": [
+      "snapback4:init",
+      "snapback4-lang:guide",
+      "snapback4-lang:security_observers",
+      "snapback4-sim:clique"
+    ],
+    "allAffectedFullTargetReplaysPass": true
+  },
+  "affectedReplays": {
+    "cli": {
+      "passed": 473,
+      "ignored": 5
+    },
+    "init": {
+      "passed": 51
+    },
+    "guide": {
+      "passed": 125
+    },
+    "securityObservers": {
+      "passed": 11
+    },
+    "clique": {
+      "passed": 254,
+      "ignored": 1
+    },
+    "packedGuideDraftAndStarters": {
+      "exit": 0,
+      "seconds": 96.709
+    }
+  },
+  "clientPool": {
+    "ordinaryFiles": 412,
+    "failedFiles": 5,
+    "tests": 7671,
+    "passed": 7610,
+    "failed": 4,
+    "cancelled": 1,
+    "skipped": 56,
+    "modelsPassed": 81,
+    "fixturesPassed": 9,
+    "allOriginallyFailedCasesHavePassingReplays": true,
+    "singleExactFinalHeadGreenPool": false
+  },
+  "difftest": {
+    "nativeCases": 20000,
+    "nativeExecutions": 1220035,
+    "nativeSignatures": 0,
+    "deviceSeeds": [
+      0,
+      999
+    ],
+    "deviceExecutions": 27922,
+    "deviceSignatures": 0,
+    "leanCases": 20000,
+    "leanDisagreements": 130,
+    "leanBaselineClasses": {
+      "code": 3,
+      "continuation": 35,
+      "next": 67,
+      "preludeCode": 25
+    },
+    "newLeanSignatures": 0,
+    "leanBuildAndCheckPass": true,
+    "newLemmas": 0,
+    "newAxioms": 0,
+    "sorry": 0
+  },
+  "survey": {
+    "schemas": 150,
+    "declaredInvariants": 0,
+    "diagnostics": 0,
+    "violations": 0,
+    "boundaryFailures": 0,
+    "attempts": 33173,
+    "notSpecCertification": true
+  },
+  "wasm": {
+    "raw": 2372893,
+    "gzip": 723411,
+    "budget": 723911,
+    "passed": true
+  },
+  "docsBudget": {
+    "readmeLines": 319,
+    "maximum": 320,
+    "passed": true
+  },
+  "mac": {
+    "host": "macstudio-charlie-apt101-a",
+    "scratch": "~/sb4-ws-sec2",
+    "httpAndVnodeTestsPassed": 3,
+    "finalObserverTestsPassed": 11,
+    "finalWave16TestsPassed": 2,
+    "packedGuideAndStarterPass": true
+  },
+  "linuxConsumer": {
+    "exit": 0,
+    "mode": "consumer-only",
+    "ubuntu": true,
+    "alpine": true,
+    "publicationQualified": false,
+    "manifest": "linux/consumer.json"
+  },
+  "reviewRoundsBothReady": [
+    5,
+    7,
+    13,
+    14,
+    15
+  ],
+  "liveProbes": {
+    "repairedLanes": [
+      19,
+      20,
+      21,
+      45,
+      48
+    ],
+    "confirmedHigh": 0,
+    "confirmedMedium": 0,
+    "confirmedLow": 0,
+    "tamperedPaths": 0
+  },
+  "builders": {
+    "codex": {
+      "finalInvariants": 102,
+      "proved": 31,
+      "refuted": 3,
+      "unproved": 68,
+      "observedFalseRuntimeRefusals": 0
+    },
+    "muse": {
+      "finalInvariants": 181,
+      "proved": 68,
+      "refuted": 0,
+      "unproved": 113,
+      "observedFalseRuntimeRefusals": 0
+    },
+    "productionCommands": 60,
+    "productionTimeouts": 0,
+    "falseRefusalLimit": "Counts apply only to observed authored cases; not proof all business workflows were exercised"
+  },
+  "root": {
+    "frozenInstall": 0,
+    "hoist": 0,
+    "generatedArtifacts": 0,
+    "inventories": 0,
+    "refCheck": 0,
+    "guide": 0,
+    "guideChecksPassed": 22,
+    "guideWarningsInherited": 121,
+    "initialGuideDependencyPreconditionExit": 1
+  },
+  "cleanup": {
+    "sqliteFilesRemoved": 1636,
+    "sqliteBytesRemoved": 1638494968,
+    "remainingTargetDatabases": 0,
+    "remainingMacTargetDatabases": 0,
+    "remainingProbeListeners": 0
+  },
+  "remainingAcceptance": "Open; arbitrary sequences, disconnected devices, whole-wire and general temporal/referential/opaque reductions remain explicit blockers"
+}
