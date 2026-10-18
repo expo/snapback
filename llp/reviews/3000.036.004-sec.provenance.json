@@ -9,5 +9,10 @@
   "revision3_sha256": "196fb2302de826066e32d514c76fa6995b2b0f2175f65af5f06a06f788e3e739",
   "round2_codex_verdict": "READY",
   "round2_muse_verdict": "NOT READY",
-  "round3_disposition": "Clarifies typed atomic semantics, system/ingress/update-image scope, census/default blockers, projections, assets, write-result implication and retained history; reconciles both round1 and round2 findings."
+  "round3_disposition": "Clarifies typed atomic semantics, system/ingress/update-image scope, census/default blockers, projections, assets, write-result implication and retained history; reconciles both round1 and round2 findings.",
+  "round3_codex_verdict": "READY",
+  "round3_muse_verdict": "READY",
+  "revision5_sha256": "153e7b169083372476e3800792611398e3504dfa7bb32b17e15f2d7fd77b0c15",
+  "round5_codex_verdict": "READY",
+  "round5_muse_verdict": "READY"
 }
