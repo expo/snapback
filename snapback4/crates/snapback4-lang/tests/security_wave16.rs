@@ -26,6 +26,9 @@ const CASES:&[(&str,&str,&str)]=&[
    "045"=>source.replace("read <- exists roles[viewer, role = 'luthier'] or exists roles[viewer, role = 'librarian'] or exists roles[viewer, role = 'manager']","read <- exists roles[viewer, role = 'librarian'] or exists roles[viewer, role = 'manager']"),
    "048"=>source.replace("read <- exists roles[viewer, role = 'chief'] or exists roles[viewer, role = 'engineer'] or exists assignments[.id, viewer]","read <- exists roles[viewer, role = 'chief'] or exists roles[viewer, role = 'engineer'] or (exists assignments[.id, viewer] and exists roles[viewer, role = 'contractor'])"),_=>unreachable!()};
   assert_ne!(fixed,*source,"{number}: patch must apply");let b=compile(&[("schema.q".into(),format!("{fixed}\n{policy}\n"))]);assert!(b.diagnostics.is_empty(),"{number}: {:?}",b.diagnostics);
-  let campaign=security::challenges::run(&b);assert!(campaign.attempted>0,"{number}: not exercised");assert!(campaign.violations.is_empty(),"{number}: {campaign:?}");
+  let mut campaign=security::challenges::run(&b);
+  let fixture=snapback4_core::Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
+  security::challenges::operations(&b,&fixture,&mut campaign);
+  assert!(campaign.attempted>0,"{number}: not exercised");assert!(campaign.violations.is_empty(),"{number}: {campaign:?}");
  }
 }

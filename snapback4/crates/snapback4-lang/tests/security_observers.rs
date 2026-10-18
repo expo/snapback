@@ -93,3 +93,14 @@ fn update_proofs_include_both_images_and_only_collapse_immutable_fields(){
  let b=bound("table notes:\n  owner: principal\n  read <- allow\n  update (old, next) <- next.owner = viewer\n  online only\ninvariant notes.update only .owner = viewer\n");
  assert_eq!(security::analyze(&b).invariants[0].direct_rule,Status::Unproved,"next-image authority cannot establish the old owner");
 }
+
+#[test]
+fn synthetic_update_witness_records_the_committed_next_image_and_patch(){
+ let b=bound("table bookings:\n  owner: principal\n  status: enum('booked', 'override')\n  immutable owner\n  read <- .owner = viewer\n  update (old, next) <- old.owner = viewer and next.owner = viewer and next.status != 'override'\n  online only\ninvariant bookings.status write only .status != 'override'\n");
+ let c=security::challenges::run(&b);
+ let v=c.violations.iter().find(|v|v.effect=="update").expect("strong both-image policy is false on the old override image");
+ assert_eq!(v.old.as_ref().unwrap().field("status").unwrap(),&snapback4_core::Value::String("override".into()));
+ assert_eq!(v.row.field("status").unwrap(),&snapback4_core::Value::String("booked".into()));
+ assert_ne!(v.old.as_ref(),Some(&v.row));
+ assert!(v.args.contains_key("$syntheticPatch"));
+}

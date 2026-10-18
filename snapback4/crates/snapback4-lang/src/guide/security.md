@@ -32,6 +32,12 @@ is named as not covered; zero violations alone does not qualify an app secure.
 `invariant table.read only P` protects read intent; insert, update and delete
 name authority. `invariant table.column write only P` covers writes to a
 column (both insert and update). `invariant table always P` states row integrity.
+An update policy over `.field` constrains **both old and next images**.
+A policy saying status must not be override therefore also restricts editing
+a row that was already override, even when changing it away from that status.
+For the role authority of one named mutation, use operation-specific intent
+(`invariant table.operation only P`) instead. General next-image-only and
+cross-operation transition assertions still need a separate reduction.
 Predicates use the existing rule vocabulary: `.field`, `viewer`, `exists`,
 comparisons, `and`, `or`, `not`. For a role write use the complete roster probe,
 for example `invariant members.role write only exists roles[viewer, role = 'owner']`

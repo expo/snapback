@@ -122,7 +122,7 @@ fn engine_with(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probes:Vec<Program
     }}
     Ok(engine)
 }
-fn replay(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,word:&str,row:&Value)->Result<bool,String>{
+fn replay(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,word:&str,row:&Value)->Result<(bool,Value),String>{
     let name="$security.probe";let table=inv.table.clone();let key=id(&table);
     let read=Read{site:"security challenge".into(),table:table.clone(),index:"byId".into(),key:vec![Expr::Literal(key.clone())],provenance:KeyProvenance::Computed};
     let mut seeds=rows.clone();
@@ -146,8 +146,19 @@ fn replay(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&
         },_=>return Err("row integrity/transition challenge is not an operation admission test".into()),
     };
     let mut engine=engine(bound,&seeds,probe)?;
-    if word=="read"{match engine.query(name,Context::new(viewer,BTreeMap::new()).at(NOW)){Ok(q)=>Ok(q.data!=Value::Null),Err(e)=>Err(e.to_string())}}
-    else{Ok(matches!(engine.mutate(name,None,Context::new(viewer,BTreeMap::new()).at(NOW)),Ok(snapback4_core::MutationOutcome{state:snapback4_core::WriteState::Sent{..},..})))}
+    if word=="read"{return engine.query(name,Context::new(viewer,BTreeMap::new()).at(NOW)).map(|q|(q.data!=Value::Null,row.clone())).map_err(|e|e.to_string());}
+    let outcome=engine.mutate(name,None,Context::new(viewer,BTreeMap::new()).at(NOW)).map_err(|e|e.to_string())?;
+    if !matches!(outcome.state,snapback4_core::WriteState::Sent{..}){return Ok((false,row.clone()));}
+    let next=engine.store().rows(&inv.table).map_err(|e|e.to_string())?.into_iter().find(|r|r.field("id").ok()==row.field("id").ok());
+    if word=="delete"{return if next.is_none(){Ok((true,row.clone()))}else{Err("delete returned sent without removing the target".into())};}
+    let next=next.ok_or("sent write has no committed target image")?;
+    if word=="update" {
+        let table=&bound.schema.tables[&inv.table];
+        let changed=table.columns.keys().filter(|c|!table.engine_field(c)&&!table.maintained.contains_key(*c))
+            .any(|c|row.field(c).ok()!=next.field(c).ok()&&inv.column.as_ref().is_none_or(|column|column==c));
+        if !changed{return Err("sent no-op/implicit-only update has no changed declared target column".into());}
+    }
+    Ok((true,next))
 }
 fn readback(engine:&Engine)->Result<BTreeMap<String,Vec<Value>>,String>{engine.schema().tables.keys().map(|t|engine.store().rows(t).map(|rs|(t.clone(),rs)).map_err(|e|e.to_string())).collect()}
 
@@ -252,10 +263,13 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
                     let mut admission_rows=rows.clone();if word=="insert"{admission_rows.remove(&inv.table);}
                     let allowed=match policy(bound,inv,&admission_rows,viewer,(word!="insert").then_some(row),row){Ok(v)=>v,Err(e)=>{out.unsupported.insert(e);continue;}};
                     if allowed{continue;}out.attempted+=1;
-                    let replayed=if word=="read" {seeded.query("$security.seed",Context::new(viewer,BTreeMap::new()).at(NOW)).map(|q|q.data!=Value::Null).map_err(|e|e.to_string())}else{replay(bound,inv,&rows,viewer,word,row)};
+                    let replayed=if word=="read" {seeded.query("$security.seed",Context::new(viewer,BTreeMap::new()).at(NOW)).map(|q|(q.data!=Value::Null,row.clone())).map_err(|e|e.to_string())}else{replay(bound,inv,&rows,viewer,word,row)};
                     match replayed{
-                        Ok(false)=>out.refused+=1,
-                        Ok(true)=>{out.admitted+=1;out.violations.push(Counterexample{history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:format!("$security.{}.{}",inv.table,word),effect:word.into(),row:row.clone(),old:(word=="update"||word=="delete").then(||row.clone()),supporting_rows:admission_rows.clone(),rule_path:bound.schema.tables[&inv.table].rules.for_effect(super::effect(word)).quarry(),scope:"schema-valid seeded snapshot; synthetic engine table operation; application reachability is not claimed".into()});found=true;break;},
+                        Ok((false,_))=>out.refused+=1,
+                        Ok((true,next))=>{
+                            let mut args=BTreeMap::new();
+                            if word=="update"{let changes=bound.schema.tables[&inv.table].columns.keys().filter(|c|row.field(c).ok()!=next.field(c).ok()).filter_map(|c|next.field(c).ok().map(|v|(c.clone(),v.clone()))).collect();args.insert("$syntheticPatch".into(),Value::Map(changes));}
+                            out.admitted+=1;out.violations.push(Counterexample{history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args,viewer:viewer.into(),operation:format!("$security.{}.{}",inv.table,word),effect:word.into(),row:next,old:(word=="update"||word=="delete").then(||row.clone()),supporting_rows:admission_rows.clone(),rule_path:bound.schema.tables[&inv.table].rules.for_effect(super::effect(word)).quarry(),scope:if word=="update"{"schema-valid seeded snapshot; old-image policy false at an actual changed update; committed next image and patch shown; application reachability is not claimed".into()}else{"schema-valid seeded snapshot; synthetic engine table operation; application reachability is not claimed".into()}});found=true;break;},
                         Err(e)=>{out.unsupported.insert(format!("{}.{}: {e}",inv.table,word));},
                     }
                 }
