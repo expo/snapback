@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-18",
+  "source": "d8ad047a53",
+  "brief": "llp/reviews/3000.000.000.000.000-surf5-r3.brief.md",
+  "brief_sha256": "52cb2785c91f32116e7abed92c238a5334ad03b72c6beae94c9742105a2643e0",
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "fresh_session": true,
+    "artifact": "llp/reviews/3000.000.000.000.000-surf5-r3.codex.md",
+    "sha256": "a0c68162494c49b4e77fe76cf735db4489ecad49f94cd40d86ef93ae25af3a42",
+    "verdict": "READY"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning_effort": "high",
+    "wrapper": "~/sb4-loop/muse-exec.sh --yolo",
+    "artifact": "llp/reviews/3000.000.000.000.000-surf5-r3.muse.md",
+    "sha256": "c8b6f35d0fe14d60f25cbe2f04196fffda66c5b1706667acf9dabaf8a457432d",
+    "status": "unavailable; API 429 Subscription quota exhausted after wrapper fallback; reset 2026-10-19T00:00:00Z; no review received"
+  },
+  "disposition": "final release-consumer semantic revision; 448c08ad4e subsequently preserves complete discovery fences without changing release semantics"
+}
