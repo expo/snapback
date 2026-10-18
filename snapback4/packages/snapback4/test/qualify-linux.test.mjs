@@ -469,3 +469,11 @@ for (const consumerOnly of [false,true]) test(`DAY5 packed guide failure blocks 
   assert.notEqual(r.status,0);assert.match(r.stderr,/deliberately failing packed DAY5 guide/);
   assert.equal(r.receipt,null);assert.equal(existsSync(join(r.root,'out/consumer.json')),false);
 });
+
+for (const consumerOnly of [false, true]) test(`packed proof-kit failure blocks ${consumerOnly ? 'consumer' : 'full'} qualification`, t => {
+  const r = qualify(t, {consumerOnly, proofKitFail: true});
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /deliberately failing packed proof kit/);
+  assert.equal(r.receipt, null);
+  assert.equal(existsSync(join(r.root, 'out/consumer.json')), false);
+});

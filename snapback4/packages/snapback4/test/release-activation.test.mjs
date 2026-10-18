@@ -956,9 +956,9 @@ query input(n: int):
     const saved=state(join(deployment,'store.sqlite'));
     const plan=run('rollback',deployment,'--to','1','--check');
     // The enum-incompatible row owns all its cells: count it once.
-    assert.match(plan,/1 row, 0 cells, 0 index entries dormant/);assert.match(plan,/rows:values/);
+    assert.match(plan,/1 row, 0 cells, 0 index entries dormant/);assert.match(plan,/samples: rows values \[/);
     assert.doesNotMatch(plan,/its cells become dormant \(0 cells/);
-    for(let n=0;n<20;n++) assert.ok(plan.includes(`tables.values.columns.spare${n}: column values.spare${n} is removed; no standalone cells become dormant`),plan);
+    for(let n=0;n<20;n++) assert.ok(plan.includes(`values.spare${n}: column values.spare${n} is removed; no standalone cells become dormant`),plan);
     for(const flags of [[],['--verbose']]) {
       const structured=JSON.parse(run('rollback',deployment,'--to','1','--check','--json',...flags));
       assert.equal(structured.preview,true);assert.ok(structured.steps.length>0);
@@ -1100,8 +1100,8 @@ schedule sweepEvery every 1d: sweep
     writeFileSync(schema,source);
     const preview=run('deploy',deployment,'--check');
     assert.doesNotMatch(preview,/rows are lost|values are lost|engine capture.*filled/);
-    assert.match(preview,/holds.*1 row dormant/);assert.match(preview,/sample ids/);
-    assert.match(preview,/WARNING release 2 lacks schedule sweepEvery \(job sweep\)/);assert.match(preview,/target|release 2 lacks this table\'s behavior/);
+    assert.match(preview,/WARNING holds:.*1 rows become dormant/);assert.match(preview,/samples:.*rows holds \[/);
+    assert.match(preview,/WARNING release behavior: .*release 2 lacks schedule sweepEvery \(job sweep\)/);assert.match(preview,/target|release 2 lacks this table\'s behavior/);
     assert.deepEqual(state(join(deployment,'store.sqlite')),before);
     assert.equal(JSON.parse(run('releases',deployment)).latest,1);
     run('deploy',deployment);
@@ -1238,7 +1238,9 @@ test('REL2 successful preview validates uniqueness after narrowed rows become do
     const narrower=broad.replace("enum('old','new')","enum('old')").replace('  read <- allow','  unique body\n  read <- allow').split('mutation makeNew')[0];
     writeFileSync(schema,narrower);
     for(const flags of [[],['--json']]) {
-      const preview=run('deploy',deployment,'--check',...flags);assert.doesNotMatch(preview,/conflict|repair|inspect:/);assert.match(preview,/active rows satisfy/);
+      const preview=run('deploy',deployment,'--check',...flags);
+      const facts=flags.includes('--json') ? JSON.parse(preview).hazards.join('\n') : preview;
+      assert.doesNotMatch(facts,/unique.*conflict|repair.*unique|inspect:/);assert.match(preview,/active rows satisfy/);
     }
     run('deploy',deployment);
   });

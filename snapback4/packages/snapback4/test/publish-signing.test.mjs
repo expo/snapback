@@ -182,3 +182,10 @@ test('packed DAY5 guide failure blocks Darwin installed-consumer publication',t=
  assert.notEqual(r.status,0);assert.match(r.stderr,/packed DAY5 guide failed/);
  assert.ok(!r.commands.some(c=>c.cmd==='npm'&&c.args[0]==='publish'));
 });
+
+test('packed proof-kit failure blocks Darwin installed-consumer publication', t => {
+  const r = publish(t, {env: {PUBLICATION_PROOF_KIT_FAIL: '1'}});
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /packed proof kit failed/);
+  assert.equal(r.record, null);
+});
