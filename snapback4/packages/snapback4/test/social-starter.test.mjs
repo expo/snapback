@@ -514,7 +514,9 @@ test("guide aliases send schedules, DMs and Expo readers to their owning cards",
   }
   const native = spawnSync(binary, ["guide", "native"], { encoding: "utf8" }).stdout;
   assert.match(native, /Expo client[^\n]*guide client[^\n]*guide witness/);
-  assert.match(native, /native: \d+ lines; snapback4 guide native --section/);
+  assert.match(native, /Truncated:.*\d+-line card: snapback4 guide native --section/);
+  assert.match(native, /Sections of guide native:/);
+  assert.match(native, /--full prints all \d+ lines/);
 });
 
 test("social proposal associations are durable, account/backend scoped and preserve every send's arguments", async t => {

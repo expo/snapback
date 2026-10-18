@@ -84,7 +84,8 @@ test('real dev unknown-store bearer keeps the repair through online query and sa
   const issued = await guest(earlier.url); assert.equal(issued.ok, true);
   const foreign = issued.session;
   const client = createClient({ url, session: foreign }); t.after(() => client.close());
-  assert.equal((await client.query(q, {})).denied.message, messages.unknown);
+  assert.equal((await client.query(q, {})).denied.message, messages.unknown
+    + '. Raw HTTP on dev uses x-snapback-persona: alice; serve uses Authorization: Bearer <token>; snapback4 guide wire shows the literal envelopes');
   const sessions = memorySessionStore(); await keepSession(url, foreign, sessions);
   await assert.rejects(createLocalClient({ url, sessionStore: sessions, device: device() }), /unknown to this store.*discard saved tokens/);
 });

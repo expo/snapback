@@ -247,10 +247,10 @@ window.refuseJournalCommits = () => {
     assert.equal(await page.evaluate(async () => (await navigator.locks.query()).held.filter(l => l.name.startsWith('snapback4-online-runtime:')).length), 1);
     await fetch(url + '/dev/reset', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }] }) });
     const read = await page.evaluate(() => app.client.query({ kind: 'query', name: 'total' }, {}));
-    assert.equal(read.denied?.code, 'E_STORE_REPLACED');
+    assert.equal(read.denied?.code, 'E_DEV_RESET');
     await until(() => page.evaluate(async () => (await navigator.locks.query()).held.filter(l => l.name.startsWith('snapback4-online-runtime:')).length === 0));
     const write = await page.evaluate(() => app.mutate(clickOp, {}));
-    assert.equal(write.state, 'failed'); assert.equal(write.why.code, 'E_STORE_REPLACED');
+    assert.equal(write.state, 'failed'); assert.equal(write.why.code, 'E_DEV_RESET');
     await page.evaluate(() => app.close());
   });
 
@@ -265,7 +265,7 @@ window.refuseJournalCommits = () => {
     assert.equal(await page.evaluate(() => records().length), 1);
     await fetch(url + '/dev/reset', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }] }) });
     const read = await page.evaluate(() => app.client.query({ kind: 'query', name: 'total' }, {}));
-    assert.equal(read.denied?.code, 'E_STORE_REPLACED');
+    assert.equal(read.denied?.code, 'E_DEV_RESET');
     await until(() => page.evaluate(async () => (await navigator.locks.query()).held.filter(l => l.name.startsWith('snapback4-online-runtime:')).length === 0));
     await page.evaluate(() => allowJournalCommits());
     await page.evaluate(options => boot(options), { url, persona: 'alice' });
