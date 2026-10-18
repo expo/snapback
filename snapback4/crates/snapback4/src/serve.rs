@@ -4,7 +4,7 @@
 //! silent state (LLP 2000.000 §8). Development personas ride a header on
 //! loopback; `dev` re-compiles the schema when a `.q` file changes.
 #[path = "serve_identity.rs"]
-mod session_identity;
+pub(crate) mod session_identity;
 pub(crate) use session_identity::principal_of;
 use session_identity::{mutation_authority, read_permitted};
 
@@ -1257,11 +1257,16 @@ fn handle(mut request: Request, shared: &Shared) {
                 let reader = shared.reader();
                 let evaluated = match reader {
                     Ok((epoch, mut reader)) => {
+                        #[cfg(test)] test_work(&shared.query_wait);
+                        let _persona_authority = match session_identity::persona_read_authority(&request, shared, &reader) {
+                            Ok(authority) => authority,
+                            Err(why) => {
+                            return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
+                            }
+                        };
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
                         let metadata = response_head(&mut reader);
-                        #[cfg(test)]
-                        test_work(&shared.query_wait);
                         let reads_presence = presence_of(&reader);
                         let context = dev_refusals::response::context(context.clone(), reader.refusal_sites.clone(), &reader);
                         let query_generation = reader.generation();
@@ -1280,6 +1285,12 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     Err(_) => {
                         let mut engine = lock(&shared.engine);
+                        let _persona_authority = match session_identity::persona_read_authority(&request, shared, &engine) {
+                            Ok(authority) => authority,
+                            Err(why) => {
+                            drop(engine); return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
+                            }
+                        };
                         let metadata = response_head(&mut engine);
                         let reads_presence = presence_of(&engine);
                         let mut context = context.clone();

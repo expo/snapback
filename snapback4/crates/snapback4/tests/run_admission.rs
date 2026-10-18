@@ -3,7 +3,7 @@ use snapback4_core::{Engine, Store};
 use std::{fs, path::PathBuf, process::{Child, Command, Output, Stdio}, sync::{atomic::{AtomicUsize, Ordering}, mpsc}, time::{Duration, Instant}};
 
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
-const SOURCE: &str = "table items:\n  owner: principal\n  active: bool\n  n: int\n  public 'test'\n  insert <- allow\n  update <- allow\nmaintain totals: count items where .active by owner\n  read <- allow\n  online only\nmutation put():\n  insert items {owner: viewer, active: false, n: 0}\nquery rows():\n  return items first 100 by byId\njob backfill():\n  chunk row in items first 10 by byId:\n    update items[row.id] {n: row.n + 1}\n";
+const SOURCE: &str = "use personas alice\ntable items:\n  owner: principal\n  active: bool\n  n: int\n  public 'test'\n  insert <- allow\n  update <- allow\nmaintain totals: count items where .active by owner\n  read <- allow\n  online only\nmutation put():\n  insert items {owner: viewer, active: false, n: 0}\nquery rows():\n  return items first 100 by byId\njob backfill():\n  chunk row in items first 10 by byId:\n    update items[row.id] {n: row.n + 1}\n";
 
 struct Project(PathBuf);
 impl Project {

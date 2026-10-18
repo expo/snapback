@@ -46,6 +46,12 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     let wants_ephemeral = ["eph", "ephi", "ephTables"].iter().any(|k|params.contains_key(*k));
     {
         let mut engine = lock(&shared.engine);
+        let _persona_authority = match super::session_identity::persona_read_authority(response.request.as_ref().unwrap(), shared, &engine) {
+            Ok(authority) => authority,
+            Err(why) => {
+            drop(engine); response.finish(401, json!({"denied":refusal_json(&why)})); return;
+            }
+        };
         if present && let Err(error) = engine.presence_reconnected(&connected, shared.now()) {
             response.finish(500, json!({ "denied": refusal_json(&error.refusal()) })); return;
         }
