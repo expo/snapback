@@ -38,6 +38,22 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
     for inv in bound.invariants.iter().filter(|i|i.target=="read"&&sites.is_none_or(|s|s.contains(&i.site.to_string()))) {
         if inv.policy.is_none(){out.unsupported.insert(format!("{}: paired observation needs complete bound policy dependencies; unsupported policy AST is not dependency-free",inv.table));continue;}
         if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()){continue;}
+        // Closed transitive observer set: include maintained targets, inherited
+        // readers and every table whose rule probes an affected population.
+        // An operation mentioning none of them has no logical input changed
+        // by this pair. This prunes experiments, never proves an obligation.
+        let mut observers=BTreeSet::from([inv.table.clone()]);
+        loop {
+            let before=observers.len();
+            for m in &bound.schema.maintains {if observers.contains(&m.source){observers.insert(m.target.clone());}}
+            for (name,t) in &bound.schema.tables {
+                if t.through.as_ref().is_some_and(|p|observers.contains(&p.parent))
+                    || [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|kernel::dependencies(r).iter().any(|d|observers.contains(d))) {
+                    observers.insert(name.clone());
+                }
+            }
+            if observers.len()==before{break;}
+        }
         // Removing an ordinary row must not manufacture an invalid reference
         // graph. More general paired deletions need a checked closure.
         if bound.schema.tables.values().any(|t|t.columns.values().any(|k|matches!(k.required(),C::Ref{table} if table==&inv.table))) {
@@ -61,6 +77,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                         out.unsupported.insert(format!("{}: paired mutation lacks stable policy/implicit-write and deterministic-id reduction",p.name));continue;
                     }
                     let json=serde_json::to_value(p).unwrap();
+                    if !observers.iter().any(|table|super::super::audit::mentions(&json,table)){continue;}
                     // Fresh generated ids and opaque viewer/work contexts are
                     // not repeatable functions of these paired inputs.
                     fn opaque(v:&serde_json::Value)->bool {match v{
