@@ -196,99 +196,43 @@
     "web": false
   },
   {
-    "file": "native",
-    "version": "0.4.9",
-    "web": false,
-    "template": null,
-    "sha256": "0ea4d196a1c915b023cda3b25e02d2fdc022139df1c44002eaec46a3ea214e0d"
-  },
-  {
-    "file": "native",
-    "version": "0.4.16",
-    "web": false,
-    "template": null,
-    "sha256": "8c6dac924ff0eb8b6d7c78f78e6166c6bad097b74a8f2ffb9322669829086b1d"
-  },
-  {
-    "file": "native",
-    "version": "0.4.25",
-    "web": false,
-    "template": "password",
-    "sha256": "bb6d341b60d87896b619ef50920a6f3b32d6708eee05387c3cea54a320462a6b"
-  },
-  {
-    "file": "native",
-    "version": "0.4.28",
-    "web": false,
-    "template": null,
-    "sha256": "63806001d4aad96918b1839fc7f1959109a77b00bb303f87b98b1be8a4e3d857"
-  },
-  {
-    "file": "native",
-    "version": "0.4.28",
-    "web": false,
-    "template": "password",
-    "sha256": "bfc4290c5952d84bc951d5cfccedcd9e4de6b7eb996e34b24898a3b4e671a1cb"
-  },
-  {
-    "file": "native",
-    "version": "0.4.31",
-    "web": false,
-    "template": null,
-    "sha256": "e692a8e24f571c8f69c4e7104c86cead9654ae65f093f448409f82dbeaf2fc8a"
-  },
-  {
-    "file": "native",
-    "version": "0.4.31",
-    "web": false,
-    "template": "password",
-    "sha256": "f51620ef1b765738623f121cb458db0fd907aec9236183d1296fdf51addf243c"
-  },
-  {
-    "file": "todo-schema",
-    "version": "0.4.30",
-    "web": false,
-    "template": null,
-    "sha256": "75eae1b8a13b20ef6d9c3e919dbf49d2250cb7d04f52fb1e2077a7d941768de0"
-  },
-  {
     "file": "frontend",
-    "sha256": "80da3f822d5d180182870f269f267cb8efb651a56076b8900c53fab3cec5fa17",
+    "sha256": "0b9b38b3322d6b11f8faa78f02cfcf8ecaf99129b95ae21972d8893d4e54b481",
     "template": null,
     "version": "0.4.32",
     "web": false
   },
   {
     "file": "frontend",
-    "sha256": "8f332ad19b2c37b9b481927ed01907246dd1b253ce7c1353eaeaf7498785eca0",
+    "sha256": "5698c9fe341b0c24fb4319513509779f9b1b4bafadbc603afd840d02f3b94b7f",
     "template": "chat",
     "version": "0.4.32",
     "web": false
   },
   {
     "file": "frontend",
-    "sha256": "10ccb8ca3792803d916e5e2e98393b8812be9c43a2921361822c9236822019b1",
+    "sha256": "32d0ca1a2487e205d4441da01fc2cfab8232bd4eb5e5cfd648ec36f8d733222d",
     "template": "social",
     "version": "0.4.32",
     "web": false
   },
   {
     "file": "frontend",
-    "sha256": "7cbd22d565fd14dd8264daee4c2b45419429640c02fb6e736d5366b38a304190",
+    "sha256": "762b4262606b3688a03edf721eb9238bf91c0164cedf060a6a9539306bdccd52",
     "template": null,
     "version": "0.4.32",
     "web": true
   },
   {
     "file": "frontend",
-    "sha256": "a8376f275e5ebce8b98ed3992c2ff83868379047e2fc1a252bcbecbfaf3a9769",
+    "sha256": "95f2c58f80f67d5efd21d05b34a847ad7883bcc245f9b68ae1aa4d331396146f",
     "template": "chat",
     "version": "0.4.32",
     "web": true
   },
   {
     "file": "frontend",
-    "sha256": "bc31356bb16ceed9f4004e3fb73cf130d0d5b077ee5469952e014fe22ae84d30",
+    "sha256": "61c4c27b00ee9ecd92eb548230e0002455a84575ef8ba4a0135260c19b662c5e",
     "template": "social",
     "version": "0.4.32",
     "web": true
@@ -298,6 +242,118 @@
     "sha256": "546d786c11a45de1e939fd37d0aa6c525a76bfb7dd777bdf9ce2a8b37f7ea0b9",
     "template": null,
     "version": "0.4.32",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "80da3f822d5d180182870f269f267cb8efb651a56076b8900c53fab3cec5fa17",
+    "template": null,
+    "version": "0.4.33",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "8f332ad19b2c37b9b481927ed01907246dd1b253ce7c1353eaeaf7498785eca0",
+    "template": "chat",
+    "version": "0.4.33",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "10ccb8ca3792803d916e5e2e98393b8812be9c43a2921361822c9236822019b1",
+    "template": "social",
+    "version": "0.4.33",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "7cbd22d565fd14dd8264daee4c2b45419429640c02fb6e736d5366b38a304190",
+    "template": null,
+    "version": "0.4.33",
+    "web": true
+  },
+  {
+    "file": "frontend",
+    "sha256": "a8376f275e5ebce8b98ed3992c2ff83868379047e2fc1a252bcbecbfaf3a9769",
+    "template": "chat",
+    "version": "0.4.33",
+    "web": true
+  },
+  {
+    "file": "frontend",
+    "sha256": "bc31356bb16ceed9f4004e3fb73cf130d0d5b077ee5469952e014fe22ae84d30",
+    "template": "social",
+    "version": "0.4.33",
+    "web": true
+  },
+  {
+    "file": "day2",
+    "sha256": "546d786c11a45de1e939fd37d0aa6c525a76bfb7dd777bdf9ce2a8b37f7ea0b9",
+    "template": null,
+    "version": "0.4.33",
+    "web": false
+  },
+  {
+    "file": "native",
+    "sha256": "0ea4d196a1c915b023cda3b25e02d2fdc022139df1c44002eaec46a3ea214e0d",
+    "template": null,
+    "version": "0.4.9",
+    "web": false
+  },
+  {
+    "file": "native",
+    "sha256": "8c6dac924ff0eb8b6d7c78f78e6166c6bad097b74a8f2ffb9322669829086b1d",
+    "template": null,
+    "version": "0.4.16",
+    "web": false
+  },
+  {
+    "file": "native",
+    "sha256": "bb6d341b60d87896b619ef50920a6f3b32d6708eee05387c3cea54a320462a6b",
+    "template": "password",
+    "version": "0.4.25",
+    "web": false
+  },
+  {
+    "file": "native",
+    "sha256": "63806001d4aad96918b1839fc7f1959109a77b00bb303f87b98b1be8a4e3d857",
+    "template": null,
+    "version": "0.4.28",
+    "web": false
+  },
+  {
+    "file": "native",
+    "sha256": "bfc4290c5952d84bc951d5cfccedcd9e4de6b7eb996e34b24898a3b4e671a1cb",
+    "template": "password",
+    "version": "0.4.28",
+    "web": false
+  },
+  {
+    "file": "native",
+    "sha256": "e692a8e24f571c8f69c4e7104c86cead9654ae65f093f448409f82dbeaf2fc8a",
+    "template": null,
+    "version": "0.4.31",
+    "web": false
+  },
+  {
+    "file": "native",
+    "sha256": "f51620ef1b765738623f121cb458db0fd907aec9236183d1296fdf51addf243c",
+    "template": "password",
+    "version": "0.4.31",
+    "web": false
+  },
+  {
+    "file": "todo-schema",
+    "sha256": "75eae1b8a13b20ef6d9c3e919dbf49d2250cb7d04f52fb1e2077a7d941768de0",
+    "template": null,
+    "version": "0.4.30",
+    "web": false
+  },
+  {
+    "file": "todo-schema",
+    "sha256": "f2b8880b2ba5c6a2d8e000d41aa0722391ce5284c3aeed4da7402dea7e35eb62",
+    "template": null,
+    "version": "0.4.33",
     "web": false
   }
 ]

@@ -22,7 +22,7 @@ for (const host of ['wasm', 'native']) test(`Following unfollow/repost repeats i
   const directory = await mkdtemp(join(tmpdir(), 'sb4-unfollow-'));
   await mkdir(join(directory, 'snapback'));
   const source = readFileSync(join(root, 'crates/snapback4-lang/tests/fixtures/following-view.q'), 'utf8');
-  await writeFile(join(directory, 'snapback/schema.q'), source + '\nquery followsActor(actor: principal):\n  return exists follows[viewer, actor]\n');
+  await writeFile(join(directory, 'snapback/schema.q'), 'use personas alice, bob\n' + source + '\nquery followsActor(actor: principal):\n  return exists follows[viewer, actor]\n');
   const server = spawn(binary, ['dev', '--port', '0', '--fresh', '--no-watch'], {cwd:directory, stdio:['ignore', 'pipe', 'pipe']});
   const readStdout = captureStdout(server);
   const exited = once(server, 'exit');

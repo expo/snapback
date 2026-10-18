@@ -28,7 +28,7 @@ async function fixture(t,rows=[],bounded=true,transform=s=>s) {
   const dir=await mkdtemp(join(tmpdir(),'sb4-fh2-'));
   await mkdir(join(dir,'snapback'));
   const path=join(dir,'snapback/schema.q');
-  const source=transform('use identity\n\n'+readFileSync(join(root,'crates/snapback4-lang/tests/fixtures/following-view.q'),'utf8').replace('sync public',bounded?'sync public last 3 by .at':'sync public'));
+  const source=transform('use identity\nuse personas reader, alice, bob\n\n'+readFileSync(join(root,'crates/snapback4-lang/tests/fixtures/following-view.q'),'utf8').replace('sync public',bounded?'sync public last 3 by .at':'sync public'));
   const clients=[],stops=[]; let child,exited,url,log='';
   const start=async text=>{
     await writeFile(path,text);

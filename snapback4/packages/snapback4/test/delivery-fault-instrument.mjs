@@ -22,6 +22,8 @@ export const followRetry = 'local.ts:follow:new Promise((r) => setTimeout(r, 100
 // existing doFetch rejection, plus catalog-only fetch/JSON awaits in release.ts.
 // These do not originate or settle delivery work; existing transport fault sites
 // still exercise delivery failures. KIT changes only proof-host awaits.
+// STAGE account provisioning awaits signup/operator setup outside application
+// delivery custody; proof host token/setup waits are likewise not delivery I/O.
 export const scope = {
   'local.ts': ['flush', 'flushOnce', 'call', 'captureStore', 'refreshAcquired', 'sendPost', 'syncRound', 'probe', 'waitForChange', 'follow', 'replayOnOpen', 'listenForExit', 'commit', 'read', 'lookup', 'save'],
   'local-receipts.ts': '*',

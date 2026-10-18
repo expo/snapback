@@ -54,8 +54,8 @@ test('token quiet/JSON and empty/nonempty data JSON have machine-readable output
   const second=JSON.parse(readFileSync(join(cwd,'deploy/releases/2/provenance.json'),'utf8'));
   assert.notEqual(second.sourceHash,provenance.sourceHash);
 });
-test('startServe names its directory argument and witness disabled errors expose code', () => {
-  for (const value of [{cwd:'.'},undefined,null,'']) assert.throws(()=>startServe(value), e=>e.code==='E_PROOF_USAGE'&&/startServe\(deployDir, options\)/.test(e.message));
+test('startServe names its directory argument and witness disabled errors expose code', async () => {
+  for (const value of [{cwd:'.'},undefined,null,'']) await assert.rejects(startServe(value), e=>e.code==='E_PROOF_USAGE'&&/startServe\(deployDir, options\)/.test(e.message));
   const previous=globalThis.window;
   try {
     globalThis.window={location:{search:''}};

@@ -1,0 +1,141 @@
+// @ref LLP 3000.036.004#4-counterexamples-and-generated-tests — qualify the installed policy surface and its finite campaigns.
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { runToolchainCommand } from "./publication-starters.mjs";
+
+const sha256 = path => createHash("sha256").update(readFileSync(path)).digest("hex");
+
+/** Execute only the supplied packed client/CLI; never build or repack source.
+ * Evidence contains counters and verdicts, never credentials or HTTP bodies. */
+export async function proveSecurity(clientTarball, platformTarball, directory) {
+  const client = resolve(clientTarball), platform = resolve(platformTarball);
+  const artifacts = { clientSha256: sha256(client), platformSha256: sha256(platform) };
+  const parent = resolve(directory); mkdirSync(parent, { recursive: true });
+  const cwd = mkdtempSync(join(parent, "security-policy-"));
+  const env = { ...process.env, CI: "1", npm_config_audit: "false", npm_config_fund: "false" };
+  delete env.SNAPBACK4_BIN; delete env.PORT_LO; delete env.PORT_HI;
+  writeFileSync(join(cwd, "package.json"), '{"private":true,"type":"module"}');
+  await runToolchainCommand("npm", ["install", "--ignore-scripts", "--omit=optional", "--no-audit", "--no-fund", client, platform], {
+    cwd, env, timeout: 300_000,
+  });
+  const cli = join(cwd, "node_modules/snapback4/bin/snapback4.js");
+  const native = join(cwd, "node_modules", `snapback4-${process.platform}-${process.arch}`, "snapback4");
+  const binarySha256 = sha256(native), commands = [];
+  function command(args, project = cwd, expected = 0) {
+    const result = spawnSync(process.execPath, [cli, ...args], {
+      cwd: project, env, encoding: "utf8", timeout: 120_000, maxBuffer: 32 * 1024 * 1024,
+    });
+    commands.push({ args, project: project.slice(cwd.length) || ".", exitCode: result.status, expectedExitCode: expected });
+    // Child output can contain replayed rows. Keep failure diagnostics to stable
+    // codes and process state rather than serializing potentially private rows.
+    const codes = [...new Set(((result.stdout ?? "") + (result.stderr ?? "")).match(/\b[EN]_[A-Z][A-Z0-9_]+\b/g) ?? [])];
+    assert.equal(result.error, undefined, `${args.join(" ")}: ${result.error?.code ?? "process error"}`);
+    assert.equal(result.status, expected, `${args.join(" ")}: expected exit ${expected}, got ${result.status}; codes: ${codes.join(", ")}`);
+    return result.stdout;
+  }
+  function schemaProject(name, source) {
+    const project = join(cwd, name); mkdirSync(join(project, "snapback"), { recursive: true });
+    writeFileSync(join(project, "snapback/schema.q"), source); return project;
+  }
+  function checked(project) {
+    const result = JSON.parse(command(["check", "--json"], project));
+    assert.equal(result.ok, true); assert.ok(result.security?.invariants.length > 0);
+    assert.ok(result.security.invariants.every(verdict => ["proved", "unproved"].includes(verdict.status)));
+    return result.security;
+  }
+  function campaign(project) {
+    const output = command(["test", "--fixture-only"], project);
+    const counts = /security tests: (\d+) attempted, (\d+) refused, (\d+) violations; finite campaign, not proof/.exec(output);
+    assert.ok(counts, "default test executes the generated finite security campaign");
+    assert.ok(Number(counts[1]) > 0, "the security campaign actually attempts challenges");
+    assert.equal(Number(counts[3]), 0);
+    assert.doesNotMatch(output, /security boundary failure:|security HTTP failure:|security violation:/);
+    const http = /security unauthenticated serve HTTP: (\d+) attempts refused/.exec(output);
+    assert.ok(http && Number(http[1]) > 0, "the isolated production HTTP campaign runs");
+    return { attempted: Number(counts[1]), refused: Number(counts[2]), violations: Number(counts[3]), unauthenticatedHttpRefused: Number(http[1]),
+      revocationHttpRefused: Number(/security live-session revocation HTTP: (\d+) attempts refused/.exec(output)?.[1] ?? 0) };
+  }
+
+  const guide = command(["guide", "security", "--full"]);
+  const blocks = [...guide.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(match => match[1]);
+  assert.ok(blocks.length > 0, "installed security guide contains executable Quarry");
+  const guideCases = [];
+  for (const [index, source] of blocks.entries()) {
+    const project = schemaProject(`card-${index}`, source), security = checked(project);
+    assert.ok(security.invariants.every(verdict => verdict.direct_rule === "proved"));
+    assert.match(readFileSync(join(project, "snapback/generated/security-invariants.q.draft"), "utf8"), /DRAFT: NOT ACCEPTED/);
+    const audited = JSON.parse(command(["audit", "--json"], project));
+    assert.equal(audited.format, 1); assert.ok(audited.exposures.some(exposure => exposure.table === "privateNotes"));
+    const checkAudit = JSON.parse(command(["check", "--audit", "--json"], project));
+    assert.equal(checkAudit.format, 1); assert.deepEqual(checkAudit, audited, "check --audit is the structured audit alias");
+    const finite = campaign(project);
+    const broad = source.replace("read <- .patient = viewer", "read <- allow");
+    assert.notEqual(broad, source, "the installed card's private read is widened for the counterexample");
+    writeFileSync(join(project, "snapback/schema.q"), broad);
+    const refuted = JSON.parse(command(["check", "--json"], project, 1));
+    assert.equal(refuted.ok, false);
+    assert.ok(refuted.security.invariants.some(verdict => verdict.status === "refuted" && verdict.counterexample));
+    const auditRefuted = JSON.parse(command(["audit", "--json"], project, 1));
+    assert.ok(auditRefuted.invariants.some(verdict => verdict.status === "refuted"));
+    command(["test", "--fixture-only"], project, 1);
+    guideCases.push({ block: index, invariants: security.invariants.length, audit: "passed", finite, broadRead: "refuted", expectedFailureExits: [1, 1, 1] });
+  }
+
+  const sessions = [];
+  for (const method of ["guests", "password"]) {
+    const project = schemaProject(`revocation-${method}`, `use identity ${method}
+table notes:
+  owner: principal
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+invariant notes.read only .owner = viewer
+query notes():
+  return notes first 10 by .id
+mutation add():
+  return insert notes { owner: viewer }
+`);
+    checked(project);
+    const finite = campaign(project);
+    assert.equal(finite.revocationHttpRefused, 14, "actual refresh and logout-all retire both credentials at all seven doors");
+    sessions.push({ method, status: "passed", ...finite, disconnectedDevice: "not covered" });
+  }
+
+  const starters = [];
+  for (const starter of [
+    { id: "todo-online", flags: ["--online"], intent: "invariant todos.read only .ownerId = viewer" },
+    { id: "social", flags: ["--template", "social"] },
+    { id: "todo-web", flags: ["--web"] },
+    { id: "chat-web", flags: ["--template", "chat", "--web"], intent: "invariant messages.read only exists memberships[.conversationId, viewer]" },
+    { id: "chat-expo", flags: ["--template", "chat", "--expo"], intent: "invariant messages.read only exists memberships[.conversationId, viewer]" },
+  ]) {
+    const project = join(cwd, starter.id); command(["init", project, ...starter.flags]);
+    const source = readFileSync(join(project, "snapback/schema.q"), "utf8");
+    if (starter.intent) assert.ok(source.includes(starter.intent), `${starter.id} ships its independent intent`);
+    const security = checked(project), finite = campaign(project);
+    starters.push({ id: starter.id, status: "passed", invariants: security.invariants.length, ...finite });
+  }
+  const production = schemaProject("production-recipe", "");
+  copyFileSync(join(cwd, "node_modules/snapback4/dist/recipes/production/web/schema.q"), join(production, "snapback/schema.q"));
+  const productionSecurity = checked(production);
+  starters.push({ id: "production-recipe", status: "passed", source: "installed dist/recipes/production/web/schema.q", invariants: productionSecurity.invariants.length, ...campaign(production) });
+  assert.equal(starters.length, 6);
+
+  assert.equal(sha256(native), binarySha256, "installed CLI binary is unchanged");
+  assert.equal(sha256(client), artifacts.clientSha256, "supplied client tarball is unchanged");
+  assert.equal(sha256(platform), artifacts.platformSha256, "supplied platform tarball is unchanged");
+  const result = { status: "passed", guide: "verbatim installed security card", artifacts: { ...artifacts, binarySha256 }, guideCases, sessions, starters,
+    scope: "finite campaigns and declared policy checks; no zero-hole or disconnected-device revocation claim", commands };
+  writeFileSync(join(cwd, "security-evidence.json"), JSON.stringify(result, null, 2) + "\n");
+  return result;
+}
+
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const [client, platform, directory] = process.argv.slice(2);
+  if (!client || !platform || !directory) throw Error("usage: publication-security.mjs client.tgz platform.tgz output-directory");
+  console.log(JSON.stringify(await proveSecurity(client, platform, directory)));
+}

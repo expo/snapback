@@ -283,6 +283,7 @@ for(const clockKind of ['valueDevice','valueServer']) test(`decoration ${clockKi
 
 
 const rememberedSource=`use identity
+use personas alice, bob
 table messages:
   text: text <=200
   at: time
@@ -462,6 +463,7 @@ mutation renew(expires: time):
 });
 
 const browseSource=`use identity
+ use personas alice, bob
  table parents:
   owner: principal
   immutable owner

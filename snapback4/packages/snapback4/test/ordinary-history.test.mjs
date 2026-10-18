@@ -22,7 +22,10 @@ const mutation = name => ({ kind: "mutation", name });
 const card = name => readFileSync(new URL(`../../../crates/snapback4-lang/src/guide/${name}.rs`, import.meta.url), "utf8").match(/```quarry\n([\s\S]*?)\n```/)[1];
 
 async function fixture(t, tier, source, controlled = false) {
-  const { url, dir } = await server(t, "", source);
+  // Guide cards may omit a development cast; these fixtures deliberately use
+  // alice/bob personas and seed tools, including for password-only examples.
+  const fixtureSource = /^use personas\b/m.test(source) ? source : `use personas alice, bob\n${source}`;
+  const { url, dir } = await server(t, "", fixtureSource, { memory: true, unsafeDevDoors: true });
   const clients = [], requests = [], observations = [], gates = new Set();
   let offline = false, frozen = false, core;
   const opener = tier === "wasm" ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ binary, dir: join(dir, "devices") });

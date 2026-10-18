@@ -18,8 +18,12 @@ const entry = (op, args, seq = 1) => ({ id: `rp-r3-${seq}`, seq, op, args, viewe
 const call = (device, request) => JSON.parse(device.call(JSON.stringify(request)));
 const ok = answer => { assert.ok(!answer.denied, JSON.stringify(answer)); return answer.ok; };
 const backendFor = async (t, source) => {
-  const { url } = await server(t, undefined, source);
-  return fetch(`${url}/schema`, { headers: { 'x-snapback-persona': 'alice' } }).then(r => r.json());
+  const fixtureSource = /^use personas\b/m.test(source) ? source : `use personas alice\n${source}`;
+  const { url } = await server(t, undefined, fixtureSource, { memory: true });
+  const response = await fetch(`${url}/schema`, { headers: { 'x-snapback-persona': 'alice' } });
+  const backend = await response.json();
+  assert.equal(response.status, 200, JSON.stringify(backend));
+  return backend;
 };
 
 for (const c of cases) test(`wasm reservation parity: ${c.label}`, { timeout: hangBudget(10) }, async t => {

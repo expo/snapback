@@ -30,7 +30,7 @@ query total():
 `);
   t.after(() => rmSync(project, { recursive: true, force: true }));
   const path = name => join(root, 'packages/snapback4/src', name);
-  const witness = await launch({ sourceDir, watch: true, seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }], entrySource: `
+  const witness = await launch({ sourceDir, watch: true, memory: true, unsafeDevDoors: true, seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }], entrySource: `
 import { createApp } from '${path('app.ts')}';
 import { keepSession, localStorageSessionStore, sessionKey } from '${path('auth.ts')}';
 import { mintId } from '${path('client.ts')}';

@@ -130,7 +130,9 @@ query total():
   const settlementPath = path('local-exit-settlement.ts');
   sourceOverrides[settlementPath] = (sourceOverrides[settlementPath] ?? readFileSync(settlementPath, 'utf8'))
     .replace('if (options.closed() || options.owners.has(entry.id)) return;', 'if (options.closed() || options.owners.has(entry.id)) { (globalThis as any).exitBlocked?.push(entry.id); return; }');
-  const witness = await launch({ sourceDir, seed: [{ table: 'removals', row: { id: 'audit', total: 0 } }], sourceOverrides, entrySource: `
+  // These recovery scenarios inspect the persistent SQLite store and opt in
+  // to fixture doors while authenticating app traffic with real sessions.
+  const witness = await launch({ sourceDir, memory: false, unsafeDevDoors: true, seed: [{ table: 'removals', row: { id: 'audit', total: 0 } }], sourceOverrides, entrySource: `
 import { createApp } from '${path('app.ts')}';
 import { keepSession, localStorageSessionStore, sessionKey } from '${path('auth.ts')}';
 import { mintId } from '${path('client.ts')}';
@@ -309,7 +311,7 @@ window.abortReceipts = (store, limit = Infinity) => {
     Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
     document.dispatchEvent(new Event('visibilitychange'));
   });
-  const replacementFor = session => replacementServer({ original: witness, session, sourceDir, seed: [
+  const replacementFor = session => replacementServer({ original: witness, session, sourceDir, memory: false, unsafeDevDoors: true, seed: [
       { table: 'removals', row: { id: 'audit', total: 0 } },
       { table: 'members', row: { id: 'admin', room: 'room', principal: session.principal, admin: true } },
       { table: 'members', row: { id: 'target', room: 'room', principal: 'user:other', admin: false } },

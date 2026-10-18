@@ -81,7 +81,8 @@ for(const f of fixtures)test(`refused native open and adoption preserve the ${f.
 });
 
 for(const f of additionalMarkerFixtures)test(`historical fence marker pin matches current projection: ${f.name}`,{timeout:hangBudget(2)},async t=>{
-  const host=await server(t,undefined,f.source);
+  const source=/^use personas\b/m.test(f.source)?f.source:`use personas alice\n${f.source}`;
+  const host=await server(t,undefined,source,{memory:true});
   const backend=await request(host.url,'/schema');
   const capabilities=Object.values(backend.schema.tables).flatMap(table=>table.constraints??[]).flatMap(c=>c?.Capabilities??[]);
   assert.deepEqual(capabilities,f.capabilities,`${f.name}: marker set derives from its current schema, not the old fence snapshot`);

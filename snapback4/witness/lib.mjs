@@ -52,12 +52,12 @@ export function scaleSeed({ groups, messages, members }) {
 }
 
 /** A `snapback4 dev` on the chat backend in a temporary project, seeded. */
-export async function devServer({ seed, extraSource = "", sourceDir, port = 0, clockOffset, watch = false, unsafeDevDoors = false }) {
+export async function devServer({ seed = [], extraSource = "", sourceDir, port = 0, clockOffset, watch = false, memory = false, unsafeDevDoors = false }) {
   const app = mkdtempSync(join(tmpdir(), "sb4-witness-app-"));
   cpSync(sourceDir ?? join(root, "apps/chat/snapback"), join(app, "snapback"), { recursive: true, filter: (path) => !/\/worker\.(ts|mjs)$/.test(path) });
   rmSync(join(app, "snapback/generated"), { recursive: true, force: true });
   if (extraSource) writeFileSync(join(app, "snapback/media.q"), extraSource);
-  const server = spawn(binary(), ["dev", "--port", String(port), ...(unsafeDevDoors ? ["--unsafe-dev-doors"] : []), ...(watch ? [] : ["--no-watch"]), ...(clockOffset ? ["--clock-offset", clockOffset] : [])], { cwd: app, stdio: ["ignore", "pipe", "pipe"] });
+  const server = spawn(binary(), ["dev", "--port", String(port), ...(memory ? ["--memory"] : []), ...(unsafeDevDoors ? ["--unsafe-dev-doors"] : []), ...(watch ? [] : ["--no-watch"]), ...(clockOffset ? ["--clock-offset", clockOffset] : [])], { cwd: app, stdio: ["ignore", "pipe", "pipe"] });
   let output = "", log = "", spawnError;
   server.stdout.on("data", data => { output += data; });
   server.stderr.on("data", data => { log += data; });
@@ -92,7 +92,7 @@ export async function devServer({ seed, extraSource = "", sourceDir, port = 0, c
 }
 
 /** Bundle the client into a page, start a seeded dev server, open Chromium. */
-export async function launch({ seed, extraSource = "", headless = true, sourceDir, entrySource = "", sourceOverrides = {}, clockOffset, worker = false, watch = false, unsafeDevDoors = false }) {
+export async function launch({ seed = [], extraSource = "", headless = true, sourceDir, entrySource = "", sourceOverrides = {}, clockOffset, worker = false, watch = false, memory = false, unsafeDevDoors = false }) {
   const require = createRequire(join(root, "package.json"));
   const { chromium } = require("playwright-core");
   const exe = chromiumExecutable();
@@ -109,7 +109,7 @@ export async function launch({ seed, extraSource = "", headless = true, sourceDi
   const overrides = () => ({ name: "witness-source-overrides", enforce: "pre", transform(code, id) { return sourceOverrides[id] ? { code: sourceOverrides[id], map: null } : null; } });
   await build({ root: harness, resolve: { alias: { "snapback4/contract": join(root, "packages/snapback4/src/contract.ts") } }, logLevel: "silent", plugins: [overrides()], worker: { plugins: () => [overrides()] }, build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", assetsInlineLimit: 0 } });
 
-  const dev = await devServer({ seed, extraSource, sourceDir, clockOffset, watch, unsafeDevDoors });
+  const dev = await devServer({ seed, extraSource, sourceDir, clockOffset, watch, memory, unsafeDevDoors });
   const { api, app, seeded, seedMs } = dev;
 
   const types = { ".html": "text/html", ".js": "text/javascript", ".wasm": "application/wasm" };

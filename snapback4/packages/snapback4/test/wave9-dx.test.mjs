@@ -81,7 +81,11 @@ for (const identity of ['use personas alice', 'use identity password']) test(`ex
     assert.ok(!existsSync(join(dir, '.snapback4/store.sqlite')), 'fresh backend never creates durable store');
   }
   if (identity.includes('password')) success(run(bin, ['witness', 'web', 'dist', ...auth], dir, { DX_PROOF_PASSWORD: password })); // signup on the owned empty backend
-  assert.equal((await fetch(server.url + '/dev/status')).status, 200, 'witness leaves external server alive');
+  const config = await fetch(server.url + '/auth/config');
+  assert.equal(config.status, 200, 'witness leaves external server alive');
+  const passwordOnly = identity.includes('password');
+  assert.equal((await config.json()).devDoors, !passwordOnly);
+  assert.equal((await fetch(server.url + '/dev/status')).status, passwordOnly ? 403 : 200, 'password-only fixture doors stay closed');
 });
 
 for (const pm of ['npm', 'bun', 'pnpm']) test(`upgrade ${pm}: one version, exact pins and preserved sections`, t => {

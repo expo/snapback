@@ -11,7 +11,7 @@ import {hangBudget} from './helpers/wait.mjs';
 // separately against online, wasm and native clients in following-history.
 test('generated Following hook mounts independent consumers, preparing is not empty, and unmount releases only its consumer',{timeout:hangBudget(30)},async t=>{
   const dir=mkdtempSync(join(tmpdir(),'sb4-fh-react-'));mkdirSync(join(dir,'snapback'));
-  writeFileSync(join(dir,'snapback/schema.q'),readFileSync(join(root,'crates/snapback4-lang/tests/fixtures/following-view.q'),'utf8'));
+  writeFileSync(join(dir,'snapback/schema.q'),'use personas reader\n'+readFileSync(join(root,'crates/snapback4-lang/tests/fixtures/following-view.q'),'utf8'));
   t.after(()=>rmSync(dir,{recursive:true,force:true}));
   const req=createRequire(join(root,'packages/snapback4/package.json'));
   const fixture=await launch({sourceDir:join(dir,'snapback'),seed:[],entrySource:`

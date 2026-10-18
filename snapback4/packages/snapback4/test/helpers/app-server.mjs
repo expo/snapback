@@ -14,7 +14,7 @@ export const until = async (read, label = "condition", options) => { return awai
       if (error.cause?.code !== 'UND_ERR_SOCKET') throw error;
     }
   }, label, options); };
-export async function server(t, residency = "sync to .owner", source, { watch = false } = {}) {
+export async function server(t, residency = "sync to .owner", source, { watch = false, memory = false, unsafeDevDoors = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-app-"));
   mkdirSync(join(dir, "snapback"));
   writeFileSync(join(dir, "snapback/schema.q"), source ?? `use identity
@@ -31,7 +31,7 @@ query list():
   return notes[viewer] first 100 by byOwner
 `));
   let output = "";
-  const host = spawn(binary, ["dev", "--port", "0", ...(watch ? [] : ["--no-watch"])], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
+  const host = spawn(binary, ["dev", "--port", "0", ...(memory ? ["--memory"] : []), ...(unsafeDevDoors ? ["--unsafe-dev-doors"] : []), ...(watch ? [] : ["--no-watch"])], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const readStdout = captureStdout(host);
   host.stdout.on("data", bytes => { output += bytes; }); host.stderr.on("data", bytes => { output += bytes; });
   t.after(async () => { const done = new Promise(resolve => host.once("exit", resolve)); if (host.exitCode === null && host.signalCode === null) { await signalChild(host, "SIGTERM"); await done; } rmSync(dir, { recursive: true, force: true }); });

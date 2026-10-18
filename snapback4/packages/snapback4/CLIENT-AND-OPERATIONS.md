@@ -2485,6 +2485,18 @@ the caller.
 
 For a complete serve staging release with real users per role, private credentials and first-admin setup, run `snapback4 guide staging`. `startServe` supplies operatorToken/seedAccounts; bulk setup refuses production. Password-only dev requires explicit --unsafe-dev-doors for fixture/clock/persona tools, and startDev persists unless --memory is explicit.
 
+The staging schema must declare an operator-only `provision` mutation (the
+complete schema and first-admin workflow are in `guide staging`):
+
+```ts
+import { seedAccounts, type ServeHost } from "snapback4/proof";
+export async function prepareStaging(host: ServeHost) {
+  return seedAccounts(host, {
+    roles: { member: 2, admin: 2 }, provision: { name: "provision" },
+  });
+}
+```
+
 `signup` and `login` below work in Node 24 with the same server password hashing,
 rate limits and application rules as browser sign-in. Run `snapback4 guide auth`
 for a runnable `seed.mjs`: declare `use identity password`, run `snapback4 check`,

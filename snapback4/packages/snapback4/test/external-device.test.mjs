@@ -29,7 +29,20 @@ test('external crate-built wasm passes check and the real schema/sync handshake'
   const identity = JSON.parse(Buffer.from(sections[0]).toString());
   assert.equal(identity.format, 1);
   assert.deepEqual(JSON.parse(deviceHeaders['x-snapback-device']), identity);
-  const host = await server(t);
+  const host = await server(t, "sync to .owner", `use identity
+use personas alice
+table notes:
+  owner: principal
+  body: text <=200
+  by byOwner: owner, id
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  sync to .owner
+mutation add(body: text <=200):
+  insert notes { owner: viewer, body }
+query list():
+  return notes[viewer] first 100 by byOwner
+`, { memory: true });
   const app = join(host.dir, 'exact-app'); mkdirSync(join(app, 'assets'), {recursive: true});
   writeFileSync(join(app, 'app.json'), JSON.stringify({typescript: {sources: {snapback4: '../../exact2/snapback4/ts', backend: '../snapback/generated'}}}));
   writeFileSync(join(app, 'assets/snapback4.wasm'), bytes);
