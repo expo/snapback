@@ -1123,11 +1123,15 @@ fn kit3_large_clock_report_uses_complete_http_and_runnable_no_argument_commands(
     let host = f.start(&["dev", "--no-watch"]);
     let port = host.address.rsplit(':').next().unwrap();
     let output = f.command(&["clock", "advance", "2000m", "--port", port]);
-    assert!(output.stdout.len() > 65_536, "fixture must exercise the former transport ceiling");
+    assert!(output.status.success());
     let reply = output_json(output);
     assert_eq!(reply["advancedMs"], 120_000_000);
     let skipped = reply["schedules"][0]["skippedBoundaries"].as_array().unwrap();
-    assert_eq!(skipped.len(), 999);
+    assert_eq!(skipped.len(), 32);
+    assert_eq!(reply["schedules"][0]["skippedBoundariesOmitted"], 967);
+    let large = f.command(&["clock", "advance", "4000m", "--each-boundary", "--port", port]);
+    assert!(large.stdout.len() > 65_536, "explicit windows exercise the former transport ceiling");
+    assert_eq!(output_json(large)["schedules"][0]["firedWindows"].as_array().unwrap().len(), 2000);
     assert_eq!(skipped[0]["command"], "snapback4 run tick '{}'");
     let replay = f.command(&["run", "tick", "{}"]);
     assert!(replay.status.success(), "{}", String::from_utf8_lossy(&replay.stderr));
@@ -1206,19 +1210,19 @@ fn kit3_clock_reply_and_preflight_use_the_persisted_authoritative_floor() {
 }
 
 #[test]
-fn kit4_thirty_day_coalesced_advance_has_no_window_cap() {
+fn kit4_forty_day_coalesced_advance_has_no_window_cap() {
     let f = Fixture::new("kit4-long-jump");
     fs::write(f.0.join("snapback/schema.q"), SOURCE.replace("every 2m:", "every 5m:")).unwrap();
     let host = f.start(&["dev", "--memory", "--no-watch"]);
     host.post("/m/counter", json!({"args":{}}));
     let refused = host.post("/dev/clock/advance", json!({"duration":"40d", "eachBoundary":true}));
     assert!(refused["denied"]["message"].as_str().unwrap().contains("omit --each-boundary"), "{refused}");
-    let reply = host.post("/dev/clock/advance", json!({"duration":"30d"}));
+    let reply = host.post("/dev/clock/advance", json!({"duration":"40d"}));
     assert!(reply.get("denied").is_none(), "{reply}");
     let schedule = &reply["schedules"][0];
     assert_eq!(schedule["firedWindows"].as_array().unwrap().len(), 1);
-    assert_eq!(schedule["skippedPeriods"], 8639);
+    assert_eq!(schedule["skippedPeriods"], 11519);
     assert_eq!(schedule["skippedBoundaries"].as_array().unwrap().len(), 32);
-    assert_eq!(schedule["skippedBoundariesOmitted"], 8607);
+    assert_eq!(schedule["skippedBoundariesOmitted"], 11487);
     assert_eq!(host.query("counters")[0]["n"], 1);
 }
