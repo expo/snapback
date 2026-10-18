@@ -152,7 +152,7 @@ ordering note does not cover them.
 Use `last N by .at, .id` for the example above, keeping the
 audience predicate and cursor. A query on the window's own index, newest first,
 can answer offline within the acquired boundary, including timestamp ties.
-Other orders need the server and cannot complete offline; a held query stays local with incomplete coverage (`complete: false`).
+Other orders need the server; a held query stays local with incomplete coverage.
 `online only` currently applies to tables and views, not query headers.
 
 `read <- exists members[.message.conversation, viewer]` with

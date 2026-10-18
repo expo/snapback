@@ -56,7 +56,7 @@ impl Binder<'_> {
                     // could not certify this speculative source-level plan.
                     self.pop_scope();
                     let mut original = read.clone();
-                    if let Some(range) = &mut original.range { range.cursor = merge.cursor.clone().map(Box::new); }
+                    if let Some(range) = &mut original.range { range.cursor = merge.cursor.clone(); }
                     return self.read(&original, out);
                 }
             }
@@ -121,7 +121,7 @@ impl Binder<'_> {
                 && let Some(read) = merge.lanes.iter().find(|lane| matches!(lane.branch.as_deref(), Some(ir::GRANT_LANE | ir::SYSTEM_LANE))).and_then(|lane| lane.planned.as_deref()) {
                 // @ref LLP 3000.036.002#131-notes-and-declarations — declining a branch merge must preserve the caller's continuation.
                 let mut original = read.clone();
-                if let Some(range) = &mut original.range { range.cursor = merge.cursor.clone().map(Box::new); }
+                if let Some(range) = &mut original.range { range.cursor = merge.cursor.clone(); }
                 return self.read(&original, out);
             }
             return Ok((Expr::Merge(planned), Ty::Page(merge.table.clone(), merge.take)));

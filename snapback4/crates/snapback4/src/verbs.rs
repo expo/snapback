@@ -126,10 +126,15 @@ fn compiled_or_exit(bound: Bound, json: bool) -> Bound {
 
 fn report_diagnostics(bound: &Bound, json: bool, explain_repeats: bool, verbose: bool) {
     if json {
-        println!("{}", json!({ "ok": false, "problems": bound.diagnostics }));
+        println!("{}", json!({ "ok": false, "problems": bound.diagnostics, "notes": bound.notes, "newNotes": bound.notes, "acknowledgedNotes": [] }));
         return;
     }
     report_problems(bound, "check", "", explain_repeats, verbose);
+}
+
+fn failed_check(bound: &Bound, json: bool, code: &str, message: String) {
+    if json { println!("{}", json!({"ok": false, "problems": [{"code": code, "message": message}], "notes": bound.notes, "newNotes": bound.notes, "acknowledgedNotes": []})); }
+    else { eprintln!("{message}"); }
 }
 
 pub(crate) fn report_problems(bound: &Bound, label: &str, suffix: &str, explain_repeats: bool, verbose: bool) {
@@ -301,11 +306,15 @@ pub fn check(options: &Options) -> i32 {
         eprintln!("check: WARNING: saved fixture drift: {warning}");
     }
     if options.flags.contains_key("fix") && bound.diagnostics.is_empty() {
-        if let Err(error) = fix_fixtures::run(&project, &bound, options) { eprintln!("check --fix: {error}"); return 2; }
+        if let Err(error) = fix_fixtures::run(&project, &bound, options) { failed_check(&bound, options.json, "E_INPUT", format!("check --fix: {error}")); return 2; }
     }
 
     if let Some(hint) = project.saved_copy_hint() { if options.json { eprintln!("check: {hint}"); } else { println!("check: {hint}"); } }
-    if !crate::exact_device::check(&project.root, &bound.schema, options.json) { return 1; }
+    if let Some(error) = crate::exact_device::inspect(&project.root, &bound.schema).into_iter().find_map(Result::err) {
+        if options.json { println!("{}", json!({"ok": false, "denied": {"code": "E_DEVICE_VERSION", "message": error}, "notes": bound.notes, "newNotes": bound.notes, "acknowledgedNotes": []})); }
+        else { eprintln!("{error}"); }
+        return 1;
+    }
     if !bound.diagnostics.is_empty() {
         check_surface::report(&project, &bound, options.json);
         report_diagnostics(&bound, options.json, true, options.flags.contains_key("verbose"));
@@ -315,7 +324,7 @@ pub fn check(options: &Options) -> i32 {
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
     match adoption::diagnostics(&project, &bound.schema, options.flags.get("store"), options.json || options.flags.contains_key("verbose")) {
         Ok((problems, notes)) => { bound.diagnostics.extend(problems); bound.notes.extend(notes); },
-        Err(error) => { eprintln!("cannot check store adoption: {error}"); return 2; }
+        Err(error) => { failed_check(&bound, options.json, "E_STORE", format!("cannot check store adoption: {error}")); return 2; }
     }
     if !bound.diagnostics.is_empty() {
         check_surface::report(&project, &bound, options.json);
@@ -334,11 +343,11 @@ pub fn check(options: &Options) -> i32 {
     bound.notes.extend(snapback4_lang::bind::residency::change_notes(&bound, &residency::previous(&project)));
     check_surface::report(&project, &bound, options.json);
     if let Err(error) = project.write_generated(&bound) {
-        eprintln!("cannot write generated types: {error}");
+        failed_check(&bound, options.json, "E_STORE", format!("cannot write generated types: {error}"));
         return 2;
     }
     if let Err(error) = project.check_server() {
-        if options.json { println!("{}", json!({ "ok": false, "problems": [{ "code": if error.starts_with("E_SERVER_TOOLCHAIN") { "E_SERVER_TOOLCHAIN" } else { "E_SERVER_TYPECHECK" }, "message": error, "guide": "actions" }] })); }
+        if options.json { println!("{}", json!({ "ok": false, "problems": [{ "code": if error.starts_with("E_SERVER_TOOLCHAIN") { "E_SERVER_TOOLCHAIN" } else { "E_SERVER_TYPECHECK" }, "message": error, "guide": "actions" }], "notes": bound.notes, "newNotes": bound.notes, "acknowledgedNotes": [] })); }
         else { eprintln!("{error}"); }
         return 1;
     }
@@ -348,7 +357,7 @@ pub fn check(options: &Options) -> i32 {
         Ok(built) => built,
         Err(problem) => {
             if options.json {
-                println!("{}", json!({ "ok": false, "problems": [{ "code": problem.code, "message": problem.message, "rewrite": problem.rewrite, "guide": "native" }] }));
+                println!("{}", json!({ "ok": false, "problems": [{ "code": problem.code, "message": problem.message, "rewrite": problem.rewrite, "guide": "native" }], "notes": bound.notes, "newNotes": bound.notes, "acknowledgedNotes": [] }));
             } else {
                 eprintln!("{problem}\n");
                 eprintln!("check: 1 problem");
@@ -357,11 +366,11 @@ pub fn check(options: &Options) -> i32 {
         }
     };
     check_surface::remember(&project, &bound);
-    if let Err(error) = residency::remember(&project, &bound) { eprintln!("cannot write residency facts: {error}"); return 2; }
+    if let Err(error) = residency::remember(&project, &bound) { failed_check(&bound, options.json, "E_STORE", format!("cannot write residency facts: {error}")); return 2; }
     let acquisition = if options.flags.contains_key("residency") {
         match residency::at_check(&project, &bound, options) {
             Ok(report) => report,
-            Err(error) => { eprintln!("residency measurement failed: {error}"); return 1; }
+            Err(error) => { failed_check(&bound, options.json, "E_INPUT", format!("residency measurement failed: {error}")); return 1; }
         }
     } else { None };
     let reviewed = match note_reviews::review(&project, &compiled_sources, &bound.notes, &reviewable_notes, options.flags.contains_key("ack-notes")) {

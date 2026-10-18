@@ -93,7 +93,19 @@ fn later_lookup(catalog: &Catalog, schema: &Schema, body: &[Stmt], tail: &[Stmt]
         let nested = match statement {
             Stmt::If { then_body, else_body, .. } => later_lookup(catalog, schema, then_body, &rest, candidate)
                 || later_lookup(catalog, schema, else_body, &rest, candidate),
-            Stmt::As { body, .. } | Stmt::For { body, .. } => later_lookup(catalog, schema, body, &rest, candidate),
+            Stmt::As { body, .. } => later_lookup(catalog, schema, body, &rest, candidate),
+            Stmt::For { body, .. } => {
+                // A later iteration can return successfully before an outer
+                // continuation. With any escaping return, prove the lookup
+                // within this iteration instead of borrowing the outer tail.
+                fn returns(body: &[Stmt]) -> bool { body.iter().any(|s| match s {
+                    Stmt::Return { .. } => true,
+                    Stmt::If { then_body, else_body, .. } => returns(then_body) || returns(else_body),
+                    Stmt::For { body, .. } | Stmt::As { body, .. } => returns(body),
+                    _ => false,
+                }) }
+                later_lookup(catalog, schema, body, if returns(body) { &[] } else { &rest }, candidate)
+            },
             _ => false,
         };
         if nested { return true; }

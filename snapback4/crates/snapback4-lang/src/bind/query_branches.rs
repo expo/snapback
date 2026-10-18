@@ -2,11 +2,11 @@
 // @ref LLP 3000.036.002#131-notes-and-declarations — missing proof is advice about filtering, never a grant or disjoint-role claim.
 use super::catalog::Catalog;
 use crate::{ast::*, Diagnostic};
-use snapback4_core::schema::{RuleExpr, Schema};
+use snapback4_core::schema::{RuleExpr, RuleTerm, Schema};
 use std::collections::BTreeMap;
 
 fn implies(have: &RuleExpr, need: &RuleExpr) -> bool {
-    if matches!(need, RuleExpr::Eq(a,b) if a == b) || have == need || need.is_uniformly_readable() || matches!(have, RuleExpr::Deny) { return true; }
+    if matches!(need, RuleExpr::Eq(a,b) if a == b && matches!(a, RuleTerm::Field(_) | RuleTerm::Viewer | RuleTerm::Literal(_))) || have == need || need.is_uniformly_readable() || matches!(have, RuleExpr::Deny) { return true; }
     match (have, need) {
         (_, RuleExpr::And(items)) => items.iter().all(|n| implies(have, n)),
         (RuleExpr::Or(items), _) => items.iter().all(|h| implies(h, need)),
@@ -26,7 +26,7 @@ fn positive_probe(rule: &RuleExpr) -> bool {
     }
 }
 #[derive(Clone)]
-struct Origin { read: ReadExpr, gates: Vec<Expr> }
+struct Origin { read: ReadExpr, gates: Vec<Expr>, path: Vec<String> }
 type Locals = BTreeMap<String, Vec<Origin>>;
 fn returned(catalog: &Catalog, value: &Expr, gates: &[Expr], locals: &Locals) -> Vec<Origin> {
     let read = match value {
@@ -34,14 +34,22 @@ fn returned(catalog: &Catalog, value: &Expr, gates: &[Expr], locals: &Locals) ->
         Expr::Merge(merge) => catalog.source.read(&merge.site).map(|r| r.0),
         _ => None,
     };
-    if let Some(read) = read { return vec![Origin { read, gates: gates.to_vec() }]; }
+    if let Some(read) = read { return vec![Origin { read, gates: gates.to_vec(), path: Vec::new() }]; }
     match value {
-        Expr::Name { name, .. } => locals.get(name).cloned().unwrap_or_default(),
+        Expr::Name { name, .. } => locals.get(name).cloned().unwrap_or_default().into_iter().map(|mut origin| { origin.gates.extend_from_slice(gates); origin }).collect(),
+        Expr::Member { base, name, .. } => returned(catalog, base, gates, locals).into_iter().filter_map(|mut origin| {
+            if origin.path.is_empty() { return Some(origin); }
+            if origin.path[0] != *name { return None; }
+            origin.path.remove(0); Some(origin)
+        }).collect(),
         Expr::Shape { base, .. } | Expr::Assert { value: base, .. } | Expr::ShapeUse { base, .. } => returned(catalog, base, gates, locals),
         Expr::Array { items, .. } => items.iter().flat_map(|v| returned(catalog, v, gates, locals)).collect(),
         Expr::Object { fields, .. } => fields.iter().flat_map(|f| {
             let value = f.value.clone().unwrap_or_else(|| Expr::Name { name: f.name.clone(), site: f.site.clone() });
-            returned(catalog, &value, gates, locals)
+            returned(catalog, &value, gates, locals).into_iter().map(|mut origin| {
+                if !f.spread { origin.path.insert(0, f.name.clone()); }
+                origin
+            }).collect::<Vec<_>>()
         }).collect(),
         Expr::If { condition, then, otherwise, .. } => {
             let mut yes = gates.to_vec(); yes.push(*condition.clone());
@@ -59,37 +67,48 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     }
     notes
 }
-fn inspect(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, body: &[Stmt], mut gates: Vec<Expr>, mut locals: Locals, notes: &mut Vec<Diagnostic>) {
+fn inspect(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, body: &[Stmt], mut gates: Vec<Expr>, mut locals: Locals, notes: &mut Vec<Diagnostic>) -> Option<Locals> {
     for statement in body {
         match statement {
             Stmt::Require { condition, .. } => gates.push(condition.clone()),
             Stmt::If { condition, then_body, else_body, .. } => {
                 let mut yes = gates.clone(); yes.push(condition.clone());
-                inspect(catalog, schema, program, then_body, yes, locals.clone(), notes);
+                let yes = inspect(catalog, schema, program, then_body, yes, locals.clone(), notes);
                 let mut no = gates.clone(); no.push(Expr::Unary { op: "not".into(), value: Box::new(condition.clone()), site: condition.site().clone() });
-                inspect(catalog, schema, program, else_body, no, locals.clone(), notes);
-                gates.clear();
+                let no = inspect(catalog, schema, program, else_body, no, locals.clone(), notes);
+                locals = match (yes, no) {
+                    (Some(mut a), Some(b)) => { for (name, origins) in b { a.entry(name).or_default().extend(origins); } a }
+                    (Some(a), None) | (None, Some(a)) => a,
+                    (None, None) => return None,
+                };
             }
             Stmt::Return { value, .. } => {
                 for origin in returned(catalog, value, &gates, &locals) {
                     let mut all_gates = origin.gates; all_gates.extend(gates.clone());
                     inspect_read(catalog, schema, program, &origin.read, &all_gates, notes);
                 }
+                return None;
             }
             Stmt::Bind { names, value, .. } => {
                 let origins = returned(catalog, value, &gates, &locals);
                 for name in names { locals.remove(name); }
                 if names.len() == 1 { locals.insert(names[0].clone(), origins); }
             }
-            Stmt::Expr { .. } | Stmt::Emit { .. } | Stmt::For { .. } | Stmt::As { .. } => gates.clear(),
-            Stmt::Break { .. } | Stmt::Continue { .. } => break,
+            Stmt::For { body, .. } => {
+                if let Some(iterated) = inspect(catalog, schema, program, body, gates.clone(), locals.clone(), notes) {
+                    for (name, origins) in iterated { locals.entry(name).or_default().extend(origins); }
+                }
+            }
+            Stmt::Expr { .. } | Stmt::Emit { .. } | Stmt::As { .. } => gates.clear(),
+            Stmt::Break { .. } | Stmt::Continue { .. } => return None,
         }
     }
+    Some(locals)
 }
 
 fn inspect_read(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, read: &ReadExpr, gates: &[Expr], notes: &mut Vec<Diagnostic>) {
-    let Some(info) = catalog.tables.get(&read.table).filter(|t| t.maintained.is_none() && t.through.is_none()) else { continue };
-    let Some(table) = schema.table(&read.table).filter(|t| !t.rules.read.is_uniformly_readable() && !matches!(t.rules.read, RuleExpr::Deny)) else { continue };
+    let Some(info) = catalog.tables.get(&read.table).filter(|t| t.maintained.is_none() && t.through.is_none()) else { return };
+    let Some(table) = schema.table(&read.table).filter(|t| !t.rules.read.is_uniformly_readable() && !matches!(t.rules.read, RuleExpr::Deny)) else { return };
     // Give operation arguments stable symbolic field identities for
     // this proof only. The real schema and authority are untouched.
     let mut context = info.clone();
@@ -103,13 +122,13 @@ fn inspect_read(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, read:
         });
         super::schema::bind_rule(catalog, &context, &RuleDecl { effect: Effect::Read, bindings: Vec::new(), site: value.site().clone(), value }).ok()
     };
-    let Some(rule) = info.decl.rules.iter().find(|r| r.effect == Effect::Read) else { continue };
+    let Some(rule) = info.decl.rules.iter().find(|r| r.effect == Effect::Read) else { return };
     let mut expected = rule.value.clone();
     let pins = super::auth_lints::pins(catalog, &read).unwrap_or_default();
     super::intent_walk::expression(&mut expected, &mut |expr| {
         if let Expr::Member { base, name, .. } = expr && matches!(base.as_ref(), Expr::Focal { .. }) && let Some(value) = pins.get(name) { *expr = value.clone(); }
     });
-    let Some(expected) = bind(&expected) else { continue };
+    let Some(expected) = bind(&expected) else { return };
     let mut conditions: Vec<_> = gates.iter().filter_map(bind).collect();
     if !conditions.iter().any(positive_probe) { return; }
     if let Some(filter) = &read.filter && let Some(rule) = bind(filter) { conditions.push(rule); }

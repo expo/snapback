@@ -26,8 +26,8 @@ fn declining_an_authority_branch_plan_keeps_the_cursor_and_reaches_later_rows() 
     let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     engine.seed([
         ("adults".into(), object([("id", Value::Id("a".into())), ("principal", Value::Id("user:alice".into()))])),
-        ("medicines".into(), object([("id", Value::Id("m1".into())), ("expiresAt", Value::Time(100))])),
-        ("medicines".into(), object([("id", Value::Id("m2".into())), ("expiresAt", Value::Time(200))])),
+        ("medicines".into(), object([("id", Value::Id("m1".into())), ("expiresAt", Value::Int(100))])),
+        ("medicines".into(), object([("id", Value::Id("m2".into())), ("expiresAt", Value::Int(200))])),
     ]).unwrap();
     let first = engine.query("cabinet", Context::new("user:alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
     assert_eq!(first.data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("m1".into()));
@@ -46,6 +46,8 @@ fn later_exact_lookup_covers_only_the_writes_committing_paths() {
         ("  insert kids { parent }\n  p = parents[other] ! else NOT_FOUND\n", true),
         ("  insert kids { parent }\n  for v in flags:\n    p = parents[parent] ! else NOT_FOUND\n", true),
         ("  insert kids { parent }\n  p = parents[parent]\n", false),
+        ("  for item in flags:\n    if item:\n      return null\n    insert kids { parent }\n  p = parents[parent]\n", true),
+        ("  for item in flags:\n    insert kids { parent }\n    p = parents[parent]\n", false),
     ];
     for (body, note) in cases {
         let source = format!("{REFS}mutation create(parent: parents, other: parents, flag: bool, flags: [bool] <=2):\n{body}");
@@ -115,11 +117,14 @@ fn explicit_query_branch_names_a_narrower_table_rule_without_changing_it() {
     let b = checked(&source);
     assert!(has(&b, "N_QUERY_FILTERED"), "{:?}", b.notes);
     assert!(!has(&checked(&source.replace("if exists staff[viewer]:", "if exists staff[viewer, role = 'manager']:")), "N_QUERY_FILTERED"));
-    for result in ["    page = rows first 20 by .id after c\n    return page", "    return { page: rows first 20 by .id after c }", "    page = rows first 20 by .id after c\n    alias = page\n    return { nested: [alias] }"] {
-        let indirect = source.replace("    return rows first 20 by .id after c", result);
+    for result in ["    page = rows first 20 by .id after c\n    return page", "    return { page: rows first 20 by .id after c }", "    box = { page: rows first 20 by .id after c }\n    return box.page", "    page = rows first 20 by .id after c\n    alias = page\n    return { nested: [alias] }"] {
+        let indirect = source.replace("    return rows first 20 by .id after c", result).replace("  return rows where .owner = viewer first 20 by .id after c", "  return null");
         assert!(has(&checked(&indirect), "N_QUERY_FILTERED"), "{indirect}");
         assert!(!has(&checked(&indirect.replace("if exists staff[viewer]:", "if exists staff[viewer, role = 'manager']:")), "N_QUERY_FILTERED"));
     }
+    let assigned = format!("{AUTH}query listing(c: cursor ?):\n  page = []\n  if exists staff[viewer]:\n    page = rows first 20 by .id after c\n  return page\n");
+    assert!(has(&checked(&assigned), "N_QUERY_FILTERED"));
+    assert!(!has(&checked(&assigned.replace("if exists staff[viewer]:", "if exists staff[viewer, role = 'manager']:")), "N_QUERY_FILTERED"));
 }
 
 #[test]

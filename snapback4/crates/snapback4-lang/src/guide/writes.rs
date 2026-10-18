@@ -246,11 +246,11 @@ a constraint across all guests.
 ## On delete restrict
 
 References default to `restrict`; a live child causes E_REFERENCED. Alternatives:
-bounded `cascade`, optional `set null`, or `keep`. Cascades recurse under a
-cap/unique key per parent; keep/restrict history and audit rows.
+bounded `cascade`, optional `set null`, or `keep`. Cascades need per-parent
+cap/unique bounds; keep/restrict preserve history.
 Delete sources require caps; complete child deletion silences N_DELETE_RESTRICTED.
 
-For unbounded relations and active-row references with retained history, see `guide cleanup`.
+Unbounded cleanup: `guide cleanup`.
 
 ## Server-arrival order within a conversation
 

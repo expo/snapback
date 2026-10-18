@@ -65,6 +65,44 @@ fn explicit_note_review_is_shareable_invalidates_and_never_hides_json_findings()
     fs::write(dir.join("snapback/schema.q"), "broken syntax\n").unwrap();
     assert!(!run(&["check", "--ack-notes"]).status.success());
     assert_eq!(fs::read(&file).unwrap(), reviewed, "errors cannot acknowledge or replace review");
+    fs::write(dir.join("snapback/schema.q"), format!("{source}table broken:\n  reference: missingTable\n")).unwrap();
+    let failed = run(&["check", "--json", "--ack-notes"]);
+    assert_eq!(failed.status.code(), Some(1));
+    let failed: serde_json::Value = serde_json::from_slice(&failed.stdout).unwrap();
+    assert!(!failed["notes"].as_array().unwrap().is_empty());
+    assert_eq!(failed["notes"], failed["newNotes"]);
+    assert_eq!(failed["acknowledgedNotes"], serde_json::json!([]));
+    assert_eq!(fs::read(&file).unwrap(), reviewed);
+    fs::write(dir.join("snapback/schema.q"), source).unwrap();
+    fs::remove_dir_all(dir.join("snapback/generated")).unwrap();
+    fs::write(dir.join("snapback/generated"), "a file obstructs the output directory").unwrap();
+    let io = run(&["check", "--json", "--ack-notes"]);
+    assert_eq!(io.status.code(), Some(2));
+    let io: serde_json::Value = serde_json::from_slice(&io.stdout).unwrap();
+    assert_eq!(io["problems"][0]["code"], "E_STORE");
+    assert!(!io["notes"].as_array().unwrap().is_empty());
+    assert_eq!(io["notes"], io["newNotes"]);
+    assert_eq!(io["acknowledgedNotes"], serde_json::json!([]));
+    assert_eq!(fs::read(&file).unwrap(), reviewed);
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn cascade_why_includes_contextual_arithmetic_while_default_check_stays_compact() {
+    let dir = std::env::temp_dir().join(format!("sb4-cascade-why-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    fs::write(dir.join("snapback/schema.q"), "table parents:\n  public\n  delete <- allow\ntable children:\n  parent: parents on delete cascade\n  public\n  cap 2000 by parent\nmutation remove(parent: parents):\n  delete parents[parent]\n").unwrap();
+    let run = |args: &[&str]| Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
+    let json = run(&["check", "--json"]);
+    assert_eq!(json.status.code(), Some(1));
+    let json: serde_json::Value = serde_json::from_slice(&json.stdout).unwrap();
+    let problem = json["problems"].as_array().unwrap().iter().find(|p| p["code"] == "E_CASCADE_BOUND").unwrap();
+    let details = problem["details"].as_str().unwrap();
+    let normal = run(&["check"]);
+    assert!(!String::from_utf8_lossy(&normal.stderr).contains(details));
+    let why = run(&["why", "E_CASCADE_BOUND"]);
+    assert!(why.status.success());
+    assert!(String::from_utf8_lossy(&why.stdout).contains(details));
     fs::remove_dir_all(dir).unwrap();
 }
 
