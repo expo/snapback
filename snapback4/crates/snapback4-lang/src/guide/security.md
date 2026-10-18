@@ -87,6 +87,49 @@ or tighten the table read rule. Program `exists` is caller-filtered; probes
 inside table rules inspect raw rows and can disclose predicates indirectly.
 Inspect both paths in `audit`; a payload-only read check is insufficient.
 
+## When an observer remains unproved
+
+The report names the edge that lacks a reduction. Preserve the specification
+while changing its enforcement; weakening an invariant to match a leaking
+rule does not repair privacy.
+
+- Maintained counts/sums: retain privacy fields as ordinary bare group keys
+  and protect the aggregate with the same audience predicate. Recorded
+  reference paths, calendar keys, derived values, private columns and temporal
+  contributors need their own reduction; their names are not source fields.
+- Owner fields: declare column-write intent too. `written by` authorizes
+  patches even when the ordinary update rule denies. To prove a particular
+  mutation's role authority, use a dominating current-role requirement and
+  operation-specific intent over a role table the mutation cannot change.
+  This does not prove every owner-field or old/next-image path.
+- Raw rule probes: inspect the observing table and its writers. A protected
+  target's read rule does not protect predicates probed from another rule.
+  Apply the intended audience at that observer, or remove the raw dependency;
+  the report retains the unsupported edge until it can establish implication.
+- Cascade/set-null: automatic child changes bypass child write rules. An
+  explicit authorized child mutation with `restrict` removes that automatic
+  writer, but parent refusal/existence and transitive references remain
+  separate observations. Read-through/live-parent reductions belong to RULES5.
+- Jobs/native workers/actions: the audit names the trusted or opaque writer.
+  An ordinary mutation with stable role requirements can prove that mutation's
+  authority; arbitrary native/worker output cannot acquire a proof from a
+  caller's role or a passing finite test.
+- Schedules: use a stored `not before`/`expire at` lifetime for exact read
+  boundaries, or compare server `now` in the write itself. A scheduled status
+  update leaves the old status visible between deadline and sweep.
+
+Default `test` challenges pure-schema applications through a private production
+`serve`: unauthenticated calls, forged persona headers and development doors.
+The host uses no real account or development mode. Applications needing
+native/worker artifacts are explicitly not covered by that schema-only host.
+Focused fixtures also enable short ordered mutation histories followed by
+ordinary reads; traces record actual calls and current policy evaluation.
+Named personas/service seats and enum argument combinations are enumerated
+within reported limits. Asset challenges use real foreign-upload and verified
+non-image ledgers; unsupported fixture/video histories remain named. Neither
+these finite campaigns nor an offline device's retained snapshot establishes
+current-server revocation at a disconnected access.
+
 ### E_SECURITY_TARGET
 
 E_SECURITY_TARGET means the invariant target does not name a declared table, column or effect. Correct the target name; inspect `audit` and the policy before changing a rule.
