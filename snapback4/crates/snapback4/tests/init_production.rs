@@ -44,22 +44,22 @@ fn preview_apply_and_service_writes_preserve_application_ownership() {
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.schema.auth.password && bound.schema.auth.guests);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-    let args = std::collections::BTreeMap::from([("seat_principal".into(), Value::Id("user:real".into())), ("seat_role".into(), Value::String("admin".into()))]);
-    let result = engine.mutate("bootstrapstaff", None, Context::new("user:outsider", args.clone())).unwrap();
+    let args = std::collections::BTreeMap::from([("seat_principal".into(), Value::Id("user:real".into()))]);
+    let result = engine.mutate("bootstrapstaffRole1", None, Context::new("user:outsider", args.clone())).unwrap();
     assert!(format!("{result:?}").contains("NOT_OPERATOR"), "{result:?}");
-    let result = engine.mutate("bootstrapstaff", None, Context::new("service:ops", args)).unwrap();
+    let result = engine.mutate("bootstrapstaffRole1", None, Context::new("service:ops", args)).unwrap();
     assert!(format!("{result:?}").contains("Sent"), "{result:?}");
 }
 
 #[test]
 fn multiple_modules_rosters_roles_collisions_and_multiline_rules_compile() {
-    let app = App::new(&format!("{}\nmutation bootstrapstaff():\n  return 1\n", ROSTER.replace("read <- .principal = viewer", "read <- (\n    .principal = viewer -- preserve this explanation\n  )")));
-    fs::write(app.0.join("snapback/other.q"), "table reviewers:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\nmutation bootstrapstaff():\n  return 1\n").unwrap();
+    let app = App::new(&format!("{}\nmutation bootstrapstaffRole1():\n  return 1\n", ROSTER.replace("read <- .principal = viewer", "read <- (\n    .principal = viewer -- preserve this explanation\n  )")));
+    fs::write(app.0.join("snapback/other.q"), "table reviewers:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\nmutation bootstrapstaffRole1():\n  return 1\n").unwrap();
     let output = app.run(true); assert!(output.status.success(), "{output:?}");
-    assert!(app.source().contains("mutation bootstrapstaff2("));
+    assert!(app.source().contains("mutation bootstrapstaffRole12("));
     assert!(app.source().contains("mutation bootstrapreviewers("));
     assert!(app.source().contains("-- preserve this explanation"));
-    assert!(app.source().contains("seat_role: enum('admin', 'reviewer')"));
+    assert!(app.source().contains("role: 'admin'") && app.source().contains("role: 'reviewer'"));
     let sources = ["schema.q", "other.q"].map(|file| (file.into(), fs::read_to_string(app.0.join("snapback").join(file)).unwrap()));
     let bound = snapback4_lang::compile(&sources);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -111,9 +111,9 @@ fn default_roles_and_conditional_seat_rules_bootstrap_an_empty_store() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), app.source())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-    for role in ["admin", "reviewer"] {
-        let args = std::collections::BTreeMap::from([("seat_principal".into(), Value::Id(format!("user:{role}"))), ("seat_role".into(), Value::String(role.into()))]);
-        let result = engine.mutate("bootstrapstaff", None, Context::new("service:ops", args)).unwrap();
+    for (index, role) in ["admin", "reviewer"].iter().enumerate() {
+        let args = std::collections::BTreeMap::from([("seat_principal".into(), Value::Id(format!("user:{role}")))]);
+        let result = engine.mutate(&format!("bootstrapstaffRole{}", index + 1), None, Context::new("service:ops", args)).unwrap();
         assert!(format!("{result:?}").contains("Sent"), "{result:?}");
     }
 }
@@ -149,4 +149,38 @@ fn principal_scan_excludes_hidden_and_test_sources_but_keeps_runtime_scripts() {
     assert_eq!(findings.len(), 2, "{text}");
     assert!(findings.iter().any(|line| line.contains("src/App.tsx:1:")), "{text}");
     assert!(findings.iter().any(|line| line.contains("scripts/server.mjs:1:")), "{text}");
+}
+
+
+#[test]
+fn custom_persona_entry_without_literal_principals_gets_a_runnable_recipe_pointer() {
+    let app = App::new(ROSTER);
+    fs::write(app.0.join("src/App.tsx"), "const app = usePersonaApp(selected, open);\n").unwrap();
+    let output = app.run(false); assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8_lossy(&output.stdout);
+    assert!(text.contains("src/App.tsx:1: custom persona entry hint"), "{text}");
+    assert!(text.contains("Password plus development personas"), "{text}");
+    assert!(text.contains("A guest session is a session") && text.contains("guests-only"), "{text}");
+}
+
+#[test]
+fn fixture_only_roles_are_literal_even_with_service_rules_and_no_lint_cycle() {
+    let source = ROSTER.replace("insert <- exists staff[viewer]", "insert <- viewer = 'service:ops'");
+    let app = App::new(&source);
+    let output = app.run(true); assert!(output.status.success(), "{output:?}");
+    let revised = app.source();
+    assert!(revised.contains("bootstrapstaffRole1(seat_principal: principal)"), "{revised}");
+    assert!(revised.contains("role: 'admin'") && revised.contains("role: 'reviewer'"));
+    assert!(!revised.contains("seat_role"), "role is fixed by each operation");
+    assert!(app.run(true).status.success());assert_eq!(app.source(), revised);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), revised)]);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    for (i, role) in ["admin", "reviewer"].iter().enumerate() {
+        let op = format!("bootstrapstaffRole{}", i + 1);
+        let args = std::collections::BTreeMap::from([("seat_principal".into(), Value::Id(format!("user:{role}")))]);
+        for outsider in ["user:outsider", "dev:alice"] {
+            assert!(format!("{:?}", engine.mutate(&op, None, Context::new(outsider, args.clone())).unwrap()).contains("NOT_OPERATOR"));
+        }
+        assert!(format!("{:?}", engine.mutate(&op, None, Context::new("service:ops", args)).unwrap()).contains("Sent"));
+    }
 }

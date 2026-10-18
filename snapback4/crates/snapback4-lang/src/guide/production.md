@@ -1,7 +1,11 @@
 # Production: a persona demo becomes an account app
 
 Bare `use identity` keeps guests; guests call `/auth/guest` before any read;
-`use identity password` removes them. `/auth/config` is GET; production needs
+`use identity password` removes them. `use identity guests` is guests-only,
+while bare `use identity` allows both password accounts and guests. A guest
+session is a session: use app.auth.signup/login to replace it with an account;
+the SDK keeps guest drafts, pending writes and receipts under the guest
+principal, never transfers them to the new account. `/auth/config` is GET; production needs
 persisted sessions and trusted first writers because signup grants no role.
 
 ```quarry
@@ -62,9 +66,11 @@ function AccountScreen(){
 
 1. Preview `init --adapt --production`, then review and use `--apply`. It adds
    bare `use identity` only when no identity is declared, lists blocked tables,
-   emits one typed service-seat provisioning mutation per roster and shows its
+   emits one service-seat provisioning mutation per fixture-only enum role (or
+   one typed mutation for other blocked rosters) and shows its
    explicit read/insert seat grants. It names frontend `dev:` references without
-   editing screens. Non-roster roots still need application policy.
+   editing screens. Custom persona entries also point here, even without literal
+   dev principals. Non-roster roots still need application policy.
    Run `check`, then `why N_NO_PRODUCTION_WRITER` in the project. It lists
    **all** fixture-only first writers and their blocked dependents. Its rewrite
    proposes a seat mutation for each root, and one per declared `role` enum
@@ -97,8 +103,9 @@ development tests. Production principals come from signup/login, not names.
 `dev:` location to the authenticated viewer or an authorized picker. Directory
 privacy and who may invite remain explicit application policy.
 
-`AppProvider` remounts children on every auth-state transition. A draft inside
-PasswordForm is intentionally reset by signup/login/logout; store a mode choice
+`AppProvider` remounts children when the app or viewer changes. Restoring to
+signed-out with the same null viewer preserves the sign-in inputs. A draft inside
+PasswordForm resets when entering or leaving an account; store a mode choice
 or unsent work above the provider if it must survive. `useSignedInViewer()` is
 for a signed-in AccountScreen; `restoring` is not a signed-in viewer. The browser setup above persists sessions; on Expo replace webDevice with
 nativeDevice and use SecureStore (`guide client`). Never keep credentials in an account directory.

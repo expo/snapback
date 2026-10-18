@@ -1,7 +1,7 @@
 //! Explicit, preview-first schema adaptation. Application screens stay owned.
 // @ref LLP 3000.011.003.000#14-wave-14-persona-to-production — apply authorizes only the displayed seat grants.
 use crate::project::Project;
-use snapback4_core::schema::{ColumnType, RuleExpr};
+use snapback4_core::{ir, schema::{ColumnType, RuleExpr}};
 use snapback4_lang::{ast::{Effect, TableDecl}, lexer::{self, Kind}};
 use std::{collections::BTreeSet, path::{Path, PathBuf}};
 
@@ -52,7 +52,7 @@ fn plan(project: &Project) -> Result<Plan, String> {
     let initial = snapback4_lang::compile(&sources);
     if !initial.diagnostics.is_empty() { return Err(format!("repair the schema before production adaptation: {:?}", initial.diagnostics)); }
     let mut revised = sources.clone();
-    let mut messages = vec!["GET /auth/config reports development; guest sessions POST /auth/guest before reads. Bare use identity keeps guests; use identity password removes them.".into()];
+    let mut messages = vec!["GET /auth/config reports development; guest sessions POST /auth/guest before reads. A guest session is a session. Bare use identity allows passwords and guests; use identity guests is guests-only; use identity password removes guests.".into()];
     let has_identity = sources.iter().any(|(name, source)| snapback4_lang::parse_document(name, source).0.identity.is_some());
     if !has_identity {
         revised[0].1.insert_str(0, "use identity\n");
@@ -62,29 +62,48 @@ fn plan(project: &Project) -> Result<Plan, String> {
     let blocked = super::super::readiness::blocked_tables(&bound);
     if blocked.is_empty() { messages.push("no N_NO_PRODUCTION_WRITER tables".into()); }
     else { messages.push(format!("N_NO_PRODUCTION_WRITER tables (including blocked dependents): {}", blocked.iter().cloned().collect::<Vec<_>>().join(", "))); }
+    let writers: BTreeSet<_> = bound.programs.iter().flat_map(|p| ir::write_tables(&p.program))
+        .filter(|(_, effect)| matches!(*effect, "insert" | "upsert")).map(|(table, _)| table).collect();
+    let mut candidates = blocked.clone();
+    if !bound.programs.iter().any(|p| p.program.native) {
+        candidates.extend(bound.schema.visible_tables().filter(|(name, table)| !writers.contains(name.as_str())
+            && matches!(table.columns.get("role"), Some(ColumnType::Enum { .. }))
+            && table.columns.iter().any(|(column, ty)| matches!(ty, ColumnType::Principal)
+                && table.indexes.values().any(|index| index.unique && index.columns().contains(column))))
+            .map(|(name, _)| name.clone()));
+    }
     let mut names: BTreeSet<_> = bound.programs.iter().map(|p| p.program.name.clone()).collect();
     let module = Path::new(&revised[0].0).file_stem().unwrap().to_string_lossy();
     let prefix = if module == "schema" { String::new() } else { format!("{module}.") };
     let mut mutations = String::new();
     // A roster has a principal in a unique identity. Other roots need explicit
     // application policy; report them without inventing a catalogue or profile.
-    for name in &blocked {
+    for name in &candidates {
         let table = bound.schema.table(name).unwrap();
         let roster = table.columns.iter().any(|(col, ty)| matches!(ty, ColumnType::Principal)
             && table.indexes.values().any(|index| index.unique && index.columns().contains(col)));
         if !roster || table.through.is_some() {
             messages.push(format!("{name}: review an application-specific first writer (no roster seat grant generated)")); continue;
         }
-        let base = format!("bootstrap{name}");
-        let mut operation = base.clone(); let mut suffix = 2;
-        while !names.insert(format!("{prefix}{operation}")) { operation = format!("{base}{suffix}"); suffix += 1; }
-        let inputs: Vec<_> = table.columns.iter().filter(|(column, kind)| column.as_str() != "id"
-            && !table.maintained.contains_key(*column)
-            && (!table.defaults.contains_key(*column) || matches!(kind, ColumnType::Principal) || column.as_str() == "role")).collect();
-        let args = inputs.iter().map(|(col, ty)| format!("seat_{col}: {ty}")).collect::<Vec<_>>().join(", ");
-        let fields = inputs.iter().map(|(col, _)| format!("{col}: seat_{col}")).collect::<Vec<_>>().join(", ");
-        mutations.push_str(&format!("\nmutation {operation}({args}):\n  require viewer = 'service:ops' else NOT_OPERATOR\n  return insert {name} {{ {fields} }}\n"));
-        messages.push(format!("{name}: add {operation}; allow service:ops to read and insert this roster. Existing account grants stay in place; signup grants no role."));
+        // @ref LLP 3000.011.003.000.001#3-custom-production-plans — fixture-only roles get literal provisioning, independently of lint wording.
+        let roles = match table.columns.get("role") {
+            Some(ColumnType::Enum { variants }) if !writers.contains(name) => variants.iter().map(Some).collect::<Vec<_>>(),
+            _ => vec![None],
+        };
+        for (index, role) in roles.into_iter().enumerate() {
+            let base = format!("bootstrap{name}{}", if role.is_some() { format!("Role{}", index + 1) } else { String::new() });
+            let mut operation = base.clone(); let mut suffix = 2;
+            while !names.insert(format!("{prefix}{operation}")) { operation = format!("{base}{suffix}"); suffix += 1; }
+            let inputs: Vec<_> = table.columns.iter().filter(|(column, kind)| column.as_str() != "id"
+                && !(column.as_str() == "role" && role.is_some())
+                && !table.maintained.contains_key(*column)
+                && (!table.defaults.contains_key(*column) || matches!(kind, ColumnType::Principal) || column.as_str() == "role")).collect();
+            let args = inputs.iter().map(|(col, ty)| format!("seat_{col}: {ty}")).collect::<Vec<_>>().join(", ");
+            let mut fields = inputs.iter().map(|(col, _)| format!("{col}: seat_{col}")).collect::<Vec<_>>();
+            if let Some(role) = role { fields.push(format!("role: '{}'", role.replace('\\', "\\\\").replace('\'', "\\'"))); }
+            mutations.push_str(&format!("\nmutation {operation}({args}):\n  require viewer = 'service:ops' else NOT_OPERATOR\n  return insert {name} {{ {} }}\n", fields.join(", ")));
+            messages.push(format!("{name}: add {operation}; allow service:ops to read and insert this roster{}; signup grants no role.", role.map(|role| format!(" (fixture-only role {role:?})")).unwrap_or_default()));
+        }
         for (file, source) in &mut revised {
             let (document, _) = snapback4_lang::parse_document(file, source);
             if let Some(decl) = document.tables.iter().find(|decl| decl.name == *name) {
@@ -165,6 +184,9 @@ fn frontend_principals(root: &Path, messages: &mut Vec<String>) -> Result<(), St
                 let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
                 for (line, _) in text.lines().enumerate().filter(|(_, text)| text.contains("dev:")) {
                     messages.push(format!("{}:{}: hard-coded dev: principal; map to an authenticated account or authorized principal picker", path.strip_prefix(root).unwrap_or(&path).display(), line + 1));
+                }
+                for (line, _) in text.lines().enumerate().filter(|(_, text)| text.contains("usePersonaApp") || text.contains("?as=") || text.split_once("persona").is_some_and(|(_, rest)| rest.trim_start().starts_with(':'))) {
+                    messages.push(format!("{}:{}: custom persona entry hint; use snapback4 guide production --section 'Password plus development personas' for the account/persona recipe (heuristic; application screen unchanged)", path.strip_prefix(root).unwrap_or(&path).display(), line + 1));
                 }
             }
         }

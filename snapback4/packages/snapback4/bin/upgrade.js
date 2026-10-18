@@ -22,6 +22,11 @@ async function run() {
   const previous = previousVersion(root);
   const installed = installedVersion(root);
   const schema = existsSync(join(root, 'snapback')) && readdirSync(join(root, 'snapback')).some(file => file.endsWith('.q'));
+  // Quarry declarations are whole lines. Scan every authored module; a comment
+  // mentioning identity never turns a persona-only project into an account app.
+  const declarations = schema ? readdirSync(join(root, 'snapback')).filter(file => file.endsWith('.q')).map(file => readFileSync(join(root, 'snapback', file), 'utf8')).join('\n') : '';
+  const personaOnly = /^use\s+personas\b/m.test(declarations) && !/^use\s+identity\b/m.test(declarations);
+
   // Resolve in a fresh Node process: pnpm can replace the package symlink,
   // while this helper's module/realpath cache still points at the old release.
   const checkScript = `
@@ -153,7 +158,7 @@ try {
   for (const [name, pin] of pins) if (!dependencies.some(key => after[key]?.[name] === pin)) throw Error(`E_UPGRADE: ${name} was not pinned to ${pin}`);
   const exact = existsSync(join(root, 'exact.mjs')) || existsSync(join(root, 'exact.json')) || dependencies.some(key => Object.keys(pkg[key] ?? {}).some(name => /^exact2?(?:$|[-/])/.test(name)));
   if (exact) log('Exact device rebuild: bun exact.mjs snapback --rebuild'); // HS owns this command and the pairing gate.
-  log(`project ${pkg.name ?? root}: ${targets.map(name => `${name}@${version}`).join(', ')}; regenerate with check, run acceptance tests${targets.includes('snapback4-expo') ? '; rebuild the native app' : ''}`);
+  log(`project ${pkg.name ?? root}: ${targets.map(name => `${name}@${version}`).join(', ')}; ${personaOnly ? "preview account adaptation with init --adapt --production; " : ""}regenerate with check, run acceptance tests${targets.includes('snapback4-expo') ? '; rebuild the native app' : ''}`);
   let history = '', checkedFacts = null;
   if (!schema) {
     try {

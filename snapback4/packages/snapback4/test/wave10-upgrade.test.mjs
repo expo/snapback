@@ -81,6 +81,7 @@ test('upgrade captures the old installed compiler, checks the new one and points
   assert.match(result.stdout + result.stderr, /Ops\.roomCount\.result: number → number \| null/);
   assert.match(result.stdout, /Exact device rebuild: bun exact\.mjs snapback --rebuild/);
   assert.match(result.stdout, /project .*snapback4@/);
+  assert.match(result.stdout, /project .*init --adapt --production/, 'persona-only upgrade exposes the concrete production action');
   assert.ok(result.stdout.indexOf('project ') < result.stdout.indexOf('upgrade delta:'), result.stdout);
   assert.equal(JSON.parse(readFileSync(join(dir, '.snapback4/check-surface.json'))).version, releaseVersion);
 });
