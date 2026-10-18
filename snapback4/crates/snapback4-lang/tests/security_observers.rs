@@ -117,5 +117,5 @@ fn invalid_paired_final_exists_fixtures_remain_unsupported_per_observer(){
     let b=bound("table conversations:\n  creator: principal\n  after insert <- exists members[conversation = .id, principal = .creator]\n  online only\ntable members:\n  conversation: conversations\n  principal: principal\n  unique conversation, principal\n  online only\ntable aliases:\n  owner: principal\n  conversation: conversations\n  read <- .owner = viewer\n  online only\nquery first(alias: aliases):\n  return aliases[alias]\nquery second(alias: aliases):\n  return aliases[alias]\ninvariant aliases.read only .owner = viewer\n");
     let c=security::challenges::run(&b);
     assert!(c.violations.is_empty(),"{c:?}");
-    for name in ["first","second"]{assert!(c.unsupported.iter().any(|reason|reason.starts_with(&format!("{name}: conversations:"))&&reason.ends_with("trusted seed did not establish final-exists constraint")),"{c:?}");}
+    for name in ["policy.first","policy.second"]{assert!(c.unsupported.iter().any(|reason|reason.starts_with(&format!("{name}: conversations:"))&&reason.ends_with("trusted seed did not establish final-exists constraint")),"{c:?}");}
 }
