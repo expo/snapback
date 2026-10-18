@@ -25,6 +25,12 @@ test('packed security card and starter run as written; broad reads refute', {tim
 
  run('npm',['install','--ignore-scripts','--omit=optional','--no-audit','--no-fund',client,platform]);
  const cli=join(dir,'node_modules/snapback4/bin/snapback4.js');const command=(args,cwd=dir,code=0)=>run(process.execPath,[cli,...args],cwd,code);
+ for(const method of ['guests','password']){
+  const app=join(dir,`revocation-${method}`);mkdirSync(join(app,'snapback'),{recursive:true});
+  writeFileSync(join(app,'snapback/schema.q'),`use identity ${method}\ntable notes:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\ninvariant notes.read only .owner = viewer\nquery notes():\n  return notes first 10 by .id\nmutation add():\n  return insert notes { owner: viewer }\n`);
+  const output=command(['test'],app);
+  assert.match(output,/security live-session revocation HTTP: 14 attempts refused/);
+ }
  const guide=command(['guide','security','--full']);const blocks=[...guide.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]);assert.ok(blocks.length);
  for(let i=0;i<blocks.length;i++){
   const app=join(dir,`card-${i}`);mkdirSync(join(app,'snapback'),{recursive:true});writeFileSync(join(app,'snapback/schema.q'),blocks[i]);
