@@ -33,3 +33,18 @@ test('testSource fixtureOnly explicitly reaches the CLI without conflating query
   process.env.SNAPBACK4_BIN=fake;
   const result=await testSource('versions/v1',{cwd,fixtureOnly:true});assert.equal(result.casesRun,0);
 });
+
+test('quiet JSON upgrade retains stdout-only post-check refusals on stderr',t=>{
+  const cwd=mkdtempSync(join(tmpdir(),'sb4-day5-upgrade-check-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  const write=(file,text,mode)=>{mkdirSync(join(cwd,file,'..'),{recursive:true});writeFileSync(join(cwd,file),text,{mode});};
+  write('package.json',JSON.stringify({name:'check-refusal',packageManager:'npm@10',dependencies:{snapback4:version}}));
+  write('snapback/schema.q','query alive():\n  return true\n');
+  write('node_modules/snapback4/package.json',JSON.stringify({name:'snapback4',version,exports:{'./bin-path':'./dist/bin-path.js'}}));
+  write('node_modules/snapback4/dist/bin-path.js','');
+  write('node_modules/snapback4/bin/snapback4.js',"console.log('E_DEVICE_BROKEN: stdout-only diagnostic'); process.exit(19);\n");
+  write('tools/npm',`#!${process.execPath}\nif(process.argv[2]==='view')console.log(JSON.stringify('${version}'));\n`,0o755);
+  const result=spawnSync(binary,['upgrade','--quiet','--to',version,'--json'],{cwd,encoding:'utf8',timeout:60000,env:{...process.env,PATH:join(cwd,'tools')+':'+process.env.PATH}});
+  assert.notEqual(result.status,0);assert.equal(JSON.parse(result.stdout).ok,false);
+  assert.match(result.stderr,/E_DEVICE_BROKEN: stdout-only diagnostic/);
+  assert.match(result.stderr,/post-upgrade check refused/);
+});

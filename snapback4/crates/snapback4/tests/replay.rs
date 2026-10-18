@@ -37,7 +37,7 @@ impl Host {
 #[test]
 fn held_effects_remain_durable_and_claimable_after_restart() {
     let f = Fixture::new("effects");
-    assert!(f.command(&["test", "--residency"]).status.success());
+    assert!(f.command(&["test", "--residency", "--fixture-only"]).status.success());
     let token = Command::new(BIN).current_dir(&f.0).args(["token", "--service", "worker"]).output().unwrap();
     assert!(token.status.success());
     let auth = format!("Authorization: Bearer {}", String::from_utf8(token.stdout).unwrap().trim());
@@ -122,7 +122,7 @@ fn replay_suppresses_committed_emits_and_preserves_writes_jobs_and_restarts() {
         let f = Fixture::new(if restart_with_replay { "suppress-replay" } else { "suppress-normal" });
         let control = Fixture::new(if restart_with_replay { "control-replay" } else { "control-normal" });
         for fixture in [&f, &control] { fs::write(fixture.0.join("snapback/schema.q"), WRITES).unwrap(); }
-        assert!(f.command(&["test", "--residency"]).status.success());
+        assert!(f.command(&["test", "--residency", "--fixture-only"]).status.success());
         let auth = worker(&f);
         let host = f.start(&["--replay"]);
         let normal = control.start(&["--hold-schedules"]);

@@ -84,3 +84,13 @@ fn grouped_rollback_keeps_all_quotas_and_confidentiality_loss() {
     let text=app.ok(&["rollback","deployment","--to","1","--check"]);
     for fact in ["cap 12 by owner; cap 24 by team", "cap 10 by owner; cap 20 by team", "confidentiality"] {assert!(text.contains(fact),"{fact}: {text}");}
 }
+
+#[test]
+fn a_table_named_indexes_keeps_its_column_changes() {
+    let app=App::new();
+    let v1="table indexes:\n  title: text <=80\n  public\n  online only\nquery all():\n  return indexes first 10 by .id\n";
+    app.write("snapback/schema.q",v1);app.ok(&["deploy","deployment"]);
+    app.write("snapback/schema.q",&v1.replace("  title: text <=80","  title: text <=80\n  label: text <=20 default 'new'"));
+    let text=app.ok(&["deploy","deployment","--check"]);
+    assert!(text.contains("indexes.label"),"{text}");
+}

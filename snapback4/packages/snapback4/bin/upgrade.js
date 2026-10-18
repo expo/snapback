@@ -170,7 +170,10 @@ try {
   if (schema) {
     const checked = check();
     if (checked.stderr && (!quiet || checked.status !== 0)) process.stderr.write(checked.stderr);
-    if (json) { try { checkedFacts = JSON.parse(checked.stdout); } catch { /* Refused subprocess remains an error below. */ } }
+    if (json) {
+      try { checkedFacts = JSON.parse(checked.stdout); }
+      catch { if (checked.stdout && (checked.error || checked.status !== 0)) process.stderr.write(checked.stdout); }
+    }
     else if (checked.stdout && (!quiet || checked.status !== 0)) process.stdout.write(checked.stdout);
     if (checked.error || checked.status !== 0) { const error = Error(`E_UPGRADE: packages pinned to ${version}; post-upgrade check refused. Repair the reported schema/device issues and run check again.`); error.check = checkedFacts; throw error; }
   }

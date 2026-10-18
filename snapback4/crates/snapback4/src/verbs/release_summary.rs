@@ -44,15 +44,16 @@ pub(super) fn print(current: Option<&Schema>, target: &Schema, programs: &BTreeM
         for line in lines {
             let group=groups.entry(subject(line,&tables,programs)).or_default();
             let priority=if line.contains("safety guard") || line.contains(".require;") {0} else if line.contains("confidentiality") || line.contains("safety rule") {1} else {2};
-            if priority<2 || group.warnings.is_empty() && group.notes.is_empty() {group.priority=priority;}
+            group.priority=group.priority.min(priority);
             let text=if priority==0 {line.clone()} else {brief(line)};
             let dest=if warning {&mut group.warnings} else {&mut group.notes};
             if !dest.contains(&text) {dest.push(text);}
         }
     }
-    for step in steps.iter().filter(|s|!s.path.contains(".indexes.")) {
+    for step in steps {
         let path=step.path.strip_prefix("tables.").unwrap_or(&step.path);
         let key=table_prefix(path,&tables).unwrap_or_else(||path.to_owned());
+        if path.strip_prefix(&key).is_some_and(|tail|tail.starts_with(".indexes.")) {continue;}
         let group=groups.entry(key).or_default();
         // Keep each user-visible source change even when another fact already
         // names this table. Only index plumbing is verbose-only.
