@@ -54,10 +54,15 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
     }
     if let Some(text) = read(dir, "src/native-smoke.ts") {
         let wanted = starter::native_smoke(own.identity.is_some_and(|(password, guests)| password && !guests));
-        let recognized = [false, true].into_iter().any(|password| [starter::native_smoke(password), starter::wave14_native_smoke(password)].iter().any(|reference| text == *reference || text == reference.lines().filter(|line| !line.starts_with("// smokeSegment()") && !line.starts_with("// native module config")).collect::<Vec<_>>().join("\n") + "\n"));
-        if !recognized { modified.push("src/native-smoke.ts".to_owned()); }
-        if text != wanted && recognized && smoke_referenced(dir) {
-            found.push(Leftover { path: "src/native-smoke.ts", why: "the unmodified native smoke helper uses the previous schema's sign-in".into(), rewrite: Some(wanted) });
+        let recognized = super::proof_advice::native_template(&text);
+        if recognized.is_none() { modified.push("src/native-smoke.ts".to_owned()); }
+        if text != wanted && let Some((version, password)) = recognized && smoke_referenced(dir) {
+            let why = if password == own.identity.is_some_and(|(password, guests)| password && !guests) {
+                format!("an older starter version ({version}; adapt can refresh it)")
+            } else {
+                "the unmodified native smoke helper uses the previous schema's sign-in".into()
+            };
+            found.push(Leftover { path: "src/native-smoke.ts", why, rewrite: Some(wanted) });
         }
     }
     if read(dir, "src/native-smoke.ts").is_some() && !smoke_referenced(dir) {
@@ -318,9 +323,9 @@ pub(crate) fn report(dir: &Path) -> Option<String> {
     if !found.is_empty() {
         lines.push("  fix: snapback4 init --adapt (removes or rewrites only these files, which still match the starter; your own files are never touched)".into());
     }
-    Some(format!("info: starter: {} left from `snapback4 init` that {} not fit your schema\n{}",
+    Some(format!("info: starter: {} from `snapback4 init` to review\n{}",
         if found.is_empty() { "a screen".to_owned() } else { format!("{} file{}", found.len(), if found.len() == 1 { "" } else { "s" }) },
-        if found.len() == 1 || found.is_empty() { "does" } else { "do" }, lines.join("\n")))
+        lines.join("\n")))
 }
 
 /// The same, for `check --json`: `null` when nothing is left over.
@@ -449,6 +454,29 @@ fn untouched_wave14_screens_and_smoke_still_adapt() {
         std::fs::write(dir.join(client_path), format!("{client}\n// application-owned edit\n")).unwrap();
         let (changes, _) = leftovers(&dir);
         assert!(!changes.iter().any(|change| change.path == app_path || change.path == client_path));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[test]
+fn old_native_smoke_distinguishes_starter_age_from_sign_in_changes() {
+    for password in [false, true] {
+        let dir = std::env::temp_dir().join(format!("sb4-r2-{}-{password}", std::process::id()));
+        std::fs::create_dir_all(dir.join("snapback")).unwrap();
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        let schema = include_str!("starter/schema.q");
+        let schema = if password { schema.replace("use identity", "use identity password") } else { schema.into() };
+        std::fs::write(dir.join("snapback/schema.q"), schema).unwrap();
+        std::fs::write(dir.join("src/custom.ts"), "import './native-smoke';").unwrap();
+        for source in [include_str!("starter/previous/native-smoke-0.4.9.ts"), include_str!("starter/previous/native-smoke-0.4.16.ts"), include_str!("starter/previous/wave14/native-smoke.ts")] {
+            std::fs::write(dir.join("src/native-smoke.ts"), starter::native_smoke_version(password, source)).unwrap();
+            let text = report(&dir).unwrap();
+            assert!(text.contains("an older starter version") && !text.contains("previous schema") && !text.contains("not fit your schema"), "{text}");
+            std::fs::write(dir.join("src/native-smoke.ts"), starter::native_smoke_version(!password, source)).unwrap();
+            assert!(report(&dir).unwrap().contains("previous schema's sign-in"));
+        }
+        std::fs::write(dir.join("src/native-smoke.ts"), format!("{}\n// mine", starter::wave14_native_smoke(password))).unwrap();
+        assert!(!leftovers(&dir).0.iter().any(|f| f.path == "src/native-smoke.ts"));
         std::fs::remove_dir_all(dir).unwrap();
     }
 }

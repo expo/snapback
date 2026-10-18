@@ -194,5 +194,61 @@
     "template": null,
     "version": "0.4.31",
     "web": false
+  },
+  {
+    "file": "native",
+    "version": "0.4.9",
+    "web": false,
+    "template": null,
+    "sha256": "0ea4d196a1c915b023cda3b25e02d2fdc022139df1c44002eaec46a3ea214e0d"
+  },
+  {
+    "file": "native",
+    "version": "0.4.9",
+    "web": false,
+    "template": "password",
+    "sha256": "9601f61a2ed2336fc926553ba568682061647dbe8a1bb813107ecdad1383fed9"
+  },
+  {
+    "file": "native",
+    "version": "0.4.16",
+    "web": false,
+    "template": null,
+    "sha256": "8c6dac924ff0eb8b6d7c78f78e6166c6bad097b74a8f2ffb9322669829086b1d"
+  },
+  {
+    "file": "native",
+    "version": "0.4.16",
+    "web": false,
+    "template": "password",
+    "sha256": "bb6d341b60d87896b619ef50920a6f3b32d6708eee05387c3cea54a320462a6b"
+  },
+  {
+    "file": "native",
+    "version": "0.4.28",
+    "web": false,
+    "template": null,
+    "sha256": "63806001d4aad96918b1839fc7f1959109a77b00bb303f87b98b1be8a4e3d857"
+  },
+  {
+    "file": "native",
+    "version": "0.4.28",
+    "web": false,
+    "template": "password",
+    "sha256": "bfc4290c5952d84bc951d5cfccedcd9e4de6b7eb996e34b24898a3b4e671a1cb"
+  },
+  {
+    "file": "native",
+    "version": "0.4.31",
+    "web": false,
+    "template": null,
+    "sha256": "e692a8e24f571c8f69c4e7104c86cead9654ae65f093f448409f82dbeaf2fc8a"
+  },
+  {
+    "file": "native",
+    "version": "0.4.31",
+    "web": false,
+    "template": "password",
+    "sha256": "f51620ef1b765738623f121cb458db0fd907aec9236183d1296fdf51addf243c"
   }
 ]

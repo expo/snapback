@@ -430,7 +430,7 @@ pub(super) fn wave14_native_smoke(password: bool) -> String {
     native_smoke_version(password, include_str!("starter/previous/wave14/native-smoke.ts"))
 }
 
-fn native_smoke_version(password: bool, guest: &str) -> String {
+pub(super) fn native_smoke_version(password: bool, guest: &str) -> String {
     if !password { return guest.to_owned(); }
     guest.replace("import { smokeSegment }", "import { smokeAccount, smokeSegment }")
         .replace("void auth.guest();", "const account = smokeAccount();\n    if (account) void auth.signup(account.email, account.password);")

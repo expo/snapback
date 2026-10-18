@@ -10,10 +10,16 @@ fn templates() -> &'static [Template] {
     static TEMPLATES: std::sync::OnceLock<Vec<Template>> = std::sync::OnceLock::new();
     TEMPLATES.get_or_init(|| serde_json::from_str(include_str!("proof-digests.json")).expect("shipped proof digests"))
 }
-fn digest(text: &str) -> String { format!("{:x}", Sha256::digest(text.as_bytes())) }
+pub(super) fn digest(text: &str) -> String { format!("{:x}", Sha256::digest(text.as_bytes())) }
 pub(super) fn known_day2(text: &str) -> bool {
     let hash = digest(text);
     templates().iter().any(|t| t.file == "day2" && t.sha256 == hash)
+}
+/// Exact shipped helper bytes identify its identity mode and starter revision.
+pub(super) fn native_template(text: &str) -> Option<(&'static str, bool)> {
+    let hash = digest(text);
+    templates().iter().find(|t| t.file == "native" && t.sha256 == hash)
+        .map(|t| (t.version.as_str(), t.template.as_deref() == Some("password")))
 }
 pub(super) fn frontend_template(dir: &Path, web: bool) -> Option<(&'static str, Option<&'static str>)> {
     let text = std::fs::read_to_string(dir.join("scripts/frontend-proof.mjs")).ok()?;
@@ -86,6 +92,17 @@ mod tests {
                 expected.push(serde_json::json!({"file":"frontend","version":version,"web":web,"template":template,"sha256":digest(&super::super::proof::frontend_proof(frontend,template,web))}));
             }}
             expected.push(serde_json::json!({"file":"day2","version":version,"web":false,"template":null,"sha256":digest(day2)}));
+        }
+        for (version, source) in [
+            ("0.4.9", include_str!("starter/previous/native-smoke-0.4.9.ts")),
+            ("0.4.16", include_str!("starter/previous/native-smoke-0.4.16.ts")),
+            ("0.4.28", include_str!("starter/previous/wave14/native-smoke.ts")),
+            ("0.4.31", include_str!("native-smoke.ts")),
+        ] {
+            for password in [false, true] {
+                let text = super::super::starter::native_smoke_version(password, source);
+                expected.push(serde_json::json!({"file":"native","version":version,"web":false,"template":if password { Some("password") } else { None },"sha256":digest(&text)}));
+            }
         }
         if std::env::var_os("SNAPBACK4_UPDATE_PROOF_DIGESTS").is_some() {
             std::fs::write(concat!(env!("CARGO_MANIFEST_DIR"),"/src/verbs/init/proof-digests.json"),serde_json::to_string_pretty(&expected).unwrap()+"\n").unwrap();
