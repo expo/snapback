@@ -89,17 +89,18 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
 }
 
 // @ref LLP 3000.000.000.001#4-development-doors — a persona cannot cross from authentication into a replacement password-only reader.
-pub(crate) fn persona_read_authority<'a>(request: &Request, shared: &'a Shared, engine: &Engine) -> Result<Option<std::sync::MutexGuard<'a, Bound>>, Refusal> {
-    let Some(persona) = request.headers().iter().find(|header| header.field.equiv("x-snapback-persona")) else { return Ok(None) };
+pub(crate) fn persona_read_authority(request: &Request, shared: &Shared, engine: &Engine) -> Result<(), Refusal> {
+    let Some(persona) = request.headers().iter().find(|header| header.field.equiv("x-snapback-persona")) else { return Ok(()) };
     shared.dev_authority(engine)?;
     let bound = lock(&shared.bound);
     if (!shared.unsafe_dev_doors && bound.schema.auth.password && !bound.schema.auth.guests)
         || !bound.personas.iter().any(|name| name == persona.value.as_str().trim()) {
         return Err(Refusal::new("E_AUTH", "auth", "persona authority changed while this read waited; sign in with a password or use the current declared development cast").guide("staging"));
     }
-    // Keep the cast stable through the read; adoption publishes it under this
-    // same lock. The engine's own transaction fences a replaced schema.
-    Ok(Some(bound))
+    // The cast is checked at this read's admission. Never hold its publication
+    // mutex during I/O: concurrent ordinary writes still need to authenticate.
+    // The engine transaction fences a replaced execution schema.
+    Ok(())
 }
 
 // @ref LLP 3000.019#3.6 — adoption's writer queue cannot retain expired bearer authority.

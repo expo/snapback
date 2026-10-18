@@ -127,12 +127,9 @@ pub fn serve(request: Request, id: &str, shared: &Shared) {
     let range_requested = request.headers().iter().any(|h| h.field.equiv("range"));
     let granted = {
         let mut engine=producing_engine(shared);
-        let _persona_authority = match crate::serve::session_identity::persona_read_authority(&request, shared, &engine) {
-            Ok(authority) => authority,
-            Err(why) => {
+        if let Err(why) = crate::serve::session_identity::persona_read_authority(&request, shared, &engine) {
             drop(engine); return respond(request, 401, json!({"denied":refusal_json(&why)}));
-            }
-        };
+        }
         crate::release_requests::stamp(engine.generation());
         engine.asset_access_request(&principal, id, shared.now(), range_requested)
     };

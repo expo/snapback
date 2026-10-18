@@ -1257,16 +1257,13 @@ fn handle(mut request: Request, shared: &Shared) {
                 let reader = shared.reader();
                 let evaluated = match reader {
                     Ok((epoch, mut reader)) => {
+                        let metadata = response_head(&mut reader);
                         #[cfg(test)] test_work(&shared.query_wait);
-                        let _persona_authority = match session_identity::persona_read_authority(&request, shared, &reader) {
-                            Ok(authority) => authority,
-                            Err(why) => {
+                        if let Err(why) = session_identity::persona_read_authority(&request, shared, &reader) {
                             return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
-                            }
-                        };
+                        }
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
-                        let metadata = response_head(&mut reader);
                         let reads_presence = presence_of(&reader);
                         let context = dev_refusals::response::context(context.clone(), reader.refusal_sites.clone(), &reader);
                         let query_generation = reader.generation();
@@ -1285,12 +1282,9 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     Err(_) => {
                         let mut engine = lock(&shared.engine);
-                        let _persona_authority = match session_identity::persona_read_authority(&request, shared, &engine) {
-                            Ok(authority) => authority,
-                            Err(why) => {
+                        if let Err(why) = session_identity::persona_read_authority(&request, shared, &engine) {
                             drop(engine); return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
-                            }
-                        };
+                        }
                         let metadata = response_head(&mut engine);
                         let reads_presence = presence_of(&engine);
                         let mut context = context.clone();
