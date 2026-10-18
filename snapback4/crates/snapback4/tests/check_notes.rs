@@ -2,6 +2,38 @@
 use std::{fs, process::Command};
 
 #[test]
+fn a_security_refutation_never_acknowledges_compiler_notes() {
+    let dir = std::env::temp_dir().join(format!("sb4-security-note-review-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    let source = "table notes:\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery page():\n  return notes first 50 by .id\ninvariant notes.read only .owner = viewer\n";
+    let schema = dir.join("snapback/schema.q");
+    let file = dir.join("snapback/check-notes.json");
+    let run = |args: &[&str]| Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
+    fs::write(&schema, source).unwrap();
+    assert!(run(&["check", "--ack-notes"]).status.success());
+    let reviewed = fs::read(&file).unwrap();
+    fs::write(&schema, source.replace("read <- .owner = viewer", "read <- allow")).unwrap();
+    for existing in [true, false] {
+        if !existing { fs::remove_file(&file).unwrap(); }
+        let output = run(&["check", "--ack-notes", "--json"]);
+        assert_eq!(output.status.code(), Some(1), "{output:?}");
+        let result: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(result["ok"], false);
+        assert!(result["security"]["invariants"].as_array().unwrap().iter().any(|v| v["status"] == "refuted"));
+        assert!(result["notes"].as_array().unwrap().iter().any(|n| n["code"] == "N_NO_CURSOR"));
+        assert_eq!(result["notes"], result["newNotes"]);
+        assert_eq!(result["acknowledgedNotes"], serde_json::json!([]));
+        if existing { assert_eq!(fs::read(&file).unwrap(), reviewed); }
+        else { assert!(!file.exists()); }
+    }
+    let text = run(&["check", "--ack-notes"]);
+    assert_eq!(text.status.code(), Some(1));
+    assert!(String::from_utf8_lossy(&text.stdout).contains("check: failed"));
+    assert!(!file.exists());
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
 fn explicit_note_review_is_shareable_invalidates_and_never_hides_json_findings() {
     let dir = std::env::temp_dir().join(format!("sb4-note-review-{}", std::process::id()));
     fs::create_dir_all(dir.join("snapback")).unwrap();

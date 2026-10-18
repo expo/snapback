@@ -384,14 +384,17 @@ pub fn check(options: &Options) -> i32 {
             Err(error) => { failed_check(&bound, options.json, "E_INPUT", format!("residency measurement failed: {error}")); return 1; }
         }
     } else { None };
-    let reviewed = match note_reviews::review(&project, &compiled_sources, &bound.notes, &reviewable_notes, options.flags.contains_key("ack-notes")) {
+    // @ref LLP 3000.036.002#132-reviewed-notes — every failed check preserves review evidence, including independent policy refutations.
+    let reviewed = if security.refuted() {
+        note_reviews::Review { new: bound.notes.clone(), acknowledged: Vec::new() }
+    } else { match note_reviews::review(&project, &compiled_sources, &bound.notes, &reviewable_notes, options.flags.contains_key("ack-notes")) {
         Ok(review) => review,
         Err(error) => {
             if options.json { println!("{}", json!({"ok": false, "problems": [{"code": "E_CHECK_NOTES", "message": error}], "notes": bound.notes, "newNotes": bound.notes, "acknowledgedNotes": []})); }
             else { eprintln!("check: E_CHECK_NOTES: {error}"); }
             return 2;
         }
-    };
+    } };
     let present = |text: &str| crate::presentation::indexes(&bound.schema, text, options.flags.contains_key("verbose"));
     let details = acquisition.is_none() || options.flags.contains_key("verbose");
     let certificates: Vec<_> = bound.programs.iter().map(|p| crate::scale::analyze_bound(&bound.schema, p)).collect();
@@ -411,7 +414,7 @@ pub fn check(options: &Options) -> i32 {
     if options.json {
         println!("{}", json!({ "ok": !security.refuted(), "security": &security, "followingHistory": bound.programs.iter().filter_map(|p| crate::scale::following::certificate(&bound.schema, &p.program)).collect::<Vec<_>>(), "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_none()).count(), "views": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_some()).count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "newNotes": reviewed.new, "acknowledgedNotes": reviewed.acknowledged, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "starterLeftovers": init::starter_leftovers_json(&project.root), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
-        println!("check: ok — {} ({synced} synced), {} operations, no problems{}, {:.1} ms{}", table_counts(&bound.schema), bound.programs.len(), if note_count == 0 { String::new() } else { format!(", {} note{}", note_count, if note_count == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
+        println!("check: {} — {} ({synced} synced), {} operations, {}{}, {:.1} ms{}", if security.refuted() { "failed" } else { "ok" }, table_counts(&bound.schema), bound.programs.len(), if security.refuted() { "security invariant refuted" } else { "no problems" }, if note_count == 0 { String::new() } else { format!(", {} note{}", note_count, if note_count == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
         if !reviewed.acknowledged.is_empty() { println!("{} reviewed notes (check --verbose to inspect); source edits require review again", reviewed.acknowledged.len()); }
         if options.flags.contains_key("verbose") {
             for line in &sequences { println!("  {line}"); }
