@@ -24,6 +24,24 @@ fn canonical_directory(options: &Options) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+// @ref LLP 3000.000.000.000.000#8-wave-15-release-consumers-and-discovery — validate before any writable ownership or command lock.
+pub(super) fn existing_deployment(requested: &Path) -> Result<PathBuf, String> {
+    let missing = || format!("no current release in {}; run `snapback4 deploy {}` first", requested.display(), requested.display());
+    if !requested.join("store.sqlite").is_file() { return Err(missing()); }
+    let dir = requested.canonicalize().map_err(|e| e.to_string())?;
+    let store = snapback4_core::Store::open_read_only(&dir.join("store.sqlite"))
+        .map_err(|e| e.to_string())?;
+    // The database wins over a stale/missing convenience pointer. Older stores
+    // may still use the pointer; ownership rechecks selection before serving.
+    let release = match store.meta("release").map_err(|e| e.to_string())? {
+        Some(value) => value,
+        None => std::fs::read_to_string(dir.join("current")).map_err(|_| missing())?,
+    };
+    let release = release.trim().parse::<u64>().ok().filter(|n| *n > 0).ok_or_else(missing)?;
+    selectable(&dir, release)?;
+    Ok(dir)
+}
+
 /// `dev` and `serve` hold the store-owner lock for their lifetime. Release
 /// commands route to the admitted server when it owns this deployment.
 pub(crate) fn deployment_lock(dir: &Path) -> Result<Owner, String> {
@@ -360,7 +378,7 @@ pub fn rollback(options: &Options) -> i32 {
     report(
         "rollback",
         (|| {
-            let dir = directory(options)?;
+            let dir = existing_deployment(&directory(options)?)?;
             let _command = command_lock(&dir)?;
             let _deployment = target(&dir)?;
             if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
@@ -417,7 +435,7 @@ pub fn releases(options: &Options) -> i32 {
     report(
         "releases",
         (|| {
-            let dir = directory(options)?;
+            let dir = existing_deployment(&directory(options)?)?;
             let after = options
                 .flags
                 .get("after")
@@ -455,7 +473,7 @@ pub fn prune(options: &Options) -> i32 {
     report(
         "prune",
         (|| {
-            let dir = directory(options)?;
+            let dir = existing_deployment(&directory(options)?)?;
             let _command = command_lock(&dir)?;
             let owner = target(&dir)?;
             let held = status(&dir, owner.as_ref(), 0, None, None)?;
@@ -506,7 +524,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     let capacity = crate::host_limits::Capacity::from_options(&options.flags, |name| {
         std::env::var(name).ok()
     })?;
-    let dir = canonical_directory(options)?;
+    let dir = existing_deployment(&directory(options)?)?;
     crate::host_limits::initialize();
     let owner = crate::store_owner::host(&dir.join("store.sqlite"))?;
     owner.report_reclaim(options.flags.contains_key("verbose"));

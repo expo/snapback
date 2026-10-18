@@ -99,3 +99,34 @@ fn releases_json_uses_the_documented_field_names() {
     for field in ["release", "previous_active", "latest", "generation", "revision", "native_digest", "events", "events_after", "items", "items_after", "event", "workers", "selected"] { assert!(status.get(field).is_some(), "missing {field}: {status}"); }
     assert_eq!(status["release"], 1); assert_eq!(status["selected"]["current"], true);
 }
+
+#[test]
+fn release_consumers_refuse_without_creating_any_files() {
+    let app = App::new();
+    for existing in [false, true] {
+        let dir = app.0.join(if existing { "empty" } else { "missing" });
+        if existing { fs::create_dir(&dir).unwrap(); }
+        let path = dir.to_str().unwrap();
+        for args in [vec!["serve", path], vec!["token", "--release", path, "--service", "ops"],
+            vec!["rollback", path], vec!["rollback", path, "--check"], vec!["prune", path], vec!["releases", path, "--json"]] {
+            let output = app.run(&args);
+            assert!(!output.status.success(), "{args:?}: {output:?}");
+            assert!(output.stdout.is_empty(), "{output:?}");
+            assert!(String::from_utf8_lossy(&output.stderr).contains("no current release"), "{output:?}");
+            if existing { assert_eq!(fs::read_dir(&dir).unwrap().count(), 0, "{args:?}"); }
+            else { assert!(!dir.exists(), "{args:?}"); }
+        }
+    }
+}
+#[test]
+fn release_preflight_uses_database_selection_without_convenience_pointer() {
+    let app = App::new(); fs::create_dir(app.0.join("snapback")).unwrap();
+    fs::write(app.0.join("snapback/schema.q"), "query alive():\n  return true\n").unwrap();
+    success(app.run(&["deploy", "deployment"]));
+    fs::remove_file(app.0.join("deployment/current")).unwrap();
+    success(app.run(&["token", "--release", "deployment", "--service", "ops", "--quiet"]));
+    let value: serde_json::Value = serde_json::from_str(&success(app.run(&["releases", "deployment"]))).unwrap();
+    assert_eq!(value["release"], 1);
+    fs::write(app.0.join("deployment/current"), "999\n").unwrap();
+    success(app.run(&["token", "--release", "deployment", "--service", "ops", "--quiet"]));
+}

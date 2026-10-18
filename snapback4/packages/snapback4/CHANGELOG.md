@@ -1,5 +1,9 @@
 # Snapback 4 behavior changes
 
+## 0.4.32
+
+- CLI and discovery: release consumers (`serve`, `token --release`, `rollback`, `prune`, `releases`) refuse missing or release-less deployment directories before creating any files. Deploy is the deployment creation command; database selection remains authoritative when the convenience `current` file is absent or stale.
+
 ## 0.4.31
 
 - Existing stores keep their rows, ids, schema and captured `read through` authority. No automatic data repair or audience expansion occurs. Regenerate declarations and rebuild web, native and Exact clients to pick up the runtime and client changes below; review new correctness notes before deploying edited schemas.

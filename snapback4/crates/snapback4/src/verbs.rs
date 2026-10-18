@@ -1292,8 +1292,13 @@ pub fn token(options: &Options) -> i32 {
         return 2;
     };
     let days: i64 = options.flags.get("days").and_then(|d| d.parse().ok()).unwrap_or(365);
-    let path = options.flags.get("release").map(|dir| Path::new(dir).join("store.sqlite"))
-        .unwrap_or_else(|| project_or_exit().store_path());
+    let path = match options.flags.get("release") {
+        Some(dir) => match releases::existing_deployment(Path::new(dir)) {
+            Ok(dir) => dir.join("store.sqlite"),
+            Err(error) => { eprintln!("token: {error}"); return 2; }
+        },
+        None => project_or_exit().store_path(),
+    };
     if !options.flags.contains_key("release") && !path.is_file() {
         eprintln!("cannot open the store: no store at {}; run `snapback4 dev` first", path.display());
         return 2;
