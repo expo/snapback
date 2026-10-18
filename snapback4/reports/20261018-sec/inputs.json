@@ -1,0 +1,1652 @@
+[
+  {
+    "wave": 16,
+    "lane": "001-snapback-ferry-deck-manifest",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/001-snapback-ferry-deck-manifest/snapback/schema.q",
+        "sha256": "ecf8fb45f30a3c97eed9c5de5c15d12f2c5abbb4f37f5094d0ddd209519f9544",
+        "bytes": 8470
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "002-snapback-orchard-spray-reentry",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/002-snapback-orchard-spray-reentry/snapback/schema.q",
+        "sha256": "e9fba52a9a60ca443c682ba46fd98f056661390ec30692c968f83e757a123a3f",
+        "bytes": 7371
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "003-snapback-specimen-courier-chain",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/003-snapback-specimen-courier-chain/snapback/schema.q",
+        "sha256": "5fde205b1b706636c1fe50b3922e6cdeaf2abc3a4cba51b61b572971dbeb5f5f",
+        "bytes": 4917
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "004-snapback-fly-rail-cue-locks",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/004-snapback-fly-rail-cue-locks/snapback/schema.q",
+        "sha256": "b380c002cdc8835764fbf1c01bcda56c3c9187bf2f0959b31e6dd864561d0748",
+        "bytes": 9288
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "005-snapback-kiln-firing-queue",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/005-snapback-kiln-firing-queue/snapback/schema.q",
+        "sha256": "aff811f525352e8c5249cbf2246c9c67b862e4f29588a7d6b375ed1032aed633",
+        "bytes": 8476
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "006-snapback-dive-boat-buddy-log",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/006-snapback-dive-boat-buddy-log/snapback/schema.q",
+        "sha256": "67e7f936b4109d8cea3d115a2b2d4e3f38425a8e450f56185842224ec14bea2b",
+        "bytes": 8444
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "007-snapback-farrier-hoof-rota",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/007-snapback-farrier-hoof-rota/snapback/schema.q",
+        "sha256": "5622cd648fd058260a50fed034682f14befff320552cbfaf0620ba7a28857dc9",
+        "bytes": 5331
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "008-snapback-sublet-key-escrow",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/008-snapback-sublet-key-escrow/snapback/schema.q",
+        "sha256": "23a7eafc8504e04f1e2234935cb4698a0eca608c49865a5374b690e9f0da30c4",
+        "bytes": 8049
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "009-snapback-choir-part-tracks",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/009-snapback-choir-part-tracks/snapback/schema.q",
+        "sha256": "e0c969d8acc685e20c6fb166771fbd43c1bee73b956fa0ca9f90c932d81c8452",
+        "bytes": 8368
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "010-snapback-allotment-water-turns",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/010-snapback-allotment-water-turns/snapback/schema.q",
+        "sha256": "b22c456b04ceeef14c57bdc0bae6e1ec1af02215f9bb63138d73f14ecd83fb3e",
+        "bytes": 5271
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "011-snapback-freezer-rack-ledger",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/011-snapback-freezer-rack-ledger/snapback/schema.q",
+        "sha256": "558795b86dfdabe403f0d7902b90ae2e8909eec53732a9ce8b96bd07fc265980",
+        "bytes": 6788
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "012-snapback-court-interpreter-slots",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/012-snapback-court-interpreter-slots/snapback/schema.q",
+        "sha256": "fc59516459c97944f27e7dec65674efa0d9fb8482f893dd190e21390eee9ff06",
+        "bytes": 6593
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "013-snapback-hackathon-rubric-judging",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/013-snapback-hackathon-rubric-judging/snapback/schema.q",
+        "sha256": "cca90a1a5b901961bc869141f9df6eb2a68f7068a14461d17e2ae1bb320fa2db",
+        "bytes": 8288
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "014-snapback-ice-rink-resurface-slots",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/014-snapback-ice-rink-resurface-slots/snapback/schema.q",
+        "sha256": "ae89ce3bd1dd213c53e9924bcdbf034bbf4ff33ac8dd2c2af3484cee9acc2b30",
+        "bytes": 9166
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "015-snapback-foster-pet-handoffs",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/015-snapback-foster-pet-handoffs/snapback/schema.q",
+        "sha256": "7f08764f9c9e5fe628a011a768c973dc76c959813e5cd0458896befd7ad8029c",
+        "bytes": 11130
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "016-snapback-coworking-locker-leases",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/016-snapback-coworking-locker-leases/snapback/schema.q",
+        "sha256": "87518479c0ed7a9ed43208220dc4982beecf15e1452f8808f7e7daa32111b6e3",
+        "bytes": 5586
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "017-snapback-trial-symptom-diary",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/017-snapback-trial-symptom-diary/snapback/schema.q",
+        "sha256": "ce9c5c6d211bf9335b925757462332d76eba15f98c182f7f51bfc1be559a0fbf",
+        "bytes": 7322
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "018-snapback-film-dailies-notes",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/018-snapback-film-dailies-notes/snapback/schema.q",
+        "sha256": "a5ae54d00bae345528298bbf771f64f519cffa9e2bc955ae5d9f50b48a07b522",
+        "bytes": 4818
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "019-snapback-apiary-hive-inspections",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/019-snapback-apiary-hive-inspections/snapback/schema.q",
+        "sha256": "67b76528e9ec9f7a3038440f8b53785339bb94a3c02451ec5de6242a545f6162",
+        "bytes": 7409
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "020-snapback-tow-yard-release",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/020-snapback-tow-yard-release/snapback/schema.q",
+        "sha256": "d170bd17498ce0672cf5161caab879d96084eb4fb65d26d1a51c1875b5e90996",
+        "bytes": 10064
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "021-snapback-moot-court-scoring",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/021-snapback-moot-court-scoring/snapback/schema.q",
+        "sha256": "3908c6b10791d3ef3b42ed4c621beecf9fa5894186de2fc496b194b8e33dc6ec",
+        "bytes": 11233
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "022-snapback-glacier-rope-teams",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/022-snapback-glacier-rope-teams/snapback/schema.q",
+        "sha256": "122b3b745460f47c93affe7a21d63a1a6537ffcf4e36fa51d21dc38747ffd856",
+        "bytes": 9136
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "023-snapback-brew-comp-blind-flights",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/023-snapback-brew-comp-blind-flights/snapback/schema.q",
+        "sha256": "8a7b6cd1e0ce6b9410b4840e83ed8d3be192664acc30af804b74247b73d9ea6f",
+        "bytes": 8241
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "024-snapback-cycle-count-tasks",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/024-snapback-cycle-count-tasks/snapback/schema.q",
+        "sha256": "257f19f3e78f39ec8b8987fe85836037460c0bc996349d2cdbd857839f23508b",
+        "bytes": 5295
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "025-snapback-cemetery-plot-deeds",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/025-snapback-cemetery-plot-deeds/snapback/schema.q",
+        "sha256": "7aac39a072a2a73c99a433456bea55500d503fcea99a62bfb42330638cbddda8",
+        "bytes": 7433
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "026-snapback-dorm-noise-reports",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/026-snapback-dorm-noise-reports/snapback/schema.q",
+        "sha256": "80f3b7e7c005078a5c411d15f8124a804a7c03f0cdbb209dfb165cd760ca5a58",
+        "bytes": 5149
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "027-snapback-podcast-guest-releases",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/027-snapback-podcast-guest-releases/snapback/schema.q",
+        "sha256": "6b7b951188cdfa933d498b82373bb00dfb42d45c8db3e3ecfcffbdd6e0600b83",
+        "bytes": 10942
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "028-snapback-tool-library-deposits",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/028-snapback-tool-library-deposits/snapback/schema.q",
+        "sha256": "d560ff479479c2b4e5e163ff7cd4bceb8000415c94f6b99873fc6e1e4d664b2c",
+        "bytes": 5783
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "029-snapback-fire-lookout-shifts",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/029-snapback-fire-lookout-shifts/snapback/schema.q",
+        "sha256": "737c5c02d6804ecba657dd6bda719e78fd1529f5cb61defebab32bf4e8981bdc",
+        "bytes": 5273
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "030-snapback-harvest-bin-tickets",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/030-snapback-harvest-bin-tickets/snapback/schema.q",
+        "sha256": "f04b5d130ff5bc172e5a48c137cafaa4038572c0ce5ced67c5a5ce4325d79ac0",
+        "bytes": 9178
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "031-snapback-piano-tuning-route",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/031-snapback-piano-tuning-route/snapback/schema.q",
+        "sha256": "95f7575f32350be36a185645b5026b2dc7ee3502fa2ff90639496fb868559508",
+        "bytes": 8386
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "032-snapback-scrim-vod-reviews",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/032-snapback-scrim-vod-reviews/snapback/schema.q",
+        "sha256": "bfdf87d2359ed91158eb14fad34ab00e72b5a5d1b8b3d30124734b9c2c94f9fb",
+        "bytes": 5629
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "033-snapback-compounding-dual-check",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/033-snapback-compounding-dual-check/snapback/schema.q",
+        "sha256": "e324a7d3af40c33db3bb586d724c68835fc03c4f893b5daf2180100e0032ad98",
+        "bytes": 4980
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "034-snapback-marina-liveaboard-slips",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/034-snapback-marina-liveaboard-slips/snapback/schema.q",
+        "sha256": "3dc1e1b20bac91606bc542cc8291295b1c38a0de4ba06774778a5846e959be2e",
+        "bytes": 8019
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "035-snapback-archive-reading-requests",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/035-snapback-archive-reading-requests/snapback/schema.q",
+        "sha256": "e9fa46081bde0695a9b8ec9b4dd2d7fc4e201217eb035ea5f480e1ea6d2019e0",
+        "bytes": 6338
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "036-snapback-robotics-parts-ledger",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/036-snapback-robotics-parts-ledger/snapback/schema.q",
+        "sha256": "f030278f529b787b500743d275bb91e61710c10ffed039d7f062d4313c8f803a",
+        "bytes": 7524
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "037-snapback-bus-roster-changes",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/037-snapback-bus-roster-changes/snapback/schema.q",
+        "sha256": "61e6f3945baab017c397c7eb0ec5a0b3a4e03bac1fdcf6c0399abcfb3c4225e3",
+        "bytes": 7771
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "038-snapback-hotel-lost-property",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/038-snapback-hotel-lost-property/snapback/schema.q",
+        "sha256": "0b354587abc338d1f8e0e6cf2e6a95e28a0a2834797c374303deba39ee74d8e9",
+        "bytes": 5581
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "039-snapback-glossary-term-reviews",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/039-snapback-glossary-term-reviews/snapback/schema.q",
+        "sha256": "15122c08f32eba9acbdb406dacfaeba75b4f88de42e83e1ce371a1040714ae0a",
+        "bytes": 6152
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "040-snapback-route-setting-rotation",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/040-snapback-route-setting-rotation/snapback/schema.q",
+        "sha256": "ee92be1bfe9cee89be173bc61a62e89a516d35520fc959ac3a6bb01391594ee8",
+        "bytes": 6515
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "041-snapback-community-fridge-restocks",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/041-snapback-community-fridge-restocks/snapback/schema.q",
+        "sha256": "7d9717606822cf8a4a9b7f4a40bb8bd930da12cab6cf59de0f8bc128cc8f9434",
+        "bytes": 10207
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "042-snapback-sterile-tray-tracking",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/042-snapback-sterile-tray-tracking/snapback/schema.q",
+        "sha256": "ad4940acac89e0c8b5ed724cf96c0064fad7e17b05196e89a1134a68c80b82db",
+        "bytes": 8321
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "043-snapback-wedding-vendor-timeline",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/043-snapback-wedding-vendor-timeline/snapback/schema.q",
+        "sha256": "28dcf16a4fec2bbda166513a2c9343c458f448458b799ce29aa1c386dd1f7587",
+        "bytes": 5656
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "044-snapback-ham-net-checkins",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/044-snapback-ham-net-checkins/snapback/schema.q",
+        "sha256": "f201fffb3f76288fd297320fbbd7ee5336b6eee075037a6b357a688ce629be0a",
+        "bytes": 5094
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "045-snapback-instrument-loan-bank",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/045-snapback-instrument-loan-bank/snapback/schema.q",
+        "sha256": "7e9d7debe84fc24ee26d45b3c005373b0c879108f9d2031b30308e3065a0b717",
+        "bytes": 6880
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "046-snapback-greenhouse-climate-alarms",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/046-snapback-greenhouse-climate-alarms/snapback/schema.q",
+        "sha256": "f3abffe9524773aa984c0dcfbd7991e532b06015fe66ac263608dcf2f4d3a7d3",
+        "bytes": 7284
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "047-snapback-mural-wall-permits",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/047-snapback-mural-wall-permits/snapback/schema.q",
+        "sha256": "0157a5de1b8e3e9338314c9c04dae5810cbbc8bc81e76b723f0d9631a9844027",
+        "bytes": 7196
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "048-snapback-boiler-room-rounds",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/048-snapback-boiler-room-rounds/snapback/schema.q",
+        "sha256": "ae682a6d3f3b279f23526f1a85ed81f46518f1e02ec540534f11c7d96d48a420",
+        "bytes": 11647
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "049-snapback-cheese-cave-wheels",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/049-snapback-cheese-cave-wheels/snapback/schema.q",
+        "sha256": "15490e514d8c3b74db3d5874ea934929f16c4e9ecd59d18a30a5c0c288451581",
+        "bytes": 6859
+      }
+    ]
+  },
+  {
+    "wave": 16,
+    "lane": "050-snapback-ambulance-crew-checkout",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave16/apps/050-snapback-ambulance-crew-checkout/snapback/schema.q",
+        "sha256": "9e61aaeb3bc3515be38b76088549c2859e5c2d6f4838122738fabe1627024564",
+        "bytes": 8738
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "001-weld-coupon-quals",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/001-weld-coupon-quals/snapback/schema.q",
+        "sha256": "32e2b4256c6e5ffee6a3bbf3562e81818e7a8908f5c02b79baf74eb877ce138b",
+        "bytes": 7561
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "002-day2-scaffold-tag-board",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/002-day2-scaffold-tag-board/snapback/schema.q",
+        "sha256": "159821b8f52af76bbf136d342550067cf9db0cbc39252b4283c005f3ea76048d",
+        "bytes": 6634
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "003-tile-dye-lot-holds",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/003-tile-dye-lot-holds/snapback/schema.q",
+        "sha256": "c74cda974aa3bf26d01d0978091a9100e07552c36486da6382925b939451e9f4",
+        "bytes": 3733
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "004-day2-arc-reviewer-copies",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/004-day2-arc-reviewer-copies/snapback/schema.q",
+        "sha256": "c7db46ce7fcbc130752e87e11a90a6a77871202021431e9392ff03506836c0ad",
+        "bytes": 7827
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "005-arborist-hazard-tags",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/005-arborist-hazard-tags/snapback/schema.q",
+        "sha256": "70cd48a4d6121aaf39ddb5dade30d2286060c4f7b642b2be9779861844b6a3db",
+        "bytes": 4640
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "006-day2-duplicate-bridge-boards",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/006-day2-duplicate-bridge-boards/snapback/schema.q",
+        "sha256": "18fa67f31841f9a65e6606428e3602427d0d2331288073aad8912bf7a44fd84a",
+        "bytes": 11229
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "007-med-pass-cosign",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/007-med-pass-cosign/snapback/schema.q",
+        "sha256": "7fa55ff866f800df99ee8c7d79bc5afb4b5fe09dc48133fbaed66452acfcb454",
+        "bytes": 4404
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "008-day2-docket-deadline-calendar",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/008-day2-docket-deadline-calendar/snapback/schema.q",
+        "sha256": "7d3df110b9e983d1d7801017829dd05e3be64997e22fe0d6fc31b4fecfa59349",
+        "bytes": 10385
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "009-lactation-room-queue",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/009-lactation-room-queue/snapback/schema.q",
+        "sha256": "902d67f79de31fd2277497e81e451e536665b02ca703a72cd442c29e66c5beb9",
+        "bytes": 4995
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "010-day2-propane-tank-readings",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/010-day2-propane-tank-readings/snapback/schema.q",
+        "sha256": "7ba57b75787e7969b42723d1b30a2b5bad42c8ab0c9644034ef78ca03a2eff8f",
+        "bytes": 6011
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "011-school-vision-screens",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/011-school-vision-screens/snapback/schema.q",
+        "sha256": "06d7de5369d4e5643d433c67000ab4ef032121e986ef6d168e05bf5dfe0841b5",
+        "bytes": 4892
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "012-day2-pet-addendum-approvals",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/012-day2-pet-addendum-approvals/snapback/schema.q",
+        "sha256": "8756b25e8f44313f7d097fd67f9382568359c73d5c8fb3f23e831b3b0916b3ba",
+        "bytes": 8559
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "013-stroke-rehab-contracts",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/013-stroke-rehab-contracts/snapback/schema.q",
+        "sha256": "581bb2ff451a253687221e40f9a7a2d9d0f152c65aee8422ae341f77057678d2",
+        "bytes": 6567
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "014-day2-venue-date-holds",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/014-day2-venue-date-holds/snapback/schema.q",
+        "sha256": "aff3617903f30f154db366ee86420ac0ad34225d73631d9bd6bb8d9acc82a24e",
+        "bytes": 7564
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "015-lab-bench-breakage",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/015-lab-bench-breakage/snapback/schema.q",
+        "sha256": "cbfeb20f93e3bc99880eb1634500a43704ac0c43607d7bb93a8b968831ee46fa",
+        "bytes": 7444
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "016-day2-waste-accumulation-clock",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/016-day2-waste-accumulation-clock/snapback/schema.q",
+        "sha256": "99e78ef30e63501f56c5a505d80e5dd3974461bb12fbfe6eea1d0e5debc73f82",
+        "bytes": 7639
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "017-peer-grading-calibration",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/017-peer-grading-calibration/snapback/schema.q",
+        "sha256": "76758a6321d69d57bad13661af24d9ea33a95f8c5806064bd05f60873f8176f0",
+        "bytes": 6193
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "018-day2-bike-serial-registry",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/018-day2-bike-serial-registry/snapback/schema.q",
+        "sha256": "a8b76c8915814e4386df2aa29e0fb93b10c95e38e3ed6d76a93d19f775f2fa41",
+        "bytes": 5882
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "019-sidewalk-cafe-permits",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/019-sidewalk-cafe-permits/snapback/schema.q",
+        "sha256": "0ea40ee69c634050db43d75cd4a16ffaeb714f0a6c9d45527827265fc3795c0a",
+        "bytes": 5640
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "020-day2-four-h-project-records",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/020-day2-four-h-project-records/snapback/schema.q",
+        "sha256": "118d53549112bc1aacb4e2bb7928d8c3d4e9740595dc33cb864190450bdbb0db",
+        "bytes": 7079
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "021-block-party-closures",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/021-block-party-closures/snapback/schema.q",
+        "sha256": "253562de256e293f8e014e4599175d8ef58c690d00e47c71f130d097aa54d95c",
+        "bytes": 7152
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "022-day2-barrel-shipment-consolidation",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/022-day2-barrel-shipment-consolidation/snapback/schema.q",
+        "sha256": "fd4e6c3995ccb179722662b69699a06028aef1514928b1e8135f699513a1c3eb",
+        "bytes": 5529
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "023-hydrant-adoption",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/023-hydrant-adoption/snapback/schema.q",
+        "sha256": "eb605989b5f5722d1794d559eef5f5ac2651ac8c23e10b4aacf2472bb088ea91",
+        "bytes": 5924
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "024-day2-reading-room-pulls",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/024-day2-reading-room-pulls/snapback/schema.q",
+        "sha256": "71859c71e78c7ce44a3b6c67ff9c30e54808983e875efdb2b50874b620300ae8",
+        "bytes": 7897
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "025-homebrew-comp-flights",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/025-homebrew-comp-flights/snapback/schema.q",
+        "sha256": "31a1d92094e642da76fc1b8bc63a70fea2ffbabaf04b85d6257a9f7e4b14da85",
+        "bytes": 5664
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "026-day2-dropzone-load-manifest",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/026-day2-dropzone-load-manifest/snapback/schema.q",
+        "sha256": "21063ab0d09130ea1d1e863b14abeaa6ce871158425ecb7b07e234b0d4f1b1a3",
+        "bytes": 9164
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "027-agility-trial-run-order",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/027-agility-trial-run-order/snapback/schema.q",
+        "sha256": "8eefcd03c93fc91ed739f9792fbc8c0e2310e25858244fa87f11a6ae4ae5e223",
+        "bytes": 7699
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "028-day2-understudy-readiness",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/028-day2-understudy-readiness/snapback/schema.q",
+        "sha256": "67cd197b0c7effb450fabb8c750dcdec9e766f2e9249ed884971d04c8c7ac6e8",
+        "bytes": 7881
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "029-rc-lap-timer",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/029-rc-lap-timer/snapback/schema.q",
+        "sha256": "c7153eddc0e8ac79c2b9e6667f1d2490cfb76b60f8bf220720b3269d16d1469a",
+        "bytes": 6407
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "030-day2-color-formula-cards",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/030-day2-color-formula-cards/snapback/schema.q",
+        "sha256": "183249717aa3c05c7e7d7d77f364b3dfa4f6958571031ccce7a42d5f14f097cb",
+        "bytes": 6552
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "031-pinball-league-scores",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/031-pinball-league-scores/snapback/schema.q",
+        "sha256": "20797c29ac2704211f7802281178660891b8dfc701c2be514fd2ee4e0c6c55ee",
+        "bytes": 3769
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "032-day2-dismissal-change-requests",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/032-day2-dismissal-change-requests/snapback/schema.q",
+        "sha256": "95ac4e6014abc1596f34790b2059b65fa1a5ae8f6333ce9d17737bf4670e671e",
+        "bytes": 10522
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "033-go-ladder-handicaps",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/033-go-ladder-handicaps/snapback/schema.q",
+        "sha256": "87a0b2cb8c6c49fc0a1ffcef1ccac959b8215312ec069adbee78c4e0c21a6420",
+        "bytes": 7792
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "034-day2-cla-signature-ledger",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/034-day2-cla-signature-ledger/snapback/schema.q",
+        "sha256": "2ddf1fb610925642ec387c7454817c7e894cfaaf91325c3e2cd9abdcaa112331",
+        "bytes": 6192
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "035-dry-clean-rack-tickets",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/035-dry-clean-rack-tickets/snapback/schema.q",
+        "sha256": "702f1f6eca1f72ac8164f31e0b36be3cb15a452f991f97afec437f00308d3a47",
+        "bytes": 7311
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "036-day2-jersey-number-requests",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/036-day2-jersey-number-requests/snapback/schema.q",
+        "sha256": "71e670f894501d23c686b15f6df7e457c157e16867449cc3b6e487d92b322cc1",
+        "bytes": 8120
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "037-flavor-rotation-board",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/037-flavor-rotation-board/snapback/schema.q",
+        "sha256": "b19eb25cab59caaf422f1befd69ae7eab26491a67e45a0af2028e2f57509fcf1",
+        "bytes": 5886
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "038-day2-magic-method-vault",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/038-day2-magic-method-vault/snapback/schema.q",
+        "sha256": "e87cccabdcec6d2cafd84ccd787e3d59bc126d9f56135d335d054cbb15907728",
+        "bytes": 6119
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "039-photo-booth-galleries",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/039-photo-booth-galleries/snapback/schema.q",
+        "sha256": "40ba787579c259424c29821c90b1eddc806e72c8e9398a388bfd6c70e4579efc",
+        "bytes": 6855
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "040-day2-doula-backup-rotation",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/040-day2-doula-backup-rotation/snapback/schema.q",
+        "sha256": "29432124b8995a89e5232e6f658d6dfcc8f71d407d7a74c3ef14683d100ce0cc",
+        "bytes": 7616
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "041-clothing-closet-visits",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/041-clothing-closet-visits/snapback/schema.q",
+        "sha256": "06444e1bb0d55fd6b58292fff7df9b178101ffc017a8e72f2d6131e8daa000b8",
+        "bytes": 3999
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "042-day2-bite-quarantine-checks",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/042-day2-bite-quarantine-checks/snapback/schema.q",
+        "sha256": "f41c392a6a12454442bf98093b2547c9f9a0f474f9badb4700f3b3c49742cd13",
+        "bytes": 6190
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "043-warming-center-tonight",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/043-warming-center-tonight/snapback/schema.q",
+        "sha256": "7d868661cb84d34e7d3dc2628be70416411682c1b13fac53cc590605b4199a27",
+        "bytes": 6676
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "044-day2-screen-time-tokens",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/044-day2-screen-time-tokens/snapback/schema.q",
+        "sha256": "ff4a82ee5f86c20fef35d7977396474d62166d5703d97a0272ccb5b42173b587",
+        "bytes": 10189
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "045-memory-care-playlists",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/045-memory-care-playlists/snapback/schema.q",
+        "sha256": "6757af5c6b1fc5e76e9e0e4cce4bc66bde2c9d8ee578ca42ea986bc1fca1ce98",
+        "bytes": 3491
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "046-day2-heritage-plaque-applications",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/046-day2-heritage-plaque-applications/snapback/schema.q",
+        "sha256": "57ea51c7b1bf58df529fa78b52d517934d21829a0d0b9498c941c89e2e735ae7",
+        "bytes": 8252
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "047-walkathon-lap-pledges",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/047-walkathon-lap-pledges/snapback/schema.q",
+        "sha256": "6cc6003d9d11824de72ed015da2cf9086dc9bbe69b837b63573afa810d0c3062",
+        "bytes": 3661
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "048-day2-hot-work-permits",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/048-day2-hot-work-permits/snapback/schema.q",
+        "sha256": "262344c39fcc3a583ef1d3b67d1aa57a1abcf62b62fe2d4ec0342f9d44e343ac",
+        "bytes": 8276
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "049-radiation-badge-doses",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/049-radiation-badge-doses/snapback/schema.q",
+        "sha256": "f89b6efc13b795e015ee100fe3eb635dcfd7a920b5228a2ab9f2bac1dd3faed7",
+        "bytes": 7274
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "050-day2-impound-release-desk",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/050-day2-impound-release-desk/snapback/schema.q",
+        "sha256": "e68dc8a5ec9227844ccd83629fee14b3785cab77212a813676e8bb1c7e46f9b1",
+        "bytes": 7844
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "051-wildlife-crossing-reports",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/051-wildlife-crossing-reports/snapback/schema.q",
+        "sha256": "30f91340633bbddd3f4968d911aef9821d1545f9e0e76eafab53f06541ce99da",
+        "bytes": 4615
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "052-day2-furniture-bank-pickups",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/052-day2-furniture-bank-pickups/snapback/schema.q",
+        "sha256": "39f376b6d2a085eaa1b9d6cf48f458c50863528fff9740dce1bb2811f38d8607",
+        "bytes": 12568
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "053-effort-certification",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/053-effort-certification/snapback/schema.q",
+        "sha256": "03d0a96137b1074bef68ef2e86d48a71737c310148353feb485ce3da284372a5",
+        "bytes": 8904
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "054-day2-ballot-drop-box-sweeps",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/054-day2-ballot-drop-box-sweeps/snapback/schema.q",
+        "sha256": "c863431508ae5d7ec79bd0f327ff51223248c814344e9760a42c61946bfc6e98",
+        "bytes": 5231
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "055-tryout-blind-scoring",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/055-tryout-blind-scoring/snapback/schema.q",
+        "sha256": "d18c13159d175b8d5126c62da171c2bcfe6e237f21f5133b81940a2aacff3b8b",
+        "bytes": 6159
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "056-day2-shellfish-harvest-closures",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/056-day2-shellfish-harvest-closures/snapback/schema.q",
+        "sha256": "c8113f422874b69baf65d9c8700d74d2c394aef631e8a0ffc05b19049e2960bb",
+        "bytes": 4876
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "057-helmet-recert-tracker",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/057-helmet-recert-tracker/snapback/schema.q",
+        "sha256": "5306c6648e13f9ea5c7b0369b2ce1c29fb9be12974ab2c13a583dca602974f15",
+        "bytes": 6002
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "058-day2-guest-stay-limits",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/058-day2-guest-stay-limits/snapback/schema.q",
+        "sha256": "9ebcb812e136eacb1bce0c1a8dc818d76d6f7cebe9df1c2b137f2aa10e081708",
+        "bytes": 6557
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "059-curbside-pickup-lanes",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/059-curbside-pickup-lanes/snapback/schema.q",
+        "sha256": "dad4f20fd35c7d9d511c6e868d70c0e62a06881397402c29a21801992e22d294",
+        "bytes": 4291
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "060-day2-poster-session-gallery",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/060-day2-poster-session-gallery/snapback/schema.q",
+        "sha256": "7832c5c249e1e982a789f0399f31fa33ef7dcaaaae92e794ed5e7dcd9e741d2a",
+        "bytes": 8626
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "061-sled-dog-checkpoints",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/061-sled-dog-checkpoints/snapback/schema.q",
+        "sha256": "93fe6e7a89839bf3a8c2900b22fe4ecafd953f6c62fc8c4509de666f76abf71f",
+        "bytes": 5353
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "062-day2-burn-permit-days",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/062-day2-burn-permit-days/snapback/schema.q",
+        "sha256": "e7acca6d418523d5fd650b8923d398bc4491dbd7aff1bb3a1f43c0d0f2c92240",
+        "bytes": 8466
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "063-audio-description-review",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/063-audio-description-review/snapback/schema.q",
+        "sha256": "0070aecfb4a41a9536a3ca61b974a1a96d2e07652d58525fdf6ef49385986a1b",
+        "bytes": 6973
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "064-day2-exhibit-label-review",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/064-day2-exhibit-label-review/snapback/schema.q",
+        "sha256": "b58689573db2c154c6c69d26c29df2de70d38ccef67b6d2f2b4728a90f2fb690",
+        "bytes": 5932
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "065-medicine-cabinet-expiry",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/065-medicine-cabinet-expiry/snapback/schema.q",
+        "sha256": "2009615ab435b854b1722bf05c652ed80739870acf3b266437512a077afb77cb",
+        "bytes": 4623
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "066-day2-quiz-pack-exchange",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/066-day2-quiz-pack-exchange/snapback/schema.q",
+        "sha256": "81347a82c9d6392253c36aa417f49522068c5d80b5e915135c6e100b789c09ba",
+        "bytes": 6661
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "067-curfew-extension-requests",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/067-curfew-extension-requests/snapback/schema.q",
+        "sha256": "3fea1c9b1a5c16730cce37e0f62e6ada98a8464bd28c8efe6a433beba65bb0f0",
+        "bytes": 4039
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "068-day2-two-bin-reorder-cards",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/068-day2-two-bin-reorder-cards/snapback/schema.q",
+        "sha256": "937c1281cb91e258d78d8d9459c6a9cb046fc95fc30d59aa82fadbb7426940b8",
+        "bytes": 9314
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "069-newborn-shift-log",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/069-newborn-shift-log/snapback/schema.q",
+        "sha256": "a4f28a10b73ad13aaaafc8bbc0707af28ced6438056c11854af81d232e43f396",
+        "bytes": 5225
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "070-day2-sealed-preregistration",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/070-day2-sealed-preregistration/snapback/schema.q",
+        "sha256": "763eb883bcb7d59258c18e11d9d697173779db80cd2b74377114c5788d04102d",
+        "bytes": 6118
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "071-instrument-lockout-leases",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/071-instrument-lockout-leases/snapback/schema.q",
+        "sha256": "5a420e441f5219b344405b3cde1ea7cb3492d42b95ef7da2b65be3f9a231356b",
+        "bytes": 5646
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "072-day2-daycare-milk-bottles",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/072-day2-daycare-milk-bottles/snapback/schema.q",
+        "sha256": "3674e06429bb9bedfb25ddc4ad6aab759a090f23c21e93ce6eb93a7267092eb5",
+        "bytes": 9291
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "073-crop-scouting-reports",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/073-crop-scouting-reports/snapback/schema.q",
+        "sha256": "d60ee5b8583ddf5931b16756725d8db2c2e0ab61a9ee4a4ea1083b68b2bc0313",
+        "bytes": 5309
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "074-day2-ditch-rider-water-turns",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/074-day2-ditch-rider-water-turns/snapback/schema.q",
+        "sha256": "7868e3d80ca65f55af81b6a805b5b99115d3d6b5321cca40e2b0dc82e275ec98",
+        "bytes": 8603
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "075-tire-hotel-storage",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/075-tire-hotel-storage/snapback/schema.q",
+        "sha256": "e802efbeaf31c6f60cbb25757e2f490278e2602eff74143af4aa9c59cd2bc515",
+        "bytes": 6180
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "076-day2-rain-check-desk",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/076-day2-rain-check-desk/snapback/schema.q",
+        "sha256": "05525d4549f1b356476b5441711fa5f32e62d0e674c1db7417a6dd1fc96dcd46",
+        "bytes": 6760
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "077-rfp-response-desk",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/077-rfp-response-desk/snapback/schema.q",
+        "sha256": "fe42b744ba7547cbcf54368cc1f9bf8d9cad636da21df04f11c4bd4d9b2cf3de",
+        "bytes": 8578
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "078-day2-practicum-placements",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/078-day2-practicum-placements/snapback/schema.q",
+        "sha256": "6a5f50ac669b2325ab3e31b9783ab3513beb369508dd9d3d46d6f17a0957b147",
+        "bytes": 7236
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "079-supervised-teen-chat",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/079-supervised-teen-chat/snapback/schema.q",
+        "sha256": "368b5e5a2e5ead0354ba16c10cf63b801945c44d7ad7d78e4c74e1d5829088fc",
+        "bytes": 5874
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "080-day2-stop-headcount-tally",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/080-day2-stop-headcount-tally/snapback/schema.q",
+        "sha256": "3e37895548cedd6e3d615c1b7f59903bbc2197b9fb0c696fb95f8696d65ad0c4",
+        "bytes": 9651
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "081-press-release-signoff",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/081-press-release-signoff/snapback/schema.q",
+        "sha256": "feefdeba3c541fb2acedf4a49a6d15935757805c09b6ce59a56af42a0bf7252a",
+        "bytes": 5105
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "082-day2-roster-lock-window",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/082-day2-roster-lock-window/snapback/schema.q",
+        "sha256": "467cd5ab174887be98cf15296380667de69bea8301b8c8f319a1239ff09cda14",
+        "bytes": 7207
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "083-syllabus-approval-chain",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/083-syllabus-approval-chain/snapback/schema.q",
+        "sha256": "7497326df18ddeb04442731c69efbaa7cb744b4311ab84c82d99837ac75b48f2",
+        "bytes": 5291
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "084-day2-cube-comp-scrambles",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/084-day2-cube-comp-scrambles/snapback/schema.q",
+        "sha256": "a06e136374118c45c8880a1a4208af73d16bb9870f7117f80c2adc44472be35c",
+        "bytes": 9946
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "085-hymn-index-search",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/085-hymn-index-search/snapback/schema.q",
+        "sha256": "364ac3643a41c23413a399ad28ff2518b8edbb9eaf6e10aaffc0ef6a62e61043",
+        "bytes": 4297
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "086-day2-patient-grievance-clock",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/086-day2-patient-grievance-clock/snapback/schema.q",
+        "sha256": "84d8c25ccadfc98001ef64fc3deb0d2f0eb50c6b64999e51ad57ada2ee7bd8c8",
+        "bytes": 10953
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "087-typing-race-ladder",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/087-typing-race-ladder/snapback/schema.q",
+        "sha256": "d092bf5449fc71f4cecf67e3dfe983e09473c008971ad516a8c04eb152a297e9",
+        "bytes": 6844
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "088-day2-ppe-issue-ledger",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/088-day2-ppe-issue-ledger/snapback/schema.q",
+        "sha256": "4beaaa206e6bf6426af5cac766e225c66bd1f18169059dc51998c9bee45f0ff7",
+        "bytes": 6230
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "089-block-captain-roster",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/089-block-captain-roster/snapback/schema.q",
+        "sha256": "3eb7ae013adf44d5bd156dfa51e98d1357646110d2c31635ba94a1e537841adb",
+        "bytes": 3229
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "090-day2-custody-handoff-bag",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/090-day2-custody-handoff-bag/snapback/schema.q",
+        "sha256": "9600705b549bfa62f3584e79fcc92e08038dd94981516fce674a6b51da4c64d1",
+        "bytes": 7201
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "091-ice-shanty-registry",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/091-ice-shanty-registry/snapback/schema.q",
+        "sha256": "83b828457ff9a7453455efc57f362dac9cdcb23e294d74f3af88c5618e211d2c",
+        "bytes": 4174
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "092-day2-summit-register-book",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/092-day2-summit-register-book/snapback/schema.q",
+        "sha256": "5eed95dbb15ca646d1ac597cc561774493e6e2a0337b3778ef726f23989b0024",
+        "bytes": 5150
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "093-housekeeping-room-status",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/093-housekeeping-room-status/snapback/schema.q",
+        "sha256": "e61d9fcb71d98a782f0a8ec0d3be65160437eb32bcafa876948c42f6ccb54f41",
+        "bytes": 5083
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "094-day2-backflow-test-reports",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/094-day2-backflow-test-reports/snapback/schema.q",
+        "sha256": "56a020e5ea405c5d18b119bacdc1cd807027c462b6d63a046354f469359dfc5c",
+        "bytes": 7507
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "095-book-club-kit-loans",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/095-book-club-kit-loans/snapback/schema.q",
+        "sha256": "e838d8e477f0099744fea8cd17cd610b0f0fda05d16804f8e55271df8e027a11",
+        "bytes": 5045
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "096-day2-litter-pick-order",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/096-day2-litter-pick-order/snapback/schema.q",
+        "sha256": "0d807d809c077e945529755bc743d8a0f50b4a32aba562ea1e9de8ee72bf46b8",
+        "bytes": 8615
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "097-friendly-call-circle",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/097-friendly-call-circle/snapback/schema.q",
+        "sha256": "e45b33a028eba2af50f34722937161f08b1fa76586f5c4ecf541b83383186889",
+        "bytes": 6084
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "098-day2-giving-circle-pitches",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/098-day2-giving-circle-pitches/snapback/schema.q",
+        "sha256": "890b86170fa1ac9aacdf1f96d5f2e8f6e48f208c409488fd2378a891d4455477",
+        "bytes": 8213
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "099-rain-barrel-rebates",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/099-rain-barrel-rebates/snapback/schema.q",
+        "sha256": "f24dae10efde558835256bc26530cc7ed3b054306dbd4a312c97408c5eaded5c",
+        "bytes": 6293
+      }
+    ]
+  },
+  {
+    "wave": 15,
+    "lane": "100-day2-busking-pitch-rota",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave15/apps/100-day2-busking-pitch-rota/snapback/schema.q",
+        "sha256": "4f440920ae10e4ad0c210009aa653f66b18f01a2aa60221effaf62ad703ba7ca",
+        "bytes": 10440
+      }
+    ]
+  }
+]
