@@ -1,0 +1,9 @@
+{
+  "source": "3b89b6300e1d97683538694cd9ec77a0d4f0f945",
+  "clientIntegrity": "sha512-TEToHiVwWgfvKG1fN8e6Ffj7vPj8Xt7+GYWLCj+cpHVrYrU/f+V01AtdW6HXs9sCAMohXR5fxlMQVAw8u0N26g==",
+  "binarySha256": "e450a4aad7a75ab9cb45a0b9883ac78aa2cfaa57f7d99e575ba16319006717e3",
+  "productionReplayPayloadMatchesConsumerQualifiedBinary": true,
+  "consumerOnly": true,
+  "publicationQualified": false,
+  "packageNote": "Study platform npm tar was created from the same executable before consumer guard finished; qualification platform tar has its own SRI. Payload SHA matches exactly."
+}

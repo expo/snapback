@@ -1,0 +1,102 @@
+[
+  {
+    "family": "muse",
+    "app": "005-snapback-kiln-firing-queue",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/muse/005-snapback-kiln-firing-queue/authored-final",
+    "sources": {
+      "invariants.q": "fa9ab01083b418a2ef18253a63724c67911c375b0c1040457362d0a1e555ee96",
+      "schema.q": "aff811f525352e8c5249cbf2246c9c67b862e4f29588a7d6b375ed1032aed633"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "007-snapback-farrier-hoof-rota",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/muse/007-snapback-farrier-hoof-rota/authored-final",
+    "sources": {
+      "invariants.q": "d8d644898f38cd2dbd08633fb12ba0e9b202b4f542fd1247ebeb9179a082ec40",
+      "schema.q": "a0661bc7978d7ae1cf116784a670a2815547e6cfc77c76e2ba15255c6d5ee8d2"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "008-snapback-sublet-key-escrow",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/muse/008-snapback-sublet-key-escrow/authored-final",
+    "sources": {
+      "invariants.q": "cbde7a6ae4a88d21961ba50a60e25ad9f8354d04cfd58ed1c96559be4c4deed6",
+      "schema.q": "23a7eafc8504e04f1e2234935cb4698a0eca608c49865a5374b690e9f0da30c4"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "009-snapback-choir-part-tracks",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/muse/009-snapback-choir-part-tracks/authored-final",
+    "sources": {
+      "invariants.q": "10c1170311c3e0272d2a24878f9cbdbca8d818fe36ff38728e3422cb43a001e4",
+      "schema.q": "e0c969d8acc685e20c6fb166771fbd43c1bee73b956fa0ca9f90c932d81c8452"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "010-snapback-allotment-water-turns",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/muse/010-snapback-allotment-water-turns/authored-final",
+    "sources": {
+      "invariants.q": "f843925a2bd90242c4d73bed540f8da5e282a77664fee2986d4c49c8100fdd85",
+      "schema.q": "b22c456b04ceeef14c57bdc0bae6e1ec1af02215f9bb63138d73f14ecd83fb3e"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "019-snapback-apiary-hive-inspections",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/muse/019-snapback-apiary-hive-inspections/authored-final",
+    "sources": {
+      "invariants.q": "3a601e666b3b13b1e170e2ab2edaccb69492d739d1111b0d9996cf8956b0dfac",
+      "schema.q": "67b76528e9ec9f7a3038440f8b53785339bb94a3c02451ec5de6242a545f6162"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "020-snapback-tow-yard-release",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/muse/020-snapback-tow-yard-release/authored-final",
+    "sources": {
+      "invariants.q": "2caee7eb6a90169bbac4a5ecdd8fcdc930327564e09c47cfcaf83798d519cd51",
+      "schema.q": "216262c9a10e1a73b9e0ad5b82609a1e6020c48dc5429221273e8fb734042085"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "021-snapback-moot-court-scoring",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/muse/021-snapback-moot-court-scoring/authored-final",
+    "sources": {
+      "invariants.q": "450473392dc36476a12abd2d8bc3c2b2367a5c3fe608b25b1ee24f75b2d551c3",
+      "schema.q": "670cfc8558382e350752cc7f99fcc1b1bc86f8513e3c8ba589abd18a40714dc0"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "045-snapback-instrument-loan-bank",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/muse/045-snapback-instrument-loan-bank/authored-final",
+    "sources": {
+      "invariants.q": "12eb2a5c0038935ca9147a3e9e8d516b2dadca9d7b6a87c364cdc016eb6d739e",
+      "schema.q": "715ac0fbb6487ff869b5b355e14cb3eabd11e5b6fdd77d9d8461cd5255183e95"
+    }
+  },
+  {
+    "family": "muse",
+    "app": "048-snapback-boiler-room-rounds",
+    "phase": "authored-final",
+    "cwd": "/tmp/sec2-study-replay/muse/048-snapback-boiler-room-rounds/authored-final",
+    "sources": {
+      "invariants.q": "a9d36572bd9038862797acfdfdbf0b047ecfbd6839a85b976c7ccf614d5bedb8",
+      "schema.q": "ae682a6d3f3b279f23526f1a85ed81f46518f1e02ec540534f11c7d96d48a420"
+    }
+  }
+]

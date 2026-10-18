@@ -35,6 +35,6 @@
     "codex": "READY",
     "muse": "READY",
     "manifest": "3000.036.004-sec2-r15.provenance.json",
-    "testOnlyDisposition": "../../../snapback4/reports/20261018-sec2/r15-test-disposition.json"
+    "testOnlyDisposition": "../../snapback4/reports/20261018-sec2/r15-test-disposition.json"
   }
 }

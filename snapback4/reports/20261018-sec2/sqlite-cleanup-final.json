@@ -1,0 +1,8 @@
+{
+  "scope": "/home/ccheever/projects/sb4-b16-sec2/snapback4/target",
+  "ownership": "target absent at start of this lane; only own completed test scratch; open descriptors protected",
+  "removedCount": 0,
+  "removedBytes": 0,
+  "retainedOpen": [],
+  "removed": []
+}

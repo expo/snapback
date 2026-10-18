@@ -1,9 +1,10 @@
 {
   "schemas": 150,
-  "diagnosticSchemas": 0,
-  "diagnostics": 0,
   "invariants": 0,
-  "attempts": 32884,
+  "diagnostics": 0,
+  "violations": 0,
   "boundaryFailures": 0,
-  "violations": 0
+  "attempts": 33173,
+  "result": "compatibility and finite exploration only; absent declarations are not spec proof",
+  "source": "3b89b6300e; original corpus unchanged"
 }

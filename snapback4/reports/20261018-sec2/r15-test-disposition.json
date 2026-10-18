@@ -1,0 +1,7 @@
+{
+  "reviewManifest": "llp/reviews/3000.036.004-sec2-r15.provenance.json",
+  "testOnlyCorrectionCommit": "3b89b6300e",
+  "correction": "expected first/second names changed to canonical policy.first/policy.second; cache and validation semantics unchanged",
+  "finalTestSha256": "458589bd0059dcdcbfa5be4f971961cdab04486cb4c3e5680652a097f7d3b828",
+  "finalResult": "11 observer +3 history +2 wave16 pass on Linux; same affected suites pass on designated Mac Studio"
+}

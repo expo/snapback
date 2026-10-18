@@ -1,0 +1,55 @@
+{
+  "files": [
+    {
+      "lane": "019-snapback-apiary-hive-inspections",
+      "file": "scripts/sec2-production.mjs",
+      "sha256": "d7cc2b8b15516fd75f73cdd462978151b88cbd138a63e73150855e5cc33c1b45"
+    },
+    {
+      "lane": "019-snapback-apiary-hive-inspections",
+      "file": "scripts/probe-serve.mjs",
+      "sha256": "a743db865110b6938f1b5ca664bbbe610e9034351803ba4b8488396664264b59"
+    },
+    {
+      "lane": "020-snapback-tow-yard-release",
+      "file": "scripts/sec2-production.mjs",
+      "sha256": "d7cc2b8b15516fd75f73cdd462978151b88cbd138a63e73150855e5cc33c1b45"
+    },
+    {
+      "lane": "020-snapback-tow-yard-release",
+      "file": "scripts/probe-serve.mjs",
+      "sha256": "9b329395880201e818b466a9b673fa366afc52294f0f1bd641565f4b9bf82b28"
+    },
+    {
+      "lane": "021-snapback-moot-court-scoring",
+      "file": "scripts/sec2-production.mjs",
+      "sha256": "d7cc2b8b15516fd75f73cdd462978151b88cbd138a63e73150855e5cc33c1b45"
+    },
+    {
+      "lane": "021-snapback-moot-court-scoring",
+      "file": "scripts/probe-serve.mjs",
+      "sha256": "2cd5a7a32bb8527f2f99b55cef19715831099a50fa333cf68aa1c8231eac3f7c"
+    },
+    {
+      "lane": "045-snapback-instrument-loan-bank",
+      "file": "scripts/sec2-production.mjs",
+      "sha256": "d7cc2b8b15516fd75f73cdd462978151b88cbd138a63e73150855e5cc33c1b45"
+    },
+    {
+      "lane": "045-snapback-instrument-loan-bank",
+      "file": "scripts/probe-serve.mjs",
+      "sha256": "708d980997b8763b7be948b072ad556a1fe9f47a8227e77fb369103b9103f054"
+    },
+    {
+      "lane": "048-snapback-boiler-room-rounds",
+      "file": "scripts/sec2-production.mjs",
+      "sha256": "d7cc2b8b15516fd75f73cdd462978151b88cbd138a63e73150855e5cc33c1b45"
+    },
+    {
+      "lane": "048-snapback-boiler-room-rounds",
+      "file": "scripts/probe-serve.mjs",
+      "sha256": "c61b7f4e0cd06f6bf1455a6c7a6b729f4ee60cb2d4cae358e4f10711bd80fb4f"
+    }
+  ],
+  "scope": "Private test adapter only. STAGE owns shipped startServe and provisioning; these scripts bootstrap temporary real password sessions via ordinary operations. Fixture test passwords are public disposable example credentials, not retained live sessions; all service/session bearer values and stores omitted. Apply source patches to copied original lane plus these scripts and its original dependencies. Probe scripts are archived verbatim, including upstream comments."
+}

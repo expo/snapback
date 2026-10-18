@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "log": "/tmp/sec2-linux-final/rule-recipes.log",
+  "client": "/tmp/sec2-final-prepared/snapback4-0.4.31.tgz",
+  "platform": "/tmp/snapback4-linux-qFDbUa/snapback4-linux-x64-0.4.31.tgz"
+}
