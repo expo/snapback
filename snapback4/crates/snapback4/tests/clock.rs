@@ -1204,3 +1204,21 @@ fn kit3_clock_reply_and_preflight_use_the_persisted_authoritative_floor() {
     assert!((actual - advanced["now"].as_i64().unwrap()).abs() < 1000, "{advanced}; actual={actual}");
     assert!(advanced["skewMs"].as_i64().unwrap() > 7_000_000, "{advanced}");
 }
+
+#[test]
+fn kit4_thirty_day_coalesced_advance_has_no_window_cap() {
+    let f = Fixture::new("kit4-long-jump");
+    fs::write(f.0.join("snapback/schema.q"), SOURCE.replace("every 2m:", "every 5m:")).unwrap();
+    let host = f.start(&["dev", "--memory", "--no-watch"]);
+    host.post("/m/counter", json!({"args":{}}));
+    let refused = host.post("/dev/clock/advance", json!({"duration":"40d", "eachBoundary":true}));
+    assert!(refused["denied"]["message"].as_str().unwrap().contains("omit --each-boundary"), "{refused}");
+    let reply = host.post("/dev/clock/advance", json!({"duration":"30d"}));
+    assert!(reply.get("denied").is_none(), "{reply}");
+    let schedule = &reply["schedules"][0];
+    assert_eq!(schedule["firedWindows"].as_array().unwrap().len(), 1);
+    assert_eq!(schedule["skippedPeriods"], 8639);
+    assert_eq!(schedule["skippedBoundaries"].as_array().unwrap().len(), 32);
+    assert_eq!(schedule["skippedBoundariesOmitted"], 8607);
+    assert_eq!(host.query("counters")[0]["n"], 1);
+}
