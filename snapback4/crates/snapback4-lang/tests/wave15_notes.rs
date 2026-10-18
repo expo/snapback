@@ -191,3 +191,16 @@ fn concatenation_and_loop_append_keep_only_returned_page_origins() {
     let unused = format!("{AUTH}query listing(c: cursor ?):\n  require exists staff[viewer] else NO_ROLE\n  page = rows first 20 by .id after c\n  discarded = [page] + []\n  return []\n");
     assert!(!has(&checked(&unused), "N_QUERY_FILTERED"));
 }
+
+#[test]
+fn a_caller_probe_inside_where_is_part_of_the_authority_proof() {
+    for body in [
+        "  page = rows where exists staff[viewer] first 20 by .id after c\n  return { page }\n",
+        "  page = rows where .owner = viewer or exists staff[viewer] first 20 by .id after c\n  return { page }\n",
+        "  rows where exists staff[viewer] first 20 by .id after c\n",
+    ] {
+        let source = format!("{AUTH}query listing(c: cursor ?):\n{body}");
+        assert!(has(&checked(&source), "N_QUERY_FILTERED"), "{source}");
+        assert!(!has(&checked(&source.replace("exists staff[viewer] first", "exists staff[viewer, role = 'manager'] first")), "N_QUERY_FILTERED"));
+    }
+}

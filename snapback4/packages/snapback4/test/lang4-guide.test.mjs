@@ -29,6 +29,11 @@ function fixture(t, index) {
   const check = JSON.parse(cli(['check', '--json'], cwd));
   assert.equal(check.ok, true);
   assert.deepEqual(check.notes, [], 'the recipe runs as written without compiler or readiness advice');
+  const reviewed = JSON.parse(cli(['check', '--ack-notes', '--json'], cwd));
+  assert.deepEqual(reviewed.notes, [...reviewed.newNotes, ...reviewed.acknowledgedNotes]);
+  const review = JSON.parse(readFileSync(join(cwd, 'snapback/check-notes.json'), 'utf8'));
+  assert.equal(review.version, 1);
+  assert.match(review.sources, /^[a-f0-9]{64}$/);
   return {
     cwd,
     run(name, args = {}, expected = 0, system = false) {

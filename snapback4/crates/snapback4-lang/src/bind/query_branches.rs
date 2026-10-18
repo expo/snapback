@@ -210,8 +210,8 @@ fn inspect_read(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, read:
     });
     let Some(expected) = bind(&expected) else { return };
     let mut conditions: Vec<_> = gates.iter().map(|g| caller_facts(schema, g, &bind)).collect();
-    if !conditions.iter().any(positive_probe) { return; }
     if let Some(filter) = &read.filter { conditions.push(caller_facts(schema, filter, &bind)); }
+    if !conditions.iter().any(positive_probe) { return; }
     for key in &read.keys {
         if let Some(column) = &key.column {
             let equality = Expr::Binary { op: "=".into(), left: Box::new(Expr::Member { base: Box::new(Expr::Focal { site: key.site.clone() }), name: column.clone(), site: key.site.clone() }), right: Box::new(key.value.clone()), site: key.site.clone() };
