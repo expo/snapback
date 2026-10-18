@@ -25,12 +25,12 @@ fn assert_refusal(response: &str, token: &str, cause: &str, trusted_dev: bool) {
     let denied = body(response)["denied"].clone();
     assert_eq!(denied["code"], "E_AUTH", "{response}");
     assert_eq!(denied["family"], "auth");
-    assert_eq!(denied["guide"], "personas");
+    assert_eq!(denied["guide"], if trusted_dev { "wire" } else { "personas" });
     let message = denied["message"].as_str().unwrap();
     if trusted_dev {
         assert!(message.contains(cause), "{cause}: {response}");
         if cause == "unknown to this store" {
-            for hint in ["earlier or replaced store", "expired or been signed out", "before this server started", "discard saved tokens from an earlier store"] {
+            for hint in ["earlier or replaced store", "expired or been signed out", "before this server started", "discard saved tokens from an earlier store", "x-snapback-persona: alice", "Authorization: Bearer <token>", "snapback4 guide wire"] {
                 assert!(message.contains(hint), "{hint}: {response}");
             }
         }

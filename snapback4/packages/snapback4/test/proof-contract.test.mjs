@@ -118,6 +118,13 @@ document.querySelector('button').onclick=event=>{
   assert.equal(statSync(privatePath).mode & 0o777, 0o600);
   const diff = readFileSync(privatePath, 'utf8').trim().split('\n').map(JSON.parse).find(row => row.code === 'E_WITNESS_UNCLAIMED');
   assert.deepEqual(diff.armed, {}); assert.deepEqual(diff.actual, {secret:'must not enter proof logs'});
+  for (const fault of ['stall','throw']) {
+    const before=await page.evaluate(()=>window.writes);
+    await page.evaluate(fault=>{window.__snapback4ProofDiagnostic=()=>{if(fault==='throw')throw Error('diagnostic failed');return new Promise(()=>{});};},fault);
+    await arm();await page.getByRole('button').click();
+    await kit.waitForServer(()=>page.evaluate(()=>window.writes),writes=>writes===before+1,{timeoutMs:1000,label:'application write independent of diagnostic'});
+    assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).why.reason,'arguments');
+  }
   await page.evaluate(()=>window.mode='rearm'); await arm(); await page.getByRole('button').click();
   await page.evaluate(()=>{window.old=window.__snapback4Witness.formResult();window.__snapback4Witness.beginForm('add',{},document.querySelector('button'));});
   assert.equal((await page.evaluate(()=>window.old)).why.code,'E_WITNESS_NO_WRITE');
