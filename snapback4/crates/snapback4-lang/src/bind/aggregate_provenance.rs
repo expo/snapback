@@ -646,7 +646,7 @@ impl Scan<'_> {
                     }
                     "sha256" => values[0].summary().with_cardinality(AMBIENT),
                     "sum" | "lower" | "trim" | "join"
-                    | "divmod" | "share" | "day" | "hour" | "bucket" | "month" | "year" | "monthStart" | "yearStart" =>
+                    | "divmod" | "share" | "day" | "hour" | "bucket" | "month" | "year" | "monthStart" | "yearStart" | "hourOfDay" =>
                         self.budget.scalar(values.iter().fold(AMBIENT, |bits, value| bits | value.all()))
                             .selected(&values.iter().fold(Control::default(), |control, value| control.union(&value.controls()))),
                     _ => self.budget.scalar(UNKNOWN),
@@ -748,7 +748,7 @@ fn evidence(expr: &Expr) -> String {
 
 fn builtin_arity(name: &str, count: usize) -> bool {
     match name {
-        "count" | "first" | "last" | "lower" | "trim" | "sha256" | "tokens" | "month" | "year" | "monthStart" | "yearStart" => count == 1,
+        "count" | "first" | "last" | "lower" | "trim" | "sha256" | "tokens" | "month" | "year" | "monthStart" | "yearStart" | "hourOfDay" => count == 1,
         "at" | "group" | "join" | "min" | "max" | "range" | "sorted" | "divmod" => count == 2,
         "slice" | "share" => count == 3,
         "sum" | "day" | "hour" => matches!(count, 1 | 2),

@@ -88,6 +88,7 @@ pub(super) fn detail(code: &str) -> Option<&'static str> {
         "E_SEARCH_OPEN" | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_SEARCH_WORDS" | "N_SEARCH_SHAPE" => include_str!("why/SEARCH.md"),
         "N_CONDITIONAL_COMPLETE" => include_str!("why/N_CONDITIONAL_COMPLETE.md"),
         "E_REDUNDANT_RULE" => include_str!("why/E_REDUNDANT_RULE.md"),
+        "N_SWEEP_DEADLINE" => include_str!("why/N_SWEEP_DEADLINE.md"),
         "N_NEVER_COMPLETE" => include_str!("why/N_NEVER_COMPLETE.md"),
         "N_SHAPE_METER" => include_str!("why/N_SHAPE_METER.md"),
         "N_NO_CURSOR" => include_str!("why/N_NO_CURSOR.md"),

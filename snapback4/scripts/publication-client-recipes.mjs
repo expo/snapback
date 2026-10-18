@@ -32,6 +32,11 @@ export async function proveClientRecipes(client, platform, directory) {
   assert.ok(short, "packed guide has the short-screen recipe");
   writeFileSync(join(cwd, "src/short-screen.tsx"), short);
   writeFileSync(join(cwd, "snapback/schema.q"), schema);
+  const time = spawnSync(process.execPath, [cli, "guide", "time", "--full"], { cwd, env, encoding: "utf8", timeout: 60_000 });
+  assert.equal(time.status, 0, time.stdout + time.stderr);
+  const clock = [...time.stdout.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(match => match[1]).find(source => source.includes("query clock(t:"));
+  assert.ok(clock, "packed time guide carries the UTC-hour recipe");
+  writeFileSync(join(cwd, "snapback/clock.q"), clock);
   await run(process.execPath, [cli, "check"]);
   await run(process.execPath, [join(cwd, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
     "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", "compiled", "recipe.ts", "handlers.ts"]);
@@ -41,6 +46,8 @@ export async function proveClientRecipes(client, platform, directory) {
     "--module", "ESNext", "--moduleResolution", "Bundler", "--jsx", "react-jsx", "--noEmit", "src/workspace.tsx", "src/short-screen.tsx"]);
   writeFileSync(join(cwd, "verify.mjs"), verify);
   await run(process.execPath, ["verify.mjs"]);
+  writeFileSync(join(cwd, "clock-proof.mjs"), clockProof);
+  await run(process.execPath, ["clock-proof.mjs"]);
   writeFileSync(join(cwd, "guide-client.md"), guide.stdout);
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
   await run(process.execPath, ["--test", join(root, "packages/snapback4/test/kit2-client-react.test.mjs"), join(root, "packages/snapback4/test/front-data-react.test.mjs")], {
@@ -71,6 +78,23 @@ query staffNotes(team: text <=80):
   return notes first 20 by .id
 mutation addStaffNote(team: text <=80, title: text <=200, category: text <=80):
   return insert notes {team, title, category, priority: null}
+`;
+
+const clockProof = String.raw`
+import assert from "node:assert/strict";
+import {startDev,cleanup,bounded} from "snapback4/proof";
+import {signup} from "snapback4/auth";
+import {createClient} from "snapback4/client";
+import {api} from "./snapback/generated/api.ts";
+const dev=await startDev({args:["--no-watch"],timeoutMs:30000});let client;
+try {
+ const signed=await bounded(signup(dev.url,"clock@example.test","clock-proof-password"),15000,"signup");assert.ok(signed.ok);
+ client=createClient({url:dev.url,session:signed.session});
+ for(const t of [-1,0,1791739800000]){
+  const read=await bounded(client.query(api.clock.clock,{t}),30000,"clock");assert.ok("data" in read);
+  assert.equal(read.data.ordinal,Math.floor(t/3600000));assert.equal(read.data.clock,((Math.floor(t/3600000)%24)+24)%24);
+ }
+} finally {await cleanup(()=>client?.close(),()=>dev.stop());}
 `;
 
 const handlers = String.raw`

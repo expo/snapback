@@ -193,6 +193,7 @@ fn stable_builtin(name: &str, arity: usize) -> bool {
         "at" | "group" | "join" | "min" | "max" => arity == 2,
         "slice" | "share" => arity == 3,
         "sum" => matches!(arity, 1 | 2),
+        "hourOfDay" => arity == 1,
         "day" | "hour" => matches!(arity, 1 | 2),
         "bucket" => matches!(arity, 2 | 3),
         "divide" => matches!(arity, 3 | 4),
