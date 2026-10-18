@@ -108,7 +108,7 @@ own explicit case expects the same code. This exemption matches query, persona
 and code; it does not prove that earlier arguments/state validate the final sweep.
 Write one refusal case per refused persona, plus explicit data/count/completeness
 assertions for the allowed personas' final state. A refusal case for bob never
-covers carol. Failed cases and invalid fixtures exit 1.
+covers carol. Failed cases and invalid fixtures exit 1. Zero executed business cases also exit 1, even if query probes answer; `test --fixture-only` explicitly requests fixture/sweep validation.
 N_FIXTURE_ARGUMENT_DRIFT means a fixture case no longer fits its operation signature. Update its arguments and run snapback4 test.
 
 A lookup reads through the caller's rule: hidden rows give NOT_FOUND before

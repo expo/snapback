@@ -15,6 +15,7 @@ pub(super) fn sources(project: &Project, options: &Options, flag: &str) -> Resul
             let name = path.file_name().and_then(|s| s.to_str()).ok_or("saved source needs a UTF-8 file name")?;
             if !name.ends_with(".q") { return Err("saved source must be a complete Quarry .q file".into()); }
             let text = std::fs::read_to_string(path).map_err(|e| format!("cannot read saved source {file}: {e}"))?;
+            if text.trim().is_empty() { return Err(format!("{file}: not saved yet: saved Quarry source is empty")); }
             // A saved complete backend retains the schema namespace regardless of its archive file name.
             Ok(vec![("schema.q".into(), text)])
         }

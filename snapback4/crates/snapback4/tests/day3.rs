@@ -34,7 +34,7 @@ fn saved_directory_and_file_prefer_contemporary_fixtures_and_strict_overrides() 
     }
     app.write("versions/legacy.q", V1);
     app.write("versions/legacy-fixtures/notes.jsonl", "{\"id\":\"legacy\",\"title\":\"legacy fixtures\"}\n");
-    assert!(ok(app.run(&["test", "--source", "versions/legacy.q"])).contains("loaded 1 rows"));
+    assert!(ok(app.run(&["test", "--source", "versions/legacy.q", "--fixture-only"])).contains("loaded 1 rows"));
 }
 #[test]
 fn fallback_names_unknown_files_and_cases_but_never_drops_unknown_fields() {
@@ -42,12 +42,12 @@ fn fallback_names_unknown_files_and_cases_but_never_drops_unknown_fields() {
     app.write("fixtures/later.jsonl", "bad later data\n");
     app.write("fixtures/notes.jsonl", "{\"id\":\"one\",\"title\":\"old\"}\n");
     app.write("fixtures/test.cases.jsonl", "{\"op\":\"laterOnly\"}\n");
-    let output = app.run(&["test", "--source", "versions/v1.q"]);
+    let output = app.run(&["test", "--source", "versions/v1.q", "--fixture-only"]);
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("skipped") && stderr.contains("later.jsonl") && stderr.contains("test.cases.jsonl") && stderr.contains("pass --fixture"), "{output:?}");
     assert!(ok(output).contains("loaded 1 rows"));
     app.write("fixtures/notes.jsonl", "{\"id\":\"one\",\"title\":\"old\",\"newField\":true}\n");
-    assert!(!app.run(&["test", "--source", "versions/v1.q"]).status.success());
+    assert!(!app.run(&["test", "--source", "versions/v1.q", "--fixture-only"]).status.success());
 }
 #[test]
 fn check_detects_inherited_day2_script_and_preview_shows_its_replacement() {

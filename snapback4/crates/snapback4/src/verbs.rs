@@ -33,6 +33,7 @@ mod adoption;
 mod package_versions;
 mod check_surface;
 mod saved_fixture_drift;
+mod saved_version;
 mod upgrade_history;
 #[cfg(test)]
 mod hand_tests;

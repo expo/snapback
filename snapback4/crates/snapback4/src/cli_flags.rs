@@ -117,6 +117,9 @@ pub(crate) fn help(verb: &str) -> String {
             ("witness", "initialize") => " — initialize the witness installation",
             ("witness", "wait") => " — wait for the background witness to finish",
             (_, "json") => " — print machine-readable JSON on stdout",
+            ("upgrade", "quiet") => " — print only per-project actions; suppress successful install/check/history output",
+            (_, "fixture-only") => " — allow zero business cases for fixture loading and query probes",
+            (_, "save-version") => " — save deployed sources, contemporary fixtures and immutable release label in a new directory",
             (_, "quiet") => " — print only the bearer token, with no successful stderr output",
             (_, "list") => " — list available guide cards",
             (_, "full") => " — print the complete guide card",
@@ -219,7 +222,7 @@ mod projection_tests {
             let page = super::help(verb);
             for name in super::allowed(verb).split_whitespace() {
                 assert!(page.lines().any(|line|line.trim_start().starts_with(&format!("--{name}"))),"{verb}: {name}");
-                let args = if super::switch(name) { vec![verb.into(), format!("--{name}")] } else { vec![verb.into(), format!("--{name}"), "value".into()] };
+                let mut args = if super::switch(name) { vec![verb.into(), format!("--{name}")] } else { vec![verb.into(), format!("--{name}"), "value".into()] };
                 let mut args = args;
                 if verb == "check" && name == "as" { args.push("--residency".into()); }
                 if verb == "check" && name == "release" { args.extend(["--store".into(), "value".into()]); }

@@ -230,6 +230,7 @@ pub fn deploy(options: &Options) -> i32 {
             let project = super::proof_source::project(options, "schema")?;
             let sources = super::proof_source::sources(&project, options, "schema")?;
             let bound = compiled_or_exit(super::proof_source::compile(&sources, options, "schema"), options.json);
+            let mut saved_version = super::saved_version::SavedVersion::prepare(&project,&sources,options)?;
             std::fs::create_dir_all(dir.join("releases")).map_err(|e| e.to_string())?;
             let held = if checking {
                 if dir.join("store.sqlite").exists() {snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).and_then(|mut s|s.release_status(0,None,None)).map_err(|e|e.to_string())?}
@@ -284,6 +285,7 @@ pub fn deploy(options: &Options) -> i32 {
             if let Some(previous)=previous {
                 if held["release"].as_u64()==Some(previous) && crate::release_files::digest(&stage)?==crate::release_files::digest(&releases.join(previous.to_string()))? {
                     std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;
+                    if let Some(saved) = &mut saved_version { saved.finish(previous,&source_hash)?; }
                     if options.json {println!("{}",serde_json::json!({"unchanged":true,"release":previous,"generation":held["generation"]}));}
                     else {println!("unchanged; release {previous} stays current as generation {}",held["generation"]);}
                     return Ok(());
@@ -329,7 +331,10 @@ pub fn deploy(options: &Options) -> i32 {
                 options,
             );
             match result {
-                Ok(()) => { if let Err(error)=std::fs::remove_file(final_dir.join(".pending-adoption")) {eprintln!("release {n} committed; pending-marker cleanup failed: {error}; history proves adoption");} }
+                Ok(()) => {
+                    if let Err(error)=std::fs::remove_file(final_dir.join(".pending-adoption")) {eprintln!("release {n} committed; pending-marker cleanup failed: {error}; history proves adoption");}
+                    if let Some(saved) = &mut saved_version {saved.finish(n,&source_hash).map_err(|e|format!("release {n} committed, but saving its snapshot failed: {e}; retry unchanged deploy with --save-version"))?;}
+                }
                 Err(error) => {
                     // Keep the source reserved even after a lost reply; committed history is authoritative.
                     let matching_latest=latest(&dir).ok().filter(|id|crate::release_files::digest(&final_dir).ok()==crate::release_files::digest(&releases.join(id.to_string())).ok());
