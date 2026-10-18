@@ -47,7 +47,7 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     assert.ok(result.security.invariants.every(verdict => ["proved", "unproved"].includes(verdict.status)));
     return result.security;
   }
-  function campaign(project) {
+  function campaign(project, requireHttp = false) {
     const output = command(["test", "--fixture-only"], project);
     const counts = /security tests: (\d+) attempted, (\d+) refused, (\d+) violations; finite campaign, not proof/.exec(output);
     assert.ok(counts, "default test executes the generated finite security campaign");
@@ -55,8 +55,11 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     assert.equal(Number(counts[3]), 0);
     assert.doesNotMatch(output, /security boundary failure:|security HTTP failure:|security violation:/);
     const http = /security unauthenticated serve HTTP: (\d+) attempts refused/.exec(output);
-    assert.ok(http && Number(http[1]) > 0, "the isolated production HTTP campaign runs");
-    return { attempted: Number(counts[1]), refused: Number(counts[2]), violations: Number(counts[3]), unauthenticatedHttpRefused: Number(http[1]),
+    const artifactBoundary = "security not covered: unauthenticated serve HTTP for native/action/effect applications needs its complete deployed artifacts";
+    if (requireHttp) assert.ok(http && Number(http[1]) > 0, "the isolated production HTTP campaign runs");
+    else assert.ok((http && Number(http[1]) > 0) || output.includes(artifactBoundary), "HTTP coverage is executed or explicitly bounded by deployed artifacts");
+    return { attempted: Number(counts[1]), refused: Number(counts[2]), violations: Number(counts[3]), unauthenticatedHttpRefused: Number(http?.[1] ?? 0),
+      ...(http ? {} : { unauthenticatedHttpNotCovered: "complete deployed native/action/effect artifacts required" }),
       revocationHttpRefused: Number(/security live-session revocation HTTP: (\d+) attempts refused/.exec(output)?.[1] ?? 0) };
   }
 
@@ -72,7 +75,7 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     assert.equal(audited.format, 1); assert.ok(audited.exposures.some(exposure => exposure.table === "privateNotes"));
     const checkAudit = JSON.parse(command(["check", "--audit", "--json"], project));
     assert.equal(checkAudit.format, 1); assert.deepEqual(checkAudit, audited, "check --audit is the structured audit alias");
-    const finite = campaign(project);
+    const finite = campaign(project, true);
     const broad = source.replace("read <- .patient = viewer", "read <- allow");
     assert.notEqual(broad, source, "the installed card's private read is widened for the counterexample");
     writeFileSync(join(project, "snapback/schema.q"), broad);
@@ -100,7 +103,7 @@ mutation add():
   return insert notes { owner: viewer }
 `);
     checked(project);
-    const finite = campaign(project);
+    const finite = campaign(project, true);
     assert.equal(finite.revocationHttpRefused, 14, "actual refresh and logout-all retire both credentials at all seven doors");
     sessions.push({ method, status: "passed", ...finite, disconnectedDevice: "not covered" });
   }
