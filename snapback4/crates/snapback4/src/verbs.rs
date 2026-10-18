@@ -1280,6 +1280,7 @@ mod release_narration;
 mod release_dependencies;
 mod clause_compare;
 pub use releases::{deploy, prune, releases, rollback, serve_release};
+pub(crate) use releases::existing_deployment;
 pub(crate) use releases::release_bind;
 
 /// `token --service <name> [--days N] [--release <dir>]`: a bearer session

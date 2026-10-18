@@ -80,6 +80,15 @@ fn main() -> ExitCode {
         eprintln!("{}", dev_clock::release());
         return ExitCode::from(1);
     }
+    // Release-directory inspection can create SQLite WAL bookkeeping too.
+    // Admit its directory before any administrative reader opens the database.
+    // Token and lifecycle consumers perform this same guard at their own entry.
+    if matches!(verb, "run" | "why" | "data" | "sql" | "doctor")
+        && let Some(directory) = options.flags.get("release")
+        && let Err(error) = verbs::existing_deployment(std::path::Path::new(directory)) {
+        eprintln!("{verb}: {error}");
+        return ExitCode::from(2);
+    }
     let code = match verb {
         "--version" | "-V" | "version" => {
             println!("snapback4 {}", env!("CARGO_PKG_VERSION"));

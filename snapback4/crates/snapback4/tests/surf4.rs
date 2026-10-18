@@ -108,7 +108,10 @@ fn release_consumers_refuse_without_creating_any_files() {
         if existing { fs::create_dir(&dir).unwrap(); }
         let path = dir.to_str().unwrap();
         for args in [vec!["serve", path], vec!["token", "--release", path, "--service", "ops"],
-            vec!["rollback", path], vec!["rollback", path, "--check"], vec!["prune", path], vec!["releases", path, "--json"]] {
+            vec!["rollback", path], vec!["rollback", path, "--check"], vec!["prune", path], vec!["releases", path, "--json"],
+            vec!["data", "notes", "--release", path], vec!["sql", "select 1", "--release", path],
+            vec!["doctor", "--release", path, "--json"], vec!["run", "alive", "--release", path],
+            vec!["why", "E_SCHEMA", "--release", path]] {
             let output = app.run(&args);
             assert!(!output.status.success(), "{args:?}: {output:?}");
             assert!(output.stdout.is_empty(), "{output:?}");
@@ -168,7 +171,9 @@ fn release_consumers_refuse_a_development_store_without_new_sidecars() {
     // Reproduce a checkpointed WAL database whose sidecars have been removed.
     for suffix in ["-wal", "-shm"] { let _=fs::remove_file(dir.join(format!("store.sqlite{suffix}"))); }
     let before=names();let path=dir.to_str().unwrap();
-    for args in [vec!["serve",path],vec!["token","--release",path,"--service","ops"],vec!["rollback",path],vec!["prune",path]] {
+    for args in [vec!["serve",path],vec!["token","--release",path,"--service","ops"],vec!["rollback",path],vec!["prune",path],
+        vec!["data","notes","--release",path],vec!["sql","select 1","--release",path],
+        vec!["doctor","--release",path,"--json"],vec!["run","alive","--release",path],vec!["why","E_SCHEMA","--release",path]] {
         let output=app.run(&args);assert!(!output.status.success(),"{output:?}");assert_eq!(names(),before,"{args:?}");
     }
 }
@@ -182,4 +187,18 @@ fn current_selector_keeps_legacy_pointer_fallback() {
     conn.execute("DELETE FROM _meta WHERE key='release'",[]).unwrap();drop(conn);
     let value:serde_json::Value=serde_json::from_str(&success(app.run(&["releases","deployment","current","--json"]))).unwrap();
     assert_eq!(value["current"],1);assert_eq!(value["release"],1);assert_eq!(value["selected"]["release"],1);
+}
+
+#[test]
+fn administrative_release_consumers_can_inspect_damaged_retained_source() {
+    let app=App::new();fs::create_dir(app.0.join("snapback")).unwrap();
+    fs::write(app.0.join("snapback/schema.q"),"table notes:\n  body: text <=50\n  public 'test'\n  online only\n").unwrap();
+    success(app.run(&["deploy","deployment"]));
+    fs::write(app.0.join("deployment/releases/1/snapback/schema.q"),"broken retained source\n").unwrap();
+    assert_eq!(success(app.run(&["data","notes","--release","deployment","--json"])).trim(),"[]");
+    success(app.run(&["token","--release","deployment","--service","ops","--quiet"]));
+    let doctor=app.run(&["doctor","--release","deployment","--json"]);
+    assert!(!doctor.status.success());
+    let value:serde_json::Value=serde_json::from_slice(&doctor.stdout).unwrap();
+    assert_eq!(value["storage"]["row_count"],0);
 }

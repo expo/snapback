@@ -25,12 +25,11 @@ fn canonical_directory(options: &Options) -> Result<PathBuf, String> {
 }
 
 // @ref LLP 3000.000.000.000.000#8 — validate before any writable ownership or command lock.
-pub(super) fn existing_deployment(requested: &Path) -> Result<PathBuf, String> {
+pub(crate) fn existing_deployment(requested: &Path) -> Result<PathBuf, String> {
     let missing = || format!("no current release in {}; run `snapback4 deploy {}` first", requested.display(), requested.display());
     if !requested.join("store.sqlite").is_file() { return Err(missing()); }
     let dir = requested.canonicalize().map_err(|e| e.to_string())?;
-    let release = inspect_current(&dir)?;
-    bound_at(dir.join("releases").join(release.to_string()))?;
+    inspect_current(&dir)?;
     Ok(dir)
 }
 
