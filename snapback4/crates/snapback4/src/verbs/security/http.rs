@@ -112,7 +112,14 @@ pub(super) fn run(bound:&Bound,sources:&[(String,String)])->Result<usize,String>
         let file=std::path::Path::new(name).file_name().ok_or("source needs a file name")?;
         fs::write(scratch.0.join("snapback").join(file),text).map_err(|e|e.to_string())?;
     }
-    let executable=std::env::current_exe().map_err(|e|e.to_string())?;
+    // Cargo can replace the executable pathname while a long fixture test is
+    // running. Snapshot this invocation's image before spawning the host.
+    #[cfg(target_os="linux")]
+    let source=PathBuf::from("/proc/self/exe");
+    #[cfg(not(target_os="linux"))]
+    let source=std::env::current_exe().map_err(|e|e.to_string())?;
+    let executable=scratch.0.join("security-host");
+    fs::copy(source,&executable).map_err(|e|format!("private security host snapshot: {e}"))?;
     let output=fs::File::create(scratch.0.join("host.log")).map_err(|e|e.to_string())?;
     let command=|verb:&str|->Result<Command,String>{
         let mut c=Command::new(&executable);c.arg(verb).current_dir(&scratch.0)

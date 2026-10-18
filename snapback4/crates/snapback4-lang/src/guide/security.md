@@ -170,6 +170,6 @@ N_EXISTENCE_ORACLE means absence and later denial can reveal different outcomes.
 
 The isolated production HTTP campaign also signs in, refreshes the session,
 logs out all sessions and retries both retired credentials against query,
-mutation, schema, changes, sync and probe doors. It reports missing coverage
+mutation, schema, changes, sync, probe and refresh doors. It reports missing coverage
 when ordinary identity or complete deployed worker artifacts are unavailable.
 This checks server admission; a disconnected device can still retain old bytes.
