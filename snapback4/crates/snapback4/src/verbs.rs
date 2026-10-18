@@ -53,13 +53,22 @@ pub struct Options {
 /// Explicit control ports remain an intentional selection; otherwise discover
 /// a unique, identity-validated project host (persisted or temporary).
 pub(crate) fn dev_address(options: &Options) -> Result<(std::net::SocketAddr, Option<String>), String> {
+    control_address(options, false)
+}
+
+pub(crate) fn registered_dev_address(options: &Options) -> Result<(std::net::SocketAddr, Option<String>), String> {
+    control_address(options, true)
+}
+
+fn control_address(options: &Options, registered_only: bool) -> Result<(std::net::SocketAddr, Option<String>), String> {
     if let Some(text)=options.flags.get("port") {
         let port=text.parse::<u16>().ok().filter(|n|*n>0).ok_or("E_INPUT: --port must be an integer in 1..65535")?;
         return Ok((std::net::SocketAddr::from((std::net::Ipv4Addr::LOCALHOST,port)),None));
     }
     let cwd=std::env::current_dir().map_err(|e|e.to_string())?;
     let project=Project::locate(&cwd).ok_or("E_INPUT: cannot discover dev outside a project; pass --port N using the port dev printed")?;
-    let host=adoption::host(&project,options)?.ok_or("E_INPUT: no running dev discovered for this project; start dev or pass --port N using the port dev printed")?;
+    let host=if registered_only { adoption::registered_host(&project,options) } else { adoption::host(&project,options) }?
+        .ok_or("E_INPUT: no running dev discovered for this project; start dev or pass --port N using the port dev printed")?;
     let address=host["address"].as_str().ok_or("dev did not report an address")?.parse().map_err(|e|format!("invalid dev address: {e}"))?;
     Ok((address,host["instance"].as_str().map(str::to_owned)))
 }

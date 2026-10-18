@@ -72,6 +72,15 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
 pub(super) const NO_HOST: &str = "no running dev server for this project; restart dev or pass --url with the address dev printed at startup";
 
 pub(super) fn host(project: &Project, options: &super::Options) -> Result<Option<serde_json::Value>, String> {
+    host_with_legacy(project, options, true)
+}
+
+// @ref LLP 3000.000.000.000.000#8 — seed discovery must never open SQLite, even on refusal.
+pub(super) fn registered_host(project: &Project, options: &super::Options) -> Result<Option<serde_json::Value>, String> {
+    host_with_legacy(project, options, false)
+}
+
+fn host_with_legacy(project: &Project, options: &super::Options, legacy: bool) -> Result<Option<serde_json::Value>, String> {
     let root = project.root.canonicalize().map_err(|e|e.to_string())?;
     if let Some(url)=options.flags.get("url") {
         if options.flags.contains_key("release") {return Err("--url inspects a dev server; omit --release and run doctor in that server's project".into());}
@@ -90,14 +99,14 @@ pub(super) fn host(project: &Project, options: &super::Options) -> Result<Option
     }
     // Older persisted hosts still publish their address through store ownership.
     let path=project.store_path();
-    if let Some(address)=crate::store_owner::inspector_address(&path).filter(|a|!hosts.contains_key(a)) {
+    if let Some(address)=legacy.then(||crate::store_owner::inspector_address(&path)).flatten().filter(|a|!hosts.contains_key(a)) {
         if let Some(id)=Store::open_read_only(&path).ok().and_then(|s|s.meta("store_id").ok().flatten()) {
             if let Some(mut status)=request(address,"GET","/dev/status").filter(|s|s["project"]==serde_json::json!(root) && s["storeId"]==id && s["temporary"]==false) {
                 status["address"]=serde_json::json!(address.to_string());hosts.insert(address,status);
             }
         }
     }
-    if hosts.len()>1 {return Err(format!("multiple live dev hosts for this project: {}; select one explicitly with --port N for clock/reset or --url http://ADDRESS for doctor",hosts.keys().map(|a|a.to_string()).collect::<Vec<_>>().join(", ")));}
+    if hosts.len()>1 {return Err(format!("multiple live dev hosts for this project: {}; select one explicitly with --port N for clock/reset/seed or --url http://ADDRESS for doctor",hosts.keys().map(|a|a.to_string()).collect::<Vec<_>>().join(", ")));}
     Ok(hosts.into_values().next())
 }
 

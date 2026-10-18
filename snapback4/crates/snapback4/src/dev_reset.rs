@@ -18,7 +18,7 @@ pub fn seed(options: &crate::verbs::Options) -> i32 {
     let result = (|| -> Result<Json, String> {
         let [path] = options.positionals.as_slice() else { return Err(format!("usage: {}", crate::cli_flags::synopsis("seed"))); };
         let body = Json::Array(rows(Path::new(path))?).to_string();
-        let (address, instance) = crate::verbs::dev_address(options)?;
+        let (address, instance) = crate::verbs::registered_dev_address(options)?;
         let (status, reply) = crate::verbs::run_forward::exchange_dev(address, "/seed", instance.as_deref(), &body, Duration::from_secs(60))
             .map_err(|error| format!("cannot reach a dev at {address}: {error}"))?;
         if let Some(denied) = reply.get("denied") { return Err(format!("{}: {}", denied["code"].as_str().unwrap_or("E_INPUT"), denied["message"].as_str().unwrap_or("seed refused"))); }

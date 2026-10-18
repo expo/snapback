@@ -202,3 +202,19 @@ fn administrative_release_consumers_can_inspect_damaged_retained_source() {
     let value:serde_json::Value=serde_json::from_slice(&doctor.stdout).unwrap();
     assert_eq!(value["storage"]["row_count"],0);
 }
+
+#[test]
+fn failed_seed_discovery_does_not_open_a_legacy_store_or_create_sidecars() {
+    let app=App::new();fs::create_dir(app.0.join("snapback")).unwrap();
+    fs::write(app.0.join("snapback/schema.q"),"query alive():\n  return true\n").unwrap();
+    let dir=app.0.join(".snapback4");fs::create_dir(&dir).unwrap();
+    { let _store=snapback4_core::Store::open(&dir.join("store.sqlite")).unwrap(); }
+    let listener=std::net::TcpListener::bind("127.0.0.1:0").unwrap();let address=listener.local_addr().unwrap();drop(listener);
+    fs::write(dir.join("serve.lock"),format!("{}\nhttp://{address}\n",address.port())).unwrap();
+    fs::write(app.0.join("seed.json"),"[]").unwrap();
+    for suffix in ["-wal","-shm"] {let _=fs::remove_file(dir.join(format!("store.sqlite{suffix}")));}
+    let snapshot=|| {let mut files=fs::read_dir(&dir).unwrap().map(|e| {let path=e.unwrap().path();(path.file_name().unwrap().to_owned(),path.is_file().then(||fs::read(&path).unwrap()))}).collect::<Vec<_>>();files.sort();files};
+    let before=snapshot();let result=app.run(&["seed","seed.json"]);
+    assert!(!result.status.success(),"{result:?}");assert!(String::from_utf8_lossy(&result.stderr).contains("no running dev discovered"),"{result:?}");
+    assert_eq!(snapshot(),before);
+}

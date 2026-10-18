@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-18",
+  "source": "370bfd5226418784cf1312968e889e90cf7b95cb",
+  "brief": "llp/reviews/3000.000.000.000.000-surf5-r5.brief.md",
+  "brief_sha256": "b8258895f8f99c1c21f273e6fca4221b106a1bcaaf7792194398a18e77491fc9",
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "fresh_session": true,
+    "artifact": "llp/reviews/3000.000.000.000.000-surf5-r5.codex.md",
+    "sha256": "20105ad3e87349a761a7d37f668957160b1e24c7593648b170bd97c17841afc5",
+    "verdict": "NOT READY"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning_effort": "high",
+    "wrapper": "~/sb4-loop/muse-exec.sh --yolo",
+    "artifact": "llp/reviews/3000.000.000.000.000-surf5-r5.muse.md",
+    "sha256": "b16cd56d122eeae7ceab9d90129ef80eb792db4842d1d693793f5dbc8c587708",
+    "stderr": "llp/reviews/3000.000.000.000.000-surf5-r5.muse.stderr.txt",
+    "status": "unavailable; required-wrapper fallback then API 429 subscription quota exhausted; no review received"
+  },
+  "disposition": "Seed nonce correction approved in context; failed-discovery SQLite sidecar finding addressed by registered-only seed discovery in the next revision."
+}
