@@ -95,3 +95,18 @@ fn legacy_comparison_covers_non_schema_and_multi_module_snapshots() {
     let multiple=app.ok(&["check"]);
     assert!(multiple.contains("versions/v1.q differs") && multiple.contains("versions/v1/extra.q") && multiple.contains("versions/v1/main.q"),"{multiple}");
 }
+
+#[test]
+fn recognized_older_native_helper_keeps_age_advice_across_a_sign_in_switch() {
+    let app=App::new();app.ok(&["init","--expo"]);
+    app.write("snapback/schema.q",&app.read("snapback/schema.q").replace("use identity","use identity password"));
+    app.write("src/native-smoke.ts",include_str!("../src/verbs/init/starter/previous/wave14/native-smoke.ts"));
+    for command in [&["check"][..],&["init","--adapt"][..]] {
+        let text=app.ok(command);
+        let line=text.lines().find(|line|line.contains("src/native-smoke.ts:") || line.contains("rewrite src/native-smoke.ts")).unwrap();
+        assert!(line.contains("an older starter version") && line.contains("refresh also updates its sign-in mode") && !line.contains("previous schema"),"{text}");
+    }
+    app.ok(&["init","--adapt","--apply"]);
+    assert!(app.read("src/native-smoke.ts").contains("smokeAccount"));
+    assert!(!app.ok(&["check"]).contains("src/native-smoke.ts:"));
+}

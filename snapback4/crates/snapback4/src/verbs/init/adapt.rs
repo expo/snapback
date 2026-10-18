@@ -57,10 +57,12 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
         let recognized = super::proof_advice::native_template(&text);
         if recognized.is_none() { modified.push("src/native-smoke.ts".to_owned()); }
         if text != wanted && let Some((version, password)) = recognized && smoke_referenced(dir) {
-            let why = if password == own.identity.is_some_and(|(password, guests)| password && !guests) {
-                format!("an older starter version ({version}; adapt can refresh it)")
+            let old = text != starter::native_smoke(password);
+            let why = if old {
+                let mode = if password != own.identity.is_some_and(|(password, guests)| password && !guests) { "; refresh also updates its sign-in mode" } else { "" };
+                format!("an older starter version ({version}; adapt can refresh it){mode}")
             } else {
-                "the unmodified native smoke helper uses the previous schema's sign-in".into()
+                "the unmodified native smoke helper uses a different starter sign-in mode (adapt can refresh it)".into()
             };
             found.push(Leftover { path: "src/native-smoke.ts", why, rewrite: Some(wanted) });
         }
@@ -475,14 +477,22 @@ fn old_native_smoke_distinguishes_starter_age_from_sign_in_changes() {
         std::fs::write(dir.join("snapback/schema.q"), schema).unwrap();
         std::fs::write(dir.join("src/custom.ts"), "import './native-smoke';").unwrap();
         for source in [include_str!("starter/previous/native-smoke-0.4.9.ts"), include_str!("starter/previous/native-smoke-0.4.16.ts"), include_str!("starter/previous/wave14/native-smoke.ts")] {
-            if password && source == include_str!("starter/previous/native-smoke-0.4.9.ts") { continue; }
-            std::fs::write(dir.join("src/native-smoke.ts"), starter::native_smoke_version(password, source)).unwrap();
-            let text = report(&dir).unwrap();
-            assert!(text.contains("an older starter version") && !text.contains("previous schema") && !text.contains("not fit your schema"), "{text}");
-            std::fs::write(dir.join("src/native-smoke.ts"), starter::native_smoke_version(!password, source)).unwrap();
-            if source != include_str!("starter/previous/native-smoke-0.4.9.ts") { assert!(report(&dir).unwrap().contains("previous schema's sign-in")); }
-            else { assert!(!leftovers(&dir).0.iter().any(|f|f.path=="src/native-smoke.ts"),"unshipped identity variants are not starter-owned"); }
+            for helper_password in [false,true] {
+                std::fs::write(dir.join("src/native-smoke.ts"), starter::native_smoke_version(helper_password, source)).unwrap();
+                if helper_password && source == include_str!("starter/previous/native-smoke-0.4.9.ts") {
+                    assert!(!leftovers(&dir).0.iter().any(|f|f.path=="src/native-smoke.ts"),"unshipped identity variants are not starter-owned");
+                    continue;
+                }
+                let text = report(&dir).unwrap();
+                assert!(text.contains("an older starter version") && !text.contains("previous schema") && !text.contains("not fit your schema"), "{text}");
+                assert_eq!(text.contains("refresh also updates its sign-in mode"),helper_password!=password,"{text}");
+            }
         }
+        std::fs::write(dir.join("src/native-smoke.ts"), starter::native_smoke(password)).unwrap();
+        assert!(!leftovers(&dir).0.iter().any(|f|f.path=="src/native-smoke.ts"));
+        std::fs::write(dir.join("src/native-smoke.ts"), starter::native_smoke(!password)).unwrap();
+        let current=report(&dir).unwrap();
+        assert!(current.contains("different starter sign-in mode") && !current.contains("older starter") && !current.contains("previous schema"),"{current}");
         std::fs::write(dir.join("src/native-smoke.ts"), format!("{}\n// mine", starter::wave14_native_smoke(password))).unwrap();
         assert!(!leftovers(&dir).0.iter().any(|f| f.path == "src/native-smoke.ts"));
         std::fs::remove_dir_all(dir).unwrap();
