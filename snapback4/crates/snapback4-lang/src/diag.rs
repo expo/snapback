@@ -183,7 +183,7 @@ pub fn sync_error(site: &Site, message: impl Into<String>, rewrite: impl Into<St
 pub fn guide_for(code: &str) -> &'static str {
     match code {
         "E_EXPIRY_ORPHAN" => "expire",
-        "E_PROOF_USAGE" => "testing",
+        "E_PROOF_BROWSER" | "E_PROOF_USAGE" => "testing",
         "E_QUARRY_IDENTITY_DUPLICATE" => "production",
         code if code.starts_with("E_FOLLOWING_") => "refusals",
         "E_READ_ONLY" | "E_READ_ONLY_REFRESH" | "E_READ_ONLY_CREDENTIAL" | "E_READ_ONLY_DEVICE" | "E_READ_ONLY_UNSUPPORTED" | "E_ASSET_READ_ONLY" => "read-only",

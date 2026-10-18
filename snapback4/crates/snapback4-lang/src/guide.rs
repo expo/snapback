@@ -1077,7 +1077,7 @@ the same upload id cannot create another asset. Select a new capture/id.
         "receipts" => receipts::CARD,        "bounds" => bounds::CARD,
         "refusals" => refusals::CARD,
         "personas" => personas::CARD,
-        "testing" => concat!(include_str!("guide/testing.md"), include_str!("guide/testing_day_two.md"), include_str!("guide/proof_api.md")),
+        "testing" => concat!(include_str!("guide/testing.md"), include_str!("guide/testing_day_two.md"), "\n", include_str!("guide/proof_api.md")),
         _ => return None,
     })
 }

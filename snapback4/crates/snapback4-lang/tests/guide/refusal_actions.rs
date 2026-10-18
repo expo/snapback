@@ -114,6 +114,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_QUARRY_RULE_HOP", &["Each hop costs one prepaid rule probe", "read through .message", "beyond three hops", "Sibling hops are legal and charged"]),
     ("E_QUARRY_RULE_SPELLING", &["declare separate insert, update and delete rules for the operations intended"]),
     ("E_QUARRY_RULE_OPERATOR", &["The rewrite moves your comparison into the", "filter the query"]),
+    ("E_PROOF_BROWSER", &["Install playwright-core@1.55.1 in the proof project and rerun.", "precedes browser startup, application callbacks and log creation"]),
+    ("E_DEV_RESET", &["Reopen the client after reset.", "Outstanding writes retain unknown outcomes and are never retried automatically"]),
     ("E_PROOF_USAGE", &["Call startServe(deployDir, options) with a nonempty directory string first."]),
     ("E_QUARRY_IDENTITY_DUPLICATE", &["Keep one declaration: password, guests, or both."]),
     ("E_QUARRY_RESERVED", &["Rename it at the declaration and each use."]),

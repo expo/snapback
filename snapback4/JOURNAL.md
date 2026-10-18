@@ -96348,3 +96348,13 @@ captured-window admission correction;
 verbatim records are under llp/reviews. WORKSTREAM-REPORT.md distinguishes
 executed verification, final qualification and inherited root preconditions.
 The 0.4.32 guide-changes entry is added; no version bump, push or publish occurred.
+
+The complete workspace pass additionally caught six guide-contract omissions:
+new-code definition/recovery pins, missing peer-code registration, a generated
+heading separator, a generated-log filename mistaken for a shipped file, and
+witness opening/size constraints. Those are repaired without changing runnable
+recipe bytes or widening guide budgets. The literal wire table has an explicit
+opening assertion; Markdown separators do not count as CLI flags. All 125 guide
+tests passed after repair. Full consumer qualification at 54ca21331c passed;
+the final guide-only follow-up uses a fresh pack and scoped KIT4 proof rather
+than repeating unchanged starter toolchains (LLP 0189 / 0232 content binding).

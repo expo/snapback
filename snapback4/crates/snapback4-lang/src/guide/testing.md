@@ -248,7 +248,7 @@ A synchronous form onSubmit caused by that button also qualifies.
 Timers or later requestSubmit calls do not inherit a prior click.
 formResult() returns a Promise of { state, id, seq?, result?, why?, mutation }.
 Require state === "sent" before asserting the rendered business result.
-An unclaimable durable write settles failed/E_WITNESS_UNCLAIMED with provenance/operation detail or mismatched argument keys. Full armed/actual values are retained only in the proof log directory’s mode-0600 *.witness.private.jsonl file.
+An unclaimable durable write settles failed/E_WITNESS_UNCLAIMED with provenance/operation detail or mismatched argument keys. Full armed/actual values are retained only in the proof log directory’s mode-0600 private witness JSONL log.
 Keep the promise outside components that may unmount. Four terminal outcomes:
 - sent: claimed write committed (a replay may omit its historical result);
 - failed with the app refusal: claimed write was refused;

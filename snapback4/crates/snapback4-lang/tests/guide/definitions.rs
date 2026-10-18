@@ -250,6 +250,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_RULE_HOP", "E_QUARRY_RULE_HOP means a known relationship cannot be traversed in this rule position"),
     ("E_QUARRY_RULE_SPELLING", "E_QUARRY_RULE_SPELLING locates a guessed table rule"),
     ("E_QUARRY_RULE_OPERATOR", "E_QUARRY_RULE_OPERATOR names a term a table rule does not evaluate"),
+    ("E_PROOF_BROWSER", "E_PROOF_BROWSER means the proof project cannot resolve playwright-core."),
+    ("E_DEV_RESET", "E_DEV_RESET means an already-bound client observed the replacement store after /dev/reset."),
     ("E_PROOF_USAGE", "E_PROOF_USAGE means a proof helper received the wrong argument shape."),
     ("E_QUARRY_IDENTITY_DUPLICATE", "E_QUARRY_IDENTITY_DUPLICATE means `use identity` was declared more than once."),
     ("E_QUARRY_RESERVED", "E_QUARRY_RESERVED names a Quarry keyword used as a name, at its declaration"),
