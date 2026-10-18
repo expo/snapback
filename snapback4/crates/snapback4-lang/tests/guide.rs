@@ -1157,6 +1157,7 @@ fn terminal_and_compatibility_overviews_carry_the_first_nonempty_section() {
     for name in KEYWORDS {
         let text = card(name).unwrap();
         let (Some(short), Some(piped)) = (guide::overview(name, text), guide::overview_and_first_section(name, text)) else { continue };
+        if guide::sections(text).is_empty() { assert!(piped.contains("indivisible recipe") && !piped.contains("```")); continue; }
         assert_eq!(short, piped, "{name}: terminal overview also carries the first section");
         assert!(piped.lines().count() <= 150, "{name}: {} lines piped", piped.lines().count());
         let sections = guide::sections(text);

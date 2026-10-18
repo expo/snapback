@@ -234,8 +234,16 @@ fn boundary(lines: &[&str], from: usize, to: usize, limit: usize) -> Option<usiz
 fn overview_with(name: &str, card: &str, first_section: bool) -> Option<String> {
     let total = card.lines().count();
     let found = sections(card);
-    if total <= FULL_LINES || found.is_empty() { return None; }
+    if total <= FULL_LINES { return None; }
     let lines: Vec<&str> = card.lines().collect();
+    if found.is_empty() {
+        // A single long fenced recipe is indivisible. Show its prose opening,
+        // never half of a runnable code fence; --full prints the entire recipe.
+        let end = lines.iter().position(|line| line.trim_start().starts_with("```"))
+            .unwrap_or_else(|| boundary(&lines, 0, lines.len(), OPENING_LINES).unwrap_or(OPENING_LINES.min(total)));
+        let title = lines.first().copied().unwrap_or("");
+        return Some(format!("{title}\n(Truncated: opening of a {total}-line card with one indivisible recipe; snapback4 guide {name} --full prints the whole recipe.)\n{}\n\nSections of guide {name}:\nSingle recipe: snapback4 guide {name} --full", lines[1..end.max(1)].join("\n").trim_end()));
+    }
     let first = opening_end(card, &found);
     // The opening's paragraph boundaries outside fences; keep the title and lead at least.
     let mut cut = first;
