@@ -1,7 +1,7 @@
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor, hangBudget } from './helpers/wait.mjs';
 // POST /dev/reset against connected clients: a local device re-acquires the
-// new store by itself; an online client halts with E_STORE_REPLACED.
+// new store by itself; an online client halts with E_DEV_RESET.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
@@ -74,5 +74,5 @@ test('a reset reaches connected clients: local re-acquires, online halts', { tim
   assert.equal(titles(await local.query(mine, {})), 'New,After');
 
   // The online client halts on the replacement rather than mixing stores.
-  await waitFor(async () => (await online.query(mine, {})).denied?.code === 'E_STORE_REPLACED', 'online replacement');
+  await waitFor(async () => (await online.query(mine, {})).denied?.code === 'E_DEV_RESET', 'online replacement');
 });
