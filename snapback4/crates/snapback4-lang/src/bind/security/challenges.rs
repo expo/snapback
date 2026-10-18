@@ -10,10 +10,14 @@ const VIEWER:&str="dev:security-a";
 const OTHER:&str="dev:security-b";
 // Same verified 1x1 PNG header used by the existing packaged asset witnesses.
 const PNG:[u8;24]=[137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1];
+mod paired;
+mod timed;
+mod histories;
+mod assets;
 #[derive(Clone,Debug,Serialize)]
-pub struct Counterexample {pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String}
+pub struct Counterexample {pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String, pub observations:Option<paired::Observations>,pub history:Vec<histories::Step>}
 #[derive(Clone,Debug,Default,Serialize)]
-pub struct Campaign {pub operations:BTreeMap<String,usize>,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub unsupported:BTreeSet<String>}
+pub struct Campaign {pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
 fn id(table:&str)->Value {Value::Id(format!("security-{table}"))}
 fn sample(kind:&C,variant:usize)->Option<Value>{Some(match kind{
     C::Optional(inner)=>if variant&4!=0{sample(inner,variant).unwrap_or(Value::Null)}else{Value::Null},C::Id|C::Principal=>Value::Id(if variant&1==0{VIEWER}else{OTHER}.into()),
@@ -22,7 +26,7 @@ fn sample(kind:&C,variant:usize)->Option<Value>{Some(match kind{
     C::Int|C::Decimal{..}|C::Money{..}=>Value::Int(1),C::IntRange{min,max}=>Value::Int(1i64.clamp(*min,*max)),
     C::Bool=>Value::Bool((variant>>2)&1==0),C::Time=>Value::Int(NOW-1000),C::Json{..}=>Value::Null,C::Bytes{..}=>Value::Bytes(Vec::new()),
     C::List{..}=>Value::Array(Vec::new()),C::ListRange{of,min,..}=>Value::Array((0..*min).map(|_|sample(of,variant)).collect::<Option<_>>()?),
-    C::Image{..}=>Value::String("$security:image".into()),C::Video{..}|C::File{..}=>return None,
+    C::Image{..}=>Value::String("$security:image".into()),C::File{..}=>Value::String("$security:file".into()),C::Video{..}=>return None,
 })}
 fn needed(schema:&Schema,name:&str,out:&mut BTreeSet<String>){
     if !out.insert(name.into()){return;}let Some(t)=schema.table(name)else{return};
@@ -30,20 +34,31 @@ fn needed(schema:&Schema,name:&str,out:&mut BTreeSet<String>){
     for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete]{for dep in kernel::dependencies(r){needed(schema,&dep,out);}}
 }
 fn snapshot(bound:&Bound,inv:&Invariant,variant:usize)->Result<BTreeMap<String,Vec<Value>>,String>{
+    snapshot_mode(bound,inv,variant,false)
+}
+fn snapshot_mode(bound:&Bound,inv:&Invariant,variant:usize,timed:bool)->Result<BTreeMap<String,Vec<Value>>,String>{
     let mut names=BTreeSet::new();needed(&bound.schema,&inv.table,&mut names);
     if let Some(policy)=&inv.policy{for dep in kernel::dependencies(policy){needed(&bound.schema,&dep,&mut names);}}
+    if let Some(mut syntax)=inv.syntax.clone(){super::super::intent_walk::expression(&mut syntax,&mut |e| {
+        if let ast::Expr::Read(r)|ast::Expr::Exists{read:r,..}=e {needed(&bound.schema,&r.table,&mut names);}
+    });}
     if let Some(op)=&inv.operation && let Some(p)=bound.programs.iter().find(|p|&p.program.name==op){for kind in p.program.args.values(){if let ir::ArgType::Ref{table}=kind{needed(&bound.schema,table,&mut names);}}}
     let mut out=BTreeMap::new();
+    let mut enum_case=variant;
     for name in names {
         let t=&bound.schema.tables[&name];
-        if t.is_expiring()||t.not_before.is_some()||t.through.is_some()||bound.schema.maintain_for(&name).is_some(){return Err(format!("{name}: concrete lifetime/capture/derived reduction is unsupported"));}
+        if (!timed && t.read_lifetime_sensitive())||t.through.is_some()||bound.schema.maintain_for(&name).is_some(){return Err(format!("{name}: concrete lifetime/capture/derived reduction is unsupported"));}
         let mut fields=BTreeMap::new();fields.insert("id".into(),id(&name));
         for (n,k) in &t.columns{
             if n=="id"||t.engine_field(n)||t.maintained.contains_key(n){continue;}
-            let value=sample(k,if matches!(k,C::Principal){variant>>3}else{variant})
+            let sample_variant=if let C::Enum{variants}=k.required(){let n=enum_case % variants.len();enum_case/=variants.len();n}else if matches!(k,C::Principal){variant>>3}else{variant};
+            let value=sample(k,sample_variant)
                 .ok_or_else(||format!("{name}.{n}: asset ledger/required sample is not available"))?;
             fields.insert(n.clone(),value);
         }
+        if timed {for (n,k) in &t.columns {if matches!(k.required(),C::Time)&&(!k.is_optional()||variant&4!=0) {
+            fields.insert(n.clone(),Value::Int(NOW+if t.expire.as_ref()==Some(n){2000}else{1000}));
+        }}}
         for constraint in &t.constraints{if let Constraint::Text{field,min,..}=constraint
             && matches!(fields.get(field),Some(Value::String(_))) {fields.insert(field.clone(),Value::String("x".repeat((*min).max(1) as usize)));}}
         // Named primary keys used by role probes must select the challenged
@@ -67,20 +82,25 @@ impl Probe for Snapshot<'_>{
     // than emulate that security boundary, decline these concrete challenges.
 }
 fn policy(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value)->Result<bool,String>{
+    if inv.policy.as_ref().is_some_and(super::temporal::has_clock){return Err("server-clock policy needs temporal engine replay".into());}
     let Some(p)=inv.policy.as_ref() else{return inv.syntax.as_ref().and_then(|e|super::concrete::evaluate(e,row,rows,&bound.schema,viewer)).ok_or_else(||"concrete policy expression is unknown/unsupported (including clock and typed literal coercions)".into());};
     if p.has_reference(){return Err("live reference policy challenge requires authorized-hop replay".into());}
     rules::evaluate(p,viewer,old,row,false,&mut Snapshot{schema:&bound.schema,rows}).map_err(|e|e.to_string())
 }
 fn program(name:&str,kind:ProgramKind,body:Vec<Stmt>)->Program{Program{name:name.into(),kind,args:BTreeMap::new(),body,read_time_granularity_ms:None,returned_shapes:BTreeMap::new(),native:false}}
 fn engine(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probe:Program)->Result<Engine,String>{
+    engine_with(bound,rows,vec![probe])
+}
+fn engine_with(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probes:Vec<Program>)->Result<Engine,String>{
     let store=Store::memory().map_err(|e|e.to_string())?;
-    let mut programs=bound.programs.iter().map(|p|p.program.clone()).collect::<Vec<_>>();programs.push(probe);
+    let mut programs=bound.programs.iter().map(|p|p.program.clone()).collect::<Vec<_>>();programs.extend(probes);
     let mut engine=Engine::new_at(store,bound.schema.clone(),programs,NOW).map_err(|e|e.to_string())?;
     fn hydrate(engine:&mut Engine,kind:&C,value:&Value)->Result<Value,String>{
         match (kind,value) {
             (C::Optional(inner),v) if *v!=Value::Null=>hydrate(engine,inner,v),
             (C::List{of,..}|C::ListRange{of,..},Value::Array(xs))=>xs.iter().map(|v|hydrate(engine,of,v)).collect::<Result<Vec<_>,_>>().map(Value::Array),
             (C::Image{..},Value::String(marker)) if marker=="$security:image"=>engine.store_asset(VIEWER,&PNG,NOW).map(|a|a.column_value()).map_err(|e|format!("verified image fixture: {e}")),
+            (C::File{types,..},Value::String(marker)) if marker=="$security:file"=>assets::file(engine,VIEWER,types),
             _=>Ok(value.clone()),
         }
     }
@@ -149,7 +169,9 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
     for inv in &assertions{
         if sites.is_some_and(|sites|!sites.contains(&inv.site.to_string())){continue;}
         let mut found=false;
-        for variant in 0..24 {
+        let combinations=bound.schema.tables.values().flat_map(|t|t.columns.values()).filter_map(|k|if let C::Enum{variants}=k.required(){Some(variants.len())}else{None}).fold(1usize,usize::saturating_mul).max(24);
+        if combinations>512{out.unsupported.insert("schema enum Cartesian matrix exceeds 512 samples; remaining tuples are not covered".into());}
+        for variant in 0..combinations.min(512) {
             let rows=match snapshot(bound,inv,variant){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);break;}};
             let mut seeded=match engine(bound,&rows,program("$security.seed",ProgramKind::Query,vec![Stmt::Return(Expr::Get(Read{site:"security read".into(),table:inv.table.clone(),index:"byId".into(),key:vec![Expr::Literal(id(&inv.table))],provenance:KeyProvenance::Computed}))])){Ok(e)=>e,Err(e)=>{out.unsupported.insert(e);continue;}};
             let rows=match readback(&seeded){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);continue;}};
@@ -157,7 +179,7 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
             for viewer in [VIEWER,OTHER,"account:security-no-role","service:security"]{
                 if inv.target=="always" {
                     match policy(bound,inv,&rows,viewer,None,row){
-                        Ok(false)=>{out.attempted+=1;out.admitted+=1;out.violations.push(Counterexample{invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:"$security.seed_at".into(),effect:"always".into(),row:row.clone(),old:None,supporting_rows:rows.clone(),rule_path:"trusted seed ingress; all typed and final-exists constraints rechecked".into(),scope:"actual seed_at commit/read-back; ordinary application reachability is not claimed".into()});found=true;},
+                        Ok(false)=>{out.attempted+=1;out.admitted+=1;out.violations.push(Counterexample{history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:"$security.seed_at".into(),effect:"always".into(),row:row.clone(),old:None,supporting_rows:rows.clone(),rule_path:"trusted seed ingress; all typed and final-exists constraints rechecked".into(),scope:"actual seed_at commit/read-back; ordinary application reachability is not claimed".into()});found=true;},
                         Ok(true)=>{out.attempted+=1;},Err(e)=>{out.unsupported.insert(e);}
                     }if found{break;}continue;
                 }
@@ -195,7 +217,7 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
                                 // a column contract cannot be refuted by editing a sibling.
                                 if inv.target=="update"&&old.is_none() || inv.target=="insert"&&old.is_some() || inv.target=="delete" {continue;}
                                 if let Some(column)=&inv.column && old.is_some_and(|old|old.field(column).ok()==next.field(column).ok()){continue;}
-                                if permitted==Ok(false){out.admitted+=1;out.violations.push(Counterexample{invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.into(),operation:operation.clone(),effect:if old.is_some(){"update"}else{"insert"}.into(),row:next.clone(),old:old.cloned(),supporting_rows:rows.clone(),rule_path:format!("authored operation {operation}"),scope:"actual authored mutation committed a changed image from a schema-valid seeded snapshot".into()});found=true;break;}
+                                if permitted==Ok(false){out.admitted+=1;out.violations.push(Counterexample{history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.into(),operation:operation.clone(),effect:if old.is_some(){"update"}else{"insert"}.into(),row:next.clone(),old:old.cloned(),supporting_rows:rows.clone(),rule_path:format!("authored operation {operation}"),scope:"actual authored mutation committed a changed image from a schema-valid seeded snapshot".into()});found=true;break;}
                             }
                         },_=>out.refused+=1,
                     }
@@ -208,7 +230,7 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
                     let replayed=if word=="read" {seeded.query("$security.seed",Context::new(viewer,BTreeMap::new()).at(NOW)).map(|q|q.data!=Value::Null).map_err(|e|e.to_string())}else{replay(bound,inv,&rows,viewer,word,row)};
                     match replayed{
                         Ok(false)=>out.refused+=1,
-                        Ok(true)=>{out.admitted+=1;out.violations.push(Counterexample{invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:format!("$security.{}.{}",inv.table,word),effect:word.into(),row:row.clone(),old:(word=="update"||word=="delete").then(||row.clone()),supporting_rows:admission_rows.clone(),rule_path:bound.schema.tables[&inv.table].rules.for_effect(super::effect(word)).quarry(),scope:"schema-valid seeded snapshot; synthetic engine table operation; application reachability is not claimed".into()});found=true;break;},
+                        Ok(true)=>{out.admitted+=1;out.violations.push(Counterexample{history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:format!("$security.{}.{}",inv.table,word),effect:word.into(),row:row.clone(),old:(word=="update"||word=="delete").then(||row.clone()),supporting_rows:admission_rows.clone(),rule_path:bound.schema.tables[&inv.table].rules.for_effect(super::effect(word)).quarry(),scope:"schema-valid seeded snapshot; synthetic engine table operation; application reachability is not claimed".into()});found=true;break;},
                         Err(e)=>{out.unsupported.insert(format!("{}.{}: {e}",inv.table,word));},
                     }
                 }
@@ -217,6 +239,8 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
             if found{break;}
         }
     }
+    paired::run(bound,&mut out,sites);
+    timed::run(bound,&mut out,sites);
     out.unsupported.insert("unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts".into());
     out.unsupported.insert("offline/revoked-device access and retained history require device boundary qualification".into());out
 }
@@ -228,7 +252,7 @@ fn arguments(args:&BTreeMap<String,ir::ArgType>,variant:usize)->Option<BTreeMap<
     use ir::ArgType as A;
     fn one(k:&A,v:usize)->Option<Value>{Some(match k{
         A::Ref{table}=>id(table),A::Principal=>Value::Id(if v&1==0{OTHER}else{VIEWER}.into()),A::Id=>Value::Id("security-argument".into()),A::Cursor|A::Optional(_)=>Value::Null,
-        A::Text{min,max,..}=>Value::String("z".repeat((*min).max(1).min(*max) as usize)),A::Enum{variants}=>Value::String(variants.get(v%variants.len())?.clone()),A::Int|A::Decimal{..}|A::Money{..}=>Value::Int(1),A::IntRange{min,max}=>Value::Int(1i64.clamp(*min,*max)),A::Time=>Value::Int(NOW+86_400_000),A::Bool=>Value::Bool(v&2==0),A::List{..}=>Value::Array(Vec::new()),A::Json{..}=>Value::Null,A::Bytes{..}=>Value::Bytes(Vec::new()),_=>return None,
+        A::Text{min,max,..}=>Value::String("z".repeat((*min).max(1).min(*max) as usize)),A::Enum{variants}=>Value::String(variants.get(v%variants.len())?.clone()),A::Int|A::Decimal{..}|A::Money{..}=>Value::Int(1),A::IntRange{min,max}=>Value::Int(1i64.clamp(*min,*max)),A::Time=>Value::Int(NOW+86_400_000),A::Bool=>Value::Bool(v&2==0),A::List{..}=>Value::Array(Vec::new()),A::Json{..}=>Value::Null,A::Bytes{..}=>Value::Bytes(Vec::new()),A::Image{..}|A::File{..}=>Value::Null,_=>return None,
     })}
     args.iter().map(|(n,k)|one(k,variant).map(|v|(n.clone(),v))).collect()
 }
@@ -237,20 +261,21 @@ fn arguments(args:&BTreeMap<String,ir::ArgType>,variant:usize)->Option<BTreeMap<
 /// This is conformance exploration, not a guessed spec oracle: only declared
 /// policies and replayed violations can fail security acceptance.
 pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
+    histories::run(bound,fixture,campaign);
+    assets::run(bound,fixture,campaign);
     let fixtures=match readback(fixture){Ok(r)=>r,Err(e)=>{campaign.unsupported.insert(e);return;}};
     let has_fixture=fixtures.values().any(|r|!r.is_empty());
     if fixtures.values().map(Vec::len).sum::<usize>()>1000{campaign.unsupported.insert("operation fixture matrix exceeds 1000 rows; provide a focused security fixture".into());return;}
-    let mut viewers=vec![VIEWER.to_owned(),OTHER.to_owned(),"account:security-no-role".into(),"service:security".into()];
+    let mut viewers=histories::viewers(bound);
     for (table,rows) in &fixtures{for row in rows{for (c,k) in &bound.schema.tables[table].columns{if matches!(k.required(),C::Principal)&&let Ok(Value::Id(p))=row.field(c)&&!viewers.contains(p){viewers.push(p.clone());}}}}
-    if viewers.len()>16{viewers.truncate(16);campaign.unsupported.insert("fixture has more than 16 principals; remaining principal classes not explored".into());}
     for p in &bound.programs{
         if !matches!(p.program.kind,ProgramKind::Query|ProgramKind::Mutation)||p.program.native{campaign.unsupported.insert(format!("{}: trusted/system/opaque operation",p.program.name));continue;}
         let target=bound.schema.visible_tables().find(|(t,_)|super::audit::mentions(&serde_json::to_value(&p.program).unwrap(),t)).or_else(||bound.schema.visible_tables().next()).map(|(t,_)|t.clone());
         let Some(target)=target else{campaign.unsupported.insert(format!("{}: no table population for generated arguments",p.program.name));continue;};
         let dummy=Invariant{table:target,target:"read".into(),column:None,predicate:"allow".into(),site:crate::Site::default(),policy:Some(RuleExpr::Allow),operation:Some(p.program.name.clone()),requirements:Vec::new(),syntax:None,unsupported:None};
-        for variant in 0..4{
+        let cases=histories::argument_cases(&p.program.args,campaign);
+        for (variant,mut args) in cases.into_iter().enumerate(){
             let rows=if has_fixture{fixtures.clone()}else{match snapshot(bound,&dummy,variant){Ok(r)=>r,Err(e)=>{campaign.unsupported.insert(format!("{}: {e}",p.program.name));break;}}};
-            let Some(mut args)=arguments(&p.program.args,variant)else{campaign.unsupported.insert(format!("{}: need assets/list/typed argument fixtures",p.program.name));break;};
             for (arg,kind) in &p.program.args {if let ir::ArgType::Ref{table}=kind&&let Some(row)=rows.get(table).and_then(|rs|rs.first())&&let Ok(id)=row.field("id"){args.insert(arg.clone(),id.clone());}}
             for viewer in &viewers{
                 let mut engine=match engine(bound,&rows,program("$security.matrix",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))])){Ok(e)=>e,Err(e)=>{campaign.unsupported.insert(format!("{}: {e}",p.program.name));continue;}};

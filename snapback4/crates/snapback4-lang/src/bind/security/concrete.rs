@@ -19,12 +19,27 @@ fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str)->Option<Value
     },
     Expr::Binary{op,left,right,..}=>{
         let a=value(left,row,rows,schema,viewer)?;let b=value(right,row,rows,schema,viewer)?;
+        if matches!(op.as_str(),"+"|"-"|"*") {
+            let (Value::Int(a),Value::Int(b))=(a,b)else{return None;};
+            let n=match op.as_str(){"+"=>i128::from(a)+i128::from(b),"-"=>i128::from(a)-i128::from(b),_=>i128::from(a)*i128::from(b)};
+            return Value::int(n).ok();
+        }
         // The binder contextually types principal/id literals. This partial
         // evaluator refuses that coercion rather than using host strings.
         if !matches!((&a,&b),(Value::Id(_),Value::Id(_))|(Value::String(_),Value::String(_))|(Value::Int(_),Value::Int(_))|(Value::Bool(_),Value::Bool(_))|(Value::Null,_)|(_,Value::Null)){return None;}
         Value::Bool(match op.as_str(){"="=>a==b,"!="=>a!=b,"<"|"<="|">"|">="=>if let (Value::Int(a),Value::Int(b))=(a,b){match op.as_str(){"<"=>a<b,"<="=>a<=b,">"=>a>b,_=>a>=b}}else{return None;},_=>return None})
     },
-    Expr::Exists{read,..}=>{
+    Expr::Call{name,args,..} if (name=="count"||name=="len")&&args.len()==1 => {
+        let Value::Array(values)=value(&args[0],row,rows,schema,viewer)?else{return None;};
+        Value::Int(values.len().try_into().ok()?)
+    },
+    Expr::Call{name,args,..} if name=="sum"&&args.len()==2 => {
+        let Value::Array(values)=value(&args[0],row,rows,schema,viewer)?else{return None;};
+        let sum=values.iter().try_fold(0i128,|sum,r|match value(&args[1],r,rows,schema,viewer)? {Value::Int(n)=>sum.checked_add(i128::from(n)),_=>None})?;
+        Value::int(sum).ok()?
+    },
+    Expr::Array{items,..}=>Value::Array(items.iter().map(|e|value(e,row,rows,schema,viewer)).collect::<Option<_>>()?),
+    Expr::Read(read)|Expr::Exists{read,..}=>{
         let t=schema.table(&read.table)?;
         if t.is_expiring()||t.not_before.is_some()||t.through.is_some()||schema.maintain_for(&read.table).is_some()||read.filter.is_some()||read.range.is_some()||!read.seeks.is_empty()||read.matching.is_some(){return None;}
         let mut pins=Vec::new();
@@ -40,9 +55,11 @@ fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str)->Option<Value
                 (C::Bool,Value::Bool(_))=>true,_=>false,
             };
             if !typed{return None;}pins.push((column,val));}
-        // This is an existential over raw live rows, not a program read or
-        // a unique lookup; absence is decidable only in this complete snapshot.
-        Value::Bool(rows.get(&read.table).into_iter().flatten().any(|r|pins.iter().all(|(c,v)|r.field(c).ok()==Some(v))))
+        // Integrity assertions quantify over the complete raw snapshot, not
+        // a caller-filtered program population. Temporal/captured populations
+        // above remain unsupported. No solver proof uses these samples.
+        let selected=rows.get(&read.table).into_iter().flatten().filter(|r|pins.iter().all(|(c,v)|r.field(c).ok()==Some(v))).cloned().collect::<Vec<_>>();
+        if matches!(e,Expr::Exists{..}) {Value::Bool(!selected.is_empty())}else{Value::Array(selected)}
     },
     _=>return None,
 })}

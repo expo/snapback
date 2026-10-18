@@ -1,0 +1,25 @@
+use snapback4_lang::{compile,security};
+use snapback4_core::{Engine,Value};
+const SOURCE:&str="use personas alice, bob\ntable roles:\n  principal: principal\n  role: enum('inspector', 'member')\n  unique principal\n  read <- allow\n  insert <- viewer = 'service:ops'\n  update <- viewer = 'service:ops'\n  online only\ntable grants:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- viewer = 'service:ops'\n  online only\ntable reports:\n  body: text <=80\n  read <- exists grants[viewer]\n  online only\nmutation grant(who: principal):\n  return insert grants { principal: who }\nmutation demote(who: principal):\n  update roles[who] { role: 'member' }\n  return null\ninvariant reports.read only exists roles[viewer, role = 'inspector']\n";
+fn row(fields:&[(&str,Value)])->Value{Value::Row(fields.iter().map(|(n,v)|(n.to_string(),v.clone())).collect())}
+#[test]
+fn actual_grant_demotion_and_read_has_a_replayable_trace(){
+ for fixed in [false,true]{
+  let source=if fixed{SOURCE.replace("read <- exists grants[viewer]","read <- exists grants[viewer] and exists roles[viewer, role = 'inspector']")}else{SOURCE.into()};
+  let b=compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+  let mut fixture=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
+  fixture.seed_at(vec![("roles".into(),row(&[("id",Value::Id("role-a".into())),("principal",Value::Id("dev:security-a".into())),("role",Value::String("inspector".into()))])),
+   ("reports".into(),row(&[("id",Value::Id("report".into())),("body",Value::String("private".into()))]))],1_800_000_000_000).unwrap();
+  let mut c=security::challenges::Campaign::default();security::challenges::operations(&b,&fixture,&mut c);
+  assert!(c.sequences>0);assert_eq!(c.violations.is_empty(),fixed,"{c:?}");
+  if !fixed{assert!(c.violations.iter().any(|v|v.history.iter().any(|s|s.operation=="grant")&&v.history.iter().any(|s|s.operation=="demote")),"{c:?}");}
+ }
+}
+#[test]
+fn all_named_service_seats_and_enum_argument_tuples_are_exercised(){
+ let b=compile(&[("schema.q".into(),"use personas alice, bob\ntable notes:\n  role: text <=20\n  read <- viewer = 'service:one' or viewer = 'service:two'\n  online only\nquery inspect(a: enum('one','two','three'), b: enum('x','y')):\n  return { a, b, who: viewer }\n".into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+ let fixture=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
+ let mut c=security::challenges::Campaign::default();security::challenges::operations(&b,&fixture,&mut c);
+ // Four generic viewers, two personas and two declared service seats × six tuples.
+ assert_eq!(c.operations["inspect"],8*6,"{c:?}");
+}

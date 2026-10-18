@@ -2,10 +2,14 @@
 // @ref LLP 3000.036.004#5-exposure-report — full audit is opt-in, intent notes are on ordinary check.
 use super::*;
 use snapback4_lang::security::{self,Report};
+mod http;
+pub(super) fn unauthenticated(bound:&Bound,sources:&[(String,String)])->bool {
+    match http::run(bound,sources){Ok(_)=>true,Err(why)=>{eprintln!("security HTTP failure: {why}");false}}
+}
 pub(super) fn report(project:&Project,bound:&Bound)->Report{
     let mut report=security::analyze(bound);
     if let Ok(sources)=project.sources(){security::add_source_notes(&mut report,&sources,bound);}
-    let sites=report.invariants.iter().filter(|v|v.direct_rule==security::Status::Unproved).map(|v|v.invariant.site.to_string()).collect();
+    let sites=report.invariants.iter().filter(|v|v.status==security::Status::Unproved).map(|v|v.invariant.site.to_string()).collect();
     let campaign=security::challenges::run_selected(bound,Some(&sites));
     security::challenges::apply(&mut report,&campaign);report
 }

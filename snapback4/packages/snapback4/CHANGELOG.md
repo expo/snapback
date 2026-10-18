@@ -2,6 +2,8 @@
 
 ## 0.4.32
 
+- Security follow-up: check generates an unaccepted invariant draft and one project-level missing-intent note; audit ends with uncovered conditional role/row effects, including owner-field patches. Observer components cover ordinary counts/sums/existence, bare-key maintained aggregates and exact server lifetime bounds; paired logical observations and between-ticks engine reads can refute privacy. Whole-path blockers remain explicit.
+
 - Security: independent schema invariants, three-valued rule implication with explicit unproved paths, `audit`/`check --audit`, schema-derived engine challenges in default `test`, grant lifetime/writer/optional-evidence/existence advice. Text minimums count non-whitespace Unicode characters; maximums and stored bytes are unchanged. `guide security` states proof boundaries and coverage limits; todo, chat, social and production starters declare privacy intent.
 
 ## 0.4.31

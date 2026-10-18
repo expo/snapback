@@ -12,7 +12,12 @@ mod lints;
 mod operation;
 mod concrete;
 mod census;
+mod observers;
+mod temporal;
+mod adoption;
 pub use audit::{Exposure, Grant};
+pub use observers::Obligation;
+pub use adoption::{draft, UncoveredExposure};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Invariant {
@@ -42,7 +47,10 @@ pub(super) fn bind(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> Vec<
         let effect=match decl.target.as_str(){"insert"=>ast::Effect::Insert,"update"|"write"=>ast::Effect::Update,"delete"=>ast::Effect::Delete,_=>ast::Effect::Read};
         let rule=ast::RuleDecl{effect,bindings:Vec::new(),value:decl.value.clone(),site:decl.site.clone()};
         let (policy,unsupported)=match super::schema::bind_rule(catalog,info,&rule) {
-            Ok(rule)=>(Some(rule),None),Err(error)=>(None,Some(format!("policy outside rule proof fragment: {} ({})",error.message,error.code))),
+            Ok(rule)=>(Some(rule),None),Err(error)=>match temporal::bind(catalog,info,&decl.value) {
+                Some(rule) if decl.target=="read" => (Some(rule),None),
+                _ => (None,Some(format!("policy outside rule proof fragment: {} ({})",error.message,error.code))),
+            },
         };
         let requirements=named_operation.as_ref().map(|(_,p)| operation::requirements(catalog,info,p)).unwrap_or_default();
         out.push(Invariant{operation:named_operation.map(|(name,_)|name),requirements,syntax:Some(decl.value.clone()),table:decl.table.clone(),target:decl.target.clone(),column:decl.column.clone(),predicate:crate::print::expression(&decl.value),site:decl.site.clone(),policy,unsupported});
@@ -60,6 +68,7 @@ pub struct Verdict {
     pub paths: Vec<String>,
     pub reasons: Vec<String>,
     pub counterexample: Option<challenges::Counterexample>,
+    pub obligations: Vec<Obligation>,
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct Report {
@@ -70,6 +79,7 @@ pub struct Report {
     pub exposures: Vec<Exposure>,
     pub roles: BTreeMap<String,Vec<String>>,
     pub notes: Vec<Diagnostic>,
+    pub uncovered: Vec<UncoveredExposure>,
 }
 impl Report {
     pub fn refuted(&self)->bool {self.invariants.iter().any(|v|v.status==Status::Refuted)}
@@ -78,6 +88,7 @@ impl Report {
         for v in &self.invariants {
             out.push_str(&format!("  {:?}: {}.{} {} — direct rule {:?}\n",v.status,v.invariant.table,v.invariant.target,v.invariant.predicate,v.direct_rule));
             for reason in &v.reasons {out.push_str(&format!("    {reason}\n"));}
+            for o in &v.obligations {out.push_str(&format!("    {:?}: {} — {}\n",o.status,o.path,o.reason));if let Some(repair)=&o.repair{out.push_str(&format!("      repair: {repair}\n"));}}
             if let Some(c)=&v.counterexample {out.push_str(&format!("    counterexample {}\n",serde_json::to_string(c).unwrap()));}
         }
         for note in &self.notes {out.push_str(&format!("  {}: {}\n    {}\n",note.code,note.message,note.rewrite));}
@@ -90,7 +101,10 @@ impl Report {
             for path in &x.paths {out.push_str(&format!("  {path}\n"));}
             for grant in &x.grants {out.push_str(&format!("  inherited grant {}: {}\n",grant.table,grant.predicate)); for w in &grant.writers {out.push_str(&format!("    writer {w}\n"));}}
         }
-        out.push_str(&format!("  exclusions: {}\n",self.exclusions.join("; ")));out
+        out.push_str(&format!("  exclusions: {}\n",self.exclusions.join("; ")));
+        out.push_str("exposures without an invariant (conditional role/row coverage; declarations are not proof):\n");
+        for x in &self.uncovered {out.push_str(&format!("  {}.{}: {}; rows: {}\n",x.table,x.effect,x.audience,x.row_predicate));}
+        if self.uncovered.is_empty(){out.push_str("  none\n");}out
     }
 }
 fn effect(word:&str)->Effect {match word {"read"=>Effect::Read,"insert"=>Effect::Insert,"update"=>Effect::Update,_=>Effect::Delete}}
@@ -117,7 +131,7 @@ pub fn analyze(bound:&Bound)->Report {
             match operation::prove(bound,inv) {Ok(true)=>{},Ok(false)=>{direct=Status::Unproved;reasons.push("operation admission does not imply the policy; an actual operation challenge is required".into());},Err(e)=>{direct=Status::Unproved;reasons.push(e);}}
         } else {
             for word in effects(inv) {
-                let admission=if word=="update" {table.update_rule_judged().into_owned()}else{table.rules.for_effect(effect(word)).clone()};
+                let admission=if word=="update" {table.update_rule_judged().into_owned()}else if word=="read" {temporal::admission(table)}else{table.rules.for_effect(effect(word)).clone()};
                 match kernel::implies(&admission,inv.policy.as_ref().unwrap()) {
                     Ok(true)=>{},Ok(false)=>{direct=Status::Unproved;reasons.push(format!("{word} admission does not imply intent over independent predicates; a concrete replay is required for refutation"));},
                     Err(why)=>{direct=Status::Unproved;reasons.push(format!("{word}: {why}"));},
@@ -130,17 +144,19 @@ pub fn analyze(bound:&Bound)->Report {
             }
         }
         reasons.extend(blockers(bound,inv));
+        let obligations=observers::obligations(bound,inv);
+        for o in &obligations {if o.status!=Status::Proved {reasons.push(format!("{}: {}; {}",o.path,o.reason,o.repair.as_deref().unwrap_or("declare an explicit observer policy")));}}
         let paths=exposures.iter().find(|x|x.table==inv.table).map(|x|x.paths.clone()).unwrap_or_default();
         let status=if direct==Status::Proved && reasons.is_empty(){Status::Proved}else{Status::Unproved};
-        verdicts.push(Verdict{invariant:inv.clone(),status,direct_rule:direct,paths,reasons,counterexample:None});
+        verdicts.push(Verdict{invariant:inv.clone(),status,direct_rule:direct,paths,reasons,counterexample:None,obligations});
     }
     let mut notes=lints::notes(bound,&exposures);
-    let missing:Vec<_>=bound.schema.visible_tables().filter(|(name,t)|!t.rules.read.is_uniformly_readable() && !matches!(t.rules.read,RuleExpr::Deny)
-        && !bound.invariants.iter().any(|i| &i.table==*name)).map(|(n,_)|n.clone()).collect();
-    if !missing.is_empty() {notes.push(Diagnostic::new(&Site::default(),"N_SECURITY_INTENT",format!("no invariants declared for tables with access rules: {}",missing.join(", ")),"state the spec separately from the rules; snapback4 guide security").guide("security"));}
+    let missing=adoption::missing(bound);
+    if !missing.is_empty() {notes.push(Diagnostic::new(&Site::default(),"N_SECURITY_INTENT",format!("{} tables have access rules and no security invariants: {}; declare the spec's privacy rules as invariants (`guide security`)",missing.len(),missing.join(", ")),"review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted").guide("security"));}
     let roles=audit::roles(&exposures);
+    let uncovered=adoption::uncovered(bound,&exposures);
     Report{format:1,scope:"logical row/authority intent; all database snapshots; ordinary authenticated viewers including service seats; explicit unproved paths".into(),
-        exclusions:vec!["system-principal trust boundary".into(),"physical timing, examined counts and resource/meter side channels".into(),"offline access may use a snapshot predating server revocation".into()],invariants:verdicts,exposures,roles,notes}
+        exclusions:vec!["system-principal trust boundary".into(),"physical timing, examined counts and resource/meter side channels".into(),"offline access may use a snapshot predating server revocation".into()],invariants:verdicts,exposures,roles,notes,uncovered}
 }
 fn blockers(bound:&Bound,inv:&Invariant)->Vec<String> {
     let schema=&bound.schema;let t=&schema.tables[&inv.table];let mut out=BTreeSet::new();
@@ -179,7 +195,6 @@ fn blockers(bound:&Bound,inv:&Invariant)->Vec<String> {
             }
         }
     }
-    if inv.target=="read" && schema.maintains.iter().any(|m|m.source==inv.table){out.insert("maintained aggregate/column/row-view exposes source changes under its own authority".into());}
     if schema.maintains.iter().any(|m|m.target==inv.table) && matches!(inv.target.as_str(),"insert"|"update"|"delete"|"write"|"always") {out.insert("aggregate/view target rows are written by engine maintenance independently of their direct table rules".into());}
     if !t.maintained.is_empty() && matches!(inv.target.as_str(),"write"|"update"|"always"){out.insert("engine-maintained columns bypass ordinary application write rules".into());}
     if bound.programs.iter().any(|p|matches!(p.program.kind,snapback4_core::ir::ProgramKind::Job|snapback4_core::ir::ProgramKind::Action)|p.program.native)

@@ -21,8 +21,8 @@ mutation writePrivateNote(body: text 1..2000):
 
 Run `snapback4 check`, `snapback4 audit` (or `check --audit`), then
 `snapback4 test`. `audit --json` lists conditional row predicates, operations,
-columns, inherited grants and grant writers. `check` names broad signed-in
-reads and missing intent. The test command runs isolated schema-derived
+columns, inherited grants and grant writers. Its final section lists conditional role/row/effect exposures with no matching invariant; declaring one effect does not cover the others. `check` names broad signed-in
+reads and missing intent, once per check for the project. Review `snapback/generated/security-invariants.q.draft` against the specification; it mirrors existing rules and can repeat the same mistakes. Confirm or correct each candidate and copy chosen declarations into an authored `.q` file. The draft is never compiled or auto-accepted. The test command runs isolated schema-derived
 challenges automatically and fails on replayed policy violations. Coverage
 that needs a live HTTP server, fixture assets, operation sequences or a device
 is named as not covered; zero violations alone does not qualify an app secure.
@@ -41,9 +41,8 @@ The implemented proof fragment exhaustively checks independent three-valued
 rule predicates. A failed implication is unproved until an engine replay
 establishes a counterexample. A schema-valid seeded snapshot is not a claim
 that an application operation sequence reaches that state. Required-column
-non-null assertions have a separate validation theorem. General counts,
-transitions, time and unsupported expressions stay explicitly unproved.
-Read-through captures/live parents, derived aggregates, raw rule probes,
+non-null assertions have a separate validation theorem. Read/count/sum/existence obligations are reported separately. A maintained aggregate with bare privacy keys can prove its contributor audience; a broader aggregate can yield a paired present/absent counterexample. Exact server `not before`/`expire at` bounds can prove a temporal read component independently of physical sweeps. General transitions and unsupported expressions remain unproved.
+Read-through captures/live parents, complex derived aggregates, raw rule probes,
 owned-field update bypasses, cascade/set-null and opaque jobs/workers need
 separate reductions. An unresolved path blocks the whole declaration's proof.
 
