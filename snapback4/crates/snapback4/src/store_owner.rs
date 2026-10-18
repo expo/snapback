@@ -111,7 +111,7 @@ fn acquire(store: &Path, shared: bool, wait: Duration) -> Result<Owner, String> 
 #[cfg(not(unix))]
 fn acquire(store: &Path, _: bool, _: Duration) -> Result<Owner, String> { Err(failure(store, "database ownership requires Unix")) }
 
-fn stopped_host(path: &Path) -> bool {
+pub(crate) fn stopped_host(path: &Path) -> bool {
     // A CLI owner or a host not yet announced still refuses immediately. A
     // reachable listener does too; only a prior host's cleanup gets a wait.
     // This is a refusal/wait hint, never permission to open the store: the

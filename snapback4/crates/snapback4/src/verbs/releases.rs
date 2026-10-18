@@ -40,14 +40,42 @@ fn inspect_current(dir: &Path) -> Result<u64, String> {
     use rusqlite::{Connection, OpenFlags, OptionalExtension};
     let database = dir.join("store.sqlite").canonicalize().map_err(|e| e.to_string())?;
     let missing = || format!("no current release in {}; run `snapback4 deploy {}` first", dir.display(), dir.display());
-    let owner = snapback4_core::private_fs::auxiliary_file(&database,
-        &snapback4_core::private_fs::owner_path(&database), false, 0)
-        .map_err(|e| format!("{}; existing ownership sidecar unavailable: {e}", missing()))?;
+    let owner = match snapback4_core::private_fs::auxiliary_file(&database,
+        &snapback4_core::private_fs::owner_path(&database), false, 0) {
+        Ok(owner) => owner,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            // Relocated/legacy deployments may not yet have a sidecar beside
+            // the resolved DB. Establish a complete current source first; only
+            // a known deployment may let SQLite create its ordinary WAL files.
+            return pointer_current(dir, &database);
+        },
+        Err(error) => return Err(format!("{}; existing ownership sidecar unavailable: {error}", missing())),
+    };
     match owner.try_lock() {
         Ok(()) => {},
         Err(std::fs::TryLockError::WouldBlock) => {
-            return crate::release_control::request(dir, crate::release_control::Command::Status {after:0, items_after:None, event:None})
-                .map_err(|error| format!("{}; {error}", missing()))?["release"].as_u64().filter(|n| *n > 0).ok_or_else(missing);
+            match crate::release_control::request(dir, crate::release_control::Command::Status {after:0, items_after:None, event:None}) {
+                Ok(status) => return status["release"].as_u64().filter(|n|*n>0).ok_or_else(missing),
+                Err(error) => {
+                    // A killed host's watchdogs retain ownership during their
+                    // bounded cleanup. Preserve serve's existing restart wait.
+                    if !crate::store_owner::stopped_host(&database) {
+                        // A second source directory may alias the same DB. Its
+                        // source cannot control this host, but its token still
+                        // belongs to the resolved database. Establish current
+                        // source before permitting ordinary read-only WAL work.
+                        return pointer_current(dir, &database).map_err(|_| format!("{}; {error}",missing()));
+                    }
+                    let deadline=std::time::Instant::now()+std::time::Duration::from_secs(5);
+                    loop {
+                        match owner.try_lock() {
+                            Ok(()) => break,
+                            Err(std::fs::TryLockError::WouldBlock) if std::time::Instant::now()<deadline => std::thread::sleep(std::time::Duration::from_millis(25)),
+                            _ => return Err(format!("{}; {error}",missing())),
+                        }
+                    }
+                }
+            }
         },
         Err(error) => return Err(error.to_string()),
     }
@@ -81,6 +109,18 @@ fn inspect_current(dir: &Path) -> Result<u64, String> {
         None => std::fs::read_to_string(dir.join("current")).map_err(|_| missing())?,
     };
     release.trim().parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing)
+}
+
+fn pointer_current(dir: &Path, database: &Path) -> Result<u64, String> {
+    let missing = || format!("no current release in {}; deploy first", dir.display());
+    let pointer = std::fs::read_to_string(dir.join("current")).map_err(|_| missing())?;
+    let pointer = pointer.trim().parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing)?;
+    bound_at(dir.join("releases").join(pointer.to_string()))?;
+    let store = snapback4_core::Store::open_read_only(database).map_err(|e|e.to_string())?;
+    match store.meta("release").map_err(|e|e.to_string())? {
+        Some(value) => value.parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing),
+        None => Ok(pointer),
+    }
 }
 
 /// `dev` and `serve` hold the store-owner lock for their lifetime. Release
