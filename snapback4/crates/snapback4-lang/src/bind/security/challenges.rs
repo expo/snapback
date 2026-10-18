@@ -167,6 +167,9 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
                     let Some(policy_rule)=&inv.policy else{out.unsupported.insert("operation policy outside rule fragment".into());continue;};
                     if policy_rule.any_term(&|t| !matches!(t,snapback4_core::schema::RuleTerm::Viewer|snapback4_core::schema::RuleTerm::Literal(_))) {out.unsupported.insert("operation policy requires write-boundary row-image tracing".into());continue;}
                     let writes=ir::write_tables(&p.program);
+                    if writes.iter().filter(|(table,_)|table==&inv.table).count()>1 {
+                        out.unsupported.insert(format!("{operation}: multiple target writes need executed-effect tracing; net images do not identify delete/reinsert"));continue;
+                    }
                     let deps=kernel::dependencies(policy_rule);
                     let unstable=deps.iter().any(|dep|{
                         let hits=writes.iter().filter(|(t,_)|t==dep).collect::<Vec<_>>();

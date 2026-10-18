@@ -68,3 +68,8 @@ fn basic(rule:&str)->String{format!("table notes:\n  owner: principal\n  body: t
  let b=bound("table notes:\n  frozen: text <=80\n  body: text <=80\n  immutable frozen\n  read <- allow\n  update <- allow\n  online only\nmutation edit(note: notes):\n  update notes[note] { body: 'changed' }\n  return null\ninvariant notes.frozen write only deny\n");assert!(security::challenges::run(&b).violations.is_empty());
  let b=bound("table notes:\n  key: text <=80\n  body: text <=80\n  unique key\n  read <- allow\n  insert <- allow\n  online only\nmutation put(key: text <=80):\n  return upsert notes[key] { key, body: 'changed' }\ninvariant notes.update only deny\n");assert!(security::challenges::run(&b).violations.is_empty());
 }
+
+#[test]fn delete_reinsert_and_contextual_probe_literals_cannot_falsely_refute(){
+ let b=bound("table notes:\n  body: text <=80\n  read <- allow\n  insert <- allow\n  delete <- allow\n  online only\nmutation replace(note: notes):\n  delete notes[note]\n  upsert notes[note] { body: 'changed' }\n  return null\ninvariant notes.update only deny\n");assert!(security::challenges::run(&b).violations.is_empty());
+ let b=bound("table roles:\n  name: text <=80\n  read <- allow\n  online only\ntable docs:\n  n: int 1..10\n  read <- allow\n  online only\ninvariant docs always .n > 0 and exists roles[id = 'security-roles']\n");assert!(security::challenges::run(&b).violations.is_empty());
+}

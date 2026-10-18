@@ -21,15 +21,25 @@ fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str)->Option<Value
         let a=value(left,row,rows,schema,viewer)?;let b=value(right,row,rows,schema,viewer)?;
         // The binder contextually types principal/id literals. This partial
         // evaluator refuses that coercion rather than using host strings.
-        if matches!((&a,&b),(Value::Id(_),Value::String(_))|(Value::String(_),Value::Id(_))){return None;}
-        Value::Bool(match op.as_str(){"="=>a==b,"!="=>a!=b,"<"|"<="|">"|">="=>if let (Value::Int(a),Value::Int(b))=(a,b){match op.as_str(){"<"=>a<b,"<="=>a<=b,">"=>a>b,_=>a>=b}}else{false},_=>return None})
+        if !matches!((&a,&b),(Value::Id(_),Value::Id(_))|(Value::String(_),Value::String(_))|(Value::Int(_),Value::Int(_))|(Value::Bool(_),Value::Bool(_))|(Value::Null,_)|(_,Value::Null)){return None;}
+        Value::Bool(match op.as_str(){"="=>a==b,"!="=>a!=b,"<"|"<="|">"|">="=>if let (Value::Int(a),Value::Int(b))=(a,b){match op.as_str(){"<"=>a<b,"<="=>a<=b,">"=>a>b,_=>a>=b}}else{return None;},_=>return None})
     },
     Expr::Exists{read,..}=>{
         let t=schema.table(&read.table)?;
         if t.is_expiring()||t.not_before.is_some()||t.through.is_some()||schema.maintain_for(&read.table).is_some()||read.filter.is_some()||read.range.is_some()||!read.seeks.is_empty()||read.matching.is_some(){return None;}
         let mut pins=Vec::new();
         for key in &read.keys{let column=key.column.as_ref()?;let val=value(&key.value,row,rows,schema,viewer)?;
-            if !t.columns.contains_key(column){return None;}pins.push((column,val));}
+            let kind=t.columns.get(column)?;
+            use snapback4_core::schema::ColumnType as C;
+            let typed=match (kind.required(),&val) {
+                (_,Value::Null)=>kind.is_optional(),
+                (C::Id|C::Principal|C::Ref{..},Value::Id(_))=>true,
+                (C::Text{..},Value::String(_))=>true,
+                (C::Enum{variants},Value::String(v))=>variants.contains(v),
+                (C::Int|C::IntRange{..}|C::Time,Value::Int(_))=>true,
+                (C::Bool,Value::Bool(_))=>true,_=>false,
+            };
+            if !typed{return None;}pins.push((column,val));}
         // This is an existential over raw live rows, not a program read or
         // a unique lookup; absence is decidable only in this complete snapshot.
         Value::Bool(rows.get(&read.table).into_iter().flatten().any(|r|pins.iter().all(|(c,v)|r.field(c).ok()==Some(v))))
