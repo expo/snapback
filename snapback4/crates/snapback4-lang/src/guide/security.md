@@ -126,7 +126,7 @@ rule does not repair privacy.
 
 Default `test` challenges pure-schema applications through a private production
 `serve`: unauthenticated calls, forged persona headers and development doors.
-The host uses no real account or development mode. Applications needing
+The host uses no pre-existing developer credentials or development mode. Applications needing
 native/worker artifacts are explicitly not covered by that schema-only host.
 Focused fixtures also enable short ordered mutation histories followed by
 ordinary reads; traces record actual calls and current policy evaluation.

@@ -31,9 +31,29 @@ fn exchange(address:SocketAddr,method:&str,path:&str,header:&str,body:&str)->Res
     let headers=std::str::from_utf8(&bytes[..boundary]).map_err(|_|"invalid HTTP headers")?;
     let body=&bytes[boundary+4..];
     let status=headers.split_whitespace().nth(1).and_then(|s|s.parse::<u16>().ok()).ok_or("malformed HTTP status")?;
-    let decoded=if headers.lines().any(|line|line.split_once(':').is_some_and(|(k,v)|k.eq_ignore_ascii_case("transfer-encoding")&&v.trim().eq_ignore_ascii_case("chunked"))){chunks(body)?}else{body.to_vec()};
+    let decoded=framed(headers,body)?;
     let json=serde_json::from_slice(&decoded).map_err(|e|format!("HTTP {status}: {e}"))?;
     Ok((status,json))
+}
+fn framed(headers:&str,body:&[u8])->Result<Vec<u8>,String>{
+    let mut length=None;let mut transfer=false;
+    for line in headers.lines().skip(1){
+        let (name,value)=line.split_once(':').ok_or("malformed HTTP header")?;
+        if name.eq_ignore_ascii_case("content-length"){
+            let value=value.trim();
+            if length.is_some()||value.is_empty()||!value.bytes().all(|b|b.is_ascii_digit()){return Err("invalid or duplicate HTTP content length".into());}
+            length=Some(value.parse::<usize>().map_err(|_|"invalid HTTP content length")?);
+        }
+        if name.eq_ignore_ascii_case("transfer-encoding"){
+            if transfer||!value.trim().eq_ignore_ascii_case("chunked"){return Err("invalid or duplicate HTTP transfer encoding".into());}transfer=true;
+        }
+    }
+    if transfer{
+        if length.is_some(){return Err("conflicting HTTP body framing".into());}chunks(body)
+    }else{
+        if length.is_some_and(|n|n!=body.len()){return Err("HTTP body differs from declared content length".into());}
+        Ok(body.to_vec())
+    }
 }
 fn chunks(mut wire:&[u8])->Result<Vec<u8>,String>{
     let mut out=Vec::new();
@@ -57,6 +77,11 @@ mod tests{
         assert!(super::chunks(b"10\r\nshort\r\n0\r\n\r\n").is_err());
         assert!(super::chunks(b"ffffffffffffffffffff\r\n").is_err());
         assert_eq!(super::chunks(b"1\r\n\xc3\r\n1\r\n\xa9\r\n0\r\n\r\n").unwrap(),"é".as_bytes());
+        let prefix=b"{\"denied\":{\"code\":\"E_AUTH\"}}";
+        assert!(super::framed("HTTP/1.1 401 Unauthorized\r\nContent-Length: 100",prefix).is_err(),"complete JSON prefix must not hide truncation");
+        assert!(super::framed("HTTP/1.1 401 Unauthorized\r\nContent-Length: 2\r\nContent-Length: 2",b"{}").is_err());
+        assert!(super::framed("HTTP/1.1 401 Unauthorized\r\nTransfer-Encoding: chunked\r\nContent-Length: 2",b"{}").is_err());
+        assert_eq!(super::framed("HTTP/1.1 200 OK\r\nContent-Length: 2",b"{}").unwrap(),b"{}");
     }
 }
 
@@ -76,8 +101,11 @@ fn revoked_sessions(bound:&Bound,address:SocketAddr)->Result<usize,String>{
     let (status,rotated)=exchange(address,"POST","/auth/refresh",&bearer,"{}")?;
     if status!=200{return Err("private revocation campaign could not rotate its live session".into());}
     let successor=rotated["session"]["token"].as_str().ok_or("rotation did not return a successor session")?;
+    if successor==token||rotated["session"]["principal"]!=session["session"]["principal"]{return Err("rotation did not return a distinct successor for the same principal".into());}
     let next=format!("Authorization: Bearer {successor}\r\n");
     if exchange(address,"GET","/schema",&next,"")?.0!=200{return Err("rotation successor failed admission before revocation".into());}
+    let (status,retired)=exchange(address,"GET","/schema",&bearer,"")?;
+    if status!=401||retired["denied"]["code"]!="E_AUTH"{return Err("rotation left the original credential admitted before logout-all".into());}
     let (status,ended)=exchange(address,"POST","/auth/logout-all",&next,"{}")?;
     if status!=200||ended["ok"]!=true||ended["revoked"].as_u64().unwrap_or(0)==0{return Err("private revocation campaign could not revoke its successor".into());}
     let mut attempted=0;
