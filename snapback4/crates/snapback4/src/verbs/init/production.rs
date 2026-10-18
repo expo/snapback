@@ -141,6 +141,13 @@ fn seat_rules(file: &str, source: &str, table: &TableDecl, read: &RuleExpr, inse
     Ok(lines.concat())
 }
 
+// Test personas are expected. Keep runtime scripts visible rather than
+// excluding the entire scripts directory (which may contain the real server).
+fn test_source(path: &Path) -> bool {
+    let name = path.file_stem().and_then(|name| name.to_str()).unwrap_or_default().to_ascii_lowercase();
+    name.split(['.', '-', '_']).any(|part| matches!(part, "test" | "tests" | "spec" | "acceptance" | "fixture" | "fixtures" | "proof" | "smoke"))
+}
+
 fn frontend_principals(root: &Path, messages: &mut Vec<String>) -> Result<(), String> {
     fn walk(root: &Path, dir: &Path, messages: &mut Vec<String>, depth: u8) -> Result<(), String> {
         if depth == 0 { return Ok(()); }
@@ -151,10 +158,10 @@ fn frontend_principals(root: &Path, messages: &mut Vec<String>) -> Result<(), St
             let meta = std::fs::symlink_metadata(&path).map_err(|e| e.to_string())?;
             if meta.file_type().is_symlink() { continue; }
             if meta.is_dir() {
-                if !matches!(path.file_name().and_then(|name| name.to_str()), Some("node_modules" | ".git" | "snapback" | ".snapback4" | "target" | "dist" | "build" | ".expo" | "fixtures" | "versions" | "recipes")) {
+                if path.file_name().and_then(|name| name.to_str()).is_some_and(|name| !name.starts_with('.') && !matches!(name, "node_modules" | "snapback" | "target" | "dist" | "build" | "fixtures" | "versions" | "recipes" | "test" | "tests" | "__tests__" | "acceptance")) {
                     walk(root, &path, messages, depth - 1)?;
                 }
-            } else if path.extension().and_then(|ext| ext.to_str()).is_some_and(|ext| matches!(ext, "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs" | "html")) {
+            } else if !test_source(&path) && path.extension().and_then(|ext| ext.to_str()).is_some_and(|ext| matches!(ext, "ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs" | "html")) {
                 let text = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
                 for (line, _) in text.lines().enumerate().filter(|(_, text)| text.contains("dev:")) {
                     messages.push(format!("{}:{}: hard-coded dev: principal; map to an authenticated account or authorized principal picker", path.strip_prefix(root).unwrap_or(&path).display(), line + 1));

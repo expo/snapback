@@ -2,6 +2,8 @@
 
 ## 0.4.32
 
+- Production principal migration scans skip hidden directories and test, acceptance, fixture and proof sources; runtime scripts remain visible.
+
 - Production entry opens the device and restores persisted sessions before refreshing `/auth/config`; an unreachable backend no longer replaces an offline account screen with an alert.
 
 ## 0.4.31

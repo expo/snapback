@@ -138,6 +138,15 @@ export async function proveProduction(client, platform, expo, directory) {
   const path = join(persona, "snapback/schema.q");
   writeFileSync(path, readFileSync(path, "utf8").replace(/^use identity[^\n]*\n/gm, "") + personaRoster);
   writeFileSync(join(persona, "src/legacy-principal.ts"), "export const legacyPrincipal = 'dev:alice';\n");
+  // H9: these are deliberately retained private test/checkpoint files. They
+  // must not become production principal migration findings.
+  for (const name of [".checkpoint/scripts/picker.mjs", ".scratch/generator.ts", "scripts/acceptance.mjs", "src/picker.test.ts"]) {
+    const path = join(persona, name); mkdirSync(dirname(path), {recursive:true});
+    writeFileSync(path, "const principal = 'dev:alice';\n");
+  }
+  const scan = capture(cli, ["init", "--adapt", "--production"], persona, env, join(persona, "production-scan.log"));
+  assert.match(scan, /src\/legacy-principal.ts:1: hard-coded dev: principal/);
+  assert.doesNotMatch(scan, /(?:checkpoint|scratch|acceptance\.mjs|picker\.test\.ts).*hard-coded dev:/);
   const adaptation = [{ kind: "persona-only starter", ...proveProductionAdaptation(cli, persona, env) }];
   for (const [index, original] of (process.env.SNAPBACK4_PRODUCTION_LANES ?? "").split(":").filter(Boolean).map(path => resolve(path)).entries()) {
     const cwd = join(output, `production-adapt-lane-${index}-${basename(original)}`); mkdirSync(cwd, { recursive: true });

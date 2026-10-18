@@ -132,3 +132,21 @@ fn typed_roster_references_do_not_add_unrelated_parent_read_grants() {
     let result = engine.mutate("bootstrapmembers", None, Context::new("service:ops", args)).unwrap();
     assert!(format!("{result:?}").contains("Sent"), "{result:?}");
 }
+
+
+#[test]
+fn principal_scan_excludes_hidden_and_test_sources_but_keeps_runtime_scripts() {
+    let app = App::new(ROSTER);
+    for path in [".checkpoint/src/App.tsx", ".scratch/nested/generator.mjs", "scripts/acceptance.mjs", "scripts/make-fixtures.mjs", "scripts/frontend-proof.mjs", "src/App.test.tsx", "src/nested/__tests__/picker.ts", "tests/client.mjs"] {
+        let target = app.0.join(path);
+        fs::create_dir_all(target.parent().unwrap()).unwrap();
+        fs::write(target, "const expected = 'dev:alice';\n").unwrap();
+    }
+    fs::write(app.0.join("scripts/server.mjs"), "const runtime = 'dev:alice';\n").unwrap();
+    let output = app.run(false); assert!(output.status.success(), "{output:?}");
+    let text = String::from_utf8_lossy(&output.stdout);
+    let findings: Vec<_> = text.lines().filter(|line| line.contains("hard-coded dev: principal")).collect();
+    assert_eq!(findings.len(), 2, "{text}");
+    assert!(findings.iter().any(|line| line.contains("src/App.tsx:1:")), "{text}");
+    assert!(findings.iter().any(|line| line.contains("scripts/server.mjs:1:")), "{text}");
+}
