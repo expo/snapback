@@ -404,5 +404,5 @@ query statusHistory(task: versionedTasks, c: cursor ?):
 The expected-version check and increment are application invariants in this
 mutation; the table transition rule independently authorizes the status edge.
 Keep every future writer on the same version/history path. History insert
-failure rolls the status update back. `LANG4` owns the query-audience and
+failure rolls the status update back. Review query-audience and
 `N_REQUIRE_REFUSED` diagnostics for these workflows.
