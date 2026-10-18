@@ -100,9 +100,11 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                         Expr::Name{name,..} if name=="now"=>now=true,
                         Expr::Member{base,name,..} if name=="status"&&matches!(base.as_ref(),Expr::Name{name,..} if aliases.contains(name))=>status=true,_=>{}
                     });}
+                    let module = std::path::Path::new(&doc.file).file_stem().and_then(|s| s.to_str()).unwrap_or("schema");
+                    let job_name = if module == "schema" { p.name.clone() } else { format!("{module}.{}", p.name) };
                     let already_named = bound.notes.iter().any(|n| n.code == "N_SWEEP_DEADLINE" && n.site == m.site
                         && n.message.contains(&format!("column {table}.status)"))
-                        && n.message.contains(&format!("scheduled job {} ",p.name)));
+                        && n.message.contains(&format!("scheduled job {job_name} ")));
                     if status&&!now&&!already_named{note(&mut out,&m.site,"N_SWEEP_ONLY_DEADLINE",format!("{} gates on {table}.status while clock job {} changes that status; writes can run between the deadline and sweep",m.name,p.name),"enforce the deadline against server now in the mutation too; a sweep cleans up state but does not enforce an exact deadline");}
                 }}
             }

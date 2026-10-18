@@ -26,14 +26,17 @@ fn notes(source: &str) -> Vec<snapback4_lang::Diagnostic> {
 }
 #[test]
 fn security_and_completeness_advice_share_the_same_sweep_finding() {
-    let source = SWEEP.replace("closed", "status");
-    let sources = vec![("schema.q".into(), source)];
-    let b = compile(&sources);
-    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
-    let mut report = snapback4_lang::security::analyze(&b);
-    snapback4_lang::security::add_source_notes(&mut report, &sources, &b);
-    assert_eq!(b.notes.iter().chain(&report.notes).filter(|n|
-        matches!(n.code.as_str(), "N_SWEEP_DEADLINE" | "N_SWEEP_ONLY_DEADLINE")).count(), 1);
+    for file in ["schema.q", "workflow.q"] {
+        let source = SWEEP.replace("closed", "status");
+        let source = if file == "schema.q" { source } else { source.replace("1m: closeDue", "1m: workflow.closeDue") };
+        let sources = vec![(file.into(), source)];
+        let b = compile(&sources);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        let mut report = snapback4_lang::security::analyze(&b);
+        snapback4_lang::security::add_source_notes(&mut report, &sources, &b);
+        assert_eq!(b.notes.iter().chain(&report.notes).filter(|n|
+            matches!(n.code.as_str(), "N_SWEEP_DEADLINE" | "N_SWEEP_ONLY_DEADLINE")).count(), 1, "{file}");
+    }
 }
 #[test]
 fn sweep_deadline_names_the_exact_row_and_does_not_invent_guard_direction() {
