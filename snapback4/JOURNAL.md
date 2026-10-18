@@ -96313,3 +96313,18 @@ under `--prefer-offline`; after refreshing it, Linux passed `== 0 failure(s) in
 steps reran after it appeared. Clean installs on Linux and the Mac print
 `snapback4 0.4.30` and pass `init` + `check`. Details:
 `reports/20261016-publication-0.4.30/REPORT.md`.
+
+
+## 2026-10-18 — SEC: non-whitespace text minimums and security intent
+
+The commissioned bakeoff security lane adds independent policy intent,
+exposure analysis and generated challenges under LLP 3000.036.004. Core design
+revision 3 and the operation/row refinement revision 5 each received READY
+from Muse and a fresh Codex session; verbatim reviews/provenance are retained.
+Text minimums now count non-whitespace Unicode scalars through the shared
+argument/row validator. Maxima count all scalars and stored bytes are unchanged.
+The two focused minimum tests pass, including optional/list arguments. Locked
+Linux wasm is 2,372,893 B raw / 723,411 B gzip (+136 B gzip versus 0.4.31);
+budget 723,911 B is measurement + exactly 500 B. Compiler security analysis
+adds no device protocol. Qualification continues; no zero-hole claim is made.
+STAGE owns first-admin/staging setup; RULES5 owns live-parent authority.

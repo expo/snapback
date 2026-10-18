@@ -129,9 +129,10 @@ fn describe(value: &Value) -> String {
 }
 
 pub fn validate_text(label: &str, text: &str, min: u32, format: Option<TextFormat>) -> Result<(), RuntimeError> {
-    let length = text.chars().count();
+    // @ref LLP 3000.036.004#6-bakeoff-repairs — minimums measure evidence, while maxima still measure the complete value.
+    let length = text.chars().filter(|c| !c.is_whitespace()).count();
     if length < min as usize {
-        return Err(RuntimeError::Input(format!("{label} needs at least {min} characters; got {length}")));
+        return Err(RuntimeError::Input(format!("{label} needs at least {min} non-whitespace characters; got {length}")));
     }
     if let Some(format) = format
         && !format.matches(text)
@@ -259,5 +260,28 @@ pub fn validate_arg(schema: &Schema, kind: &ArgType, value: &Value, label: &str)
             let column = crate::schema::arg_as_column(other).ok_or_else(|| RuntimeError::Input(format!("{label} has no column form")))?;
             if fits(&column, Some(value)) { Ok(()) } else { Err(RuntimeError::Input(format!("{label} must be {column}, not {}", describe(value)))) }
         }
+    }
+}
+
+#[cfg(test)]
+mod security_minimum_tests {
+    use super::*;
+    #[test]
+    fn unicode_whitespace_does_not_supply_required_evidence() {
+        for text in ["", " ", "\t\n\r", "\u{00a0}\u{2003}\u{202f}", "a \t"] {
+            assert!(validate_text("reason", text, 2, None).is_err(), "{text:?}");
+        }
+        assert!(validate_text("reason", " a \t b\n", 2, None).is_ok());
+        assert!(validate_text("optional", " \t", 0, None).is_ok());
+    }
+    #[test]
+    fn argument_lists_and_optionals_share_the_minimum_and_maximum() {
+        let text=ArgType::Text {min:2,max:8,format:None};
+        let list=ArgType::List {of:Some(Box::new(ArgType::Optional(Box::new(text)))),max:2};
+        let schema=Schema::default();
+        assert!(validate_arg(&schema,&list,&Value::Array(vec![Value::String("  ".into())]),"reasons").is_err());
+        assert!(validate_arg(&schema,&list,&Value::Array(vec![Value::Null,Value::String("ab".into())]),"reasons").is_ok());
+        let text=ArgType::Text {min:2,max:3,format:None};
+        assert!(validate_arg(&schema,&text,&Value::String(" ab ".into()),"reason").is_err());
     }
 }
