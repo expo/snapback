@@ -1,4 +1,5 @@
 # Deploy: upgrade, real accounts and schema evolution
+
 A release is immutable source over one durable store. JSON fields, bounded ready waits and worker roots: `guide release-json`. Deploy from the app directory:
 
 ```sh
@@ -7,7 +8,6 @@ bunx snapback4 test
 bunx snapback4 deploy ./deployment
 bunx snapback4 serve ./deployment --port 4400
 ```
-
 For a complete real-user staging script and first-admin setup, run `guide staging`. Bulk account setup is restricted to fresh `deploy --staging` stores. Generations climb on every actual switch, including rollback and forward; selecting identical execution content is a no-op. `token --service ops --release ./deployment` works while serve runs. Signups are rate-limited: create proof accounts sequentially and respect a returned retry delay. Time-gated mutations on the real clock need a bounded retry of the authored refusal (for example `NOT_OPEN`), with a deadline and short delay; never retry unrelated refusals. Development proofs can advance the clock (`guide time`).
 
 ## Upgrade
