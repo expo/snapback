@@ -13,7 +13,19 @@ pub(super) fn viewers(bound:&Bound)->Vec<String>{
             RuleExpr::And(xs)|RuleExpr::Or(xs)=>for r in xs{collect(r,out)},RuleExpr::Not(r)=>collect(r,out),
             r=>{if let Some(p)=r.service_grant(){out.insert(p.into());}}
         }}collect(rule,&mut out);
-    }}out.into_iter().collect()
+    }}
+    // Seats can be named only in an operation's require, or only in independent
+    // intent. Overapproximate string literals in the compiled artifact; never
+    // infer principal reachability or proof from being in this finite cast.
+    fn seats(value:&serde_json::Value,out:&mut BTreeSet<String>){match value{
+        serde_json::Value::String(s) if s.starts_with("service:")&&s.len()>8=>{out.insert(s.clone());},
+        serde_json::Value::Array(xs)=>for x in xs{seats(x,out)},
+        serde_json::Value::Object(xs)=>for x in xs.values(){seats(x,out)},_=>{}
+    }}
+    seats(&serde_json::to_value(&bound.schema).expect("schema serialization"),&mut out);
+    for p in &bound.programs{seats(&serde_json::to_value(&p.program).expect("program serialization"),&mut out);}
+    seats(&serde_json::to_value(&bound.invariants).expect("invariant serialization"),&mut out);
+    out.into_iter().collect()
 }
 
 pub(super) fn argument_cases(args:&BTreeMap<String,ir::ArgType>,out:&mut Campaign)->Vec<BTreeMap<String,Value>>{

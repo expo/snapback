@@ -17,11 +17,12 @@ fn actual_grant_demotion_and_read_has_a_replayable_trace(){
 }
 #[test]
 fn all_named_service_seats_and_enum_argument_tuples_are_exercised(){
- let b=compile(&[("schema.q".into(),"use personas alice, bob\ntable notes:\n  role: text <=20\n  read <- viewer = 'service:one' or viewer = 'service:two'\n  online only\nquery inspect(a: enum('one','two','three'), b: enum('x','y'), c: enum('u','v') ?):\n  return { a, b, c, who: viewer }\n".into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+ let b=compile(&[("schema.q".into(),"use personas alice, bob\ntable notes:\n  role: text <=20\n  read <- viewer = 'service:one' or viewer = 'service:two'\n  online only\ninvariant notes.read only viewer != 'service:policy-only'\nquery inspect(a: enum('one','two','three'), b: enum('x','y'), c: enum('u','v') ?):\n  require viewer != 'service:program-only' else DIFFERENT_SEAT\n  return { a, b, c, who: viewer }\n".into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
  let fixture=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
  let mut c=security::challenges::Campaign::default();security::challenges::operations(&b,&fixture,&mut c);
- // Four generic viewers, two personas and two declared service seats × eighteen tuples, including nullable variants.
- assert_eq!(c.operations["inspect"],8*18,"{c:?}");
+ // Four generic viewers, two personas and four seats (including operation-only
+ // and intent-only literals) × eighteen tuples, including nullable variants.
+ assert_eq!(c.operations["inspect"],10*18,"{c:?}");
 }
 
 #[test]
