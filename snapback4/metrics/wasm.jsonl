@@ -109,3 +109,4 @@
 {"at":"2026-10-16T23:46:15Z","sha":"ecc0f2c305","dirty":true,"wasm":{"raw":2372829,"gzip":723275,"brotli":545364},"glue":{"raw":16053,"gzip":3695,"brotli":3259},"wasmOpt":true,"budget":723660,"over":0}
 {"at":"2026-10-17T00:14:38Z","sha":"61060eeeb1","dirty":false,"wasm":{"raw":2372829,"gzip":723275,"brotli":545364},"glue":{"raw":16053,"gzip":3695,"brotli":3259},"wasmOpt":true,"budget":723775,"over":0}
 {"at":"2026-10-18T10:50:55Z","sha":"8a7c4f8b25","dirty":false,"wasm":{"raw":2372829,"gzip":723275,"brotli":545364},"glue":{"raw":16053,"gzip":3695,"brotli":3259},"wasmOpt":true,"budget":723775,"over":0,"brotliTool":"node:zlib quality 11; brotli CLI unavailable"}
+{"at":"2026-10-18T19:33:48Z","sha":"08fa452c31","dirty":false,"wasm":{"raw":2380425,"gzip":725987,"brotli":547660},"glue":{"raw":16053,"gzip":3695,"brotli":3259},"wasmOpt":true,"budget":726364,"over":0}

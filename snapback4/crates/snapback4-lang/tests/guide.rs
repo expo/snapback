@@ -534,7 +534,7 @@ fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
         assert!(card("rule-recipes").unwrap().contains("runtime equality"));
         return bound;
     }
-    // @ref LLP 3000.036.002#13 — caller-visible existence is the lesson, not global absence.
+    // @ref LLP 3000.036.002#14 — caller-visible existence is the lesson, not global absence.
     // This exact ladder example intentionally contrasts a hidden rule probe
     // with caller-visible existence; its one advisory note is part of the lesson.
     if quarry(card("rules").unwrap()).iter().any(|block| block == source && block.contains("query canReadLadderGrant(")) {
