@@ -1,0 +1,10 @@
+{
+  "model": "muse-spark-1.3-contributor",
+  "reasoning_effort": "high",
+  "candidate": "bda003c332f5f36b85ecc70d4b4ddc491dde9b96",
+  "verdict": "NOT READY",
+  "transcript": "3000.000.000.001-stage-r5.muse.txt",
+  "sha256": "89755e1ea4364b4dedc2f8c0abd3d44cfa3b2e39f1236de2b0fb6ba90b43194f",
+  "brief": "3000.000.000.001-stage-r5.brief.md",
+  "method": "fresh mutually blind external CLI session; complete stdout/stderr preserved; provider retry output retained"
+}

@@ -96351,3 +96351,11 @@ custom scripts remain owned by their author. DAY5 owns other starter custody.
 All three copied wave-16 probes (002, 011, 045) ran serve with real users and
 closed unauthenticated doors; sanitized evidence lives in reports/20261018-stage.
 No original lane or other worktree was modified, and nothing was pushed.
+
+### STAGE: published fixture custody follow-through (2026-10-18)
+
+Both fresh round-5 reviewers found the testing guide still promised automatic
+memory isolation. Fixture and browser proofs now explicitly request memory;
+fixture tools also opt into unsafe doors. Packed qualification runs the published
+fixture, client developmentHosts and browser fences verbatim and checks that
+fixture hosts preserve a prepopulated persistent developer database.

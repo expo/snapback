@@ -4049,7 +4049,7 @@ export async function applicationProof(cwd: string) {
 
 // Development hosts use the same custody. Add assertions before stopping them.
 export async function developmentHosts(cwd: string) {
-  const backend = await startDev({ cwd });
+  const backend = await startDev({ cwd, args: ["--memory", "--unsafe-dev-doors"] });
   try {
     // Read the application's fixtures/<table>.jsonl using the dev schema/clock.
     const seed = await loadFixtures("fixtures", { url: backend.url, cwd });
