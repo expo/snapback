@@ -99,7 +99,7 @@ test('guide and probe agree on widen, tighten, require, SIGTERM, rollback and fo
   assert.match(forward,/note: release 4 tightens notes.update/);
   assert.match(forward,/note: release 4 tightens edit.require/);
   run('rollback',deployment,'--to','latest');
-  const guide=run('guide','deploy').stdout;
+  const guide=run('guide','deploy','--full').stdout;
   for(const text of ['old and new rule clauses','proved tightening is a note','loosening or unproved implication is a WARNING','including rollback that removes a new guard'])assert.ok(guide.includes(text),text);
   run('check');
   const generated=readFileSync(join(schema,'../../snapback/generated/api.ts'),'utf8');
