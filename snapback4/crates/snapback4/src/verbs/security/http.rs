@@ -26,11 +26,38 @@ fn exchange(address:SocketAddr,method:&str,path:&str,header:&str,body:&str)->Res
     let wire=format!("{method} {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n{header}\r\n{body}",body.len());
     stream.write_all(wire.as_bytes()).map_err(|e|e.to_string())?;
     let mut bytes=Vec::new();stream.take(1<<20).read_to_end(&mut bytes).map_err(|e|e.to_string())?;
-    let wire=String::from_utf8(bytes).map_err(|e|e.to_string())?;
-    let status=wire.split_whitespace().nth(1).and_then(|s|s.parse::<u16>().ok()).ok_or("malformed HTTP status")?;
-    let body=wire.split_once("\r\n\r\n").map(|(_,b)|b).ok_or("malformed HTTP response")?;
-    let json=serde_json::from_str(body).map_err(|e|format!("HTTP {status}: {e}"))?;
+    if bytes.len()==1<<20{return Err("private HTTP response exceeded 1 MiB".into());}
+    let boundary=bytes.windows(4).position(|b|b==b"\r\n\r\n").ok_or("malformed HTTP response")?;
+    let headers=std::str::from_utf8(&bytes[..boundary]).map_err(|_|"invalid HTTP headers")?;
+    let body=&bytes[boundary+4..];
+    let status=headers.split_whitespace().nth(1).and_then(|s|s.parse::<u16>().ok()).ok_or("malformed HTTP status")?;
+    let decoded=if headers.lines().any(|line|line.split_once(':').is_some_and(|(k,v)|k.eq_ignore_ascii_case("transfer-encoding")&&v.trim().eq_ignore_ascii_case("chunked"))){chunks(body)?}else{body.to_vec()};
+    let json=serde_json::from_slice(&decoded).map_err(|e|format!("HTTP {status}: {e}"))?;
     Ok((status,json))
+}
+fn chunks(mut wire:&[u8])->Result<Vec<u8>,String>{
+    let mut out=Vec::new();
+    loop{
+        let line=wire.windows(2).position(|b|b==b"\r\n").ok_or("incomplete HTTP chunk header")?;
+        let size=std::str::from_utf8(&wire[..line]).map_err(|_|"invalid HTTP chunk header")?;
+        let count=usize::from_str_radix(size.split(';').next().unwrap_or(""),16).map_err(|_|"invalid HTTP chunk size")?;
+        wire=&wire[line+2..];
+        if count==0{if wire!=b"\r\n"{return Err("unexpected HTTP chunk trailer".into());}return Ok(out);}
+        let end=count.checked_add(2).ok_or("HTTP chunk size overflow")?;
+        if wire.len()<end||&wire[count..end]!=b"\r\n"{return Err("incomplete HTTP chunk body".into());}
+        out.extend_from_slice(&wire[..count]);wire=&wire[end..];
+    }
+}
+
+#[cfg(test)]
+mod tests{
+    #[test]fn production_schema_chunks_are_decoded_before_json(){
+        let body=super::chunks(b"5\r\n{\"a\":\r\n6\r\n\"yes\"}\r\n0\r\n\r\n").unwrap();
+        assert_eq!(serde_json::from_slice::<serde_json::Value>(&body).unwrap()["a"],"yes");
+        assert!(super::chunks(b"10\r\nshort\r\n0\r\n\r\n").is_err());
+        assert!(super::chunks(b"ffffffffffffffffffff\r\n").is_err());
+        assert_eq!(super::chunks(b"1\r\n\xc3\r\n1\r\n\xa9\r\n0\r\n\r\n").unwrap(),"é".as_bytes());
+    }
 }
 
 // An actual credential history at the production admission boundary. A stale
