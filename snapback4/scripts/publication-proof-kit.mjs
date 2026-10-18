@@ -55,7 +55,7 @@ try {
     {as:'alice',op:'bump',args:{counterId:'$rows.0.id'}},
     {as:'alice',op:'counts',args:{},match:[{n:1}]}].map(JSON.stringify).join('\n'));
   const tested=await cli(['test'],{cwd});assert.equal(tested.code,0,tested.stdout+tested.stderr);assert.match(tested.stdout,/legend: examined=rows visited/);assert.match(tested.stdout,/denied=unexpected refusal/);
-  dev=await startDev({cwd,args:['--no-watch']});
+  dev=await startDev({cwd,args:['--memory','--no-watch']});
   const post=async(path,body)=>(await fetch(dev.url+path,{method:'POST',headers:{'x-snapback-persona':'alice'},body:JSON.stringify(body)})).json();
   await post('/seed',[{table:'counters',row:{id:'counter',n:0}}]);
   const refused=await post('/dev/clock/advance',{duration:'30d',eachBoundary:true});
@@ -71,7 +71,7 @@ try {
   const replayed=await command('sh',['-c',replay],{cwd});assert.equal(replayed.code,0,replayed.stderr);assert.equal(await count(),3);
   await dev.stop();dev=undefined;
   // The built production starter uses its own real client and witness clock.
-  uiDev=await startDev();web=await startStatic('dist');
+  uiDev=await startDev({args:['--memory']});web=await startStatic('dist');
   await withBrowser({executablePath:process.env.CHROME},async context=>{
     const page=await context.newPage();await page.goto(web.url+'/?api='+encodeURIComponent(uiDev.url));
     await page.getByRole('button',{name:'Continue as a guest',exact:true}).click();

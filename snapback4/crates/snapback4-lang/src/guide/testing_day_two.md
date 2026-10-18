@@ -3,7 +3,7 @@
 
 Run this in a fresh `init --web` starter after installing its dependencies.
 Save the block as scripts/day2-accounts.mjs and run `node scripts/day2-accounts.mjs`.
-It uses the starter's complete production recipe (teams and memberships),
+It copies the installed package's complete production recipe (teams and memberships),
 compiles and builds that UI, then signs in through its production account form.
 The production entry recipe is maintained on `guide production`.
 Adapt the assertions to your own business model when replacing this example.
@@ -27,7 +27,7 @@ import { withBrowser, command, cli, deploy, rollback, startServe, startStatic,
 await withBrowser({ executablePath: process.env.CHROME }, async context => {
   // Browser dependency checks happen before building or deploying anything.
   for (const [from, to] of [["schema.q", "snapback/schema.q"], ["App.tsx", "src/App.tsx"], ["client.ts", "src/client.ts"]]) {
-    await copyFile(`recipes/production/${from}`, to);
+    await copyFile(`node_modules/snapback4/dist/recipes/production/web/${from}`, to);
   }
   for (const args of [["check"]]) { const result = await cli(args); assert.equal(result.code, 0, result.stderr); }
   for (const script of ["typecheck", "build"]) {
@@ -38,7 +38,7 @@ await withBrowser({ executablePath: process.env.CHROME }, async context => {
   try {
     const v1 = join(work, "v1"), v2 = join(work, "v2"), directory = join(work, "deployment");
     await mkdir(v1); await mkdir(v2);
-    const base = await readFile("recipes/production/schema.q", "utf8");
+    const base = await readFile("node_modules/snapback4/dist/recipes/production/web/schema.q", "utf8");
     const evolved = base.replace("table members:\n", "table members:\n  note: text <=40 default 'evolved'\n");
     assert.notEqual(evolved, base);
     await writeFile(join(v1, "schema.q"), base); await writeFile(join(v2, "schema.q"), evolved);
