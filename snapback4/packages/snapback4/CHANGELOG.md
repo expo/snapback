@@ -1,5 +1,9 @@
 # Snapback 4 behavior changes
 
+## 0.4.32
+
+- Security: independent schema invariants, three-valued rule implication with explicit unproved paths, `audit`/`check --audit`, schema-derived engine challenges in default `test`, grant lifetime/writer/optional-evidence/existence advice. Text minimums count non-whitespace Unicode characters; maximums and stored bytes are unchanged. `guide security` states proof boundaries and coverage limits.
+
 ## 0.4.31
 
 - Existing stores keep their rows, ids, schema and captured `read through` authority. No automatic data repair or audience expansion occurs. Regenerate declarations and rebuild web, native and Exact clients to pick up the runtime and client changes below; review new correctness notes before deploying edited schemas.

@@ -1,4 +1,13 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_SECURITY_TARGET", "an invariant names an unknown table, column or effect; correct the declared target; guide security."),
+    ("N_SECURITY_INTENT", "tables have access rules but no independent policy intent; declare invariants from the product spec; guide security."),
+    ("N_BROAD_READ", "these columns are readable by every signed-in user; confirm that the spec permits it; guide security."),
+    ("N_GRANT_OUTLIVES_ROLE", "a derived grant can survive a role change; recheck the current reader role or revoke derived grants transactionally; guide security."),
+    ("N_ARGUMENT_GRANT", "a mutation argument is written into a reader-grant column; validate the recipient role and relationship; guide security."),
+    ("N_OPTIONAL_EVIDENCE", "optional media permits missing evidence; declare required image or a list minimum if the spec requires it; guide security."),
+    ("N_SWEEP_ONLY_DEADLINE", "a sweep is eventual; also enforce exact deadlines against server now in affected mutations; guide security."),
+    ("N_EXISTENCE_ORACLE", "distinct lookup-absence and later-denial codes may disclose existence to a reader; unify code and message or tighten read authority; guide security."),
+
     ("E_EXPIRY_ORPHAN", "doctor found references to a physically missing expiring parent; old expiry and deliberate dangling data are indistinguishable. Review and back up, stop the host, then use doctor --repair-expiry-orphan table:id; guide expire."),
     ("N_SYNC_EMPTY", "family advice — a device-planned filtered page over unbounded sync has no bounded acquisition proof for an empty filtered partition. It can stay loading until coverage is established. Bound sync and read its window unfiltered before filtering in the client, or call through app.online.query / useOnline().query for server history. This is coverage advice, not a claim that every empty read stalls. guide sync."),
     ("E_FOLLOWING_INPUT", "invalid Following opening, arguments or protocol envelope. Use the generated useFollowing binding; guide feeds."),

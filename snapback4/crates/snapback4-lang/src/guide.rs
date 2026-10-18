@@ -66,10 +66,11 @@ mod indexes;
 mod types;
 pub use discovery::{FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "release-json", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet", "changes", "production"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "release-json", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet", "changes", "production", "security"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
+    ("invariants", "security"), ("invariant", "security"), ("audit", "security"), ("privacy", "security"),
     ("schema", "language"), ("reference", "types"), ("references", "types"), ("principal", "personas"), ("principals", "personas"), ("first admin", "deploy"),
     ("useAuth", "client"), ("useAppReady", "client"), ("useRelease", "client"), ("useClient", "client"), ("useViewer", "client"), ("useSignedInViewer", "client"), ("usePersonaApp", "client"), ("useSession", "client"), ("useQuery", "client"), ("usePage", "client"), ("useFollowing", "client"), ("useMutation", "client"), ("useAction", "client"), ("useAsset", "client"), ("useSaveAsset", "client"), ("useUpload", "client"), ("useLink", "client"), ("useOnline", "client"), ("useNow", "client"), ("useAcquired", "client"), ("useAcquisition", "client"), ("usePendingWrite", "client"), ("usePendingWrites", "client"), ("usePendingItems", "client"), ("usePendingState", "client"), ("useSeen", "client"), ("useInspection", "client"),
     ("release", "deploy"), ("serve", "deploy"), ("rollback", "deploy"), ("upgrade", "changes"), ("optional param", "types"), ("mutation default", "writes"), ("service seat", "deploy"),
@@ -253,6 +254,7 @@ pub fn resolve(word: &str) -> Option<&'static str> {
 pub fn card(keyword: &str) -> Option<&'static str> {
     let keyword = resolve(keyword)?;
     Some(match keyword {
+        "security" => include_str!("guide/security.md"), 
         "start" => start::card(),
         "language" => LANGUAGE,
         "ephemeral" => include_str!("guide/ephemeral.md"),

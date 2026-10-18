@@ -91,6 +91,12 @@ pub fn test(options: &Options) -> i32 {
             return 0;
         }
     }
+    let mut security_campaign = snapback4_lang::security::challenges::run(&bound);
+    snapback4_lang::security::challenges::operations(&bound,&engine,&mut security_campaign);
+    println!("security operation matrix: {} operations exercised; unknown authorization intent is not inferred from success",security_campaign.operations.len());
+    println!("security tests: {} attempted, {} refused, {} violations; finite campaign, not proof",security_campaign.attempted,security_campaign.refused,security_campaign.violations.len());
+    for c in &security_campaign.violations {println!("security violation: {}",serde_json::to_string(c).unwrap());}
+    for reason in &security_campaign.unsupported {println!("security not covered: {reason}");}
     let (mut passed, mut failed_cases) = (0, 0);
     if let Some(fixture) = options.flags.get("fixture").filter(|_| !options.flags.contains_key("saved-fixture-fallback")) {
         match test_cases::run_verbose(&mut engine, &bound, fixture, &sources, fixture_now, options.flags.contains_key("verbose")) {
@@ -234,5 +240,5 @@ pub fn test(options: &Options) -> i32 {
     if options.flags.contains_key("source") {
         println!("{CASE_SUMMARY} {{\"run\":{},\"skipped\":{skipped_business_cases}}}", passed + failed_cases);
     }
-    if failures > 0 || failed_cases > 0 { 1 } else { 0 }
+    if failures > 0 || failed_cases > 0 || !security_campaign.violations.is_empty() { 1 } else { 0 }
 }

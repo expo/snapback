@@ -289,6 +289,8 @@ wait for a labelled control, and await a fresh sent receipt for every write befo
 text already on screen cannot prove the next write. RN-web: use pressSequentially,
 accessible button labels (Button drops testID), then assert sent. See `guide testing`.
 
+Security intent: declare invariants separately from rules; `guide security` covers `check`, `audit --json` and generated adversarial tests.
+
 ## Reference map: open only what the feature needs
 
 `snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal. Bare `guide` indexes the cards; `guide aliases`

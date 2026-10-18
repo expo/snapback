@@ -18,6 +18,7 @@ pub mod types;
 pub mod release_changes;
 
 pub use bind::{Bound, BoundProgram, bind};
+pub use bind::security;
 pub use diag::{Diagnostic, Site};
 pub use parser::parse_document;
 
@@ -60,7 +61,7 @@ pub fn compile(sources: &[(String, String)]) -> Bound {
     bind::audience_diagnostics::parser_context(&documents, &mut diagnostics);
     repair::verify(&documents, &mut diagnostics);
     if !diagnostics.is_empty() {
-        return Bound { receipt_members: Default::default(), refusal_sites: Default::default(), view_types: Default::default(), server: documents.iter().any(|doc| doc.server), schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics, notes: Vec::new() };
+        return Bound { invariants: Vec::new(), receipt_members: Default::default(), refusal_sites: Default::default(), view_types: Default::default(), server: documents.iter().any(|doc| doc.server), schema: Default::default(), programs: Vec::new(), personas: Vec::new(), diagnostics, notes: Vec::new() };
     }
     bind(documents)
 }

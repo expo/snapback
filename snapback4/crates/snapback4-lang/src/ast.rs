@@ -546,6 +546,7 @@ pub struct EffectDecl {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Document {
+    pub invariants: Vec<InvariantDecl>,
     pub source: crate::source::SourceMap,
     pub file: String,
     pub identity: Option<(bool, bool)>,
@@ -600,5 +601,16 @@ pub struct FeedView {
     pub name: String,
     pub source: String,
     pub predicate: Expr,
+    pub site: Site,
+}
+
+/// Independent policy intent; never used to grant runtime authority.
+// @ref LLP 3000.036.004#2-surface — intent is separate from enforcement.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct InvariantDecl {
+    pub table: String,
+    pub target: String,
+    pub column: Option<String>,
+    pub value: Expr,
     pub site: Site,
 }

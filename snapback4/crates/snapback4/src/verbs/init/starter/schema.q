@@ -29,3 +29,6 @@ mutation toggle(todoId: todos):
 mutation remove(todoId: todos):
   delete todos[todoId]
   return null
+
+-- Independent privacy intent; guide security states unproved paths.
+invariant todos.read only .ownerId = viewer
