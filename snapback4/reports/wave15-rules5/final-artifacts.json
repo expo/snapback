@@ -1,0 +1,16 @@
+{
+  "sourceCommit": "f054342f2d86e15aaab8b8df4f043b06056f72ae",
+  "files": {
+    "nativeBinary": {
+      "path": "snapback4/target/debug/snapback4",
+      "bytes": 122802416,
+      "sha256": "3b65bc258ae524a2687ed3ff331f800030e60088b7a756f17f01b7d2a45c4ed4"
+    },
+    "portableClientTarball": {
+      "path": "snapback4/target/rules5-packs/client.tgz",
+      "bytes": 1284472,
+      "sha256": "399488424b6ec4c02bfb9113f55e14b8d46e9bc9363aeb9a6372c50d64c46267"
+    }
+  },
+  "note": "The final packed rerun uses this portable tarball and packs a native package containing an exact copy of this native binary. The test deletes its temporary packs and extraction afterward. No product source is dirty."
+}

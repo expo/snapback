@@ -1,0 +1,67 @@
+{
+  "current": {
+    "passed": 100,
+    "notes": 452
+  },
+  "baseline": {
+    "passed": 100,
+    "notes": 452
+  },
+  "changedInputs": [],
+  "changedVerdictsOrNotes": [],
+  "liveShapes": [
+    {
+      "name": "077-original",
+      "ok": true,
+      "codes": []
+    },
+    {
+      "name": "077-checks-live-section",
+      "ok": true,
+      "codes": []
+    },
+    {
+      "name": "077-live-chain",
+      "ok": false,
+      "codes": [
+        "E_READ_THROUGH",
+        "E_READ_THROUGH",
+        "E_READ_THROUGH"
+      ]
+    },
+    {
+      "name": "085-original",
+      "ok": true,
+      "codes": []
+    },
+    {
+      "name": "085-live-with-cascade",
+      "ok": false,
+      "codes": [
+        "E_QUARRY_BOUND",
+        "E_QUARRY_BOUND"
+      ]
+    },
+    {
+      "name": "085-live-restrict",
+      "ok": false,
+      "codes": [
+        "E_QUARRY_BOUND",
+        "E_QUARRY_BOUND"
+      ]
+    },
+    {
+      "name": "085-authority-cascade",
+      "ok": false,
+      "codes": [
+        "E_READ_THROUGH",
+        "E_READ_THROUGH"
+      ]
+    },
+    {
+      "name": "085-authority-restrict",
+      "ok": true,
+      "codes": []
+    }
+  ]
+}
