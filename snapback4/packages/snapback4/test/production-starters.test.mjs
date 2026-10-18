@@ -75,6 +75,13 @@ window.inspect=()=>({writes,records:[...records].map(r=>r.op.name)});window.fini
   assert.equal(await principal.inputValue(), 'acct:new-member');
   if (platform === 'web') { assert.equal(await page.getByLabel('Role', { exact: true }).inputValue(), 'admin'); assert.equal(await page.getByLabel('Member principal', { exact: true }).inputValue(), 'dev:bob'); }
   else { assert.equal(await page.getByText('Invitation role: admin', { exact: true }).count(), 1); assert.equal(await page.getByRole('button', { name: 'Selected: dev:bob · member', exact: true }).count(), 1); }
+  for (const flags of [{fresh:false},{revalidating:true},{complete:false}]) {
+    await publish({role:{data:{role:'admin',principal:'dev:alice'},existence:'present',fresh:true,complete:true,cut:null,...flags}});
+    assert.equal(await page.getByRole('button',{name:'Invite',exact:true}).count(),0,'uncertain role never mounts protected actions');
+    assert.ok(!(await page.evaluate(()=>window.inspect())).records.includes('roster'),'uncertain role withdraws protected reads');
+    await publish({role:{data:{role:'admin',principal:'dev:alice'},existence:'present',fresh:true,complete:true,cut:null}});
+    assert.equal(await principal.inputValue(),'acct:new-member','draft survives authority withdrawal');
+  }
   await page.getByRole('button', { name: 'Invite', exact: true }).click();
   assert.deepEqual((await page.evaluate(() => window.inspect())).writes, [{ op: 'invite', args: { teamId: 'team', principal: 'acct:new-member', role: 'admin' } }]);
   await publish({ role: { denied: { code: 'NOT_MEMBER', family: 'rule', message: 'Revoked' } } });

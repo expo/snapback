@@ -96334,3 +96334,20 @@ Same-revision Muse and fresh Codex semantic reviews are READY (round 2).
 Focused Linux tests and the Mac Studio principal-scan suite passed; full client
 and packed consumer qualification results are recorded in WORKSTREAM-REPORT.md.
 No version bump, push or publication is part of this workstream.
+
+
+### 2026-10-18 — PROD2 review closure and compatibility controls
+
+Both independent families are READY on the SAME consolidated revision-9
+semantic amendment: fresh Codex round 9 and Muse round 10, whose provenance
+records the unchanged proposal digest. All earlier NOT READY reviews and their
+proposal snapshots remain; full Codex command transcripts are compressed beside
+verbatim final messages. Source-backed dispositions resolved the final text-only
+review's interpretation questions without changing the reviewed proposal.
+Implementation controls additionally preserve plain text concatenation, enum text
+operations, corresponding-leaf comparisons and inferred-local rebinding, and
+refuse control-character laundering/unrepresentable value joins. The React/Expo
+production recipes withdraw protected children/actions for stale/revalidating/
+incomplete role evidence while their draft owner persists. Production flags no
+longer silently ignore web/expo/day2. Packed and Mac qualification follow the
+final source; the workstream report retains failed attempts and reruns.

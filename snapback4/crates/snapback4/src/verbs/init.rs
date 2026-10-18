@@ -27,6 +27,10 @@ pub fn init(options: &Options) -> i32 {
         }
         if options.flags.contains_key("dry-run") && options.flags.contains_key("apply") { eprintln!("E_INPUT: --dry-run and --apply are mutually exclusive"); return 2; }
         if options.flags.contains_key("production") {
+            if ["web", "expo", "day2"].iter().any(|flag| options.flags.contains_key(*flag)) {
+                eprintln!("E_INPUT: --production does not take --web, --expo or --day2; run schema production adaptation separately from starter adaptation");
+                return 2;
+            }
             return production::adapt(options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new(".")), options.flags.contains_key("apply"));
         }
         return adapt::adapt(options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new(".")), options.flags.contains_key("dry-run"), options.flags.contains_key("apply"), options.flags.contains_key("day2"));

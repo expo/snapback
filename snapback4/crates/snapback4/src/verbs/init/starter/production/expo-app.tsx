@@ -91,7 +91,7 @@ function Team(props: { teamId: TeamId; principal: string; setPrincipal: (value: 
   return matchRead(membership, {
     loading: () => <Text>Loading role…</Text>, denied: why => <Text>Not available: {why.message}</Text>, absent: () => <Text>Not available: no membership.</Text>,
     partial: () => <Text>Role unavailable offline; reconnect.</Text>,
-    present: member => <View style={{ gap: 12 }}><Text>Your role: {member.role}</Text>
+    present: (member, read) => read.complete && read.fresh && !read.revalidating ? <View style={{ gap: 12 }}><Text>Your role: {member.role}</Text>
       <Roster teamId={props.teamId} selected={props.selectedPrincipal} choose={props.selectPrincipal} />
       {member.role === "admin" && <View style={{ gap: 8 }}><Text>Invite by principal</Text>
         <TextInput accessibilityLabel="Principal" autoCapitalize="none" value={props.principal} onChangeText={props.setPrincipal} />
@@ -99,7 +99,7 @@ function Team(props: { teamId: TeamId; principal: string; setPrincipal: (value: 
         <Button title="Member role" onPress={() => props.setRole("member")} /><Button title="Admin role" onPress={() => props.setRole("admin")} />
         <Button title="Invite" disabled={!props.principal.trim() || !props.inviteAvailable} onPress={props.invite} />
       </View>}
-    </View>,
+    </View> : <Text>Role unavailable offline; reconnect.</Text>,
   });
 }
 

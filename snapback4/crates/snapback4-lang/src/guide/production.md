@@ -1,11 +1,7 @@
 # Production: a persona demo becomes an account app
 
 Bare `use identity` keeps guests; guests call `/auth/guest` before any read;
-`use identity password` removes them. `use identity guests` is guests-only,
-while bare `use identity` allows both password accounts and guests. A guest
-session is a session: use app.auth.signup/login to replace it with an account;
-the SDK keeps guest drafts, pending writes and receipts under the guest
-principal, never transfers them to the new account. `/auth/config` is GET; production needs
+`use identity password` removes them. `/auth/config` is GET; production needs
 persisted sessions and trusted first writers because signup grants no role.
 
 ```quarry
@@ -93,6 +89,14 @@ function AccountScreen(){
    the full auth-form and proof-kit recipes in `guide client`/`guide testing`.
 
 ## Password UI and auth transitions
+
+`use identity guests` is guests-only,
+while bare `use identity` allows both password accounts and guests. A guest
+session is a session: when password accounts are enabled, app.auth.signup/login
+can replace it with an account;
+the SDK keeps pending writes and receipts under the guest principal, never
+transfers them to the new account. AppProvider resets the guest screen's drafts
+on that viewer change.
 
 Replace `?as=alice`, `usePersonaApp` and fixed `dev:` owners with `createApp`
 using a persisted session store (`guide client`, password React/Expo). Choose
@@ -393,3 +397,5 @@ team selection and principal selection sit above release-sensitive reads;
 release gates and rollback preserve them. Account changes intentionally cross
 the AppProvider principal boundary. Exact's corresponding recipe is maintained
 in Exact2 (EX9); these source files target React and Expo.
+
+Wave-15 ownership: KIT4 owns day-two proof/API text; DAY5 owns general starter advice; RULES5 owns rule recipes; EX10 owns Exact2 guest/account integration.

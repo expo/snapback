@@ -183,4 +183,56 @@ fn fixture_only_roles_are_literal_even_with_service_rules_and_no_lint_cycle() {
         }
         assert!(format!("{:?}", engine.mutate(&op, None, Context::new("service:ops", args)).unwrap()).contains("Sent"));
     }
+    let same_principal = std::collections::BTreeMap::from([("seat_principal".into(), Value::Id("user:admin".into()))]);
+    assert!(format!("{:?}", engine.mutate("bootstrapstaffRole2", None, Context::new("service:ops", same_principal)).unwrap()).contains("E_UNIQUE"), "role provisioning must preserve one-role-per-principal constraints");
+}
+
+
+#[test]
+fn production_mode_refuses_silently_ignored_starter_flags() {
+    let app = App::new(ROSTER);
+    for flag in ["--web", "--expo", "--day2"] {
+        let output = Command::new(BIN).args(["init", "--adapt", "--production", flag]).current_dir(&app.0).output().unwrap();
+        assert_eq!(output.status.code(), Some(2));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("--production does not take"), "{output:?}");
+        assert_eq!(app.source(), ROSTER);
+    }
+}
+
+#[test]
+fn blocked_roster_with_existing_writer_retains_enum_argument_bootstrap_policy() {
+    let writer = "\nmutation inviteMember(principal: principal):\n  require viewer = 'dev:alice' else DEV_ONLY\n  return insert staff {principal, role: 'reviewer'}\n";
+    let app = App::new(&format!("{ROSTER}{writer}"));
+    let output=app.run(true);assert!(output.status.success(), "{output:?}");
+    let source=app.source();assert!(source.contains(writer), "authored writer stays byte-identical");
+    assert!(source.contains("mutation bootstrapstaff(seat_principal: principal, seat_role: enum('admin', 'reviewer'))"), "{source}");
+    assert!(!source.contains("mutation bootstrapstaffRole"));
+    let bound=snapback4_lang::compile(&[("schema.q".into(),source.clone())]);assert!(bound.diagnostics.is_empty());
+    let mut engine=Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    let args=std::collections::BTreeMap::from([("seat_principal".into(),Value::Id("user:real".into())),("seat_role".into(),Value::String("admin".into()))]);
+    assert!(format!("{:?}",engine.mutate("bootstrapstaff",None,Context::new("service:ops",args.clone())).unwrap()).contains("Sent"));
+    assert!(format!("{:?}",engine.mutate("bootstrapstaff",None,Context::new("user:outsider",args)).unwrap()).contains("NOT_OPERATOR"));
+    assert!(app.run(true).status.success());assert_eq!(app.source(),source);
+}
+
+
+#[test]
+fn role_name_without_a_principal_column_is_a_review_message_not_a_grant() {
+    let source="use personas alice\ntable preferences:\n  owner: text <=40\n  role: enum('light','dark')\n  unique owner\n  public 'preferences'\n  online only\n";
+    let app=App::new(source);let output=app.run(true);assert!(output.status.success(),"{output:?}");
+    assert!(String::from_utf8_lossy(&output.stdout).contains("preferences: review an application-specific first writer"));
+    assert!(!app.source().contains("mutation bootstrap") && !app.source().contains("service:ops"));
+}
+
+#[test]
+fn multi_role_unique_identity_keeps_coexisting_roles() {
+    let app=App::new("use personas alice\ntable staff:\n  principal: principal\n  role: enum('admin','reviewer')\n  unique principal, role\n  read <- .principal = viewer\n  insert <- viewer = 'service:ops'\n  online only\n");
+    let output=app.run(true);assert!(output.status.success(),"{output:?}");
+    let bound=snapback4_lang::compile(&[("schema.q".into(),app.source())]);assert!(bound.diagnostics.is_empty());
+    let mut engine=Engine::memory(bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    for number in 1..=2 {
+        let args=std::collections::BTreeMap::from([("seat_principal".into(),Value::Id("user:both".into()))]);
+        let reply=engine.mutate(&format!("bootstrapstaffRole{number}"),None,Context::new("service:ops",args)).unwrap();
+        assert!(format!("{reply:?}").contains("Sent"),"{reply:?}");
+    }
 }

@@ -14,7 +14,7 @@ declare const api: {
   inboxCards: Query<{c?:Cursor|null}, {id:string;title:string;memberCount:number}[]>;
   directory: Query<{c?:Cursor|null}, {principal:string;displayName:string}[]>;
   staffNotes: Query<{team:string}, {id:string;title:string;priority?:string}[]> & {available(release:ReleaseSnapshot):boolean};
-  myRole: Query<{team:string}, {role:'staff'|'member'}|null>;
+  myRole: Query<{team:string}, {role:'staff'|'member'}|null> & {available(release:ReleaseSnapshot):boolean};
   addStaffNote: Mutation<{team:string;title:string;category:string}, {id:string}> & {available(release:ReleaseSnapshot):boolean};
   publicNotes: Query<{}, {id:string;title:string}[]>;
   myMembership: Query<{conversationId:string}, {id:string}|null>;

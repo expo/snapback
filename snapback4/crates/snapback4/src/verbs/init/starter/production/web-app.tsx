@@ -94,14 +94,14 @@ function Team(props: { teamId: TeamId; principal: string; setPrincipal: (value: 
   return matchRead(membership, {
     loading: () => <p>Loading role…</p>, denied: why => <p>Not available: {why.message}</p>, absent: () => <p>Not available: no membership.</p>,
     partial: () => <p>Role unavailable offline; reconnect.</p>,
-    present: member => <section><h2>Your role: {member.role}</h2>
+    present: (member, read) => read.complete && read.fresh && !read.revalidating ? <section><h2>Your role: {member.role}</h2>
       <Roster teamId={props.teamId} selected={props.selectedPrincipal} choose={props.selectPrincipal} />
       {member.role === "admin" && <fieldset><legend>Invite by principal</legend>
         <label>Principal<input value={props.principal} onChange={e => props.setPrincipal(e.target.value)} /></label>
         <label>Role<select aria-label="Role" value={props.role} onChange={e => props.setRole(e.target.value as "member" | "admin")}><option value="member">Member</option><option value="admin">Admin</option></select></label>
         <button disabled={!props.principal.trim() || !props.inviteAvailable} onClick={props.invite}>Invite</button>
       </fieldset>}
-    </section>,
+    </section> : <p>Role unavailable offline; reconnect.</p>,
   });
 }
 

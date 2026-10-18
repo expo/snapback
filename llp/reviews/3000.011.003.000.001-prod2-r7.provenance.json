@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-18",
+  "proposalSha256": "4aa3ba0a3ba53ce9b313b0945beaedcc140e4412f15db66fa2bdcd5b3c9cbb2c",
+  "museCommand": "muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file /tmp/prod2-review-r7.txt",
+  "codexCommand": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < /tmp/prod2-review-r7.txt",
+  "verdicts": {
+    "muse": "NOT READY",
+    "codex": "NOT READY"
+  },
+  "codexRawStdout": {
+    "file": "3000.011.003.000.001-prod2-r7.codex.stdout.log.gz",
+    "sha256": "08da022a8c439ebc7848034af13392f805b928a9b002899ae0b2b5c50c524c99"
+  },
+  "codexReview": {
+    "sha256": "78c58c8e725fb0a41f9fdd75c616b6216895cd0b321358ada31a6a1c8f48a9cc",
+    "extraction": "verbatim final message preceding tokens-used trailer"
+  }
+}

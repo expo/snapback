@@ -36,8 +36,10 @@ impl Binder<'_> {
             Expr::Literal(Value::String(value)) => Ty::Enum(vec![value.clone()]),
             _ => ty,
         };
-        let then_ty = literal_domain(&then_expr, then_ty);
-        let else_ty = literal_domain(&else_expr, else_ty);
+        // Plain text conditionals retain text operations such as concatenation.
+        // Only a declared/inferred enum in the other arm calls for a finite join.
+        let then_ty = if matches!(else_ty.required(), Ty::Enum(_)) { literal_domain(&then_expr, then_ty) } else { then_ty };
+        let else_ty = if matches!(then_ty.required(), Ty::Enum(_)) { literal_domain(&else_expr, else_ty) } else { else_ty };
         let ty = then_ty.join(&else_ty).map_err(|error| self.join_error(error, &then_ty, &else_ty, then, otherwise, Some(condition)))?;
         then_out.push(Stmt::Assign { name: temp.clone(), value: then_expr });
         else_out.push(Stmt::Assign { name: temp.clone(), value: else_expr });
