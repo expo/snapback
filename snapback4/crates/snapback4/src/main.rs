@@ -135,7 +135,7 @@ fn main() -> ExitCode {
                             else if let Some(words) = words_of("find") { guide::find(name, &card, &words) }
                             // @ref LLP 3000.036.002#11 — diagnostic recipe names open their tested section directly.
                             else if name == "rule-recipes" && !rest.is_empty() { guide::section(name, &card, &rest) }
-                            // @ref LLP 3000.000.000.000.000#8-wave-15-release-consumers-and-discovery — show first content with an explicit truncation hint in tools and terminals.
+                            // @ref LLP 3000.000.000.000.000#8 — show first content with an explicit truncation hint in tools and terminals.
                             else if let Some(landing) = guide::alias_landing(keyword, name, &card) { Ok(landing) }
                             else if std::io::IsTerminal::is_terminal(&std::io::stdout()) { Ok(guide::overview(name, &card).unwrap_or_else(|| card.clone())) }
                             else { Ok(guide::piped(name, &card)) };

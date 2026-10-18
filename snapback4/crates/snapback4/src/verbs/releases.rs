@@ -24,7 +24,7 @@ fn canonical_directory(options: &Options) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
-// @ref LLP 3000.000.000.000.000#8-wave-15-release-consumers-and-discovery — validate before any writable ownership or command lock.
+// @ref LLP 3000.000.000.000.000#8 — validate before any writable ownership or command lock.
 pub(super) fn existing_deployment(requested: &Path) -> Result<PathBuf, String> {
     let missing = || format!("no current release in {}; run `snapback4 deploy {}` first", requested.display(), requested.display());
     if !requested.join("store.sqlite").is_file() { return Err(missing()); }

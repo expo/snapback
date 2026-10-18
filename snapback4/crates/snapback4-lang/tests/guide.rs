@@ -1578,7 +1578,7 @@ mod client;
 #[path = "guide/start.rs"]
 mod start;
 
-// @ref LLP 3000.000.000.000.000#8-wave-15-release-consumers-and-discovery — tool output starts with a visible truncation hint.
+// @ref LLP 3000.000.000.000.000#8 — tool output starts with a visible truncation hint.
 #[test]
 fn a_piped_card_shows_its_first_section_and_truncation_hint() {
     for name in KEYWORDS {

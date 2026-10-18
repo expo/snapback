@@ -212,7 +212,7 @@ pub fn overview_and_first_section(name: &str, card: &str) -> Option<String> { ov
 const FIRST_SECTION_LINES: usize = 80;
 
 /// Tool reads use the same bounded discovery view as terminal reads.
-// @ref LLP 3000.000.000.000.000#8-wave-15-release-consumers-and-discovery — hint before the body survives batched tool truncation.
+// @ref LLP 3000.000.000.000.000#8 — hint before the body survives batched tool truncation.
 pub fn piped(name: &str, card: &str) -> String {
     overview_and_first_section(name, card).unwrap_or_else(|| card.to_owned())
 }
