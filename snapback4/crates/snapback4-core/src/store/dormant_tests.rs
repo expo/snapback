@@ -1349,3 +1349,31 @@ fn narr_dormant_rows_cover_their_separately_retained_cells() {
     assert_eq!(e.store().count("rows").unwrap(), 3);
     assert!(e.store_mut().dormant_inventory(None, usize::MAX).unwrap().is_empty());
 }
+
+#[test]
+fn dormant_rows_that_lost_unique_slots_are_named_separately_from_active_blockers() {
+    let next=v2().replace("by byExtra: extra, id", "unique byExtra: extra");
+    let mut e=engine(&next);
+    seed(&mut e,"rows",serde_json::json!({"id":"restoring-document","n":1,"status":"new","extra":7}));
+    activate(&mut e,V1,2).unwrap();
+    assert_eq!(e.store().count("rows").unwrap(),0);
+    mutate(&mut e,"add","older-write");
+    let generation=e.generation();
+    let failure=activate(&mut e,&next,1).unwrap_err().to_string();
+    assert!(failure.contains("restoring dormant rows [restoring-document]") && failure.contains("1 active rows [new]"),"{failure}");
+    assert_eq!(e.generation(),generation);
+    assert_eq!(e.store().count("rows").unwrap(),1);
+}
+
+#[test]
+fn restoration_conflict_samples_keep_distinct_duplicate_keys_separate() {
+    let initial=v2();let mut e=engine(&initial);
+    for id in ["r1","r2"] {seed(&mut e,"rows",serde_json::json!({"id":id,"n":7,"status":"new","extra":1}));}
+    activate(&mut e,V1,2).unwrap();
+    for id in ["a1","a2"] {seed(&mut e,"rows",serde_json::json!({"id":id,"n":9,"status":"active"}));}
+    let unique=initial.replace("  n: int","  n: int\n  unique byN: n");
+    let error=activate(&mut e,&unique,3).unwrap_err().to_string();
+    assert!(error.contains("restoration group key [7]: restoring dormant rows [r1, r2] (2 rows); 0 active rows []"),"{error}");
+    assert!(!error.contains("active rows [a1") && !error.contains("active rows [a2"),"{error}");
+    assert_eq!(e.store().count("rows").unwrap(),2);
+}

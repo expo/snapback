@@ -176,3 +176,9 @@ test("an existing stage requires explicit resume instead of silently publishing 
   assert.match(ordinary.stderr, /pass --resume to requalify and converge those exact bytes/);
   assert.deepEqual(ordinary.commands, [], "existing-stage refusal happens before the suite or any build and publish command");
 });
+
+test('packed DAY5 guide failure blocks Darwin installed-consumer publication',t=>{
+ const r=publish(t,{env:{PUBLICATION_DAY5_FAIL:'1'}});
+ assert.notEqual(r.status,0);assert.match(r.stderr,/packed DAY5 guide failed/);
+ assert.ok(!r.commands.some(c=>c.cmd==='npm'&&c.args[0]==='publish'));
+});

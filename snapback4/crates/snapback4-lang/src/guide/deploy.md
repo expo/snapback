@@ -148,3 +148,33 @@ Public visitors obtain guest sessions with `use identity`; `use identity passwor
 
 ## Authoring and proof refusals
 N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. It groups root blockers with their dependents; persona-only schemas get one identity note. Add a service-seat insert mutation and provision real account relationships. E_UPGRADE means installation or post-upgrade check failed. Repair the package-manager or registry error and rerun upgrade. Packages may already be pinned: if check failed, repair the reported schema/device refusal and rerun check.
+
+## Capture a release and start its rollback bridge
+
+From the app root, after `check` and its business cases pass:
+
+```sh
+snapback4 deploy ./deployment --save-version versions/v1
+snapback4 rollback ./deployment --to 1 --check --bridge ./bridge
+snapback4 deploy ./deployment --schema ./bridge --check
+```
+
+The new `versions/v1` captures exactly the selected modules, their contemporary
+fixtures and `release.json` with the actual immutable release id and source hash.
+An unchanged deploy keeps its actual id. Existing snapshots are never replaced;
+choose another positive-numbered `versions/vN`. Saving cannot combine with
+`--check`. A saved-source deploy captures that source's fixtures, never working
+fixtures. Use the label in `release.json` when choosing a compatibility baseline;
+`since_release` remains the author-supplied label for the newer schema.
+
+The bridge starts with the complete **current** source and this app's
+`ROLLBACK-CHECKLIST.md`. It is a safe starting point to edit toward the old
+workflow: retain current value domains, audiences, guards and quotas; repair
+records through authorized mutations; prove the blocked case still refuses and
+the affected lists/counts remain correct; then repeat the old-source preview.
+It does not activate or synthesize a business migration. Preview JSON also
+contains `checklist`; `--verbose` retains full evidence and internal index paths.
+Dormant rows reserve ids but no unique slots. New active rows can occupy their
+old key, so restoration may name both dormant and active conflicting ids. Start
+from a widened non-unique bridge, repair the actual duplicate, then reinstate the
+unique constraint. Preserving storage alone cannot restore missing safety logic.

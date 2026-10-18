@@ -221,7 +221,14 @@ pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, targe
                     code==next_code && msg==next_msg && matches!(clauses::compare(&old_failure,&new_failure),Change::Same|Change::Loosens)
                 })
             };
-            let change = if change==Change::Same && !contract_same || change==Change::Tightens && !tightening_contract {Change::Unknown} else {change};
+            let mut change = if change==Change::Same && !contract_same || change==Change::Tightens && !tightening_contract {Change::Unknown} else {change};
+            if change == Change::Unknown && let Some((old, new)) = before_programs.get(&name).zip(after_programs.get(&name)) {
+                if let Some(added) = trailing_guards(&before, after) {
+                    if super::release_dependencies::independent_changes(current,old,target,new,&BTreeSet::new(),&added,&null_refs).iter().all(BTreeSet::is_empty) { change = Change::Tightens; }
+                } else if let Some(removed) = trailing_guards(after, &before) {
+                    if super::release_dependencies::independent_changes(current,old,target,new,&removed,&BTreeSet::new(),&null_refs).iter().all(BTreeSet::is_empty) { change = Change::Loosens; }
+                }
+            }
             if matches!(change,Change::Same|Change::Tightens) {
                 // The authored implication proof covers these leading clauses
                 // only. Helpers and asserted reads keep independent evidence.
@@ -320,4 +327,40 @@ fn requirements(program: &snapback4_lang::ast::ProgramDecl, stable_probes: bool)
     let count = program.prelude.iter().chain(&program.body).filter(|s|matches!(s,Stmt::Require{..})).count();
     if count != lines.len() { formulas=None; }
     (lines,formulas.map(Formula::And))
+}
+
+/// A pure extra requirement after an identical read/require prefix can only
+/// remove admitted executions. Its new inputs need not exist in the old schema:
+/// only the preserved prefix's compiled dependencies must be unchanged.
+// @ref LLP 3000.000.000#15-wave-15-preview-and-rollback-day5 — additional predicates do not discharge old dependency/refusal evidence.
+fn trailing_guards(before: &snapback4_lang::ast::ProgramDecl, after: &snapback4_lang::ast::ProgramDecl) -> Option<BTreeSet<String>> {
+    use snapback4_lang::ast::{Expr, Stmt};
+    fn pure(e: &Expr) -> bool {
+        match e {
+            Expr::Name {..} | Expr::Literal {..} => true,
+            Expr::Member {base,..} | Expr::Unary {value:base,..} => pure(base),
+            Expr::Binary {left,right,..} => pure(left) && pure(right),
+            _ => false,
+        }
+    }
+    fn prefix(p: &snapback4_lang::ast::ProgramDecl) -> Option<Vec<(String, Option<String>)>> {
+        let mut out = Vec::new();
+        for stmt in p.prelude.iter().chain(&p.body) {
+            match stmt {
+                Stmt::Bind {names,value,..} => out.push((format!("bind {:?}={}",names,snapback4_lang::print::expression(value)),None)),
+                Stmt::Require {condition,code,message,site} => out.push((format!("require {} else {code} {:?}",snapback4_lang::print::expression(condition),message),Some(site.to_string()))),
+                _ => break,
+            }
+        }
+        let total = requirements(p, false).0.len();
+        (total == out.iter().filter(|(_,site)|site.is_some()).count()).then_some(out)
+    }
+    if before.kind != after.kind || before.args.iter().map(|a|(&a.name,&a.type_)).ne(after.args.iter().map(|a|(&a.name,&a.type_))) {return None;}
+    let (a,b) = (prefix(before)?, prefix(after)?);
+    if b.len() <= a.len() || !a.iter().zip(&b).all(|((a,_),(b,_))|a==b) {return None;}
+    let added: BTreeSet<_> = b[a.len()..].iter().map(|(_,site)|site.clone()).collect::<Option<_>>()?;
+    let pure_added = after.prelude.iter().chain(&after.body).filter_map(|stmt|match stmt {
+        Stmt::Require {condition,site,..} if added.contains(&site.to_string()) => Some(pure(condition)), _ => None,
+    }).all(|pure|pure);
+    pure_added.then_some(added)
 }

@@ -6,6 +6,11 @@
 
 - Empty saved versions are “not saved yet” information, rather than saved-fixture drift; invalid nonempty snapshots still report their compile problems.
 
+- Starter adaptation previews every package edit, including its day-two marker and script ordering, and reports legacy flat/saved source differences. Check names inherited assertion placeholders and todo snapshots by digest. Custom-schema Home starters omit the todo frontend proof; adapt removes only recognized todo proof leftovers.
+- `test` refuses zero executed business cases unless `--fixture-only` is explicit. `testSource` forwards `{fixtureOnly:true}`. `deploy --save-version versions/vN` captures selected modules, contemporary fixtures and the actual immutable release label without replacing saved evidence.
+- `upgrade --quiet` prints per-project actions and failures, suppressing successful install/check/history output.
+- Release previews prove pure trailing guards on new columns as tightening, lead with removed guards/refusal codes on rollback, and group related change facts. Internal index paths require `--verbose` or JSON. Constraint refusals name restoring dormant and conflicting active rows. `rollback --check --bridge <new-dir>` saves current source plus this app's rollback checklist for an operator-owned bridge.
+
 ## 0.4.31
 
 - Existing stores keep their rows, ids, schema and captured `read through` authority. No automatic data repair or audience expansion occurs. Regenerate declarations and rebuild web, native and Exact clients to pick up the runtime and client changes below; review new correctness notes before deploying edited schemas.

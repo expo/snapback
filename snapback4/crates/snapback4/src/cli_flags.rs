@@ -62,6 +62,7 @@ pub fn validate(args: &[String]) -> Result<(), String> {
             if let Some(flag) = flags.iter().find(|flag|has(flag)) { return Err(format!("E_INPUT: check {mode} does not accept --{flag}")); }
         }
     }
+    if verb == "rollback" && has("bridge") && !has("check") { return Err("E_INPUT: rollback --bridge requires --check; it writes a bridge starter without activating it".into()); }
     if verb == "test" && has("verbose") && !has("residency") { return Err("E_INPUT: test --verbose requires --residency".into()); }
     if verb == "run" && has("token-env") && !has("release") { return Err("E_INPUT: run --token-env requires --release".into()); }
     if verb == "why" && has("instance") && crate::verbs::parse(args).positionals.first().map(String::as_str) != Some("recent") { return Err("E_INPUT: why --instance requires why recent".into()); }
@@ -119,6 +120,7 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "json") => " — print machine-readable JSON on stdout",
             ("upgrade", "quiet") => " — print only per-project actions; suppress successful install/check/history output",
             (_, "fixture-only") => " — allow zero business cases for fixture loading and query probes",
+            (_, "bridge") => " — with --check, write current source and this app's rollback checklist into a new directory",
             (_, "save-version") => " — save deployed sources, contemporary fixtures and immutable release label in a new directory",
             (_, "quiet") => " — print only the bearer token, with no successful stderr output",
             (_, "list") => " — list available guide cards",
@@ -222,13 +224,14 @@ mod projection_tests {
             let page = super::help(verb);
             for name in super::allowed(verb).split_whitespace() {
                 assert!(page.lines().any(|line|line.trim_start().starts_with(&format!("--{name}"))),"{verb}: {name}");
-                let mut args = if super::switch(name) { vec![verb.into(), format!("--{name}")] } else { vec![verb.into(), format!("--{name}"), "value".into()] };
+                let args = if super::switch(name) { vec![verb.into(), format!("--{name}")] } else { vec![verb.into(), format!("--{name}"), "value".into()] };
                 let mut args = args;
                 if verb == "check" && name == "as" { args.push("--residency".into()); }
                 if verb == "check" && name == "release" { args.extend(["--store".into(), "value".into()]); }
                 if verb == "test" && name == "verbose" { args.push("--residency".into()); }
                 if verb == "run" && name == "token-env" { args.extend(["--release".into(), "value".into()]); }
                 if verb == "why" && name == "instance" { args.insert(1, "recent".into()); }
+                if verb == "rollback" && name == "bridge" { args.push("--check".into()); }
                 assert!(super::validate(&args).is_ok(),"{args:?}");
                 if super::retired(verb,name) { assert!(page.lines().find(|line|line.trim_start().starts_with(&format!("--{name} "))).unwrap().contains("retired spelling")); }
             }
