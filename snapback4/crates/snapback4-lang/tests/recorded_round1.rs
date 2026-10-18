@@ -63,7 +63,7 @@ fn public_target_uses_effective_read_policy() {
     }
     for policy in ["read <- allow\n  read <- .authorId = viewer", "read <- public\n  read <- .authorId = viewer"] {
         let b = snapback4_lang::compile(&[("duplicate.q".into(), SOURCE.replacen("read <- allow",policy,1))]);
-        assert!(b.diagnostics.iter().any(|d|d.code == "E_QUARRY_UNKNOWN" && d.message.contains("duplicate read rule")),"{policy}: {:?}",b.diagnostics);
+        assert!(b.diagnostics.iter().any(|d|d.code == "E_QUARRY_DUPLICATE_RULE" && d.message.contains("duplicate read rule")),"{policy}: {:?}",b.diagnostics);
     }
 }
 #[test]
