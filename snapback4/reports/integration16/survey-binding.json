@@ -1,0 +1,12 @@
+{
+  "binary": "snapback4/target/debug/snapback4",
+  "binarySha256": "fe54ac4224557453126c16636a0fc69f2b193d528a44db9e5381d7463a3f85cd",
+  "binaryMtime": 1792352612.293433,
+  "surveyCompletedMtime": 1792352621.4654217,
+  "binaryPredatesCompletedSurvey": true,
+  "baselineSha256": "7fe5ac5ae8290759ec49a5097d42542aadfe665ba17bf6938d3f8e891b2727b4",
+  "method": "all flat snapback/*.q modules copied into private temporary projects; base and merged --json check; original source/module hashes unchanged; no fixtures/toolchain metadata copied",
+  "originalsVerifiedAgainAtCloseout": true,
+  "originalSchemaDirectories": 150,
+  "originalModules": 150
+}

@@ -1,0 +1,58 @@
+[
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "--version"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "snapback",
+      "--rebuild",
+      "--port",
+      "38399"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/synced/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:38399"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/synced/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "snapback",
+      "--rebuild",
+      "--port",
+      "35513"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/online/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:35513"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/online/app",
+    "exit": 0
+  }
+]

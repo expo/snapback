@@ -1,0 +1,103 @@
+[
+  {
+    "cmd": "/home/ccheever/sb4-loop/prewave16/upgrade31/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "init",
+      "/home/ccheever/sb4-loop/prewave16/expo31",
+      "--expo"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16",
+    "exit": 0
+  },
+  {
+    "cmd": "npm",
+    "args": [
+      "install",
+      "--save-exact",
+      "snapback4@0.4.31",
+      "snapback4-expo@0.4.31",
+      "--registry=http://127.0.0.1:4873/",
+      "--no-audit",
+      "--no-fund"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/expo31",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/sb4-loop/prewave16/upgrade31/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "check"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/expo31",
+    "exit": 0
+  },
+  {
+    "cmd": "npm",
+    "args": [
+      "run",
+      "typecheck"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/expo31",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/sb4-loop/prewave16/upgrade31/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "guide",
+      "rule-recipes",
+      "--full"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/sb4-loop/prewave16/upgrade31/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "data",
+      "rosterFiles",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/manual31",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "check"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/manual31",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "data",
+      "rosterFiles",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/manual31",
+    "exit": 0
+  },
+  {
+    "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "token",
+      "--service",
+      "ops",
+      "--quiet"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/manual31",
+    "exit": 0
+  },
+  {
+    "cmd": "npm",
+    "args": [
+      "pack",
+      "--json",
+      "--pack-destination",
+      "/home/ccheever/sb4-loop/prewave16"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/upgrade-platform",
+    "exit": 0
+  }
+]

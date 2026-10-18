@@ -1,0 +1,15 @@
+{
+  "status": "passed",
+  "recipes": [
+    "guide client listLabel",
+    "guide client StaffWorkspace",
+    "guide client uploadPdf"
+  ],
+  "contracts": [
+    "matchRead",
+    "matchReadList",
+    "otherwiseAll",
+    "usePage",
+    "useAuth configuration refusal"
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "format": 1,
+  "source": "9c3cb5f48594068d873626b552717833be7d543e",
+  "expo": {
+    "name": "snapback4-expo",
+    "version": "0.4.32",
+    "filename": "snapback4-expo-0.4.32.tgz",
+    "integrity": "sha512-GjEXQWepV+nH6z//sQPjhWrwOIaDlOAejuCHCJ2kuNMW2QfCl+FWA3f63Uzz1WAyYYWO27wyR2DP1aizWQdK0A==",
+    "bytes": 22238
+  },
+  "client": {
+    "name": "snapback4",
+    "version": "0.4.32",
+    "filename": "snapback4-0.4.32.tgz",
+    "integrity": "sha512-7+Yt40XBrhynVJt4FZfwuWQzoYZQJEyli1EDdbq1ynzzl8nySsUMgZpNx1UZYL3enpQrFvCgKWfNx958F3AuWw==",
+    "bytes": 1290037,
+    "files": 309
+  }
+}

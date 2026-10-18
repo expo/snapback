@@ -1,0 +1,65 @@
+{
+  "source": "9c3cb5f485",
+  "exit": 0,
+  "results": [
+    {
+      "label": "trace-producer",
+      "exit": 0
+    },
+    {
+      "label": "clients-pool",
+      "exit": 0
+    },
+    {
+      "label": "clients-models",
+      "exit": 0
+    },
+    {
+      "label": "clients-fixtures",
+      "exit": 0
+    }
+  ],
+  "counts": {
+    "clients-pool": {
+      "files": 414,
+      "counts": {
+        "tests": 7761,
+        "pass": 7705,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 56,
+        "todo": 0
+      }
+    },
+    "clients-models": {
+      "files": 2,
+      "counts": {
+        "tests": 81,
+        "pass": 81,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    "clients-fixtures": {
+      "files": 1,
+      "counts": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  },
+  "defaultModelSequences": {
+    "app-session": 5000,
+    "online-client": 3000
+  },
+  "ordinaryPoolConcurrency": 24,
+  "timerConcurrency": 1,
+  "modelsConcurrency": 1,
+  "fixtureConcurrency": 1
+}

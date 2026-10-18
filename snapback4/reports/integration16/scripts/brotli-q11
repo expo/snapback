@@ -1,0 +1,2 @@
+#!/usr/bin/env node
+const fs=require("node:fs"),z=require("node:zlib");process.stdout.write(z.brotliCompressSync(fs.readFileSync(process.argv.at(-1)),{params:{[z.constants.BROTLI_PARAM_QUALITY]:11}}));

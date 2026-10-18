@@ -1,0 +1,127 @@
+[
+  {
+    "cmd": "npm",
+    "args": [
+      "install",
+      "--ignore-scripts",
+      "--omit=optional",
+      "--no-audit",
+      "--no-fund",
+      "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ16-pack/snapback4-0.4.32.tgz"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/synced",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "/home/ccheever/sb4-loop/prewave16/exact2/scripts/exact.mjs",
+      "new",
+      "/home/ccheever/sb4-loop/prewave16/synced/app",
+      "--snapback",
+      "--port",
+      "45357"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/synced",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "snapback",
+      "--port",
+      "45357"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/synced/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "contract",
+      "types",
+      "app.contract",
+      "-o",
+      "app.contract.d.ts"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/synced/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:45357"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/synced/app",
+    "exit": 0
+  },
+  {
+    "cmd": "npm",
+    "args": [
+      "install",
+      "--ignore-scripts",
+      "--omit=optional",
+      "--no-audit",
+      "--no-fund",
+      "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ16-pack/snapback4-0.4.32.tgz"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/online",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "/home/ccheever/sb4-loop/prewave16/exact2/scripts/exact.mjs",
+      "new",
+      "/home/ccheever/sb4-loop/prewave16/online/app",
+      "--snapback",
+      "--online",
+      "--port",
+      "40227"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/online",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "snapback",
+      "--port",
+      "40227"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/online/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "contract",
+      "types",
+      "app.contract",
+      "-o",
+      "app.contract.d.ts"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/online/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:40227"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave16/online/app",
+    "exit": 0
+  }
+]

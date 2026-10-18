@@ -1,0 +1,18 @@
+[
+  {
+    "label": "trace-producer",
+    "exit": 0
+  },
+  {
+    "label": "clients-pool",
+    "exit": 1
+  },
+  {
+    "label": "clients-models",
+    "exit": 0
+  },
+  {
+    "label": "clients-fixtures",
+    "exit": 0
+  }
+]

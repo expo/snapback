@@ -1,0 +1,6 @@
+{
+  "source": "9c3cb5f485",
+  "scope": "union of affected client files and platform-sensitive files; all direct process.platform/platform()/darwin branches compared to the selected scope",
+  "additionalUncoveredDirectPlatformFiles": [],
+  "transitiveGuards": "test-platform-audit.test.mjs passes on Linux and Mac"
+}

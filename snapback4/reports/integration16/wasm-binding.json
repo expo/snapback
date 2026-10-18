@@ -1,0 +1,14 @@
+{
+  "file": "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+  "sha256": "1e6c7b4936c20c51e0bc2092292f631a85bd9b4db9f8d7bd15abf09b85f3cf40",
+  "raw": 2380425,
+  "gzip": 725987,
+  "budget": 726487,
+  "headroom": 500,
+  "measuredAtSource": "08fa452c31",
+  "preparedSource": "9c3cb5f485",
+  "runtimeInputsUnchanged": true,
+  "brotli": 547660,
+  "rebuildVerified": true,
+  "gzipMethod": "GNU gzip -9 -c packages/snapback4/src/wasm/snapback4_device_bg.wasm (same as build/measurement scripts)"
+}

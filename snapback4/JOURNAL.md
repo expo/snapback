@@ -96583,3 +96583,41 @@ separate the manual roster alternative into its own level-two section, keeping
 the existing 120-line section ceiling, and pin all 45 recipe blocks (36 existing,
 one LIVE roster, eight wave-15 programs). The roster's one documented
 N_NO_HORIZON is checked exactly. Every Quarry block remains byte-identical.
+
+## 2026-10-19 — Integration 16: wave 15, LIVE and 0.4.32
+
+Merged KIT4, PROD2, DAY5, SURF5, LANG4, then RULES5 with LIVE, preserving both
+lanes' intent in proof wiring, starters, notes and release advice. Cut 0.4.32
+in its own commit `08fa452c31`; final tested source `9c3cb5f485` adds the complete
+API index and repairs old fixture/diagnostic expectations without changing the
+merged core/device/client runtime. One guide-changes entry explains captured
+versus live-parent authority, explicit copy adoption and rollback, coalesced
+clock admission, initial readiness across releases and source-bound note review.
+LLP 3000.037 §19 records the wave 15 findings and later bakeoff work.
+
+The exact five-crate Linux command completes twice without failures, including
+a full repeat after the last fix. The final 414-file client pool passes 7,705
+tests in one pass; full 5,000/3,000-sequence models pass 81 tests and fixtures
+pass nine. Fresh prepared packs qualify on Linux, including every lane's new
+cases and clean Ubuntu/Alpine. Root setup/generated artifacts, inventory,
+guide and the actual docs-budget named test pass. Native 20k and devices 0–999
+differential campaigns have no disagreements; Lean 20k matches the 130 known
+base signatures exactly. All 100 wave 15 and 50 wave 16 schemas compile
+before/after with original hashes unchanged; note counts reconcile to
+452→458 and 102→131. Actual 0.4.31→0.4.32 store/Expo upgrade,
+manual→live→manual authority and both fresh Exact modes pass.
+
+Mac Studio/Xcode 27.0/pinned Node 24.13.1 passes all affected Rust scopes, the
+complete 52-file client scope, five follow-ups and the enabled published 0.2.33
+F2 witness. The fresh 0.4.32 framework/Release Expo app passes offline/restart
+native witnesses. Two unchanged timing assertions pass isolation and the final
+complete scope; their investigation tickets remain open and no deadline was
+relaxed. Installed-app CLI preparation remains unknown; explicit build evidence
+is kept without a publication/own-build attestation.
+
+Wasm is 2,380,425 B raw / 725,987 B gzip / 547,660 B Brotli; budget 726,487 B is
+measurement plus exactly 500 B, with the reason recorded. Strict family/absence
+audits pass. Authoring census is 529 mutations / 95 private write sites. Final
+source and evidence, artifact digests, full commands, failed attempts and
+deferrals are in `reports/integration16` and the root WORKSTREAM-REPORT.md.
+No push, publication, publication-path mutation or B16 branch merge.

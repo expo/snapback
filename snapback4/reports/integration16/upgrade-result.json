@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "from": "0.4.31",
+  "to": "0.4.32",
+  "storeRows": 1,
+  "id": "01M588CKRPPH8P4W354FXYQJCK",
+  "manualToLive": true,
+  "transferRevokesOld": true,
+  "rollbackReconcilesCurrent": true,
+  "expoUpgrade": true,
+  "typecheck": true,
+  "webExport": true
+}
