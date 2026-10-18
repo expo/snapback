@@ -1,0 +1,27 @@
+{
+  "snapback4": {
+    "expectedIntegrationTargets": 50,
+    "completedIntegrationTargets": 50,
+    "missing": []
+  },
+  "snapback4-core": {
+    "expectedIntegrationTargets": 42,
+    "completedIntegrationTargets": 42,
+    "missing": []
+  },
+  "snapback4-lang": {
+    "expectedIntegrationTargets": 159,
+    "completedIntegrationTargets": 159,
+    "missing": []
+  },
+  "snapback4-device": {
+    "expectedIntegrationTargets": 100,
+    "completedIntegrationTargets": 100,
+    "missing": []
+  },
+  "snapback4-sim": {
+    "expectedIntegrationTargets": 43,
+    "completedIntegrationTargets": 43,
+    "missing": []
+  }
+}

@@ -96313,3 +96313,43 @@ under `--prefer-offline`; after refreshing it, Linux passed `== 0 failure(s) in
 steps reran after it appeared. Clean installs on Linux and the Mac print
 `snapback4 0.4.30` and pass `init` + `check`. Details:
 `reports/20261016-publication-0.4.30/REPORT.md`.
+
+
+## 2026-10-18 — Wave 15 LANG4 notes and diagnostics
+
+P27–P32 and the caller-authority notes now follow the builder's actual code:
+planner fallback preserves declared cursors, mandatory later atomic lookups
+discharge reference notes, table joins and cascade errors name their causes,
+and duplicate-rule recovery avoids a diagnostic cascade. Literal maintained
+membership uses existing typed equality/OR. Reviewed compiler notes live in
+`snapback/check-notes.json`; any Quarry edit invalidates acknowledgement and
+JSON retains all findings on success and failure. Bounded returned-origin
+analysis emits an advisory for a query branch lacking its table read proof.
+It never changes authorization or asserts role audiences are disjoint.
+
+LLP 3000.036.002 §13 and the 3000.039 lookup amendment carry the design.
+Muse R5 and fresh Codex R7 are READY. A new checked-reference spelling was
+explicitly declined: tested physical-existence/readable-row/active-state guards
+avoid promising integrity that job, fixture and adoption paths do not establish.
+RULES5 owns authorization recipes and LIVE work.
+
+The exact cleanup and active-history guide blocks run through installed local
+tarballs, including the acknowledgement command. Final Mac Studio affected
+tests pass. The 100-schema survey stays 100/100 green, removes nine false notes,
+adds fifteen authority notes and explains all 28 wording changes. Differential
+run 20k and devices 0–999 have no disagreement; Lean has no new signature.
+Device gzip remains 723,275 B with budget 723,775 B (measurement plus 500 B).
+Full-suite and root-corpus qualification status is recorded in
+`WORKSTREAM-REPORT.md` and `reports/20261018-lang4/`; no publication, version
+bump or push is claimed by this lane.
+
+Final LANG4 verification: the five-crate command reached its 60-minute bound
+after 295 completed targets; the 60 unfinished language files then pass all
+637 tests, and the complete simulation crate passes 749 tests. Remaining
+doctests pass. Four initial failures (two CLI output checks, the authoring
+census, one historical duplicate-rule code assertion) are repaired and their
+complete affected files pass on Linux and Mac. The census is 504 mutations,
+94 private predictable write sites. Root guide checks have 19 passes and zero
+failed checks but retain three missing Snapback1 generated-artifact
+preconditions; inventory has the same missing transclusions. These are
+explicit qualification limits, not passing publication evidence.

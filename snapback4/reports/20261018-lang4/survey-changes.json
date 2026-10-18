@@ -1,0 +1,1558 @@
+[
+  {
+    "lane": "003-tile-dye-lot-holds",
+    "code": "N_REFERENCE_UNCHECKED",
+    "site": {
+      "file": "schema.q",
+      "line": 89,
+      "col": 7
+    },
+    "change": "removed",
+    "reason": "Mandatory same-argument lookup later in the same atomic path discharges the finding; remaining wording states lookup must be mandatory.",
+    "before": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation placeHold stores argument lot directly in holds.lot, but never looks up lots[lot]: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists lots[lot] else NOT_FOUND` before the write; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 7,
+        "file": "schema.q",
+        "line": 89
+      }
+    },
+    "after": null
+  },
+  {
+    "lane": "011-school-vision-screens",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 106,
+      "col": 22
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "recordScreening: this probe reads screenings under its read rule `.nurse = viewer or .guardian = viewer` (schema.q:38:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 106
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "recordScreening: this probe reads screenings under its read rule `.nurse = viewer or .guardian = viewer` (schema.q:38:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). Backing unique index: screenings(student); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 106
+      }
+    }
+  },
+  {
+    "lane": "012-day2-pet-addendum-approvals",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 148,
+      "col": 13
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "renew: this probe reads approvedPets under its read rule `.owner = viewer or exists staff[viewer, .building]` (schema.q:74:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 148
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "renew: this probe reads approvedPets under its read rule `.owner = viewer or exists staff[viewer, .building]` (schema.q:74:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). Backing unique index: approvedPets(application); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 148
+      }
+    }
+  },
+  {
+    "lane": "012-day2-pet-addendum-approvals",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 150,
+      "col": 13
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "renew: this probe reads reminders under its read rule `.owner = viewer` (schema.q:100:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 150
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "renew: this probe reads reminders under its read rule `.owner = viewer` (schema.q:100:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). Backing unique index: reminders(application, dueAt); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 150
+      }
+    }
+  },
+  {
+    "lane": "012-day2-pet-addendum-approvals",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 194,
+      "col": 13
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "withdraw: this probe reads approvedPets under its read rule `.owner = viewer or exists staff[viewer, .building]` (schema.q:74:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 194
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "withdraw: this probe reads approvedPets under its read rule `.owner = viewer or exists staff[viewer, .building]` (schema.q:74:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). Backing unique index: approvedPets(application); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 194
+      }
+    }
+  },
+  {
+    "lane": "012-day2-pet-addendum-approvals",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 196,
+      "col": 13
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "withdraw: this probe reads reminders under its read rule `.owner = viewer` (schema.q:100:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 196
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "withdraw: this probe reads reminders under its read rule `.owner = viewer` (schema.q:100:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). Backing unique index: reminders(application, dueAt); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 196
+      }
+    }
+  },
+  {
+    "lane": "013-stroke-rehab-contracts",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 138,
+      "col": 13
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "checkIn: this probe reads checkins under its read rule `.goal.contract.patient.patient = viewer or .goal.contract.patient.therapist = viewer or .goal.contract.patient.family = viewer` (schema.q:60:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 138
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "checkIn: this probe reads checkins under its read rule `.goal.contract.patient.patient = viewer or .goal.contract.patient.therapist = viewer or .goal.contract.patient.family = viewer` (schema.q:60:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). Backing unique index: checkins(goal, dayNumber); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 138
+      }
+    }
+  },
+  {
+    "lane": "017-peer-grading-calibration",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 134,
+      "col": 10
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query feedbackFor: an explicit caller branch does not establish reviews's read rule `.reviewer = viewer or exists instructors[viewer] or exists essays[.essay, author = viewer]` at schema.q:71:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 134
+      }
+    }
+  },
+  {
+    "lane": "017-peer-grading-calibration",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 139,
+      "col": 10
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query overrideFor: an explicit caller branch does not establish overrides's read rule `exists essays[.essay, author = viewer] or exists instructors[viewer]` at schema.q:101:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 139
+      }
+    }
+  },
+  {
+    "lane": "020-day2-four-h-project-records",
+    "code": "N_REFERENCE_UNCHECKED",
+    "site": {
+      "file": "schema.q",
+      "line": 158,
+      "col": 10
+    },
+    "change": "wording",
+    "reason": "Mandatory same-argument lookup later in the same atomic path discharges the finding; remaining wording states lookup must be mandatory.",
+    "before": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation bootstrapleaders stores argument seat_club directly in leaders.club, but never looks up clubs[seat_club]: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists clubs[seat_club] else NOT_FOUND` before the write; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 158
+      }
+    },
+    "after": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation bootstrapleaders stores argument seat_club directly in leaders.club, without a mandatory lookup of clubs[seat_club] on every committing path: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists clubs[seat_club] else NOT_FOUND` in the same atomic mutation; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 158
+      }
+    }
+  },
+  {
+    "lane": "020-day2-four-h-project-records",
+    "code": "N_REFERENCE_UNCHECKED",
+    "site": {
+      "file": "schema.q",
+      "line": 162,
+      "col": 10
+    },
+    "change": "wording",
+    "reason": "Mandatory same-argument lookup later in the same atomic path discharges the finding; remaining wording states lookup must be mandatory.",
+    "before": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation bootstrapmembers stores argument seat_club directly in members.club, but never looks up clubs[seat_club]: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists clubs[seat_club] else NOT_FOUND` before the write; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 162
+      }
+    },
+    "after": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation bootstrapmembers stores argument seat_club directly in members.club, without a mandatory lookup of clubs[seat_club] on every committing path: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists clubs[seat_club] else NOT_FOUND` in the same atomic mutation; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 162
+      }
+    }
+  },
+  {
+    "lane": "021-block-party-closures",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 85,
+      "col": 10
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query signaturesFor: an explicit caller branch does not establish signatures's read rule `.signer = viewer or .organizer = viewer or exists roles[viewer]` at schema.q:51:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 85
+      }
+    }
+  },
+  {
+    "lane": "023-hydrant-adoption",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 118,
+      "col": 22
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "adoptHydrant: this probe reads adoptions under its read rule `.adopter = viewer or exists residents[viewer, block = .block] or exists staff[viewer]` (schema.q:46:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). This require/read path already established a readable residents row; the note remains because the compiler cannot prove that fact admits every adoptions row this negative probe must observe.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 118
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "adoptHydrant: this probe reads adoptions under its read rule `.adopter = viewer or exists residents[viewer, block = .block] or exists staff[viewer]` (schema.q:46:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). This require/read path already established a readable residents row; the note remains because the compiler cannot prove that fact admits every adoptions row this negative probe must observe. Backing unique index: adoptions(hydrant); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 118
+      }
+    }
+  },
+  {
+    "lane": "027-agility-trial-run-order",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 109,
+      "col": 12
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query leaderboard: an explicit caller branch does not establish scores's read rule `.handler = viewer or exists staff[viewer, 'secretary'] or exists staff[viewer, 'scribe'] or exists staff[viewer, 'judge'] or exists classes[.class, status = 'closed']` at schema.q:69:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 12,
+        "file": "schema.q",
+        "line": 109
+      }
+    }
+  },
+  {
+    "lane": "030-day2-color-formula-cards",
+    "code": "N_REFERENCE_UNCHECKED",
+    "site": {
+      "file": "schema.q",
+      "line": 160,
+      "col": 10
+    },
+    "change": "wording",
+    "reason": "Mandatory same-argument lookup later in the same atomic path discharges the finding; remaining wording states lookup must be mandatory.",
+    "before": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation bootstrapbookings stores argument seat_client directly in bookings.client, but never looks up clients[seat_client]: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists clients[seat_client] else NOT_FOUND` before the write; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 160
+      }
+    },
+    "after": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation bootstrapbookings stores argument seat_client directly in bookings.client, without a mandatory lookup of clients[seat_client] on every committing path: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists clients[seat_client] else NOT_FOUND` in the same atomic mutation; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 160
+      }
+    }
+  },
+  {
+    "lane": "034-day2-cla-signature-ledger",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 107,
+      "col": 23
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "isCovered: this probe reads individualSigs under its read rule `.signer = viewer or exists maintainers[viewer]` (schema.q:24:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 23,
+        "file": "schema.q",
+        "line": 107
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "isCovered: this probe reads individualSigs under its read rule `.signer = viewer or exists maintainers[viewer]` (schema.q:24:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). Backing unique index: individualSigs(signer); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 23,
+        "file": "schema.q",
+        "line": 107
+      }
+    }
+  },
+  {
+    "lane": "039-photo-booth-galleries",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 112,
+      "col": 10
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query galleryPhotos: an explicit caller branch does not establish photos's read rule `exists events[.event] and exists events[.event, host = viewer] or exists staff[viewer] or .hidden = false and exists visitors[.event, viewer]` at schema.q:49:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 112
+      }
+    }
+  },
+  {
+    "lane": "039-photo-booth-galleries",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 122,
+      "col": 10
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query galleryLink: an explicit caller branch does not establish galleryLinks's read rule `exists events[.event]` at schema.q:29:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 122
+      }
+    }
+  },
+  {
+    "lane": "045-memory-care-playlists",
+    "code": "N_IMMUTABLE_PATCH",
+    "site": {
+      "file": "schema.q",
+      "line": 98,
+      "col": 57
+    },
+    "change": "removed",
+    "reason": "Computed local equals the pinned immutable unique key.",
+    "before": {
+      "code": "N_IMMUTABLE_PATCH",
+      "guide": "writes",
+      "mechanical": false,
+      "message": "on conflict, this upsert is refused at runtime on a readable target unless assignments.week equals the stored value; omit week from the patch if another value may update this row",
+      "rewrite": "omit week from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+      "site": {
+        "col": 57,
+        "file": "schema.q",
+        "line": 98
+      }
+    },
+    "after": null
+  },
+  {
+    "lane": "051-wildlife-crossing-reports",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 52,
+      "col": 7
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query reportDetail: an explicit caller branch does not establish reports's read rule `.reporter = viewer or exists staff[viewer]` at schema.q:32:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 7,
+        "file": "schema.q",
+        "line": 52
+      }
+    }
+  },
+  {
+    "lane": "052-day2-furniture-bank-pickups",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 195,
+      "col": 22
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "schedule: this probe reads pickups under its read rule `.donor = viewer or exists staff[viewer] or exists drivers[viewer]` (schema.q:82:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 195
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "schedule: this probe reads pickups under its read rule `.donor = viewer or exists staff[viewer] or exists drivers[viewer]` (schema.q:82:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). Backing unique index: pickups(item); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 195
+      }
+    }
+  },
+  {
+    "lane": "053-effort-certification",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 113,
+      "col": 10
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query pendingApprovals: an explicit caller branch does not establish certifications's read rule `.staff = viewer or exists admins[viewer]` at schema.q:48:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 113
+      }
+    }
+  },
+  {
+    "lane": "053-effort-certification",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 147,
+      "col": 13
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "removeLine: this probe reads lines under its read rule `exists certifications[.certification, staff = viewer] or exists admins[viewer] or exists projects[.project, pi = viewer]` (schema.q:65:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). This require/read path already established a readable certifications row; the note remains because the compiler cannot prove that fact admits every lines row this negative probe must observe.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 147
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "removeLine: this probe reads lines under its read rule `exists certifications[.certification, staff = viewer] or exists admins[viewer] or exists projects[.project, pi = viewer]` (schema.q:65:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). This require/read path already established a readable certifications row; the note remains because the compiler cannot prove that fact admits every lines row this negative probe must observe. Backing unique index: lines(id); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 147
+      }
+    }
+  },
+  {
+    "lane": "053-effort-certification",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 154,
+      "col": 13
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "removeCertification: this probe reads certifications under its read rule `.staff = viewer or exists admins[viewer]` (schema.q:48:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 154
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "removeCertification: this probe reads certifications under its read rule `.staff = viewer or exists admins[viewer]` (schema.q:48:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). Backing unique index: certifications(id); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 13,
+        "file": "schema.q",
+        "line": 154
+      }
+    }
+  },
+  {
+    "lane": "054-day2-ballot-drop-box-sweeps",
+    "code": "N_SYNC_ORDER",
+    "site": {
+      "file": "schema.q",
+      "line": 82,
+      "col": 10
+    },
+    "change": "wording",
+    "reason": "State online-only ordinary offline read and incomplete held-local behavior.",
+    "before": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query confirmsFor `confirmations where .sweep = sweep first 10 by .id after c`: the index prefix differs: the page pins .sweep [sweep, id] and the window orders the whole sync group [at, id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .sweep filter and filter in the client \u2014 it reads confirmations by .id, oldest first (index [sweep, id]); its sync window is last 500 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown",
+      "rewrite": "The window uses .at, .id, newest first (index [at, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 82
+      }
+    },
+    "after": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query confirmsFor `confirmations where .sweep = sweep first 10 by .id after c`: the index prefix differs: the page pins .sweep [sweep, id] and the window orders the whole sync group [at, id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .sweep filter and filter in the client \u2014 it reads confirmations by .id, oldest first (index [sweep, id]); its sync window is last 500 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline the ordinary query cannot deliver a complete answer in this order (coverage remains unknown)",
+      "rewrite": "The window uses .at, .id, newest first (index [at, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 82
+      }
+    }
+  },
+  {
+    "lane": "054-day2-ballot-drop-box-sweeps",
+    "code": "N_SYNC_ORDER",
+    "site": {
+      "file": "schema.q",
+      "line": 85,
+      "col": 10
+    },
+    "change": "wording",
+    "reason": "State online-only ordinary offline read and incomplete held-local behavior.",
+    "before": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query incidentsFor `incidents where .box = box first 20 by .id after c`: the index prefix differs: the page pins .box [box, id] and the window orders the whole sync group [reportedAt, id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .box filter and filter in the client \u2014 it reads incidents by .id, oldest first (index [box, id]); its sync window is last 500 by .reportedAt, .id, newest first (index [reportedAt, id]); the client needs the server for this read; offline coverage is unknown",
+      "rewrite": "The window uses .reportedAt, .id, newest first (index [reportedAt, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 85
+      }
+    },
+    "after": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query incidentsFor `incidents where .box = box first 20 by .id after c`: the index prefix differs: the page pins .box [box, id] and the window orders the whole sync group [reportedAt, id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .box filter and filter in the client \u2014 it reads incidents by .id, oldest first (index [box, id]); its sync window is last 500 by .reportedAt, .id, newest first (index [reportedAt, id]); the client needs the server for this read; offline the ordinary query cannot deliver a complete answer in this order (coverage remains unknown)",
+      "rewrite": "The window uses .reportedAt, .id, newest first (index [reportedAt, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 85
+      }
+    }
+  },
+  {
+    "lane": "054-day2-ballot-drop-box-sweeps",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 109,
+      "col": 22
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "confirmSweep: this probe reads confirmations under its read rule `exists roles[viewer]` (schema.q:51:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). This require/read path already established a readable roles row; the note remains because the compiler cannot prove that fact admits every confirmations row this negative probe must observe.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 109
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "confirmSweep: this probe reads confirmations under its read rule `exists roles[viewer]` (schema.q:51:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). This require/read path already established a readable roles row; the note remains because the compiler cannot prove that fact admits every confirmations row this negative probe must observe. Backing unique index: confirmations(sweep, confirmer); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 109
+      }
+    }
+  },
+  {
+    "lane": "055-tryout-blind-scoring",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 115,
+      "col": 10
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query reviewScores: an explicit caller branch does not establish scores's read rule `.evaluator = viewer or exists tryouts[.tryout, closed = true] and exists staff[viewer]` at schema.q:56:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 115
+      }
+    }
+  },
+  {
+    "lane": "061-sled-dog-checkpoints",
+    "code": "N_SYNC_ORDER",
+    "site": {
+      "file": "schema.q",
+      "line": 95,
+      "col": 10
+    },
+    "change": "wording",
+    "reason": "State online-only ordinary offline read and incomplete held-local behavior.",
+    "before": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query teamTimes `checkins where .team = team last 100 by .arrivedAt, .id after c`: the index prefix differs: the page pins .team [team, arrivedAt, id] and the window orders the whole sync group [arrivedAt, id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .team filter and filter in the client \u2014 it reads checkins by .arrivedAt, .id, newest first (index [team, arrivedAt, id]); its sync window is last 500 by .arrivedAt, .id, newest first (index [arrivedAt, id]); the client needs the server for this read; offline coverage is unknown",
+      "rewrite": "The window uses .arrivedAt, .id, newest first (index [arrivedAt, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 95
+      }
+    },
+    "after": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query teamTimes `checkins where .team = team last 100 by .arrivedAt, .id after c`: the index prefix differs: the page pins .team [team, arrivedAt, id] and the window orders the whole sync group [arrivedAt, id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .team filter and filter in the client \u2014 it reads checkins by .arrivedAt, .id, newest first (index [team, arrivedAt, id]); its sync window is last 500 by .arrivedAt, .id, newest first (index [arrivedAt, id]); the client needs the server for this read; offline the ordinary query cannot deliver a complete answer in this order (coverage remains unknown)",
+      "rewrite": "The window uses .arrivedAt, .id, newest first (index [arrivedAt, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 95
+      }
+    }
+  },
+  {
+    "lane": "061-sled-dog-checkpoints",
+    "code": "N_SYNC_ORDER",
+    "site": {
+      "file": "schema.q",
+      "line": 98,
+      "col": 10
+    },
+    "change": "wording",
+    "reason": "State online-only ordinary offline read and incomplete held-local behavior.",
+    "before": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query dogsOf `dogs where .team = team last 20 by .id after c`: the index prefix differs: the page pins .team [team, id] and the window orders the whole sync group [id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .team filter and filter in the client \u2014 it reads dogs by .id, newest first (index [team, id]); its sync window is last 500 by .id, newest first (index byId [id]); the client needs the server for this read; offline coverage is unknown",
+      "rewrite": "The window uses .id, newest first (index byId [id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 98
+      }
+    },
+    "after": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query dogsOf `dogs where .team = team last 20 by .id after c`: the index prefix differs: the page pins .team [team, id] and the window orders the whole sync group [id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .team filter and filter in the client \u2014 it reads dogs by .id, newest first (index [team, id]); its sync window is last 500 by .id, newest first (index byId [id]); the client needs the server for this read; offline the ordinary query cannot deliver a complete answer in this order (coverage remains unknown)",
+      "rewrite": "The window uses .id, newest first (index byId [id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 98
+      }
+    }
+  },
+  {
+    "lane": "061-sled-dog-checkpoints",
+    "code": "N_SYNC_ORDER",
+    "site": {
+      "file": "schema.q",
+      "line": 101,
+      "col": 10
+    },
+    "change": "wording",
+    "reason": "State online-only ordinary offline read and incomplete held-local behavior.",
+    "before": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query myTeams `teams where .musher = viewer last 20 by .id after c`: the index prefix differs: the page pins .musher [musher] and the window orders the whole sync group [id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .musher filter and filter in the client \u2014 it reads teams by .id, newest first (index [musher]); its sync window is last 200 by .id, newest first (index byId [id]); the client needs the server for this read; offline coverage is unknown",
+      "rewrite": "The window uses .id, newest first (index byId [id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 101
+      }
+    },
+    "after": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query myTeams `teams where .musher = viewer last 20 by .id after c`: the index prefix differs: the page pins .musher [musher] and the window orders the whole sync group [id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .musher filter and filter in the client \u2014 it reads teams by .id, newest first (index [musher]); its sync window is last 200 by .id, newest first (index byId [id]); the client needs the server for this read; offline the ordinary query cannot deliver a complete answer in this order (coverage remains unknown)",
+      "rewrite": "The window uses .id, newest first (index byId [id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 101
+      }
+    }
+  },
+  {
+    "lane": "061-sled-dog-checkpoints",
+    "code": "N_SYNC_ORDER",
+    "site": {
+      "file": "schema.q",
+      "line": 108,
+      "col": 10
+    },
+    "change": "wording",
+    "reason": "State online-only ordinary offline read and incomplete held-local behavior.",
+    "before": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query flags `checkins where .earlyDeparture = true first 100 by .arrivedAt, .id after c`: the index prefix differs: the page pins .earlyDeparture [earlyDeparture, arrivedAt, id] and the window orders the whole sync group [arrivedAt, id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .earlyDeparture filter and filter in the client \u2014 it reads checkins by .arrivedAt, .id, oldest first (index [earlyDeparture, arrivedAt, id]); its sync window is last 500 by .arrivedAt, .id, newest first (index [arrivedAt, id]); the client needs the server for this read; offline coverage is unknown",
+      "rewrite": "The window uses .arrivedAt, .id, newest first (index [arrivedAt, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 108
+      }
+    },
+    "after": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query flags `checkins where .earlyDeparture = true first 100 by .arrivedAt, .id after c`: the index prefix differs: the page pins .earlyDeparture [earlyDeparture, arrivedAt, id] and the window orders the whole sync group [arrivedAt, id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .earlyDeparture filter and filter in the client \u2014 it reads checkins by .arrivedAt, .id, oldest first (index [earlyDeparture, arrivedAt, id]); its sync window is last 500 by .arrivedAt, .id, newest first (index [arrivedAt, id]); the client needs the server for this read; offline the ordinary query cannot deliver a complete answer in this order (coverage remains unknown)",
+      "rewrite": "The window uses .arrivedAt, .id, newest first (index [arrivedAt, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 108
+      }
+    }
+  },
+  {
+    "lane": "065-medicine-cabinet-expiry",
+    "code": "N_NO_CURSOR",
+    "site": {
+      "file": "schema.q",
+      "line": 70,
+      "col": 1
+    },
+    "change": "removed",
+    "reason": "Declared cursor preserved through planner authority fallback; continuations execute.",
+    "before": {
+      "code": "N_NO_CURSOR",
+      "guide": "reads",
+      "mechanical": false,
+      "message": "query cabinet returns a page of 50 medicines rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this when its full planned walk fits the examined allowance",
+      "rewrite": "if the screen pages, declare `c: cursor ?` in cabinet and append `after c` to this medicines page, keeping its current predicate, direction and column order",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 70
+      }
+    },
+    "after": null
+  },
+  {
+    "lane": "065-medicine-cabinet-expiry",
+    "code": "N_NO_CURSOR",
+    "site": {
+      "file": "schema.q",
+      "line": 76,
+      "col": 1
+    },
+    "change": "removed",
+    "reason": "Declared cursor preserved through planner authority fallback; continuations execute.",
+    "before": {
+      "code": "N_NO_CURSOR",
+      "guide": "reads",
+      "mechanical": false,
+      "message": "query dropOff returns a page of 50 medicines rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this when its full planned walk fits the examined allowance",
+      "rewrite": "if the screen pages, declare `c: cursor ?` in dropOff and append `after c` to this medicines page, keeping its current predicate, direction and column order",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 76
+      }
+    },
+    "after": null
+  },
+  {
+    "lane": "065-medicine-cabinet-expiry",
+    "code": "N_NO_CURSOR",
+    "site": {
+      "file": "schema.q",
+      "line": 79,
+      "col": 1
+    },
+    "change": "removed",
+    "reason": "Declared cursor preserved through planner authority fallback; continuations execute.",
+    "before": {
+      "code": "N_NO_CURSOR",
+      "guide": "reads",
+      "mechanical": false,
+      "message": "query dosesFor returns a page of 50 dose_logs rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this when its full planned walk fits the examined allowance",
+      "rewrite": "if the screen pages, declare `c: cursor ?` in dosesFor and append `after c` to this dose_logs page, keeping its current predicate, direction and column order",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 79
+      }
+    },
+    "after": null
+  },
+  {
+    "lane": "067-curfew-extension-requests",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 96,
+      "col": 22
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "decide: this probe reads decisions under its read rule `exists members[viewer, family = .family]` (schema.q:50:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). This require/read path already established a readable members row; the note remains because the compiler cannot prove that fact admits every decisions row this negative probe must observe.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 96
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "decide: this probe reads decisions under its read rule `exists members[viewer, family = .family]` (schema.q:50:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). This require/read path already established a readable members row; the note remains because the compiler cannot prove that fact admits every decisions row this negative probe must observe. Backing unique index: decisions(request); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 96
+      }
+    }
+  },
+  {
+    "lane": "067-curfew-extension-requests",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 107,
+      "col": 22
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "checkIn: this probe reads checkins under its read rule `exists members[viewer, family = .family]` (schema.q:63:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 107
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "checkIn: this probe reads checkins under its read rule `exists members[viewer, family = .family]` (schema.q:63:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). Backing unique index: checkins(request); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 107
+      }
+    }
+  },
+  {
+    "lane": "071-instrument-lockout-leases",
+    "code": "N_REFERENCE_UNCHECKED",
+    "site": {
+      "file": "schema.q",
+      "line": 90,
+      "col": 3
+    },
+    "change": "wording",
+    "reason": "Mandatory same-argument lookup later in the same atomic path discharges the finding; remaining wording states lookup must be mandatory.",
+    "before": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation renew stores argument instrument directly in logs.instrument, but never looks up instruments[instrument]: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists instruments[instrument] else NOT_FOUND` before the write; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 3,
+        "file": "schema.q",
+        "line": 90
+      }
+    },
+    "after": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation renew stores argument instrument directly in logs.instrument, without a mandatory lookup of instruments[instrument] on every committing path: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists instruments[instrument] else NOT_FOUND` in the same atomic mutation; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 3,
+        "file": "schema.q",
+        "line": 90
+      }
+    }
+  },
+  {
+    "lane": "077-rfp-response-desk",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 105,
+      "col": 12
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query sectionsOf: an explicit caller branch does not establish sections's read rule `.owner = viewer or exists staff[viewer, role = 'manager'] or exists staff[viewer, role = 'partner'] and exists proposals[.proposal, state = 'active'] or exists staff[viewer, role = 'partner']` at schema.q:38:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 12,
+        "file": "schema.q",
+        "line": 105
+      }
+    }
+  },
+  {
+    "lane": "078-day2-practicum-placements",
+    "code": "N_REFERENCE_UNCHECKED",
+    "site": {
+      "file": "schema.q",
+      "line": 147,
+      "col": 10
+    },
+    "change": "wording",
+    "reason": "Mandatory same-argument lookup later in the same atomic path discharges the finding; remaining wording states lookup must be mandatory.",
+    "before": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation bootstrapcoordinators stores argument seat_school directly in coordinators.school, but never looks up schools[seat_school]: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists schools[seat_school] else NOT_FOUND` before the write; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 147
+      }
+    },
+    "after": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation bootstrapcoordinators stores argument seat_school directly in coordinators.school, without a mandatory lookup of schools[seat_school] on every committing path: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists schools[seat_school] else NOT_FOUND` in the same atomic mutation; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 147
+      }
+    }
+  },
+  {
+    "lane": "080-day2-stop-headcount-tally",
+    "code": "N_NO_CURSOR",
+    "site": {
+      "file": "schema.q",
+      "line": 149,
+      "col": 1
+    },
+    "change": "removed",
+    "reason": "Declared cursor preserved through planner authority fallback; continuations execute.",
+    "before": {
+      "code": "N_NO_CURSOR",
+      "guide": "reads",
+      "mechanical": false,
+      "message": "query activeTours returns a page of 50 tours rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this when its full planned walk fits the examined allowance",
+      "rewrite": "if the screen pages, declare `c: cursor ?` in activeTours and append `after c` to this tours page, keeping its current predicate, direction and column order",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 149
+      }
+    },
+    "after": null
+  },
+  {
+    "lane": "080-day2-stop-headcount-tally",
+    "code": "N_NO_CURSOR",
+    "site": {
+      "file": "schema.q",
+      "line": 152,
+      "col": 1
+    },
+    "change": "removed",
+    "reason": "Declared cursor preserved through planner authority fallback; continuations execute.",
+    "before": {
+      "code": "N_NO_CURSOR",
+      "guide": "reads",
+      "mechanical": false,
+      "message": "query myTours returns a page of 50 tours rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this when its full planned walk fits the examined allowance",
+      "rewrite": "if the screen pages, declare `c: cursor ?` in myTours and append `after c` to this tours page, keeping its current predicate, direction and column order",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 152
+      }
+    },
+    "after": null
+  },
+  {
+    "lane": "080-day2-stop-headcount-tally",
+    "code": "N_NO_CURSOR",
+    "site": {
+      "file": "schema.q",
+      "line": 155,
+      "col": 1
+    },
+    "change": "removed",
+    "reason": "Declared cursor preserved through planner authority fallback; continuations execute.",
+    "before": {
+      "code": "N_NO_CURSOR",
+      "guide": "reads",
+      "mechanical": false,
+      "message": "query allTours returns a page of 50 tours rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this when its full planned walk fits the examined allowance",
+      "rewrite": "if the screen pages, declare `c: cursor ?` in allTours and append `after c` to this tours page, keeping its current predicate, direction and column order",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 155
+      }
+    },
+    "after": null
+  },
+  {
+    "lane": "080-day2-stop-headcount-tally",
+    "code": "N_NO_CURSOR",
+    "site": {
+      "file": "schema.q",
+      "line": 159,
+      "col": 1
+    },
+    "change": "removed",
+    "reason": "Declared cursor preserved through planner authority fallback; continuations execute.",
+    "before": {
+      "code": "N_NO_CURSOR",
+      "guide": "reads",
+      "mechanical": false,
+      "message": "query itinerary returns a page of 50 stops rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this when its full planned walk fits the examined allowance",
+      "rewrite": "if the screen pages, declare `c: cursor ?` in itinerary and append `after c` to this stops page, keeping its current predicate, direction and column order",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 159
+      }
+    },
+    "after": null
+  },
+  {
+    "lane": "080-day2-stop-headcount-tally",
+    "code": "N_REFERENCE_UNCHECKED",
+    "site": {
+      "file": "schema.q",
+      "line": 249,
+      "col": 10
+    },
+    "change": "wording",
+    "reason": "Mandatory same-argument lookup later in the same atomic path discharges the finding; remaining wording states lookup must be mandatory.",
+    "before": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation bootstrapalerts stores argument seat_tour directly in alerts.tour, but never looks up tours[seat_tour]: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists tours[seat_tour] else NOT_FOUND` before the write; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 249
+      }
+    },
+    "after": {
+      "code": "N_REFERENCE_UNCHECKED",
+      "guide": "types",
+      "mechanical": false,
+      "message": "mutation bootstrapalerts stores argument seat_tour directly in alerts.tour, without a mandatory lookup of tours[seat_tour] on every committing path: a reference accepts any well-formed id even when the row is absent",
+      "rewrite": "add `require exists tours[seat_tour] else NOT_FOUND` in the same atomic mutation; keep the direct id only when dangling references are intentional",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 249
+      }
+    }
+  },
+  {
+    "lane": "080-day2-stop-headcount-tally",
+    "code": "N_REQUIRE_REFUSED",
+    "site": {
+      "file": "schema.q",
+      "line": 228,
+      "col": 10
+    },
+    "change": "added",
+    "reason": "Service OR branch does not discharge the human branch; table authority remains enforced.",
+    "before": null,
+    "after": {
+      "code": "N_REQUIRE_REFUSED",
+      "guide": "rule-recipes",
+      "mechanical": false,
+      "message": "flagMissing: mutation require `(s.guide = viewer or (exists staff[viewer, role = 'office']))` has a caller branch that does not establish alerts's table insert rule `((exists staff[viewer]) or viewer = 'service:ops')` at schema.q:125:3; those callers may pass require and still be refused by table authority. Roles can overlap; this is a missing authority proof, not a claim that the audiences are disjoint",
+      "rewrite": "require the table's role in every admitted branch, or deliberately widen the table write rule; a mutation require never grants table authority. See: guide rule-recipes own-or-staff",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 228
+      }
+    }
+  },
+  {
+    "lane": "080-day2-stop-headcount-tally",
+    "code": "N_UNREADABLE_PROBE",
+    "site": {
+      "file": "schema.q",
+      "line": 227,
+      "col": 22
+    },
+    "change": "wording",
+    "reason": "Name the physical backing unique index without granting visibility.",
+    "before": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "flagMissing: this probe reads checkins under its read rule `.principal = viewer or exists staff[viewer]` (schema.q:106:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 227
+      }
+    },
+    "after": {
+      "code": "N_UNREADABLE_PROBE",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "flagMissing: this probe reads checkins under its read rule `.principal = viewer or exists staff[viewer]` (schema.q:106:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows). Backing unique index: checkins(stop, principal); it enforces uniqueness across hidden rows too, but does not make this probe see them.",
+      "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+      "site": {
+        "col": 22,
+        "file": "schema.q",
+        "line": 227
+      }
+    }
+  },
+  {
+    "lane": "092-day2-summit-register-book",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 138,
+      "col": 10
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query moderationHistory: an explicit caller branch does not establish moderationActions's read rule `.owner = viewer or exists rangers[viewer]` at schema.q:71:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 138
+      }
+    }
+  },
+  {
+    "lane": "092-day2-summit-register-book",
+    "code": "N_SYNC_ORDER",
+    "site": {
+      "file": "schema.q",
+      "line": 85,
+      "col": 10
+    },
+    "change": "wording",
+    "reason": "State online-only ordinary offline read and incomplete held-local behavior.",
+    "before": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query publicNotes `posts where .summit = summit last 100 by .at`: the index prefix differs: the page pins .summit [summit, at, id] and the window orders the whole sync group [at, id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .summit filter and filter in the client \u2014 it reads posts by .at, .id, newest first (index [summit, at, id]); its sync window is last 100 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline coverage is unknown",
+      "rewrite": "The window uses .at, .id, newest first (index [at, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 85
+      }
+    },
+    "after": {
+      "code": "N_SYNC_ORDER",
+      "guide": "sync",
+      "mechanical": false,
+      "message": "query publicNotes `posts where .summit = summit last 100 by .at`: the index prefix differs: the page pins .summit [summit, at, id] and the window orders the whole sync group [at, id], so a device cannot prove this filtered page complete. No action for an online read; to answer it offline, read the window's order without the .summit filter and filter in the client \u2014 it reads posts by .at, .id, newest first (index [summit, at, id]); its sync window is last 100 by .at, .id, newest first (index [at, id]); the client needs the server for this read; offline the ordinary query cannot deliver a complete answer in this order (coverage remains unknown)",
+      "rewrite": "The window uses .at, .id, newest first (index [at, id]); preserve all predicates, audience keys and the cursor. No paste-ready replacement is available for this read; retain its enclosing row or merge context",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 85
+      }
+    }
+  },
+  {
+    "lane": "096-day2-litter-pick-order",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 131,
+      "col": 10
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query paymentHistory: an explicit caller branch does not establish payments's read rule `exists breeders[viewer] or exists families[.litter, viewer, approved = true]` at schema.q:92:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 131
+      }
+    }
+  },
+  {
+    "lane": "097-friendly-call-circle",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 88,
+      "col": 10
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query seniorCalls: an explicit caller branch does not establish calls's read rule `.volunteer = viewer or exists coordinators[viewer]` at schema.q:49:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 88
+      }
+    }
+  },
+  {
+    "lane": "097-friendly-call-circle",
+    "code": "N_QUERY_FILTERED",
+    "site": {
+      "file": "schema.q",
+      "line": 93,
+      "col": 10
+    },
+    "change": "added",
+    "reason": "Explicit caller branch/filter does not prove the returned table read rule; advisory about possible filtering, never disjoint roles.",
+    "before": null,
+    "after": {
+      "code": "N_QUERY_FILTERED",
+      "guide": "rules",
+      "mechanical": false,
+      "message": "query seniorChecks: an explicit caller branch does not establish checks's read rule `.volunteer = viewer or exists coordinators[viewer]` at schema.q:63:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+      "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+      "site": {
+        "col": 10,
+        "file": "schema.q",
+        "line": 93
+      }
+    }
+  }
+]
