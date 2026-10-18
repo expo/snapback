@@ -1,0 +1,18 @@
+{
+  "llp/3000.036.004-security-invariants-and-exposure.rfc.md": "a5a2e51a3d0d3d05f876f10e4daf090f056b4b5b332911af054066c798c33c8e",
+  "snapback4/crates/snapback4-lang/src/bind/security/audit.rs": "0e3ab6636e20e3992b703830dbe13518d82c92406ac99dffb5c8f98f72b0a669",
+  "snapback4/crates/snapback4-lang/src/bind/security/census.rs": "3b23a87020920537dc8e9e44d83ff3204202aab2f0ccf2cf3e52b79913461916",
+  "snapback4/crates/snapback4-lang/src/bind/security/adoption.rs": "4d9290db708d7dceac99c1e64f8db0412b6c02a2f6a614dda7da8ce7010a01b0",
+  "snapback4/crates/snapback4-lang/src/bind/security/observers.rs": "f049db81dc38644af59adb209dca8eeec901b36c11a687dba67a5428c8a0e13b",
+  "snapback4/crates/snapback4-lang/src/bind/security/lints.rs": "14e3f26f2bce7628f4515a8c57c2d0d2a9d2938221950b8992f33923e00f8189",
+  "snapback4/crates/snapback4-lang/src/bind/security/temporal.rs": "3dccb1a97d52153721c749a1da7264562421123f095eb2aed7efdf41f8ae79f1",
+  "snapback4/crates/snapback4-lang/src/bind/security/challenges.rs": "fff313f0034f6bb4cf0ddac17009b56992952893cb6e393fce7f74ededb6b267",
+  "snapback4/crates/snapback4-lang/src/bind/security/operation.rs": "b8d135d9aaea6374428b854a03eded8c9fd2fc68c38bbeb3813a330517021f2b",
+  "snapback4/crates/snapback4-lang/src/bind/security/concrete.rs": "243f850ce01c1a836fbdefa24c6b00fd0c7747d8b15cac5a148ae514a4b5f1ce",
+  "snapback4/crates/snapback4-lang/src/bind/security/kernel.rs": "bf30f61d7129921837645ab74e3dbd72f8d9fedfb57bd1135b998cede83ec6c0",
+  "snapback4/crates/snapback4-lang/src/bind/security/challenges/paired.rs": "5767154b726af90b2e1c0a878c08383028dc8587f6afa25b9b078706ccae83e0",
+  "snapback4/crates/snapback4-lang/src/bind/security/challenges/timed.rs": "4654d12c19bfd3ff860a334a3c3236ec965a2dab6d54702e369e75d894fb6888",
+  "snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs": "7b4753ee16d51057d8c5d7db3bbdd1513767d2ffec9aef23c3beacf5bc85b26b",
+  "snapback4/crates/snapback4-lang/src/bind/security.rs": "9d0491b51ad98358063f0a1cb146fa9a651afad808969ece88ec747bb7e41a97",
+  "snapback4/crates/snapback4/src/verbs/security/http.rs": "766cb2d3e33dc5816742a3f140bfc1ddf6b94373df4998d13d83d3e49cd3d87f"
+}
