@@ -162,7 +162,7 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
     // same component. Indirect observers, temporal reads and actual authored
     // operations below still run; the whole declaration remains unproved.
     let discharged=super::analyze(bound).invariants.into_iter()
-        .filter(|v|v.direct_rule==Status::Proved&&matches!(v.invariant.target.as_str(),"read"|"always"))
+        .filter(|v|v.direct_rule==Status::Proved&&(matches!(v.invariant.target.as_str(),"read"|"always"|"insert"|"delete")||v.invariant.operation.is_some()))
         .map(|v|v.invariant.site.to_string()).collect::<BTreeSet<_>>();
     let mut assertions=bound.invariants.clone();
     for inv in &bound.invariants {
@@ -174,12 +174,28 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
     }
     for inv in &assertions{
         if sites.is_some_and(|sites|!sites.contains(&inv.site.to_string())){continue;}
-        if discharged.contains(&inv.site.to_string())&&matches!(inv.target.as_str(),"read"|"always"){continue;}
+        if discharged.contains(&inv.site.to_string())&&(matches!(inv.target.as_str(),"read"|"always"|"insert"|"delete")||inv.operation.is_some()){continue;}
         let mut found=false;
         let combinations=bound.schema.tables.values().flat_map(|t|t.columns.values()).filter_map(|k|if let C::Enum{variants}=k.required(){Some(variants.len())}else{None}).fold(1usize,usize::saturating_mul).max(24);
         if combinations>512{out.unsupported.insert("schema enum Cartesian matrix exceeds 512 samples; remaining tuples are not covered".into());}
-        for variant in 0..combinations.min(512) {
-            let rows=match snapshot(bound,inv,variant){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);break;}};
+        for sample in 0..=combinations.min(512) {
+            let variant=sample.saturating_sub(1);
+            let mut rows=match snapshot(bound,inv,variant){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);break;}};
+            // Try explicit policy field literals before the unchanged enum
+            // matrix. A value such as status='cancelled' need not wait behind
+            // hundreds of unrelated enum tuples. This is only a candidate;
+            // ordinary validation and engine replay still decide refutation.
+            if sample==0 {
+                fn pin(rule:&RuleExpr,row:&mut Value)->bool{match rule{
+                    RuleExpr::Eq(RuleTerm::Field(f),RuleTerm::Literal(v))|RuleExpr::Ne(RuleTerm::Field(f),RuleTerm::Literal(v))|
+                    RuleExpr::Eq(RuleTerm::Literal(v),RuleTerm::Field(f))|RuleExpr::Ne(RuleTerm::Literal(v),RuleTerm::Field(f))=>{
+                        if let Value::Row(fields)=row&&fields.contains_key(f){fields.insert(f.clone(),v.clone());true}else{false}
+                    },
+                    RuleExpr::And(xs)|RuleExpr::Or(xs)=>xs.iter().fold(false,|any,r|pin(r,row)||any),
+                    RuleExpr::Not(r)=>pin(r,row),_=>false,
+                }}
+                if !inv.policy.as_ref().zip(rows.get_mut(&inv.table).and_then(|rs|rs.first_mut())).is_some_and(|(p,row)|pin(p,row)){continue;}
+            }
             let mut seeded=match engine(bound,&rows,program("$security.seed",ProgramKind::Query,vec![Stmt::Return(Expr::Get(Read{site:"security read".into(),table:inv.table.clone(),index:"byId".into(),key:vec![Expr::Literal(id(&inv.table))],provenance:KeyProvenance::Computed}))])){Ok(e)=>e,Err(e)=>{out.unsupported.insert(e);continue;}};
             let rows=match readback(&seeded){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);continue;}};
             let Some(row)=rows.get(&inv.table).and_then(|r|r.first())else{out.unsupported.insert(format!("{}: no generated ordinary row",inv.table));break;};
