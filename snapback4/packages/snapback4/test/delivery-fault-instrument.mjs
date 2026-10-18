@@ -253,6 +253,15 @@ export function instrument(destination) {
 // arm across shared dispatch/retries. The asset reader also retains UA progress.
 // client.ts still has 62 awaits; only the combined text seal changes. No new
 // I/O, delivery fault site, classification or recipe is introduced by resolution.
+// Integration 16 boundary review: app-online's existing awaited custody save
+// also recognizes E_DEV_RESET alongside the same unknown-outcome store refusals.
+// No await, I/O or delivery ownership changes there; online-store-terminal and
+// the real online-journal-browser reset cases cover retirement and reopen.
+// KIT4's two new proof.ts awaits install a browser diagnostic binding and read
+// visible headings after an observation deadline. They own proof/browser work,
+// never mutation admission, persistence, dispatch or settlement. proof-contract
+// and the packed proof-kit cases exercise their errors. Existing delivery sites,
+// required/optional classifications and fault recipes remain unchanged.
 export function awaitBoundary() {
   const root = join(packageRoot, 'src');
   return Object.fromEntries(readdirSync(root, { recursive: true }).filter(file => file.endsWith('.ts')).sort().map(file => {
