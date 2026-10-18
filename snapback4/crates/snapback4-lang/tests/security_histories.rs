@@ -30,5 +30,6 @@ fn generated_foreign_asset_and_non_image_challenges_use_real_ledgers(){
  let fixture=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
  let mut c=security::challenges::Campaign::default();security::challenges::operations(&b,&fixture,&mut c);
  assert!(c.boundary_failures.is_empty(),"{c:?}");assert!(c.attempted>=3);
- assert!(c.operations.contains_key("photo")&&c.operations.contains_key("attach"));
+ assert_eq!(c.operations["photo"],6,"four ordinary viewers plus foreign-image and non-image ledger challenges: {c:?}");
+ assert_eq!(c.operations["attach"],5,"four ordinary viewers plus the foreign-file ledger challenge: {c:?}");
 }

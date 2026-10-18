@@ -35,3 +35,22 @@ single direct-rule theorem into a whole-exposure proof.
 
 RULES5 owns live-parent semantics; STAGE owns first-admin and password-only dev
 surfaces. Those independent lanes are not reimplemented here.
+
+## SEC2 continuation (reviewed 2026-10-18)
+
+LLP 3000.036.004 §10 adds separate ordinary aggregate/existence and bare-key
+maintained contributor obligations; clock/lifetime read reduction; replayed
+paired logical data/authored-refusal and unswept boundary counterexamples;
+short real operation histories from focused fixtures; named seats and scalar
+required/nullable enum alternatives; real foreign image/file and non-image
+placement probes; isolated production HTTP auth challenges; generated
+unaccepted invariant drafts and uncovered-effect audit tails. A repaired 015
+ordinary placement/transfer/adoption trace creates all custody rows through
+authored operations. Round 5 Muse and fresh Codex are READY.
+
+This ticket remains Open. General aggregate/transition proofs, exact temporal
+write/schedule proofs, disconnected-device history generation, complete
+video/asset/captured/maintenance fixture histories, write-boundary tracing,
+raw/referential/opaque observer reductions and whole-wire activity remain
+unproved/not-covered. Explicit blockers and finite test campaigns do not close
+the zero-hole acceptance condition. Evidence: snapback4/reports/20261018-sec2/.
