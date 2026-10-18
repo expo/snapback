@@ -2,7 +2,7 @@
 
 ## 0.4.32
 
-- CLI and discovery: release consumers (`serve`, `token --release`, `rollback`, `prune`, `releases`) refuse missing or release-less deployment directories before creating any files. Deploy is the deployment creation command; database selection remains authoritative when the convenience `current` file is absent or stale.
+- CLI and discovery: release consumers (`serve`, `token --release`, `rollback`, `prune`, `releases`) refuse missing or release-less deployment directories before creating any files. Deploy is the deployment creation command; database selection remains authoritative when the convenience `current` file is absent or stale. `seed` now loads fixtures through a running dev and has dedicated help. Release JSON adds `current` equal to `release` and accepts a `current` selector. Long guide cards show a truncation hint and first section in tools; use `--full` for the whole card. `bootstrap` opens production guidance; deploy help names deployment and saved-source directories. Init prints its port-range note only when the environment range is set, and production preview rule bodies are indented.
 
 ## 0.4.31
 

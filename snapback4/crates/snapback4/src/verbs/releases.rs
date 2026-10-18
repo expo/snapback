@@ -29,17 +29,58 @@ pub(super) fn existing_deployment(requested: &Path) -> Result<PathBuf, String> {
     let missing = || format!("no current release in {}; run `snapback4 deploy {}` first", requested.display(), requested.display());
     if !requested.join("store.sqlite").is_file() { return Err(missing()); }
     let dir = requested.canonicalize().map_err(|e| e.to_string())?;
-    let store = snapback4_core::Store::open_read_only(&dir.join("store.sqlite"))
-        .map_err(|e| e.to_string())?;
-    // The database wins over a stale/missing convenience pointer. Older stores
-    // may still use the pointer; ownership rechecks selection before serving.
-    let release = match store.meta("release").map_err(|e| e.to_string())? {
+    let release = inspect_current(&dir)?;
+    bound_at(dir.join("releases").join(release.to_string()))?;
+    Ok(dir)
+}
+
+// SQLite READONLY can create WAL sidecars. A stopped store's existing owner
+// lock makes immutable inspection safe; a live host supplies its own status.
+fn inspect_current(dir: &Path) -> Result<u64, String> {
+    use rusqlite::{Connection, OpenFlags, OptionalExtension};
+    let database = dir.join("store.sqlite").canonicalize().map_err(|e| e.to_string())?;
+    let missing = || format!("no current release in {}; run `snapback4 deploy {}` first", dir.display(), dir.display());
+    let owner = snapback4_core::private_fs::auxiliary_file(&database,
+        &snapback4_core::private_fs::owner_path(&database), false, 0)
+        .map_err(|e| format!("{}; existing ownership sidecar unavailable: {e}", missing()))?;
+    match owner.try_lock() {
+        Ok(()) => {},
+        Err(std::fs::TryLockError::WouldBlock) => {
+            return crate::release_control::request(dir, crate::release_control::Command::Status {after:0, items_after:None, event:None})
+                .map_err(|error| format!("{}; {error}", missing()))?["release"].as_u64().filter(|n| *n > 0).ok_or_else(missing);
+        },
+        Err(error) => return Err(error.to_string()),
+    }
+    if !snapback4_core::private_fs::owner_is_named(&database, &owner) {
+        return Err("store ownership changed during release inspection; retry".into());
+    }
+    #[cfg(unix)]
+    let bytes = { use std::os::unix::ffi::OsStrExt; database.as_os_str().as_bytes() };
+    #[cfg(not(unix))]
+    let bytes = database.to_str().ok_or("invalid store path")?.as_bytes();
+    let mut uri = String::from("file:");
+    for byte in bytes {
+        if byte.is_ascii_alphanumeric() || b"/._-".contains(byte) { uri.push(*byte as char); }
+        else { uri.push_str(&format!("%{byte:02X}")); }
+    }
+    let mut wal = database.as_os_str().to_os_string(); wal.push("-wal"); let wal = PathBuf::from(wal);
+    let mut shm = database.as_os_str().to_os_string(); shm.push("-shm"); let shm = PathBuf::from(shm);
+    let has_wal = match std::fs::metadata(&wal) {
+        Ok(meta) => meta.len() > 0,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
+        Err(e) => return Err(e.to_string()),
+    };
+    if has_wal && !shm.is_file() { return Err("store has a WAL without its shared-memory sidecar; run deploy on this stopped deployment to recover it before inspection".into()); }
+    // Immutable SQLite omits WAL reads: use it only for the checkpointed main
+    // image. Existing WAL+SHM can be read normally under the same exclusion.
+    uri.push_str(if has_wal { "?mode=ro" } else { "?mode=ro&immutable=1" });
+    let conn = Connection::open_with_flags(uri, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI).map_err(|e|e.to_string())?;
+    let release: Option<String> = conn.query_row("SELECT value FROM _meta WHERE key='release'", [], |row|row.get(0)).optional().map_err(|e|e.to_string())?;
+    let release = match release {
         Some(value) => value,
         None => std::fs::read_to_string(dir.join("current")).map_err(|_| missing())?,
     };
-    let release = release.trim().parse::<u64>().ok().filter(|n| *n > 0).ok_or_else(missing)?;
-    selectable(&dir, release)?;
-    Ok(dir)
+    release.trim().parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing)
 }
 
 /// `dev` and `serve` hold the store-owner lock for their lifetime. Release
@@ -457,9 +498,11 @@ pub fn releases(options: &Options) -> i32 {
                     event,
                 )
                 .map_err(|e| e.to_string())?;
+            if result["release"].is_null() { result["release"]=serde_json::json!(inspect_current(&dir)?); }
+            result["current"]=result["release"].clone();
             result["latest"]=serde_json::json!(latest(&dir).ok());
             if let Some(selector)=options.positionals.get(1) {
-                let n=if selector=="latest" {latest(&dir)?} else {selector.parse::<u64>().ok().filter(|n|*n>0).ok_or("releases selection requires N or latest")?};
+                let n=if selector=="latest" {latest(&dir)?} else if selector=="current" {result["release"].as_u64().ok_or("no current release")?} else {selector.parse::<u64>().ok().filter(|n|*n>0).ok_or("releases selection requires N, latest or current")?};
                 selectable(&dir,n)?;let root=dir.join("releases").join(n.to_string());bound_at(root.clone())?;
                 result["selected"]=serde_json::json!({"release":n,"current":result["release"].as_u64()==Some(n),"digest":crate::release_files::digest(&root)?});
             }

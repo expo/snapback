@@ -62,14 +62,12 @@ query supervisorList(precinct: precincts, c: cursor ?):
 
 The online-only supervisor probe makes supervisorList a server read. It still
 needs precinct membership: enroll the supervisor in each precinct, with role
-supervisor. This deliberately replaces the two independent group audiences
-from lane 057. Revoking one assignment removes that precinct's offline rows;
+supervisor. Use explicit assignments for both groups. Revoking one assignment removes that precinct's offline rows;
 revoking the supervisor seat also requires removing those explicit assignments.
 
 ## Quantified consent via maintained counts
 
-`guide rule-recipes quantified-consent` replaces lane 007's thirty nullable tag
-slots with a relation. Counts are deliberately readable metadata; photo bodies
+`guide rule-recipes quantified-consent` replaces thirty nullable tag slots with a relation. Counts are deliberately readable metadata; photo bodies
 remain private. Every tag addition/removal and global student-consent change
 refreshes the clearance in the same transaction. The engine maintains counts;
 the trusted helper maintains the grant. No background repair may be the
@@ -163,7 +161,7 @@ mutation would bypass the latter. Universal relation quantifiers remain open.
 
 ## Mutable workflow gate as an explicit probe
 
-`guide rule-recipes mutable-workflow` answers lanes 011 and 019. `read through`
+`guide rule-recipes mutable-workflow`: `read through`
 captures immutable audience inputs; a conference release or privacy flag must
 be checked live. A keyed table-rule probe sees the current parent even when a
 program lookup would hide it. Revoking the flag hides existing children on the
@@ -201,7 +199,7 @@ query conferenceResponse(conference: conferences):
 
 ## Publication maintained from its source
 
-`guide rule-recipes source-publication` answers lane 097. Only the public copy
+`guide rule-recipes source-publication`: Only the public copy
 carries the public read rule. Its write rule probes the source owner. Source rows stay
 private, including private production notes. A removal requester looks up the
 public copy, never the private source. All source edits call one helper in the
@@ -284,7 +282,7 @@ query privateClip(clip: sourceClips):
 
 ## Owner now, peers at deadline
 
-`guide rule-recipes owner-now` answers lane 053. A table lifetime applies to
+`guide rule-recipes owner-now`: A table lifetime applies to
 every reader, so store the private current count separately from the timed
 peer projection. One transaction updates both. The deadline is immutable;
 no caller can advance disclosure. Freeze reports at the deadline. Final totals
@@ -359,7 +357,7 @@ Use `check` to inspect each query's completeness class.
 
 ## Grant expiry versus owner visibility
 
-`guide rule-recipes grant-expiry` answers lane 005. Opening and expiry hide a
+`guide rule-recipes grant-expiry`: Opening and expiry hide a
 grant from everyone, including its owner. Keep owner-visible history in a
 separate non-expiring audit table; do not widen the grant read rule to fight
 its lifetime. An expired grant need not be read or deleted to revoke access.
@@ -411,7 +409,7 @@ query grantHistory(c: cursor ?):
 
 ## End-to-end role workflow
 
-`guide rule-recipes role-workflow` answers lane 009. A host drafts a sponsor
+`guide rule-recipes role-workflow`: A host drafts a sponsor
 read, a manager edits it, and the sponsor approves it. Rates remain host-only.
 A role query drives access UI; hiding a button grants no authority. The table
 transition locks approved scripts even if a new mutation forgets a guard.
@@ -471,7 +469,7 @@ query sponsorRate(adRead: sponsorReads):
 
 ## Update images and the two authorization layers
 
-`guide rule-recipes update-images` answers lane 094. An unnamed update rule
+`guide rule-recipes update-images`: An unnamed update rule
 must hold before and after the patch. Requiring pending in a mutation cannot
 override a table rule that also requires the resulting state to be pending.
 For an intended transition out of pending, explicitly judge the pre-write

@@ -319,7 +319,7 @@ pub fn init(options: &Options) -> i32 {
     } else if expo {
         println!("init: the backend is http://127.0.0.1:{}; `npm run web` serves http://localhost:{}; `--port N` sets the client's backend URL and the README and launchers together", port.unwrap_or(4400), web_port.unwrap_or(8081));
     }
-    if web || expo { println!("init: PORT_LO/PORT_HI set at init are baked into these defaults; a later runtime pair overrides them through `npm run backend` and the frontend launcher (`npm run dev`/`npm run web`)"); }
+    if (web || expo) && (std::env::var_os("PORT_LO").is_some() || std::env::var_os("PORT_HI").is_some()) { println!("init: PORT_LO/PORT_HI set at init are baked into these defaults; a later runtime pair overrides them through `npm run backend` and the frontend launcher (`npm run dev`/`npm run web`)"); }
     if !pinned.is_empty() {
         println!("init: pinned package.json {} (the starter's exact versions)", pinned.join(", "));
     }

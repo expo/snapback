@@ -196,7 +196,7 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     const surfaceProof = join(cwd, "surface-proof.mjs");
     writeFileSync(surfaceProof, recipe[1] + `
 import assert from 'node:assert/strict';
-assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deployment','latest','--json'])).stdout);for(const key of ['release','previous_active','latest','generation','revision','events','events_after','items','items_after','workers','selected'])assert.ok(key in inspected,key);assert.equal(inspected.selected.current,true);
+assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deployment','latest','--json'])).stdout);for(const key of ['current','release','previous_active','latest','generation','revision','events','events_after','items','items_after','workers','selected'])assert.ok(key in inspected,key);assert.equal(inspected.selected.current,true);assert.equal(inspected.current,inspected.release);
 `);
     await run(process.execPath, [surfaceProof], cwd);
     const frontendProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];

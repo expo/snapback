@@ -3,7 +3,7 @@ use super::{ALIASES, KEYWORDS, SERVER_KEYWORDS};
 
 // @ref LLP 3000.007#20.1 — the ~200 aliases moved behind `guide aliases`; the bare listing stays one screen.
 pub fn listing() -> String {
-    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nOn terminals, cards over {FULL_LINES} lines print their opening and section index; pipes print whole cards. Narrow with guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\nAliases: {} words open a card, or one section of it (pagination, roles, capacity, aggregates, …); snapback4 guide aliases lists them.", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.len())
+    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nCards over {FULL_LINES} lines print a truncation hint, their opening, first section and section index. Narrow with guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\nAliases: {} words open a card, or one section of it (pagination, roles, capacity, aggregates, …); snapback4 guide aliases lists them.", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.len())
 }
 
 /// `guide aliases`: every alias, one per line, with the card (and section) it opens.
@@ -211,12 +211,10 @@ pub fn overview_and_first_section(name: &str, card: &str) -> Option<String> { ov
 /// The most lines of a card's first section the piped overview prints.
 const FIRST_SECTION_LINES: usize = 80;
 
-/// Non-TTY reads print the full card; callers can select --section or --find.
-// @ref LLP 3000.011.003.000#9 — an agent reads the complete card without a hidden truncation boundary.
+/// Tool reads use the same bounded discovery view as terminal reads.
+// @ref LLP 3000.000.000.000.000#8-wave-15-release-consumers-and-discovery — hint before the body survives batched tool truncation.
 pub fn piped(name: &str, card: &str) -> String {
-    if card.lines().count() <= FULL_LINES { return card.to_owned(); }
-    let (title, rest) = card.split_once('\n').unwrap_or((card, ""));
-    format!("{title}\n{rest}\n\n{}", section_index(name, card))
+    overview_and_first_section(name, card).unwrap_or_else(|| card.to_owned())
 }
 
 /// The last paragraph boundary (a blank line outside a fence) in
@@ -252,7 +250,7 @@ fn overview_with(name: &str, card: &str, first_section: bool) -> Option<String> 
     }
     // The title line, then the hint in the same paragraph, then the rest of the opening.
     let shown = if first_section { "opening, first section and section index" } else { "opening and section index" };
-    let hint = format!("(This is the {shown} of a {total}-line card: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full prints all of it.)");
+    let hint = format!("(Truncated: this is the {shown} of a {total}-line card: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full prints all of it.)");
     let mut out = match lines.first().filter(|line| line.starts_with("# ")) {
         Some(title) => format!("{title}\n{hint}\n{}", lines[1..cut].join("\n")),
         None => format!("{hint}\n\n{}", lines[..cut].join("\n")),

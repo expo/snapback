@@ -100,6 +100,7 @@ fn main() -> ExitCode {
         "types" => verbs::types(&options),
         "run" => verbs::run(&options),
         "clock" => dev_clock::command(&options),
+        "seed" => dev_reset::seed(&options),
         "reset" => dev_reset::command(&options),
         "test" => verbs::test(&options),
         "why" => verbs::why(&options),
@@ -134,9 +135,7 @@ fn main() -> ExitCode {
                             else if let Some(words) = words_of("find") { guide::find(name, &card, &words) }
                             // @ref LLP 3000.036.002#11 — diagnostic recipe names open their tested section directly.
                             else if name == "rule-recipes" && !rest.is_empty() { guide::section(name, &card, &rest) }
-                            // An alias that names a section prints it; piped (an agent's tool), a
-                            // card prints whole; use --section to narrow it.
-                            // @ref LLP 3000.007#20.1 — wave 6: aliases land on their section; wave 7 cap superseded by LLP 3000.011.003.000 §9: full non-TTY cards.
+                            // @ref LLP 3000.000.000.000.000#8-wave-15-release-consumers-and-discovery — show first content with an explicit truncation hint in tools and terminals.
                             else if let Some(landing) = guide::alias_landing(keyword, name, &card) { Ok(landing) }
                             else if std::io::IsTerminal::is_terminal(&std::io::stdout()) { Ok(guide::overview(name, &card).unwrap_or_else(|| card.clone())) }
                             else { Ok(guide::piped(name, &card)) };
