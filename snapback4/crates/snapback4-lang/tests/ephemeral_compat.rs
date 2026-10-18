@@ -11,6 +11,9 @@ fn durable_schema_and_types_keep_base_bytes() {
         if file.extension().is_none_or(|e| e != "q") { continue; }
         // PAGE4 is a new v3 fixture, outside this pre-E1 durable corpus.
         if file.file_name().unwrap() == "page4-union.q" { continue; }
+        // @ref LLP 3000.014.000#8 — LIVE's new fixture has its own schema,
+        // compiler and execution tests; it was never in the pre-E1 corpus.
+        if file.file_name().unwrap() == "live-parent.q" { continue; }
         let source = std::fs::read_to_string(&file).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
         if !bound.diagnostics.is_empty() { continue; } // Repair fixtures deliberately refuse.

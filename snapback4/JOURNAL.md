@@ -96393,3 +96393,9 @@ and the root WORKSTREAM-REPORT.md; these are workstream checks, not publication.
 RULES5 authoring census refresh: 521 mutation occurrences, 95 eligible private
 write sites. All 22 added operations are server-class; existing prediction
 authority is unchanged. Readauth passes 88/88 on Linux and Mac Studio.
+
+RULES5 broad verification exposed a corpus-membership mismatch after the LIVE
+merge: the pre-ephemeral durable byte test automatically collected LIVE's new
+fixture without a historical capture. Exclude that later fixture alongside the
+existing PAGE4 exclusion; its dedicated LIVE compiler/execution tests remain.
+No frozen schema/type expectation or runtime behavior changes.
