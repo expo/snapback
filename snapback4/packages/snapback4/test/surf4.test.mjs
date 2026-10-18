@@ -202,12 +202,18 @@ query list():
  try {
   await ok(['seed','fixtures','--port',new URL(host.url).port],cwd);
   await ok(['seed','seed.json'],cwd);
+  const stale=await fetch(host.url+'/seed',{method:'POST',headers:{'content-type':'application/json','x-snapback-dev-instance':'stale-instance'},body:JSON.stringify([{table:'notes',row:{id:'c',body:'must not seed',until:'now+2h'}}])});
+  assert.equal(stale.status,409);assert.equal((await stale.json()).denied.code,'E_INPUT');
   const reply=await(await fetch(host.url+'/q/list',{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':'alice'},body:'{}'})).json();
   assert.equal(reply.complete,true);assert.deepEqual(reply.data.map(row=>row.id).sort(),['a','b']);assert.ok(reply.data.every(row=>row.until>Date.now()));
  } finally { await host.stop(); }
  await ok(['deploy','deployment'],cwd);
  const release=await startServe('deployment',{cwd});
- try {const refused=await cli(['seed','seed.json','--port',new URL(release.url).port],{cwd});assert.notEqual(refused.code,0);assert.match(refused.stderr,/E_AUTH/);}
+ try {
+  const refused=await cli(['seed','seed.json','--port',new URL(release.url).port],{cwd});assert.notEqual(refused.code,0);assert.match(refused.stderr,/E_AUTH/);
+  const raw=await fetch(release.url+'/seed',{method:'POST',headers:{'content-type':'application/json','x-snapback-dev-instance':'stale-instance'},body:'[]'});
+  assert.equal(raw.status,403);assert.equal((await raw.json()).denied.code,'E_AUTH');
+ }
  finally {await release.stop();}
 });
 test('current release identity follows rollback while latest retains the newest source', {timeout:60000},async t=>{
