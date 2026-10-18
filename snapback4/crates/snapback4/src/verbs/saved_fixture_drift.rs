@@ -43,11 +43,11 @@ pub(super) fn warnings(project: &Project) -> Vec<Advice> {
             flags: [("source".into(), source.to_string_lossy().into_owned())].into(),
             json: false,
         };
-        let sources = match proof_source::sources(project, &options, "source") {
+        let sources = match crate::client_compatibility::sources(&source) {
             Ok(sources) => sources,
             Err(error) => {
-                let not_saved = error.contains("not saved yet");
-                advice.push(Advice { drift: !not_saved, message: format!("{}: {}", shown(project, &source), if not_saved { error } else { format!("cannot read saved schema: {error}") }) });
+                let not_saved = error.kind() == std::io::ErrorKind::NotFound;
+                advice.push(Advice { drift: !not_saved, message: format!("{}: {}", shown(project, &source), if not_saved { error.to_string() } else { format!("cannot read saved schema: {error}") }) });
                 continue;
             }
         };

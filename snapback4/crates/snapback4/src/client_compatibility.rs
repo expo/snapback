@@ -33,6 +33,7 @@ pub(crate) fn typescript(project: &Project, bound: &Bound) -> io::Result<String>
 
 /// Shared schema-first ordering retains saved modules' original namespaces.
 pub(crate) fn sources(path: &std::path::Path) -> io::Result<Vec<(String, String)>> {
+    if !path.try_exists()? {return Err(io::Error::new(io::ErrorKind::NotFound,format!("{}: not saved yet: saved source does not exist",path.display())));}
     let bad = |message: &str| io::Error::new(io::ErrorKind::InvalidInput, message);
     let mut paths = if path.is_dir() {
         std::fs::read_dir(path)?.map(|entry| entry.map(|entry| entry.path())).collect::<io::Result<Vec<_>>>()?
@@ -43,7 +44,7 @@ pub(crate) fn sources(path: &std::path::Path) -> io::Result<Vec<(String, String)
     let sources: Vec<(String, String)> = paths.into_iter().map(|path| {
         let name = path.file_name().and_then(|name| name.to_str()).filter(|name| name.ends_with(".q"))
             .ok_or_else(|| bad("saved sources need their original UTF-8 .q file names"))?;
-        let text = std::fs::read_to_string(&path).map_err(|e| io::Error::new(e.kind(), format!("saved source {}: {e}", path.display())))?;
+        let text = std::fs::read_to_string(&path).map_err(|e| io::Error::new(e.kind(), format!("saved source {}: {}{e}", path.display(), if e.kind()==io::ErrorKind::NotFound {"not saved yet: "}else{""})))?;
         Ok((name.to_owned(), text))
     }).collect::<io::Result<_>>()?;
     if sources.iter().all(|(_, text)| text.trim().is_empty()) {

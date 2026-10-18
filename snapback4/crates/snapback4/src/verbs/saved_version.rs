@@ -10,6 +10,7 @@ impl Drop for SavedVersion {
 impl SavedVersion {
     pub(super) fn prepare(project: &Project, sources: &[(String,String)], options: &Options, deployment: &std::path::Path) -> Result<Option<Self>,String> {
         let Some(name) = options.flags.get("save-version") else {return Ok(None);};
+        if sources.is_empty() || sources.iter().all(|(_,text)|text.trim().is_empty()) {return Err("not saved yet: a saved version needs nonempty Quarry source".into());}
         if options.flags.contains_key("check") {return Err("--save-version captures a successful deployment; omit --check to save, or omit --save-version for a read-only preview".into());}
         if project.root.canonicalize().map_err(|e|e.to_string())?.starts_with(deployment.canonicalize().map_err(|e|e.to_string())?) {
             return Err("cannot save a version inside deployment custody; run deploy from the application's source directory".into());

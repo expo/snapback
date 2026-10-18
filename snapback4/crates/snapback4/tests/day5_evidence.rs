@@ -78,3 +78,13 @@ fn failed_deploy_discards_only_its_new_snapshot_and_deployed_source_cannot_save_
     assert!(!out.status.success());assert!(String::from_utf8_lossy(&out.stderr).contains("deployment custody"),"{out:?}");
     assert!(!immutable.join("versions").exists());
 }
+
+#[test]
+fn missing_saved_directory_and_empty_working_snapshot_are_not_saved_yet() {
+    let app=App::new();app.write("snapback/schema.q"," \n");
+    let missing=app.run(&["test","--source","versions/v7","--fixture-only"]);
+    assert!(!missing.status.success());assert!(String::from_utf8_lossy(&missing.stderr).contains("not saved yet"),"{missing:?}");
+    let empty=app.run(&["deploy","deployment","--save-version","versions/v1"]);
+    assert!(!empty.status.success());assert!(String::from_utf8_lossy(&empty.stderr).contains("not saved yet"),"{empty:?}");
+    assert!(!app.0.join("versions/v1").exists());
+}
