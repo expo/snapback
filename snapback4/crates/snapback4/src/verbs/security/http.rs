@@ -74,9 +74,31 @@ fn chunks(mut wire:&[u8])->Result<Vec<u8>,String>{
         out.extend_from_slice(&wire[..count]);wire=&wire[end..];
     }
 }
+fn rotation_successor<'a>(session:&serde_json::Value,rotated:&'a serde_json::Value)->Result<&'a str,String>{
+    let field=|value:&serde_json::Value,name:&str|->Result<String,String>{
+        value["session"][name].as_str().filter(|v|!v.trim().is_empty()).map(str::to_owned).ok_or_else(||format!("session response lacks a nonempty {name}"))
+    };
+    if field(session,"principal")?!=field(rotated,"principal")?{return Err("rotation changed the reported principal".into());}
+    let token=field(session,"token")?;let next=field(rotated,"token")?;
+    if token==next{return Err("rotation did not return a distinct successor".into());}
+    Ok(rotated["session"]["token"].as_str().expect("checked nonempty successor"))
+}
 
 #[cfg(test)]
 mod tests{
+    #[test]fn rotation_requires_explicit_distinct_same_principal_credentials(){
+        use serde_json::json;
+        let original=json!({"session":{"principal":"guest:one","token":"first"}});
+        let next=json!({"session":{"principal":"guest:one","token":"second"}});
+        assert_eq!(super::rotation_successor(&original,&next).unwrap(),"second");
+        for principal in [serde_json::Value::Null,json!(""),json!(" "),json!(17),json!({}),json!([]),json!("guest:other")]{
+            let malformed=json!({"session":{"principal":principal,"token":"second"}});
+            assert!(super::rotation_successor(&original,&malformed).is_err());
+            assert!(super::rotation_successor(&malformed,&next).is_err());
+        }
+        assert!(super::rotation_successor(&json!({"session":{"token":"first"}}),&json!({"session":{"token":"second"}})).is_err());
+        assert!(super::rotation_successor(&original,&original).is_err());
+    }
     #[test]fn production_schema_chunks_are_decoded_before_json(){
         let body=super::chunks(b"5\r\n{\"a\":\r\n6\r\n\"yes\"}\r\n0\r\n\r\n").unwrap();
         assert_eq!(serde_json::from_slice::<serde_json::Value>(&body).unwrap()["a"],"yes");
@@ -109,8 +131,7 @@ fn revoked_sessions(bound:&Bound,address:SocketAddr)->Result<usize,String>{
     if exchange(address,"GET","/schema",&bearer,"")?.0!=200{return Err("fresh session failed schema admission before revocation".into());}
     let (status,rotated)=exchange(address,"POST","/auth/refresh",&bearer,"{}")?;
     if status!=200{return Err("private revocation campaign could not rotate its live session".into());}
-    let successor=rotated["session"]["token"].as_str().ok_or("rotation did not return a successor session")?;
-    if successor==token||rotated["session"]["principal"]!=session["session"]["principal"]{return Err("rotation did not return a distinct successor for the same principal".into());}
+    let successor=rotation_successor(&session,&rotated)?;
     let next=format!("Authorization: Bearer {successor}\r\n");
     if exchange(address,"GET","/schema",&next,"")?.0!=200{return Err("rotation successor failed admission before revocation".into());}
     let (status,retired)=exchange(address,"GET","/schema",&bearer,"")?;
