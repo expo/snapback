@@ -1,0 +1,61 @@
+{
+  "startedAt": "2026-10-18T22:04:56.797Z",
+  "status": "done",
+  "serve": {
+    "ready": true,
+    "readyMs": 4264,
+    "why": null,
+    "roles": [
+      "owner",
+      "clerk",
+      "liaison",
+      "manager"
+    ],
+    "usersPerRole": {
+      "owner": 2,
+      "clerk": 2,
+      "liaison": 2,
+      "manager": 2
+    },
+    "backendUrl": "http://127.0.0.1:26910",
+    "frontendUrl": "http://127.0.0.1:26911/?api=http%3A%2F%2F127.0.0.1%3A26910",
+    "aliveAtEnd": true
+  },
+  "agent": {
+    "code": 0,
+    "timedOut": false,
+    "minutes": 3.2,
+    "flagged": 0,
+    "providerErrors": 0,
+    "completed": true
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "medium",
+      "rule": "The police liaison role sees only vehicles under an investigative hold.",
+      "repro": "f1-liaison-retains-unheld-claim-proof.mjs",
+      "evidence": "Reproduced twice using fresh fixtures. On the latest run, after the supplied manager changed owner2 to liaison, vehicleDetail refused unheld vehicle 01M58GXESA6GKC8Z68XBFHD8D4 with NOT_FOUND, but myClaims returned claim 01M58GXESMKGP18GRKJ5WX07FP including the vehicle identifier, status, timestamp and proof asset 01M58GXESHDDD5VSDM01NCB46X. Downloading that ownership-proof asset returned HTTP 200. This is retained access to the former owner's own claim after a legitimate role change; it does not expose a different claimant's proof. The script restores the original owner role in finally.",
+      "reproExists": true,
+      "rerun": {
+        "status": 0,
+        "signal": null,
+        "out": "g\",\"width\":1},\"status\":\"pending\",\"vehicle\":\"01M58GT86Y4YS7P5S4V3BESXJP\"},{\"at\":1792361132516,\"claimant\":\"user:01M58GQVDJH2FFYTBQTEH64J1Y\",\"decidedAt\":1792361132567,\"decidedBy\":\"user:01M58GQVRX56CKY471GFKWGQRB\",\"id\":\"01M58GRWF4NKXHXH7AV1VTZPBT\",\"proof\":{\"bytes\":70,\"duration\":null,\"height\":1,\"id\":\"01M58GRWF2D4M3YDNNHWR25QQC\",\"type\":\"image/png\",\"width\":1},\"status\":\"rejected\",\"vehicle\":\"01M58GRWC7WKEG8SH7BS6323TA\"}],\"next\":null,\"nextExpiry\":null,\"seq\":51,\"store_id\":\"ddc900d3edc008dc89cd73697bdb7830\",\"tables\":[\"claims\",\"roster\"],\"viewer\":\"user:01M58GQVDJH2FFYTBQTEH64J1Y\"}}}\n{\"request\":{\"path\":\"/assets/01M58GXQTXY51MAWS2RJQBQSSP\",\"actor\":\"probe-owner2@example.test\",\"method\":\"GET\"},\"response\":{\"status\":200,\"body\":\"\ufffdPNG\\r\\n\\u001a\\n\\u0000\\u0000\\u0000\\rIHDR\\u0000\\u0000\\u0000\\u0001\\u0000\\u0000\\u0000\\u0001\\b\\u0006\\u0000\\u0000\\u0000\\u001f\\u0015\u0109\\u0000\\u0000\\u0000\\rIDATx\ufffdc\ufffd\ufffd\ufffdP\\u000f\\u0000\\u0004\ufffd\\u0001\ufffd\ufffd\ufffd\ufffd!\\u0000\\u0000\\u0000\\u0000IEND\ufffdB`\ufffd\"}}\n{\"request\":{\"path\":\"/m/grantRole\",\"actor\":\"probe-mgr1@example.test\",\"body\":{\"id\":\"01M58GXQVD1MWGPB7GY84SQDT5\",\"args\":{\"who\":\"user:01M58GQVDJH2FFYTBQTEH64J1Y\",\"role\":\"owner\"}}},\"response\":{\"status\":200,\"body\":{\"generation\":1,\"head\":52,\"id\":\"01M58GXQVD1MWGPB7GY84SQDT5\",\"preserved\":[],\"result\":null,\"seq\":52,\"state\":\"sent\",\"store_id\":\"ddc900d3edc008dc89cd73697bdb7830\"}}}\nGAP PRESENT: A user assigned the liaison role retains claim details and downloadable ownership proof for an unheld vehicle through myClaims, even though vehicleDetail refuses that vehicle.\n"
+      },
+      "confirmed": true
+    }
+  ],
+  "counts": {
+    "high": 0,
+    "medium": 1,
+    "low": 0
+  },
+  "confirmed": {
+    "high": 0,
+    "medium": 1,
+    "low": 0
+  },
+  "tampered": [],
+  "swept": 0,
+  "finishedAt": "2026-10-18T22:08:16.694Z"
+}

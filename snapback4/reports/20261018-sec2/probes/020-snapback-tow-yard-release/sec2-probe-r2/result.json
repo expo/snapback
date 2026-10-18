@@ -1,0 +1,61 @@
+{
+  "startedAt": "2026-10-18T21:57:01.083Z",
+  "status": "done",
+  "serve": {
+    "ready": true,
+    "readyMs": 4223,
+    "why": null,
+    "roles": [
+      "owner",
+      "clerk",
+      "liaison",
+      "manager"
+    ],
+    "usersPerRole": {
+      "owner": 2,
+      "clerk": 2,
+      "liaison": 2,
+      "manager": 2
+    },
+    "backendUrl": "http://127.0.0.1:26910",
+    "frontendUrl": "http://127.0.0.1:26911/?api=http%3A%2F%2F127.0.0.1%3A26910",
+    "aliveAtEnd": true
+  },
+  "agent": {
+    "code": 0,
+    "timedOut": false,
+    "minutes": 4,
+    "flagged": 0,
+    "providerErrors": 0,
+    "completed": true
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "medium",
+      "rule": "A vehicle unclaimed after 30 days is moved to the auction list automatically.",
+      "repro": "f1-late-claim-bypasses-auction-deadline.mjs",
+      "evidence": "Fresh vehicle 01M58GCTSKNAFJAMTR15PP30BW was towed at 1789682337550 (31 days earlier), with zero claims. After its day-30 deadline 1792274337550, the owner filed its first claim at 1792360737596; fileClaim, decideClaim(approve=true), and releaseVehicle all returned state=sent. vehicleDetail confirmed status=released. The daily auction rule can be bypassed by claiming, verifying and releasing an overdue unclaimed vehicle before auctionSweep runs. This demonstrates a direct-call deadline bypass; it does not establish that the scheduled job fails to run.",
+      "reproExists": true,
+      "rerun": {
+        "status": 0,
+        "signal": null,
+        "out": "tore_id\":\"02cdde10890af65f0c7e5a944da7d5cf\"}}}\n{\"request\":{\"path\":\"/m/releaseVehicle\",\"actor\":\"probe-clerk1@example.test\",\"body\":{\"id\":\"01M58GGQP38N9VYKF95KEK39EE\",\"args\":{\"vehicle\":\"01M58GGQNAQTFY165S2E4V3E8Q\"}}},\"response\":{\"status\":200,\"body\":{\"generation\":1,\"head\":64,\"id\":\"01M58GGQP38N9VYKF95KEK39EE\",\"preserved\":[\"claims\",\"roster\",\"vehicles\"],\"result\":null,\"seq\":64,\"state\":\"sent\",\"store_id\":\"02cdde10890af65f0c7e5a944da7d5cf\"}}}\n{\"request\":{\"path\":\"/q/vehicleDetail\",\"actor\":\"probe-clerk1@example.test\",\"body\":{\"args\":{\"vehicle\":\"01M58GGQNAQTFY165S2E4V3E8Q\"}}},\"response\":{\"status\":200,\"body\":{\"scopes\":{},\"generation\":1,\"complete\":true,\"cut\":null,\"data\":{\"color\":\"blue\",\"dailyRate\":3500,\"holdAt\":null,\"holdBy\":null,\"holdReason\":null,\"id\":\"01M58GGQNAQTFY165S2E4V3E8Q\",\"make\":\"Test\",\"model\":\"QA\",\"onHold\":false,\"owner\":\"user:01M58G9DAEQ362GD1AQBJKQ3K3\",\"photos\":[{\"bytes\":70,\"duration\":null,\"height\":1,\"id\":\"01M58GGQN7BDTEANZTMY6MA25H\",\"type\":\"image/png\",\"width\":1}],\"plate\":\"QAM4T6V8A0\",\"releasedAt\":1792360865476,\"status\":\"released\",\"towedAt\":1789682465415,\"towedFrom\":\"Private QA tow location 01M58GGQN9YH2TG6RAYCWXR7QE\",\"vin\":\"TESTVIN1234567890\",\"waived\":0},\"next\":null,\"nextExpiry\":null,\"seq\":64,\"store_id\":\"02cdde10890af65f0c7e5a944da7d5cf\",\"tables\":[\"roster\",\"vehicles\"],\"viewer\":\"user:01M58G9E29X1M2XQ78AWADCEWD\"}}}\nGAP PRESENT: An unclaimed 31-day-old vehicle accepts its first claim after day 30, clerk verification and release, bypassing the auction deadline before the daily sweep.\n"
+      },
+      "confirmed": true
+    }
+  ],
+  "counts": {
+    "high": 0,
+    "medium": 1,
+    "low": 0
+  },
+  "confirmed": {
+    "high": 0,
+    "medium": 1,
+    "low": 0
+  },
+  "tampered": [],
+  "swept": 4,
+  "finishedAt": "2026-10-18T22:01:10.564Z"
+}

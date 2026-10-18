@@ -1,0 +1,46 @@
+{
+  "startedAt": "2026-10-18T22:04:57.959Z",
+  "status": "done",
+  "serve": {
+    "ready": true,
+    "readyMs": 3535,
+    "why": null,
+    "roles": [
+      "engineer",
+      "chief",
+      "contractor",
+      "manager"
+    ],
+    "usersPerRole": {
+      "engineer": 2,
+      "chief": 2,
+      "contractor": 2,
+      "manager": 2
+    },
+    "backendUrl": "http://127.0.0.1:26940",
+    "frontendUrl": "http://127.0.0.1:26941",
+    "aliveAtEnd": true
+  },
+  "agent": {
+    "code": 0,
+    "timedOut": false,
+    "minutes": 3.6,
+    "flagged": 0,
+    "providerErrors": 0,
+    "completed": true
+  },
+  "findings": [],
+  "counts": {
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "confirmed": {
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "tampered": [],
+  "swept": 0,
+  "finishedAt": "2026-10-18T22:08:44.142Z"
+}

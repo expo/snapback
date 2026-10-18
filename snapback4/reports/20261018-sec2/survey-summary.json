@@ -1,0 +1,9 @@
+{
+  "schemas": 150,
+  "diagnosticSchemas": 0,
+  "diagnostics": 0,
+  "invariants": 0,
+  "attempts": 32884,
+  "boundaryFailures": 0,
+  "violations": 0
+}

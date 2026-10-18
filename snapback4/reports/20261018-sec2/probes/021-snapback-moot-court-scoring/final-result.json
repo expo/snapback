@@ -1,0 +1,46 @@
+{
+  "startedAt": "2026-10-18T21:38:27.259Z",
+  "status": "done",
+  "serve": {
+    "ready": true,
+    "readyMs": 4474,
+    "why": null,
+    "roles": [
+      "director",
+      "judge",
+      "coach",
+      "student"
+    ],
+    "usersPerRole": {
+      "director": 2,
+      "judge": 2,
+      "coach": 2,
+      "student": 2
+    },
+    "backendUrl": "http://127.0.0.1:26920",
+    "frontendUrl": "http://127.0.0.1:26921/?api=http%3A%2F%2F127.0.0.1%3A26920",
+    "aliveAtEnd": true
+  },
+  "agent": {
+    "code": 0,
+    "timedOut": false,
+    "minutes": 4.2,
+    "flagged": 0,
+    "providerErrors": 0,
+    "completed": true
+  },
+  "findings": [],
+  "counts": {
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "confirmed": {
+    "high": 0,
+    "medium": 0,
+    "low": 0
+  },
+  "tampered": [],
+  "swept": 0,
+  "finishedAt": "2026-10-18T21:42:47.629Z"
+}
