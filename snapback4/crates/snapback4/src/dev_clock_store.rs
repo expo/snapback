@@ -2,6 +2,7 @@
 use snapback4_core::{Engine, RuntimeError};
 use std::collections::BTreeSet;
 
+const SKIPPED_PREVIEW: usize = 32;
 const TOLERANCE_MS: i64 = 5_000;
 const RECENT_COMMITS: usize = 64;
 const TABLE_BYTES: usize = 4096;
@@ -83,8 +84,8 @@ pub fn saved_boundaries(engine: &Engine) -> Vec<Option<i64>> {
 }
 
 /// Preflight is bounded before the clock or worker leases change.
-// @ref LLP 3000.007#20.12.1 — explicit crossed windows share a bounded enumeration in both modes.
-pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64, held: bool) -> Result<Vec<(usize, i64)>, snapback4_core::Refusal> {
+// @ref LLP 3000.007#20.12.1 — only explicit execution enumerates all crossed windows; coalesced reports keep a bounded preview.
+pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64, held: bool, each_boundary: bool) -> Result<Vec<(usize, i64)>, snapback4_core::Refusal> {
     let mut boundaries = Vec::new();
     let mut report_bytes = 0usize;
     for (index, schedule) in engine.schema().schedules.iter().enumerate() {
@@ -95,11 +96,13 @@ pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64, hel
         let Some(old) = before.get(index).copied().flatten() else { continue; };
         let end = schedule.boundary(now);
         if old >= end { continue; }
-        if schedule.periods_between(old, end) > (10_000 - boundaries.len()) as i64 {
-            return Err(crate::dev_clock::input("advance crosses more than 10000 schedule windows; use a smaller duration"));
+        let periods = schedule.periods_between(old, end);
+        if each_boundary && periods > (10_000 - boundaries.len()) as i64 {
+            return Err(crate::dev_clock::input("--each-boundary crosses more than 10000 schedule windows; use a smaller duration or omit --each-boundary to coalesce"));
         }
-        report_bytes = report_bytes.saturating_add((schedule.periods_between(old, end) as usize).saturating_mul(1024 + 8 * schedule.target.len()));
+        report_bytes = report_bytes.saturating_add((if each_boundary { periods as usize } else { (periods as usize).min(SKIPPED_PREVIEW + 1) }).saturating_mul(1024 + 8 * schedule.target.len()));
         if report_bytes > REPORT_BYTE_BUDGET { return Err(crate::dev_clock::input("schedule window report exceeds its byte budget; use a smaller duration")); }
+        if !each_boundary { continue; }
         let mut boundary = schedule.next(old);
         while boundary <= end {
             boundaries.push((index, boundary));
@@ -118,7 +121,7 @@ fn period(schedule: &snapback4_core::schema::Schedule) -> String {
 /// The core fires each schedule at most once per advance, for the latest
 /// boundary, and holds it while its saved boundary is ahead of the clock.
 // @ref LLP 3000#7-decisions-during-execution — missed boundaries fire once; this only explains them.
-pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String], now: i64, held: bool, each_boundary: bool) -> Vec<serde_json::Value> {
+pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String], now: i64, held: bool, each_boundary: bool, port: Option<u16>) -> Vec<serde_json::Value> {
     let after = saved_boundaries(engine);
     // Read only bounded summaries: job args/cursors and full error payloads
     // are irrelevant to this report and must not be loaded then replicated.
@@ -140,10 +143,13 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
                     while at <= end { windows.push(window(at)); at = schedule.next(at); }
                 }
             } else { windows.push(window(end)); }
+            if each_boundary {
+                entry["reason"] = format!("fired {} windows: {}", windows.len(), windows.iter().map(|window| format!("{} to {}", utc(window["periodStart"].as_i64().unwrap()), utc(window["periodEnd"].as_i64().unwrap()))).collect::<Vec<_>>().join("; ")).into();
+            }
             entry["firedWindows"] = windows.into();
             entry["periodStart"] = start.into();
             entry["periodEnd"] = end.into();
-            entry["reason"] = format!("fired for the period {} to {}", utc(start), utc(end)).into();
+            if !each_boundary { entry["reason"] = format!("fired for the period {} to {}", utc(start), utc(end)).into(); }
             if let Some(run) = runs.get(&schedule.target) { entry["run"] = run.clone(); }
             // @ref LLP 3000.040#24-monthly-and-yearly-schedules — calendar periods count boundaries, not milliseconds.
             let skipped = if each_boundary { 0 } else { old.map(|old| schedule.periods_between(old, end) - 1).unwrap_or(0) };
@@ -151,16 +157,17 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
                 entry["skippedPeriods"] = skipped.into();
                 let mut windows = Vec::new();
                 let mut at = schedule.next(old.unwrap());
-                while at < end {
+                while at < end && windows.len() < SKIPPED_PREVIEW {
                     let mut item = window(at);
                     let mut args = serde_json::Map::new();
                     if let Some(program) = engine.program(&schedule.target) {
                         if program.args.contains_key("periodStart") { args.insert("periodStart".into(), schedule.previous(at).into()); }
                         if program.args.contains_key("periodEnd") { args.insert("periodEnd".into(), at.into()); }
                     }
-                    item["command"] = format!("snapback4 run {} '{}'", schedule.target, serde_json::Value::Object(args)).into();
+                    item["command"] = format!("snapback4 run {} '{}'{}", schedule.target, serde_json::Value::Object(args), port.map(|port| format!(" --port {port}")).unwrap_or_default()).into();
                     windows.push(item); at = schedule.next(at);
                 }
+                entry["skippedBoundariesOmitted"] = (skipped - windows.len() as i64).into();
                 entry["skippedBoundaries"] = windows.into();
                 entry["reason"] = format!("fired once, for the latest period {} to {}; {skipped} earlier period{} this advance crossed (from {}) did not run: missed boundaries fire once. Run {} with periodStart/periodEnd for an earlier period",
                     utc(start), utc(end), if skipped == 1 { "" } else { "s" }, utc(old.unwrap_or(end)), schedule.target).into();
@@ -259,11 +266,11 @@ mod tests {
         let mut engine = Engine::new_at(snapback4_core::Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p|p.program), 0).unwrap();
         engine.fire_schedules(0).unwrap();
         let before = saved_boundaries(&engine);
-        assert_eq!(crossed_boundaries(&engine, &before, 60_000, false).unwrap().len(), 500);
+        assert_eq!(crossed_boundaries(&engine, &before, 60_000, false, true).unwrap().len(), 500);
         let fired = engine.fire_schedules(60_000).unwrap();
         let message = "🧪\n\\".repeat(30_000);
         engine.store().conn().execute("UPDATE _jobs SET error = ?1 WHERE id = (SELECT id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 1)", [&message]).unwrap();
-        let report = schedule_report(&engine, &before, &fired, 60_000, false, false);
+        let report = schedule_report(&engine, &before, &fired, 60_000, false, false, None);
         assert_eq!(report.len(), 500);
         assert!(report.iter().all(|s| s["run"]["errorTruncated"] == true));
         assert!(report.iter().all(|s| s["run"]["error"].as_str().unwrap().len() <= REPORT_ERROR_BYTES + 3));
@@ -278,7 +285,7 @@ mod tests {
         let mut engine = Engine::new_at(snapback4_core::Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p|p.program), 0).unwrap();
         engine.fire_schedules(0).unwrap();
         let before = saved_boundaries(&engine);
-        let refusal = crossed_boundaries(&engine, &before, 60_000, false).unwrap_err();
+        let refusal = crossed_boundaries(&engine, &before, 60_000, false, true).unwrap_err();
         assert_eq!(refusal.code, "E_CLOCK_INPUT");
         assert!(refusal.message.contains("byte budget"));
         assert_eq!(before, saved_boundaries(&engine));

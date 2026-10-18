@@ -196,6 +196,8 @@ export function createClient(options: ClientOptions): Client {
     }
     const response = await transport(...args);
     release?.hint(response);
+    const resetStore = response.headers.get("x-snapback-dev-reset");
+    if (resetStore && storeIdentity !== undefined && resetStore !== storeIdentity) stopForStore("E_DEV_RESET");
     if (!closed && response.headers.get("x-snapback-ephemeral") === "1" && !ephemeralAdvertised) {
       ephemeralAdvertised = true;
       backendLoaded = false;
@@ -423,12 +425,12 @@ export function createClient(options: ClientOptions): Client {
   const auth = (): Refusal => authRefusal ?? ({ code: "E_AUTH", family: "auth", message: "sign in to continue" });
   const ended = (): Refusal => ({ code: "E_CLOSED", family: "client", message: "this client is closed" });
 
-  function stopForStore(code: "E_STORE_REPLACED" | "E_STORE_RESTORE") {
+  function stopForStore(code: "E_STORE_REPLACED" | "E_STORE_RESTORE" | "E_DEV_RESET") {
     if (storeRefusal) return;
     intentPresentation?.clear();
     void delivery?.reset(true);
     storeRefusal = { code, family: "store", site: "client", guide: "sync",
-      message: `${code === "E_STORE_REPLACED" ? "the backend store identity changed" : "the backend store sequence regressed"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,
+      message: `${code === "E_DEV_RESET" ? "reopen the client after /dev/reset" : code === "E_STORE_REPLACED" ? "the backend store identity changed" : "the backend store sequence regressed"}; outstanding writes may have executed and their outcomes are unknown; this client will not retry them`,
       rewrite: "close this client and create a new client for the current backend; reconcile outstanding writes before submitting new intent" };
     // @ref LLP 3000.023#3.4 — even lingering approvals withdraw before callbacks can inspect a peer.
     const deliver = deferReadNotifications(() => {
@@ -459,7 +461,7 @@ export function createClient(options: ClientOptions): Client {
   function observeStore(json: Record<string, unknown>, floorAtDispatch: number, receipt = false, touched?: Changes): void {
     if (storeRefusal) return;
     const why = (json.denied ?? json.why) as Refusal | undefined;
-    if (why?.code === "E_STORE_REPLACED" || why?.code === "E_STORE_RESTORE") { stopForStore(why.code); return; }
+    if (why?.code === "E_STORE_REPLACED" || why?.code === "E_DEV_RESET" || why?.code === "E_STORE_RESTORE") { stopForStore(why.code); return; }
     const id = json.store_id;
     if (typeof id !== "string" || !id) return; // Older servers have no identity envelope.
     if (storeIdentity !== undefined && id !== storeIdentity) { stopForStore("E_STORE_REPLACED"); return; }

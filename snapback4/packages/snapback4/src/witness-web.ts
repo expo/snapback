@@ -25,6 +25,11 @@ export function registerWebWitness(app: App, api: Operations): void {
   Object.defineProperty(window, "__snapback4Witness", { configurable: true, value: {
     ready: () => app.ready,
     viewer: () => app.client?.viewer(),
+    clock: () => {
+      armed();
+      if (!app.client) throw Error("E_WITNESS_AUTH: no signed-in client clock");
+      return app.client.now();
+    },
     beginForm: (name: string | undefined, expected: Record<string, unknown> | null | undefined, button: Element) => {
       armed();
       if (!app.client) throw Error("E_WITNESS_AUTH: no signed-in client");
@@ -89,7 +94,13 @@ export function registerWebWitness(app: App, api: Operations): void {
             claimed = true; restore();
             const reason = !eventMatches || options?.[outsideClick] ? "event: expected the armed click or its synchronous submit"
               : name && name !== op.name ? `operation: expected ${name}, got ${op.name}`
-              : "arguments: durable mutation arguments did not match the armed form";
+              : `arguments: mismatched keys: ${[...new Set([...Object.keys(expected ?? {}), ...Object.keys(args)])].sort().filter(key => JSON.stringify(canonical(expected?.[key])) !== JSON.stringify(canonical(args[key]))).join(", ")}`;
+            if (eventMatches && !options?.[outsideClick] && (!name || name === op.name) && !argsMatch) {
+              const diagnostic = (window as unknown as { __snapback4ProofDiagnostic?: (value: unknown) => Promise<void> }).__snapback4ProofDiagnostic;
+              // The proof driver writes values only to its mode-0600 private log.
+              // A failed diagnostic must never prevent the application's write.
+              try { void diagnostic?.({ code: "E_WITNESS_UNCLAIMED", mutation: op.name, armed: expected, actual: args }).catch(() => {}); } catch { /* Diagnostic failure cannot block the write. */ }
+            }
             finish({ state: "failed", mutation: op.name, why: { code: "E_WITNESS_UNCLAIMED", reason: !eventMatches || options?.[outsideClick] ? "event" : "arguments", message: reason } });
           }
           return invoke();

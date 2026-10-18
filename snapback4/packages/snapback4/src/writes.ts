@@ -121,7 +121,7 @@ function receipt(write: Terminal): Terminal {
   if (write.state === "failed" && ["E_ADMISSION_TIMEOUT", "E_ADMISSION_STORE"].includes(write.why.code)) return { state: "failed", id: write.id, why: identityRefusal(write.why.code === "E_ADMISSION_TIMEOUT") };
   return write.state === "sent"
     ? { ...binding, state: "sent", id: write.id, seq: write.seq, replayed: true }
-    : { ...binding, state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
+    : { ...binding, state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
 }
 
 /** Persist before retiring an outbox entry. Durable receipts are read straight
@@ -154,7 +154,7 @@ export class WriteHistory {
   async keep(write: Terminal, revalidatedStore?: string, dispatchStore?: string): Promise<void> {
     if (revalidatedStore) {
       const prior = this.unpersisted.get(write.id);
-      if (prior?.state === "failed" && prior.why.code === "E_STORE_REPLACED") this.unpersisted.delete(write.id);
+      if (prior?.state === "failed" && ["E_STORE_REPLACED", "E_DEV_RESET"].includes(prior.why.code)) this.unpersisted.delete(write.id);
       this.revalidated.set(write.id, revalidatedStore);
     }
     write = this.unpersisted.get(write.id) ?? { ...write, ...(dispatchStore ? { store_id: dispatchStore } : {}) };
@@ -198,14 +198,14 @@ export class WriteHistory {
     // can retry its save. Older servers also acknowledged refused _ops rows;
     // that sequence must never override a known authored refusal.
     const pending = this.unpersisted.get(id);
-    if (qualified && pending?.state === "failed" && pending.why.code === "E_STORE_REPLACED") this.unpersisted.delete(id);
+    if (qualified && pending?.state === "failed" && ["E_STORE_REPLACED", "E_DEV_RESET"].includes(pending.why.code)) this.unpersisted.delete(id);
     const known = await this.read(id, true);
-    if (known?.state === "failed" && known.why.code !== "E_STORE_REPLACED") return known;
+    if (known?.state === "failed" && !["E_STORE_REPLACED", "E_DEV_RESET"].includes(known.why.code)) return known;
     // Legacy observations include refused operations. Only the outcome from
     // the bound server (or an already known receipt) can establish success.
-    if (!qualified) return known?.state === "sent" || (known?.state === "failed" && known.why.code !== "E_STORE_REPLACED") ? known : undefined;
+    if (!qualified) return known?.state === "sent" || (known?.state === "failed" && !["E_STORE_REPLACED", "E_DEV_RESET"].includes(known.why.code)) ? known : undefined;
     const sent = { state: "sent" as const, id, seq, replayed: true as const };
-    if (known?.state === "failed" && known.why.code === "E_STORE_REPLACED") await this.keep(sent);
+    if (known?.state === "failed" && ["E_STORE_REPLACED", "E_DEV_RESET"].includes(known.why.code)) await this.keep(sent);
     return sent;
   }
 
@@ -234,7 +234,7 @@ export class WriteHistory {
    * correct a replacement refusal from the shared window. It never settles it. */
   async lookup(id: string): Promise<Write | undefined> {
     const own = await this.read(id);
-    if ((own && (own.state !== "failed" || own.why.code !== "E_STORE_REPLACED")) || this.unpersisted.has(id) || !this.storage?.lookup) return own;
+    if ((own && (own.state !== "failed" || !["E_STORE_REPLACED", "E_DEV_RESET"].includes(own.why.code))) || this.unpersisted.has(id) || !this.storage?.lookup) return own;
     const saved = await this.storage.lookup();
     return (saved ? (JSON.parse(saved) as Terminal[]).find(write => write.id === id) : undefined) ?? own;
   }

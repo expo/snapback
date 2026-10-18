@@ -1123,12 +1123,16 @@ fn kit3_large_clock_report_uses_complete_http_and_runnable_no_argument_commands(
     let host = f.start(&["dev", "--no-watch"]);
     let port = host.address.rsplit(':').next().unwrap();
     let output = f.command(&["clock", "advance", "2000m", "--port", port]);
-    assert!(output.stdout.len() > 65_536, "fixture must exercise the former transport ceiling");
+    assert!(output.status.success());
     let reply = output_json(output);
     assert_eq!(reply["advancedMs"], 120_000_000);
     let skipped = reply["schedules"][0]["skippedBoundaries"].as_array().unwrap();
-    assert_eq!(skipped.len(), 999);
-    assert_eq!(skipped[0]["command"], "snapback4 run tick '{}'");
+    assert_eq!(skipped.len(), 32);
+    assert_eq!(reply["schedules"][0]["skippedBoundariesOmitted"], 967);
+    let large = f.command(&["clock", "advance", "4000m", "--each-boundary", "--port", port]);
+    assert!(large.stdout.len() > 65_536, "explicit windows exercise the former transport ceiling");
+    assert_eq!(output_json(large)["schedules"][0]["firedWindows"].as_array().unwrap().len(), 2000);
+    assert_eq!(skipped[0]["command"], format!("snapback4 run tick '{{}}' --port {port}"));
     let replay = f.command(&["run", "tick", "{}"]);
     assert!(replay.status.success(), "{}", String::from_utf8_lossy(&replay.stderr));
 }
@@ -1203,4 +1207,49 @@ fn kit3_clock_reply_and_preflight_use_the_persisted_authoritative_floor() {
     let actual = host.query("clock").as_i64().unwrap();
     assert!((actual - advanced["now"].as_i64().unwrap()).abs() < 1000, "{advanced}; actual={actual}");
     assert!(advanced["skewMs"].as_i64().unwrap() > 7_000_000, "{advanced}");
+}
+
+#[test]
+fn kit4_forty_day_coalesced_advance_has_no_window_cap() {
+    let f = Fixture::new("kit4-long-jump");
+    fs::write(f.0.join("snapback/schema.q"), SOURCE.replace("every 2m:", "every 5m:")).unwrap();
+    let host = f.start(&["dev", "--memory", "--no-watch"]);
+    host.post("/m/counter", json!({"args":{}}));
+    let refused = host.post("/dev/clock/advance", json!({"duration":"40d", "eachBoundary":true}));
+    assert!(refused["denied"]["message"].as_str().unwrap().contains("omit --each-boundary"), "{refused}");
+    assert_eq!(host.request("GET", "/dev/status", json!({}))["clockOffsetMs"], 0);
+    let reply = host.post("/dev/clock/advance", json!({"duration":"40d"}));
+    assert!(reply.get("denied").is_none(), "{reply}");
+    let schedule = &reply["schedules"][0];
+    assert_eq!(schedule["firedWindows"].as_array().unwrap().len(), 1);
+    let skipped = schedule["skippedPeriods"].as_i64().unwrap();
+    assert!((11519..=11520).contains(&skipped), "{schedule}");
+    assert_eq!(schedule["skippedBoundaries"].as_array().unwrap().len(), 32);
+    assert_eq!(schedule["skippedBoundariesOmitted"], skipped - 32);
+    assert_eq!(host.query("counters")[0]["n"], 1);
+}
+
+#[test]
+fn kit4_clock_offsets_are_exact_and_refusals_leave_them_unchanged() {
+    let f=Fixture::new("kit4-offset");
+    let host=f.start(&["dev","--memory","--no-watch"]);
+    let status=||host.request("GET","/dev/status",json!({}));
+    assert_eq!(status()["clockOffsetMs"],0);
+    host.post("/dev/clock/advance",json!({"duration":"-1ms"}));
+    assert_eq!(status()["clockOffsetMs"],0);
+    for n in 1..=2 {
+        let reply=host.post("/dev/clock/advance",json!({"duration":"3h","eachBoundary":true}));
+        assert_eq!(reply["offsetMs"],n*10_800_000);
+        let schedule=&reply["schedules"][0];
+        for window in schedule["firedWindows"].as_array().unwrap() {
+            assert!(schedule["reason"].as_str().unwrap().contains(&utc_test(window["periodEnd"].as_i64().unwrap())),"{schedule}");
+        }
+        assert_eq!(status()["clockOffsetMs"],n*10_800_000);
+    }
+    assert_eq!(host.post("/dev/reset",json!({"clock":"reset"}))["clockOffsetMs"],0);
+}
+fn utc_test(ms:i64)->String {
+    // The report's UTC minute is enough to distinguish each fired window.
+    let minute=(ms/60_000)%60; let hour=(ms/3_600_000)%24;
+    format!("{hour:02}:{minute:02}:00Z")
 }

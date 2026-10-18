@@ -11,7 +11,7 @@ npx snapback4 witness ios --build . --smoke
 npx snapback4 witness ios --smoke --bundle-id com.example.chat --udid "$UDID" --port 4400
 ```
 
-For a heaviest-account proof on any CLI host, use `witness acquire --as <persona> --restart` (`guide bounds`).
+Browser proofs: `guide testing --section 5`; use `beginForm(name, null, button)` for dynamic arguments and require its sent receipt before asserting UI. Helper catalog: `guide testing --section proof-api`. For a heaviest-account proof on any CLI host, use `witness acquire --as <persona> --restart` (`guide bounds`).
 At every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns; native proof runs in the background at background QoS while you keep building.
 The next export and `snapback4 doctor` print its result. Use `npx snapback4 witness status --wait` for a final report (`--json` for the receipt summary); plain `status` never waits.
 Results/logs stay in `artifacts/native-smoke/<timestamp>`. Native failures stay loud without failing a successful export; unavailable hosts report a skip. `SNAPBACK4_NATIVE_SMOKE=off` disables automatic smoke.

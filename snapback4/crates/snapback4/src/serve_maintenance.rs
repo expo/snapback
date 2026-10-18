@@ -64,6 +64,10 @@ fn phase<T: Default>(shared: &Shared, result: Result<T, RuntimeError>, drain: bo
 
 // @ref LLP 3000#7-decisions-during-execution — lifetimes are swept into the partition log; missed schedule boundaries fire once.
 fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+    work_at(shared, drain, tick, None)
+}
+
+fn work_at(shared: &Shared, drain: bool, tick: u64, schedule_sample: Option<i64>) -> Result<Work, RuntimeError> {
     let mut work = Work::default();
     shared.ephemeral.sweep(shared.now())?;
     work.delivery_chunks = delivery(shared, drain)?;
@@ -80,7 +84,15 @@ fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
     }
     // @ref LLP 3000.007#20.2 — advancing a replay clock does not release its schedule hold.
     if !shared.hold_schedules {
-        let fired = phase(shared, engine_work(shared, |engine, _| engine.fire_schedules(shared.now())), drain, "schedules")?;
+        let fired = phase(shared, engine_work(shared, |engine, _| {
+            // @ref LLP 3000.007#20.12.2 — select advance windows before draining; admission deadlines still use the live advanced clock.
+            if let Some(sample) = schedule_sample {
+                let windows = engine.schema().schedules.iter().enumerate().map(|(index, schedule)| (index, schedule.boundary(sample))).collect::<Vec<_>>();
+                let mut fired = Vec::new();
+                for (index, boundary) in windows { fired.extend(engine.fire_schedule_boundary_at(shared.now(), index, boundary)?); }
+                Ok(fired)
+            } else { engine.fire_schedules(shared.now()) }
+        }), drain, "schedules")?;
         work.schedules = fired.len();
         for name in &fired { snapback4_core::diagnostic!("snapback4: schedule {name} fired"); }
         work.fired = fired;
@@ -380,18 +392,19 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let mut clock = lock(&shared.clock);
         let mut next = clock.clone();
         let now = next.advance(milliseconds)?.max(shared.time_audience_clock.load(std::sync::atomic::Ordering::Acquire));
-        let boundaries = crate::dev_clock_store::crossed_boundaries(&engine, &before, now, shared.hold_schedules)?;
+        let boundaries = crate::dev_clock_store::crossed_boundaries(&engine, &before, now, shared.hold_schedules, each_boundary)?;
         lock(&shared.maintenance).advancing = true;
         engine.advance_worker_leases_at(milliseconds, clock.now()).map_err(|e| e.refusal())?;
         *clock = next;
-        let offset = now - snapback4_core::now_ms();
+        let offset = clock.offset();
+        let skew = now - snapback4_core::now_ms();
         let isolated = if crate::dev_clock_store::has_data(&engine) {
             format!("; use {} for isolated time tests; clock advance --port N targets its printed port (guide jobs)", crate::dev_clock::isolated_command())
         } else { String::new() };
-        let message = format!("cumulative offset {offset:+}ms (authoritative floor included); process offset lasts until restart{isolated}");
-        Ok((now, offset, message, before, boundaries))
+        let message = format!("cumulative offset {offset:+}ms (requested process offset; now includes the authoritative floor); process offset lasts until restart{isolated}");
+        Ok((now, offset, skew, message, before, boundaries))
     })();
-    let (now, offset, message, before, boundaries) = match advanced {
+    let (now, offset, skew, message, before, boundaries) = match advanced {
         Ok(result) => result,
         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
     };
@@ -401,22 +414,22 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let mut crossed = Vec::new();
         if each_boundary {
             for (index, at) in boundaries {
-                crossed.extend(engine_work(shared, |engine, _| engine.fire_schedule_boundary_at(now, index, at))?);
+                crossed.extend(engine_work(shared, |engine, _| engine.fire_schedule_boundary_at(shared.now(), index, at))?);
             }
         }
-        let mut work = work(shared, true, 0)?;
+        let mut work = work_at(shared, true, 0, Some(now))?;
         work.schedules += crossed.len();
         work.fired.extend(crossed);
         Ok::<_, RuntimeError>(work)
     })();
     match drained.map_err(|error| error.refusal()).and_then(|work| completed_drain(work, crate::lifecycle::stopping())) {
         Ok(work) => {
-            let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, shared.hold_schedules, each_boundary);
-            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":offset, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules}))
+            let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, shared.hold_schedules, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
+            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules}))
         }
         // Time remains advanced if maintenance fails; callers must not
         // retry the advance blindly. The normal tick retries pending work.
-        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":offset, "eachBoundary":each_boundary, "message":message, "denied":refusal_json(&error)})),
+        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "denied":refusal_json(&error)})),
     }
 }
 
@@ -511,6 +524,60 @@ pub(super) fn clock_status(request: Request, shared: &Shared) {
 mod tests {
     use super::*;
     use super::super::tests::Host;
+
+    #[test]
+    fn kit4_slow_advance_reports_only_windows_it_actually_admitted() {
+        for each_boundary in [false, true] {
+            let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+                "table rows:\n  n: int\n  cap 1\n  public 'fixture'\njob tick():\n  for row in rows:\n    update rows[row.id] {n:1}\nschedule pulse every 1m: tick\n");
+            let shared = host.shared.clone();
+            let initial = (snapback4_core::now_ms().div_euclid(60_000) + 2) * 60_000 - 100;
+            lock(&shared.clock).freeze(initial);
+            lock(&shared.engine).fire_schedules(shared.now()).unwrap();
+            let (entered, resume) = shared.engine.pause_next_background(false);
+            let address = host.address;
+            let client = std::thread::spawn(move || {
+                let payload = json!({"duration":"100ms", "eachBoundary":each_boundary}).to_string();
+                super::super::tests::exchange(address, &format!("POST /dev/clock/advance HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{payload}", payload.len()))
+            });
+            entered.recv_timeout(Duration::from_secs(5)).unwrap();
+            // Model two minutes elapsing during the paused drain, without a real sleep.
+            let later = shared.now() + 120_000;
+            lock(&shared.clock).freeze(later);
+            resume.send(()).unwrap();
+            let response = client.join().unwrap();
+            assert_eq!(super::super::tests::status(&response), 200, "{response}");
+            let reply = super::super::tests::body(&response);
+            let windows = reply["schedules"][0]["firedWindows"].as_array().unwrap();
+            assert!(windows.iter().all(|window| window["periodEnd"].as_i64().unwrap() <= reply["now"].as_i64().unwrap()), "{reply}");
+            let jobs: i64 = lock(&shared.engine).store().conn().query_row("SELECT COUNT(*) FROM _jobs", [], |row| row.get(0)).unwrap();
+            assert_eq!(windows.len() as i64, jobs, "the report must not invent coalesced intermediate windows: {reply}");
+            assert_eq!(reply["work"]["schedules"], json!(jobs));
+            if !each_boundary { assert_eq!(jobs, 1); }
+        }
+    }
+
+    #[test]
+    fn kit4_clock_reply_samples_skew_before_a_delayed_drain() {
+        let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+            "use personas alice\nquery time():\n  return now\n");
+        let shared = host.shared.clone();
+        let (entered, resume) = shared.engine.pause_next_background(false);
+        let address = host.address;
+        let client = std::thread::spawn(move || {
+            let payload = r#"{"duration":"1m"}"#;
+            super::super::tests::exchange(address, &format!("POST /dev/clock/advance HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{payload}", payload.len()))
+        });
+        entered.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(lock(&shared.clock).offset(), 60_000);
+        std::thread::sleep(Duration::from_millis(500));
+        resume.send(()).unwrap();
+        let response = client.join().unwrap();
+        assert_eq!(super::super::tests::status(&response), 200, "{response}");
+        let reply = super::super::tests::body(&response);
+        assert_eq!(reply["offsetMs"], 60_000);
+        assert!((reply["skewMs"].as_i64().unwrap() - 60_000).abs() < 200, "{reply}");
+    }
 
     #[test]
     fn kit3_interrupted_clock_drain_refuses_with_clock_evidence_and_queued_work() {

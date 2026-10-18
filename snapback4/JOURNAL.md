@@ -96313,3 +96313,48 @@ under `--prefer-offline`; after refreshing it, Linux passed `== 0 failure(s) in
 steps reran after it appeared. Clean installs on Linux and the Mac print
 `snapback4 0.4.30` and pass `init` + `check`. Details:
 `reports/20261016-publication-0.4.30/REPORT.md`.
+
+
+## 2026-10-18 — KIT4: proof kit, test runner and literal wire page
+
+R1, R4 and R5 were fixed first in separate commits: coalesced advances have
+bounded replay previews without a crossed-window execution cap; witness errors
+name argument keys while full values remain in mode-0600 private logs; scoped
+fresh-text timeouts name the visible screen. Diagnostic sinks cannot delay the
+application write. Clock replies name every fired window, replay against the
+actual memory dev port, retain exact configured offsets, and pair now/skew
+before maintenance work. A forced 500ms drain pins that last invariant.
+
+The proof kit validates fixture URLs and identifies rejected credentials by
+persona or token fingerprint, names the project's frontend build script, checks
+its browser peer first, and waits for the page client's clock. Fixture aliases
+traverse zero-based arrays. Dev-reset evidence refines the online terminal store
+fence to E_DEV_RESET while retaining unknown outcomes and all no-retry rules.
+The test legend and --as line explain the existing verdict and sweep policies.
+
+The testing card now includes a source-generated proof API table and a complete
+production-account release proof. The wire card starts with runnable literal
+requests and a generated trace. Packed qualification runs the copied account
+UI/sign-in/write and four release transitions, raw envelopes, array alias cases,
+30-day coalescing, explicit cap refusal, memory-host replay and page-clock sample.
+The production starter changes only select label associations; PROD2 owns its
+entry/offline behavior. DAY5 owns adaptation/zero-case CLI work, LANG4/RULES5 the
+language and authorization recipes, and SURF5 broader discovery/help work.
+
+Governing amendments are LLP 3000.007 §20.12.1–2, LLP 3000.000.000.000 §10,
+LLP 3000.000.000.000.000 §8 and LLP 3000.011.003.000.000 §12. Both fresh families
+returned READY on the main semantic delta, paired-time follow-up and final
+captured-window admission correction;
+verbatim records are under llp/reviews. WORKSTREAM-REPORT.md distinguishes
+executed verification, final qualification and inherited root preconditions.
+The 0.4.32 guide-changes entry is added; no version bump, push or publish occurred.
+
+The complete workspace pass additionally caught six guide-contract omissions:
+new-code definition/recovery pins, missing peer-code registration, a generated
+heading separator, a generated-log filename mistaken for a shipped file, and
+witness opening/size constraints. Those are repaired without changing runnable
+recipe bytes or widening guide budgets. The literal wire table has an explicit
+opening assertion; Markdown separators do not count as CLI flags. All 125 guide
+tests passed after repair. Full consumer qualification at 54ca21331c passed;
+the final guide-only follow-up uses a fresh pack and scoped KIT4 proof rather
+than repeating unchanged starter toolchains (LLP 0189 / 0232 content binding).

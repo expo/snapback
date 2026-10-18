@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-18",
+  "base": "ccb9f752d1",
+  "candidate": "19166f3880",
+  "commands": {
+    "codex": "timeout 1200 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < /tmp/kit4-full-r3-brief.md",
+    "muse": "timeout 1200 ~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file /tmp/kit4-full-r3-brief.md"
+  },
+  "independence": "Fresh mutually blind sessions; no earlier review supplied. Wrapper used Meta fallback without exposing keys.",
+  "verdicts": {
+    "codex": "READY",
+    "muse": "READY"
+  },
+  "limits": "Both distinguish pending full Rust / production-musl / final Mac verification.",
+  "nonblocking_disposition": "The packed startDev helper defaults to --memory; an explicit temporary=true assertion now strengthens the control. Fixture auth already excluded the literal token through doesNotMatch; the follow-up uses a literal includes check to remove reviewer ambiguity.",
+  "sha256": {
+    "brief": "74e659346526f766b5e5af02bafe84721bd04f1fe8ac9a8f5ab8b4102b9164b6",
+    "codex": "43a59254f532de0bfe88570231335d57c6db21aa38f6e0ac771b9fe3d9589e16",
+    "muse": "783cfb7459d18aab4dbd060d927d3bc9fb5dfd173acbfb90aea7445e501c90f9"
+  }
+}

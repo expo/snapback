@@ -47,9 +47,15 @@ fn every_card_introduces_the_feature_before_examples_and_reference_details() {
         assert!(lead.split_whitespace().count() <= 45, "{name}: keep the introduction short");
         assert!((1..=2).contains(&lead.matches('.').count()), "{name}: one or two sentences");
         let (opening, _) = text.split_once("```").expect("every card has an example");
-        assert!(!opening.contains("--") && !opening.contains("E_") && !opening.contains("N_"), "{name}: flags and refusals follow the example");
-        if *name != "feeds" {
-            // Feeds introduces its Global example with the named feature section.
+        // Table separators and qualification markers are Markdown structure, not flags.
+        let visible_opening = opening.lines().filter(|line| !line.trim().starts_with("|---") && !line.trim().starts_with("<!--")).collect::<Vec<_>>().join("\n");
+        assert!(!visible_opening.contains("--") && !visible_opening.contains("E_") && !visible_opening.contains("N_"), "{name}: flags and refusals follow the example");
+        if *name == "wire" {
+            assert!(paragraphs.next().unwrap().starts_with("## First raw HTTP proof"));
+            assert!(opening.contains("POST /q/name") && opening.contains("POST /m/name"), "wire: literal envelopes precede the runnable proof");
+        }
+        if !["feeds", "wire"].contains(name) {
+            // Feeds names its Global example; wire opens with the literal HTTP table.
             assert!(paragraphs.next().unwrap().starts_with("```"), "{name}: show the example next");
         }
     }

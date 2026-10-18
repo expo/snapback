@@ -399,7 +399,11 @@ fn substitution(value: Json, saved: &BTreeMap<String, Json>, arguments: bool) ->
             let mut current = saved.get(name).ok_or_else(|| format!("E_FIXTURE_ALIAS: {text}: nothing was saved as {name} (add \"save\": \"{name}\" to an earlier case)"))?;
             let mut fields = 0;
             for part in parts {
-                current = current.get(part).ok_or_else(|| format!("E_FIXTURE_ALIAS: {text}: the saved answer has no field {part}"))?;
+                current = if let Json::Array(items) = current {
+                    let index = part.parse::<usize>().ok().filter(|index| index.to_string() == part)
+                        .ok_or_else(|| format!("E_FIXTURE_ALIAS: {text}: {part} is not a zero-based array index"))?;
+                    items.get(index).ok_or_else(|| format!("E_FIXTURE_ALIAS: {text}: array index {part} is out of range (length {})", items.len()))?
+                } else { current.get(part).ok_or_else(|| format!("E_FIXTURE_ALIAS: {text}: the saved answer has no field {part}"))? };
                 fields += 1;
             }
             if fields == 0 && current.is_null() {
@@ -420,6 +424,14 @@ fn substitution(value: Json, saved: &BTreeMap<String, Json>, arguments: bool) ->
 #[cfg(test)]
 mod saved_alias_tests {
     use super::*;
+    #[test]
+    fn kit4_alias_paths_traverse_arrays_without_reinterpreting_object_keys() {
+        let saved = [("plans".into(),json!([{"id":"first"},{"id":"second","nested":[3]}])),("object".into(),json!({"0":"key"}))].into();
+        assert_eq!(substitute(json!(["$plans.0.id","$plans.1.nested.0","$object.0"]),&saved).unwrap(),json!(["first",3,"key"]));
+        for (path,why) in [("$plans.2.id","out of range"),("$plans.-1","zero-based array index"),("$plans.00","zero-based array index"),("$plans.nope","zero-based array index")] {
+            let error=substitute(json!(path),&saved).unwrap_err();assert!(error.contains(path)&&error.contains(why),"{error}");
+        }
+    }
     #[test]
     fn aliases_resolve_or_refuse_by_name_and_literals_are_expressible() {
         for name in ["", "r.1", "$r1"] { assert!(validate(&json!({"op":"add", "save":name})).unwrap_err().contains("save alias")); }

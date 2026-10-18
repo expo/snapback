@@ -172,6 +172,7 @@ pub fn serve(
         matches!(mode, Mode::Dev {fresh:true,..}))?) } else {None};
     let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
     let shared = Arc::new(Shared {
+        dev_reset_store: Mutex::new(None),
         dev_identity: registration.as_ref().map(|r| r.identity.clone()),
         release_requests: Arc::new(crate::release_requests::Gate::default()),
         #[cfg(test)]

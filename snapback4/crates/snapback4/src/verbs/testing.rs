@@ -79,7 +79,7 @@ pub fn test(options: &Options) -> i32 {
         }
     };
     if let Some(persona) = options.flags.get("as") && !sweep_personas.is_empty() {
-        println!("test --as {persona} overrides test.sweep.json for: {}", sweep_personas.keys().cloned().collect::<Vec<_>>().join(", "));
+        println!("test --as {persona} overrides test.sweep.json because --as requests one deliberate global probe; for: {}", sweep_personas.keys().cloned().collect::<Vec<_>>().join(", "));
     }
     if options.flags.contains_key("residency") {
         let verbose = options.flags.contains_key("verbose");
@@ -102,6 +102,8 @@ pub fn test(options: &Options) -> i32 {
     let mut failures = 0;
     println!("test: {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "operation (persona)", "examined", "entries", "probes", "steps", "heap B", "output B");
     println!("      {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "ceilings", ceilings.examined, ceilings.index_entries, ceilings.rule_probes, ceilings.steps, ceilings.heap_bytes, ceilings.output_bytes);
+    println!("legend: examined=rows visited; entries=index visits; probes=rule lookups; steps=interpreter work; heap B=charged heap; output B=encoded answer.");
+    println!("verdicts: complete=whole answer; capped=partial; refused=expected-case or program-require refusal; denied=unexpected refusal; not run=no coverage; case OK=expectation passed.");
     let mut skipped = Vec::new();
     let mut held_not_run = 0;
     let mut near = Vec::new();

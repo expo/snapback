@@ -157,6 +157,7 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
         }
     };
     if asked.clock { *lock(&shared.clock) = clock; }
+    *lock(&shared.dev_reset_store) = Some(reset.store_id.clone());
     // The reset committed a new identity and a new authority clock. Replace,
     // rather than max with, the retired store's cached high-water mark.
     shared.time_audience_clock.store(if engine.schema().tables.values().any(|t| t.not_before.is_some()) { now } else { i64::MIN }, std::sync::atomic::Ordering::Release);
@@ -178,7 +179,7 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
     respond_timed(request, shared, 200, json!({
         "reset": true, "seeded": reset.seeded, "generation": generation, "storeId": reset.store_id,
         "previousStoreId": reset.previous_store_id, "head": reset.seq, "assetsRemoved": assets,
-        "now": now, "clockOffsetMs": now - snapback4_core::now_ms(), "skewMs": now - snapback4_core::now_ms(), "ms": started.elapsed().as_millis() as u64,
+        "now": now, "clockOffsetMs": lock(&shared.clock).offset(), "skewMs": now - snapback4_core::now_ms(), "ms": started.elapsed().as_millis() as u64,
     }));
 }
 

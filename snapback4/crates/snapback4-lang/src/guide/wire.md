@@ -2,16 +2,100 @@
 
 Every call carries a principal; public visitors use guest sessions; `serve` accepts bearers only. Plain JSON over HTTP works with curl, scripts and non-JS clients.
 
-```sh
-U=http://127.0.0.1:4400
-curl -s -X POST $U/q/mine -H 'x-snapback-persona: alice' -H 'Content-Type: application/json' -d '{"args":{}}'
-curl -s -X POST $U/m/add -H 'x-snapback-persona: alice' -H 'Content-Type: application/json' -d '{"args":{"body":"hi"}}'
-```
+## First raw HTTP proof
 
-`snapback4 dev` serves on that address (choose another with `--port N`, or
-`--port 0` for a free one; the first stdout line is the URL). A taken port
-refuses the start at once with `E_ADDRINUSE`, naming the holder's pid. The JS client (`snapback4/client`) stays the
-paved surface for apps: it adds sync, offline writes and live queries.
+| Send | Inspect the JSON body |
+|---|---|
+| `POST /q/name {"args":{…}}` | `{data, complete}` or `{denied:{…}}` |
+| `POST /m/name {"id":"one-intent","args":{…}}` | `{state:"sent", result}` or `{state:"failed", why}` |
+| `POST /seed [{"table":"notes","row":{…}}]` | Bare array; `{seeded}` or `{denied}` |
+| `POST /dev/reset {"seed":[{"table":"notes","row":{…}}]}` | Wrapper; `{reset:true, seeded, …}` or `{denied}` |
+
+Dev uses `x-snapback-persona: alice`. Serve uses `Authorization: Bearer <token>`
+from a real account or service seat. Send one credential with `Content-Type:
+application/json`. Authentication can refuse HTTP 401 before either operation;
+HTTP 200 still requires inspecting `denied`, `state`, and `why`.
+Relative times such as `"now+1h"` work in typed seed/fixture time fields and
+fixture case arguments. `/m` takes Unix milliseconds; it never interprets
+relative time strings. Query data and mutation results have different envelopes.
+
+Save this schema as snapback/schema.q in a scratch project with snapback4
+installed. Save the JavaScript as scripts/wire-proof.mjs and run it with Node.
+Qualification executes these exact blocks through the packed CLI and generates
+the trace below. Minted identifiers, timestamps and observed durations alone
+are normalized; refusal codes, request bodies and envelope fields are retained.
+
+<!-- WIRE FIRST SCHEMA BEGIN -->
+```quarry
+use personas alice, bob
+table notes:
+  title: text <=80
+  at: time
+  public 'literal wire proof'
+  insert <- allow
+  online only
+query list(c: cursor ?):
+  require viewer = 'dev:alice' else READ_REFUSED
+  return notes first 10 by .id after c
+mutation add(title: text <=80, at: time):
+  require title != 'refuse' else WRITE_REFUSED
+  return insert notes { title, at }
+```
+<!-- WIRE FIRST SCHEMA END -->
+
+<!-- WIRE FIRST SCRIPT BEGIN -->
+```js
+import assert from "node:assert/strict";
+import { startDev, cleanup } from "snapback4/proof";
+const dev = await startDev();
+const trace = [];
+async function post(path, body, persona = "alice") {
+  const headers = { "content-type": "application/json", "x-snapback-persona": persona };
+  const response = await fetch(dev.url + path, { method: "POST", headers, body: JSON.stringify(body) });
+  const result = await response.json();
+  trace.push({ request: { method: "POST", path, headers, body }, response: { status: response.status, body: result } });
+  return result;
+}
+try {
+  const seed = [{ table: "notes", row: { id: "seed", title: "Seed", at: "now+1h" } }];
+  assert.equal((await post("/seed", seed)).seeded, 1);
+  const reset = await post("/dev/reset", { seed });
+  assert.equal(reset.reset, true); assert.notEqual(reset.storeId, reset.previousStoreId);
+  const at = await dev.now();
+  const sent = await post("/m/add", { id: "proof-write", args: { title: "Proof", at } });
+  assert.equal(sent.state, "sent"); assert.equal(sent.id, "proof-write"); assert.ok(sent.result.id);
+  const failed = await post("/m/add", { id: "refused-write", args: { title: "refuse", at } });
+  assert.equal(failed.state, "failed"); assert.equal(failed.why.code, "WRITE_REFUSED");
+  const read = await post("/q/list", { args: { c: null } });
+  assert.equal(read.complete, true); assert.equal(read.data.length, 2);
+  assert.equal((await post("/q/list", { args: { c: null } }, "bob")).denied.code, "READ_REFUSED");
+  assert.equal((await post("/m/add", { args: { title: "Relative", at: "now+1h" } })).why.code, "E_INPUT");
+  const normalize = (value, key = "") => {
+    if (Array.isArray(value)) return value.map(item => normalize(item));
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([k,v]) => [k, normalize(v,k)]));
+    if (["store_id", "storeId", "previousStoreId"].includes(key)) return "<store-id>";
+    if (key === "id" && !["seed", "proof-write", "refused-write"].includes(value)) return "<row-id>";
+    if (["ms", "skewMs"].includes(key)) return "<observed-ms>";
+    return typeof value === "number" && value > 1_000_000_000_000 ? "<unix-ms>" : value;
+  };
+  console.log(JSON.stringify(normalize(trace), null, 2));
+} finally { await cleanup(() => dev.stop()); }
+```
+<!-- WIRE FIRST SCRIPT END -->
+
+<!-- WIRE FIRST TRACE BEGIN -->
+```json
+[
+{"request":{"method":"POST","path":"/seed","headers":{"content-type":"application/json","x-snapback-persona":"alice"},"body":[{"table":"notes","row":{"id":"seed","title":"Seed","at":"now+1h"}}]},"response":{"status":200,"body":{"seeded":1,"generation":1}}},
+{"request":{"method":"POST","path":"/dev/reset","headers":{"content-type":"application/json","x-snapback-persona":"alice"},"body":{"seed":[{"table":"notes","row":{"id":"seed","title":"Seed","at":"now+1h"}}]}},"response":{"status":200,"body":{"assetsRemoved":0,"clockOffsetMs":0,"generation":1,"head":3,"ms":"<observed-ms>","now":"<unix-ms>","previousStoreId":"<store-id>","reset":true,"seeded":1,"skewMs":"<observed-ms>","storeId":"<store-id>"}}},
+{"request":{"method":"POST","path":"/m/add","headers":{"content-type":"application/json","x-snapback-persona":"alice"},"body":{"id":"proof-write","args":{"title":"Proof","at":"<unix-ms>"}}},"response":{"status":200,"body":{"generation":1,"head":4,"id":"proof-write","preserved":["notes"],"result":{"at":"<unix-ms>","id":"<row-id>","title":"Proof"},"seq":4,"state":"sent","store_id":"<store-id>"}}},
+{"request":{"method":"POST","path":"/m/add","headers":{"content-type":"application/json","x-snapback-persona":"alice"},"body":{"id":"refused-write","args":{"title":"refuse","at":"<unix-ms>"}}},"response":{"status":200,"body":{"generation":1,"head":4,"id":"refused-write","preserved":[],"state":"failed","store_id":"<store-id>","why":{"code":"WRITE_REFUSED","family":"rule","guide":"programs","message":"the program refused with WRITE_REFUSED","rule":"WRITE_REFUSED","site":"schema.q:12:3"}}}},
+{"request":{"method":"POST","path":"/q/list","headers":{"content-type":"application/json","x-snapback-persona":"alice"},"body":{"args":{"c":null}}},"response":{"status":200,"body":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":[{"at":"<unix-ms>","id":"<row-id>","title":"Proof"},{"at":"<unix-ms>","id":"seed","title":"Seed"}],"next":null,"nextExpiry":null,"seq":4,"store_id":"<store-id>","tables":["notes"],"viewer":"dev:alice","meter":{"cut":null,"examined":2,"heapBytes":635,"indexEntries":0,"outputBytes":198,"probes":0,"rowsWritten":0,"steps":7}}}},
+{"request":{"method":"POST","path":"/q/list","headers":{"content-type":"application/json","x-snapback-persona":"bob"},"body":{"args":{"c":null}}},"response":{"status":200,"body":{"complete":false,"denied":{"code":"READ_REFUSED","family":"rule","guide":"programs","message":"the program refused with READ_REFUSED","rule":"READ_REFUSED","site":"schema.q:9:3"},"generation":1,"head":4,"seq":4,"store_id":"<store-id>"}}},
+{"request":{"method":"POST","path":"/m/add","headers":{"content-type":"application/json","x-snapback-persona":"alice"},"body":{"args":{"title":"Relative","at":"now+1h"}}},"response":{"status":200,"body":{"generation":1,"head":4,"state":"failed","store_id":"<store-id>","why":{"code":"E_INPUT","family":"input","guide":"types","message":"argument at: expected a time in milliseconds, got a string"}}}}
+]
+```
+<!-- WIRE FIRST TRACE END -->
 
 ## Identity
 
@@ -186,7 +270,7 @@ Dev only, same machine; `serve` refuses each one.
   (signed-up users, guests). The adopted schema, personas and service seats
   (`snapback4 token`, the dev worker's) stay. The store takes a new identity:
   a local client re-acquires the new store by itself, an online client halts
-  with `E_STORE_REPLACED` (`createApp` reopens it). The head keeps counting.
+  with `E_DEV_RESET: reopen the client` (`createApp` reopens it). The head keeps counting.
   The body is empty, a `/seed` array, or `{"seed": [..], "clock": "reset"}`
   (either key optional): seed rows are written as `/seed` writes them, in the
   same transaction (a refused row resets nothing), and `"clock": "reset"`
@@ -197,7 +281,7 @@ Dev only, same machine; `serve` refuses each one.
 - `/dev/clock/advance` with `{"duration":"+2m"}` moves the dev clock, sweeps
   expiry, fires due schedules and runs queued jobs (`snapback4 clock advance 2m`).
   The reply includes now, skewMs and each schedule’s firedWindows and skippedBoundaries,
-  with a literal run command per skipped job window. Add eachBoundary:true
+  with up to 32 literal replay commands per schedule and an exact omitted count. Add eachBoundary:true
   (`clock advance 2m --each-boundary`) to admit every crossed window in order.
   Jobs see the final advanced now; use periodStart/periodEnd for historical windows.
 - `/dev/jobs/<job>` with `{"args":{..}}` runs one job now and answers its run.

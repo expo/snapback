@@ -70,7 +70,7 @@ export function localDelivery(env: Environment) {
       const json = await response.json() as Record<string, unknown>;
       if (signal.aborted || !env.current()) throw new Error("obsolete delivery response");
       const why = (json.why ?? json.denied) as Refusal | undefined;
-      if (typeof json.store_id === "string" && json.store_id !== id || why?.code === "E_STORE_REPLACED") {
+      if (typeof json.store_id === "string" && json.store_id !== id || (why?.code === "E_STORE_REPLACED" || why?.code === "E_DEV_RESET")) {
         env.replaced();
         return { json: { ...json, denied: { code: "E_STORE_REPLACED" } }, accepted: false };
       }

@@ -604,7 +604,7 @@ export function createApp(options: AppOptions): App {
         retirement = custody.refuseStore(changedStore);
         void retirement.catch(error => { if (scope.valid && owner === scope) report(error); });
       }
-      if (changedStore.code !== "E_STORE_REPLACED" || recovering || owner !== scope || !scope.valid || closed || revision !== expected) return;
+      if (!["E_STORE_REPLACED", "E_DEV_RESET"].includes(changedStore.code) || recovering || owner !== scope || !scope.valid || closed || revision !== expected) return;
       recovering = true;
       const retired = retirement;
       hide("restoring");

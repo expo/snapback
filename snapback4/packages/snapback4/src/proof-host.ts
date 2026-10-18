@@ -2,7 +2,7 @@
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createServer } from "node:http";
-import { createReadStream, existsSync, realpathSync, statSync } from "node:fs";
+import { createReadStream, readFileSync, existsSync, realpathSync, statSync } from "node:fs";
 import { extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -11,7 +11,14 @@ if (!directory || !ports || !["static", "vite"].includes(kind!)) throw Error("in
 // @ref LLP 3000.011.003.000.000#8 — missing-export errors flush before keeper cleanup.
 // Validate the static export before creating a keeper: an error must flush
 // before group cleanup can terminate this host.
-if (kind === "static" && !existsSync(directory)) throw Error(`startStatic: ${directory} does not exist; frontend proofs build their own dist (await command("npm", ["run", "build"]))`);
+if (kind === "static" && !existsSync(directory)) {
+  let script: string | undefined;
+  try {
+    const scripts = JSON.parse(readFileSync(resolve("package.json"), "utf8")).scripts ?? {};
+    script = typeof scripts["build:web"] === "string" ? "build:web" : typeof scripts.build === "string" ? "build" : undefined;
+  } catch { /* No package metadata: name the missing precondition without inventing a script. */ }
+  throw Error(`startStatic: ${directory} does not exist; frontend proofs build their own dist (${script ? `await command("npm", ["run", ${JSON.stringify(script)}])` : "run this project's frontend build script first"})`);
+}
 const root = realpathSync(directory);
 if (kind === "static" && !existsSync(join(root, "index.html"))) throw Error(`static proof needs ${join(root, "index.html")}; build the app first`);
 // The driver owns this pipe: kernel EOF survives a SIGKILLed driver. Closing

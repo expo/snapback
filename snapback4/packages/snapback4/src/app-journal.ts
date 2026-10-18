@@ -43,7 +43,7 @@ export function bindIntentStore(journal: Journal, intent: Intent, store: string 
 export const RETIRED_ID_LIMIT = 4096;
 /** Mirrors online-capture.ts's marker cap. */
 const CAPTURED_ID_LIMIT = 1024;
-const unknown = (write: Terminal) => write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code);
+const unknown = (write: Terminal) => write.state === "failed" && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code);
 
 export function keepReceipts(journal: Journal, pinned: Set<string>, retiring: boolean): void {
   const removed = new Set<Terminal>();

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, symlinkSync, cpSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn, execFileSync } from "node:child_process";
@@ -46,7 +46,7 @@ test("native and static bind beyond an occupied port; identity and independent l
 test("exhausted range and missing export fail with bounded cleanup", async t => {
   const cwd = fixture(t), held = createServer(), port = await bind(held); t.after(() => held.close());
   await assert.rejects(startDev({ cwd, env: { PORT_LO: String(port), PORT_HI: String(port) }, timeoutMs: 5000 }), /before ready/);
-  await assert.rejects(startStatic("dist", { cwd, timeoutMs: 5000 }), /startStatic: .*dist does not exist; frontend proofs build their own dist \(await command\("npm", \["run", "build"\]\)\)/);
+  await assert.rejects(startStatic("dist", { cwd, timeoutMs: 5000 }), /startStatic: .*dist does not exist; frontend proofs build their own dist/);
   for (let attempt = 0; attempt < 3; attempt++) await assert.rejects(startStatic("snapback", { cwd, timeoutMs: 5000 }), /index.html/);
 });
 test("static host serves wasm correctly and refuses escaped symlink assets", async t => {
@@ -305,4 +305,28 @@ catch(error){if(!/timed out/.test(error.message))throw error;}`);
   });
   await bounded((async()=>{while(!holder){try{holder=JSON.parse(readFileSync(marker,'utf8')).pid;}catch(error){if(error.code!=='ENOENT')throw error;}if(!holder)await new Promise(resolve=>setTimeout(resolve,20));}})(),5000,'pipe holder spawned');
   assert.equal(await bounded(closed,5000,'secret driver exit'),0);
+});
+
+test('KIT4 missing static output names the app build script', async t => {
+  const cwd=mkdtempSync(join(tmpdir(),'kit4-build-script-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  for (const script of ['build:web','build']) {
+    writeFileSync(join(cwd,'package.json'),JSON.stringify({scripts:{[script]:'builder'}}));
+    await assert.rejects(startStatic('dist',{cwd}), error=>{assert.ok(error.message.includes(`run", "${script}"`),error.message);return true;});
+  }
+});
+
+test('KIT4 missing browser peer refuses before logs or the proof callback', async t => {
+  const cwd=mkdtempSync(join(tmpdir(),'kit4-missing-peer-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  cpSync(join(root,'packages/snapback4/dist'),join(cwd,'dist'),{recursive:true});
+  writeFileSync(join(cwd,'package.json'),'{"type":"module"}');
+  writeFileSync(join(cwd,'peer.mjs'),`
+import assert from 'node:assert/strict';
+import {existsSync} from 'node:fs';
+import {withBrowser} from './dist/proof.js';
+let called=false;
+await assert.rejects(withBrowser({cwd:process.cwd()},async()=>{called=true;}),/E_PROOF_BROWSER: withBrowser requires playwright-core.*npm install/);
+assert.equal(called,false);assert.equal(existsSync('logs'),false);
+`);
+  const result=await command(process.execPath,['peer.mjs'],{cwd,logsDir:join(cwd,'driver-logs'),env:{NODE_PATH:''}});
+  assert.equal(result.code,0,result.stdout+result.stderr);
 });

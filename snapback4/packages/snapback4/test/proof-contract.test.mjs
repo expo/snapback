@@ -1,9 +1,10 @@
 // H9 controls can load the unchanged 0.4.29 proof/witness modules via KIT2_BASELINE_DIST.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
 const dist = process.env.KIT2_BASELINE_DIST ?? resolve(import.meta.dirname, '../dist');
@@ -12,7 +13,7 @@ const witnessSource = readFileSync(join(dist, 'witness-web.js'), 'utf8');
 async function browser(t, run) {
   const cwd = mkdtempSync(join(tmpdir(), 'kit2-contract-'));
   t.after(() => rmSync(cwd, {recursive:true,force:true}));
-  await kit.withBrowser({cwd, executablePath:process.env.CHROME ?? chromiumExecutable()}, async context => run(await context.newPage()));
+  await kit.withBrowser({cwd, executablePath:process.env.CHROME ?? chromiumExecutable()}, async context => run(await context.newPage(), cwd));
 }
 test('H9 renderedText opts into substring matching for a row with more than the needle', {timeout:30000}, async t => browser(t, async page => {
   await page.setContent('<section aria-label="Rows"><p>Proof needle — more row text</p><input value="Proof needle"></section>');
@@ -25,6 +26,19 @@ test('H9 renderedText opts into substring matching for a row with more than the 
   assert.equal(await kit.waitForFresh(kit.renderedText(page, /Proof needle/, {within}), null, 500), 'Proof needle — more row text');
   await assert.rejects(kit.waitForFresh(row, 'Proof needle — more row text', {timeoutMs:1000}), /getByText.*last count=1.*Proof needle.*present but unchanged/);
   await assert.rejects(kit.waitForFresh(kit.renderedText(page,'missing'), null, {timeoutMs:1000}), /last count=0.*text=null.*absent/);
+}));
+test('KIT4 substring advice stays inside explicit scope and timeout names the visible screen', {timeout:30000}, async t => browser(t, async page => {
+  await page.setContent('<h1>Open status link</h1><p>Explains Cleared status</p><section aria-label="Status"><p>Waiting</p></section>');
+  const within=page.getByRole('region',{name:'Status'});
+  for (const options of [{}, {within}]) {
+    await assert.rejects(kit.waitForFresh(kit.renderedText(page,'Cleared',options),null,50), error => {
+      assert.match(error.message,/visible heading="Open status link"/);
+      assert.doesNotMatch(error.message,/substring match exists/); return true;
+    });
+  }
+  await page.getByRole('region',{name:'Status'}).evaluate(el=>el.innerHTML='<p>Cleared by officer</p>');
+  await assert.rejects(kit.waitForFresh(kit.renderedText(page,'Cleared',{within}),null,50),/substring match exists/);
+  await assert.rejects(kit.waitForFresh(kit.renderedText(page,'Cleared'),null,{within,timeoutMs:50}),/substring match exists/);
 }));
 test('H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise', {timeout:30000}, async t => browser(t, async page => {
   const cwd=mkdtempSync(join(tmpdir(),'kit2-no-write-'));
@@ -61,7 +75,7 @@ window.testApp=app;registerWebWitness(app,{add:{kind:'mutation',name:'add'}});
   assert.equal(old.why.code,'E_WITNESS_NO_WRITE');
 }));
 
-test('KIT3 explicit form claim survives slow uploads and never grants an unrelated callback', {timeout:30000}, async t => browser(t, async page => {
+test('KIT3 explicit form claim survives slow uploads and never grants an unrelated callback', {timeout:30000}, async t => browser(t, async (page, browserCwd) => {
   const cwd=mkdtempSync(join(tmpdir(),'kit3-upload-'));
   t.after(()=>rmSync(cwd,{recursive:true,force:true})); mkdirSync(join(cwd,'dist'));
   writeFileSync(join(cwd,'dist/bridge.js'),witnessSource);
@@ -98,7 +112,19 @@ document.querySelector('button').onclick=event=>{
   assert.equal(competing.why.code,'E_WITNESS_UNCLAIMED'); assert.equal(competing.why.reason,'event');
   await page.evaluate(()=>window.mode='wrong'); await arm(); await page.getByRole('button').click();
   const wrong=await page.evaluate(()=>window.__snapback4Witness.formResult());
-  assert.equal(wrong.why.reason,'arguments'); assert.ok(!JSON.stringify(wrong).includes('must not enter proof logs'));
+  assert.equal(wrong.why.reason,'arguments'); assert.match(wrong.why.message,/mismatched keys: secret/); assert.ok(!JSON.stringify(wrong).includes('must not enter proof logs'));
+  const privateFile = readdirSync(join(browserCwd, 'logs')).find(name => name.endsWith('.witness.private.jsonl'));
+  const privatePath = join(browserCwd, 'logs', privateFile);
+  assert.equal(statSync(privatePath).mode & 0o777, 0o600);
+  const diff = readFileSync(privatePath, 'utf8').trim().split('\n').map(JSON.parse).find(row => row.code === 'E_WITNESS_UNCLAIMED');
+  assert.deepEqual(diff.armed, {}); assert.deepEqual(diff.actual, {secret:'must not enter proof logs'});
+  for (const fault of ['stall','throw']) {
+    const before=await page.evaluate(()=>window.writes);
+    await page.evaluate(fault=>{window.__snapback4ProofDiagnostic=()=>{if(fault==='throw')throw Error('diagnostic failed');return new Promise(()=>{});};},fault);
+    await arm();await page.getByRole('button').click();
+    await kit.waitForServer(()=>page.evaluate(()=>window.writes),writes=>writes===before+1,{timeoutMs:1000,label:'application write independent of diagnostic'});
+    assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).why.reason,'arguments');
+  }
   await page.evaluate(()=>window.mode='rearm'); await arm(); await page.getByRole('button').click();
   await page.evaluate(()=>{window.old=window.__snapback4Witness.formResult();window.__snapback4Witness.beginForm('add',{},document.querySelector('button'));});
   assert.equal((await page.evaluate(()=>window.old)).why.code,'E_WITNESS_NO_WRITE');
@@ -113,11 +139,11 @@ test('KIT3 starter SVG box click and scoped text recipe run literally', {timeout
   const source=readFileSync(new URL('../../../crates/snapback4/src/verbs/init/frontend-proof.mjs',import.meta.url),'utf8');
   const body=source.match(/async function clickSvg\(page, control\) \{([\s\S]*?)\n\}/)[1];
   const clickSvg=new Function('assert',`return async function(page,control){${body}}`)(assert);
-  await page.setContent(`<svg width="160" height="80"><foreignObject width="160" height="80"><button style="width:160px;height:80px" onclick="document.querySelector('section p').textContent='fresh saved'">Save</button></foreignObject></svg><section aria-label="Rows"><p>old</p></section><p>fresh saved</p><label>Choice<select><option value="a">Alpha</option><option value="b">Beta</option></select></label>`);
+  await page.setContent(`<svg width="160" height="80"><foreignObject width="160" height="80"><button style="width:160px;height:80px" onclick="document.querySelector('section p').textContent='fresh saved'">Save</button></foreignObject></svg><section aria-label="Rows"><p>old</p></section><p>fresh saved</p><label for="choice">Choice</label><select id="choice"><option value="a">Alpha</option><option value="b">Beta</option></select>`);
   const within=page.getByRole('region',{name:'Rows'});
   await clickSvg(page,page.locator('svg'));
   assert.equal(await kit.waitForFresh(kit.renderedText(page,/fresh saved/,{within}),null,1000),'fresh saved');
-  const select=page.getByText('Choice',{exact:false}).locator('select');await kit.selectByValue(select,'b');assert.equal(await select.inputValue(),'b');
+  const select=page.getByLabel('Choice',{exact:true});await kit.selectByValue(select,'b');assert.equal(await select.inputValue(),'b');
 }));
 
 test('KIT3 dev.now reads the current served clock across advance and reset', {timeout:30000}, async t => {
@@ -131,4 +157,29 @@ test('KIT3 dev.now reads the current served clock across advance and reset', {ti
   assert.ok(await dev.now()>=advanced.now);
   const reset=await post('/dev/reset',{});assert.ok(reset.now>=advanced.now);assert.ok(reset.skewMs>=7_199_000);
   const wall=await post('/dev/reset',{clock:'reset'});assert.ok(Math.abs(wall.skewMs)<1000);assert.ok(Math.abs(await dev.now()-Date.now())<1000);
+});
+
+test('KIT4 stale online client names dev reset and a newly opened client works', {timeout:30000}, async t => {
+  const {createClient}=await import('../dist/client.js');
+  const cwd=mkdtempSync(join(tmpdir(),'kit4-reset-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  mkdirSync(join(cwd,'snapback'));writeFileSync(join(cwd,'snapback/schema.q'),'use personas alice\nquery time():\n  return now\n');
+  const dev=await kit.startDev({cwd});t.after(()=>dev.stop());
+  const before=createClient({url:dev.url,persona:'alice'});t.after(()=>before.close());
+  assert.equal((await before.query({kind:'query',name:'time'},{})).complete,true);
+  const reset=await fetch(dev.url+'/dev/reset',{method:'POST',body:'{}'});assert.equal(reset.status,200);
+  const reply=await before.query({kind:'query',name:'time'},{});
+  assert.equal(reply.denied.code,'E_DEV_RESET');assert.match(reply.denied.message,/reopen the client/);
+  const after=createClient({url:dev.url,persona:'alice'});t.after(()=>after.close());
+  assert.equal((await after.query({kind:'query',name:'time'},{})).complete,true);
+});
+test('KIT4 waitForClock observes the page client instead of the proof driver clock', {timeout:30000}, async t => browser(t, async page => {
+  await page.setContent('<h1>Clock</h1>');
+  await page.evaluate(()=>{window.sample=1;window.__snapback4Witness={clock:()=>window.sample};setTimeout(()=>window.sample=3600001,100);});
+  assert.equal(await kit.waitForClock(page,3600001,{timeoutMs:2000}),3600001);
+  await assert.rejects(kit.waitForClock(page,7200001,{timeoutMs:50}),/page client clock.*last=3600001/);
+  await assert.rejects(kit.waitForClock(page,NaN),/E_PROOF_USAGE/);
+}));
+
+test('KIT4 generated proof API table agrees with every source export', {timeout:60000},()=>{
+  execFileSync(process.execPath,[new URL('../../../scripts/generate-proof-api.mjs',import.meta.url).pathname,'--check'],{timeout:50000});
 });

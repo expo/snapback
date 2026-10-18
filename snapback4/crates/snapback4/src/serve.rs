@@ -78,6 +78,7 @@ pub struct Shared {
     project: std::path::PathBuf,
     pub(crate) release_root: Mutex<Option<std::path::PathBuf>>,
     temporary: bool,
+    dev_reset_store: Mutex<Option<String>>,
     dev_identity: Option<crate::dev_hosts::Identity>,
     ephemeral: Arc<snapback4_core::engine::ephemeral::Hub>,
     ephemeral_rate: ephemeral::Rate,
@@ -597,7 +598,7 @@ pub(crate) fn trusted_dev_request(request: &Request, shared: &Shared) -> bool {
 pub(crate) fn cors(request: &Request) -> Vec<Header> {
     let mut headers = vec![
         Header::from_bytes("Vary", "Origin").unwrap(),
-        Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Time, X-Snapback-Clock, X-Snapback-Generation").unwrap(),
+        Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Time, X-Snapback-Clock, X-Snapback-Generation, X-Snapback-Dev-Reset").unwrap(),
         Header::from_bytes("Access-Control-Allow-Headers", "content-type, x-snapback-persona, x-snapback-meter, authorization, range, x-snapback-device").unwrap(),
         Header::from_bytes("Access-Control-Allow-Methods", "GET, POST, OPTIONS").unwrap(),
     ];
@@ -648,13 +649,11 @@ pub(crate) fn ephemeral_headers(shared: &Shared) -> Vec<Header> {
     vec![Header::from_bytes("X-Snapback-Ephemeral", "1").unwrap(),
          Header::from_bytes("Access-Control-Expose-Headers", "X-Snapback-Ephemeral").unwrap()]
 }
-
 // @ref LLP 3000.011.003.000#8 — absent request ids stay absent; result.id is the row id.
 pub(crate) fn mutation_reply(mut body: Json) -> Json {
     if body.get("id").is_some_and(Json::is_null) { body.as_object_mut().unwrap().remove("id"); }
     body
 }
-
 pub(crate) fn respond_timed(request: Request, shared: &Shared, status: u16, body: impl latency::Reply) {
     respond_with_sync(request, status, body, true, None, Some(shared))
 }
@@ -705,6 +704,9 @@ fn respond_full(request: Request, status: u16, body: impl latency::Reply, allow_
     let _evidence = dev_refusals::response::response(&bytes.0);
     let capacity = bytes.0.len() + 512;
     let mut response = Response::from_data(bytes.0).with_status_code(status);
+    if let Some(shared) = shared && let Some(identity) = lock(&shared.dev_reset_store).as_ref() {
+        response.add_header(Header::from_bytes("X-Snapback-Dev-Reset", identity.as_str()).unwrap());
+    }
     if let Some(shared) = shared {
         for header in clock_headers(shared).into_iter().chain(ephemeral_headers(shared)) { response.add_header(header); }
         // @ref LLP 3000.023#11 — discover compiler dependency summaries without probing older servers.
@@ -891,7 +893,7 @@ fn handle(mut request: Request, shared: &Shared) {
         let personas = lock(&shared.bound).personas.clone();
         let status = lock(&shared.adoption);
         let now = shared.now();
-        return respond_timed(request, shared, 200, json!({"instance":shared.dev_identity.as_ref().map(|i| &i.instance), "initialStoreId":shared.dev_identity.as_ref().map(|i| &i.initial_store_id), "pid":std::process::id(), "wrapperPid":crate::supervisor::pid(), "storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":now, "clockOffsetMs":now - snapback4_core::now_ms(), "skewMs":now - snapback4_core::now_ms(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
+        return respond_timed(request, shared, 200, json!({"instance":shared.dev_identity.as_ref().map(|i| &i.instance), "initialStoreId":shared.dev_identity.as_ref().map(|i| &i.initial_store_id), "pid":std::process::id(), "wrapperPid":crate::supervisor::pid(), "storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":now, "clockOffsetMs":lock(&shared.clock).offset(), "skewMs":now - snapback4_core::now_ms(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
     }
     if method == Method::Get && path == "/dev/clock/status" { return maintenance::clock_status(request, shared); }
     if method == Method::Options {
