@@ -96367,3 +96367,25 @@ under `--prefer-offline`; after refreshing it, Linux passed `== 0 failure(s) in
 steps reran after it appeared. Clean installs on Linux and the Mac print
 `snapback4 0.4.30` and pass `init` + `check`. Details:
 `reports/20261016-publication-0.4.30/REPORT.md`.
+
+
+## 2026-10-18 — RULES5 wave 15: authorization recipes on LIVE
+
+Merged origin/main into LIVE before editing. No language, interpreter, protocol,
+adoption or client-contract change: three new rules-card programs demonstrate
+hidden lookup before require, hidden uniqueness refusal and rule/program probes.
+Eight recipe programs cover the seven requested shapes, including flattened
+shared LIVE authority and an ordinary middle policy probing a mutable ancestor.
+The 077 check shape is admitted through its section; chained live inheritance
+is refused. The 085 authority subset admits restrict-only LIVE, while its full
+cross-service total and cascade remain unsupported in that composition. No
+branch or action is silently dropped. LANG4 owns both note bullets.
+
+Paired fresh Muse/Codex round-2 READY follows the recipient-inbox correction.
+Verbatim reviews and input digests accompany LLP 3000.036.002 §13. All guide
+blocks compile; exact packed CLI/client/native execution passes 22 tests,
+including withdrawal/reapproval, grace/reconnect and private-history rollback.
+The rules card retains every original word/source block while reflowing prose
+within its existing physical-line budget. No version bump or push.
+Qualification results and any inherited limitations are in reports/wave15-rules5
+and the root WORKSTREAM-REPORT.md; these are workstream checks, not publication.

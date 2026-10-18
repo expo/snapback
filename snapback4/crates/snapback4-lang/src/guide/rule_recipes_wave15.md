@@ -308,6 +308,11 @@ cascade semantics unchanged also requires the existing
 explicit keyed probes. LIVE never silently
 drops a reader branch or a reference action.
 
+For the complete 085 app as written, keep its explicit probe rule. Converting
+its entry authorization to LIVE requires both removing the cascade and
+replacing the cross-service total with a separately designed read; changing
+only the read rule does not convert the whole app.
+
 For the distinct per-section policy, keep that policy on the ordinary middle
 table. This reduced 077 form retains the owner's active-only access and the
 partner's signed-package access, with no authored ancestor copy on the check:
