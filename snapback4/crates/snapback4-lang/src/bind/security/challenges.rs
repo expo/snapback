@@ -162,7 +162,9 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
     // same component. Indirect observers, temporal reads and actual authored
     // operations below still run; the whole declaration remains unproved.
     let discharged=super::analyze(bound).invariants.into_iter()
-        .filter(|v|v.direct_rule==Status::Proved&&(matches!(v.invariant.target.as_str(),"read"|"always"|"insert"|"delete")||v.invariant.operation.is_some()))
+        .filter(|v|v.direct_rule==Status::Proved&&v.invariant.operation.is_none()
+            && (matches!(v.invariant.target.as_str(),"read"|"always"|"insert"|"delete")
+                || matches!(v.invariant.target.as_str(),"update"|"write")&&bound.schema.tables[&v.invariant.table].written_by.is_empty()))
         .map(|v|v.invariant.site.to_string()).collect::<BTreeSet<_>>();
     let mut assertions=bound.invariants.clone();
     for inv in &bound.invariants {
@@ -174,7 +176,7 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
     }
     for inv in &assertions{
         if sites.is_some_and(|sites|!sites.contains(&inv.site.to_string())){continue;}
-        if discharged.contains(&inv.site.to_string())&&(matches!(inv.target.as_str(),"read"|"always"|"insert"|"delete")||inv.operation.is_some()){continue;}
+        if discharged.contains(&inv.site.to_string()){continue;}
         let mut found=false;
         let combinations=bound.schema.tables.values().flat_map(|t|t.columns.values()).filter_map(|k|if let C::Enum{variants}=k.required(){Some(variants.len())}else{None}).fold(1usize,usize::saturating_mul).max(24);
         if combinations>512{out.unsupported.insert("schema enum Cartesian matrix exceeds 512 samples; remaining tuples are not covered".into());}

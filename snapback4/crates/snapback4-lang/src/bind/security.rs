@@ -15,6 +15,7 @@ mod census;
 mod observers;
 mod temporal;
 mod adoption;
+mod images;
 pub use audit::{Exposure, Grant};
 pub use observers::Obligation;
 pub use adoption::{draft, UncoveredExposure};
@@ -132,15 +133,14 @@ pub fn analyze(bound:&Bound)->Report {
         } else {
             for word in effects(inv) {
                 let admission=if word=="update" {table.update_rule_judged().into_owned()}else if word=="read" {temporal::admission(table)}else{table.rules.for_effect(effect(word)).clone()};
-                match kernel::implies(&admission,inv.policy.as_ref().unwrap()) {
+                let implication=if word=="update"{images::update(table,inv.policy.as_ref().unwrap())}else{kernel::implies(&admission,inv.policy.as_ref().unwrap())};
+                match implication {
                     Ok(true)=>{},Ok(false)=>{direct=Status::Unproved;reasons.push(format!("{word} admission does not imply intent over independent predicates; a concrete replay is required for refutation"));},
                     Err(why)=>{direct=Status::Unproved;reasons.push(format!("{word}: {why}"));},
                 }
-                // Mutable update-policy fields denote both images. Named
-                // transitions and optimized once-judged rules are not assumed.
-                if word=="update" && (table.update_transition || inv.policy.as_ref().unwrap().any_term(&|t|matches!(t,RuleTerm::Field(_)|RuleTerm::NextField(_)|RuleTerm::OldField(_)))) {
-                    reasons.push("update row-image reduction is unproved (named transition or policy reading old/next fields)".into());
-                }
+                // Update implication judges both images. Only id/explicit
+                // immutable local fields have the equal-image substitution;
+                // owner-field and implicit writers remain separate blockers.
             }
         }
         reasons.extend(blockers(bound,inv));

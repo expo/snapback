@@ -82,3 +82,14 @@ fn excluded_resource_refusals_never_become_logical_privacy_counterexamples(){
  let c=security::challenges::run(&b);
  assert!(c.violations.is_empty(),"{c:?}");
 }
+
+#[test]
+fn update_proofs_include_both_images_and_only_collapse_immutable_fields(){
+ let source="table notes:\n  owner: principal\n  body: text <=20\n  read <- .owner = viewer\n  update <- .owner = viewer\n  online only\ninvariant notes.update only .owner = viewer\n";
+ for immutable in [false,true]{
+  let src=if immutable{source.replace("  read <-","  immutable owner\n  read <-")}else{source.into()};
+  let b=bound(&src);assert_eq!(security::analyze(&b).invariants[0].direct_rule,Status::Proved);
+ }
+ let b=bound("table notes:\n  owner: principal\n  read <- allow\n  update (old, next) <- next.owner = viewer\n  online only\ninvariant notes.update only .owner = viewer\n");
+ assert_eq!(security::analyze(&b).invariants[0].direct_rule,Status::Unproved,"next-image authority cannot establish the old owner");
+}
