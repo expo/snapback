@@ -1018,7 +1018,7 @@ fn w8r1b_test_names_held_queries_without_failing_other_queries_or_residency() {
 #[test]
 fn w8r1b_release_from_a_used_dev_store_never_returns_read_meters() {
     use std::io::{BufRead, BufReader};
-    let p = Project::new(); p.source(&format!("use identity guests\n{SOURCE}"));
+    let p = Project::new(); p.source(&format!("use personas alice\nuse identity guests\n{SOURCE}"));
     let host = AdoptionHost::start(&p, false);
     assert_eq!(host.request("/seed", "", r#"[{"table":"messages","row":{"id":"one","body":"from dev"}}]"#)["seeded"], 1);
     let dev = host.request("/q/all", "x-snapback-persona: alice\r\n", "{}");

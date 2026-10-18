@@ -188,7 +188,7 @@ fn main() -> ExitCode {
             let bind = development_bind(&options)?;
             let (port, inherited) = port_flag::listen("dev", port_flag::parse("dev", options.flags.get("port").map(String::as_str))?, bind, inherited)?;
             let capacity = host_limits::Capacity::from_options(&options.flags, |name| std::env::var(name).ok())?;
-            serve::serve(project, port, serve::Mode::Dev { trace_empty: options.flags.contains_key("trace-empty"), verbose: options.flags.contains_key("verbose"), watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string(), inherited, capacity)
+            serve::serve(project, port, serve::Mode::Dev { unsafe_dev_doors: options.flags.contains_key("unsafe-dev-doors"), trace_empty: options.flags.contains_key("trace-empty"), verbose: options.flags.contains_key("verbose"), watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string(), inherited, capacity)
         }),
         // @ref LLP 3000.007#20.1 — wave 7 (060): resolveBinary() runs the platform binary; web-shell lives in the npm wrapper.
         "web-shell" => {

@@ -96621,3 +96621,56 @@ audits pass. Authoring census is 529 mutations / 95 private write sites. Final
 source and evidence, artifact digests, full commands, failed attempts and
 deferrals are in `reports/integration16` and the root WORKSTREAM-REPORT.md.
 No push, publication, publication-path mutation or B16 branch merge.
+## 2026-10-18 — STAGE: real-user staging, operator first admin, explicit dev tools
+
+Wave-16 bakeoff §1/§7 found ten Muse probes using dev to provision roles.
+LLP orient context: release ownership/retention (LLP 3000.000.000 §§2/5),
+local service proof (LLP 3000.019 §3.4), password authority (LLP 3000.007 §8),
+and packaged hosts (LLP 3000.011.003.000.000 §1). New child amendment
+LLP 3000.000.000.001 records a store-lifetime staging classification: fresh
+--staging only, no production relabelling or promotion. Real signup plus an
+operator-only mutation supplies roles; no serve system-seed endpoint.
+Password-only dev closes its tools unless --unsafe-dev-doors; development
+remains observable even when closed. startDev now follows native persistence.
+Focused staging tests cover real roles/login/data, self-grant refusal,
+production refusal, hot/cold classification, explicit tools, persistence and
+schema-adoption closure. Further packed/platform/full-suite results and blind
+reviews are recorded in the workstream report; no publication claim.
+SEC owns self-promotion lint, KIT4 the unrelated helper work, PROD2 starter adaptation.
+
+
+### STAGE review and consumer follow-through — 2026-10-18
+
+Blind reviews found and drove deterministic barriers for slow bodies, queued
+fixture/clock/job writes, replacement persona readers, and action/session-route
+admission/cancellation. Upload-owner transitions now share writer revalidation.
+Read admission never holds the cast-publication mutex through I/O: concurrent
+ordinary writes retain their snapshot contract. The latest native CLI unit run
+passed 476 tests with 5 existing ignores. Mac passed the preceding candidate
+(465 + 5 ignores) and affected client files; final changed-scope rerun follows.
+
+Packed qualification exposed a generated chat proof depending on the kit
+adding --memory. The kit persists by default; generated local fixture proofs
+now explicitly request --memory and --unsafe-dev-doors. Exact old 0.4.31 proof
+bytes/digests are retained and unmodified 0.4.30/0.4.31 scripts can be adapted;
+custom scripts remain owned by their author. DAY5 owns other starter custody.
+All three copied wave-16 probes (002, 011, 045) ran serve with real users and
+closed unauthenticated doors; sanitized evidence lives in reports/20261018-stage.
+No original lane or other worktree was modified, and nothing was pushed.
+
+### STAGE: published fixture custody follow-through (2026-10-18)
+
+Both fresh round-5 reviewers found the testing guide still promised automatic
+memory isolation. Fixture and browser proofs now explicitly request memory;
+fixture tools also opt into unsafe doors. Packed qualification runs the published
+fixture, client developmentHosts and browser fences verbatim and checks that
+fixture hosts preserve a prepopulated persistent developer database.
+
+### STAGE: complete guide corpus integration (2026-10-18)
+
+The full language guide suite additionally required the staging diagnostic
+family in why/definition/recovery registries, exact application-file and mutation
+census entries, keyword-list integration, compact card openings and a cursor
+on the staging note list. These are now reconciled without raising budgets
+or weakening corpus checks. The updated guide schema and opening host fence
+are exercised from the final installed pack.

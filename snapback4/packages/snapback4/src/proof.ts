@@ -1,4 +1,6 @@
 export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
+import { seedAccounts, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
+export { seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions } from "./proof-accounts.ts";
 // @ref LLP 3000.011.003.000.000#1 — the packaged proof kit owns hosts; builders own assertions.
 import { mkdirSync, openSync, closeSync, writeSync } from "node:fs";
 import { join } from "node:path";
@@ -32,7 +34,7 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
     const { response, body } = await fetchIdentity(`${url}/auth/config`, timeout);
     if (!response.ok || body.proof_id !== id) throw Error("proof served identity mismatch");
     let personas: string[] = [];
-    if (verb === "dev") {
+    if (verb === "dev" && body.devDoors !== false) {
       const status = await fetchIdentity(`${url}/dev/status`, timeout);
       if (status.body.pid !== run.child.pid) throw Error("proof dev PID mismatch");
       if (!Array.isArray(status.body.personas) || !status.body.personas.every(name => typeof name === "string")) throw Error("proof dev personas missing");
@@ -53,19 +55,40 @@ export function startDev(options: ProofOptions | readonly string[] = {}): Promis
   const args = [...(opts.args ?? [])];
   const persistent = args.some(arg => arg === "--store" || arg.startsWith("--store=") || arg === "--no-memory");
   if (persistent && args.includes("--memory")) throw new TypeError("proof startDev: --memory conflicts with --store/--no-memory");
-  // --no-memory is a proof option; native dev already persists by default.
-  const host = nativeHost("dev", [], { ...opts, args: [...args.filter(arg => arg !== "--no-memory"), ...(persistent || args.includes("--memory") ? [] : ["--memory"])] });
+  // Native persistence is the default. --no-memory remains a consumed explicit alias.
+  const host = nativeHost("dev", [], { ...opts, args: args.filter(arg => arg !== "--no-memory") });
   return host.then(host => ({ ...host, personas: host.personas!, now: async () => {
     const { response, body } = await fetchIdentity(`${host.url}/dev/status`, deadline(opts.timeoutMs, 10_000));
-    if (!response.ok || typeof body.now !== "number") throw Error("proof dev clock unavailable");
+    if (!response.ok || typeof body.now !== "number") throw Error("proof dev clock unavailable; password-only dev requires explicit --unsafe-dev-doors for clock/fixture tools; use serve staging for real users");
     return body.now;
   } }));
 }
+export interface ServeHost extends ProofHost {
+  operatorToken(service?: string, days?: number): Promise<string>;
+  seedAccounts(options: SeedAccountsOptions): Promise<StagingSessions>;
+  sessions?: StagingSessions;
+}
+export interface ServeOptions extends ProofOptions { seedUsers?: SeedAccountsOptions }
+// @ref LLP 3000.000.000.001#2-real-staging-accounts — operator authority stays in the existing local store proof; bulk setup refuses production.
 /** @throws E_PROOF_USAGE for missing deployment directory; child exit, readiness deadline or served identity mismatch. */
-export function startServe(deployDir: string, options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
+export async function startServe(deployDir: string, options: ServeOptions | readonly string[] = {}): Promise<ServeHost> {
   if (typeof deployDir !== "string" || !deployDir.trim()) throw Object.assign(new TypeError("E_PROOF_USAGE: startServe(deployDir, options) requires a deployment directory as its first argument"), { code: "E_PROOF_USAGE" });
-  return nativeHost("serve", [resolve(options && !Array.isArray(options) ? (options as ProofOptions).cwd ?? "." : ".", deployDir)],
-    Array.isArray(options) ? { args: options } : options as ProofOptions);
+  const opts: ServeOptions = Array.isArray(options) ? { args: options } : options as ServeOptions;
+  const directory = resolve(opts.cwd ?? ".", deployDir);
+  const host = await nativeHost("serve", [directory], opts);
+  const served: ServeHost = { ...host,
+    operatorToken: async (service = "operator", days = 1) => {
+      if (!/^[A-Za-z0-9_-]{1,64}$/.test(service) || !Number.isSafeInteger(days) || days < 1 || days > 3650) throw Error("proof operatorToken: invalid service or days (1..3650)");
+      const result = await cli(["token", "--service", service, "--days", String(days), "--release", directory, "--quiet"], opts);
+      if (result.code !== 0) throw Error(`proof operator token refused: ${result.stderr}`);
+      const token = result.stdout.trim();
+      if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw Error("proof operator token malformed");
+      return token;
+    },
+    seedAccounts: accountOptions => seedAccounts(served, accountOptions),
+  };
+  try { if (opts.seedUsers) served.sessions = await served.seedAccounts(opts.seedUsers); return served; }
+  catch (error) { await served.stop(); throw error; }
 }
 async function frontend(kind: "static" | "vite", dir: string, options: ProofOptions): Promise<ProofHost> {
   const env = { ...process.env, ...options.env }, ports = portRange(env), timeout = deadline(options.timeoutMs, 30_000);

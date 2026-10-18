@@ -102,6 +102,8 @@ pub(crate) fn help(verb: &str) -> String {
         let value = value(verb, name);
         let description = match (verb, name) {
             ("deploy", "schema") => " — deploy a saved complete source; keep it outside snapback/",
+            ("deploy", "staging") => " — classify a new disposable deployment as staging; existing production stores refuse",
+            ("dev", "unsafe-dev-doors") => " — explicitly open unauthenticated local fixture/clock/persona doors for password-only apps",
             ("test", "source") => " — test a saved complete source; keep it outside snapback/",
             ("doctor", "repair-expiry-orphan") => " — offline recovery of one physically missing expiring parent, table:id; stop its host and back up first (guide expire)",
             ("clock", "each-boundary") => " — fire every crossed schedule window in chronological order (default: latest window only)",

@@ -5,6 +5,7 @@ import { run, digest } from "./publication-artifacts.mjs";
 import { proveProofKit } from "./publication-proof-kit.mjs";
 import { proveStarters } from "./publication-starters.mjs";
 import { proveDay5 } from "./publication-day5.mjs";
+import { proveStaging } from "./publication-staging.mjs";
 import { verifyDeveloperId } from "./signing.mjs";
 // @ref LLP 3000.021#3.3 — only Darwin is executed and signature-checked by the publisher
 export async function proveDarwin(staged, work) {
@@ -53,5 +54,6 @@ run("node", ["roundtrip.mjs", staged.version], { cwd: consumer, env, timeout: 90
 const day5Proof = await proveDay5(consumer);
 const starters = await proveStarters(staged.client.tarball, platform.tarball, staged.expo.tarball, work);
 const proofKit = await proveProofKit(staged.client.tarball, platform.tarball, work);
-return { status: "passed", proofKit, day5Proof, starters, expoIntegrity: staged.expo.integrity, clientIntegrity: staged.client.integrity, platformIntegrity: platform.integrity };
+const staging = await proveStaging(staged.client.tarball, platform.tarball, work);
+return { status: "passed", proofKit, staging, day5Proof, starters, expoIntegrity: staged.expo.integrity, clientIntegrity: staged.client.integrity, platformIntegrity: platform.integrity };
 }

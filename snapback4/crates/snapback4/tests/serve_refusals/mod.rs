@@ -106,17 +106,23 @@ fn detached_query_uses_its_checkout_map_when_the_advertised_source_changes() {
 }
 
 impl Host {
+    pub(super) fn with_default_doors(source: &str) -> Self {
+        Self::with_default_doors_store(source, snapback4_core::Store::memory().unwrap())
+    }
+    pub(super) fn with_default_doors_store(source: &str, store: snapback4_core::Store) -> Self {
+        Self::with_capacity_recent(true, store, source, "127.0.0.1", None, crate::host_limits::Capacity::default(), None, false)
+    }
     pub(super) fn with_evidence(dev: bool, store: snapback4_core::Store, source: &str, bind: &str, evidence: Option<&std::path::Path>) -> Self {
         Self::with_recent(dev, store, source, bind, evidence, None)
     }
     fn with_recent(dev: bool, store: snapback4_core::Store, source: &str, bind: &str, evidence: Option<&std::path::Path>, recent: Option<dev_refusals::Recent>) -> Self {
-        Self::with_capacity_recent(dev, store, source, bind, evidence, crate::host_limits::Capacity::default(), recent)
+        Self::with_capacity_recent(dev, store, source, bind, evidence, crate::host_limits::Capacity::default(), recent, dev)
     }
 
     pub(super) fn with_capacity(dev: bool, store: snapback4_core::Store, source: &str, bind: &str, evidence: Option<&std::path::Path>, capacity: crate::host_limits::Capacity) -> Self {
-        Self::with_capacity_recent(dev, store, source, bind, evidence, capacity, None)
+        Self::with_capacity_recent(dev, store, source, bind, evidence, capacity, None, dev)
     }
-    fn with_capacity_recent(dev: bool, store: snapback4_core::Store, source: &str, bind: &str, evidence: Option<&std::path::Path>, capacity: crate::host_limits::Capacity, recent: Option<dev_refusals::Recent>) -> Self {
+    fn with_capacity_recent(dev: bool, store: snapback4_core::Store, source: &str, bind: &str, evidence: Option<&std::path::Path>, capacity: crate::host_limits::Capacity, recent: Option<dev_refusals::Recent>, unsafe_dev_doors: bool) -> Self {
         crate::host_limits::prepare_tests();
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -153,6 +159,7 @@ impl Host {
             committed: Condvar::new(),
             seq: Mutex::new(0),
             personas: dev,
+            unsafe_dev_doors,
             hold_effects: false,
             hold_schedules: false,
             time_audience_clock: AtomicI64::new(authoritative_now),

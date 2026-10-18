@@ -1,0 +1,13 @@
+{
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "candidate": "dc79450ff94c0a48fda73cf3b5585c92512ecd20",
+  "verdict": "READY",
+  "transcript": "3000.000.000.001-stage-r7.codex.txt",
+  "sha256": "86a45202a75c76e00774c186b35d8cc8dea535d40d1b0cbeeb49ba240573d984",
+  "brief": "3000.000.000.001-stage-r7.brief.md",
+  "method": "fresh mutually blind external CLI session; complete stdout/stderr preserved, including Muse provider fallback; no other reviews or author report supplied",
+  "capturedAt": "2026-10-18T20:21:00.599017+00:00",
+  "briefSha256": "35aa7256e6784e535e774e2d501af31279cf905c8e1cdd436d836e014035da5e",
+  "recordedCommand": "timeout 900s codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < /tmp/stage-r7.brief"
+}

@@ -38,16 +38,17 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
         return Err(Refusal::new("E_AUTH", "auth", "send one credential: a development persona or a bearer token").guide("personas"));
     }
     if let Some(persona) = persona {
-        if shared.personas {
+        if let Some(engine) = owner { shared.dev_authority(engine)?; }
+        if shared.dev_doors() {
             // `use personas` is the cast: a test expecting an outsider to be
-            // refused must not see it signed in. A schema with no declaration
-            // keeps admitting any well-formed name. (Taken briefly; the engine
+            // refused must not see it signed in. No declaration admits none.
+            // (Taken briefly; the engine
             // guard, when held, is always acquired before this one.)
             let declared = lock(&shared.bound).personas.clone();
-            if !declared.is_empty() && !declared.contains(&persona) {
+            if !declared.contains(&persona) {
                 return Err(Refusal::new("E_AUTH", "auth", format!(
                     "persona {persona} is not declared; `use personas {}` is this project's cast. Add {persona} to it (dev re-adopts on save) or send a declared persona", declared.join(", ")))
-                    .rewrite(format!("use personas {}, {persona}", declared.join(", "))).guide("personas"));
+                    .rewrite(format!("use personas {}{persona}", if declared.is_empty() { String::new() } else { format!("{}, ", declared.join(", ")) })).guide("personas"));
             }
             return Ok((persona_principal(&persona), "persona".into(), snapback4_core::identity::SessionScope::Full));
         }
@@ -87,8 +88,23 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
     Err(Refusal::new("E_AUTH", "auth", "sign in: send a bearer token (snapback4/auth), or x-snapback-persona in development").guide("personas"))
 }
 
+// @ref LLP 3000.000.000.001#4-development-doors — a persona cannot cross from authentication into a replacement password-only reader.
+pub(crate) fn persona_read_authority(request: &Request, shared: &Shared, engine: &Engine) -> Result<(), Refusal> {
+    let Some(persona) = request.headers().iter().find(|header| header.field.equiv("x-snapback-persona")) else { return Ok(()) };
+    shared.dev_authority(engine)?;
+    let bound = lock(&shared.bound);
+    if (!shared.unsafe_dev_doors && bound.schema.auth.password && !bound.schema.auth.guests)
+        || !bound.personas.iter().any(|name| name == persona.value.as_str().trim()) {
+        return Err(Refusal::new("E_AUTH", "auth", "persona authority changed while this read waited; sign in with a password or use the current declared development cast").guide("staging"));
+    }
+    // The cast is checked at this read's admission. Never hold its publication
+    // mutex during I/O: concurrent ordinary writes still need to authenticate.
+    // The engine transaction fences a replaced execution schema.
+    Ok(())
+}
+
 // @ref LLP 3000.019#3.6 — adoption's writer queue cannot retain expired bearer authority.
-pub(super) fn mutation_authority(request: &Request, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
+pub(crate) fn mutation_authority(request: &Request, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
     if principal_with_owner(request, shared, Some(engine))?.0 == principal { Ok(()) }
     else { Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again").guide("personas")) }
 }

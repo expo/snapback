@@ -30,6 +30,8 @@ mod asset_list_tests;
 mod reset_tests;
 #[path = "../tests/serve_long_waits/mod.rs"]
 mod long_wait_tests;
+#[path = "../tests/serve_stage/mod.rs"]
+mod staging_tests;
 #[test]
 fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_meters() {
     for dev in [true, false] {
@@ -47,7 +49,7 @@ fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_mete
         assert_eq!(reply.get("meter").is_some(), dev, "production omits the field entirely");
     }
 }
-const SCHEMA: &str = "use identity\ntable items:\n  n: int\n  photo: image <=1024 ?\n  read <- allow\n  insert <- deny\n  sync public\nquery who():\n  return viewer\n";
+const SCHEMA: &str = "use personas alice, bob\nuse identity\ntable items:\n  n: int\n  photo: image <=1024 ?\n  read <- allow\n  insert <- deny\n  sync public\nquery who():\n  return viewer\n";
 
 
 pub(super) struct Host {
@@ -490,7 +492,7 @@ fn catalog_and_changes_require_live_identity_and_release_refuses_dev_doors() {
     for dev in [true, false] {
         let host = Host::new(dev);
         let response = host.request("GET", "/auth/config", "", "");
-        assert_eq!(body(&response), json!({ "guests": true, "password": true, "development":dev, "generation":1 }));
+        assert_eq!(body(&response), json!({ "guests": true, "password": true, "development":dev, "devDoors":dev, "environment":if dev { "development" } else { "production" }, "generation":1 }));
         let session = body(&host.request("POST", "/auth/guest", "", "{}"));
         let token = session["session"]["token"].as_str().unwrap();
         let bearer = format!("Authorization: Bearer {token}\r\n");
@@ -1293,7 +1295,8 @@ impl Drop for ReaderTestDirectory {
     fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); }
 }
 
-const READER_SCHEMA: &str = r#"use identity guests
+const READER_SCHEMA: &str = r#"use personas alice, bob, outsider
+use identity guests
 
 table privateProducts:
   ownerId: principal

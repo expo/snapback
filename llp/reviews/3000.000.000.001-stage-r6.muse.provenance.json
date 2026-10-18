@@ -1,0 +1,10 @@
+{
+  "model": "muse-spark-1.3-contributor",
+  "reasoning_effort": "high",
+  "candidate": "90b029573b3e6a53ec6b789f73983c05c682c117",
+  "verdict": "READY",
+  "transcript": "3000.000.000.001-stage-r6.muse.txt",
+  "sha256": "742f9b4a254dcceda46f241023ac882c50a3956542dd25e0ca7027641026fcf9",
+  "brief": "3000.000.000.001-stage-r6.brief.md",
+  "method": "fresh mutually blind external CLI session; complete stdout/stderr preserved; Muse plan-quota fallback retained; no author report or other reviewer outputs supplied"
+}

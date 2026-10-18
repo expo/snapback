@@ -740,6 +740,8 @@ query secretScoreById(score: secretScores):
 
 ## Enrolment into hidden things: invite, self-join or public metadata
 
+First global admin and operator-only role provisioning: `guide staging` supplies the runnable password recipe. SEC owns self-promotion lint and invariant guidance.
+
 Choose one entry contract. **Invite:** the inviter reads the private parent and
 creates an addressed invitation; the recipient reads that invitation, then
 inserts their own membership without looking up the hidden parent. The table

@@ -118,7 +118,14 @@ pub(super) fn ingress(mut request: Request, shared: &Shared, name: &str, route: 
         let principal = match principal(&request, shared) { Ok(p) => p, Err(why) => return respond_with_cors(request, 401, json!({ "denied": why }), false) };
         let mut context = Context::new(&principal, BTreeMap::new()).at(shared.now());
         if let Ok(token) = crate::auth::bearer_token(&request) { context = context.with_session(token); }
-        let admitted = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.request_session_route(name, &contract, &envelope, context)};
+        let admitted = {
+            let mut engine=lock(&shared.engine);
+            if let Err(why) = super::session_identity::mutation_authority(&request, shared, &engine, &principal) {
+                drop(engine); return respond_with_cors(request,401,json!({"denied":why}),false);
+            }
+            crate::release_requests::stamp(engine.generation());
+            engine.request_session_route(name, &contract, &envelope, context)
+        };
         match admitted { Ok((run, _)) => (run, principal), Err(error) => return respond_with_cors(request, if error.refusal().family == "auth" { 401 } else { 503 }, json!({ "denied": error.refusal() }), false) }
     };
     shared.durable_committed(&lock(&shared.engine));

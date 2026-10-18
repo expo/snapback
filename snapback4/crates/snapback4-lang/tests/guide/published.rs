@@ -25,6 +25,8 @@ fn shipped_files() -> BTreeSet<String> {
 const APP_FILES: &[&str] = &[
     // The executable auth-card example and the installed social starter seed.
     "seed.mjs", "scripts/seed.mjs",
+    // Complete application scripts executed from the packed staging card.
+    "staging.mjs", "first-admin.mjs", "staging-users.json",
     // Engine outputs and the Exact app consumer described by the wire card.
     "device-compatibility.json", "exact.mjs", "assets/snapback4.wasm",
     // Exact application source and mounted adapter entry for static device discovery.

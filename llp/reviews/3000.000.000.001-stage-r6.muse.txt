@@ -1,0 +1,43 @@
+muse: workspace root: /home/ccheever/projects/sb4-b16-stage (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=8258240c-d464-46b4-87b7-7af247a4d431]: Subscription quota exhausted. Your usage window resets at 2026-10-19T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b16-stage (cwd default)
+muse: workspace trust: trusted source=run-flag
+# Blind review: LLP 3000.000.000.001 (STAGE) at 90b029573b
+
+Scope: the RFC, its implementation versus sb4-loop, with emphasis on production/staging separation, auth and dev doors, first-admin safety, proof helpers (including the persistent-`startDev` caller migration), and claimed tests. Read-only; no files edited. No tests run and Cargo never invoked per instruction; all qualification below is therefore code-evidence only. `llp/reviews/*` and `WORKSTREAM-REPORT.md` were not read. HEAD is exactly `90b029573b` (one dirty file, `WORKSTREAM-REPORT.md`, ignored as instructed).
+
+## 1. Production/staging separation — sound
+
+`[verbs/staging.rs](/home/ccheever/projects/sb4-b16-stage/snapback4/crates/snapback4/src/verbs/staging.rs)` (25 lines) implements the RFC §1 contract exactly:
+
+- Fresh store + `--staging` → `set_meta("deployment_environment", "staging")`; already-staging → `Ok(())` (idempotent repeat, including while serve runs via the `E_STORE_BUSY → None` read-only path in `releases.rs:116-122`).
+- Existing unmarked store (production/legacy) + `--staging` → `Err(E_STAGING … cannot be relabelled)`. Unknown/garbage metadata also refuses. No promote/relabel flag exists anywhere.
+- `--check` never writes: `checking && !existed → Ok(())` before any write, and plain `deploy --check` without `--staging` never calls `classify` at all (`[releases.rs:236-238](/home/ccheever/projects/sb4-b16-stage/snapback4/crates/snapback4/src/verbs/releases.rs)`).
+- Only `classify` writes the `deployment_environment` key; I found no meta-delete/clear path in any CLI verb (`set_meta` callers are `classify`, dev-worker session keys, and device-side stores only). Classification survives deploy, rollback, restart, and `cp -a` copies because all of those preserve `store.sqlite`.
+- `/auth/config` (`[serve.rs:1054-1067](/home/ccheever/projects/sb4-b16-stage/snapback4/crates/snapback4/src/serve.rs)`) reports `development` (from `shared.personas`), `devDoors`, and `environment` independently; missing/unknown metadata falls through to `"production"`. `serve` always runs with `personas=false` (`serve_start.rs:33,227`), so serve can never report `development:true` or open persona doors, and `unsafe-dev-doors` is registered only for the `dev` verb (`cli_flags.rs:105`) — `serve --staging` / `serve --unsafe-dev-doors` hit the unknown-flag refusal (`cli_flags.rs:37`). Serve is bearer-only in both environments as claimed.
+
+## 2. `seedAccounts` / `startServe` proof helpers — sound
+
+`[proof-accounts.ts](/home/ccheever/projects/sb4-b16-stage/snapback4/packages/snapback4/src/proof-accounts.ts)` gates on `environment === "staging" && development === false && password` **before** minting or creating anything (lines 30-34), so production, legacy, and dev hosts refuse prior to effects. Remainder matches the RFC: sequential bounded (≤100) signup, retry only on explicit `429 + E_RATE_LIMIT` (network/ambiguous replies propagate, never retried), fresh `randomUUID` email + 32-char `randomBytes` password per account, deadline-bounded with fail-closed timeout, partial-failure errors that disclaim rollback. Grants go through the ordinary rule-checked `/m/<provision>` route with the operator bearer — no bypass, no seed endpoint.
+
+`operatorToken` in `[proof.ts:78-85](/home/ccheever/projects/sb4-b16-stage/snapback4/packages/snapback4/src/proof.ts)` uses the existing local CLI proof protocol (`token --service … --release <dir>` → live challenge via loopback + 0600 store proof when serve runs, offline otherwise), validates `service`/`days`, and enforces the 43-char token shape. Secret custody is correct: `cli()` marks `token` secret, `proof-process.ts:99-100,113` withholds stdout from log files (0600 placeholder, in-memory pipe only), and `staging.test.mjs:64` asserts the token appears in no log file. `startServe` with `seedUsers` stops its own host on setup failure (lines 88-89), matching the test's "failed setup cleans up its own host" claim by code inspection.
+
+## 3. First-admin safety — sound
+
+The `[staging.md](/home/ccheever/projects/sb4-b16-stage/snapback4/crates/snapback4-lang/src/guide/staging.md)` schema grants no role at signup and its roster `insert` rule plus the `provision` mutation both require `viewer = 'service:operator'`. The guide recipe (explicit operator-selected email/password + filesystem-owner `operatorToken()`) contains no first-caller-wins, empty-roster bypass, client-selected role, or frontend credential, and `staging.test.mjs:70-89` asserts each refusal (`NOT_OPERATOR` for self-grant, signup grants no role). The live-vs-stopped-serve token paths are both documented. Nothing in serve lets a password session mint service tokens (mint requires the store-owner file proof + loopback; `/dev/token` is 403 on serve per `staging.test.mjs:54-56`).
+
+## 4. Dev doors and adoption revalidation — sound
+
+- `dev_doors()` (`serve.rs:156-160`) derives from the live adopted schema; `dev_authority(engine)` revalidates under the writer. `/seed` and `/dev/reset` (`serve_dev_doors.rs:42,134-149`) fast-check then re-check under the engine lock before any effect — the slow-body/queued-request TOCTOU is closed at the effect site.
+- Persona admission (`serve_identity.rs:40-56`) is fail-closed under schema skew: the writer path checks `dev_authority(engine)` (engine schema) **and** `dev_doors()` (bound schema); whichever side adopted password-only first refuses. `persona_read_authority` is wired into sync (4 sites), changes, and the reader paths, and `mutation_authority` into actions, session routes, following, maintenance, ephemeral, and assets. `/dev/latency` GET stays service-authenticated and its reset dev-only (`latency.rs:292-297`), as the RFC claims.
+- `startDev` persistent default + `--no-memory` alias consumption (`proof.ts:52-64`) preserves the array form, keeps the `--memory`/`--store` conflict synchronous (relied on by `proof.test.mjs:265`), and skips `/dev/status` persona probing when doors are closed so password-only dev starts cleanly. Caller migration is complete: guides (`testing.md` fixture + browser recipes select `--memory`/`--unsafe-dev-doors` explicitly), `publication-starters.mjs` (disposable fixture proofs explicit; persistent custody proved by hash-stability for web), and every bare `startDev` in tests runs in a fresh `mkdtemp` fixture so the persistent default is isolation-neutral; restart-persistence is asserted deliberately where intended (`proof.test.mjs:256-266`, `staging.test.mjs:91-113`). The `--fixture-only` native-flag retirement is coherent: native `test` always prints exactly one `SNAPBACK4_TEST_CASES` summary (`testing.rs:89,235`), the zero-case guard moved kit-side, no live caller passes the removed CLI flag, and no stale references remain outside prose/journal.
+
+## 5. Claimed tests — present, unexecuted (future qualification, not a defect)
+
+The RFC §5 evidence exists as code: `staging.test.mjs` (qualified-handle, real-users + marker survival + log hygiene, production refusal + first admin, door closure + persistence, adoption closure), `serve_stage` Rust tests (slow-body/queued-request writer rechecks, replacement-reader barrier, action/route/asset revalidation with no-durable-effect assertions), plus `serve_refusals`/`serve_adoption` updates. I did not execute anything; full crate suites, affected client suites, Darwin affected tests, ref-check, inventory/guide checks, and packed-tarball Linux qualification (including the tarball-executed guide recipe, production bulk-seed refusal, and first admin) remain for the separate qualification track named in the task.
+
+## Verdict: READY
+
+No material correctness or security defect found in the RFC or its implementation at `90b029573b`. The store-bound staging boundary, auth/door gating, first-admin recipe, secret custody, and persistent-`startDev` migration all match their specified contracts in the actual source. Completion still requires the separately-run qualification evidence in §5 (test execution, ref-check, packed/platform runs), which is out of scope for this read-only review, not a finding against the code.

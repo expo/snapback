@@ -1,0 +1,55 @@
+muse: workspace root: /home/ccheever/projects/sb4-b16-stage (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=ffaa4958-4e50-4df3-8e9c-3ac6359e4994]: Subscription quota exhausted. Your usage window resets at 2026-10-19T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b16-stage (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+# STAGE blind review — LLP 3000.000.000.001 at `f5c19ffbed8203351bc0bc6525abd918a3c0298e`
+
+## Verdict: READY
+
+No material safety or correctness defect remains in the candidate. What remains is separately-owned qualification (test execution, Linux packed-staging proof), not implementation defects. Details below.
+
+## Methodology
+
+Reviewed the committed candidate exactly: the workspace HEAD has since moved to `a87106a` with a dirty `WORKSTREAM-REPORT.md`, and post-candidate commits touch this area (`serve.rs`, `serve_identity.rs`, `serve_sync.rs`, `serve_changes.rs`, `assets.rs`). I inspected candidate blobs via `git show f5c19ff:…` throughout, read `snapback4/AGENTS.md` and the LLP, and did not read `llp/reviews/`, `WORKSTREAM-REPORT.md`, or any reviewer output. No Cargo, no `scripts/test.sh`, all shells `timeout`-bounded. `sb4-loop` resolves to `ccb9f752d1`, the direct parent of the amendment series, so the amendment diff is exactly the five STAGE commits.
+
+## Production/staging separation — sound
+
+`verbs/staging.rs:11-25` classifies only a fresh store under its exclusive owner, marks `deployment_environment=staging` in store metadata, and refuses relabelling (`None` meta or any other value → `E_STAGING`). Legacy/unmarked stores read as production. Retention across deploy, rollback, restart, copy, and source edits holds structurally: the marker lives in `store.sqlite` `_meta`, which none of those paths rewrite.
+
+Repeat `--staging` while serve runs is safe: `releases.rs:116-122` (`target()`) yields `None` on `E_STORE_BUSY`, so `classify` takes the read-only verify branch — no write, no lock fight with the live owner. `--check` never creates the marker (`checking && !existed → Ok`, otherwise read-only verify). `/auth/config` (`serve.rs:1054-1062`) reports `development` / `devDoors` / `environment` independently, defaulting unknown metadata to production. `serve` stays bearer-only in both environments; no hashing, grant, rule, rate-limit, or clock bypass exists in the diff.
+
+## Auth and dev doors — sound, fail-closed
+
+Entry fence (`serve.rs:877-880`) 403s every `/dev/*` and `/seed` on password-only dev before body intake; `/dev/token` is correctly carved out earlier (`serve.rs:860`) since it already carries its own mutual local-owner proof. Writer-level revalidation (`Shared::dev_authority`, `serve.rs:160-165`) is checked under the engine lock in seed (`serve_dev_doors.rs:52`), reset (`:149`), clock advance (`serve_maintenance.rs:380`), and dev job enqueue (`:464`) — slow bodies and adoption-queued requests cannot retain fixture authority. This covers the exact queued/slow-body class.
+
+Persona reads are bound to their evaluating engine: `persona_read_authority` (`serve_identity.rs:91-103`) requires both `dev_authority(engine)` and the current bound cast, and is invoked at all four data-bearing read sites — `/q/` reader and engine paths (`serve.rs:1262,1285`), `/sync` snapshot and stream on both store kinds (`serve_sync.rs:91,108,145,~168`), `/changes` presence entry (`serve_changes.rs:49`), and asset grants (`assets.rs:130`). Mutations recheck via `mutation_authority` under the writer (`serve.rs:1164`, following `serve_following.rs:45`, ephemeral `serve_ephemeral.rs:145`). Lock order is engine→bound in both adoption (`serve_adoption.rs:188,211`) and the checks — no inversion. Serve (`personas=false`) never admits a persona header (`serve_identity.rs:42-55`, `dev_doors()` false short-circuits). The empty-cast change (undeclared persona now refused) is fail-closed, documented in `guide/personas.rs` and the LLP, and loop-safe: `apps/chat` declares `use personas alice, bob, charlie` and all `init` starter schemas declare casts.
+
+## First-admin safety — sound
+
+The recipe (guide `staging.md:110-144`) uses plain signup (grants no role — asserted in `staging.test.mjs:82`), then the filesystem owner's `operatorToken()` invoking an operator-only mutation that is enforced twice: the mutation's `require viewer = 'service:operator'` and the roster insert rule. No first-wins, no client-selected role, no frontend operator credential. Self-grant is refused (`NOT_OPERATOR`, tested). `operatorToken` itself is ungated by environment (correct — first-admin needs it on production) while bulk `seedAccounts` refuses production/dev before minting or creating anything (`proof-accounts.ts:30-34`, minted-flag test at `staging.test.mjs:77-78`).
+
+## Proof helpers — sound
+
+`seedAccounts` validates roles/counts (1–100), the provision handle (qualified names allowed), and timeout; gates on live `/auth/config` (`staging`, `development=false`, password); retries signup only on explicit 429/`E_RATE_LIMIT`; creates fresh random credentials per call; surfaces partial-failure honestly (no fake rollback); returns records to the caller without logging. `startServe` cleans up its host on seed failure. `startDev` persists by default with explicit `--memory` isolation and a `--no-memory` alias; `now()` errors guide to staging/unsafe-doors. Token hygiene is asserted by the logs scan (`staging.test.mjs:64`).
+
+## Claimed tests — present and on-point (execution owned elsewhere)
+
+`serve_stage/mod.rs` (slow-body × 4 doors, queued-writer × 4, replacement-reader memory+file), `staging.test.mjs` (qualified-handle provisioning, real login/grant/self-grant refusal, marker retention over hot deploy + rollback + restart, production relabel/bulk refusal + first admin, dev-door defaults/adoption closure/persistence), `publication-staging.mjs` (verbatim packed-card execution incl. production refusal and first admin, wired into both `qualify-linux.mjs` paths), plus opt-in updates to `proof.test.mjs`, `web-session-authority.test.mjs`, `serve_refusals`, `serve_adoption`, `lifecycle`, and timeline fixtures. I did not execute them per instructions; the prior test track owns the results.
+
+## Non-material observations (do not gate)
+
+- `/changes` revalidates persona at entry only; the exit recheck covers Bearer. Residual disclosure is dev-loopback-only metadata (seq/table names), seconds-old. Suggest a symmetric exit check as later hardening.
+- `advance()` answers a failed `dev_authority` with 400 while seed/reset use 403; the `E_AUTH` code is consistent, so code-keyed tests are unaffected. Cosmetic.
+- At this SHA the persona cast guard is held across read evaluation (deliberate declared-cast lock; dev-only throughput cost, no deadlock given lock order).
+- Deliberate, documented compat notes: `startDev` default is now persistent; empty persona cast admits none; `deploy --check --staging` on production errors instead of no-op. All fail-closed with in-repo fallout fixed.
+
+## Missing future qualification (required before completion, not defects)
+
+Full crate suites, affected client suites, Darwin affected tests on the assigned host, Linux qualification with the packed staging proof, `ref-check`, docs-budget and inventory/guide checks, per LLP §5.

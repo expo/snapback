@@ -226,6 +226,7 @@ pub fn serve(
         committed: Condvar::new(),
         seq: Mutex::new(seq),
         personas: dev,
+        unsafe_dev_doors: matches!(mode, Mode::Dev { unsafe_dev_doors: true, .. }),
         hold_effects,
         hold_schedules,
         entropy: Mutex::new(snapback4_core::ids::Mint::default()),
@@ -344,9 +345,11 @@ pub fn serve(
         }
     }
     if dev {
-        snapback4_core::diagnostic!(
-            "snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both."
-        );
+        if shared.dev_doors() {
+            snapback4_core::diagnostic!("WARNING snapback4 dev: UNSAFE development doors enabled — /seed, /dev/* and declared personas admit unauthenticated loopback callers. Never use for real users or probe:serve; guide deploy staging.");
+        } else {
+            snapback4_core::diagnostic!("snapback4 dev: password-only development doors CLOSED. Use deploy --staging + serve for real users; --unsafe-dev-doors explicitly enables local fixture tools.");
+        }
     }
     if replay {
         snapback4_core::diagnostic!(

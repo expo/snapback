@@ -2,6 +2,8 @@
 use super::*;
 use crate::store_owner::Owner;
 use std::path::{Path, PathBuf};
+#[path = "staging.rs"]
+mod staging;
 struct Stage(PathBuf);
 impl Drop for Stage {fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
 
@@ -322,6 +324,7 @@ pub fn deploy(options: &Options) -> i32 {
         (|| {
             let dir = canonical_directory(options)?;
             let _command = command_lock(&dir)?;
+            let existed = dir.join("store.sqlite").exists();
             let checking=options.flags.contains_key("check");
             let _deployment = if checking {None} else {target(&dir)?};
             if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
@@ -329,6 +332,9 @@ pub fn deploy(options: &Options) -> i32 {
             let sources = super::proof_source::sources(&project, options, "schema")?;
             let bound = compiled_or_exit(super::proof_source::compile(&sources, options, "schema"), options.json);
             let mut saved_version = super::saved_version::SavedVersion::prepare(&project,&sources,options,&dir)?;
+            if options.flags.contains_key("staging") {
+                staging::classify(&dir, _deployment.as_ref(), existed, checking)?;
+            }
             std::fs::create_dir_all(dir.join("releases")).map_err(|e| e.to_string())?;
             let held = if checking {
                 if dir.join("store.sqlite").exists() {snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).and_then(|mut s|s.release_status(0,None,None)).map_err(|e|e.to_string())?}

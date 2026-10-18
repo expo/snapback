@@ -9,6 +9,8 @@ const dev = await startDev();
 try { console.log(dev.url); } finally { await cleanup(() => dev.stop()); }
 ```
 
+For shared test releases and probe:serve, use `guide staging`: real password users and operator grants on serve. Password-only dev fixture/clock tools require explicit --unsafe-dev-doors; startDev persists unless --memory is explicit.
+
 Raw HTTP starts with JSON envelopes: POST /q/name `{args:{...}}`, POST /m/name
 `{id:"stable-intent-id",args:{...}}`, POST /a/name `{id:"stable-action-id",args:{...}}`.
 Keep the same id on an ambiguous retry. A mutation/action id identifies the attempt;
@@ -126,12 +128,18 @@ custom code. `test` and dev refusal logs explain the hidden lookup or rule.
 ## Loading fixture rows for a proof
 
 ```js
-import { loadFixtures } from "snapback4/proof";
-const rows = await loadFixtures("fixtures", { url: dev.url });
-await fetch(`${dev.url}/dev/reset`, {
-  method: "POST", headers: { "content-type": "application/json" },
-  body: JSON.stringify({ seed: rows }),
-});
+import { startDev, loadFixtures, cleanup } from "snapback4/proof";
+const dev = await startDev({ args: ["--memory", "--unsafe-dev-doors"] });
+try {
+  const rows = await loadFixtures("fixtures", { url: dev.url });
+  const response = await fetch(`${dev.url}/dev/reset`, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ seed: rows }),
+  });
+  const result = await response.json();
+  if (!response.ok || result.denied) throw Error(JSON.stringify(result));
+  // Make assertions against this disposable dev here.
+} finally { await cleanup(() => dev.stop()); }
 ```
 
 The helper resolves typed relative times against one dev clock from bounded
@@ -152,7 +160,7 @@ import assert from "node:assert/strict";
 import { startDev, startStatic, withBrowser, fillRN, renderedText,
   waitForFresh, bounded, cleanup } from "snapback4/proof";
 
-const dev = await startDev(); // memory store; actual runtime URL
+const dev = await startDev({ args: ["--memory"] }); // disposable store; actual runtime URL
 let web;
 try {
   web = await startStatic("dist");
@@ -182,10 +190,12 @@ Set `logsDir` explicitly to retain a chosen artifact directory. `startServe(depl
 `startVite(dir)` serves the app's Vite config; `startStatic(dir)` serves built
 output, including wasm. Spawn servers with the kit or the binary, never `npx`:
 killing the npx wrapper leaves the server holding your pipe.
-`startDev({args})` still adds --memory unless --store or --no-memory is explicit.
-The kit consumes --no-memory to use native dev's persistent `.snapback4/store.sqlite`;
---memory with a persistence flag refuses. --store is forwarded to native validation
-(current dev refuses it; choose --no-memory for its project store).
+`startDev()` uses native dev's persistent `.snapback4/store.sqlite` in cwd.
+Disposable proofs select `{args:["--memory"]}` explicitly. Fixture, persona,
+and clock tools on password-only apps also require `--unsafe-dev-doors`;
+use `guide staging` for real password users under serve. The legacy kit-only
+`--no-memory` alias is consumed for compatibility; it is not a native CLI flag.
+`--store` is forwarded to native validation (current dev refuses it).
 `startDev(args)` and `stopChild(ChildProcess | {url, stop})` remain supported.
 `cli(args)` dispatches every published verb through the installed JS wrapper, including web-shell,
 awaits close and returns `{code, stdout, stderr, logs}`; assert code
@@ -319,7 +329,9 @@ is the returned row's id; a supplied request id is the write id, not result.id.
 Replays carry `replayed:true` and no historical result. Dev adds its read meter;
 production omits it. `guide wire --section envelopes` has full examples.
 
-Each dev memory start is empty. Between scenarios on one dev, POST `/dev/reset`
+Each explicit `--memory` dev start is empty; default dev retains its project
+store. Reset destroys that host's data, so use disposable dev for fixture proofs.
+Between scenarios on one dev with development doors open, POST `/dev/reset`
 with `{seed:[{table,row}]}` atomically clears rows, logs, queues, assets, accounts
 and sessions, retains schema/personas/seats, and returns `{reset:true}` with a
 new store identity. A stale online client refuses E_DEV_RESET: reopen the client after reset. Seed persona rosters before

@@ -18,7 +18,7 @@ const range = portRange();
 if (range !== "0" && range.split("-")[0] === range.split("-")[1]) throw Error("the starter needs two runtime ports");
 const build = await command("npm", ["run", "BUILD_SCRIPT"], { ...options, timeoutMs: 300_000 });
 assert.equal(build.code, 0, `frontend:proof build failed: ${build.stderr}; logs: ${build.logs.stderr}`);
-const dev = await startDev(options);
+const dev = await startDev({ ...options, args: ["--memory", "--unsafe-dev-doors"] });
 let web;
 try {
   const identity = await (await fetch(`${dev.url}/auth/config`, { signal: AbortSignal.timeout(5000) })).json();

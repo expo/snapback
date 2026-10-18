@@ -147,32 +147,51 @@ export async function proveStarters(client, platform, expo, directory, browserPr
       const fixtureProof = join(cwd, "guide-fixtures-proof.mjs");
       writeFileSync(fixtureProof, `import assert from 'node:assert/strict';
   import {execFileSync} from 'node:child_process';
-  import {readFileSync,writeFileSync} from 'node:fs';
+  import {readFileSync,writeFileSync,existsSync} from 'node:fs';
+  import {createHash} from 'node:crypto';
   import {startDev,loadFixtures,cleanup} from 'snapback4/proof';
   import {pathToFileURL} from 'node:url';
-  const cli=${JSON.stringify(cli)};
+  const cli=${JSON.stringify(cli)}, testPersistent=${JSON.stringify(id === "web")};
   const guide=execFileSync(cli,['guide','testing','--section','Loading fixture rows'],{encoding:'utf8',timeout:10000});
   const fence=String.fromCharCode(96).repeat(3), snippet=guide.split(fence+'js')[1].split(fence)[0].trim();
   writeFileSync('guide-fixtures-snippet.mjs',snippet);
   const schema='snapback/schema.q', original=readFileSync(schema,'utf8');
+  let durableHash;
+  const hash=()=>createHash('sha256').update(readFileSync('.snapback4/store.sqlite')).digest('hex');
+  if(testPersistent){
+    const opening=execFileSync(cli,['guide','testing','--full'],{encoding:'utf8',timeout:10000});
+    writeFileSync('guide-host-opening.mjs',opening.split(fence+'js')[1].split(fence)[0].trim());
+    await import(pathToFileURL(process.cwd()+'/guide-host-opening.mjs').href);
+    const durable=await startDev({args:['--unsafe-dev-doors']});
+    try {
+      const rows=await loadFixtures('fixtures',{url:durable.url});
+      assert.ok(rows.length,'prepopulate the existing developer store');
+      rows[0].row.title='Persistent proof sentinel';
+      const response=await fetch(durable.url+'/seed',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(rows)});
+      assert.ok(response.ok);assert.equal((await response.json()).denied,undefined);
+    } finally {await durable.stop();}
+    assert.ok(existsSync('.snapback4/store.sqlite'));durableHash=hash();
+  }
   try {
     for(const personasOnly of [false,true]) {
       writeFileSync(schema,personasOnly?original.replace(/^use identity.*$/m,''):original);
-      const dev=await startDev();
-      try {
-        assert.ok(dev.personas.length);
-        const responses=[];
-        const originalFetch=globalThis.fetch;
-        globalThis.dev=dev;
-        globalThis.fetch=async (...args)=>{const response=await originalFetch(...args);responses.push(await response.clone().json());return response;};
-        try {await import(pathToFileURL(process.cwd()+'/guide-fixtures-snippet.mjs').href+'?only='+personasOnly);}
-        finally {globalThis.fetch=originalFetch;delete globalThis.dev;}
-        assert.equal(responses.at(-1).denied,undefined);
-        assert.equal(responses.at(-1).reset,true);
-        assert.ok(Array.isArray(await loadFixtures('fixtures',{url:dev.url,persona:dev.personas[0]})));
-      } finally {await cleanup(()=>dev.stop());}
+      const responses=[],originalFetch=globalThis.fetch;
+      globalThis.fetch=async (...args)=>{const response=await originalFetch(...args);responses.push(await response.clone().json());return response;};
+      try {await import(pathToFileURL(process.cwd()+'/guide-fixtures-snippet.mjs').href+'?only='+personasOnly);}
+      finally {globalThis.fetch=originalFetch;}
+      assert.equal(responses.at(-1).denied,undefined);
+      assert.equal(responses.at(-1).reset,true);
     }
   } finally {writeFileSync(schema,original);}
+  if(testPersistent){
+    assert.equal(hash(),durableHash,'verbatim fixture guide preserved developer store');
+    const reference=readFileSync('node_modules/snapback4/CLIENT-AND-OPERATIONS.md','utf8');
+    const block=reference.split('### Application proofs in Node')[1].split(fence+'ts')[1].split(fence)[0];
+    writeFileSync('guide-development-hosts.ts',block);
+    const {developmentHosts}=await import(pathToFileURL(process.cwd()+'/guide-development-hosts.ts').href);
+    await developmentHosts(process.cwd());
+    assert.equal(hash(),durableHash,'verbatim client fixture recipe preserved developer store');
+  }
   `);
       await run(process.execPath, [fixtureProof], cwd);
     }
@@ -184,6 +203,14 @@ export async function proveStarters(client, platform, expo, directory, browserPr
       assert.ok(existsSync(join(cwd, "dist/index.html")), `${kind} produced a web page`);
     };
     await build();
+    if (browserProofs && id === "web") {
+      const card = join(cwd, "testing-card.md");
+      await run(process.execPath, ["--input-type=commonjs", "-e", `require('node:fs').writeFileSync(${JSON.stringify(card)},require('node:child_process').execFileSync(${JSON.stringify(cli)},['guide','testing','--section','An acceptance script'],{encoding:'utf8',timeout:30000}));`], cwd);
+      const acceptance = readFileSync(card, "utf8").match(/```js\n([\s\S]*?)\n```/);
+      assert.ok(acceptance, "packed testing card carries its browser recipe");
+      writeFileSync(join(cwd, "guide-acceptance.mjs"), acceptance[1]);
+      await run(process.execPath, ["guide-acceptance.mjs"], cwd);
+    }
     if (template) {
       const screen = join(cwd, template === "social" ? "app/_layout.tsx" : kind === "web" ? "src/App.tsx" : "App.tsx");
       assert.match(readFileSync(screen, "utf8"), /useAppReady\(\)/, `${id} gates writers with useAppReady`);

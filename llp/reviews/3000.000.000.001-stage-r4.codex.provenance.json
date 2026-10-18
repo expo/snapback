@@ -1,0 +1,9 @@
+{
+  "reviewedSource": "a87106a9e76a6f7256000a0d6ac91fdc4954fe15",
+  "model": "gpt-6.1-sol",
+  "effort": "high",
+  "command": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief",
+  "verdict": "NOT READY; actions/session-route writer boundary",
+  "sha256": "c2ad9cbeeb767df8ea7ab5f2802660e56c6b626ebe728db7ed7ebcaa65e83098",
+  "isolation": "fresh mutually blind sessions; no prior outputs shared"
+}

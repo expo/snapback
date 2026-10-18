@@ -1,0 +1,14 @@
+muse: workspace root: /home/ccheever/projects/sb4-b16-stage (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=91b7a1c3-db2a-4885-bdc8-fc3e9a2aeb7d]: Subscription quota exhausted. Your usage window resets at 2026-10-19T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b16-stage (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+received SIGTERM; flushed session logs

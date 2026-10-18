@@ -2480,6 +2480,8 @@ the caller.
 
 #### Seed accounts headlessly (Node)
 
+For a complete serve staging release with real users per role, private credentials and first-admin setup, run `snapback4 guide staging`. `startServe` supplies operatorToken/seedAccounts; bulk setup refuses production. Password-only dev requires explicit --unsafe-dev-doors for fixture/clock/persona tools, and startDev persists unless --memory is explicit.
+
 `signup` and `login` below work in Node 24 with the same server password hashing,
 rate limits and application rules as browser sign-in. Run `snapback4 guide auth`
 for a runnable `seed.mjs`: declare `use identity password`, run `snapback4 check`,
@@ -3186,7 +3188,7 @@ try {
   cost, or a table's rules, sync line, expire column and indexes; **`data <table> [--limit N]`** prints rows
   as one JSON object per stdout line (50 by default), with any truncation hint on stderr; **`doctor
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
-  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: production, changes, cheatsheet, language, app, recipes, rule-recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, deploy, release-json, expire, assets, client, wire, social, reads, shapes, writes, cleanup, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
+  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: production, changes, cheatsheet, language, app, recipes, rule-recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, deploy, release-json, expire, assets, client, wire, social, reads, shapes, writes, cleanup, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness, staging
   (`guide <E_CODE>` explains a code; `guide aliases` lists the words that open a card or one of its sections). In a terminal, a card over 130 lines prints its opening and section index; piped output prints the full card.
   `--section <number or words>` prints one section (any case, a unique prefix or the heading's words; a
   word no heading names prints the section holding most of its mentions, or all of them when they spread),
@@ -4047,7 +4049,7 @@ export async function applicationProof(cwd: string) {
 
 // Development hosts use the same custody. Add assertions before stopping them.
 export async function developmentHosts(cwd: string) {
-  const backend = await startDev({ cwd });
+  const backend = await startDev({ cwd, args: ["--memory", "--unsafe-dev-doors"] });
   try {
     // Read the application's fixtures/<table>.jsonl using the dev schema/clock.
     const seed = await loadFixtures("fixtures", { url: backend.url, cwd });

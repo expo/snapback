@@ -11,7 +11,7 @@ query whoAmI():
   return viewer
 ```
 
-/auth/config includes development true on dev, false on serve; hide persona controls unless true. An email-and-password product declares `use identity password`; plain `use identity` also mints guest sessions.
+/auth/config includes development true on dev, false on serve; hide persona controls unless devDoors is true. An email-and-password product declares `use identity password`; plain `use identity` also mints guest sessions.
 `use identity guests` admits only guests; without `use identity`, both methods are disabled.
 
 ## Seed accounts headlessly
@@ -67,11 +67,12 @@ persona is alice) and the `x-snapback-persona: alice` header in development act 
 `createApp({ url, persona: "alice", device })`, one app per persona (`usePersonaApp(persona, openApp)` opens it and closes it on switch; web `?as=` and React Native pickers: "Personas in a React UI" in CLIENT-AND-OPERATIONS.md;
 `init --web`/`--expo` writes one beside a schema without `use identity`, and `init --adapt` rewrites an unmodified guest starter screen into one). No session: `app.auth` sign-in, `auth.guest()` too, refuses `E_AUTH`.
 N_PERSONA_PRINCIPAL: declared personas use dev:NAME. The declaration is the cast: dev refuses a persona it does not name with 401 E_AUTH, naming the line to extend, so
-an acceptance test can expect an outsider to be refused (a schema without `use personas` admits any name). Personas are a development door: the socket peer, `Host`, and optional
+an acceptance test can expect an outsider to be refused (a schema without `use personas` admits no persona). Personas are a development door: the socket peer, `Host`, and optional
 browser `Origin` must all be literal loopback/local http(s) values. Foreign, opaque, malformed and duplicate
 Origins are refused before routing, and CORS reflects only an admitted local Origin. `snapback4 dev` is
-development only: it admits loopback personas and an unauthenticated `POST /seed` as the system principal;
-deploy with `snapback4 deploy` + `snapback4 serve`. A deployed server (`snapback4 serve`) refuses personas and
+development only: password-only apps close fixture, clock and persona doors by default;
+`--unsafe-dev-doors` explicitly enables the unauthenticated local tools. Other development schemas keep
+the declared cast and `POST /seed` system door. For real-user staging run `guide staging`; deploy with `snapback4 deploy` + `snapback4 serve`. A deployed server (`snapback4 serve`) refuses personas and
 seed, defaults to `127.0.0.1`, and requires `--i-understand-cleartext` for a non-loopback HTTP bind. Put a TLS
 terminator in front, preserve `Authorization` and `Origin`, strip persona headers, and rate-limit there by the
 actual client address; the binary trusts only its socket peer.

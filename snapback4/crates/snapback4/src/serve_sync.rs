@@ -88,6 +88,9 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
             let reader = shared.reader().map(|(_,reader)|reader);
             match reader {
                 Ok(mut reader) => {
+                    if let Err(why) = super::session_identity::persona_read_authority(&request, shared, &reader) {
+                        return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
+                    }
                     let generation = reader.generation();
                     (under_generation(&mut reader, requested_generation, generation, &store_id, &device, |reader| {
                                 reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| {
@@ -102,6 +105,9 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
                 }
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
+                    if let Err(why) = super::session_identity::persona_read_authority(&request, shared, &engine) {
+                        drop(engine); return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
+                    }
                     let generation = engine.generation();
                     (under_generation(&mut engine, requested_generation, generation, &store_id, &device, |engine| {
                                 engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| {
@@ -136,6 +142,9 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
             let reader = shared.reader().map(|(_,reader)|reader);
             match reader {
                 Ok(mut reader) => {
+                    if let Err(why) = super::session_identity::persona_read_authority(&request, shared, &reader) {
+                        return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
+                    }
                     let generation = reader.generation();
                     (under_generation(&mut reader, requested_generation, generation, &store_id, &device, |reader| {
                                 reader.stream_at(&principal, from, limit, now).and_then(|page| {
@@ -150,6 +159,9 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
                 }
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
+                    if let Err(why) = super::session_identity::persona_read_authority(&request, shared, &engine) {
+                        drop(engine); return respond_timed(request, shared, 401, json!({"denied":refusal_json(&why)}));
+                    }
                     let generation = engine.generation();
                     (under_generation(&mut engine, requested_generation, generation, &store_id, &device, |engine| {
                                 engine.stream_at(&principal, from, limit, now).and_then(|page| {

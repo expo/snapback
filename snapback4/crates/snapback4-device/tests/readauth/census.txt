@@ -696,6 +696,8 @@ card/sharing/8:invite | never
 card/sharing/9:placeOrder | eligible
 card/sharing/9:placeOrder | orderParties/insert | {"Exists":{"table":"orderParties","index":"$intent:byOrderIdParty:491509f9264f8d78","key":[{"Field":"orderId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/sharing/9:placeOrder | orders/insert | {"Exists":{"table":"orderParties","index":"$intent:byOrderIdParty:491509f9264f8d78","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/staging/1:add | never
+card/staging/1:provision | never
 card/start/5:add | eligible
 card/start/5:add | todos/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
 card/start/5:remove | eligible

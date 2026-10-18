@@ -8,7 +8,8 @@ bunx snapback4 test
 bunx snapback4 deploy ./deployment
 bunx snapback4 serve ./deployment --port 4400
 ```
-Generations climb on every actual switch, including rollback and forward; selecting identical execution content is a no-op. `token --service ops --release ./deployment` works while serve runs. Signups are rate-limited: create proof accounts sequentially and respect a returned retry delay. Time-gated mutations on the real clock need a bounded retry of the authored refusal (for example `NOT_OPEN`), with a deadline and short delay; never retry unrelated refusals. Development proofs can advance the clock (`guide time`).
+
+For a complete real-user staging script and first-admin setup, run `guide staging`. Bulk account setup is restricted to fresh `deploy --staging` stores. Generations climb on every actual switch, including rollback and forward; selecting identical execution content is a no-op. `token --service ops --release ./deployment` works while serve runs. Signups are rate-limited: create proof accounts sequentially and respect a returned retry delay. Time-gated mutations on the real clock need a bounded retry of the authored refusal (for example `NOT_OPEN`), with a deadline and short delay; never retry unrelated refusals. Development proofs can advance the clock (`guide time`).
 
 ## Upgrade
 `snapback4 upgrade [version]` resolves once and exactly pins core and installed Expo adapters with npm/bun/pnpm. Rebuild native apps after adapter changes; commit the lockfile, run check/typecheck/acceptance. `test` uses ./fixtures; `--fixture dir` overrides it. Use the password and first-admin recipes below.

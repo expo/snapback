@@ -1,0 +1,296 @@
+{
+  "source": "dc79450ff94c0a48fda73cf3b5585c92512ecd20",
+  "logs": {
+    "cli-full-final": {
+      "path": "/tmp/stage-cli-full-final.log",
+      "sha256": "7c0c444a1717f102f408c118f160786ee466ab26ae98d687e72648543073dc4b",
+      "rustResultLines": 64,
+      "passingResultCount": 1307,
+      "failingResultCount": 1,
+      "ignoredResultCount": 15
+    },
+    "core-full": {
+      "path": "/tmp/stage-core-full.log",
+      "sha256": "7b03ed98821b30f3c06c2bd5448afbe8c629f26113768cbdedbaf0219d2a077a",
+      "rustResultLines": 45,
+      "passingResultCount": 761,
+      "failingResultCount": 0,
+      "ignoredResultCount": 5
+    },
+    "other-crates": {
+      "path": "/tmp/stage-other-crates.log",
+      "sha256": "2bb58125d237133b4744b58373c7681f5fcc72ab6454a6b68f9b7c8a4f5aed06",
+      "rustResultLines": 319,
+      "passingResultCount": 4503,
+      "failingResultCount": 10,
+      "ignoredResultCount": 25
+    },
+    "guide-final-r2": {
+      "path": "/tmp/stage-guide-final-r2.log",
+      "sha256": "dc5629e5b6dbe48430b6a52bdd06d5f679c3fa4dddd61df439d1138f3b7c17f5",
+      "rustResultLines": 1,
+      "passingResultCount": 125,
+      "failingResultCount": 0,
+      "ignoredResultCount": 0
+    },
+    "cli-records-final": {
+      "path": "/tmp/stage-cli-records-final.log",
+      "sha256": "6c03b9fa5addcb2425509f5383c7ffbfd54a85372a6d330a100f44790cb2f47d",
+      "rustResultLines": 1,
+      "passingResultCount": 40,
+      "failingResultCount": 0,
+      "ignoredResultCount": 0
+    },
+    "device-records-final": {
+      "path": "/tmp/stage-device-records-final.log",
+      "sha256": "1643c5d1f0728b43489232b189ec965873676c2cae89c00593d834be4f7e6b58",
+      "rustResultLines": 1,
+      "passingResultCount": 88,
+      "failingResultCount": 0,
+      "ignoredResultCount": 0
+    },
+    "surf4-guide-r7": {
+      "path": "/tmp/stage-surf4-guide-r7.log",
+      "sha256": "d8920bf86dd0a9b4275931d6cefde0665c10a71470d73ba76c8a95cecba11efe",
+      "rustResultLines": 1,
+      "passingResultCount": 4,
+      "failingResultCount": 0,
+      "ignoredResultCount": 0
+    },
+    "cli-unit-r7": {
+      "path": "/tmp/stage-cli-unit-r7.log",
+      "sha256": "05d6d818678792a4b8e0cfabad0645c620ed106dec687dfa32c5dd4f7f883ddf",
+      "rustResultLines": 14,
+      "passingResultCount": 489,
+      "failingResultCount": 0,
+      "ignoredResultCount": 5
+    },
+    "client-r7": {
+      "path": "/tmp/stage-client-r7.log",
+      "sha256": "6a0b3926be6ea13cbd6df5a97ba0ef40b44a41192e0138782968832c18a35932",
+      "rustResultLines": 0,
+      "passingResultCount": 0,
+      "failingResultCount": 0,
+      "ignoredResultCount": 0
+    },
+    "mac-r7-final": {
+      "path": "/tmp/stage-mac-r7-final.log",
+      "sha256": "d2c448b6c74087f2146e92a9d542a7862fc905e093b0b2097d95ad71f4cbbff6",
+      "rustResultLines": 15,
+      "passingResultCount": 605,
+      "failingResultCount": 0,
+      "ignoredResultCount": 5
+    },
+    "inventories-r7": {
+      "path": "/tmp/stage-inventories-r7.log",
+      "sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "rustResultLines": 0,
+      "passingResultCount": 0,
+      "failingResultCount": 0,
+      "ignoredResultCount": 0
+    },
+    "root-guide-r7": {
+      "path": "/tmp/stage-root-guide-r7.log",
+      "sha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+      "rustResultLines": 0,
+      "passingResultCount": 0,
+      "failingResultCount": 0,
+      "ignoredResultCount": 0
+    },
+    "docs-budget-r7": {
+      "path": "/tmp/stage-docs-budget-r7.log",
+      "sha256": "6912685407f6045a3505d91ea2cb20ca92bc4d944cd34d6fb4cea8de43632cbe",
+      "rustResultLines": 1,
+      "passingResultCount": 1,
+      "failingResultCount": 0,
+      "ignoredResultCount": 0
+    },
+    "refcheck-r7": {
+      "path": "/tmp/stage-refcheck-r7.log",
+      "sha256": "672678b64dfd9bca98d3107b0823fdb95fb6ee9ade13dc054e3bb3a822de9dd4",
+      "rustResultLines": 0,
+      "passingResultCount": 0,
+      "failingResultCount": 0,
+      "ignoredResultCount": 0
+    }
+  },
+  "completeRustCommands": [
+    "cargo test -p snapback4 --no-fail-fast",
+    "cargo test -p snapback4-core --no-fail-fast",
+    "cargo test -p snapback4-device -p snapback4-difftest -p snapback4-lang -p snapback4-sim --no-fail-fast"
+  ],
+  "reconciledTargets": {
+    "snapback4/cli_friction": "cli-records-final",
+    "snapback4-device/readauth": "device-records-final",
+    "snapback4-lang/guide": "guide-final-r2",
+    "snapback4-lang/surf4_guide": "surf4-guide-r7"
+  },
+  "countNote": "Rust output totals include nested recovery subprocess results; initial full-run reds are retained honestly, with complete target reruns after fixes. No suite target was skipped to obtain success.",
+  "publicationQualified": false,
+  "scope": "STAGE, consumer-only qualification plus manually complete Rust suites; no full scripts/test.sh",
+  "targetDatabaseScratchFiles": 0,
+  "cleanedOwnedSqliteSidecars": 2984,
+  "linuxConsumer": {
+    "status": "passed",
+    "path": "/tmp/stage-linux-r7/consumer.json",
+    "sha256": "69eac8c84c766d0efdaac04daa4de6d55a6b787edda0422d0f91034ed2bd3fb9",
+    "mode": "consumer-only",
+    "publicationQualified": false,
+    "version": "0.4.31",
+    "route": "proot",
+    "clientIntegrity": "sha512-XxIaI369UiZ92SbtpHQN3WysPNJr6I5LIHgU/tr32oDl00Emt+3Ll+EFe8nTM+Q7A2I7wie66vODLJlWlCYc7Q==",
+    "expoIntegrity": "sha512-TAn7UYDp7uO8Vu0wNYkMCS1OpT9n00DALPV99WjIrEs9RcK4F/Ej0ePY2rnvf2hQ32pH4e4tq7qh4ZnwRiGYgw==",
+    "platform": {
+      "name": "snapback4-linux-x64",
+      "version": "0.4.31",
+      "filename": "snapback4-linux-x64-0.4.31.tgz",
+      "integrity": "sha512-DTdy2Hv73/+QkUxpJSekl3yfY0KCPGP27TjENxXFoNVeCMoKQ5aaJpAu2mAjnX9ugKqjXaK8rEY/nE35RpGHow==",
+      "bytes": 12421378
+    },
+    "binarySha256": "666a0f717ad2f66acdad48ca8457a5e9d8de6bc0c63d71c13466175264ddb9cc",
+    "stagingProof": {
+      "status": "passed",
+      "guide": "staging",
+      "recipes": "verbatim installed card",
+      "roles": {
+        "admin": 2,
+        "member": 2
+      },
+      "mode": "serve",
+      "realPasswordLogin": "passed",
+      "data": "passed",
+      "selfGrant": "refused",
+      "productionBulkSeed": "refused before mint",
+      "productionRelabel": "refused",
+      "firstAdmin": "passed",
+      "privateCredentials": "0600"
+    },
+    "generatedFrontendProofs": 12,
+    "hostStarterCases": 6,
+    "userspaces": [
+      {
+        "base": "ubuntu:24.04",
+        "node": "24.13.1",
+        "status": "passed",
+        "elapsedMs": 354791,
+        "starters": {
+          "web": "passed",
+          "expo": "passed",
+          "adapted": "passed",
+          "templates": "passed"
+        }
+      },
+      {
+        "base": "alpine",
+        "node": "24.18.1",
+        "status": "passed",
+        "elapsedMs": 444925,
+        "starters": {
+          "web": "passed",
+          "expo": "passed",
+          "adapted": "passed",
+          "templates": "passed"
+        }
+      }
+    ]
+  },
+  "retainedTarballs": [
+    "/tmp/stage-pack-r7/snapback4-0.4.31.tgz",
+    "/tmp/stage-pack-r7/snapback4-expo-0.4.31.tgz",
+    "/tmp/stage-linux-r7/snapback4-linux-x64-0.4.31.tgz"
+  ],
+  "packedRecipes": "Installed guide staging schema and both scripts; guide testing opening/fixture/browser fences; published client developmentHosts fence: all run verbatim. Fixture hosts preserved the prepopulated persistent store byte-for-byte.",
+  "reviews": {
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "candidate": "dc79450ff94c0a48fda73cf3b5585c92512ecd20",
+      "verdict": "READY",
+      "transcript": "3000.000.000.001-stage-r7.codex.txt",
+      "sha256": "86a45202a75c76e00774c186b35d8cc8dea535d40d1b0cbeeb49ba240573d984",
+      "brief": "3000.000.000.001-stage-r7.brief.md",
+      "method": "fresh mutually blind external CLI session; complete stdout/stderr preserved, including Muse provider fallback; no other reviews or author report supplied",
+      "capturedAt": "2026-10-18T20:21:00.599017+00:00",
+      "briefSha256": "35aa7256e6784e535e774e2d501af31279cf905c8e1cdd436d836e014035da5e",
+      "recordedCommand": "timeout 900s codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < /tmp/stage-r7.brief"
+    },
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "reasoning_effort": "high",
+      "candidate": "dc79450ff94c0a48fda73cf3b5585c92512ecd20",
+      "verdict": "READY",
+      "transcript": "3000.000.000.001-stage-r7.muse.txt",
+      "sha256": "bda235510f5336e9dcf2f7886e2f5a156a819d8c97744739c6c37cd48a6c0b1d",
+      "brief": "3000.000.000.001-stage-r7.brief.md",
+      "method": "fresh mutually blind external CLI session; complete stdout/stderr preserved, including Muse provider fallback; no other reviews or author report supplied",
+      "capturedAt": "2026-10-18T20:23:00.404892+00:00",
+      "briefSha256": "35aa7256e6784e535e774e2d501af31279cf905c8e1cdd436d836e014035da5e",
+      "recordedCommand": "timeout 900s /home/ccheever/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file /tmp/stage-r7.brief"
+    }
+  },
+  "bakeoff": {
+    "002": {
+      "lane": "002-snapback-orchard-spray-reentry",
+      "status": "passed",
+      "backend": "serve",
+      "development": false,
+      "environment": "staging",
+      "devDoors": false,
+      "passwordLogins": {
+        "applicator": 2,
+        "picker": 2,
+        "manager": 2,
+        "crew_lead": 2,
+        "inspector": 2
+      },
+      "unauthenticatedSeed": 403,
+      "unauthenticatedStatus": 403,
+      "persona": 401,
+      "frontend": 200,
+      "aliveAtEnd": true,
+      "credentials": "kept in memory; omitted from evidence",
+      "source": "dc79450ff94c0a48fda73cf3b5585c92512ecd20"
+    },
+    "011": {
+      "lane": "011-snapback-freezer-rack-ledger",
+      "status": "passed",
+      "backend": "serve",
+      "development": false,
+      "environment": "staging",
+      "devDoors": false,
+      "passwordLogins": {
+        "manager": 2,
+        "researcher": 2
+      },
+      "unauthenticatedSeed": 403,
+      "unauthenticatedStatus": 403,
+      "persona": 401,
+      "frontend": 200,
+      "aliveAtEnd": true,
+      "credentials": "kept in memory; omitted from evidence",
+      "source": "dc79450ff94c0a48fda73cf3b5585c92512ecd20"
+    },
+    "045": {
+      "lane": "045-snapback-instrument-loan-bank",
+      "status": "passed",
+      "backend": "serve",
+      "development": false,
+      "environment": "staging",
+      "devDoors": false,
+      "passwordLogins": {
+        "student": 2,
+        "parent": 2,
+        "librarian": 2,
+        "manager": 2,
+        "luthier": 2
+      },
+      "unauthenticatedSeed": 403,
+      "unauthenticatedStatus": 403,
+      "persona": 401,
+      "frontend": 200,
+      "aliveAtEnd": true,
+      "credentials": "kept in memory; omitted from evidence",
+      "source": "dc79450ff94c0a48fda73cf3b5585c92512ecd20"
+    }
+  }
+}

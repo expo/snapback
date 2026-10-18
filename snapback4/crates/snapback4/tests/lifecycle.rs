@@ -776,7 +776,7 @@ fn development_banner_and_release_auth_boundary() {
     assert_eq!(status, 200);
     let (status, read) = request(release.port, "/q/all", json!({"args":{}}), &format!("Authorization: Bearer {}\r\n", guest["session"]["token"].as_str().unwrap()));
     assert_eq!(status, 200); assert_eq!(read["data"], json!([]), "refused seed never writes release data");
-    assert!(banner.contains("snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both."), "{banner}");
+    assert!(banner.contains("UNSAFE development doors enabled"), "{banner}");
 }
 
 #[test]

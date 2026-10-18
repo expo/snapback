@@ -389,6 +389,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         // between shifting its lease and publishing the advanced clock.
         let mut engine = lock(&shared.engine);
         let before = crate::dev_clock_store::saved_boundaries(&engine);
+        shared.dev_authority(&engine)?;
         let mut clock = lock(&shared.clock);
         let mut next = clock.clone();
         let now = next.advance(milliseconds)?.max(shared.time_audience_clock.load(std::sync::atomic::Ordering::Acquire));
@@ -473,6 +474,7 @@ pub(super) fn run_job(request: Request, shared: &Shared, name: &str, body: &str)
     }
     let mut admitted=lock(&shared.engine);
     crate::release_requests::stamp(admitted.generation());
+    if !service_route && let Err(why) = shared.dev_authority(&admitted) { drop(admitted); return refuse(request,403,why); }
     if let Some(service)=&service {
         if let Err(why)=super::session_identity::mutation_authority(&request,shared,&admitted,service) {drop(admitted);return refuse(request,403,why);}
     }

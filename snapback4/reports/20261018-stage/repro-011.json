@@ -1,0 +1,19 @@
+{
+  "lane": "011-snapback-freezer-rack-ledger",
+  "status": "passed",
+  "backend": "serve",
+  "development": false,
+  "environment": "staging",
+  "devDoors": false,
+  "passwordLogins": {
+    "manager": 2,
+    "researcher": 2
+  },
+  "unauthenticatedSeed": 403,
+  "unauthenticatedStatus": 403,
+  "persona": 401,
+  "frontend": 200,
+  "aliveAtEnd": true,
+  "credentials": "kept in memory; omitted from evidence",
+  "source": "dc79450ff94c0a48fda73cf3b5585c92512ecd20"
+}

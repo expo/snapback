@@ -1,0 +1,11 @@
+{
+  "source": "575f3643cf318dc5c2be968c108ce0813ac47346",
+  "date": "2026-10-18",
+  "model": "gpt-6.1-sol",
+  "effort": "high",
+  "command": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief",
+  "result": "NOT READY",
+  "verbatim": "3000.000.000.001-stage-r2.codex.txt",
+  "sha256": "dbe6266278c7740d1d5c457988bc7651274e00df2ff587d88661acecef16d6a3",
+  "isolation": "fresh session, no prior reviewer outputs shared; later working-tree edits excluded by reviewer"
+}
