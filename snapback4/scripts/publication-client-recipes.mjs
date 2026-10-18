@@ -32,7 +32,9 @@ export async function proveClientRecipes(client, platform, directory) {
   mkdirSync(join(cwd, "src"), { recursive: true });
   mkdirSync(join(cwd, "snapback"), { recursive: true });
   writeFileSync(join(cwd, "src/workspace.tsx"), workspace);
-  writeFileSync(join(cwd, "snapback/schema.q"), schema);
+  const fileColumn = guide.stdout.match(/`(doc: file <=10000000 \?)`/)?.[1];
+  assert.ok(fileColumn, "packed PDF recipe states its backend file-column declaration");
+  writeFileSync(join(cwd, "snapback/schema.q"), schema.replace("  priority: text <=20 ?", `  priority: text <=20 ?\n  ${fileColumn}`));
   await run(process.execPath, [cli, "check"]);
   await run(process.execPath, [join(cwd, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
     "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", "compiled", "recipe.ts", "handlers.ts", "pdf.ts"]);

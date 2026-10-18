@@ -99,7 +99,7 @@ Render sign-in controls while signed-out, Restoring… otherwise. AppProvider re
 | `otherwiseAll(fallback, overrides?)` | Spread into matchRead handlers | `fallback(read)` includes denied/partial; named handlers win in any order. |
 | `usePage(op, args)` | Query with `c: cursor ?`; omit c from args | `{read, items, hasMore, loadMore}`; match page.read/page, render items, call loadMore(). No handlers. |
 
-`'data' in read` exposes nullable data/existence/metadata; denied means unavailable. Complete empty lists are absent. `isPresent` excludes null; `isReady` permits it; `existence(read)` and `read.existence` classify. `absent` can be an authorised empty list. PDFs need file options; place returned ids through file-column mutations (`guide assets`).
+`'data' in read` exposes data/existence/metadata. Complete empty lists are absent. `isPresent` excludes null; `isReady` permits it; `existence(read)` and `read.existence` classify. `absent` can be an authorised empty list. PDFs require a `doc: file <=10000000 ?` column; persist uploaded ids through mutations (`guide assets`).
 ```ts
 import type { Read, Client } from "snapback4/contract";
 export function listLabel(read: Read<readonly {id:string}[]>): string {

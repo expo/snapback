@@ -96359,3 +96359,10 @@ text list items must keep E_QUARRY_TYPE and its value-preserving typed-helper
 repair. Strict item joins now retain their incompatible-item marker when the
 reviewed general join refusal fires; general flow/min/max refusal remains intact.
 This restores the existing list diagnostic without changing the reviewed norm.
+
+Packed H9 offline entry, scoped principal scanning, real release adoption and all
+three original-preserving custom-app adaptations passed. The new PDF execution
+then exposed a proof-fixture omission: its backend had no file column. The guide
+now states the exact optional file declaration, extracted into the qualification
+schema before executing the unchanged literal upload helper. Asset admission
+and schema ownership remain unchanged.
