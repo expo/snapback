@@ -13,6 +13,10 @@ use tiny_http::Request;
 /// The source stamp each `--no-watch` dev host adopted, by project root.
 static PINNED: Mutex<BTreeMap<PathBuf, SourceStamp>> = Mutex::new(BTreeMap::new());
 
+pub(super) fn closed() -> Refusal {
+    Refusal::new("E_AUTH", "auth", "development doors are closed; use serve staging with real users (guide staging), or explicitly opt into dev --unsafe-dev-doors for local fixtures").guide("staging")
+}
+
 pub(super) fn pin(project: &Path, stamp: SourceStamp) {
     PINNED.lock().unwrap_or_else(|e| e.into_inner()).insert(project.to_owned(), stamp);
 }
@@ -45,6 +49,7 @@ pub(super) fn seed(request: Request, shared: &Shared, body: &str) {
         _ => return refuse(request, Refusal::new("E_INPUT", "input", "seed takes a JSON array of {table, row}")),
     };
     let mut engine = lock(&shared.engine);
+    if let Err(why) = shared.dev_authority(&engine) { drop(engine); return respond_timed(request, shared, 403, json!({"denied":refusal_json(&why)})); }
     let now = shared.now();
     let typed = match typed_rows(engine.schema(), &rows, now) {
         Ok(typed) => typed,
@@ -141,6 +146,7 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
     let advance = lock(&shared.maintenance).advance.clone();
     let _advance = lock(&advance);
     let mut engine = lock(&shared.engine);
+    if let Err(why) = shared.dev_authority(&engine) { drop(engine); return respond_timed(request, shared, 403, json!({"denied":refusal_json(&why)})); }
     let mut clock = lock(&shared.clock).clone();
     if asked.clock && let Err(refusal) = clock.reset() { drop(engine); return refuse(request, refusal); }
     let now = clock.now();

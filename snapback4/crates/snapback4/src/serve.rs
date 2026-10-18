@@ -158,6 +158,12 @@ impl Shared {
         let bound = lock(&self.bound);
         self.unsafe_dev_doors || !(bound.schema.auth.password && !bound.schema.auth.guests)
     }
+    // Revalidate under the writer: neither a slow body nor an adoption queue
+    // may carry fixture authority into a newly password-only schema.
+    pub(crate) fn dev_authority(&self, engine: &Engine) -> Result<(), Refusal> {
+        if self.personas && (self.unsafe_dev_doors || !(engine.schema().auth.password && !engine.schema().auth.guests)) { Ok(()) }
+        else { Err(dev_doors::closed()) }
+    }
     pub fn now(&self) -> i64 { lock(&self.clock).now().max(self.time_audience_clock.load(Ordering::Acquire)) }
     pub(crate) fn refresh_time_audience_clock(&self, engine: &Engine, now: i64) {
         if engine.schema().tables.values().any(|table| table.not_before.is_some()) {
@@ -870,8 +876,7 @@ fn handle(mut request: Request, shared: &Shared) {
     }
     // /dev/token has already been routed through its mutual local-owner proof.
     if (path.starts_with("/dev/") || path == "/seed") && !shared.dev_doors() {
-        return respond_timed(request, shared, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth",
-            "development doors are closed; use serve staging with real users (guide deploy), or explicitly opt into dev --unsafe-dev-doors for local fixtures").guide("deploy"))}));
+        return respond_timed(request, shared, 403, json!({"denied":refusal_json(&dev_doors::closed())}));
     }
     if path.starts_with("/dev/clock") && !shared.personas {
         return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&crate::dev_clock::release()) }));

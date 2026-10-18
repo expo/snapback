@@ -54,7 +54,7 @@ export function startDev(options: ProofOptions | readonly string[] = {}): Promis
   const args = [...(opts.args ?? [])];
   const persistent = args.some(arg => arg === "--store" || arg.startsWith("--store=") || arg === "--no-memory");
   if (persistent && args.includes("--memory")) throw new TypeError("proof startDev: --memory conflicts with --store/--no-memory");
-  // --no-memory is a proof option; native dev already persists by default.
+  // Native persistence is the default. --no-memory remains a consumed explicit alias.
   const host = nativeHost("dev", [], { ...opts, args: args.filter(arg => arg !== "--no-memory") });
   return host.then(host => ({ ...host, personas: host.personas!, now: async () => {
     const { response, body } = await fetchIdentity(`${host.url}/dev/status`, deadline(opts.timeoutMs, 10_000));

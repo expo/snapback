@@ -47,7 +47,7 @@ fn principal_with_owner(request: &Request, shared: &Shared, owner: Option<&Engin
             if !declared.contains(&persona) {
                 return Err(Refusal::new("E_AUTH", "auth", format!(
                     "persona {persona} is not declared; `use personas {}` is this project's cast. Add {persona} to it (dev re-adopts on save) or send a declared persona", declared.join(", ")))
-                    .rewrite(format!("use personas {}, {persona}", declared.join(", "))).guide("personas"));
+                    .rewrite(format!("use personas {}{persona}", if declared.is_empty() { String::new() } else { format!("{}, ", declared.join(", ")) })).guide("personas"));
             }
             return Ok((persona_principal(&persona), "persona".into(), snapback4_core::identity::SessionScope::Full));
         }

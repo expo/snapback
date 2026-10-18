@@ -100,6 +100,13 @@ and provision only intended users. `seedAccounts` and startServe's seedUsers
 refuse production or dev before minting a token or creating any account. A
 normal production startServe still supports operatorToken for explicit grants.
 
+### E_STAGING
+
+E_STAGING refuses production relabelling or bulk account setup on a non-staging
+host. Choose a separate fresh `deploy --staging` store; use the explicit
+first-admin recipe below for intended production users. Source edits and a
+directory named staging never change a production store's classification.
+
 ## First admin on production
 
 Deploy the same schema with `npx snapback4 deploy production` (omit --staging).

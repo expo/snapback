@@ -20,6 +20,19 @@ const post = async (host, path, token, args = {}) => (await fetch(host.url + pat
   headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ args }), signal: AbortSignal.timeout(10000) })).json();
 const seedUsers = { roles: { admin: 2, member: 2 }, provision: { name: "provision" } };
 
+test("staging accepts the generated handle of a qualified mutation module", { timeout: 60000 }, async t => {
+  const cwd = fixture(t);
+  const provision = schema.match(/mutation provision[\s\S]*?(?=query myRole)/)[0];
+  writeFileSync(join(cwd, "snapback/schema.q"), schema.replace(provision, ""));
+  writeFileSync(join(cwd, "snapback/accounts.q"), provision);
+  const checked = await cli(["check"], { cwd }); assert.equal(checked.code, 0, checked.stderr);
+  const generated = await import(new URL("file://" + join(cwd, "snapback/generated/api.ts")));
+  assert.equal(generated.api.accounts.provision.name, "accounts.provision");
+  await deploy("staging", "snapback", { cwd, args: ["--staging"] });
+  const host = await startServe("staging", { cwd, seedUsers: { roles: { member: 1 }, provision: generated.api.accounts.provision } });
+  try { assert.equal(host.sessions.member.length, 1); } finally { await host.stop(); }
+});
+
 test("staging accounts are real password users; service grants obey rules; marker survives release switches", { timeout: 90000 }, async t => {
   const cwd = fixture(t);
   await deploy("staging", "snapback", { cwd, args: ["--staging"] });

@@ -52,7 +52,7 @@ query total():
   if (mutant === 'absence') replace('session-authority.ts', 'const value = (request.result ?? null) as string | null;', 'if (request.result === undefined) return null;\n      const value = (request.result ?? null) as string | null;');
   if (mutant === 'epoch-allocation') replace('session-authority.ts', 'if (BigInt(legacy) > BigInt(authoritative)) await write(epochKey, legacy, before);', 'if (true) await write(epochKey, BigInt(legacy) > BigInt(authoritative) ? legacy : authoritative, before);');
   if (mutant === 'higher-mirror') replace('session-authority.ts', 'if (BigInt(legacy) > BigInt(authoritative))', 'if (marker === "0" && BigInt(legacy) > BigInt(authoritative))');
-  const witness = await launch({ sourceDir, seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }], sourceOverrides, entrySource: `
+  const witness = await launch({ unsafeDevDoors: true, sourceDir, seed: [{ table: 'audit', row: { id: 'audit', total: 0 } }], sourceOverrides, entrySource: `
 import { createApp } from '${path('app.ts')}';
 import { keepSession, localStorageSessionStore, sessionKey } from '${path('auth.ts')}';
 import { mintId } from '${path('client.ts')}';

@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes() {
     let directory = ReaderTestDirectory::new();
-    let next = include_str!("../../../snapback4-lang/tests/fixtures/following-view.q");
+    let next = concat!("use personas alice, bob\n", include_str!("../../../snapback4-lang/tests/fixtures/following-view.q"));
     let before = next.replace("view feed: activity where .actor = viewer or exists follows[viewer, .actor]\n", "")
         .replace("return feed last", "return activity last")
         .replace("{ *, post: posts[.post] }", "{ * }");
@@ -100,7 +100,7 @@ fn atomic_feed_sync_authenticates_before_wait_and_rechecks_after_it() {
 
 #[test]
 fn a2_adoption_fences_supervised_claims_before_the_old_child_stops() {
-    let schema = "use server\naction work() returns { n: int } <- allow\neffect mail\nmutation emitMail():\n  emit mail {n: 1}\n";
+    let schema = "use personas alice\nuse server\naction work() returns { n: int } <- allow\neffect mail\nmutation emitMail():\n  emit mail {n: 1}\n";
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), schema);
     let (old, manual) = {
         let engine = lock(&host.shared.engine);

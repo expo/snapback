@@ -3,7 +3,7 @@ use super::*;
 #[test]
 fn following_http_binding_replay_refusals_and_independent_cancellation() {
     let source = format!(
-        "use identity\n{}",
+        "use identity\nuse personas reader, alice, bob\n{}",
         include_str!("../../../snapback4-lang/tests/fixtures/following-view.q")
     );
     let h = Host::with_store(true, snapback4_core::Store::memory().unwrap(), &source);

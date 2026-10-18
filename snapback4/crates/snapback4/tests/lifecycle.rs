@@ -769,14 +769,14 @@ fn development_banner_and_release_auth_boundary() {
     assert!(result.status.success(), "{}", String::from_utf8_lossy(&result.stderr));
     let release = Host::start(&dir, &["serve", deployment.to_str().unwrap()]);
     let (status, seed) = request(release.port, "/seed", rows, "");
-    assert_eq!(status, 403); assert_eq!(seed["denied"]["message"], "seeding is a development door");
+    assert_eq!(status, 403); assert!(seed["denied"]["message"].as_str().unwrap().contains("development doors are closed"));
     let (status, persona) = request(release.port, "/q/all", json!({"args":{}}), "x-snapback-persona: alice\r\n");
     assert_eq!(status, 401); assert_eq!(persona["denied"]["code"], "E_AUTH");
     let (status, guest) = request(release.port, "/auth/guest", json!({}), "");
     assert_eq!(status, 200);
     let (status, read) = request(release.port, "/q/all", json!({"args":{}}), &format!("Authorization: Bearer {}\r\n", guest["session"]["token"].as_str().unwrap()));
     assert_eq!(status, 200); assert_eq!(read["data"], json!([]), "refused seed never writes release data");
-    assert!(banner.contains("snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both."), "{banner}");
+    assert!(banner.contains("UNSAFE development doors enabled"), "{banner}");
 }
 
 #[test]
