@@ -35,6 +35,7 @@ test('packed security card and starter run as written; broad reads refute', {tim
  for(let i=0;i<blocks.length;i++){
   const app=join(dir,`card-${i}`);mkdirSync(join(app,'snapback'),{recursive:true});writeFileSync(join(app,'snapback/schema.q'),blocks[i]);
   let checked=JSON.parse(command(['check','--json'],app));assert.equal(checked.ok,true);assert.ok(checked.security.invariants.length);
+  assert.match(readFileSync(join(app,"snapback/generated/security-invariants.q.draft"),"utf8"),/DRAFT: NOT ACCEPTED/);
   assert.ok(checked.security.invariants.every(v=>['proved','unproved'].includes(v.status)),JSON.stringify(checked.security));assert.ok(checked.security.invariants.every(v=>v.direct_rule==='proved'));
   const audited=JSON.parse(command(['audit','--json'],app));assert.equal(audited.format,1);assert.ok(audited.exposures.some(x=>x.table==='privateNotes'));
   assert.ok(command(['test'],app).includes('security tests:'));

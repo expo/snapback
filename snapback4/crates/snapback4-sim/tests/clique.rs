@@ -37,7 +37,7 @@ fn args(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
 /// and the built rows reach every member's partition.
 #[test]
 fn an_added_aggregate_is_built_from_existing_rows() {
-    let without = CHAT.replace("maintain messageCounts: count messages by conversationId\n  read <- exists memberships[.conversationId, viewer]\n", "").replace(", count: messageCounts[.conversationId]", "");
+    let without = CHAT.replace("maintain messageCounts: count messages by conversationId\n  read <- exists memberships[.conversationId, viewer]\n", "").replace(", count: messageCounts[.conversationId]", "").replace("invariant messageCounts.read only exists memberships[.conversationId, viewer]\n", "");
     let mut engine = chat_engine_from(&without, &["dev:alice", "dev:bob"]);
     for n in 0..3 {
         let outcome = engine.mutate("send", Some(&format!("s{n}")), Context::new("dev:alice", args(&[("conversationId", id("c1")), ("body", Value::String(format!("m{n}")))])).at(1_000 + n).with_ids([format!("m{n}")])).unwrap();
