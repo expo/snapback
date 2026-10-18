@@ -17,18 +17,20 @@ pub(super) fn viewers(bound:&Bound)->Vec<String>{
 }
 
 pub(super) fn argument_cases(args:&BTreeMap<String,ir::ArgType>,out:&mut Campaign)->Vec<BTreeMap<String,Value>>{
-    let mut cases=vec![BTreeMap::new()];
-    for (name,kind) in args {
-        let values=match kind {
+    fn values(name:&str,kind:&ir::ArgType)->Option<Vec<Value>>{
+        Some(match kind {
             ir::ArgType::Enum{variants}=>variants.iter().map(|v|Value::String(v.clone())).collect(),
             ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],
             ir::ArgType::Principal=>vec![Value::Id(VIEWER.into()),Value::Id(OTHER.into())],
             ir::ArgType::Optional(inner)=>{
-                let mut values=vec![Value::Null];
-                if let Some(v)=arguments(&BTreeMap::from([(name.clone(),*inner.clone())]),0).and_then(|a|a.get(name).cloned()){values.push(v);}values
+                let mut cases=vec![Value::Null];cases.extend(values(name,inner)?);cases
             },
-            _=>match arguments(&BTreeMap::from([(name.clone(),kind.clone())]),0).and_then(|a|a.get(name).cloned()) {Some(v)=>vec![v],None=>{out.unsupported.insert(format!("{name}: history argument needs a typed/asset fixture"));return Vec::new();}},
-        };
+            _=>vec![arguments(&BTreeMap::from([(name.into(),kind.clone())]),0)?.remove(name)?],
+        })
+    }
+    let mut cases=vec![BTreeMap::new()];
+    for (name,kind) in args {
+        let Some(values)=values(name,kind)else{out.unsupported.insert(format!("{name}: history argument needs a typed/asset fixture"));return Vec::new();};
         let mut next=Vec::new();
         for case in &cases{for value in &values{if next.len()==LIMIT{out.unsupported.insert("enum/argument Cartesian product exceeds 512; remaining combinations not covered".into());break;}
             let mut c=case.clone();c.insert(name.clone(),value.clone());next.push(c);
