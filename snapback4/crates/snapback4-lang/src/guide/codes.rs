@@ -1,7 +1,7 @@
 pub const CODES: &[(&str, &str)] = &[
     ("E_SECURITY_TARGET", "an invariant names an unknown table, column or effect; correct the declared target; guide security."),
     ("N_SECURITY_INTENT", "tables have access rules but no independent policy intent; declare invariants from the product spec; guide security."),
-    ("N_BROAD_READ", "these columns are readable by every signed-in user; confirm that the spec permits it; guide security."),
+    ("N_BROAD_READ", "universal or roster-wide readership; the note states the condition; confirm that the spec permits it; guide security."),
     ("N_GRANT_OUTLIVES_ROLE", "a derived grant can survive a role change; recheck the current reader role or revoke derived grants transactionally; guide security."),
     ("N_ARGUMENT_GRANT", "a mutation argument is written into a reader-grant column; validate the recipient role and relationship; guide security."),
     ("N_OPTIONAL_EVIDENCE", "optional media permits missing evidence; declare required image or a list minimum if the spec requires it; guide security."),

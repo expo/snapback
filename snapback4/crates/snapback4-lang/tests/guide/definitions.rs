@@ -139,7 +139,7 @@ fn w11_every_registered_code_quotes_its_definition() {
 const DEFINITIONS: &[(&str, &str)] = &[
     ("E_SECURITY_TARGET", "the invariant target does not name a declared table, column or effect"),
     ("N_SECURITY_INTENT", "access rules lack independent declared intent"),
-    ("N_BROAD_READ", "every signed-in user can read these columns"),
+    ("N_BROAD_READ", "universal or roster-wide readership"),
     ("N_GRANT_OUTLIVES_ROLE", "a stored grant may survive a later role change"),
     ("N_ARGUMENT_GRANT", "an argument becomes a reader-grant column"),
     ("N_OPTIONAL_EVIDENCE", "optional media permits omitted evidence"),

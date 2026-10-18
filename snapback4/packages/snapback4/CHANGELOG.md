@@ -2,7 +2,7 @@
 
 ## 0.4.32
 
-- Security: independent schema invariants, three-valued rule implication with explicit unproved paths, `audit`/`check --audit`, schema-derived engine challenges in default `test`, grant lifetime/writer/optional-evidence/existence advice. Text minimums count non-whitespace Unicode characters; maximums and stored bytes are unchanged. `guide security` states proof boundaries and coverage limits.
+- Security: independent schema invariants, three-valued rule implication with explicit unproved paths, `audit`/`check --audit`, schema-derived engine challenges in default `test`, grant lifetime/writer/optional-evidence/existence advice. Text minimums count non-whitespace Unicode characters; maximums and stored bytes are unchanged. `guide security` states proof boundaries and coverage limits; todo, chat, social and production starters declare privacy intent.
 
 ## 0.4.31
 
