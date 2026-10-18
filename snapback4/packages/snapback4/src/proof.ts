@@ -201,12 +201,12 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
     }
   } finally { closeSync(err); closeSync(diagnostic); }
 }
-const substringLocators = new WeakMap<Locator, Locator>();
+const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boolean }>();
 /** Strings match exactly by default; use exact:false or a RegExp for a row with more text. Excludes editable values. */
 export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
   const root = options.within ?? page, rendered = page.locator(":not(input):not(textarea)");
   const locator = root.getByText(text, { exact: options.exact ?? true }).and(rendered);
-  if (typeof text === "string" && options.exact !== false) substringLocators.set(locator, root.getByText(text, { exact: false }).and(rendered));
+  if (typeof text === "string" && options.exact !== false) substringLocators.set(locator, { locator: root.getByText(text, { exact: false }).and(rendered), scoped: options.within !== undefined });
   return locator;
 }
 /** Activate before taking a screenshot, particularly on loaded shared hosts. */
@@ -218,7 +218,7 @@ export async function waitForFresh(locator: Locator, previous: string | null, op
   let substring = substringLocators.get(locator);
   if (typeof options !== "number" && options.within) {
     locator = options.within.locator(locator);
-    if (substring) substring = options.within.locator(substring);
+    if (substring) substring = { locator: options.within.locator(substring.locator), scoped: true };
   }
   const end = performance.now() + timeoutMs;
   let count = 0, text: string | null = null, detail = "";
@@ -235,9 +235,11 @@ export async function waitForFresh(locator: Locator, previous: string | null, op
     }
     await new Promise(resolve => setTimeout(resolve, Math.min(25, Math.max(1, end - performance.now()))));
   }
-  const hint = count === 0 && substring && await bounded(substring.count(), 1000, "substring count").catch(() => 0)
+  const hint = count === 0 && substring?.scoped && await bounded(substring.locator.count(), 1000, "substring count").catch(() => 0)
     ? "; a substring match exists; pass a RegExp or `exact: false`" : "";
-  throw Error(`no fresh signal after ${timeoutMs} ms: ${String(locator)}; last count=${count}, text=${JSON.stringify(text)}; ${count ? "present but unchanged" : "absent"}; previous=${JSON.stringify(previous)}${hint}${detail ? `; ${detail}` : ""}`);
+  const headings = await bounded(locator.page().locator('h1:visible, h2:visible, [role="heading"]:visible').allTextContents(), 1000, "visible headings").catch(() => []);
+  const heading = headings.map(text => text.replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 3).join(" | ").slice(0, 300);
+  throw Error(`no fresh signal after ${timeoutMs} ms: ${String(locator)}; last count=${count}, text=${JSON.stringify(text)}; ${count ? "present but unchanged" : "absent"}; previous=${JSON.stringify(previous)}; visible heading=${JSON.stringify(heading || "(none)")}${hint}${detail ? `; ${detail}` : ""}`);
 }
 /** Poll authoritative server truth after a receipt; a pending prediction is not a commit. */
 export async function waitForServer<T>(read: () => Promise<T>, accepts: (value: T) => boolean, options: { timeoutMs?: number; label?: string } = {}): Promise<T> {
