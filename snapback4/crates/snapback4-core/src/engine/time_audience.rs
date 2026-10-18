@@ -84,7 +84,16 @@ impl Engine {
     /// Pin the request clock and publish at most one due row. One-row commits
     /// are a bounded prefix of the ordered private ledger and have the same
     /// payload/event bound as an ordinary admitted row write.
+    // @ref LLP 3000.036.003#10 — an HTTP query materializes only a live dependency it actually encountered.
+    pub fn materialize_time_audience_at(&mut self, table: &str, id: &str, requested: i64) -> Result<i64, RuntimeError> {
+        self.publish_time_audience(requested, Some((table, id)))
+    }
+
     pub(crate) fn advance_time_audience(&mut self, requested: i64) -> Result<i64, RuntimeError> {
+        self.publish_time_audience(requested, None)
+    }
+
+    fn publish_time_audience(&mut self, requested: i64, selected: Option<(&str, &str)>) -> Result<i64, RuntimeError> {
         if !self
             .schema
             .tables
@@ -104,7 +113,8 @@ impl Engine {
 
         let tx = self.store.transaction()?;
         let now = tx.pin_time_audience_clock(requested)?;
-        let Some(opening) = tx.due_time_audience(now)? else {
+        let opening = match selected { Some((table, id)) => tx.selected_time_audience(table, id, now)?, None => tx.due_time_audience(now)? };
+        let Some(opening) = opening else {
             tx.commit()?;
             return Ok(now);
         };

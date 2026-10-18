@@ -486,6 +486,7 @@ impl Binder<'_> {
         if points {
             self.record_maintain_authorization(condition, then_branch);
         }
+        if points && self.narrow_enum(condition, then_branch) { return; }
         match condition {
             A::Exists { read, .. } if then_branch && points => self.narrow_point(read),
             A::Call { name, args, site } if name == super::super::intent_variants::PRESENT => self.narrow_inner(&A::Binary {

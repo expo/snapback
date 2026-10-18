@@ -16,7 +16,7 @@ const fetchIdentity = async (url: string, timeoutMs: number) => {
   const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
   return { response, body: await response.json() as Record<string, unknown> };
 };
-async function nativeHost(verb: "dev" | "serve", prefix: string[], options: ProofOptions): Promise<ProofHost> {
+async function nativeHost(verb: "dev" | "serve", prefix: string[], options: ProofOptions): Promise<ProofHost & { personas?: string[] }> {
   const env = { ...process.env, ...options.env }, id = randomUUID();
   const ports = portRange(env), timeout = deadline(options.timeoutMs, 30_000);
   const args = [...(options.args ?? [])];
@@ -31,21 +31,34 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
     }, timeout);
     const { response, body } = await fetchIdentity(`${url}/auth/config`, timeout);
     if (!response.ok || body.proof_id !== id) throw Error("proof served identity mismatch");
+    let personas: string[] = [];
     if (verb === "dev") {
       const status = await fetchIdentity(`${url}/dev/status`, timeout);
       if (status.body.pid !== run.child.pid) throw Error("proof dev PID mismatch");
+      if (!Array.isArray(status.body.personas) || !status.body.personas.every(name => typeof name === "string")) throw Error("proof dev personas missing");
+      personas = status.body.personas;
     }
-    return { url, pid: run.child.pid!, logs: run.logs, stop: () => stopChild(run.child, deadline(options.stopTimeoutMs, 5000)) };
+    return { url, ...(verb === "dev" ? { personas } : {}), pid: run.child.pid!, logs: run.logs, stop: () => stopChild(run.child, deadline(options.stopTimeoutMs, 5000)) };
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
 }
+export interface DevHost extends ProofHost {
+  personas: string[];
+  /** Read the current authoritative development time, including all clock advances. */
+  now(): Promise<number>;
+}
 /** The array form preserves the former startDev(args) recipe. */
-export function startDev(options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
+export function startDev(options: ProofOptions | readonly string[] = {}): Promise<DevHost> {
   const opts: ProofOptions = Array.isArray(options) ? { args: options } : options as ProofOptions;
   const args = [...(opts.args ?? [])];
   const persistent = args.some(arg => arg === "--store" || arg.startsWith("--store=") || arg === "--no-memory");
   if (persistent && args.includes("--memory")) throw new TypeError("proof startDev: --memory conflicts with --store/--no-memory");
   // --no-memory is a proof option; native dev already persists by default.
-  return nativeHost("dev", [], { ...opts, args: [...args.filter(arg => arg !== "--no-memory"), ...(persistent || args.includes("--memory") ? [] : ["--memory"])] });
+  const host = nativeHost("dev", [], { ...opts, args: [...args.filter(arg => arg !== "--no-memory"), ...(persistent || args.includes("--memory") ? [] : ["--memory"])] });
+  return host.then(host => ({ ...host, personas: host.personas!, now: async () => {
+    const { response, body } = await fetchIdentity(`${host.url}/dev/status`, deadline(opts.timeoutMs, 10_000));
+    if (!response.ok || typeof body.now !== "number") throw Error("proof dev clock unavailable");
+    return body.now;
+  } }));
 }
 export function startServe(deployDir: string, options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
   if (typeof deployDir !== "string" || !deployDir.trim()) throw Object.assign(new TypeError("E_PROOF_USAGE: startServe(deployDir, options) requires a deployment directory as its first argument"), { code: "E_PROOF_USAGE" });
@@ -93,7 +106,11 @@ export async function command(binary: string, args: readonly string[], options: 
 }
 async function successful(args: string[], options: ProofOptions) {
   const result = await cli(args, options);
-  if (result.code !== 0) throw Error(`proof CLI failed (${result.code}): ${result.stderr}; logs: ${result.logs.stderr}`);
+  if (result.code !== 0) {
+    const stdout = result.stdout.trimEnd();
+    const tail = stdout.length > 4000 ? `…${stdout.slice(-4000)}` : stdout;
+    throw Error(`proof CLI failed (${result.code}): ${result.stderr}; stdout tail: ${tail || "(empty)"}; logs: ${result.logs.stderr}`);
+  }
   return result;
 }
 export function deploy(dir: string, schema: string, options: ProofOptions = {}) {
@@ -104,9 +121,26 @@ export function rollback(dir: string, to: number | "latest", options: ProofOptio
   if (to !== "latest" && (!Number.isSafeInteger(to) || to < 1)) throw Error(`proof rollback requires an explicit immutable release target; got ${JSON.stringify(to) ?? String(to)}`);
   return successful(["rollback", dir, "--to", String(to), ...(options.args ?? [])], options);
 }
-export function testSource(source: string, options: ProofOptions = {}) {
+// @ref LLP 3000.011.003.000.000#11-wave-14-truthful-starter-custody-day4 — saved-source proof results expose authored cases separately from query sweeps.
+export interface TestSourceOptions extends ProofOptions { fixtureOnly?: boolean }
+export interface TestSourceResult extends CliResult { casesRun: number; casesSkipped: number }
+export function testSource(source: string, options: TestSourceOptions = {}): Promise<TestSourceResult> {
   if (typeof source !== "string" || !source) throw Error(`proof testSource requires an explicit saved source file or directory; got ${JSON.stringify(source) ?? String(source)}: pass versions/v1`);
-  return successful(["test", "--source", source, ...(options.args ?? [])], options);
+  const { fixtureOnly = false, ...proofOptions } = options;
+  return successful(["test", "--source", source, ...(proofOptions.args ?? [])], proofOptions).then(result => {
+    const summaries = [...result.stdout.matchAll(/^SNAPBACK4_TEST_CASES (\{.*\})$/gm)];
+    if (summaries.length !== 1) throw Error(`proof testSource received no unique business-case summary; stdout tail: ${result.stdout.trimEnd().slice(-4000) || "(empty)"}; logs: ${result.logs.stdout}`);
+    let cases: { run: number; skipped: number };
+    try { cases = JSON.parse(summaries[0]![1]!) as { run: number; skipped: number }; }
+    catch { throw Error(`proof testSource received a malformed business-case summary: ${summaries[0]![0]}; logs: ${result.logs.stdout}`); }
+    if (!Number.isSafeInteger(cases.run) || cases.run < 0 || !Number.isSafeInteger(cases.skipped) || cases.skipped < 0) {
+      throw Error(`proof testSource received invalid business-case counts: ${summaries[0]![0]}; logs: ${result.logs.stdout}`);
+    }
+    if (cases.run === 0 && !fixtureOnly) {
+      throw Error(`proof testSource ran no business cases (${cases.skipped} skipped); add test.cases.jsonl for this saved version, or pass { fixtureOnly: true } when fixture loading alone is the intended proof; stdout tail: ${result.stdout.trimEnd().slice(-4000) || "(empty)"}`);
+    }
+    return { ...result, casesRun: cases.run, casesSkipped: cases.skipped };
+  });
 }
 
 export function sandboxUnavailable(error: unknown): boolean {
@@ -163,16 +197,25 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
     }
   } finally { closeSync(err); }
 }
+const substringLocators = new WeakMap<Locator, Locator>();
 /** Strings match exactly by default; use exact:false or a RegExp for a row with more text. Excludes editable values. */
 export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
-  return (options.within ?? page).getByText(text, { exact: options.exact ?? true }).and(page.locator(":not(input):not(textarea)"));
+  const root = options.within ?? page, rendered = page.locator(":not(input):not(textarea)");
+  const locator = root.getByText(text, { exact: options.exact ?? true }).and(rendered);
+  if (typeof text === "string" && options.exact !== false) substringLocators.set(locator, root.getByText(text, { exact: false }).and(rendered));
+  return locator;
 }
 /** Activate before taking a screenshot, particularly on loaded shared hosts. */
 export async function frontPage(page: Page): Promise<Page> { await page.bringToFront(); return page; }
 export { logsDir } from "./proof-process.ts";
+/** Returns the fresh nonempty text as a string, after it differs from previous. */
 export async function waitForFresh(locator: Locator, previous: string | null, options: number | { within?: Locator; timeoutMs?: number } = 30_000): Promise<string> {
   const timeoutMs = deadline(typeof options === "number" ? options : options.timeoutMs, 30_000);
-  if (typeof options !== "number" && options.within) locator = options.within.locator(locator);
+  let substring = substringLocators.get(locator);
+  if (typeof options !== "number" && options.within) {
+    locator = options.within.locator(locator);
+    if (substring) substring = options.within.locator(substring);
+  }
   const end = performance.now() + timeoutMs;
   let count = 0, text: string | null = null, detail = "";
   while (performance.now() < end) {
@@ -181,13 +224,16 @@ export async function waitForFresh(locator: Locator, previous: string | null, op
       text = count ? await bounded(locator.textContent({ timeout: Math.max(1, Math.min(1000, end - performance.now())) }), Math.max(1, end - performance.now()), "locator text") : null;
       if (text && text !== previous) return text;
     } catch (error) {
-      detail = String(error);
+      detail = error instanceof Error && (error.name === "TimeoutError" || /timed out after/.test(error.message))
+        ? "locator observation exceeded the remaining proof deadline" : String(error);
       // A strictness/selector error needs its original repair, not a timeout.
       if (error instanceof Error && error.name !== "TimeoutError" && !/timed out after/.test(error.message)) throw error;
     }
     await new Promise(resolve => setTimeout(resolve, Math.min(25, Math.max(1, end - performance.now()))));
   }
-  throw Error(`no fresh signal after ${timeoutMs} ms: ${String(locator)}; last count=${count}, text=${JSON.stringify(text)}; ${count ? "present but unchanged" : "absent"}; previous=${JSON.stringify(previous)}${detail ? `; ${detail}` : ""}`);
+  const hint = count === 0 && substring && await bounded(substring.count(), 1000, "substring count").catch(() => 0)
+    ? "; a substring match exists; pass a RegExp or `exact: false`" : "";
+  throw Error(`no fresh signal after ${timeoutMs} ms: ${String(locator)}; last count=${count}, text=${JSON.stringify(text)}; ${count ? "present but unchanged" : "absent"}; previous=${JSON.stringify(previous)}${hint}${detail ? `; ${detail}` : ""}`);
 }
 /** Poll authoritative server truth after a receipt; a pending prediction is not a commit. */
 export async function waitForServer<T>(read: () => Promise<T>, accepts: (value: T) => boolean, options: { timeoutMs?: number; label?: string } = {}): Promise<T> {

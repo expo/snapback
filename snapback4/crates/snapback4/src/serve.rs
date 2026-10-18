@@ -310,55 +310,7 @@ pub enum Mode {
 #[path = "serve_start.rs"]
 mod start;
 pub use start::serve;
-
-// The production accept loop is also exercised with a real supervised child
-// and a held SQLite adoption transaction in the server regression.
-fn serve_requests(
-    server: Arc<Server>, shared: Arc<Shared>, worker: crate::dev_worker::Supervisor,
-    background: Vec<(&str, std::thread::JoinHandle<()>)>, stopping: impl Fn() -> bool,
-    capacity: crate::host_limits::Capacity,
-) -> Result<(), String> {
-    // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
-    crate::thread_priority::dispatcher();
-    let admission = Arc::new(RequestAdmission::new(&capacity));
-    let mut reported = tiny_http::AdmissionRefusals::default();
-    let mut reported_workers = ([0; CLASSES], [0; CLASSES]);
-    let mut report_at = Instant::now();
-    loop {
-        if report_at.elapsed() >= Duration::from_secs(1) {
-            let refusals = server.admission_refusals();
-            if refusals != reported && snapback4_core::diagnostics::emit(format_args!(
-                "E_RATE_LIMIT at http: all {} HTTP connections occupied at admission; cumulative refused={} http_written={} http_failed={} tls_closed={}; since_summary={}; wait for pending writes to settle or reduce concurrent clients; wire delivery is best-effort",
-                capacity.connections(), refusals.total(), refusals.http_written, refusals.http_failed, refusals.tls_closed, refusals.total().saturating_sub(reported.total())), false) {
-                reported = refusals;
-            }
-            let workers = (admission.refused.each_ref().map(|n| n.load(Ordering::Relaxed)), admission.undelivered.each_ref().map(|n| n.load(Ordering::Relaxed)));
-            if workers != reported_workers && snapback4_core::diagnostics::emit(format_args!(
-                "E_RATE_LIMIT at workers: cumulative refused={:?} undelivered={:?}; pools=[short,mutation,sync,wait,route,registry,verifier,claim]; full wait/claim pools answer E_STREAMS; reduce concurrent clients; wire delivery is best-effort", workers.0, workers.1), false) {
-                reported_workers = workers;
-            }
-            report_at = Instant::now();
-        }
-        if stopping() {
-            shared.refusals.shutdown();
-            // @ref LLP 3000.000.000#51-path-independent-control-address — retain store ownership until control drains admitted work and unlinks its socket.
-            for (name, thread) in background {
-                if name == "release-control" {
-                    thread.join().map_err(|_| "release-control thread panicked during shutdown")?;
-                }
-            }
-            if let Some(owner) = &shared.owner { owner.clear_address(); }
-            return Ok(());
-        }
-        for (name, thread) in &background {
-            if thread.is_finished() { return Err(format!("{name} thread stopped")); }
-        }
-        if worker.is_finished() { return Err("worker thread stopped".into()); }
-        if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(crate::host_limits::listener_error)? {
-            dispatch(request, shared.clone(), admission.clone(), server.server_addr().to_ip().is_some_and(|a| a.ip().is_loopback()));
-        }
-    }
-}
+use start::serve_requests;
 
 const REQUEST_WORKERS: usize = 32;
 // Writer-dependent requests have their own budget: queued behind adoption, they cannot take
@@ -472,7 +424,7 @@ fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<R
 
 fn detached_request(method: &Method, path: &str) -> bool {
     method == &Method::Post && (path.starts_with("/q/") || path.starts_with("/following/") || path == "/sync")
-        || method == &Method::Get && matches!(path, "/" | "/probe" | "/schema" | "/api.ts" | "/native.wasm" | "/dev/status" | "/auth/config")
+        || method == &Method::Get && matches!(path, "/" | "/probe" | "/schema" | "/api.ts" | "/native.wasm" | "/dev/status" | "/dev/catalog" | "/auth/config")
         || method == &Method::Options
 }
 
@@ -663,7 +615,7 @@ const JSON_REQUEST_CEILING: usize = 1 << 20;
 // for a snapshot cursor, without changing the general JSON body ceiling.
 const SYNC_REQUEST_CEILING: usize = 256 << 10;
 const SEED_REQUEST_CEILING: usize = 16 << 20;
-const JSON_RESPONSE_CEILING: usize = 16 << 20;
+pub(super) const JSON_RESPONSE_CEILING: usize = 16 << 20;
 
 /// Stop encoding before an additional unbounded String exists. Partition
 /// acquisition has its own page/commit bounds; this owns the wire buffer.
@@ -924,6 +876,14 @@ fn handle(mut request: Request, shared: &Shared) {
     if (method == Method::Get && path == "/dev/latency") || (method == Method::Post && path == "/dev/latency/reset") {
         return latency::endpoint(request, shared, method == Method::Post);
     }
+    // @ref LLP 3000.000.000.000.000#3-proof-fixture-loading — development field types need no principal.
+    if method == Method::Get && path == "/dev/catalog" {
+        if !shared.personas { return respond_timed(request, shared, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth", "fixture catalog requires dev"))})); }
+        let bound = lock(&shared.bound);
+        let tables: Vec<Json> = bound.schema.visible_tables().map(|(name, table)| json!({ "name": name, "fields": table.columns.iter().filter(|(column, _)| !table.private_field(column) && !table.engine_field(column)).collect::<BTreeMap<_,_>>() })).collect();
+        drop(bound);
+        return respond_timed(request, shared, 200, json!({ "tables": tables }));
+    }
     if method == Method::Get && path == "/dev/status" {
         if !shared.personas { return respond_timed(request, shared, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth", "status inspection requires dev"))})); }
         // No engine lock: doctor must remain usable while an adoption waits on SQLite.
@@ -931,7 +891,7 @@ fn handle(mut request: Request, shared: &Shared) {
         let personas = lock(&shared.bound).personas.clone();
         let status = lock(&shared.adoption);
         let now = shared.now();
-        return respond_timed(request, shared, 200, json!({"instance":shared.dev_identity.as_ref().map(|i| &i.instance), "initialStoreId":shared.dev_identity.as_ref().map(|i| &i.initial_store_id), "pid":std::process::id(), "wrapperPid":crate::supervisor::pid(), "storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":now, "clockOffsetMs":now - snapback4_core::now_ms(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
+        return respond_timed(request, shared, 200, json!({"instance":shared.dev_identity.as_ref().map(|i| &i.instance), "initialStoreId":shared.dev_identity.as_ref().map(|i| &i.initial_store_id), "pid":std::process::id(), "wrapperPid":crate::supervisor::pid(), "storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":now, "clockOffsetMs":now - snapback4_core::now_ms(), "skewMs":now - snapback4_core::now_ms(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
     }
     if method == Method::Get && path == "/dev/clock/status" { return maintenance::clock_status(request, shared); }
     if method == Method::Options {
@@ -1039,9 +999,9 @@ fn handle(mut request: Request, shared: &Shared) {
     let request_now = if (method == Method::Get && path == "/changes")
         || (method == Method::Post && (path == "/sync" || path.starts_with("/q/") || path.starts_with("/m/")))
     {
-        match shared.advance_time_audiences() {
+        match shared.advance_time_audiences().map_err(|error| error.refusal()) {
             Ok(now) => Some(now),
-            Err(error) => return reject(request, 503, error.refusal()),
+            Err(refusal) => return reject(request, 503, refusal),
         }
     } else { None };
     if operation && !shared.personas {crate::release_requests::Scope::admit(&shared.release_requests,||*lock(&shared.generation));}
@@ -1270,8 +1230,10 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     context.search_retained_order = Some((order, payload.get("searchRetainedMore").and_then(Json::as_bool).unwrap_or(false)));
                 }
+                let settlement_started = Instant::now();
+                let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes, decoration_paths) = loop {
                 let reader = shared.reader();
-                let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes, decoration_paths) = match reader {
+                let evaluated = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
@@ -1279,12 +1241,12 @@ fn handle(mut request: Request, shared: &Shared) {
                         #[cfg(test)]
                         test_work(&shared.query_wait);
                         let reads_presence = presence_of(&reader);
-                        let context = dev_refusals::response::context(context, reader.refusal_sites.clone(), &reader);
+                        let context = dev_refusals::response::context(context.clone(), reader.refusal_sites.clone(), &reader);
                         let query_generation = reader.generation();
                         let decoration_paths = reader.program(&op).filter(|_| reader.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&reader, &op, &context);
                         trace::mark("query_start");
-                        let (outcome, cut, current) = reader.query_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
+                        let (outcome, cut, current) = reader.query_materialized_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
                         trace::mark("query_end");
                         let scopes = read_scopes::complete(scopes, reader.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
@@ -1298,14 +1260,37 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut engine = lock(&shared.engine);
                         let metadata = response_head(&mut engine);
                         let reads_presence = presence_of(&engine);
+                        let mut context = context.clone();
                         if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), &engine); }
                         let query_generation = engine.generation();
                         let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&engine, &op, &context);
-                        let (outcome, cut, current) = engine.query_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
+                        let (outcome, cut, current) = engine.query_materialized_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
                         let scopes = read_scopes::complete(scopes, engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths)
                     },
+                };
+                if let Some((table, id)) = evaluated.0.as_ref().ok().and_then(|outcome| outcome.pending_opening.as_ref()) {
+                    if settlement_started.elapsed() >= Duration::from_secs(30) || crate::lifecycle::stopping() {
+                        let mut why = Refusal::new("E_QUERY_RETRY", "client", "timed disclosure did not settle within the query wait; retry the query").guide("client");
+                        why.retryable = true;
+                        return respond_timed(request, shared, 503, json!({"denied":why}));
+                    }
+                    let mut engine = lock(&shared.engine);
+                    let now = match engine.materialize_time_audience_at(table, id, context.now.unwrap_or_else(|| shared.now())) {
+                        Ok(now) => now,
+                        Err(error) => return respond_timed(request, shared, 503, json!({"denied":error.refusal()})),
+                    };
+                    shared.refresh_time_audience_clock(&engine, now);
+                    shared.durable_committed(&engine);
+                    drop(engine);
+                    if let Err(why) = session_identity::principal_of(&request, shared) {
+                        return respond_timed(request, shared, 401, json!({"denied":why}));
+                    }
+                    std::thread::yield_now();
+                    continue;
+                }
+                break evaluated;
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {

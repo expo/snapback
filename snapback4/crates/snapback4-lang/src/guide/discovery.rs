@@ -1,7 +1,7 @@
 //! Card discovery and the schema-evolution recipe.
 use super::{ALIASES, KEYWORDS, SERVER_KEYWORDS};
 
-// @ref LLP 3000.007#20.1 — wave 6: the ~200 aliases moved behind `guide aliases`; the bare listing stays one screen.
+// @ref LLP 3000.007#20.1 — the ~200 aliases moved behind `guide aliases`; the bare listing stays one screen.
 pub fn listing() -> String {
     format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nOn terminals, cards over {FULL_LINES} lines print their opening and section index; pipes print whole cards. Narrow with guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\nAliases: {} words open a card, or one section of it (pagination, roles, capacity, aggregates, …); snapback4 guide aliases lists them.", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.len())
 }
@@ -196,8 +196,8 @@ fn index_lines(card: &str, found: &[(usize, String, usize, usize)]) -> String {
 /// more, then its opening cut at a paragraph boundary, then the numbered
 /// section index (and the ways to read more again). `None` when the card
 /// prints whole.
-// @ref LLP 3000.007#20.1 — the run-on hint sits under the title, so a short opening never reads as the whole card (wave 4).
-pub fn overview(name: &str, card: &str) -> Option<String> { overview_with(name, card, false) }
+// @ref LLP 3000.007#20.1 — the run-on hint sits under the title, so a short opening never reads as the whole card.
+pub fn overview(name: &str, card: &str) -> Option<String> { overview_with(name, card, true) }
 
 /// The same overview with the card's first section printed between the
 /// opening and the index: what `guide <card>` prints when stdout is not a
@@ -205,7 +205,7 @@ pub fn overview(name: &str, card: &str) -> Option<String> { overview_with(name, 
 /// and not only its table of contents. A first section longer than
 /// [`FIRST_SECTION_LINES`] is cut at a paragraph boundary with the command
 /// that prints the rest.
-// @ref LLP 3000.007#20.1 — wave 6: 11 lanes re-ran --section/--full 3–4 times after an index-only opening.
+// @ref LLP 3000.007#20.1 — 11 lanes re-ran --section/--full 3–4 times after an index-only opening.
 pub fn overview_and_first_section(name: &str, card: &str) -> Option<String> { overview_with(name, card, true) }
 
 /// The most lines of a card's first section the piped overview prints.
@@ -216,7 +216,7 @@ const FIRST_SECTION_LINES: usize = 80;
 pub fn piped(name: &str, card: &str) -> String {
     if card.lines().count() <= FULL_LINES { return card.to_owned(); }
     let (title, rest) = card.split_once('\n').unwrap_or((card, ""));
-    format!("{title}\n\n{}\n{rest}", section_index(name, card))
+    format!("{title}\n{rest}\n\n{}", section_index(name, card))
 }
 
 /// The last paragraph boundary (a blank line outside a fence) in
@@ -224,9 +224,11 @@ pub fn piped(name: &str, card: &str) -> String {
 fn boundary(lines: &[&str], from: usize, to: usize, limit: usize) -> Option<usize> {
     let mut fenced = false;
     let mut best = None;
+    let mut content = false;
     for (i, line) in lines.iter().enumerate().take(to).skip(from) {
         if line.trim_start().starts_with("```") { fenced = !fenced; }
-        else if !fenced && line.trim().is_empty() && i <= limit { best = Some(i); }
+        else if !fenced && content && line.trim().is_empty() && i <= limit { best = Some(i); }
+        if !line.trim().is_empty() { content = true; }
     }
     best
 }
@@ -257,12 +259,13 @@ fn overview_with(name: &str, card: &str, first_section: bool) -> Option<String> 
     }.trim_end().to_owned();
     if first_section {
         if cut < first { out.push_str(&format!("\n\n… the opening continues for {} lines: snapback4 guide {name} --section 0", first - cut)); }
-        let (_, heading, start, end) = &found[0];
+        let (section, (_, heading, start, end)) = found.iter().enumerate().find(|(_, (_, _, start, end))| lines[start + 1..*end].iter().any(|line| !line.trim().is_empty())).unwrap_or((0, &found[0]));
+        let section = section + 1;
         let limit = start + FIRST_SECTION_LINES;
         let stop = if end - start <= FIRST_SECTION_LINES { *end } else { boundary(&lines, start + 1, *end, limit).unwrap_or(limit) };
         out.push_str("\n\n");
         out.push_str(lines[*start..stop].join("\n").trim_end());
-        if stop < *end { out.push_str(&format!("\n\n… section 1 ({heading}) continues for {} lines: snapback4 guide {name} --section 1", end - stop)); }
+        if stop < *end { out.push_str(&format!("\n\n… section {section} ({heading}) continues for {} lines: snapback4 guide {name} --section {section}", end - stop)); }
     }
     out.push_str(&format!("\n\nSections of guide {name}:\n"));
     out.push_str(&index_lines(card, &found));
@@ -285,7 +288,7 @@ fn section_of(found: &[(usize, String, usize, usize)], line: usize) -> (usize, &
         .map(|(n, s)| (n + 1, s.1.as_str())).unwrap_or((0, "Opening"))
 }
 
-/// The alternatives of a search: `a|b` and `a OR b` (wave 5 wrote both).
+/// The alternatives of a search: `a|b` and `a OR b`.
 fn alternatives(words: &str) -> Vec<String> {
     words.split('|').flat_map(|part| part.split(" OR ")).map(|alternative| alternative.trim().to_owned()).filter(|alternative| !alternative.is_empty()).collect()
 }
@@ -298,7 +301,7 @@ fn forms(word: &str) -> Vec<String> {
     forms
 }
 
-// @ref LLP 3000.007#20.1 — wave 5: `--find a b` is every word on one line; `a|b` and `a OR b` are either.
+// @ref LLP 3000.007#20.1 — `--find a b` is every word on one line; `a|b` and `a OR b` are either.
 /// Line numbers (0-based) whose text holds an alternative: its phrase, or
 /// every one of its words (each as written or singular).
 fn mentions(card: &str, words: &str) -> Vec<usize> {
@@ -373,7 +376,7 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
     }
     // No heading matches. A curated alias naming a section of another card
     // lands there, saying so (`guide wire --section acceptance`).
-    // @ref LLP 3000.007#20.1 — wave 7: acceptance under wire, statements under language, loops under writes.
+    // @ref LLP 3000.007#20.1 — acceptance under wire, statements under language, loops under writes.
     let hits = mentions(card, words);
     if let Some((target, _)) = super::alias_section(words).filter(|(target, _)| *target != name) {
         if let Some(landing) = super::card(target).and_then(|text| alias_landing(words, target, text)) {
@@ -387,7 +390,7 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
     }
     // When the words occur, print the section holding most of their mentions
     // (a strict plurality), or every mention when sections tie for the most.
-    // @ref LLP 3000.007#20.1 — a topic word (audience, React, Reference) prints what it names instead of failing (wave 4).
+    // @ref LLP 3000.007#20.1 — a topic word (audience, React, Reference) prints what it names instead of failing.
     if !hits.is_empty() {
         let mut counts: Vec<(usize, usize)> = Vec::new();
         for &i in &hits {
@@ -395,7 +398,7 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
             match counts.iter_mut().find(|(section, _)| *section == n) { Some(entry) => entry.1 += 1, None => counts.push((n, 1)) }
         }
         let &(best, count) = counts.iter().max_by_key(|(n, count)| (*count, std::cmp::Reverse(*n))).expect("a hit has a section");
-        // @ref LLP 3000.007#20.1 — wave 7: a plurality lands (`client --section react` listed 4 sections); only a tie lists mentions.
+        // @ref LLP 3000.007#20.1 — a plurality lands (`client --section react` listed 4 sections); only a tie lists mentions.
         if counts.iter().filter(|(_, other)| *other == count).count() == 1 {
             let (heading, start, end) = if best == 0 { ("Opening", 0, opening) } else { let s = &found[best - 1]; (s.1.as_str(), s.2, s.3) };
             let share = match (hits.len(), count == hits.len()) {

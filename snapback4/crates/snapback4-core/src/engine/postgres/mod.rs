@@ -199,7 +199,7 @@ impl PostgresEngine {
         runner.charge_output(&data)?;
         let (delivery, delivery_meter) = match manifest { super::DeliveryManifest::Build => runner.delivery_manifest(&data), super::DeliveryManifest::Skip => (None, None) };
         let outcome = QueryOutcome { decoration_expiry: runner.decoration_expiry, search_rows: runner.search_rows.take(), search_scopes: None, delivery, delivery_meter, ephemeral: None,
-            unavailable: runner.query_unavailable,
+            unavailable: runner.query_unavailable, pending_opening: runner.pending_opening.clone(),
             complete: runner.meter.capped_at.is_none()
                 && runner.word_cut_at.is_none()
                 && !runner.non_uniform

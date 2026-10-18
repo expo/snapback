@@ -11,8 +11,8 @@
 //!   for every caller, by writing `viewer` into the column it tests, on a row
 //!   that names another principal the caller chose as a reader.
 //! - `N_LOOKUP_HIDDEN`: an update or delete rule admits callers the read rule
-//!   does not, and a mutation looks the row up by key, so those callers get
-//!   `NOT_FOUND` before the write rule runs.
+//!   does not, and a mutation requires an actual ruled point lookup, so
+//!   those callers fail that read gate. Blind writes are not program reads.
 //! - `N_WRITE_DENIED` (counter): a mutation increments a column whose table's
 //!   update rule admits only role holders, without requiring the role, so
 //!   every other caller is refused `E_RULE` at the counter.
@@ -284,29 +284,42 @@ fn reads_what_it_writes(disjunct: &RuleExpr, read: &RuleExpr) -> bool {
     read.disjuncts().into_iter().any(|option| conjuncts(option).into_iter().all(|need| have.iter().any(|h| implies(h, need))))
 }
 
+fn point_probe(catalog: &Catalog, read: &ReadExpr) -> bool {
+    if read.matching.is_some() || !read.seeks.is_empty() { return false; }
+    let Some(info) = catalog.tables.get(&read.table) else { return false };
+    let named = read.keys.iter().all(|key| key.column.is_some());
+    info.indexes.iter().any(|index| index.unique && index.is_plain() && read.index.as_ref().is_none_or(|name| name == &index.name)
+        && if named { index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column))) }
+            else { index.columns.len() == read.keys.len() })
+}
+
+// @ref LLP 3000.036.002#12 — required program reads are gates; blind mutable writes are not.
 fn hidden_lookups(catalog: &Catalog, schema: &Schema, mutations: &[&ProgramDecl], notes: &mut Vec<Diagnostic>) {
-    let mut seen = BTreeSet::new();
     for program in mutations {
-        for (op, name, keys, _, write_site) in writes(program) {
-            let effect = match op { WriteOp::Update => Effect::Update, WriteOp::Delete => Effect::Delete, _ => continue };
-            if keys.is_empty() { continue; }
-            let Some(table) = schema.table(&name) else { continue };
-            let Some(info) = catalog.tables.get(&name) else { continue };
-            if table.through.is_some() || info.maintained.is_some() || info.decl.ephemeral.is_some() || table.rules.read.is_uniformly_readable() { continue; }
-            let rule = match effect { Effect::Update => &table.rules.update, _ => &table.rules.delete };
-            if matches!(rule, RuleExpr::Deny | RuleExpr::Allow | RuleExpr::Public { .. }) { continue; }
-            // A role (a disjunct that reads no row column) the read rule never admits:
-            // a row-dependent party is often a reader by the app's own invariant
-            // (a facilitator is a member), which no rule states, so it is not named.
-            // A role that helps no read disjunct at all: its holders find no row by it.
-            let helps = |d: &RuleExpr| table.rules.read.disjuncts().into_iter().any(|option| conjuncts(option).into_iter().any(|need| conjuncts(d).into_iter().any(|have| implies(have, need))));
-            let Some(disjunct) = rule.disjuncts().into_iter().find(|d| role(d) && !helps(d) && !reads_what_it_writes(d, &table.rules.read)) else { continue };
-            if !seen.insert((program.name.clone(), name.clone(), effect.word())) { continue; }
-            let site = rule_site(catalog, &name, effect).cloned().unwrap_or_else(|| info.decl.site.clone());
-            let read = rule_site(catalog, &name, Effect::Read).map(|s| format!(" ({s})")).unwrap_or_default();
-            notes.push(Diagnostic::new(&write_site, "N_LOOKUP_HIDDEN",
-                format!("mutation {}: the {} rule of {name} ({site}) admits the role `{}`, which no disjunct of its read rule `{}`{read} uses; the {} looks the row up first under the read rule, so a holder of that role who reads the row no other way gets NOT_FOUND before the {} rule runs", program.name, effect.word(), disjunct.quarry(), table.rules.read.quarry(), op.word(), effect.word()),
-                format!("if the role's holders act on rows they cannot otherwise read, let them read those rows (`read <- {} or {}`, or narrower, such as `… or .status = 'open' and {}`); if they always read the row another way, the role only widens the {} rule for them and nothing changes", table.rules.read.quarry(), disjunct.quarry(), disjunct.quarry(), effect.word())).guide("rules"));
+        let mut required = Vec::new();
+        let mut body = program.prelude.clone(); body.extend(program.body.iter().cloned());
+        super::intent_walk::statements(&mut body, &mut |expr| {
+            if let Expr::Assert { value, code, .. } = expr && let Expr::Read(read) = value.as_ref() {
+                required.push((read.clone(), code.clone()));
+            }
+        });
+        for (read, refusal) in required {
+            let name = &read.table;
+            let Some(table) = schema.table(name) else { continue };
+            let Some(info) = catalog.tables.get(name) else { continue };
+            if read.range.is_some() || !point_probe(catalog, &read) || table.through.is_some() || info.maintained.is_some() || info.decl.ephemeral.is_some() || table.rules.read.is_uniformly_readable() { continue; }
+            for (op, target, keys, _, _) in writes(program) {
+                if target != *name || keys.is_empty() { continue; }
+                let effect = match op { WriteOp::Update => Effect::Update, WriteOp::Delete => Effect::Delete, _ => continue };
+                let rule = match effect { Effect::Update => &table.rules.update, _ => &table.rules.delete };
+                if matches!(rule, RuleExpr::Deny | RuleExpr::Allow | RuleExpr::Public { .. }) { continue; }
+                let helps = |d: &RuleExpr| table.rules.read.disjuncts().into_iter().any(|option| conjuncts(option).into_iter().any(|need| conjuncts(d).into_iter().any(|have| implies(have, need))));
+                let Some(disjunct) = rule.disjuncts().into_iter().find(|d| role(d) && !helps(d) && !reads_what_it_writes(d, &table.rules.read)) else { continue };
+                let site = rule_site(catalog, name, effect).cloned().unwrap_or_else(|| info.decl.site.clone());
+                notes.push(Diagnostic::new(&read.site, "N_LOOKUP_HIDDEN",
+                    format!("mutation {}: this required lookup of {name} uses its read rule `{}`; the {} rule ({site}) admits `{}`, which no read-rule disjunct uses. A holder who reads the row no other way receives {refusal} at this lookup, even though the table admits their {}; a blind mutable update is not a program read", program.name, table.rules.read.quarry(), effect.word(), disjunct.quarry(), effect.word()),
+                    format!("if the role's holders are intended to pass this required lookup, let them read the intended rows (`read <- {} or {}`, or narrower, such as `… or .status = 'open' and {}`); otherwise keep the lookup as the reader-only gate", table.rules.read.quarry(), disjunct.quarry(), disjunct.quarry())).guide("rules"));
+            }
         }
     }
 }
@@ -630,6 +643,13 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         if let Expr::Binary { op, left, right, .. } = condition && op == "and" { facts(left, out); facts(right, out); }
         else { out.insert(fact_text(condition)); }
     }
+    fn proven_facts(catalog: &Catalog, schema: &Schema, condition: &Expr, out: &mut BTreeSet<String>) {
+        facts(condition, out);
+        if let Expr::Binary { op, left, right, .. } = condition && op == "and" {
+            proven_facts(catalog, schema, left, out); proven_facts(catalog, schema, right, out);
+        } else if let Expr::Exists { read, .. } = condition
+            && let Some(fact) = point_fact(catalog, schema, read) { out.insert(fact); }
+    }
     fn read_dependencies(rule: &RuleExpr, out: &mut BTreeSet<String>) {
         match rule {
             RuleExpr::Exists { table, .. } | RuleExpr::Created { table, .. } => {
@@ -706,7 +726,8 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                     let plain = format!("exists {table}[{}]", key.join(", "));
                     let Some(extra) = equalities.iter().map(|(c, t)| term(t).map(|v| format!("{c} = {v}"))).collect::<Option<Vec<_>>>() else { return false };
                     let named = target.columns().iter().zip(&key).map(|(c, v)| format!("{c} = {v}"))
-                        .chain(extra).collect::<Vec<_>>().join(", ");
+                        .chain(extra.iter().cloned()).collect::<Vec<_>>().join(", ");
+                    let mixed = format!("exists {table}[{}]",key.iter().cloned().chain(extra).collect::<Vec<_>>().join(", "));
                     // Positional spellings with multiple compatible index widths
                     // are not evidence for this particular raw-rule key.
                     let source = schema.table(table).unwrap();
@@ -715,7 +736,8 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                             && source.columns.get(&target.columns()[0]) == Some(&snapback4_core::schema::ColumnType::Principal)
                             && source.indexes.values().filter(|candidate| candidate.unique && candidate.columns().len() == 1
                                 && source.columns.get(&candidate.columns()[0]) == Some(&snapback4_core::schema::ColumnType::Principal)).count() == 1;
-                    (equalities.is_empty() && unambiguous && known.contains(&plain)) || known.contains(&format!("exists {table}[{named}]"))
+                    (unambiguous && (known.contains(&mixed) || equalities.is_empty() && known.contains(&plain)))
+                        || known.contains(&format!("exists {table}[{named}]"))
                 },
                 _ => false,
             }
@@ -925,6 +947,46 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         });
         (writes, binds)
     }
+    // @ref LLP 3000.036.002#12 — unrelated writes cannot revoke a proven roster.
+    // Helpers, maintenance and row-derived facts keep the old barrier.
+    // Deletes include every schema-declared cascade/set-null destination.
+    fn preserve_rosters(catalog: &Catalog, schema: &Schema, statements: &[Stmt], known: &mut BTreeSet<String>) {
+        let mut written = BTreeSet::new();
+        let mut opaque = false;
+        let mut copy = statements.to_vec();
+        super::intent_walk::statements(&mut copy, &mut |expr| match expr {
+            Expr::Write { op: WriteOp::Delete, table, .. } => {
+                let mut todo=vec![table.clone()]; let mut visited=BTreeSet::new();
+                while let Some(parent)=todo.pop() {
+                    if !visited.insert(parent.clone()) {continue;}
+                    written.insert(parent.clone());
+                    for edge in schema.referencing(&parent) {
+                        if edge.action.writes() {todo.push(edge.child.into());}
+                    }
+                }
+            },
+            Expr::Write { table, .. } => { written.insert(table.clone()); },
+            _ if !definitions(catalog, expr).is_empty() => opaque = true,
+            _ => {},
+        });
+        if opaque { known.clear(); return; }
+        known.retain(|fact| {
+            let (doc, errors) = crate::parser::parse_document("fact.q", &format!("query fact():\n  return {fact}\n"));
+            if !errors.is_empty() { return false; }
+            let Some(Stmt::Return { value: Expr::Exists { read, .. }, .. }) = doc.programs.first().and_then(|p| p.body.first()) else { return false };
+            fn safe(schema: &Schema, name: &str, written: &BTreeSet<String>, seen: &mut BTreeSet<String>) -> bool {
+                if written.contains(name) { return false; }
+                if !seen.insert(name.into()) { return true; }
+                let Some(table) = schema.table(name) else { return false };
+                if table.through.is_some() || table.ephemeral.is_some() || schema.maintain_for(name).is_some() || !table.maintained.is_empty() { return false; }
+                let mut dependencies = BTreeSet::new();
+                read_dependencies(&table.rules.read, &mut dependencies);
+                dependencies.iter().all(|name| safe(schema, name, written, seen))
+            }
+            read.keys.iter().all(|key| matches!(key.value, Expr::Name { .. } | Expr::Literal { .. }))
+                && safe(schema, &read.table, &written, &mut BTreeSet::new())
+        });
+    }
     fn effectful(catalog: &Catalog, value: &Expr) -> bool {
         effects(catalog, &[Stmt::Expr { value: value.clone(), site: value.site().clone() }], &mut BTreeSet::new()).0
     }
@@ -998,8 +1060,11 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         if shadowed { return; }
         let Expr::Assert { value, .. } = value else { return };
         let Expr::Read(read) = value.as_ref() else { return };
-        if schema.maintain_for(&read.table).is_some() || !point_probe(catalog, read) { return; }
-        let Some(info) = catalog.tables.get(&read.table) else { return };
+        if let Some(fact) = point_fact(catalog, schema, read) { known.insert(fact); }
+    }
+    fn point_fact(catalog: &Catalog, schema: &Schema, read: &ReadExpr) -> Option<String> {
+        if schema.maintain_for(&read.table).is_some() || !point_probe(catalog, read) { return None; }
+        let info = catalog.tables.get(&read.table)?;
         let named = read.keys.iter().all(|key| key.column.is_some());
         let mut indexes: Vec<_> = info.indexes.iter().filter(|index| index.unique && index.is_plain() && read.index.as_ref().is_none_or(|name| name == &index.name)
             && if named { index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column))) } else { index.columns.len() == read.keys.len() }).collect();
@@ -1007,24 +1072,35 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
             indexes.retain(|index| info.columns.get(&index.columns[0]).is_some_and(|kind| kind.kind == TypeKind::Principal));
         }
         if !named && read.index.is_none() && super::owner_equality::typed_id(catalog, read) { indexes.retain(|index| index.name == "byId"); }
-        let [index] = indexes.as_slice() else { return };
+        let [index] = indexes.as_slice() else { return None };
         let keys = index.columns.iter().enumerate().filter_map(|(at, column)| {
             let key = if named { read.keys.iter().find(|key| key.column.as_ref() == Some(column)) } else { read.keys.get(at) }?;
             Some(format!("{column} = {}", fact_text(&key.value)))
         }).collect::<Vec<_>>().join(", ");
         // A successful ruled row lookup proves the indexed row exists. Extra
         // projected-field tests are not raw rule evidence and are deliberately omitted.
-        known.insert(format!("exists {}[{keys}]", read.table));
+        Some(format!("exists {}[{keys}]", read.table))
     }
-    fn point_probe(catalog: &Catalog, read: &ReadExpr) -> bool {
-        if read.matching.is_some() || !read.seeks.is_empty() { return false; }
-        let Some(info) = catalog.tables.get(&read.table) else { return false };
-        let named = read.keys.iter().all(|key| key.column.is_some());
-        info.indexes.iter().any(|index| index.unique && index.is_plain() && read.index.as_ref().is_none_or(|name| name == &index.name)
-            && if named { index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column))) }
-                else { index.columns.len() == read.keys.len() })
+    fn quiet_proven_lookup(catalog: &Catalog, schema: &Schema, expr: &Expr, known: &BTreeSet<String>, notes: &mut Vec<Diagnostic>) {
+        let Expr::Assert { value, .. } = expr else { return };
+        let Expr::Read(read) = value.as_ref() else { return };
+        fn stable_key(value: &Expr) -> bool {
+            match value {
+                Expr::Literal { .. } => true,
+                Expr::Name { name, .. } => name != "new",
+                Expr::Member { base, .. } => stable_key(base),
+                _ => false,
+            }
+        }
+        if !read.keys.iter().all(|key| stable_key(&key.value)) { return; }
+        let witness = Expr::Exists { read: read.clone(), site: read.site.clone() };
+        if readable(catalog, schema, read, known) || known.contains(&fact_text(&witness))
+            || point_fact(catalog, schema, read).is_some_and(|fact| known.contains(&fact)) {
+            notes.retain(|note| !(note.code == "N_LOOKUP_HIDDEN" && note.site == read.site));
+        }
     }
     fn expression_guard_node(catalog: &Catalog, schema: &Schema, program: &str, expr: &Expr, known: &BTreeSet<String>, global: &BTreeSet<String>, system: bool, observe_prefix: bool, visiting: &mut BTreeSet<String>, notes: &mut Vec<Diagnostic>) {
+        quiet_proven_lookup(catalog, schema, expr, known, notes);
         if !observe_prefix {
             for input in guarded_inputs(catalog, expr) {
                 input_guards(catalog, schema, program, &input, known, global, system, visiting, notes);
@@ -1119,6 +1195,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                     // Calls can return an existence value even when no probe is spelled here.
                     let mut copy = analysis_expr(condition);
                     super::intent_walk::expression(&mut copy, &mut |expr| {
+                        quiet_proven_lookup(catalog, schema, expr, &known, notes);
                         if let Expr::Shape { base, .. } = expr {
                             input_guards(catalog, schema, program, base, &known, global, system, visiting, notes);
                         }
@@ -1141,14 +1218,14 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                             visiting.remove(&key);
                         }
                     });
-                    if !writes { facts(condition, &mut known); }
+                    if !writes { proven_facts(catalog, schema, condition, &mut known); }
                 }
                 Stmt::If { condition, then_body, else_body, .. } => {
                     let writes = effectful(catalog, condition);
                     if writes { known.clear(); }
                     guard(catalog, schema, program, condition, &known, system, notes);
                     expression_guards(catalog, schema, program, condition, &known, global, system, true, visiting, notes);
-                    let mut yes = known.clone(); if !writes { facts(condition, &mut yes); }
+                    let mut yes = known.clone(); if !writes { proven_facts(catalog, schema, condition, &mut yes); }
                     let yes = body(catalog, schema, program, then_body, yes, global, guard_names, system, observe_prefix, visiting, notes);
                     let no = body(catalog, schema, program, else_body, known.clone(), global, guard_names, system, observe_prefix, visiting, notes);
                     known = yes.intersection(&no).cloned().collect();
@@ -1178,7 +1255,9 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                     let one = vec![statement.clone()];
                     let wrote = effects(catalog, &one, &mut BTreeSet::new()).0;
                     // Operand order can hide the grant before a later condition in this expression.
-                    if wrote && !matches!(statement, Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } if ordered_call(catalog, value)) { known.clear(); }
+                    if wrote && !matches!(statement, Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } if ordered_call(catalog, value)) {
+                        preserve_rosters(catalog, schema, &one, &mut known);
+                    }
                     match statement {
                         Stmt::Bind { value, names, .. } => expression_guards(catalog, schema, program, value, &known, global, system, observe_prefix || names.iter().any(|name| guard_names.contains(name)), visiting, notes),
                         Stmt::Expr { value, .. } | Stmt::Return { value, .. } => expression_guards(catalog, schema, program, value, &known, global, system, observe_prefix, visiting, notes),
@@ -1188,10 +1267,10 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                         }
                         _ => {}
                     }
-                    if wrote { known.clear(); }
-                    else if let Stmt::Bind { names, .. } = statement {
+                    if wrote { preserve_rosters(catalog, schema, &one, &mut known); }
+                    if let Stmt::Bind { names, .. } = statement {
                         invalidate(names, &mut known);
-                        if let Stmt::Bind { value, .. } = statement { lookup_fact(catalog, schema, names, value, &mut known); }
+                        if !wrote && let Stmt::Bind { value, .. } = statement { lookup_fact(catalog, schema, names, value, &mut known); }
                     }
                     if matches!(statement, Stmt::Return { .. }) { break; }
                 }
@@ -1223,4 +1302,8 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         let guarded = guard_bindings(catalog, &statements);
         body(catalog, schema, &program.name, &statements, BTreeSet::new(), &global, &guarded, system, program.kind != ProgramKind::Query, &mut visiting, notes);
     }
+    // Group only surviving read gates: a guarded first lookup must not hide
+    // a later unguarded lookup of the same table.
+    let mut shown = BTreeSet::new();
+    notes.retain(|note| note.code != "N_LOOKUP_HIDDEN" || shown.insert(note.message.clone()));
 }

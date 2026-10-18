@@ -6,6 +6,9 @@ const TOLERANCE_MS: i64 = 5_000;
 const RECENT_COMMITS: usize = 64;
 const TABLE_BYTES: usize = 4096;
 const TABLE_NAMES: usize = 8;
+const REPORT_ERROR_BYTES: usize = 1024;
+// Reserve one MiB for the outer clock/work envelope inside the host encoder.
+const REPORT_BYTE_BUDGET: usize = crate::serve::JSON_RESPONSE_CEILING - (1 << 20);
 
 // @ref LLP 3000.007#20.12 — inspect a fixed recent commit window, never application row values.
 pub fn ahead(engine: &Engine, now: i64) -> Result<Option<String>, RuntimeError> {
@@ -71,8 +74,40 @@ pub fn span(ms: i64) -> String {
 /// Each schedule's saved boundary, in declaration order.
 pub fn saved_boundaries(engine: &Engine) -> Vec<Option<i64>> {
     engine.schema().schedules.iter()
-        .map(|schedule| engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten().and_then(|value| value.parse().ok()))
+        .map(|schedule| {
+            let shape = engine.store().meta(&format!("schedule-shape:{}", schedule.name)).ok().flatten();
+            if shape.as_ref().is_some_and(|shape| *shape != snapback4_core::value::digest(schedule)) { return None; }
+            engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten().and_then(|value| value.parse().ok())
+        })
         .collect()
+}
+
+/// Preflight is bounded before the clock or worker leases change.
+// @ref LLP 3000.007#20.12.1 — explicit crossed windows share a bounded enumeration in both modes.
+pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64, held: bool) -> Result<Vec<(usize, i64)>, snapback4_core::Refusal> {
+    let mut boundaries = Vec::new();
+    let mut report_bytes = 0usize;
+    for (index, schedule) in engine.schema().schedules.iter().enumerate() {
+        // JSON may escape every error byte; count that bound per schedule.
+        report_bytes = report_bytes.saturating_add(2048 + 6 * (REPORT_ERROR_BYTES + 3) + 8 * (schedule.name.len() + schedule.target.len()));
+        if report_bytes > REPORT_BYTE_BUDGET { return Err(crate::dev_clock::input("schedule report exceeds its byte budget; reduce the declared schedules")); }
+        if held { continue; }
+        let Some(old) = before.get(index).copied().flatten() else { continue; };
+        let end = schedule.boundary(now);
+        if old >= end { continue; }
+        if schedule.periods_between(old, end) > (10_000 - boundaries.len()) as i64 {
+            return Err(crate::dev_clock::input("advance crosses more than 10000 schedule windows; use a smaller duration"));
+        }
+        report_bytes = report_bytes.saturating_add((schedule.periods_between(old, end) as usize).saturating_mul(1024 + 8 * schedule.target.len()));
+        if report_bytes > REPORT_BYTE_BUDGET { return Err(crate::dev_clock::input("schedule window report exceeds its byte budget; use a smaller duration")); }
+        let mut boundary = schedule.next(old);
+        while boundary <= end {
+            boundaries.push((index, boundary));
+            boundary = schedule.next(boundary);
+        }
+    }
+    boundaries.sort_by_key(|(index, at)| (*at, *index));
+    Ok(boundaries)
 }
 
 fn period(schedule: &snapback4_core::schema::Schedule) -> String {
@@ -83,28 +118,50 @@ fn period(schedule: &snapback4_core::schema::Schedule) -> String {
 /// The core fires each schedule at most once per advance, for the latest
 /// boundary, and holds it while its saved boundary is ahead of the clock.
 // @ref LLP 3000#7-decisions-during-execution — missed boundaries fire once; this only explains them.
-pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String], now: i64, held: bool) -> Vec<serde_json::Value> {
+pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String], now: i64, held: bool, each_boundary: bool) -> Vec<serde_json::Value> {
     let after = saved_boundaries(engine);
-    let runs = engine.jobs(64).unwrap_or_default();
+    // Read only bounded summaries: job args/cursors and full error payloads
+    // are irrelevant to this report and must not be loaded then replicated.
+    let runs = job_summaries(engine).unwrap_or_default();
     engine.schema().schedules.iter().enumerate().map(|(index, schedule)| {
         let (old, saved) = (before.get(index).copied().flatten(), after.get(index).copied().flatten());
         let current = schedule.boundary(now);
         let next = schedule.next(current);
-        let mut entry = serde_json::json!({ "name": schedule.name, "target": schedule.target, "period": period(schedule), "fired": false, "nextBoundary": utc(next) });
+        let mut entry = serde_json::json!({ "name": schedule.name, "target": schedule.target, "period": period(schedule), "fired": false, "firedWindows": [], "skippedBoundaries": [], "nextBoundary": utc(next) });
         if fired.contains(&schedule.name) {
             let end = saved.unwrap_or(current);
             entry["fired"] = true.into();
             let start = schedule.previous(end);
+            let window = |boundary| serde_json::json!({"periodStart": schedule.previous(boundary), "periodEnd": boundary});
+            let mut windows = Vec::new();
+            if each_boundary {
+                if let Some(old) = old {
+                    let mut at = schedule.next(old);
+                    while at <= end { windows.push(window(at)); at = schedule.next(at); }
+                }
+            } else { windows.push(window(end)); }
+            entry["firedWindows"] = windows.into();
             entry["periodStart"] = start.into();
             entry["periodEnd"] = end.into();
             entry["reason"] = format!("fired for the period {} to {}", utc(start), utc(end)).into();
-            if let Some(run) = runs.iter().find(|run| run.name == schedule.target) {
-                entry["run"] = serde_json::json!({ "state": run.state, "rowsWritten": run.rows_written, "error": run.error });
-            }
+            if let Some(run) = runs.get(&schedule.target) { entry["run"] = run.clone(); }
             // @ref LLP 3000.040#24-monthly-and-yearly-schedules — calendar periods count boundaries, not milliseconds.
-            let skipped = old.map(|old| schedule.periods_between(old, end) - 1).unwrap_or(0);
+            let skipped = if each_boundary { 0 } else { old.map(|old| schedule.periods_between(old, end) - 1).unwrap_or(0) };
             if skipped > 0 {
                 entry["skippedPeriods"] = skipped.into();
+                let mut windows = Vec::new();
+                let mut at = schedule.next(old.unwrap());
+                while at < end {
+                    let mut item = window(at);
+                    let mut args = serde_json::Map::new();
+                    if let Some(program) = engine.program(&schedule.target) {
+                        if program.args.contains_key("periodStart") { args.insert("periodStart".into(), schedule.previous(at).into()); }
+                        if program.args.contains_key("periodEnd") { args.insert("periodEnd".into(), at.into()); }
+                    }
+                    item["command"] = format!("snapback4 run {} '{}'", schedule.target, serde_json::Value::Object(args)).into();
+                    windows.push(item); at = schedule.next(at);
+                }
+                entry["skippedBoundaries"] = windows.into();
                 entry["reason"] = format!("fired once, for the latest period {} to {}; {skipped} earlier period{} this advance crossed (from {}) did not run: missed boundaries fire once. Run {} with periodStart/periodEnd for an earlier period",
                     utc(start), utc(end), if skipped == 1 { "" } else { "s" }, utc(old.unwrap_or(end)), schedule.target).into();
             }
@@ -124,6 +181,28 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
         }
         entry
     }).collect()
+}
+
+/// The report never loads full error/argument payloads from retained jobs.
+fn job_summaries(engine: &Engine) -> Result<std::collections::BTreeMap<String, serde_json::Value>, RuntimeError> {
+    let mut statement = engine.store().conn().prepare(
+        "SELECT name, state, rows_written, substr(error, 1, ?1), octet_length(error) > ?1, id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 64")?;
+    let mut rows = statement.query([REPORT_ERROR_BYTES as i64])?;
+    let mut summaries = std::collections::BTreeMap::new();
+    while let Some(row) = rows.next()? {
+        let name: String = row.get(0)?;
+        if summaries.contains_key(&name) { continue; }
+        let mut error: Option<String> = row.get(3)?;
+        let truncated = row.get::<_, Option<bool>>(4)?.unwrap_or(false);
+        if let Some(text) = &mut error && truncated {
+            let mut end = REPORT_ERROR_BYTES.min(text.len());
+            while !text.is_char_boundary(end) { end -= 1; }
+            text.truncate(end); text.push('…');
+        }
+        summaries.insert(name, serde_json::json!({ "id":row.get::<_, String>(5)?, "state":row.get::<_, String>(1)?,
+            "rowsWritten":row.get::<_, i64>(2)?, "error":error, "errorTruncated":truncated }));
+    }
+    Ok(summaries)
 }
 
 /// Startup lines for schedules the store holds: their saved boundary leads the clock.
@@ -170,6 +249,40 @@ mod tests {
             ("id", snapback4_core::Value::Id(snapback4_core::ids::mint(row_at, &mut snapback4_core::ids::Mint::default()).unwrap())),
             ("at", snapback4_core::Value::Int(row_at)),
         ]))], commit_at).unwrap();
+    }
+    #[test]
+    fn clock_report_bounds_one_large_job_error_repeated_across_many_schedules() {
+        let mut source = "table rows:\n  n: int\n  public 'fixture'\njob tick():\n  for row in rows:\n    update rows[row.id] {n:1}\n".to_owned();
+        for n in 0..500 { source.push_str(&format!("schedule s{n} every 1m: tick\n")); }
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = Engine::new_at(snapback4_core::Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p|p.program), 0).unwrap();
+        engine.fire_schedules(0).unwrap();
+        let before = saved_boundaries(&engine);
+        assert_eq!(crossed_boundaries(&engine, &before, 60_000, false).unwrap().len(), 500);
+        let fired = engine.fire_schedules(60_000).unwrap();
+        let message = "🧪\n\\".repeat(30_000);
+        engine.store().conn().execute("UPDATE _jobs SET error = ?1 WHERE id = (SELECT id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 1)", [&message]).unwrap();
+        let report = schedule_report(&engine, &before, &fired, 60_000, false, false);
+        assert_eq!(report.len(), 500);
+        assert!(report.iter().all(|s| s["run"]["errorTruncated"] == true));
+        assert!(report.iter().all(|s| s["run"]["error"].as_str().unwrap().len() <= REPORT_ERROR_BYTES + 3));
+        assert!(serde_json::to_vec(&report).unwrap().len() < 2 << 20);
+    }
+    #[test]
+    fn clock_report_refuses_before_the_host_encoder_limit() {
+        let mut source = "table rows:\n  n: int\n  public 'fixture'\njob tick():\n  for row in rows:\n    update rows[row.id] {n:1}\n".to_owned();
+        for n in 0..3000 { source.push_str(&format!("schedule s{n} every 1m: tick\n")); }
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = Engine::new_at(snapback4_core::Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p|p.program), 0).unwrap();
+        engine.fire_schedules(0).unwrap();
+        let before = saved_boundaries(&engine);
+        let refusal = crossed_boundaries(&engine, &before, 60_000, false).unwrap_err();
+        assert_eq!(refusal.code, "E_CLOCK_INPUT");
+        assert!(refusal.message.contains("byte budget"));
+        assert_eq!(before, saved_boundaries(&engine));
+        assert!(REPORT_BYTE_BUDGET < crate::serve::JSON_RESPONSE_CEILING);
     }
     #[test]
     fn utc_text_and_spans_match_the_calendar() {

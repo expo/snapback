@@ -80,6 +80,8 @@ test('upgrade captures the old installed compiler, checks the new one and points
   const result = invoke(['upgrade'], dir, { PATH: `${join(dir, 'tools')}:${process.env.PATH}` }); success(result);
   assert.match(result.stdout + result.stderr, /Ops\.roomCount\.result: number → number \| null/);
   assert.match(result.stdout, /Exact device rebuild: bun exact\.mjs snapback --rebuild/);
+  assert.match(result.stdout, /project .*snapback4@/);
+  assert.ok(result.stdout.indexOf('project ') < result.stdout.indexOf('upgrade delta:'), result.stdout);
   assert.equal(JSON.parse(readFileSync(join(dir, '.snapback4/check-surface.json'))).version, releaseVersion);
 });
 
@@ -177,7 +179,7 @@ test('registry latest cannot silently downgrade; only --to authorizes it', t => 
   const { dir, env } = upgradeFixture(t, releaseVersion, '0.4.26');
   const before = readFileSync(join(dir, '.snapback4/check-surface.json'), 'utf8');
   for (const args of [['upgrade'], ['upgrade', '0.4.26']]) {
-    const refused = invoke(args, dir, env); assert.equal(refused.status, 1); assert.match(refused.stderr, /the registry’s (?:latest|0\.4\.26) is 0\.4\.26, which is older than the installed.*refusing a downgrade.*--to 0.4.26/);
+    const refused = invoke(args, dir, env); assert.equal(refused.status, 1); assert.match(refused.stderr, /requested 0\.4\.26 is older than installed.*refusing a downgrade.*--to 0.4.26/);
     assert.equal(readFileSync(join(dir, '.snapback4/check-surface.json'), 'utf8'), before);
     assert.equal(readFileSync(join(dir, 'package.json'), 'utf8').includes(releaseVersion), true);
   }

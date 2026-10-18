@@ -1,0 +1,8 @@
+{
+  "reason": "Worker test expected the unprefixed wire message inside a formatted worker error, which must include E_EFFECT_LEASE once. Corrected only that expectation in dc6f2b9de9.",
+  "linuxNative": "Repeat cancelled so a complete command can run after the final fix; no native failure in the cancelled repeat.",
+  "linuxClient": "Stopped after the four worker expectation failures; complete pool restarts.",
+  "macNative": "Continues: Rust inputs unchanged by the JS assertion correction.",
+  "macClient": "Previous client phase stopped with owned-group cleanup; all 96 files restart after fast-forward to dc6f2b9de9.",
+  "focused": "Four wire lease cases pass; structured message and exactly-one-code checks retained."
+}

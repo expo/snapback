@@ -15,7 +15,7 @@ export default function Profile() {
   return <ScrollView contentContainerStyle={{ padding: 16 }}>
     <Text selectable>{viewer}</Text><Text>Share this account ID to follow or invite.</Text>
     <Text>{matchRead(profile, { loading: () => "Loading…", denied: why => why.message, partial: () => "Partial results", otherwise: () => "" })}</Text>
-    {isReady(profile) && profile.existence === "present" && <><Text>{profile.data.name}</Text><Avatar id={profile.data.avatar?.id ?? null} /></>}
+    {isReady(profile) && profile.existence === "present" && <><Text testID="profile-results">{profile.data.name}</Text><Avatar id={profile.data.avatar?.id ?? null} /></>}
     <TextInput accessibilityLabel="Display name" value={name} onChangeText={setName} maxLength={80} />
     <Button title="Save profile" disabled={!name.trim() || save.inFlight} onPress={() => void save.run({ name })} />
     {isReady(profile) && profile.existence === "present" && <PhotoPicker title="Choose avatar" onUploaded={id => { void avatar.run({ avatar: { id } }); }} />}

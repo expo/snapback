@@ -1,0 +1,913 @@
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-lang v0.4.30 (/Users/ccheever/projects/snapback-pub-0428/snapback4/crates/snapback4-lang)
+   Compiling snapback4-core v0.4.30 (/Users/ccheever/projects/snapback-pub-0428/snapback4/crates/snapback4-core)
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling snapback4-native v0.4.30 (/Users/ccheever/projects/snapback-pub-0428/snapback4/crates/snapback4-native)
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-device v0.4.30 (/Users/ccheever/projects/snapback-pub-0428/snapback4/crates/snapback4-device)
+   Compiling snapback4-sim v0.4.30 (/Users/ccheever/projects/snapback-pub-0428/snapback4/crates/snapback4-sim)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `programs` is never read
+ --> crates/snapback4-core/tests/schema_capabilities_legacy.rs:9:34
+  |
+9 | struct Backend { schema: Schema, programs: Vec<Program> }
+  |        -------                   ^^^^^^^^
+  |        |
+  |        field in this struct
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `schema` is never read
+ --> crates/snapback4-core/tests/common/acquisition.rs:7:9
+  |
+6 | pub struct Fixture {
+  |            ------- field in this struct
+7 |     pub schema: Schema,
+  |         ^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `without_grouped_shape_note` is never used
+ --> crates/snapback4-core/tests/../../snapback4-lang/tests/guide/context.rs:6:8
+  |
+6 | pub fn without_grouped_shape_note<'a>(bound: &'a snapback4_lang::Bound, query: &str) -> Vec<&'a snapback4_lang::Diagnostic> {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (test "schema_capabilities_legacy") generated 1 warning
+warning: `snapback4-core` (test "rows") generated 1 warning
+warning: `snapback4-core` (test "lane_source") generated 1 warning
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4-difftest v0.4.30 (/Users/ccheever/projects/snapback-pub-0428/snapback4/crates/snapback4-difftest)
+   Compiling snapback4 v0.4.30 (/Users/ccheever/projects/snapback-pub-0428/snapback4/crates/snapback4)
+warning: unused import: `display::summary`
+  --> crates/snapback4/tests/../src/scale.rs:21:16
+   |
+21 | pub(crate) use display::summary;
+   |                ^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `display::expr as expression`
+  --> crates/snapback4/tests/../src/scale.rs:22:16
+   |
+22 | pub(crate) use display::expr as expression;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `display::expr as expression`
+  --> crates/snapback4/tests/../src/scale.rs:22:16
+   |
+22 | pub(crate) use display::expr as expression;
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `summary` is never used
+  --> crates/snapback4/tests/../src/scale/display.rs:74:15
+   |
+74 | pub(crate) fn summary(certificates: &[Certificate]) -> String {
+   |               ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `History` is never constructed
+  --> crates/snapback4/tests/../src/scale/following.rs:11:19
+   |
+11 | pub(crate) struct History {
+   |                   ^^^^^^^
+
+warning: constant `GUARANTEE` is never used
+  --> crates/snapback4/tests/../src/scale/following.rs:20:7
+   |
+20 | const GUARANTEE: &str = "each page is a correct prefix of the frozen viewer/edge/birth domain; bounded requests continue to completi...
+   |       ^^^^^^^^^
+
+warning: constant `COST` is never used
+  --> crates/snapback4/tests/../src/scale/following.rs:21:7
+   |
+21 | const COST: &str = "discovery O(D+F); retained pages O(F/64 + (N+X) log F), plus index seeks and authorized card shaping; no unrelat...
+   |       ^^^^
+
+warning: function `certificate` is never used
+  --> crates/snapback4/tests/../src/scale/following.rs:22:15
+   |
+22 | pub(crate) fn certificate(schema: &Schema, program: &Program) -> Option<History> {
+   |               ^^^^^^^^^^^
+
+warning: function `line` is never used
+  --> crates/snapback4/tests/../src/scale/following.rs:34:15
+   |
+34 | pub(crate) fn line(schema: &Schema, program: &Program) -> Option<String> {
+   |               ^^^^
+
+warning: field `summary` is never read
+  --> crates/snapback4/tests/../src/scale/search.rs:12:9
+   |
+ 5 | pub(crate) struct Search {
+   |                   ------ field in this struct
+...
+12 |     pub summary: &'static str,
+   |         ^^^^^^^
+   |
+   = note: `Search` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+
+warning: struct `History` is never constructed
+  --> crates/snapback4/tests/../src/scale/following.rs:11:19
+   |
+11 | pub(crate) struct History {
+   |                   ^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `Expr` and `Stmt`
+   --> crates/snapback4-device/tests/search_merge/mod.rs:184:30
+    |
+184 |     use snapback4_core::ir::{Expr, Stmt};
+    |                              ^^^^  ^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `without_grouped_shape_note` is never used
+ --> crates/snapback4-lang/tests/guide/context.rs:6:8
+  |
+6 | pub fn without_grouped_shape_note<'a>(bound: &'a snapback4_lang::Bound, query: &str) -> Vec<&'a snapback4_lang::Diagnostic> {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4` (test "scale") generated 7 warnings (5 duplicates) (run `cargo fix --test "scale" -p snapback4` to apply 1 suggestion)
+warning: `snapback4` (test "intent_issue_tracker") generated 9 warnings (run `cargo fix --test "intent_issue_tracker" -p snapback4` to apply 2 suggestions)
+warning: `snapback4-lang` (test "aggregate_copies") generated 1 warning
+warning: `snapback4-device` (lib test) generated 1 warning (1 duplicate)
+warning: function `now` is never used
+ --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:7:8
+  |
+7 | pub fn now() -> u128 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() }
+  |        ^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `SCENE_REPAIR` is never used
+  --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:13:11
+   |
+13 | pub const SCENE_REPAIR: &str = "the owned app exited before priming because the iOS SDK requires UIScene lifecycle adoption (NoScene...
+   |           ^^^^^^^^^^^^
+
+warning: function `app_pid` is never used
+   --> crates/snapback4/tests/../src/verbs/witness/protocol.rs:169:8
+    |
+169 | pub fn app_pid(list: &str, bundle: &str) -> Result<Option<u32>> {
+    |        ^^^^^^^
+
+warning: use of deprecated type alias `libc::mach_timebase_info_data_t`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:30
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `libc::mach_timebase_info`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:20:15
+   |
+20 |         libc::mach_timebase_info(&mut info);
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:58
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                          ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:68
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                                    ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:50
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                  ^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:71
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                                       ^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:131:30
+    |
+131 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: `snapback4` (test "witness") generated 3 warnings
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:857:4
+    |
+857 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: function `run` is never used
+  --> crates/snapback4/src/verbs/test_cases.rs:71:8
+   |
+71 | pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64) -> Result<(usize, usize), Stri...
+   |        ^^^
+
+warning: function `analyze_bound` is never used
+  --> crates/snapback4/tests/../src/scale.rs:90:15
+   |
+90 | pub(crate) fn analyze_bound(schema: &Schema, bound: &snapback4_lang::BoundProgram) -> Certificate {
+   |               ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `summary` is never used
+  --> crates/snapback4/tests/../src/scale/display.rs:74:15
+   |
+74 | pub(crate) fn summary(certificates: &[Certificate]) -> String {
+   |               ^^^^^^^
+
+warning: unused variable: `handle_index`
+   --> crates/snapback4-lang/tests/guide.rs:613:9
+    |
+613 |     let handle_index = bound.schema.tables["profiles"].indexes.iter().find(|(_, index)| index.unique && index.columns() == ["handle...
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_index`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-lang/tests/bounded_calendar_caps.rs:184:9
+    |
+184 |     let mut fire = |e: &mut Engine, now: i64| {
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (test "bounded_calendar_caps") generated 1 warning (run `cargo fix --test "bounded_calendar_caps" -p snapback4-lang` to apply 1 suggestion)
+warning: `snapback4` (test "scale_intent") generated 10 warnings (10 duplicates)
+warning: `snapback4` (test "expiry_writes") generated 10 warnings (8 duplicates)
+warning: `snapback4-lang` (test "guide") generated 1 warning (run `cargo fix --test "guide" -p snapback4-lang` to apply 1 suggestion)
+warning: method `line` is never used
+ --> crates/snapback4/tests/../src/scale/display.rs:4:19
+  |
+3 | impl Certificate {
+  | ---------------- method in this implementation
+4 |     pub(crate) fn line(&self) -> String {
+  |                   ^^^^
+
+warning: `snapback4` (test "scale_extremum_expressions") generated 11 warnings (10 duplicates)
+warning: `snapback4` (test "scale_windows_expiry") generated 10 warnings (10 duplicates)
+warning: function `boundary` is never used
+  --> crates/snapback4-device/tests/../../snapback4-core/tests/paired_worlds/sequences.rs:77:8
+   |
+77 | pub fn boundary(entries: u64) -> Pair {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `compound_write_case` is never used
+   --> crates/snapback4-device/tests/../../snapback4-core/tests/paired_worlds/sequence_generated.rs:171:8
+    |
+171 | pub fn compound_write_case(shape: &str, effect: &str, sequence: bool, readable: bool, reads: usize, ceiling: Option<u64>) -> Case {
+    |        ^^^^^^^^^^^^^^^^^^^
+
+warning: function `compound_write_cases` is never used
+   --> crates/snapback4-device/tests/../../snapback4-core/tests/paired_worlds/sequence_generated.rs:237:8
+    |
+237 | pub fn compound_write_cases() -> Vec<Case> {
+    |        ^^^^^^^^^^^^^^^^^^^^
+
+warning: `snapback4` (bin "snapback4") generated 11 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 2 suggestions)
+warning: `snapback4-device` (test "device") generated 1 warning (run `cargo fix --test "device" -p snapback4-device` to apply 1 suggestion)
+warning: `snapback4` (test "scale_variants") generated 10 warnings (10 duplicates)
+warning: function `without_grouped_shape_note` is never used
+ --> crates/snapback4-device/tests/readauth/../../../snapback4-lang/tests/guide/context.rs:6:8
+  |
+6 | pub fn without_grouped_shape_note<'a>(bound: &'a snapback4_lang::Bound, query: &str) -> Vec<&'a snapback4_lang::Diagnostic> {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "sequence_disclosure") generated 3 warnings
+warning: variable does not need to be mutable
+   --> crates/snapback4-sim/tests/maintain_measurement.rs:100:21
+    |
+100 |                 let mut meter_sum = BTreeMap::<String, u64>::new();
+    |                     ----^^^^^^^^^
+    |                     |
+    |                     help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `meter_sum`
+   --> crates/snapback4-sim/tests/maintain_measurement.rs:100:21
+    |
+100 |                 let mut meter_sum = BTreeMap::<String, u64>::new();
+    |                     ^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_meter_sum`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-sim` (test "maintain_measurement") generated 2 warnings (run `cargo fix --test "maintain_measurement" -p snapback4-sim` to apply 2 suggestions)
+warning: `snapback4` (test "scale_row_ranges") generated 10 warnings (10 duplicates)
+warning: `snapback4-device` (test "readauth") generated 1 warning
+warning: function `roster_schema` is never used
+  --> crates/snapback4-device/tests/w13g_review/../../../snapback4-core/tests/common/acquisition.rs:49:8
+   |
+49 | pub fn roster_schema() -> Schema {
+   |        ^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+  --> crates/snapback4-device/tests/native_reads.rs:96:9
+   |
+96 |     let mut post = |engine: &mut Engine, viewer: &str, summary: &str, provider: Value| mutate(engine, "writePost", viewer, &[("promp...
+   |         ----^^^^
+   |         |
+   |         help: remove this `mut`
+   |
+   = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "w13g_probe") generated 1 warning
+warning: constant `INDEX` is never used
+ --> crates/snapback4-lang/tests/repairs.rs:3:7
+  |
+3 | const INDEX: &str = include_str!("fixtures/repair-index.q");
+  |       ^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PROBE` is never used
+ --> crates/snapback4-lang/tests/repairs.rs:4:7
+  |
+4 | const PROBE: &str = include_str!("fixtures/repair-probe.q");
+  |       ^^^^^
+
+warning: `snapback4-device` (test "native_reads") generated 1 warning (run `cargo fix --test "native_reads" -p snapback4-device` to apply 1 suggestion)
+warning: `snapback4-lang` (test "repairs") generated 2 warnings
+warning: unnecessary parentheses around closure body
+  --> crates/snapback4-lang/tests/wave6_rule_language.rs:19:29
+   |
+19 |     b.notes.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
+   |                             ^                                                                                  ^
+   |
+   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+   |
+19 -     b.notes.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
+19 +     b.notes.iter().find(|n| n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")
+   |
+
+warning: unnecessary parentheses around closure body
+  --> crates/snapback4-lang/tests/wave6_rule_language.rs:23:31
+   |
+23 |     b.notes.iter().filter(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")).collect()
+   |                               ^                                                                                  ^
+   |
+help: remove these parentheses
+   |
+23 -     b.notes.iter().filter(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")).collect()
+23 +     b.notes.iter().filter(|n| n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE").collect()
+   |
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:179:5
+    |
+179 | /     d.store().conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+180 | |         AuthAction::Insert {table_name:"_meta"} => Authorization::Deny,
+181 | |         _=>Authorization::Allow,
+182 | |     }));
+    | |_______^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+    = note: `#[warn(unused_must_use)]` (part of `#[warn(unused)]`) on by default
+help: use `let _ = ...` to ignore the resulting value
+    |
+179 |     let _ = d.store().conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+    |     +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:184:5
+    |
+184 |     d.store().conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+184 |     let _ = d.store().conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:198:5
+    |
+198 | /     e.store().conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+199 | |         AuthAction::Insert {table_name:"_generations"} => Authorization::Deny,
+200 | |         _=>Authorization::Allow,
+201 | |     }));
+    | |_______^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+198 |     let _ = e.store().conn().authorizer(Some(|ctx:AuthContext<'_>| match ctx.action {
+    |     +++++++
+
+warning: unused `Result` that must be used
+   --> crates/snapback4-device/tests/own_keys.rs:203:5
+    |
+203 |     e.store().conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: this `Result` may be an `Err` variant, which should be handled
+help: use `let _ = ...` to ignore the resulting value
+    |
+203 |     let _ = e.store().conn().authorizer(None::<fn(AuthContext<'_>)->Authorization>);
+    |     +++++++
+
+warning: `snapback4-lang` (test "wave6_rule_language") generated 2 warnings (run `cargo fix --test "wave6_rule_language" -p snapback4-lang` to apply 2 suggestions)
+warning: unnecessary parentheses around closure body
+  --> crates/snapback4-lang/tests/wave7_rule_language.rs:23:29
+   |
+23 |     b.notes.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
+   |                             ^                                                                                  ^
+   |
+   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+   |
+23 -     b.notes.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
+23 +     b.notes.iter().find(|n| n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")
+   |
+
+warning: unnecessary parentheses around closure body
+  --> crates/snapback4-lang/tests/wave7_rule_language.rs:27:35
+   |
+27 |     b.diagnostics.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
+   |                                   ^                                                                                  ^
+   |
+help: remove these parentheses
+   |
+27 -     b.diagnostics.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
+27 +     b.diagnostics.iter().find(|n| n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")
+   |
+
+warning: `snapback4-lang` (test "revocation_soundness") generated 1 warning (1 duplicate)
+warning: `snapback4-lang` (test "wave7_rule_language") generated 2 warnings (run `cargo fix --test "wave7_rule_language" -p snapback4-lang` to apply 2 suggestions)
+warning: `snapback4` (bin "snapback4" test) generated 10 warnings (10 duplicates)
+warning: `snapback4-device` (test "own_keys") generated 4 warnings
+    Finished `test` profile [optimized + debuginfo] target(s) in 13m 31s
+  Executable unittests src/main.rs (target/debug/deps/snapback4-f2803b29223389e2)
+  Executable tests/aggregate_identity_upgrade.rs (target/debug/deps/aggregate_identity_upgrade-6aca5e4ee765302c)
+  Executable tests/check.rs (target/debug/deps/check-81041ffec518d800)
+  Executable tests/check_cost_source.rs (target/debug/deps/check_cost_source-9411fa08acbb4999)
+  Executable tests/check_notes.rs (target/debug/deps/check_notes-a17b72b98da35728)
+  Executable tests/cli_friction.rs (target/debug/deps/cli_friction-c5d5f61ec8993633)
+  Executable tests/clock.rs (target/debug/deps/clock-7a71e96a528eb6f1)
+  Executable tests/column_commit.rs (target/debug/deps/column_commit-3f9175aaf5effafc)
+  Executable tests/day3.rs (target/debug/deps/day3-0ba55559b4e57b4c)
+  Executable tests/delivery_page.rs (target/debug/deps/delivery_page-425f9481a09734d6)
+  Executable tests/dev_refusals.rs (target/debug/deps/dev_refusals-5717041dfd88a3bf)
+  Executable tests/dev_reset.rs (target/debug/deps/dev_reset-ff0a640f7cea4201)
+  Executable tests/expiry_writes.rs (target/debug/deps/expiry_writes-149a756d612c15fa)
+  Executable tests/familiar.rs (target/debug/deps/familiar-e22abe782e8b3841)
+  Executable tests/feed_bridge.rs (target/debug/deps/feed_bridge-6f4f85cb94b3f553)
+  Executable tests/fix.rs (target/debug/deps/fix-8d9be4333260425e)
+  Executable tests/following_view.rs (target/debug/deps/following_view-929aaa7e9334fd2b)
+  Executable tests/http.rs (target/debug/deps/http-19ed01bda73b5991)
+  Executable tests/http_emfile.rs (target/debug/deps/http_emfile-5c7544de94fda90f)
+  Executable tests/init.rs (target/debug/deps/init-799adc80be9c95d0)
+  Executable tests/init_dx3.rs (target/debug/deps/init_dx3-10ec4c1e26e45763)
+  Executable tests/intent_issue_tracker.rs (target/debug/deps/intent_issue_tracker-45ccab07ee9af00b)
+  Executable tests/latency.rs (target/debug/deps/latency-292943fd94025736)
+  Executable tests/lifecycle.rs (target/debug/deps/lifecycle-be76846c674d6a90)
+  Executable tests/maintenance_chunks.rs (target/debug/deps/maintenance_chunks-df1cf8ea0e57c694)
+  Executable tests/maintenance_latency.rs (target/debug/deps/maintenance_latency-6390ecc0fa593d4e)
+  Executable tests/overload.rs (target/debug/deps/overload-ee443ef9de57e42e)
+  Executable tests/read_latency.rs (target/debug/deps/read_latency-38e9274ed22ec97b)
+  Executable tests/replay.rs (target/debug/deps/replay-318c482ae189c1c0)
+  Executable tests/run_admission.rs (target/debug/deps/run_admission-e77cbe55383e4617)
+  Executable tests/scale.rs (target/debug/deps/scale-0e3b49074b185e29)
+  Executable tests/scale_curves.rs (target/debug/deps/scale_curves-7d1ca9943fafdf89)
+  Executable tests/scale_extremum_expressions.rs (target/debug/deps/scale_extremum_expressions-2bfd01e74d11232d)
+  Executable tests/scale_intent.rs (target/debug/deps/scale_intent-334779a2a3ab2ff7)
+  Executable tests/scale_row_ranges.rs (target/debug/deps/scale_row_ranges-fb75ed47b1f8d770)
+  Executable tests/scale_variants.rs (target/debug/deps/scale_variants-b87848f6bf038ede)
+  Executable tests/scale_windows_expiry.rs (target/debug/deps/scale_windows_expiry-c3b71964d82b8448)
+  Executable tests/timeline.rs (target/debug/deps/timeline-f9e675f1d3cb8730)
+  Executable tests/timeline_adoption.rs (target/debug/deps/timeline_adoption-13f51a05b91464e4)
+  Executable tests/timeline_delivery.rs (target/debug/deps/timeline_delivery-91e4eca903674c62)
+  Executable tests/timeline_delivery_counterexample.rs (target/debug/deps/timeline_delivery_counterexample-360e0474956f39b4)
+  Executable tests/timeline_design.rs (target/debug/deps/timeline_design-27210f37de188dbe)
+  Executable tests/token_live.rs (target/debug/deps/token_live-5f4bffa27da2e76d)
+  Executable tests/wave13_rules.rs (target/debug/deps/wave13_rules-fc035e54c74e6c66)
+  Executable tests/witness.rs (target/debug/deps/witness-8090f54b99a5e1c4)
+  Executable tests/witness_web.rs (target/debug/deps/witness_web-3e9e36a22db9c401)
+  Executable tests/work_records.rs (target/debug/deps/work_records-2903f7944a4fefef)
+  Executable tests/written_by.rs (target/debug/deps/written_by-e281d3d48a8708f7)
+  Executable unittests src/lib.rs (target/debug/deps/snapback4_core-edcbd8b79556af48)
+  Executable tests/action_context.rs (target/debug/deps/action_context-c5c535acbd1089b1)
+  Executable tests/adoption_scale.rs (target/debug/deps/adoption_scale-0ec8d9575f317904)
+  Executable tests/asset_lists.rs (target/debug/deps/asset_lists-3db92d81dd18b764)
+  Executable tests/born_perf.rs (target/debug/deps/born_perf-6b332035f43d7cd3)
+  Executable tests/bound_session.rs (target/debug/deps/bound_session-006077c45ce7a789)
+  Executable tests/corpus.rs (target/debug/deps/corpus-ff7996ef330020c7)
+  Executable tests/delivery_bounds.rs (target/debug/deps/delivery_bounds-9809eb6b6651627f)
+  Executable tests/dev_reset.rs (target/debug/deps/dev_reset-0f6296142ae133bf)
+  Executable tests/disclosure.rs (target/debug/deps/disclosure-a85f3018cf7b5eb9)
+  Executable tests/effect_policy.rs (target/debug/deps/effect_policy-c95a2c896bc7aa9a)
+  Executable tests/ephemeral.rs (target/debug/deps/ephemeral-739968e4ed04ef48)
+  Executable tests/event_slot_snapshot.rs (target/debug/deps/event_slot_snapshot-3e48146809aa40b4)
+  Executable tests/expiring_adoption.rs (target/debug/deps/expiring_adoption-b1077a68a22d9b25)
+  Executable tests/file_assets.rs (target/debug/deps/file_assets-44fe016461b953e3)
+  Executable tests/identity.rs (target/debug/deps/identity-efcf0539298c13f2)
+  Executable tests/job_time_audiences.rs (target/debug/deps/job_time_audiences-07b80a0f28d38a77)
+  Executable tests/lane_source.rs (target/debug/deps/lane_source-07ef660e214533ed)
+  Executable tests/maintained_columns_review.rs (target/debug/deps/maintained_columns_review-fdbbb07fc434b757)
+  Executable tests/membership_discovery_steps.rs (target/debug/deps/membership_discovery_steps-26e2366c242b6097)
+  Executable tests/meter.rs (target/debug/deps/meter-d26dbe7c44b0ddd2)
+  Executable tests/pending_metadata_heap.rs (target/debug/deps/pending_metadata_heap-60b19c6cd36d2696)
+  Executable tests/read_sessions.rs (target/debug/deps/read_sessions-f0e9f2ac03ac55b6)
+  Executable tests/refused_open.rs (target/debug/deps/refused_open-87f03dc89368c7c6)
+  Executable tests/review_walk.rs (target/debug/deps/review_walk-86046b76aed23d30)
+  Executable tests/revocation_history.rs (target/debug/deps/revocation_history-5a70dbe15a8a3302)
+  Executable tests/routes.rs (target/debug/deps/routes-aa46b660b6646c96)
+  Executable tests/row_view_accounting.rs (target/debug/deps/row_view_accounting-2228c64e6dddfc96)
+  Executable tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-03b6fdfb0ee619f6)
+  Executable tests/row_view_legacy.rs (target/debug/deps/row_view_legacy-ff98ce04c809de82)
+  Executable tests/row_view_witness.rs (target/debug/deps/row_view_witness-04ec1dc861fd0fb2)
+  Executable tests/rows.rs (target/debug/deps/rows-5d8db16e6b560822)
+  Executable tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-c04bc561bc786d5d)
+  Executable tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-50fa4a73713157f6)
+  Executable tests/sequence_by.rs (target/debug/deps/sequence_by-6d03185464a9d694)
+  Executable tests/sequence_disclosure.rs (target/debug/deps/sequence_disclosure-6448492fd13cf468)
+  Executable tests/stream_receipts.rs (target/debug/deps/stream_receipts-79c12755a295b987)
+  Executable tests/sync_count_batch.rs (target/debug/deps/sync_count_batch-e9ee02e9e14cd689)
+  Executable tests/time_audiences.rs (target/debug/deps/time_audiences-a21d203d87bbe842)
+  Executable tests/unicode_fold.rs (target/debug/deps/unicode_fold-7a54a775296f7d1c)
+  Executable tests/update_rule_images.rs (target/debug/deps/update_rule_images-b36aa3d82eef31fb)
+  Executable tests/upload_intents.rs (target/debug/deps/upload_intents-4fd09bfec9eba401)
+  Executable tests/work_records.rs (target/debug/deps/work_records-6509a06cdbbae3ae)
+  Executable unittests src/lib.rs (target/debug/deps/snapback4_device-ea281f7075d351ef)
+  Executable tests/acquisition_crash.rs (target/debug/deps/acquisition_crash-ec9cb5d50be0d3b3)
+  Executable tests/adoption.rs (target/debug/deps/adoption-3f22d273e7ba9f63)
+  Executable tests/asset_lists.rs (target/debug/deps/asset_lists-0809922b861f26a0)
+  Executable tests/background_durability.rs (target/debug/deps/background_durability-69a886b5340e39a6)
+  Executable tests/bounded_calendar_caps.rs (target/debug/deps/bounded_calendar_caps-0b8849991955708f)
+  Executable tests/bounded_following.rs (target/debug/deps/bounded_following-4c6853975c5ca5f2)
+  Executable tests/branch_merge.rs (target/debug/deps/branch_merge-e8404c82c96e0fdd)
+  Executable tests/codec.rs (target/debug/deps/codec-9d871934e88c7bbc)
+  Executable tests/column_activation.rs (target/debug/deps/column_activation-6d62cffe186e5525)
+  Executable tests/components.rs (target/debug/deps/components-715247a6905094b0)
+  Executable tests/cut.rs (target/debug/deps/cut-e60fc45791fa3759)
+  Executable tests/delivery.rs (target/debug/deps/delivery-1b8310ff28f49b59)
+  Executable tests/device.rs (target/debug/deps/device-b95952a760e6416d)
+  Executable tests/device_diet.rs (target/debug/deps/device_diet-1f1a9999b7ccd2b3)
+  Executable tests/diet_timing.rs (target/debug/deps/diet_timing-91fc38f12a69e32c)
+  Executable tests/disclosure.rs (target/debug/deps/disclosure-5e1e7ae68f770790)
+  Executable tests/ephemeral.rs (target/debug/deps/ephemeral-3be0d0b86d4aa755)
+  Executable tests/event_slots.rs (target/debug/deps/event_slots-4a3ddaf2cd9a7b37)
+  Executable tests/event_slots_trace.rs (target/debug/deps/event_slots_trace-e6ea00eb4aeb9a89)
+  Executable tests/expiring_counts.rs (target/debug/deps/expiring_counts-eb78db0cd3974557)
+  Executable tests/expiring_counts_probe.rs (target/debug/deps/expiring_counts_probe-4f8ad58bed3072db)
+  Executable tests/expiring_counts_upgrade.rs (target/debug/deps/expiring_counts_upgrade-1867d4911ba529bf)
+  Executable tests/expiring_mutations.rs (target/debug/deps/expiring_mutations-313c6703e930147e)
+  Executable tests/expiry_maintained_columns.rs (target/debug/deps/expiry_maintained_columns-fdf8a6b6da95abdf)
+  Executable tests/extrema.rs (target/debug/deps/extrema-83f92f6e6179a029)
+  Executable tests/extremum_expressions.rs (target/debug/deps/extremum_expressions-7206cc20a7b83652)
+  Executable tests/file_assets.rs (target/debug/deps/file_assets-8474bf9e1ca11b91)
+  Executable tests/first_instinct.rs (target/debug/deps/first_instinct-a253b0e0c9712db3)
+  Executable tests/first_paste.rs (target/debug/deps/first_paste-d17d275e05175082)
+  Executable tests/following_meters.rs (target/debug/deps/following_meters-5eef5e0f5b718ea2)
+  Executable tests/following_model.rs (target/debug/deps/following_model-e116f4bbd4e3a526)
+  Executable tests/following_view.rs (target/debug/deps/following_view-9b4784fa6d3efcc1)
+  Executable tests/heavy_acquisition.rs (target/debug/deps/heavy_acquisition-3e0bad67cf505864)
+  Executable tests/helper_pages.rs (target/debug/deps/helper_pages-a491878fece8b498)
+  Executable tests/index_key_bound.rs (target/debug/deps/index_key_bound-a85a17e5b3b12a88)
+  Executable tests/intent_variants.rs (target/debug/deps/intent_variants-7af0c9df2441181d)
+  Executable tests/intent_views.rs (target/debug/deps/intent_views-54be6197326f63b9)
+  Executable tests/list_lower_bounds.rs (target/debug/deps/list_lower_bounds-f2ad139d8a393e1c)
+  Executable tests/matching_order.rs (target/debug/deps/matching_order-cb6e74696e541e2f)
+  Executable tests/mixed_keys.rs (target/debug/deps/mixed_keys-cb3e918eb3097609)
+  Executable tests/monotonic_ids.rs (target/debug/deps/monotonic_ids-d5a50ef46ad67abd)
+  Executable tests/mp_builder.rs (target/debug/deps/mp_builder-03ea9a83ac21a8b7)
+  Executable tests/named_key_lookup.rs (target/debug/deps/named_key_lookup-77f8fc66fb3cbf7a)
+  Executable tests/native.rs (target/debug/deps/native-b3a514d7b0ee00bb)
+  Executable tests/native_following.rs (target/debug/deps/native_following-1aa647804f8a7986)
+  Executable tests/native_reads.rs (target/debug/deps/native_reads-b52d05a4ad3388d4)
+  Executable tests/natural_forms.rs (target/debug/deps/natural_forms-967347929a6d7e54)
+  Executable tests/nl_qe2_integration.rs (target/debug/deps/nl_qe2_integration-571a9b3df1bf5057)
+  Executable tests/own_keys.rs (target/debug/deps/own_keys-23ac550c34767142)
+  Executable tests/own_keys_cost.rs (target/debug/deps/own_keys_cost-c73300c193764357)
+  Executable tests/point_probe_admission.rs (target/debug/deps/point_probe_admission-13f1485fa0baa221)
+  Executable tests/prediction_write_set.rs (target/debug/deps/prediction_write_set-797761eaa4efae77)
+  Executable tests/qe2_allocations.rs (target/debug/deps/qe2_allocations-529a5baacc937a30)
+  Executable tests/qe2_ergonomics.rs (target/debug/deps/qe2_ergonomics-16b6fde7cb54afa2)
+  Executable tests/query_unavailable.rs (target/debug/deps/query_unavailable-3dcbf0a062452d57)
+  Executable tests/read_through.rs (target/debug/deps/read_through-4d194c52e659973c)
+  Executable tests/read_through_review.rs (target/debug/deps/read_through_review-a9b33f98ff15b347)
+  Executable tests/readauth.rs (target/debug/deps/readauth-1a293750121710d9)
+  Executable tests/recorded_coverage.rs (target/debug/deps/recorded_coverage-6758e5139301e744)
+  Executable tests/reference_actions.rs (target/debug/deps/reference_actions-7672698e74c9afd9)
+  Executable tests/repair_b.rs (target/debug/deps/repair_b-cc871475180bf8c9)
+  Executable tests/repair_b_boundaries.rs (target/debug/deps/repair_b_boundaries-d422f211dc9feb07)
+  Executable tests/repair_b_counterexample.rs (target/debug/deps/repair_b_counterexample-a3f918028be8ed6f)
+  Executable tests/repair_b_legacy_r6.rs (target/debug/deps/repair_b_legacy_r6-0ea213fb8ef4af29)
+  Executable tests/repair_b_round2_counterexample.rs (target/debug/deps/repair_b_round2_counterexample-79e5cb57876b1ff0)
+  Executable tests/repair_b_round3_counterexample.rs (target/debug/deps/repair_b_round3_counterexample-f1ec3ab66bfa93bd)
+  Executable tests/residency.rs (target/debug/deps/residency-8bab4d1c4d7a1aeb)
+  Executable tests/retained_history.rs (target/debug/deps/retained_history-e9ca8e4b69916b62)
+  Executable tests/retained_release.rs (target/debug/deps/retained_release-abf6296430d6b62c)
+  Executable tests/review_parent_floor.rs (target/debug/deps/review_parent_floor-a18dd972aa512d22)
+  Executable tests/row_keyed_views.rs (target/debug/deps/row_keyed_views-d496279321a1bcfc)
+  Executable tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-d36b4d1597183202)
+  Executable tests/row_view_expiry.rs (target/debug/deps/row_view_expiry-cae4cf43b4858446)
+  Executable tests/rx_rule_hops.rs (target/debug/deps/rx_rule_hops-d1f9737bd7e1a5fb)
+  Executable tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-28bd1522c56f9795)
+  Executable tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-1b79d9f34970a68f)
+  Executable tests/search_exists.rs (target/debug/deps/search_exists-62d33ccd96168026)
+  Executable tests/sequence_by.rs (target/debug/deps/sequence_by-cd9213889c555d43)
+  Executable tests/sequence_disclosure.rs (target/debug/deps/sequence_disclosure-1cdace102b16972f)
+  Executable tests/server_clock.rs (target/debug/deps/server_clock-15c8517adca9327e)
+  Executable tests/shape_overrides.rs (target/debug/deps/shape_overrides-9c048252714bd071)
+  Executable tests/spread_metadata.rs (target/debug/deps/spread_metadata-88c7a1d0e79ab1eb)
+  Executable tests/spread_pending_union.rs (target/debug/deps/spread_pending_union-0a39f470d18c28f9)
+  Executable tests/sqlite_bulk.rs (target/debug/deps/sqlite_bulk-3a64bcdef084c16a)
+  Executable tests/sync_windows.rs (target/debug/deps/sync_windows-dedbf5749fe5b28c)
+  Executable tests/time_audiences.rs (target/debug/deps/time_audiences-4e3116e1ba82e55d)
+  Executable tests/timed_search.rs (target/debug/deps/timed_search-3e50cd3412ad9c5d)
+  Executable tests/timeline.rs (target/debug/deps/timeline-deb4553965929452)
+  Executable tests/topn_complete.rs (target/debug/deps/topn_complete-b70633e63579ff93)
+  Executable tests/unicode.rs (target/debug/deps/unicode-53d361f5695cdde9)
+  Executable tests/unread_range.rs (target/debug/deps/unread_range-4b371ef5a031e97e)
+  Executable tests/upload_intents.rs (target/debug/deps/upload_intents-3261d575bc4b590e)
+  Executable tests/upload_receipts.rs (target/debug/deps/upload_receipts-833e9fcc9b3fb2be)
+  Executable tests/upsert_constraints.rs (target/debug/deps/upsert_constraints-ef3478939d251741)
+  Executable tests/w13g_probe.rs (target/debug/deps/w13g_probe-8f1d2c9fe93b1f8c)
+  Executable tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-165d303d1cbf5e9c)
+  Executable tests/wave12_language.rs (target/debug/deps/wave12_language-de7d07c2e623b156)
+  Executable tests/wave13_lang2.rs (target/debug/deps/wave13_lang2-c3259cd074b0577d)
+  Executable tests/write_authority.rs (target/debug/deps/write_authority-36616a8473cdb33e)
+  Executable tests/written_by.rs (target/debug/deps/written_by-223a29c502808115)
+  Executable unittests src/lib.rs (target/debug/deps/snapback4_difftest-c663e92931517a96)
+  Executable unittests src/main.rs (target/debug/deps/snapback4_difftest-9f6720120fbf009b)
+  Executable tests/devices.rs (target/debug/deps/devices-b0cd2f0f53c7431e)
+  Executable tests/lang2.rs (target/debug/deps/lang2-22d8f27dc7c92069)
+  Executable tests/lean.rs (target/debug/deps/lean-8f0ba9de9f3f7925)
+  Executable tests/smoke.rs (target/debug/deps/smoke-02cc4cce13257111)
+  Executable tests/stores.rs (target/debug/deps/stores-f3b5e03461478cd3)
+  Executable tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-6641a51120998ae7)
+  Executable tests/wave12_expiry_actions_generated.rs (target/debug/deps/wave12_expiry_actions_generated-881d2e3f1be755a3)
+  Executable tests/wave12_generated_semantics.rs (target/debug/deps/wave12_generated_semantics-f24a18f384bceacd)
+  Executable tests/wave13_lang2.rs (target/debug/deps/wave13_lang2-d97dbca7c57c157e)
+  Executable unittests src/lib.rs (target/debug/deps/snapback4_lang-674f97fa9ecdda60)
+  Executable tests/actions.rs (target/debug/deps/actions-d6114ac9a6abe7f2)
+  Executable tests/aggregate_copies.rs (target/debug/deps/aggregate_copies-9e13bf91b9fcf654)
+  Executable tests/attribution_guide.rs (target/debug/deps/attribution_guide-b5f38c4910378fba)
+  Executable tests/audience_bounds.rs (target/debug/deps/audience_bounds-96195288e207d005)
+  Executable tests/audience_bounds_runtime.rs (target/debug/deps/audience_bounds_runtime-1566c394cc89abf3)
+  Executable tests/bounded_calendar_caps.rs (target/debug/deps/bounded_calendar_caps-9fe38610bea29780)
+  Executable tests/bounded_following.rs (target/debug/deps/bounded_following-78cb625ff10881e7)
+  Executable tests/branch_merge.rs (target/debug/deps/branch_merge-9594c08c6d880f22)
+  Executable tests/builder_guidance.rs (target/debug/deps/builder_guidance-89d79f8c9e2a2653)
+  Executable tests/chat.rs (target/debug/deps/chat-4fe8f76e461bb3f0)
+  Executable tests/clique_03.rs (target/debug/deps/clique_03-27fed3a40c6caf3a)
+  Executable tests/components.rs (target/debug/deps/components-ed9307911d43d392)
+  Executable tests/constraint_diagnostics.rs (target/debug/deps/constraint_diagnostics-25388faad1f3e3af)
+  Executable tests/control_flow.rs (target/debug/deps/control_flow-cd3d14cc1d5e1051)
+  Executable tests/cursor_advice.rs (target/debug/deps/cursor_advice-a663353d8e09f495)
+  Executable tests/declarative_receipts.rs (target/debug/deps/declarative_receipts-e8754a671967f757)
+  Executable tests/delivery.rs (target/debug/deps/delivery-2a1e4da854589f4c)
+  Executable tests/delivery_clause.rs (target/debug/deps/delivery_clause-514761e1428ee35b)
+  Executable tests/delivery_integration.rs (target/debug/deps/delivery_integration-5e11d88ddb6df4f7)
+  Executable tests/delivery_replay_conversion.rs (target/debug/deps/delivery_replay_conversion-b202898a048a42cc)
+  Executable tests/denied_writes.rs (target/debug/deps/denied_writes-cda7718b017ae0ac)
+  Executable tests/derived_maintains.rs (target/debug/deps/derived_maintains-3aac03f0b34ac2c4)
+  Executable tests/effect_reads.rs (target/debug/deps/effect_reads-7928902e6481c7d5)
+  Executable tests/emit_compatibility.rs (target/debug/deps/emit_compatibility-20ac6fa21d961973)
+  Executable tests/ephemeral.rs (target/debug/deps/ephemeral-554030afe93511df)
+  Executable tests/ephemeral_compat.rs (target/debug/deps/ephemeral_compat-fff96b754a32ef2a)
+  Executable tests/ergonomics.rs (target/debug/deps/ergonomics-f96695a71cd680c0)
+  Executable tests/expiring_mutations.rs (target/debug/deps/expiring_mutations-a398357825efb3e2)
+  Executable tests/extrema.rs (target/debug/deps/extrema-72e2871378de2085)
+  Executable tests/extremum_expressions.rs (target/debug/deps/extremum_expressions-4e63eb03511c8193)
+  Executable tests/familiar_guesses.rs (target/debug/deps/familiar_guesses-456cce5877a516ee)
+  Executable tests/familiar_predicates.rs (target/debug/deps/familiar_predicates-068afedf1644b562)
+  Executable tests/familiar_repairs.rs (target/debug/deps/familiar_repairs-a52f5f4d2da13d3b)
+  Executable tests/familiar_source_repairs.rs (target/debug/deps/familiar_source_repairs-ed470e85d35ba4c9)
+  Executable tests/familiar_verified_repairs.rs (target/debug/deps/familiar_verified_repairs-23993bb1f7033fd4)
+  Executable tests/feed_forms.rs (target/debug/deps/feed_forms-7935ab1cfb8d4caf)
+  Executable tests/file_assets.rs (target/debug/deps/file_assets-3736d96dfdbb010e)
+  Executable tests/first_paste.rs (target/debug/deps/first_paste-3cf702889423abc9)
+  Executable tests/following_adoption_research.rs (target/debug/deps/following_adoption_research-4c4f92f52f9ed8d6)
+  Executable tests/following_atomic_launch.rs (target/debug/deps/following_atomic_launch-c0494f3f8f490bd0)
+  Executable tests/following_history.rs (target/debug/deps/following_history-279e1621b8f98380)
+  Executable tests/following_history_research.rs (target/debug/deps/following_history_research-fc5c6f837f7343d0)
+  Executable tests/following_view.rs (target/debug/deps/following_view-18a5d64f377b9378)
+  Executable tests/frontend_regressions.rs (target/debug/deps/frontend_regressions-c1b57fb072aa2406)
+  Executable tests/guide.rs (target/debug/deps/guide-0b60eff5bf9a1339)
+  Executable tests/held_unknown.rs (target/debug/deps/held_unknown-828e8fb48aecf163)
+  Executable tests/helper_placement.rs (target/debug/deps/helper_placement-257c0fdd057a3bbf)
+  Executable tests/intent_aggregate_safety.rs (target/debug/deps/intent_aggregate_safety-85963c33ec375b5a)
+  Executable tests/intent_delta10.rs (target/debug/deps/intent_delta10-7e8407d9fe97df6e)
+  Executable tests/intent_followup.rs (target/debug/deps/intent_followup-f9ea07d01faab679)
+  Executable tests/intent_nulls.rs (target/debug/deps/intent_nulls-29cb3f04c6b53702)
+  Executable tests/intent_order.rs (target/debug/deps/intent_order-80aa419a3d92b9e3)
+  Executable tests/intent_predicates.rs (target/debug/deps/intent_predicates-049e83eb98d46a95)
+  Executable tests/intent_review.rs (target/debug/deps/intent_review-6f60ebc203ef081b)
+  Executable tests/intent_target.rs (target/debug/deps/intent_target-5723fb06c7efcdb7)
+  Executable tests/intent_variants.rs (target/debug/deps/intent_variants-d81f9d894fb0606f)
+  Executable tests/intent_variants_review.rs (target/debug/deps/intent_variants_review-4f5210a74c2326a7)
+  Executable tests/job_viewer.rs (target/debug/deps/job_viewer-526ada39eb6439d3)
+  Executable tests/joined_shapes.rs (target/debug/deps/joined_shapes-c0c36288f9b692c0)
+  Executable tests/lane_domains.rs (target/debug/deps/lane_domains-3b86b480495295a0)
+  Executable tests/lean_emit.rs (target/debug/deps/lean_emit-8812a85123ba119f)
+  Executable tests/list_expressions.rs (target/debug/deps/list_expressions-cfefbddd7fcb8d65)
+  Executable tests/list_lower_bounds.rs (target/debug/deps/list_lower_bounds-f7ea39e547e488a0)
+  Executable tests/list_reference_repair.rs (target/debug/deps/list_reference_repair-fecd8ebb0a09dcf1)
+  Executable tests/list_widening.rs (target/debug/deps/list_widening-816d17b0b2027f10)
+  Executable tests/lookup_selection.rs (target/debug/deps/lookup_selection-4724c4b73f9bf15f)
+  Executable tests/lowering.rs (target/debug/deps/lowering-f756832822aab26e)
+  Executable tests/maintained_columns.rs (target/debug/deps/maintained_columns-0dd4d6bb8b6bfdc1)
+  Executable tests/maintained_result_types.rs (target/debug/deps/maintained_result_types-91ae7269cf19cb88)
+  Executable tests/maintains.rs (target/debug/deps/maintains-4483fd446e928dc9)
+  Executable tests/matching_order.rs (target/debug/deps/matching_order-1c4745b4d0398aff)
+  Executable tests/membership_nullable_authorization.rs (target/debug/deps/membership_nullable_authorization-0ed9445f34aceb50)
+  Executable tests/membership_paths.rs (target/debug/deps/membership_paths-76e298ea714ddad5)
+  Executable tests/mixed_keys.rs (target/debug/deps/mixed_keys-64c71a38d78f563c)
+  Executable tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-fe9873ad0a16ead5)
+  Executable tests/mutation_result_types.rs (target/debug/deps/mutation_result_types-fecfdbbe5eb63f17)
+  Executable tests/natural_forms.rs (target/debug/deps/natural_forms-a980d1b19306e395)
+  Executable tests/own_keys.rs (target/debug/deps/own_keys-31bc2d447669949e)
+  Executable tests/page2_membership.rs (target/debug/deps/page2_membership-109ea2a6e47238cd)
+  Executable tests/page3.rs (target/debug/deps/page3-e0149d66d64d2f0e)
+  Executable tests/page4.rs (target/debug/deps/page4-dda415cf86459280)
+  Executable tests/papercuts.rs (target/debug/deps/papercuts-86008e6d6de90f80)
+  Executable tests/prefix_reads.rs (target/debug/deps/prefix_reads-f2224de24fd31f07)
+  Executable tests/presence.rs (target/debug/deps/presence-b8fe61f5c5faad66)
+  Executable tests/printed_rewrites.rs (target/debug/deps/printed_rewrites-7aa53e1b41c4efb3)
+  Executable tests/pure_call_narrowing.rs (target/debug/deps/pure_call_narrowing-ab15cb60b72504f6)
+  Executable tests/qe2_ergonomics.rs (target/debug/deps/qe2_ergonomics-690d94ca69908019)
+  Executable tests/query_settlement.rs (target/debug/deps/query_settlement-bf7b1fffcab18254)
+  Executable tests/read_through.rs (target/debug/deps/read_through-148adbb2bebbb817)
+  Executable tests/read_through_provenance.rs (target/debug/deps/read_through_provenance-9ec596213c71f14a)
+  Executable tests/read_through_review.rs (target/debug/deps/read_through_review-b4f5db2aa0e210a2)
+  Executable tests/read_through_sync.rs (target/debug/deps/read_through_sync-7c23f1a6fb916a1a)
+  Executable tests/read_through_transactions.rs (target/debug/deps/read_through_transactions-4542ed23bfad449c)
+  Executable tests/receipt_gaps.rs (target/debug/deps/receipt_gaps-2667f08b2e1fb9ae)
+  Executable tests/recorded_round1.rs (target/debug/deps/recorded_round1-285506d9aa03225e)
+  Executable tests/reference_actions.rs (target/debug/deps/reference_actions-d01c571ff60d2077)
+  Executable tests/repairs.rs (target/debug/deps/repairs-425d3871b33bde4e)
+  Executable tests/reservation_app_headroom.rs (target/debug/deps/reservation_app_headroom-e3a699e2ac44a86e)
+  Executable tests/residency_notes.rs (target/debug/deps/residency_notes-1c5309024c895439)
+  Executable tests/revocation_soundness.rs (target/debug/deps/revocation_soundness-4345c4cb375f0cfd)
+  Executable tests/routes.rs (target/debug/deps/routes-1f94a2cbf7b203d6)
+  Executable tests/row_keyed_views.rs (target/debug/deps/row_keyed_views-c9d88addf39bf3c7)
+  Executable tests/rx_legacy_identity.rs (target/debug/deps/rx_legacy_identity-7644f940f32f8bdc)
+  Executable tests/rx_rule_enforcement.rs (target/debug/deps/rx_rule_enforcement-027621649a90a5fb)
+  Executable tests/rx_rule_hops.rs (target/debug/deps/rx_rule_hops-b2a4284a0d2058c4)
+  Executable tests/schedule_durations.rs (target/debug/deps/schedule_durations-fc427522f8850c2b)
+  Executable tests/search_guidance.rs (target/debug/deps/search_guidance-6bb47f7f0e531024)
+  Executable tests/selected_prefix.rs (target/debug/deps/selected_prefix-5ae79c37a5e67188)
+  Executable tests/selected_prefix_cursors.rs (target/debug/deps/selected_prefix_cursors-1f2749759061ccfe)
+  Executable tests/selected_prefix_regressions.rs (target/debug/deps/selected_prefix_regressions-ca9d8d6204bb282a)
+  Executable tests/sequence_by.rs (target/debug/deps/sequence_by-c74b488a61ef8ce7)
+  Executable tests/server_opt_in.rs (target/debug/deps/server_opt_in-70ea6cc216d31fa1)
+  Executable tests/shape_meter.rs (target/debug/deps/shape_meter-1bdf4037d9752454)
+  Executable tests/shape_overrides.rs (target/debug/deps/shape_overrides-90b1926f6c62bc8a)
+  Executable tests/sparse_filter.rs (target/debug/deps/sparse_filter-af1d2550cca3015d)
+  Executable tests/spelling.rs (target/debug/deps/spelling-ad34f699abaec454)
+  Executable tests/sync_audiences.rs (target/debug/deps/sync_audiences-74e617e93954852e)
+  Executable tests/sync_windows.rs (target/debug/deps/sync_windows-2d61f060de80e302)
+  Executable tests/system_principal.rs (target/debug/deps/system_principal-68252350a0712164)
+  Executable tests/time_audiences.rs (target/debug/deps/time_audiences-56671c9aed8b2b2b)
+  Executable tests/time_indexes.rs (target/debug/deps/time_indexes-e704749486d32f92)
+  Executable tests/timeline_background.rs (target/debug/deps/timeline_background-7f0ca20a77aa43ef)
+  Executable tests/timeline_epoch_counterexample.rs (target/debug/deps/timeline_epoch_counterexample-7602fea558309214)
+  Executable tests/timeline_fairness.rs (target/debug/deps/timeline_fairness-22c32964bf32c76c)
+  Executable tests/timeline_guide.rs (target/debug/deps/timeline_guide-e5ab9367b9cd4b0a)
+  Executable tests/timeline_live_latency.rs (target/debug/deps/timeline_live_latency-68575a500a604360)
+  Executable tests/typed_positional_keys.rs (target/debug/deps/typed_positional_keys-90fbf4a130b642c7)
+  Executable tests/typed_positional_sync.rs (target/debug/deps/typed_positional_sync-17330e8820f52d7b)
+  Executable tests/union_limits.rs (target/debug/deps/union_limits-f523dbba350090e5)
+  Executable tests/verified_index_repairs.rs (target/debug/deps/verified_index_repairs-fb093f80a2f963f6)
+  Executable tests/wave10_guard_notes.rs (target/debug/deps/wave10_guard_notes-94b385134ff8b4a4)
+  Executable tests/wave10_rules_expressiveness.rs (target/debug/deps/wave10_rules_expressiveness-d4abe10fa896f5f4)
+  Executable tests/wave10_runtime_diagnostics.rs (target/debug/deps/wave10_runtime_diagnostics-bda568dbbf5412b5)
+  Executable tests/wave11_docs.rs (target/debug/deps/wave11_docs-5cbf11b8004b104f)
+  Executable tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-1caf2a6bd8ffb619)
+  Executable tests/wave11_runtime.rs (target/debug/deps/wave11_runtime-c8175f326f7b3932)
+  Executable tests/wave12_diagnostics.rs (target/debug/deps/wave12_diagnostics-40aef8eaca220707)
+  Executable tests/wave12_rule_composition.rs (target/debug/deps/wave12_rule_composition-719480a81f4bd584)
+  Executable tests/wave12_rule_recipes.rs (target/debug/deps/wave12_rule_recipes-57394f1c59eedfcc)
+  Executable tests/wave12_semantics.rs (target/debug/deps/wave12_semantics-1907030666cf20ac)
+  Executable tests/wave13_lang2.rs (target/debug/deps/wave13_lang2-577604f826d1c40f)
+  Executable tests/wave13_rules.rs (target/debug/deps/wave13_rules-b0576319e1cecddb)
+  Executable tests/wave1_rule_language.rs (target/debug/deps/wave1_rule_language-0e80041f13d693b9)
+  Executable tests/wave2_rule_language.rs (target/debug/deps/wave2_rule_language-da864746b11134d3)
+  Executable tests/wave3_rule_language.rs (target/debug/deps/wave3_rule_language-c5f663eed1923857)
+  Executable tests/wave4_rule_language.rs (target/debug/deps/wave4_rule_language-135c0dc694370a85)
+  Executable tests/wave5_rule_language.rs (target/debug/deps/wave5_rule_language-af9ce540f7da9161)
+  Executable tests/wave6_rule_language.rs (target/debug/deps/wave6_rule_language-6710b0f8be5382b4)
+  Executable tests/wave7_rule_language.rs (target/debug/deps/wave7_rule_language-0d30d14818192545)
+  Executable tests/wave8_rule_language.rs (target/debug/deps/wave8_rule_language-20c741e8ef71d0e4)
+  Executable tests/wave9_completeness_notes.rs (target/debug/deps/wave9_completeness_notes-ed646f0aa6789226)
+  Executable tests/wave9_rule_diagnostic_rewrites.rs (target/debug/deps/wave9_rule_diagnostic_rewrites-9f91efd6212c483e)
+  Executable tests/written_by.rs (target/debug/deps/written_by-1858c00c151d8b07)
+  Executable unittests src/lib.rs (target/debug/deps/snapback4_native-7228175c434782d0)
+  Executable unittests src/lib.rs (target/debug/deps/snapback4_sim-a857b43b5f80b1af)
+  Executable tests/adoption.rs (target/debug/deps/adoption-36999f28a4a12c83)
+  Executable tests/clique.rs (target/debug/deps/clique-94095872616074dd)
+  Executable tests/condition_authority.rs (target/debug/deps/condition_authority-6cd125e48b7a07eb)
+  Executable tests/decorated_search.rs (target/debug/deps/decorated_search-c7373ff3df1cf316)
+  Executable tests/device.rs (target/debug/deps/device-d6b67b17610a774e)
+  Executable tests/digest_count.rs (target/debug/deps/digest_count-1d747a9f0579b484)
+  Executable tests/exhaustive.rs (target/debug/deps/exhaustive-2218ca49fe1cf679)
+  Executable tests/expiry_reference_actions.rs (target/debug/deps/expiry_reference_actions-fc44ec263bc4b63c)
+  Executable tests/filters.rs (target/debug/deps/filters-e98bb0dff39a3b5d)
+  Executable tests/helper_pages.rs (target/debug/deps/helper_pages-ef4fce3fbd184fe4)
+  Executable tests/helper_sweep.rs (target/debug/deps/helper_sweep-5e864a5490e3a43a)
+  Executable tests/intent_integration.rs (target/debug/deps/intent_integration-eb891fdebe43457b)
+  Executable tests/loopbar.rs (target/debug/deps/loopbar-5959bda0d143ebc5)
+  Executable tests/maintain_measurement.rs (target/debug/deps/maintain_measurement-1c22568ecfecddf2)
+  Executable tests/maintains.rs (target/debug/deps/maintains-faef53cf2d68ade5)
+  Executable tests/maintains_recorded.rs (target/debug/deps/maintains_recorded-aa0e17135d31c216)
+  Executable tests/maintains_review.rs (target/debug/deps/maintains_review-37c7243f8bb303f7)
+  Executable tests/membership.rs (target/debug/deps/membership-65d2100a050f5b19)
+  Executable tests/membership_search.rs (target/debug/deps/membership_search-0c9cb361aa05cd8d)
+  Executable tests/native.rs (target/debug/deps/native-d79aa092ef0b2d88)
+  Executable tests/ordinary_search.rs (target/debug/deps/ordinary_search-9e15a19687325526)
+  Executable tests/page_admission.rs (target/debug/deps/page_admission-dd0696bad9e50add)
+  Executable tests/reference_exhaustive.rs (target/debug/deps/reference_exhaustive-fc682a787319291a)
+  Executable tests/residency.rs (target/debug/deps/residency-c95300e4db7d41a4)
+  Executable tests/retained_release.rs (target/debug/deps/retained_release-9cac893e971d966c)
+  Executable tests/review_corrections.rs (target/debug/deps/review_corrections-18a62c00e6ffa9cd)
+  Executable tests/reviews.rs (target/debug/deps/reviews-cff6e85ec2320d10)
+  Executable tests/roster.rs (target/debug/deps/roster-96e0dc0fee170f15)
+  Executable tests/search_merge.rs (target/debug/deps/search_merge-32a0bef165c6304e)
+  Executable tests/security.rs (target/debug/deps/security-1f5473142b7afeda)
+  Executable tests/time_audiences.rs (target/debug/deps/time_audiences-0e455fba6cbdbd21)
+  Executable tests/timed_search.rs (target/debug/deps/timed_search-802783bf4c707195)
+  Executable tests/topn_complete.rs (target/debug/deps/topn_complete-1e7a50858f8835d6)
+  Executable tests/union.rs (target/debug/deps/union-b77920ff63535c66)
+  Executable tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-b8b535ca3345138f)
+  Executable tests/wave12_language.rs (target/debug/deps/wave12_language-7b6baec6a8b2b1d8)
+  Executable tests/wave13_lang2.rs (target/debug/deps/wave13_lang2-42d0a8ad7219c2c3)
+  Executable tests/work_intent.rs (target/debug/deps/work_intent-68f9f4380b7d3569)
+  Executable tests/work_intent_review.rs (target/debug/deps/work_intent_review-58ea4a88a0926724)
+  Executable tests/work_intent_review2.rs (target/debug/deps/work_intent_review2-8f15cfa20ae382dc)
+  Executable tests/work_intent_review3.rs (target/debug/deps/work_intent_review3-817a8cdabfb6faea)
+  Executable tests/work_intent_review4.rs (target/debug/deps/work_intent_review4-3fe278703ae44e87)
+  Executable tests/write_authority.rs (target/debug/deps/write_authority-b0e0e509262a7a50)

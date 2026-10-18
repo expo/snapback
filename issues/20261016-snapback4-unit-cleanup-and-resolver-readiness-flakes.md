@@ -28,3 +28,13 @@ on this observation.
 Evidence: PUBFIX29b's WORKSTREAM-REPORT.md; local full logs retained under
 `snapback4/target/pubfix29b-evidence/` (`pubfix29b-rust-clean.log`,
 `pubfix29b-cli-unit-rerun.log`, and the two earlier broad-run logs).
+
+## 2026-10-17: Mac integration resolver fixture
+
+Integration 15's complete Mac run at `0130e0f041` also failed
+`driver::real_cli_stalled_resolver_sigterm_drains_before_finished` in
+`crates/snapback4/tests/witness.rs`: `descendant.pid` was absent at readiness.
+The unchanged case passed alone in 1.62 seconds. Its complete five-crate repeat passed (exit 0; eight libtest threads);
+there is no timeout increase or assertion removal. This is the integration
+fixture, separate from the original unit-test occurrence above. The raw logs
+and complete-repeat verdict are retained with Integration 15's report.

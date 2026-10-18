@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, symlinkSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawnSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { createInterface } from 'node:readline';
@@ -88,23 +88,29 @@ for (const pm of ['npm', 'bun', 'pnpm']) test(`upgrade ${pm}: one version, exact
   const dir = mkdtempSync(join(tmpdir(), 'dx-upgrade-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(join(dir, 'tools'));
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: `${pm}@1.0.0`, dependencies: { snapback4: '0.4.24' }, devDependencies: { 'snapback4-expo': '0.4.24', unrelated: '1.0.0' } }));
+  mkdirSync(join(dir, 'package'));
+  writeFileSync(join(dir, 'package/bundledNativeModules.json'), '{}');
+  const archive = join(dir, 'expo.tgz');
+  success(spawnSync('tar', ['-czf', archive, 'package'], {cwd:dir, encoding:'utf8', timeout:10000}));
+  const preload = join(dir, 'fetch.mjs');
+  writeFileSync(preload, `import {readFileSync} from 'node:fs'; globalThis.fetch = async () => new Response(readFileSync(${JSON.stringify(archive)}));`);
   const script = `#!${process.execPath}
 const fs = require('fs'); const args = process.argv.slice(2);
 fs.appendFileSync('calls.jsonl', JSON.stringify(args)+'\\n');
-if (['view','info'].includes(args[0])) { console.log(JSON.stringify('0.4.25')); process.exit(0); }
+if (['view','info'].includes(args[0])) { console.log(JSON.stringify(args[2] === 'peerDependencies' ? {expo:'>=57.0.22 <58'} : args[2] === 'dist.tarball' ? 'https://example.invalid/expo.tgz' : '0.4.25')); process.exit(0); }
 const pkg = JSON.parse(fs.readFileSync('package.json')); const section = args.includes('--dev') || args.includes('--save-dev') ? 'devDependencies' : 'dependencies';
 for (const arg of args) { const match = arg.match(/^(snapback4(?:-expo)?)@(.*)$/); if (match) pkg[section][match[1]] = match[2]; }
 fs.writeFileSync('package.json', JSON.stringify(pkg));
 `;
   writeFileSync(join(dir, 'tools', pm), script, { mode: 0o755 });
-  const result = run(bin, ['upgrade'], dir, { PATH: `${join(dir, 'tools')}:${process.env.PATH}` }); success(result);
+  const result = run(bin, ['upgrade'], dir, { PATH: `${join(dir, 'tools')}:${process.env.PATH}`, NODE_OPTIONS: '--import '+pathToFileURL(preload).href }); success(result);
   const pkg = JSON.parse(readFileSync(join(dir, 'package.json')));
   assert.equal(pkg.dependencies.snapback4, '0.4.25'); assert.equal(pkg.devDependencies['snapback4-expo'], '0.4.25');
   assert.equal(pkg.devDependencies.unrelated, '1.0.0');
   const calls = readFileSync(join(dir, 'calls.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
   const installs = calls.filter(args => ['install', 'add'].includes(args[0]));
-  assert.ok(installs.every(args => args.includes(pm === 'bun' ? '--exact' : '--save-exact')));
-  assert.ok(installs.every(args => args.filter(arg => arg.startsWith('snapback4')).every(arg => arg.endsWith('@0.4.25'))));
+  assert.deepEqual(installs, [['install', ...(pm === 'pnpm' ? ['--no-frozen-lockfile'] : [])]], 'resolve the exact manifest plan in one install');
+  assert.equal(pkg.dependencies.expo, '57.0.22');
 });
 
 test('witness and upgrade input refusals are early and actionable', t => {

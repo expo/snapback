@@ -305,6 +305,17 @@ fn flow_expression(
             record_write(
                 catalog, arguments, flow, *op, table, fields, site, candidates,
             );
+            // @ref LLP 3000.036.002#12 — a point update attempts the target lookup, like a nullable read.
+            if *op == WriteOp::Update {
+                let mut read = super::auth_lints::empty_read(table, site);
+                read.keys = keys.clone();
+                for (argument, target) in arguments {
+                    if flow.inputs.contains(argument) && target == table
+                        && read_checks_target_id(schema, &read, argument, target) {
+                        flow.checked.insert(argument.clone());
+                    }
+                }
+            }
         }
         Expr::Merge(merge) => {
             if let Some(value) = &merge.matching {
@@ -727,6 +738,11 @@ fn expression_must_lookup(catalog: &Catalog, schema: &Schema, expression: &Expr,
         Expr::Shape { base, .. } => child(base, stack),
         Expr::If { condition, then, otherwise, .. } => child(condition, stack) || (child(then, stack) && child(otherwise, stack)),
         Expr::Walk { seed, .. } => child(seed, stack),
+        Expr::Write { op: WriteOp::Update, table, keys, site, .. } if table == target && {
+            let mut read = super::auth_lints::empty_read(table, site);
+            read.keys = keys.clone();
+            read_checks_target_alias(schema, &read, aliases, target)
+        } => true,
         Expr::Write { keys, fields, condition, .. } => keys.iter().any(|key| child(&key.value, stack))
             || fields.iter().filter_map(|field| field.value.as_ref()).any(|value| child(value, stack))
             || condition.as_deref().is_some_and(|value| child(value, stack)),

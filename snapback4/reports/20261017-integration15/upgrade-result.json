@@ -1,0 +1,227 @@
+{
+  "status": "passed",
+  "from": "0.4.30",
+  "to": "0.4.31",
+  "preservedRows": [
+    {
+      "phase": "0.4.30",
+      "result": {
+        "scopes": {
+          "todos": [
+            {
+              "0": "dev:alice"
+            }
+          ]
+        },
+        "generation": 1,
+        "complete": true,
+        "cut": null,
+        "data": [
+          {
+            "done": false,
+            "id": "01M53JDZM5BPF7PFHJ6V9XKRQR",
+            "ownerId": "dev:alice",
+            "title": "preserved from 0.4.30"
+          }
+        ],
+        "next": null,
+        "nextExpiry": null,
+        "seq": 1,
+        "store_id": "5aaaa323993af7e61460a00b52aef43e",
+        "tables": [
+          "todos"
+        ],
+        "viewer": "dev:alice",
+        "meter": {
+          "cut": null,
+          "examined": 1,
+          "heapBytes": 443,
+          "indexEntries": 0,
+          "outputBytes": 156,
+          "probes": 0,
+          "rowsWritten": 0,
+          "steps": 4
+        }
+      }
+    },
+    {
+      "phase": "0.4.31",
+      "result": {
+        "scopes": {
+          "todos": [
+            {
+              "0": "dev:alice"
+            }
+          ]
+        },
+        "generation": 1,
+        "complete": true,
+        "cut": null,
+        "data": [
+          {
+            "done": false,
+            "id": "01M53JDZM5BPF7PFHJ6V9XKRQR",
+            "ownerId": "dev:alice",
+            "title": "preserved from 0.4.30"
+          }
+        ],
+        "next": null,
+        "nextExpiry": null,
+        "seq": 1,
+        "store_id": "5aaaa323993af7e61460a00b52aef43e",
+        "tables": [
+          "todos"
+        ],
+        "viewer": "dev:alice",
+        "meter": {
+          "cut": null,
+          "examined": 1,
+          "heapBytes": 443,
+          "indexEntries": 0,
+          "outputBytes": 156,
+          "probes": 0,
+          "rowsWritten": 0,
+          "steps": 4
+        }
+      }
+    },
+    {
+      "phase": "floor-repaired",
+      "result": {
+        "scopes": {
+          "todos": [
+            {
+              "0": "dev:alice"
+            }
+          ]
+        },
+        "generation": 1,
+        "complete": true,
+        "cut": null,
+        "data": [
+          {
+            "done": false,
+            "id": "01M53JDZM5BPF7PFHJ6V9XKRQR",
+            "ownerId": "dev:alice",
+            "title": "preserved from 0.4.30"
+          }
+        ],
+        "next": null,
+        "nextExpiry": null,
+        "seq": 1,
+        "store_id": "5aaaa323993af7e61460a00b52aef43e",
+        "tables": [
+          "todos"
+        ],
+        "viewer": "dev:alice",
+        "meter": {
+          "cut": null,
+          "examined": 1,
+          "heapBytes": 443,
+          "indexEntries": 0,
+          "outputBytes": 156,
+          "probes": 0,
+          "rowsWritten": 0,
+          "steps": 4
+        }
+      }
+    }
+  ],
+  "frontendUnchanged": true,
+  "expoPreserved": "57.0.30",
+  "loweredManifest": "57.0.20",
+  "expoRepaired": "57.0.22",
+  "core": "57.0.23",
+  "typecheck": "passed",
+  "webExport": "passed",
+  "commands": [
+    {
+      "cmd": "npm",
+      "args": [
+        "install",
+        "--save-exact",
+        "snapback4@0.4.30",
+        "snapback4-expo@0.4.30",
+        "--registry",
+        "http://127.0.0.1:4873/"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app"
+    },
+    {
+      "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app/node_modules/.bin/snapback4",
+      "args": [
+        "init",
+        "--expo"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app"
+    },
+    {
+      "cmd": "npm",
+      "args": [
+        "install",
+        "--registry",
+        "http://127.0.0.1:4873/"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app"
+    },
+    {
+      "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app/node_modules/.bin/snapback4",
+      "args": [
+        "check"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app"
+    },
+    {
+      "cmd": "npx",
+      "args": [
+        "--yes",
+        "snapback4@0.4.31",
+        "upgrade",
+        "--to",
+        "0.4.31"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app",
+      "registry": "http://127.0.0.1:45325"
+    },
+    {
+      "cmd": "npx",
+      "args": [
+        "snapback4",
+        "upgrade",
+        "--to",
+        "0.4.31"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app",
+      "registry": "http://127.0.0.1:45325"
+    },
+    {
+      "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app/node_modules/.bin/snapback4",
+      "args": [
+        "check"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app",
+      "registry": "http://127.0.0.1:45325"
+    },
+    {
+      "cmd": "npm",
+      "args": [
+        "run",
+        "typecheck"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app",
+      "registry": "http://127.0.0.1:45325"
+    },
+    {
+      "cmd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app/node_modules/.bin/expo",
+      "args": [
+        "export",
+        "-p",
+        "web",
+        "--max-workers",
+        "2"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-upgrade/app",
+      "registry": "http://127.0.0.1:45325"
+    }
+  ]
+}

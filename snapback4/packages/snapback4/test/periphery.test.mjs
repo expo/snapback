@@ -208,14 +208,22 @@ for (const template of [[], ["--template", "chat"]]) test(`Expo ${template.lengt
   function assertCoreTree(directory) {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const path = join(directory, entry.name);
-      if (entry.isDirectory()) assertCoreTree(path);
-      else {
+      if (entry.isDirectory()) {
+        if (path !== join(dir, "recipes/production")) assertCoreTree(path);
+      } else {
         assert.doesNotMatch(entry.name, /^worker\./, path);
         assert.doesNotMatch(read(path), /invite/, path);
       }
     }
   }
   assertCoreTree(dir);
+  if (!chat) {
+    const production = join(dir, "recipes/production");
+    for (const file of ["schema.q", "fixtures/test.cases.jsonl", "App.tsx", "client.ts"])
+      assert.ok(existsSync(join(production, file)), `missing separate production recipe ${file}`);
+    assert.match(read(join(production, "schema.q")), /mutation invite\(/);
+    assert.match(read(join(production, "App.tsx")), /api\.invite/);
+  }
 });
 
 // Wave 5 (LLP 3000.013 §6.6): the adapted Home renders the schema's first

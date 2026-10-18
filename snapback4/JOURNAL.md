@@ -96139,6 +96139,67 @@ Budget723,660 B is exactly gzip+500 B, whole-artifact +6,446 B gzip over
 or independent feature attribution. This is integration evidence, not a
 publication record; all final checks are recorded in WORKSTREAM-REPORT.md.
 
+
+## 2026-10-16 — Wave 14 DAY4: truthful proof and rollback advice
+
+Starter proof ownership now uses the complete emitted proof digest census from
+0.4.28 onward. Custom proofs keep their own source arguments; removed
+unreferenced day-two scaffolding records an opt-out. UI init opts into day-two
+sources/fixtures with --day2. Adapt captures current sources in new directories
+and preserves flat legacy evidence. Saved-source proof results count authored
+business cases separately from query sweeps and require explicit fixture-only
+intent for zero-case validation. Saved fixture drift is read-only inspection.
+
+Previews narrow dependencies to consulted domains, retain actual filter and
+field defaults, and prove supported added trailing requirements as tightening.
+Rollback identifies lost current safety/confidentiality, changed populations
+and quotas, bridge choices and the resolved immutable target before activation.
+The governing amendments are proof-kit §11 and retained-release §14. Review
+records and qualification are under reports/20261016-wave14-day4 and the
+worktree's WORKSTREAM-REPORT.md. REG owns the proof-host missing-dist failure;
+PROD owns the production adapt flag; their changes are intentionally separate.
+## 2026-10-16 — Wave 14 PROD: guided production and release-aware screens
+
+`init --adapt --production` previews bare identity, all blocked first writers,
+explicit seat read/insert grants and a typed mutation per roster; apply compiles
+before replacing schema files and preserves application screens. The source
+scan names dev-principal migration sites. React/Expo starters carry a compiled
+account/persona roster recipe, gated by GET auth configuration, with role-based
+invitations/pickers and draft/selection ownership above release queries.
+Client recipes spell handler signatures and per-operation prediction timing;
+codegen annotates decimal scale. Invalid write-tier configuration is observable
+through auth.why without side effects. LLP 3000.011.003.000 §14 records the
+amendment and both READY reviews. This is work toward 0.4.31; no version bump,
+publication, deployment or push is performed by this workstream.
+## 2026-10-17 — Wave 14 KIT3: explicit proof claims and bounded clock/read evidence
+
+`witnessForm` gives a trusted handler its own per-arm token across awaited
+uploads; unrelated or stale calls cannot borrow it. Witness refusals expose the
+stable reason enum, mismatch messages omit argument values, and helper docs
+cover fresh-string returns, substring diagnostics, RN web, wrapped selects and
+SVG clicks. Generated proofs assert within the actual results container. Packed
+qualification caught the Expo thread scope and the old custom-Home harness
+matcher; both were corrected and the generated recipes ran as written.
+
+The development clock keeps latest-window coalescing by default, reports fired
+and skipped windows with job replay commands, and offers `--each-boundary`.
+Reports preflight window count and escaped bytes before moving time, cap job
+error previews and respect the host encoder limit. Clock/reset replies and
+`dev.now()` report authoritative now/skew; interrupted drains retain clock
+evidence. HTTP queries settle only the overdue live publications they actually
+encounter, with one ordinary prelude, bounded targeted retries and credential
+revalidation. Fixture aliases use argument types and name null roots; sweep
+narration preserves existing verdicts. Literal wire envelopes come from real
+packed HTTP calls.
+
+The amendments are LLP 3000.011.003.000.000 §11, LLP 3000.000.000.000.000 §7,
+LLP 3000.007 §20.12.1 and LLP 3000.036.003 §10. Independent Muse and fresh Codex
+round 8 both returned READY. [The verification record](./reports/20261017-wave14-kit3/README.md)
+binds consumer qualification to 74ee49d4df and records the full bounded Rust run,
+green continuations, Linux/Mac affected checks and root generated-artifact
+preconditions. This is consumer evidence, not a publication receipt. No version
+bump or push; REG owns fixture auth/P20 proof-host, DAY4 owns P20 check/adapt.
+
 ## 2026-10-17 — Wave 14 RULES4 authorization
 
 Developer refusal evidence now names an executing mutation/query require or
@@ -96226,3 +96287,83 @@ Live-parent implementation now distinguishes each restored row's actual authorit
 Clean Linux web measurement at c2f5f6595c: 2,379,943 B raw / 725,864 B gzip / 547,431 B Brotli; strict family/absence audits pass. Ratchet 726,364 B is exactly measured gzip + 500 B, +2,704 B gzip versus RULES4. Whole-artifact growth includes live metadata/admission/queuing and the shared source-mode interface; subsequent restoration admission corrections are SQLite-only. No independent feature attribution or runtime ceiling increase. Mac Studio affected checks at this candidate: 485 passed.
 
 LIVE completion: design rev5 paired READY; implementation through edcbd2e479, final scoped r14 paired READY after shared per-row fetch/admission correction. Linux affected store 116, live-language 48 plus allocation probes 2, all-features compile, packed tarballs 11/11 and exact 100-schema survey pass. Mac Studio final affected run: 489 passed. Differential qualification at 94b32b3714: run 20k and devices 0–999 have no disagreement; Lean 20k matches every baseline oracle count/signature (130 inherited C2/W4 mismatches, four signatures). Root guide/inventory checks pass; final reference audit accompanies the evidence bundle. RFC marked Implemented and its current link archived. No push/publication; coordinator integration targets 0.4.32 after 0.4.31.
+
+## 2026-10-17 — LANG3 wave 14: readable snapshots and truthful diagnostics
+
+For 0.4.31 (integration bumps the version), held readable point snapshots and
+continuing audience branches can prove exact online pages complete. The core
+rederives the sufficient proof from arbitrary IR, bounded by twelve atoms and
+1,024 formula nodes; stale bindings, volatile ids, nullable keys and implicit
+bindings decline. Private parent-cap advice keeps every existing audience.
+Finite enum alternatives/early returns narrow safely; sort retains a complete
+population while slices do not. P18 private readable conflict keys receive the
+existing proven-change/fresh-clock refusal; unknown/hidden values retain notes.
+Immutable-parent guards retain runtime equality and stop repeating advice.
+
+Hidden-lookup advice now names actual required read gates and their authored
+refusal code. A blind mutable update is not a program read; runtime regressions
+prove the distinction. Completed point/role witnesses filter each occurrence,
+including assertions in requirements, before grouping; helper/shape/spread and
+reference-action effects invalidate evidence. Inline and mandatory helper point
+updates count as lookup attempts, never existence proof. Cascade edits lead with
+the product choice; terminal arithmetic is verbose, with JSON evidence retained.
+Literal sync repairs, reserved names and grouped cursor notes complete LANG3.
+
+LLP 3000.036.002 §12 records the amendment. Fresh Codex and Muse round 8 both
+READY on matching final digests; every received review is retained verbatim.
+All five crates are covered: combined run completed CLI/core before its one-hour
+timeout; full language and device/simulation reruns pass. Language 2,091,
+device 1,562 and simulation 749 tests pass; core docs 17 and affected clients 42
+pass. Native20k and device0–999 have no disagreement; Lean20k reproduces only
+four existing signatures. The 100-schema survey stays 100/100, notes371→357,
+with every delta explained. Packed local-client/compiler checks cover updated
+help, cascade rendering and the actual P18 cases. Clean web measurement is
+2,372,437 B raw /723,160 B gzip /545,311 B Brotli, budget723,660 B = gzip+500.
+ref-check and docs-budget pass. Root inventories/guide report three missing
+legacy Snapback1 generated-file prerequisites, not LANG3 content failures.
+Receipts and scope limits: reports/wave14-lang3/ and WORKSTREAM-REPORT.md.
+No push, version bump, Mac claim or publication qualification is made here.
+
+
+## 2026-10-17 — Integration 15, wave 14 for 0.4.31
+
+Merged REG, DAY4, PROD, KIT3, RULES4, LANG3 and SURF4 in order. Production
+adaptation retains its own dispatch beside day-two opt-in; proof hosts expose
+personas and current time; starter rendering retains empty/denied states and
+scoped proof results. Qualification runs every added consumer slice, including
+the authorization guide blocks against the exact prepared client/platform packs.
+
+The Linux device measures 2,372,829 B raw / 723,275 B gzip / 545,364 B Brotli
+with strict family/absence audits. Budget is 723,775 B, measurement plus exactly
+500 B. Whole-artifact growth from 0.4.30 is 115 B gzip, without a runtime ceiling
+change or independent feature attribution. The 100-schema read-only survey has
+358 notes and no refusal: LANG3's 357 counts plus RULES4's intended mixed-gate
+note in app 079. The authoring census regenerates to 497 mutations with the same
+94 eligible private write sites. Live-parent authority remains in its separate
+workstream; it is excluded from this release. No push or publication is authorized
+by this integration task. Qualification details are retained in the integration
+report; a running/failed check is never represented as a passing qualification.
+
+## 2026-10-17 — 0.4.30 published (snapback4, both platforms, snapback4-expo)
+
+`snapback4`, `snapback4-darwin-arm64`, `snapback4-linux-x64` and
+`snapback4-expo` 0.4.30 are published from `4ef9f77fb3` (Integration 14 with
+EXPOPIN) after the pre-wave and wave-14 go-aheads; all four `latest` = 0.4.30:
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-bsbHG4XVDlqaP/PpRBmboCk7ICVkPE8GkFyxTAIlaWx+M9UcES0rKFvCHljOo+2710dU8gFK06adhvTI0ViwPw==` |
+| `snapback4-darwin-arm64` | `sha512-vrf5b0eMdbBsRB9rV92iplz5rlQzdyqFDLJuk79ZIA9YAKka/DETYiEVyYcZcn0ICDiem8QbsJs0U/9qkctGJA==` |
+| `snapback4-linux-x64` | `sha512-QcgY0/C/dwxXRMhSbxELx7XT2/5xrnDMQn4NyjvdabpN/6scJjm03VyeCr2Qy2f5H5WBwFWaam9uQ2jjyE6+0Q==` |
+| `snapback4-expo` | `sha512-P8k4oDxCcg7Y+4go5HLHE24idpuFfBBRehWtuJU0+c45y8X+bBsf7oG8fa/Y13XLAIxXCn4HEmDRhV8Mn6CEUA==` |
+
+Everything native was built and witnessed on Xcode 27.1 (EXPOPIN's refreshed
+Expo 57.0.30 pins build there); the Xcode 27.0 copy stayed unused. Linux's first
+qualification failed only because a stale npm packument lacked `@expo/cli@57.0.31`
+under `--prefer-offline`; after refreshing it, Linux passed `== 0 failure(s) in
+2602 s` with all starter, frontend and day-2 proofs. The Mac dry run passed
+`== 0 failure(s) in 8922 s` including the complete Cargo suite. The client tarball
+404'd on the npm CDN for ~5 minutes after publish, so the registry check and Expo
+steps reran after it appeared. Clean installs on Linux and the Mac print
+`snapback4 0.4.30` and pass `init` + `check`. Details:
+`reports/20261016-publication-0.4.30/REPORT.md`.

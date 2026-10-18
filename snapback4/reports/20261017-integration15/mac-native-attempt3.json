@@ -1,0 +1,104 @@
+[
+  {
+    "name": "codesign",
+    "command": [
+      "codesign",
+      "--force",
+      "--sign",
+      "-",
+      "--entitlements",
+      "/Users/ccheever/sb4-ws-integ15/native/simulator-entitlements.plist",
+      "--timestamp=none",
+      "/Users/ccheever/sb4-ws-integ15/native/derived/Build/Products/Release-iphonesimulator/Snapback4chat.app"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 0.5730910301208496
+  },
+  {
+    "name": "create-simulator",
+    "command": [
+      "xcrun",
+      "simctl",
+      "create",
+      "sb4-integ15-floor",
+      "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
+      "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 1.0344698429107666
+  },
+  {
+    "name": "boot",
+    "command": [
+      "xcrun",
+      "simctl",
+      "boot",
+      "E25C14D8-8F3E-43AE-9571-3E60F26C96DF"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 1.5666890144348145
+  },
+  {
+    "name": "boot-status",
+    "command": [
+      "xcrun",
+      "simctl",
+      "bootstatus",
+      "E25C14D8-8F3E-43AE-9571-3E60F26C96DF",
+      "-b"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 21.748433828353882
+  },
+  {
+    "name": "install-app",
+    "command": [
+      "xcrun",
+      "simctl",
+      "install",
+      "E25C14D8-8F3E-43AE-9571-3E60F26C96DF",
+      "/Users/ccheever/sb4-ws-integ15/native/derived/Build/Products/Release-iphonesimulator/Snapback4chat.app"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 4.939874172210693
+  },
+  {
+    "name": "witness",
+    "command": [
+      "node",
+      "witness/expo.mjs"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 1,
+    "seconds": 7.995060920715332
+  },
+  {
+    "name": "shutdown",
+    "command": [
+      "xcrun",
+      "simctl",
+      "shutdown",
+      "E25C14D8-8F3E-43AE-9571-3E60F26C96DF"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 3.5032289028167725
+  },
+  {
+    "name": "delete",
+    "command": [
+      "xcrun",
+      "simctl",
+      "delete",
+      "E25C14D8-8F3E-43AE-9571-3E60F26C96DF"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 0.5011661052703857
+  }
+]

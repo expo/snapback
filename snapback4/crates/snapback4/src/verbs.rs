@@ -32,6 +32,7 @@ pub(crate) const CASES_FILE: &str = test_cases::FILE;
 mod adoption;
 mod package_versions;
 mod check_surface;
+mod saved_fixture_drift;
 mod upgrade_history;
 #[cfg(test)]
 mod hand_tests;
@@ -149,7 +150,11 @@ pub(crate) fn problem_reports(bound: &Bound, explain_repeats: bool, verbose: boo
             hidden += 1;
             continue;
         }
-        shown_diagnostics.push(diagnostic.clone());
+        let mut diagnostic = diagnostic.clone();
+        if verbose && let Some(details) = &diagnostic.details {
+            diagnostic.rewrite.push_str(&format!("\n  details: {details}"));
+        }
+        shown_diagnostics.push(diagnostic);
     }
     let reports = diagnostic_reports(&shown_diagnostics, "", explain_repeats).into_iter()
         .map(|report| if verbose { report } else { crate::presentation::abbreviate_quoted(&report) }).collect();
@@ -232,7 +237,11 @@ fn completeness_note(note: &snapback4_lang::Diagnostic) -> Option<[String; 3]> {
         None if note.code == "N_CONDITIONAL_COMPLETE" => "who: callers admitted by the pinned parent guard have a complete page".into(),
         None => "who: no caller group is proved complete by this page".into(),
     };
-    let what = if note.rewrite.starts_with("add `cap ") {
+    let subject = note.message.split(": ").next().unwrap_or("query");
+    let missing = note.message.split("` reads ").nth(1).and_then(|tail| tail.split_once(", which the scan does not pin").map(|(columns,_)| columns));
+    let what = if let Some(columns) = missing {
+        format!("what: {subject}: missing pin {columns}; choose the intended audience without dropping other readers; check --verbose shows the checked repair")
+    } else if note.rewrite.starts_with("add `cap ") {
         format!("what: {}", note.rewrite)
     } else {
         "what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair".into()
@@ -282,6 +291,9 @@ pub fn check(options: &Options) -> i32 {
         Ok(bound) => bound,
         Err(code) => return code,
     };
+    for warning in saved_fixture_drift::warnings(&project) {
+        eprintln!("check: WARNING: saved fixture drift: {warning}");
+    }
     if options.flags.contains_key("fix") && bound.diagnostics.is_empty() {
         if let Err(error) = fix_fixtures::run(&project, &bound, options) { eprintln!("check --fix: {error}"); return 2; }
     }
@@ -895,6 +907,7 @@ pub fn doctor(options: &Options) -> i32 {
     let mut ok = true;
     let mut storage: Option<snapback4_core::store::Sizes> = None;
     let mut latency_snapshot = None;
+    let mut findings = Vec::new();
     let version = env!("CARGO_PKG_VERSION");
     let project = match work_records::project(options) { Ok(project) => project, Err(error) => { eprintln!("doctor: {error}"); return 1; } };
     lines.push(format!("project   {}", project.root.display()));
@@ -1020,7 +1033,7 @@ pub fn doctor(options: &Options) -> i32 {
             match snapback4_core::Engine::open(store) {
                 Ok(mut engine) => {
                     match expiry_orphans::findings(&mut engine, options) {
-                        Ok(findings) => { if !findings.is_empty() { ok = false; lines.extend(findings); } }
+                        Ok(found) => { if !found.is_empty() { ok = false; lines.extend(found.iter().map(|finding| format!("expiry    {}: {}", finding["code"].as_str().unwrap(), finding["message"].as_str().unwrap()))); findings.extend(found); } }
                         Err(error) => { ok = false; lines.push(format!("expiry    inspection failed: {error}")); }
                     }
                     match crate::dev_clock_store::ahead(&engine, now) {
@@ -1088,7 +1101,7 @@ pub fn doctor(options: &Options) -> i32 {
         lines.push(format!("personas  {}", personas.join(", ")));
     }
     if options.json {
-        println!("{}", json!({ "ok": ok, "lines": lines, "storage": storage, "latency": latency_snapshot, "ms": started.elapsed().as_millis() }));
+        println!("{}", json!({ "ok": ok, "lines": lines, "findings": findings, "storage": storage, "latency": latency_snapshot, "ms": started.elapsed().as_millis() }));
     } else {
         println!("snapback4 {version}");
         for line in lines {

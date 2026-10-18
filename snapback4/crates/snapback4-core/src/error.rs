@@ -256,8 +256,12 @@ impl RuntimeError {
         !self.is_store_failure()
     }
 
+    // @ref LLP 3000.000.000.000.000#7 — structured messages omit the code rendered by Refusal Display.
     pub fn refusal(&self) -> Refusal {
-        let mut refusal = Refusal::new(self.code(), self.family(), self.to_string());
+        let text = self.to_string();
+        let prefix = format!("{}: ", self.code());
+        let message = text.strip_prefix(&prefix).unwrap_or(&text);
+        let mut refusal = Refusal::new(self.code(), self.family(), message);
         match self {
             #[cfg(feature = "sqlite")]
             Self::Structural { code: "E_DELIVERY_BINDING", .. } => {

@@ -38,6 +38,9 @@ pub struct Diagnostic {
     pub code: String,
     pub message: String,
     pub rewrite: String,
+    /// Reservation evidence retained for JSON and check --verbose.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub details: Option<String>,
     /// Exact Quarry source that may replace the diagnostic's authored
     /// expression or rule. Most rewrites are design guidance and leave this
     /// unset; golden tests compile only this compiler-emitted source.
@@ -67,7 +70,12 @@ impl Diagnostic {
     pub fn new(site: &Site, code: &str, message: impl Into<String>, rewrite: impl Into<String>) -> Self {
         let code = code.to_owned();
         let guide = guide_for(&code).to_owned();
-        Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), source_rewrite: None, source_rewrite_kind: None, guide, mechanical: false, cascade_of: None, read_repair: None, verified_edit: None }
+        Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), details: None, source_rewrite: None, source_rewrite_kind: None, guide, mechanical: false, cascade_of: None, read_repair: None, verified_edit: None }
+    }
+
+    pub fn details(mut self, details: impl Into<String>) -> Self {
+        self.details = Some(details.into());
+        self
     }
 
     /// The CLI must match this original source before applying `rewrite`.
@@ -230,7 +238,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_QUARRY_STATEMENT" => "programs",
         "E_QUARRY_IMMUTABLE" | "N_IMMUTABLE_PATCH" | "N_CASCADE_DORMANT" => "writes",
         "E_QUARRY_FANOUT" => "bounds",
-        "E_JOB_VIEWER_CONTEXT" | "E_JOB_VIEWER_FLOW" | "E_JOB_VIEWER_PRINCIPAL" | "E_JOB_VIEWER_QUERY" | "E_JOB_VIEWER_READ" | "E_JOB_VIEWER_READ_ONLY" | "E_SYSTEM_PRINCIPAL_WRITE" | "DIGEST_CHAT_BOUND" | "N_CLOCK_STORE_AHEAD" | "E_CLOCK_DEV_ONLY" | "E_CLOCK_INPUT" | "E_SCHEDULE" | "E_JOB_CURSOR_INDEX" | "E_JOB_GENERATION" | "E_JOB_SWEEP" => "jobs",
+        "E_JOB_VIEWER_CONTEXT" | "E_JOB_VIEWER_FLOW" | "E_JOB_VIEWER_PRINCIPAL" | "E_JOB_VIEWER_QUERY" | "E_JOB_VIEWER_READ" | "E_JOB_VIEWER_READ_ONLY" | "E_SYSTEM_PRINCIPAL_WRITE" | "DIGEST_CHAT_BOUND" | "N_CLOCK_STORE_AHEAD" | "E_CLOCK_DEV_ONLY" | "E_CLOCK_INTERRUPTED" | "E_CLOCK_INPUT" | "E_SCHEDULE" | "E_JOB_CURSOR_INDEX" | "E_JOB_GENERATION" | "E_JOB_SWEEP" => "jobs",
         "E_REPLAY_DEV_ONLY" | "E_SQL_READ_ONLY" | "E_SQL_INTERNAL" | "E_RATE_LIMIT" => "personas",
         "E_AUTH" => "services",
         "E_WORKER_REFRESH" => "effects",

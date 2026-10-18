@@ -54,7 +54,7 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
     }
     if let Some(text) = read(dir, "src/native-smoke.ts") {
         let wanted = starter::native_smoke(own.identity.is_some_and(|(password, guests)| password && !guests));
-        let recognized = [false, true].into_iter().any(|password| text == starter::native_smoke(password) || text == starter::native_smoke(password).lines().filter(|line| !line.starts_with("// smokeSegment()") && !line.starts_with("// native module config")).collect::<Vec<_>>().join("\n") + "\n");
+        let recognized = [false, true].into_iter().any(|password| [starter::native_smoke(password), starter::wave14_native_smoke(password)].iter().any(|reference| text == *reference || text == reference.lines().filter(|line| !line.starts_with("// smokeSegment()") && !line.starts_with("// native module config")).collect::<Vec<_>>().join("\n") + "\n"));
         if !recognized { modified.push("src/native-smoke.ts".to_owned()); }
         if text != wanted && recognized && smoke_referenced(dir) {
             found.push(Leftover { path: "src/native-smoke.ts", why: "the unmodified native smoke helper uses the previous schema's sign-in".into(), rewrite: Some(wanted) });
@@ -210,8 +210,8 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let client_shape = normalized(&client);
     let matches_client = |reference: &str, personas: bool| [reference, starter::previous_client(platform, personas)].iter().any(|reference|
         client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)) || client_shape == normalized(&starter::online_web_client((*reference).to_owned())) || client_shape == normalized(&starter::expo_client((*reference).to_owned(), &journal_shape)));
-    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [false, true].into_iter().find_map(|previous| {
-        let screens = |personas: Option<&[String]>, password| if previous { starter::previous_screens(platform, personas, &body, password) } else { starter::identity_screens(platform, personas, &body, password) };
+    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [0, 1, 2].into_iter().find_map(|version| {
+        let screens = |personas: Option<&[String]>, password| match version { 1 => starter::previous_screens(platform, personas, &body, password), 2 => starter::wave14_screens(platform, personas, &body, password), _ => starter::identity_screens(platform, personas, &body, password) };
         let (guest_app, guest_client) = screens(None, false);
         let (persona_app, persona_client) = screens(Some(&[]), false);
         let (password_app, password_client) = screens(None, true);
@@ -306,27 +306,10 @@ fn port_of(client: &str) -> Option<&str> {
     (digits > 0).then(|| &client[at..at + digits])
 }
 
-fn proof_advice(dir: &Path) -> Vec<String> {
-    let mut advice = Vec::new();
-    if let Ok(Some(own)) = super::own_schema(dir) {
-        match super::proof::plan(dir, &own) {
-            Ok(changes) if !changes.is_empty() => {
-                let package: serde_json::Value = std::fs::read_to_string(dir.join("package.json")).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default();
-                if package["scripts"]["day2:proof"] == "node scripts/day2-proof.mjs" {
-                    advice.push("info: day2:proof passes no saved versions; run `snapback4 init --adapt`, then `snapback4 init --adapt --apply`".into());
-                } else { advice.push("info: starter proof infrastructure needs updating; run `snapback4 init --adapt` to preview, then `snapback4 init --adapt --apply`".into()); }
-            }
-            Err(error) => advice.push(format!("info: cannot inspect starter proof infrastructure: {error}")),
-            _ => {}
-        }
-    }
-    advice
-}
-
 /// One `check` line, or none: the leftovers and the command that fixes them.
 pub(crate) fn report(dir: &Path) -> Option<String> {
     let (found, mut advice) = leftovers(dir);
-    advice.extend(proof_advice(dir));
+    advice.extend(super::proof_advice::report(dir));
     if found.is_empty() && advice.is_empty() { return None; }
     if found.is_empty() && advice.iter().all(|line| line.starts_with("info:")) { return Some(advice.join("\n")); }
     let mut lines = Vec::new();
@@ -343,7 +326,7 @@ pub(crate) fn report(dir: &Path) -> Option<String> {
 /// The same, for `check --json`: `null` when nothing is left over.
 pub(crate) fn report_json(dir: &Path) -> serde_json::Value {
     let (found, mut advice) = leftovers(dir);
-    advice.extend(proof_advice(dir));
+    advice.extend(super::proof_advice::report(dir));
     if found.is_empty() && advice.is_empty() { return serde_json::Value::Null; }
     serde_json::json!({
         "files": found.iter().map(|leftover| serde_json::json!({ "path": leftover.path, "why": leftover.why, "adapt": if leftover.rewrite.is_some() { "rewrite" } else { "remove" } })).collect::<Vec<_>>(),
@@ -353,14 +336,15 @@ pub(crate) fn report_json(dir: &Path) -> serde_json::Value {
 }
 
 /// `snapback4 init --adapt [dir]`.
-pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool) -> i32 {
+pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool, day2: bool) -> i32 {
     let own = match own_schema(dir) {
         Ok(Some(own)) => own,
         Ok(None) => { eprintln!("init --adapt: no snapback/*.q in {}; nothing to adapt to (run `snapback4 init --web` or `--expo` first)", dir.display()); return 1; }
         Err(error) => { eprintln!("init: {error}"); return 2; }
     };
-    let (found, advice, modified) = plan(dir);
-    let proof = match super::proof::plan(dir, &own) {
+    let (found, mut advice, modified) = plan(dir);
+    advice.extend(super::proof_advice::report(dir));
+    let proof = match super::proof::plan(dir, &own, day2) {
         Ok(proof) => proof,
         Err(error) => { eprintln!("init --adapt proof: {error}"); return 2; }
     };
@@ -369,6 +353,14 @@ pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool) -> i32 {
         for change in &found { println!("  {} {} — {}", if change.rewrite.is_some() { "rewrite" } else { "remove" }, change.path, change.why); }
     }
     for (path, body) in &proof {
+        if *path == "package.json" && serde_json::from_str::<serde_json::Value>(body).ok().is_some_and(|new| {
+            let mut old: serde_json::Value = std::fs::read_to_string(dir.join(path)).ok().and_then(|s|serde_json::from_str(&s).ok()).unwrap_or_default();
+            old["snapback4"] = new["snapback4"].clone(); old == new
+        }) { continue; }
+        if path.starts_with("versions/") {
+            println!("  add {path} — capture current snapback/*.q and contemporary fixtures; legacy flat sources stay unchanged");
+            continue;
+        }
         let exists = dir.join(path).exists();
         println!("  {} {} — {} proof infrastructure", if *path == "package.json" { "extend" } else if exists { "replace" } else { "add" }, path, if exists { "inherited" } else { "missing" });
         if *path == "package.json" {
@@ -382,9 +374,9 @@ pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool) -> i32 {
     if !modified.is_empty() { println!("init --adapt: application-owned or modified files stay unchanged: {}", modified.join(", ")); }
     if dry_run || !apply {
         for line in advice { println!("init --adapt: {line}"); }
-        if !fits_todos(&own) { println!("init --adapt: no write scenario: replace the Home assertions"); }
+        if !fits_todos(&own) && [false,true].into_iter().any(|web| super::proof_advice::frontend_template(dir, web).is_some_and(|(_,template)|template.is_none())) { println!("init --adapt: no write scenario: replace the Home assertions"); }
         println!("init --adapt: preview only; no files changed. Apply with:");
-        println!("snapback4 init{} --adapt --apply", if dir == Path::new(".") { String::new() } else { format!(" '{}'", dir.to_string_lossy().replace('\'', "'\"'\"'")) });
+        println!("snapback4 init{} --adapt{} --apply", if dir == Path::new(".") { String::new() } else { format!(" '{}'", dir.to_string_lossy().replace('\'', "'\"'\"'")) }, if day2 { " --day2" } else { "" });
         return 0;
     }
     if let Err(error) = super::proof::apply(dir, &proof) { eprintln!("init --adapt proof: {error}"); return 2; }
@@ -433,5 +425,30 @@ fn untouched_wave9_screens_still_adapt_and_edited_clients_stay_owned() {
             assert!(!changes.iter().any(|change| change.path == app_path || change.path == client_path), "edited pair stays owned");
             std::fs::remove_dir_all(dir).unwrap();
         }
+    }
+}
+
+
+#[test]
+fn untouched_wave14_screens_and_smoke_still_adapt() {
+    for platform in [Platform::Web, Platform::Expo] {
+        let dir = std::env::temp_dir().join(format!("sb4-w14-adapt-{}-{platform:?}", std::process::id()));
+        std::fs::create_dir_all(dir.join("snapback")).unwrap();
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        let schema = include_str!("starter/schema.q").replace("use identity ", "use identity password ");
+        std::fs::write(dir.join("snapback/schema.q"), schema).unwrap();
+        let (app, client) = starter::wave14_screens(platform, None, &Body::Todos, false);
+        assert!(!app.contains("No tasks yet."));
+        let (app_path, client_path) = platform.paths();
+        std::fs::write(dir.join(app_path), app).unwrap();
+        std::fs::write(dir.join(client_path), &client).unwrap();
+        std::fs::write(dir.join("src/native-smoke.ts"), starter::wave14_native_smoke(false)).unwrap();
+        let (changes, _) = leftovers(&dir);
+        assert!(changes.iter().any(|change| change.path == app_path));
+        if platform == Platform::Expo { assert!(changes.iter().any(|change| change.path == "src/native-smoke.ts")); }
+        std::fs::write(dir.join(client_path), format!("{client}\n// application-owned edit\n")).unwrap();
+        let (changes, _) = leftovers(&dir);
+        assert!(!changes.iter().any(|change| change.path == app_path || change.path == client_path));
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

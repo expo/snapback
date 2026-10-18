@@ -70,7 +70,8 @@ mutation add(title: text <=80):
     }));
     const proofFile = join(dir, 'scripts/frontend-proof.mjs');
     const proof = readFileSync(proofFile, 'utf8');
-    assert.match(proof, /within: page.locator\("#proof-rows"\)/);
+    assert.match(proof, /const within = page.locator\("#proof-rows"\);/);
+    assert.match(proof, /renderedText\(page, new RegExp\(title\), \{ within \}\)/);
     assert.throws(() => installCustomWriteScenario(dir, kind), /fresh Home/);
     assert.equal(readFileSync(file, 'utf8'), source);
     assert.equal(readFileSync(proofFile, 'utf8'), proof);

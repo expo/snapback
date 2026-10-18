@@ -1,0 +1,127 @@
+[
+  {
+    "name": "babel-install",
+    "command": [
+      "npm",
+      "install",
+      "--save-dev",
+      "--save-exact",
+      "babel-preset-expo@57.0.16",
+      "--no-audit",
+      "--no-fund"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/native/apps/chat-expo",
+    "exit": 0,
+    "seconds": 2.238741159439087
+  },
+  {
+    "name": "create-simulator",
+    "command": [
+      "xcrun",
+      "simctl",
+      "create",
+      "sb4-integ15-floor",
+      "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
+      "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 0.5646328926086426
+  },
+  {
+    "name": "boot",
+    "command": [
+      "xcrun",
+      "simctl",
+      "boot",
+      "EC54661A-FA3E-4FD7-BBD5-546094866DBD"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 1.1599180698394775
+  },
+  {
+    "name": "boot-status",
+    "command": [
+      "xcrun",
+      "simctl",
+      "bootstatus",
+      "EC54661A-FA3E-4FD7-BBD5-546094866DBD",
+      "-b"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 22.31173610687256
+  },
+  {
+    "name": "xcode",
+    "command": [
+      "xcodebuild",
+      "-workspace",
+      "/Users/ccheever/sb4-ws-integ15/native/apps/chat-expo/ios/Snapback4chat.xcworkspace",
+      "-scheme",
+      "Snapback4chat",
+      "-configuration",
+      "Release",
+      "-sdk",
+      "iphonesimulator",
+      "-destination",
+      "id=EC54661A-FA3E-4FD7-BBD5-546094866DBD",
+      "-derivedDataPath",
+      "/Users/ccheever/sb4-ws-integ15/native/derived",
+      "-jobs",
+      "4",
+      "CODE_SIGNING_ALLOWED=NO"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/native/apps/chat-expo",
+    "exit": 0,
+    "seconds": 55.14212393760681
+  },
+  {
+    "name": "install-app",
+    "command": [
+      "xcrun",
+      "simctl",
+      "install",
+      "EC54661A-FA3E-4FD7-BBD5-546094866DBD",
+      "/Users/ccheever/sb4-ws-integ15/native/derived/Build/Products/Release-iphonesimulator/Snapback4chat.app"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 3.9669430255889893
+  },
+  {
+    "name": "witness",
+    "command": [
+      "node",
+      "witness/expo.mjs"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 1,
+    "seconds": 10.911277770996094
+  },
+  {
+    "name": "shutdown",
+    "command": [
+      "xcrun",
+      "simctl",
+      "shutdown",
+      "EC54661A-FA3E-4FD7-BBD5-546094866DBD"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 3.9730470180511475
+  },
+  {
+    "name": "delete",
+    "command": [
+      "xcrun",
+      "simctl",
+      "delete",
+      "EC54661A-FA3E-4FD7-BBD5-546094866DBD"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 0.38053393363952637
+  }
+]

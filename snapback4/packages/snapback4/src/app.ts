@@ -1,4 +1,4 @@
-import { sessionRefusal } from "./session-refusal.ts";
+import { bindSessionRefusal, sessionRefusal } from "./session-refusal.ts";
 import { refuseReadDevice, validateReadOptions, readOnlyRefusal, verifyReadClient } from "./read-only.ts";
 import { routeMutations } from "./ephemeral.ts";
 import { admissionRefusal, browserAdmission, failedAdmission, sessionReader, sdkOwned, BROWSER_WRITE_FIX, ONLINE_WRITE_FIX } from "./admission.ts";
@@ -110,11 +110,27 @@ class SessionEpochChanged extends StorageWarning {
   constructor() { super({ code: "E_AUTH", family: "auth", message: "the stored session changed in another app", site: "app.auth", rewrite: "await app.auth.login(email, password)" }); }
 }
 
+/** A configuration refusal is an observable app, before any identity or storage
+ * is opened. Keeping its client fenced also prevents accidental public reads. */
+function refusedApp(options: AppOptions, why: Refusal): App {
+  const raw = sdkOwned(() => createClient({ url: options.url, readOnly: options.readOnly ?? false,
+    fetch: async () => Response.json({ denied: why }, { status: 403 }) }));
+  const client = guardClient(raw, async () => false, () => false, () => why).client;
+  bindSessionRefusal(client, () => why);
+  const result = { ok: false, why } as const;
+  const snapshot: AuthSnapshot = { state: "signed-out", viewer: null, why };
+  const refused = () => Promise.resolve(result);
+  const auth: AppAuth = { ...snapshot, getSnapshot: () => snapshot, onChange: () => () => {},
+    signup: refused, login: refused, guest: refused, logout: refused, logoutEverywhere: refused };
+  return { client, online: onlineView(client), onOnlineChange: () => () => {}, auth,
+    ready: Promise.resolve(result), mutate: client.mutate, close: () => client.close() };
+}
+
 export function createApp(options: AppOptions): App {
   validateReadOptions(options);
   // @ref LLP 3000.013.000#17 — refuse unwritable configuration before identity branching.
   if (options.writes !== undefined && (options.writes !== "online" || options.device || options.readOnly)) {
-    throw new StorageWarning({ code: "E_CLIENT", family: "client", site: "createApp.writes",
+    return refusedApp(options, { code: "E_CLIENT", family: "client", site: "createApp.writes",
       message: options.writes !== "online" ? 'writes must be "online" or omitted'
         : 'writes: "online" cannot be combined with a device or readOnly',
       rewrite: 'omit writes with a device/readOnly, or createApp({ url, writes: "online" })' });

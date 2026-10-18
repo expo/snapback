@@ -97,8 +97,8 @@ export function installCustomWriteScenario(cwd,kind) {
   const original=readFileSync(screen,"utf8"), proof=readFileSync(proofPath,"utf8");
   assert.equal(original.split("<FirstRead />").length-1,1,"custom qualification needs one generated Home read slot");
   assert.ok(original.includes("function Home()") && !original.includes("function ProofWrite()"),"custom qualification needs a fresh Home");
-  const needle="renderedText(page, new RegExp(title))";
-  assert.equal(proof.split(needle).length-1,1,"custom qualification needs the generated assertion slot");
+  const needle=/const within = [^\n;]+;/g;
+  assert.equal([...proof.matchAll(needle)].length,1,"custom qualification needs the generated scope slot");
   const imports=`import {useState as proofState} from 'react';\nimport {useMutation as proofMutation,useQuery as proofQuery} from 'snapback4/react';\n`
     +(kind === "expo" ? `import {TextInput as ProofTextInput} from 'react-native';\n` : '');
   const body=kind === "web"
@@ -106,7 +106,7 @@ export function installCustomWriteScenario(cwd,kind) {
     : `<View nativeID="proof-rows"><ProofTextInput accessibilityLabel="Task" value={draft} onChangeText={setDraft}/><Button title="Add" onPress={()=>void writer.run({title:draft})}/><Text>{"data" in rows?JSON.stringify(rows.data):""}</Text></View>`;
   const component=`\nfunction ProofWrite(){const [draft,setDraft]=proofState("");const writer=proofMutation(api.add),rows=proofQuery(api.mine,{});return ${body};}\n`;
   const source=imports+original.replace("<FirstRead />","<FirstRead /><ProofWrite />")+component;
-  const assertion=proof.replace(needle,'renderedText(page, new RegExp(title), { within: page.locator("#proof-rows") })');
+  const assertion=proof.replace(needle,'const within = page.locator("#proof-rows");');
   writeFileSync(screen,source);writeFileSync(proofPath,assertion);
 }
 
@@ -139,6 +139,43 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     writeFileSync(join(cwd, "package.json"), JSON.stringify(pkg, null, 2));
     // Lifecycle scripts are enabled: esbuild and the other real tools need them.
     await run("npm", ["install", "--prefer-offline", "--no-audit", "--no-fund"], cwd);
+    // Runtime fixture proofs use the pinned Node 24 host. Clean userspaces
+    // are build-only (Ubuntu intentionally carries Node 22, without TS workers).
+    if (browserProofs) {
+      if (!existsSync(join(cwd, "fixtures"))) mkdirSync(join(cwd, "fixtures"));
+      // H9/R1: execute the shipped guide block verbatim, including on persona-only apps.
+      const fixtureProof = join(cwd, "guide-fixtures-proof.mjs");
+      writeFileSync(fixtureProof, `import assert from 'node:assert/strict';
+  import {execFileSync} from 'node:child_process';
+  import {readFileSync,writeFileSync} from 'node:fs';
+  import {startDev,loadFixtures,cleanup} from 'snapback4/proof';
+  import {pathToFileURL} from 'node:url';
+  const cli=${JSON.stringify(cli)};
+  const guide=execFileSync(cli,['guide','testing','--section','Loading fixture rows'],{encoding:'utf8',timeout:10000});
+  const fence=String.fromCharCode(96).repeat(3), snippet=guide.split(fence+'js')[1].split(fence)[0].trim();
+  writeFileSync('guide-fixtures-snippet.mjs',snippet);
+  const schema='snapback/schema.q', original=readFileSync(schema,'utf8');
+  try {
+    for(const personasOnly of [false,true]) {
+      writeFileSync(schema,personasOnly?original.replace(/^use identity.*$/m,''):original);
+      const dev=await startDev();
+      try {
+        assert.ok(dev.personas.length);
+        const responses=[];
+        const originalFetch=globalThis.fetch;
+        globalThis.dev=dev;
+        globalThis.fetch=async (...args)=>{const response=await originalFetch(...args);responses.push(await response.clone().json());return response;};
+        try {await import(pathToFileURL(process.cwd()+'/guide-fixtures-snippet.mjs').href+'?only='+personasOnly);}
+        finally {globalThis.fetch=originalFetch;delete globalThis.dev;}
+        assert.equal(responses.at(-1).denied,undefined);
+        assert.equal(responses.at(-1).reset,true);
+        assert.ok(Array.isArray(await loadFixtures('fixtures',{url:dev.url,persona:dev.personas[0]})));
+      } finally {await cleanup(()=>dev.stop());}
+    }
+  } finally {writeFileSync(schema,original);}
+  `);
+      await run(process.execPath, [fixtureProof], cwd);
+    }
     const build = async () => {
       await run(cli, ["check"], cwd);
       await run("npm", ["run", "typecheck"], cwd);
@@ -147,9 +184,24 @@ export async function proveStarters(client, platform, expo, directory, browserPr
       assert.ok(existsSync(join(cwd, "dist/index.html")), `${kind} produced a web page`);
     };
     await build();
+    if (template) {
+      const screen = join(cwd, template === "social" ? "app/_layout.tsx" : kind === "web" ? "src/App.tsx" : "App.tsx");
+      assert.match(readFileSync(screen, "utf8"), /useAppReady\(\)/, `${id} gates writers with useAppReady`);
+    }
+    // Read the recipe from the installed binary, then execute its fence unchanged.
+    const surfaceCard = join(cwd, "surface-card.md");
+    await run(process.execPath, ["--input-type=commonjs", "-e", `require('node:fs').writeFileSync(${JSON.stringify(surfaceCard)},require('node:child_process').execFileSync(${JSON.stringify(cli)},['guide','release-json','--full'],{encoding:'utf8',timeout:30000}));`], cwd);
+    const recipe = readFileSync(surfaceCard, "utf8").match(/```js\n([\s\S]*?)\n```/);
+    assert.ok(recipe, "packed release-json card carries its executable recipe");
+    const surfaceProof = join(cwd, "surface-proof.mjs");
+    writeFileSync(surfaceProof, recipe[1] + `
+import assert from 'node:assert/strict';
+assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deployment','latest','--json'])).stdout);for(const key of ['release','previous_active','latest','generation','revision','events','events_after','items','items_after','workers','selected'])assert.ok(key in inspected,key);assert.equal(inspected.selected.current,true);
+`);
+    await run(process.execPath, [surfaceProof], cwd);
     const frontendProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];
     if (template || id === "web-online") {
-      results.push({ starter: id, kind, template, status: "passed", typecheck: "passed", build: "passed", frontendProofs });
+      results.push({ starter: id, kind, template, fixtureGuide: browserProofs ? "passed" : "not-run-build-only", status: "passed", typecheck: "passed", build: "passed", frontendProofs });
       continue;
     }
     // Exercise init-first adaptation with a different online-only schema: Home,
@@ -173,7 +225,7 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     installCustomWriteScenario(cwd,kind);
     await build();
     const adaptedProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];
-    results.push({ starter: id, kind, status: "passed", adapted: "passed", typecheck: "passed", build: "passed", frontendProofs, adaptedProofs, negativeProof, formSubmit: kind === "web" ? "passed" : "not-applicable" });
+    results.push({ starter: id, kind, fixtureGuide: browserProofs ? "passed" : "not-run-build-only", status: "passed", adapted: "passed", typecheck: "passed", build: "passed", frontendProofs, adaptedProofs, negativeProof, formSubmit: kind === "web" ? "passed" : "not-applicable" });
   }
   return results;
 }

@@ -1,6 +1,6 @@
 import { matchRead } from "snapback4/contract";
 import { useEffect, useMemo, useState } from "react";
-import { AppProvider, useAuth, useClient, useAcquired, useLink, useQuery } from "snapback4/react";
+import { AppProvider, useAppReady, useAuth, useClient, useAcquired, useLink, useQuery } from "snapback4/react";
 import { api } from "../snapback/generated/api.ts";
 import { app, url } from "./client.ts";
 import { Inbox } from "./Inbox.tsx";
@@ -11,8 +11,10 @@ import { ViewState, routeFromUrl, setRoute } from "./state.ts";
 export function App() { return <AppProvider app={app}><Account /></AppProvider>; }
 function Account() {
   const auth = useAuth();
+  const ready = useAppReady();
   const [problem, setProblem] = useState("");
   if (auth.state === "restoring") return <p>Restoring your account…</p>;
+  if (auth.state === "signed-in" && !ready) return <p>{auth.why?.message ?? "Opening your account…"}</p>;
   if (auth.state === "signed-in") return <SignedIn />;
   return <section><h1>{auth.why ? "Account needs attention" : "Signed out"}</h1><p>{problem || auth.why?.message}</p>
     <button onClick={() => { void auth.guest().then(result => { if (!result.ok) setProblem(result.why.message); }); }}>Continue as a guest</button>

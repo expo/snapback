@@ -379,7 +379,7 @@ for (const transport of ["HTTP", "client"]) test(`W6b password character minimum
     const short = await signIn("signup", email, letter.repeat(7));
     assert.equal(short.ok, false, `${transport}: seven ${letter} characters must be refused`);
     assert.equal(short.why.code, "E_AUTH");
-    assert.equal(short.why.message, "E_AUTH: a password needs at least 8 characters");
+    assert.equal(short.why.message, "a password needs at least 8 characters");
     const accepted = await signIn("signup", email, letter.repeat(8));
     assert.equal(accepted.ok, true, JSON.stringify(accepted));
     assert.equal(accepted.session.kind, "user");
@@ -398,7 +398,7 @@ for (const transport of ["HTTP", "client"]) test(`W6b password character minimum
     const oversized = await signIn(route, "maximum@example.com", maximum + "a");
     assert.equal(oversized.ok, false);
     assert.equal(oversized.why.code, "E_AUTH");
-    assert.equal(oversized.why.message, "E_AUTH: a password is at most 1024 UTF-8 bytes");
+    assert.equal(oversized.why.message, "a password is at most 1024 UTF-8 bytes");
   }
   t.diagnostic(`${transport}: 7 characters refused at 7/14/28 bytes; 8 accepted at 8/16/32 bytes; 2 characters / 8 bytes refused; 512 characters / 1024 bytes accepted; 1025 bytes refused`);
 });
@@ -413,7 +413,7 @@ test("W6b identity forms advertise and enforce the guest choice", { timeout: han
     if (guests) assert.equal(visitor.session.kind, "guest");
     else {
       assert.equal(visitor.why.code, "E_AUTH");
-      assert.equal(visitor.why.message, "E_AUTH: this identity method is not enabled in schema.q");
+      assert.equal(visitor.why.message, "this identity method is not enabled in schema.q");
     }
     const registered = await signup(f.url, "person@example.com", "é".repeat(8));
     assert.equal(registered.ok, password, JSON.stringify(registered));

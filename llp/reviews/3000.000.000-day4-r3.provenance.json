@@ -1,0 +1,36 @@
+{
+  "round": 3,
+  "scope": "preview",
+  "mutuallyBlind": true,
+  "freshCodexSession": true,
+  "snapshot": "snapback4/reports/20261016-wave14-day4/preview-review-r3-snapshot.tar.gz",
+  "sourceHashes": {
+    "llp/3000.000.000-retained-storage-and-hot-release.rfc.md": "90c86466614d7ecd81737b043c3f75997d99ff4b0f4a2880951550002af329bc",
+    "snapback4/crates/snapback4/src/verbs/clause_compare.rs": "38aadf81cfa7556b750cc210b9a0376c8b2b9ae8b5b10fbcd3516aed18c37ae9",
+    "snapback4/crates/snapback4/src/verbs/release_dependencies.rs": "79de01cf87bceff632caa45b70311cae107969c48fb87adf78b50d4cb5a5014f",
+    "snapback4/crates/snapback4/src/verbs/release_narration.rs": "af03fe0b52f3ff966c2343aecb15b48b7c16b44de289206dfdbc1682691c1526",
+    "snapback4/crates/snapback4/src/verbs/release_safeguards.rs": "1dc4b1921fd57475ce3ad83268e8f711ad2be2e5b7d174608d95ebaa750e16ef",
+    "snapback4/crates/snapback4/src/verbs/release_preview.rs": "a8a85fc0a0cdac4c27784a53aa850a3fab06e4017f7392e5846f3371e8c5542e",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "9eb1cdf4fd96918056b5ae6d81e1ac5cbd2ec4b6cf24b1a27a21d8865056982b",
+    "snapback4/crates/snapback4-lang/src/guide/deploy.md": "08d7e688c33132030228acb427822b68e722a714bf7e98062f77444ba0fedb81",
+    "snapback4/packages/snapback4/test/wave14-release-preview.test.mjs": "954355f4895b958000c719911ac67ff963e37939b5e7854168fda2b52e83e50d"
+  },
+  "reviews": {
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "reasoningEffort": "high",
+      "verdict": "READY",
+      "rawTranscript": "snapback4/reports/20261016-wave14-day4/preview-review-r3-muse.transcript.txt.gz",
+      "rawTranscriptSha256": "f360eba0a581f9eb84ffc23f5b9185183ce7a468f27cfea8031dffcfb517e75d",
+      "command": "timeout 1800 /home/ccheever/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file llp/reviews/3000.000.000-day4-r3.brief.md"
+    },
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
+      "verdict": "NOT READY",
+      "rawTranscript": "snapback4/reports/20261016-wave14-day4/preview-review-r3-codex.transcript.txt.gz",
+      "rawTranscriptSha256": "0280b3fab93a58f523eee28b7fc67a143fdc58a65436993f0fd7d6367ff69242",
+      "command": "timeout 1800 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < llp/reviews/3000.000.000-day4-r3.brief.md"
+    }
+  }
+}

@@ -16,7 +16,7 @@ the write, so writing `owner: viewer` cannot take over another principal's row.
 
 | Target before the write | Refusal details |
 | --- | --- |
-| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
+| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_UNIQUE` for declared keys; `E_CONSTRAINT` for other constraints; `E_INPUT` |
 | Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
 
 A hidden collision on ordinary insert or `insert ... if absent` stays

@@ -19,6 +19,7 @@ mod point_facts;
 mod aggregate_facts;
 pub(super) mod maintain_types;
 mod flow;
+mod enum_flow;
 mod conditional;
 mod joins;
 mod returned_shapes;

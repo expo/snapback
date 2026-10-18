@@ -140,6 +140,64 @@ pub(crate) fn package(project: &Project, stage: &Path) -> Result<(), String> {
 
 }
 
+pub(crate) fn private_scope(project: &Project, root: &Path) -> Result<PathBuf, String> {
+    package_scopes(&Snapshot::package_root(project).map_err(|e|e.to_string())?, root.to_owned()).map_err(|e|e.to_string())
+}
+fn package_scopes(package_root: &Path, mut stage: PathBuf) -> io::Result<PathBuf> {
+    for ancestor in package_root.ancestors().collect::<Vec<_>>().into_iter().rev() {
+        stage = stage.join("scope"); std::fs::create_dir(&stage)?;
+        if ancestor.join("node_modules").is_dir() {
+            std::os::unix::fs::symlink(ancestor.join("node_modules"), stage.join("node_modules"))?;
+        }
+        copy_package(&File::open(ancestor)?, &stage)?;
+    }
+    Ok(stage)
+}
+
+pub(crate) fn link_dependencies(project: &Project, stage: &Path) -> Result<(), String> {
+    link_package_scopes(&Snapshot::package_root(project).map_err(|e| e.to_string())?, stage).map_err(|e| e.to_string())
+}
+
+/// Capture the same checked source closure used by automatic development entries.
+// @ref LLP 3000.000.000.000.000#serve-and-surface-completion-surf4-2026-10-16 — release source, including imports, is immutable; installed packages remain host-owned.
+pub(crate) fn package_entry(project: &Project, stage: &Path) -> Result<(), String> {
+    let Some(source) = super::source(project) else { return Ok(()); };
+    let snapshot = Snapshot::automatic(project, &source)?;
+    let captured = snapshot.entry.parent().and_then(Path::parent).ok_or("worker snapshot root")?;
+    fn copy(source: &Path, target: &Path) -> io::Result<()> {
+        for entry in std::fs::read_dir(source)? {
+            let entry = entry?;
+            if matches!(entry.file_name().to_str(), Some("node_modules")) || entry.path().extension().is_some_and(|ext| ext == "q") { continue; }
+            let kind = entry.file_type()?;
+            if kind.is_symlink() { return Err(io::Error::other("worker source must be a regular file or directory")); }
+            let target = target.join(entry.file_name());
+            if kind.is_dir() { std::fs::create_dir_all(&target)?; copy(&entry.path(), &target)?; }
+            else if kind.is_file() { std::fs::copy(entry.path(), target)?; }
+        }
+        Ok(())
+    }
+    copy(captured, stage).map_err(|e| e.to_string())?;
+    let graph = stage.join("snapback/generated/server-watch.json");
+    if let Ok(bytes) = std::fs::read(&graph) {
+        type Dependency = (PathBuf, Option<(String, String)>);
+        let dependencies: Vec<Dependency> = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+        let root = project.root.canonicalize().map_err(|e| e.to_string())?;
+        let relative: Vec<Dependency> = dependencies.into_iter().filter_map(|(path, state)| {
+            // macOS's temporary path may spell /var while the pinned root is
+            // /private/var. Normalize ancestors without following the leaf.
+            let located = path.parent().zip(path.file_name())
+                .and_then(|(parent, name)| parent.canonicalize().ok().map(|parent| parent.join(name)))
+                .unwrap_or(path);
+            let relative = located.strip_prefix(&root).ok()?;
+            if relative.components().any(|part| part.as_os_str() == "node_modules") { return None; }
+            // Stat data is checker-local evidence, not executable release identity.
+            Some((relative.to_owned(), state.map(|_| ("captured".into(), "captured".into()))))
+        }).collect();
+        std::fs::write(graph, serde_json::to_vec(&relative).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// A launch owns these copied bytes until its process group has stopped.
 /// Module dependencies remain installed host code, outside source custody.
 // @ref LLP 3000.009#5.3 — validation and execution share one private snapshot.
@@ -174,8 +232,9 @@ impl Snapshot {
             output.set_permissions(source.metadata()?.permissions())?;
             Ok(())
         })?;
-        link_package_scopes(&Self::package_root(project)?.join("snapback"), &schema_stage)?;
         Self::checked_imports(&root, &project_root, &stage)?;
+        // External checked imports keep their own nearest package scopes too.
+        link_package_scopes(&Self::package_root(project)?, &stage)?;
         owned.entry = schema_stage.join(source.file_name().ok_or_else(|| io::Error::other("worker entry has no filename"))?);
         if !owned.entry.is_file() { return Err(io::Error::other("automatic worker entry is absent")); }
         Ok(owned)
@@ -194,6 +253,7 @@ impl Snapshot {
         type Dependency = (PathBuf, Option<(String, String)>);
         let dependencies: Vec<Dependency> = serde_json::from_slice(&graph).map_err(io::Error::other)?;
         for (path, state) in dependencies {
+            let path = if path.is_absolute() { path } else { project_root.join(path) };
             // The checker records paths as it resolved them, possibly through a
             // symlinked ancestor (macOS /var is /private/var). Canonicalize only
             // the parent: the final component is still opened without following.
@@ -246,16 +306,8 @@ impl Snapshot {
         // Reproduce Node's ancestor package search in private directories.
         // This works for immutable releases too: no writes to project source.
         let project_root = project.root.canonicalize()?;
-        let mut stage = owned.root.clone();
         let package_root = Self::package_root(project)?;
-        for ancestor in package_root.ancestors().collect::<Vec<_>>().into_iter().rev() {
-            stage = stage.join("scope");
-            std::fs::create_dir(&stage)?;
-            if ancestor.join("node_modules").is_dir() {
-                std::os::unix::fs::symlink(ancestor.join("node_modules"), stage.join("node_modules"))?;
-            }
-            copy_package(&File::open(ancestor)?, &stage)?;
-        }
+        let stage = package_scopes(&package_root, owned.root.clone())?;
         // Preserve schema-local package precedence as well as module type,
         // using the same trusted host-dependency links as the ancestor scopes.
         // Entry/helper custody still belongs to collect's no-follow copies.

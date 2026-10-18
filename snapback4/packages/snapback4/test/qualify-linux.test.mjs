@@ -17,8 +17,22 @@ function qualify(t, scenario = {}) {
   for (const file of ["check-verb-help.mjs", "qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "publication-frontend-proofs.mjs", "proof-listener-audit.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
   copyFileSync(new URL("../CHANGELOG.md", import.meta.url), join(root, "packages/snapback4/CHANGELOG.md"));
   writeFileSync(join(root, "scripts/proof-listener-audit.mjs"), `export function requireListenerTracer(){ ${scenario.tracerFail ? "throw Error('E_PROOF_LISTENER: strace 6.8 required')" : "return 'strace -- version 6.16'"} }`);
+  writeFileSync(join(root, "scripts/publication-regressions.mjs"), `export async function proveExpoUpgrades(){return [{mode:'literal-install',status:'passed'},{mode:'upgrade',status:'passed'}];}`);
   writeFileSync(join(root, "scripts/publication-day2.mjs"), `export async function proveDay2() {
     return { status: "passed", savedSourceCompatibility: "passed", expoPrintedWrittenPorts: "passed", previewNoise: "passed", helperContracts: "passed", fixtureAgreement: "passed" };
+  }`);
+  writeFileSync(join(root, "scripts/publication-day4.mjs"), `export async function proveDay4() { return { status: "passed" }; }`);
+  writeFileSync(join(root, "scripts/publication-rules.mjs"), `export function proveRules() {
+    if (${JSON.stringify(scenario.rulesFail ?? false)}) throw Error('deliberately failing packed rule recipes');
+    return { status: "passed" };
+  }`);
+  writeFileSync(join(root, "scripts/publication-production.mjs"), `export async function proveProduction() {
+    if (${JSON.stringify(scenario.productionFail ?? false)}) throw Error('deliberately failing packed production proof');
+    return { status: "passed", realAccounts: "passed", fixture: "packed-production" };
+  }`);
+  writeFileSync(join(root, "scripts/publication-client-recipes.mjs"), `export async function proveClientRecipes() {
+    if (${JSON.stringify(scenario.clientRecipesFail ?? false)}) throw Error('deliberately failing packed client recipes');
+    return { status: "passed", fixture: "packed-client-recipes" };
   }`);
   writeFileSync(join(root, "scripts/publication-frontend-proofs.mjs"), `
     const audit = ${audit.toString()};
@@ -169,7 +183,7 @@ cp.execFileSync = (cmd,args,opts={}) => {
 };
 cp.spawnSync = (cmd,args,opts={}) => {
   log(cmd,args);
-  if (args?.includes("--help")) return {status: 0, stdout: readFileSync(join(root, "packages/snapback4/CHANGELOG.md"), "utf8").match(/--[a-z][a-z-]*/g).join(" ")};
+  if (args?.includes("--help")) return {status: 0, stdout: readFileSync(join(root, "packages/snapback4/CHANGELOG.md"), "utf8").match(/--[a-z][a-z0-9-]*/g).join(" ")};
   if(cmd === "bash") { writeFileSync(opts.stdio[1], "== " + (scenario.suiteFail ? 1 : 0) + " failure(s) in 2 s\\n"); return {status: scenario.suiteFail ? 1 : 0}; }
   return {status: scenario.noRuntime || scenario.proot ? 1 : 0};
 };
@@ -201,6 +215,7 @@ test("Linux qualification receipt binds source, toolchain, suite, both container
   assert.equal(r.receipt.binarySha256, digest(r.binary)); assert.equal(r.receipt.platform.integrity, sri(tarball)); assert.equal(r.receipt.clientIntegrity, sri(r.client));
   assert.deepEqual(r.receipt.frontendProofs.map(p => [p.kind, p.attempt, p.status]), starterCases.flatMap(s => [1,2].map(attempt => [s.kind, attempt, "passed"])));
   validateLinux(r.receipt, tarball, { version: "0.0.0", integrity: sri(r.client) }, "a".repeat(40));
+  assertAdditionalProofReports(r);
   assert.deepEqual(r.receipt.proofs.map(p => p.base), ["ubuntu:22.04", "alpine"]);
   assert.equal(r.receipt.suite.summary, "== 0 failure(s) in 2 s");
   assert.equal(r.receipt.route, "docker");
@@ -210,6 +225,26 @@ test("Linux qualification receipt binds source, toolchain, suite, both container
   const containers = r.commands.filter(c => c.cmd === "docker" && c.args[0] === "run"); assert.equal(containers.length, 2);
   assert.ok(containers.every(c => !c.args.includes("--volume") && !c.args.includes("-v") && !c.args.includes("--env-file")));
   assertProofsExecuted(r);
+});
+
+function assertAdditionalProofReports(r) {
+  assert.deepEqual(json(join(r.root, "out/production-proofs.json")), { status: "passed", realAccounts: "passed", fixture: "packed-production" });
+  assert.deepEqual(json(join(r.root, "out/client-recipes.json")), { status: "passed", fixture: "packed-client-recipes" });
+  assert.deepEqual(json(join(r.root, "out/rule-recipes.json")), { status: "passed" });
+  assert.deepEqual(json(join(r.root, "out/day4-proof.json")), { status: "passed" });
+}
+
+for (const consumerOnly of [false, true]) for (const [refusal, message] of [
+  ["productionFail", "deliberately failing packed production proof"],
+  ["clientRecipesFail", "deliberately failing packed client recipes"],
+]) test(`${consumerOnly ? "consumer-only" : "full"} qualification refuses ${refusal} without success evidence`, t => {
+  const r = qualify(t, { consumerOnly, [refusal]: true });
+  assert.notEqual(r.status, 0); assert.equal(r.receipt, null);
+  assert.match(r.stderr, new RegExp(message));
+  assert.equal(existsSync(join(r.root, "out/consumer.json")), false);
+  assert.equal(existsSync(join(r.root, "out/client-recipes.json")), false);
+  assert.equal(existsSync(join(r.root, "out/production-proofs.json")), refusal === "clientRecipesFail");
+  assert.ok(!r.commands.some(c => c.cmd === "npm" && c.args[0] === "publish"));
 });
 
 function assertProofsExecuted(r) {
@@ -347,6 +382,7 @@ for (const proot of [false, true]) test(`consumer-only ${proot ? 'proot' : 'cont
   assert.equal(r.status, 0, r.stderr); assert.equal(r.receipt, null);
   const evidence = json(join(r.root, 'out/consumer.json'));
   assert.equal(evidence.publicationQualified, false);
+  assertAdditionalProofReports(r);
   assert.deepEqual(evidence.suite, { status: 'not-run' });
   validateFrontendProofs(evidence.frontendProofs);
   assert.equal(evidence.proofs.length, 2);
@@ -410,4 +446,17 @@ test('listener evidence refuses malformed named records and empty or incomplete 
   const negative=structuredClone(evidence);negative[0].negativeProof.listenerAudit=change(audit());assert.throws(()=>validateStarterProofs(negative),/proof/);
   const frontend=structuredClone(evidence);frontend[0].frontendProofs[0].listenerAudit=change(audit());assert.throws(()=>validateStarterProofs(frontend),/proof/);
  }
+});
+
+
+test("every clean distribution can execute the Node 24 worker contract", () => {
+  for (const distribution of prootDistributions) assert.equal(Number(distribution.node.split(".")[0]), 24, distribution.base);
+});
+
+for (const consumerOnly of [false, true]) test(`packed rules refusal prevents ${consumerOnly ? 'consumer evidence' : 'qualification receipt'}`, t => {
+  const r = qualify(t, { consumerOnly, rulesFail: true });
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /deliberately failing packed rule recipes/);
+  assert.equal(r.receipt, null);
+  assert.equal(existsSync(join(r.root, "out/consumer.json")), false);
 });

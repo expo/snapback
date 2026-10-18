@@ -61,12 +61,15 @@ For a browser proof, register the application's own app and generated API
 (starters do this; the hook is active only under `?witness=web`):
 
 ```ts
-import { registerWebWitness } from "snapback4/witness-web";
+import { registerWebWitness, witnessForm } from "snapback4/witness-web";
 import { createApp } from "snapback4/app";
 import { localStorageSessionStore } from "snapback4/auth";
 import { api } from "../snapback/generated/api";
 const app = createApp({ url: "http://127.0.0.1:4400", sessionStore: localStorageSessionStore() });
 registerWebWitness(app, api);
+export function submitMessage(event: Event, conversationId: string, body: string) {
+  return witnessForm(app, event, async mutate => { await mutate(api.send, { conversationId, body }); });
+}
 ```
 
 `npm run build:web && snapback4 witness web dist` proves the first durable
@@ -3183,7 +3186,7 @@ try {
   cost, or a table's rules, sync line, expire column and indexes; **`data <table> [--limit N]`** prints rows
   as one JSON object per stdout line (50 by default), with any truncation hint on stderr; **`doctor
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
-  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: production, changes, cheatsheet, language, app, recipes, rule-recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, deploy, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
+  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: production, changes, cheatsheet, language, app, recipes, rule-recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, deploy, release-json, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
   (`guide <E_CODE>` explains a code; `guide aliases` lists the words that open a card or one of its sections). In a terminal, a card over 130 lines prints its opening and section index; piped output prints the full card.
   `--section <number or words>` prints one section (any case, a unique prefix or the heading's words; a
   word no heading names prints the section holding most of its mentions, or all of them when they spread),

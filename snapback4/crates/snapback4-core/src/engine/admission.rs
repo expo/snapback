@@ -203,6 +203,8 @@ impl Flow<'_> {
                 .unwrap_or(Origin::Unknown(Vec::new())),
             Expr::Array(values) if values.is_empty() => Origin::Empty,
             Expr::Literal(Value::Array(values)) if values.is_empty() => Origin::Empty,
+            // @ref LLP 3000.036.002#12 — sorting permutes an already proved population.
+            Expr::Builtin { builtin: crate::ir::Builtin::Sort { .. }, args } if args.len() == 1 => self.expr(&args[0]),
             Expr::Builtin { args, .. } | Expr::Array(args) => args
                 .iter()
                 .fold(Origin::Other, |origin, arg| origin.join(self.expr(arg)))

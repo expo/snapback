@@ -12,7 +12,7 @@ pub(super) fn reaches(schema:&Schema,root:&str,target:&str)->bool {
 }
 
 // @ref LLP 3000.039#7 — caps share one delete reservation, never a per-child allowance.
-pub(super) fn recipe(schema: &Schema, parent: &str, job: bool) -> String {
+pub(super) fn evidence(schema: &Schema, parent: &str, job: bool) -> String {
     let mut targets = BTreeSet::new();
     let mut reached = BTreeSet::from([parent.to_owned()]);
     let mut todo = vec![parent.to_owned()];
@@ -53,4 +53,23 @@ pub(super) fn recipe(schema: &Schema, parent: &str, job: bool) -> String {
     let unique=targets.iter().map(|(child,column)|format!("`unique {column}` on {child}")).collect::<Vec<_>>().join(" or ");
     let caps = targets.iter().map(|(child, column)| format!("`cap {} by {column}` on {child}", trial.reference_cap(child, column).unwrap())).collect::<Vec<_>>().join(" and ");
     format!("choose a product limit, not an engine tuning number; the engine allows up to {low} per unbounded edge in this joint recipe. For that limit apply {caps} together: the whole delete (including the root) reserves {} / {} rows written and {} / {} heap bytes, with all indexes, derived writes and event images priced together. Heap = root write heap + retained event images + 384 × (cascade identities + 1 root + 4 child-id slots + largest set-null group) + max(child write heap, four-row child page, read-through probe scratch). A count-maintained source commonly reserves 3 × its rows (the row plus its old and new aggregate groups), not one row per child; for a one-to-one relation use {unique} instead; {fallback}", price[3], limits.rows_written, price[4], limits.heap_bytes)
+}
+
+/// Lead with the authored edit and the product decision; prices are evidence.
+pub(super) fn recipe(schema: &Schema, parent: &str, job: bool) -> String {
+    let evidence = evidence(schema, parent, job);
+    let second_parent = schema.tables.iter().any(|(name,table)| reaches(schema,parent,name)
+        && table.on_delete.values().filter(|action| **action == OnDelete::Cascade).count() > 1);
+    if second_parent {
+        return format!("{} For a second cascading parent, make one edge `restrict` or drop the column when the joint cap would be below your product's limit", compact(&evidence));
+    }
+    compact(&evidence)
+}
+fn compact(evidence: &str) -> String {
+    if let Some((_, rest)) = evidence.split_once("For that limit apply ") {
+        let caps = rest.split(": the whole delete").next().unwrap();
+        format!("apply {caps}; this is a product limit you choose, so select a smaller cap if your product permits fewer children. For one-to-one children use a unique reference; otherwise make the edge `restrict` and delete children first in a job. Reservation breakdown: check --verbose")
+    } else {
+        "make one edge `restrict` or drop the column; this is a product limit you choose. Even cap 1 cannot fit this delete. Delete children first in a job; reservation breakdown: check --verbose".into()
+    }
 }

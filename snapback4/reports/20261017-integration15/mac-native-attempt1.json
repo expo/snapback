@@ -1,0 +1,242 @@
+[
+  {
+    "name": "rust-aarch64-apple-ios",
+    "command": [
+      "cargo",
+      "rustc",
+      "-p",
+      "snapback4-device",
+      "--crate-type",
+      "staticlib",
+      "--profile",
+      "production",
+      "--config",
+      "profile.production.opt-level=\"z\"",
+      "--target",
+      "aarch64-apple-ios",
+      "--target-dir",
+      "target/integ15-native"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 84.97996115684509
+  },
+  {
+    "name": "strip-aarch64-apple-ios",
+    "command": [
+      "strip",
+      "-S",
+      "-x",
+      "/Users/ccheever/sb4-ws-integ15/snapback4/target/integ15-native/aarch64-apple-ios/production/libsnapback4_device.a",
+      "-o",
+      "/Users/ccheever/sb4-ws-integ15/native/aarch64-apple-ios/libsnapback4_device.a"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 11.776535034179688
+  },
+  {
+    "name": "rust-aarch64-apple-ios-sim",
+    "command": [
+      "cargo",
+      "rustc",
+      "-p",
+      "snapback4-device",
+      "--crate-type",
+      "staticlib",
+      "--profile",
+      "production",
+      "--config",
+      "profile.production.opt-level=\"z\"",
+      "--target",
+      "aarch64-apple-ios-sim",
+      "--target-dir",
+      "target/integ15-native"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 79.51831912994385
+  },
+  {
+    "name": "strip-aarch64-apple-ios-sim",
+    "command": [
+      "strip",
+      "-S",
+      "-x",
+      "/Users/ccheever/sb4-ws-integ15/snapback4/target/integ15-native/aarch64-apple-ios-sim/production/libsnapback4_device.a",
+      "-o",
+      "/Users/ccheever/sb4-ws-integ15/native/aarch64-apple-ios-sim/libsnapback4_device.a"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 15.106281995773315
+  },
+  {
+    "name": "framework",
+    "command": [
+      "xcodebuild",
+      "-create-xcframework",
+      "-library",
+      "/Users/ccheever/sb4-ws-integ15/native/aarch64-apple-ios/libsnapback4_device.a",
+      "-headers",
+      "/Users/ccheever/sb4-ws-integ15/native/headers",
+      "-library",
+      "/Users/ccheever/sb4-ws-integ15/native/aarch64-apple-ios-sim/libsnapback4_device.a",
+      "-headers",
+      "/Users/ccheever/sb4-ws-integ15/native/headers",
+      "-output",
+      "/Users/ccheever/sb4-ws-integ15/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 0.9896080493927002
+  },
+  {
+    "name": "adapter-pack",
+    "command": [
+      "npm",
+      "pack",
+      "--ignore-scripts",
+      "--json",
+      "--pack-destination",
+      "/Users/ccheever/sb4-ws-integ15/native/artifacts"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4/packages/snapback4-expo",
+    "exit": 0,
+    "seconds": 2.1450130939483643
+  },
+  {
+    "name": "schema",
+    "command": [
+      "/Users/ccheever/sb4-ws-integ15/snapback4/target/debug/snapback4",
+      "check"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/native/apps/chat",
+    "exit": 0,
+    "seconds": 1.4281837940216064
+  },
+  {
+    "name": "install",
+    "command": [
+      "npm",
+      "install",
+      "--no-audit",
+      "--no-fund"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/native/apps/chat-expo",
+    "exit": 0,
+    "seconds": 24.67673087120056
+  },
+  {
+    "name": "prebuild",
+    "command": [
+      "node",
+      "/Users/ccheever/sb4-ws-integ15/native/apps/chat-expo/node_modules/expo/bin/cli",
+      "prebuild",
+      "--platform",
+      "ios",
+      "--clean",
+      "--no-install"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/native/apps/chat-expo",
+    "exit": 0,
+    "seconds": 0.6915862560272217
+  },
+  {
+    "name": "pods",
+    "command": [
+      "pod",
+      "install"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/native/apps/chat-expo/ios",
+    "exit": 0,
+    "seconds": 69.86009097099304
+  },
+  {
+    "name": "create-simulator",
+    "command": [
+      "xcrun",
+      "simctl",
+      "create",
+      "sb4-integ15-floor",
+      "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro",
+      "com.apple.CoreSimulator.SimRuntime.iOS-27-0"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 0.5451462268829346
+  },
+  {
+    "name": "boot",
+    "command": [
+      "xcrun",
+      "simctl",
+      "boot",
+      "19D95526-9F7D-404C-A0F2-2C18AA8EA20D"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 2.0448009967803955
+  },
+  {
+    "name": "boot-status",
+    "command": [
+      "xcrun",
+      "simctl",
+      "bootstatus",
+      "19D95526-9F7D-404C-A0F2-2C18AA8EA20D",
+      "-b"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 27.21731209754944
+  },
+  {
+    "name": "xcode",
+    "command": [
+      "xcodebuild",
+      "-workspace",
+      "/Users/ccheever/sb4-ws-integ15/native/apps/chat-expo/ios/Snapback4chat.xcworkspace",
+      "-scheme",
+      "Snapback4chat",
+      "-configuration",
+      "Release",
+      "-sdk",
+      "iphonesimulator",
+      "-destination",
+      "id=19D95526-9F7D-404C-A0F2-2C18AA8EA20D",
+      "-derivedDataPath",
+      "/Users/ccheever/sb4-ws-integ15/native/derived",
+      "-jobs",
+      "4",
+      "CODE_SIGNING_ALLOWED=NO"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/native/apps/chat-expo",
+    "exit": 65,
+    "seconds": 160.59142208099365
+  },
+  {
+    "name": "shutdown",
+    "command": [
+      "xcrun",
+      "simctl",
+      "shutdown",
+      "19D95526-9F7D-404C-A0F2-2C18AA8EA20D"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 3.3952319622039795
+  },
+  {
+    "name": "delete",
+    "command": [
+      "xcrun",
+      "simctl",
+      "delete",
+      "19D95526-9F7D-404C-A0F2-2C18AA8EA20D"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 0.27997398376464844
+  }
+]

@@ -90,8 +90,8 @@ mutation removeItem(item: items):
 - Table clauses: `unique a, b else CODE`, `cap N by col`, `cap N` (whole-table bound), `immutable col`, `expire at .col`, `search col`,
   `public 'why'`, `online only`, `sync to .col last N by .at` (`guide sync`, `guide bounds`).
 - Reserved as column names: `after by cap delete deliver ephemeral expire immutable insert online public read
-  retain search sync unique update` (and `id`). As parameter, local and loop names: `and as break continue
-  created delete device elif else emit exists false for if insert merge not null oblivious or require return
+  retain search sync unique update` (and `id`). As parameter, local and loop names: `and as break commit continue
+  created delete device elif else emit exists false for if insert merge new not now null oblivious or require return
   true update upsert viewer walk while`. A shape or object field cannot be named `pending` (row metadata).
 - Time-varying access: `not before .opensAt`/`expire at .endsAt`; an event copies private payload into an authorized publication table (`guide rule-recipes`). A clock does not belong in read rules.
 - Background work: `job`, `schedule x every 1d at 03:00: x`, `every 1 month at day 1 09:00` (UTC), `effect` (`guide jobs`, `guide effects`).

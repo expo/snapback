@@ -1,0 +1,35 @@
+{
+  "round": 2,
+  "scope": "preview",
+  "mutuallyBlind": true,
+  "freshCodexSession": true,
+  "snapshot": "snapback4/reports/20261016-wave14-day4/preview-review-r2-snapshot.tar.gz",
+  "sourceHashes": {
+    "llp/3000.000.000-retained-storage-and-hot-release.rfc.md": "cb3036960498bdbd9b650fb194a832dec6d2b8ac2b159560d3023f97214e4554",
+    "snapback4/crates/snapback4/src/verbs/clause_compare.rs": "3b773eadfe75de07fe37de34292e6204323d6d3435202ad4512203f6b347d7b0",
+    "snapback4/crates/snapback4/src/verbs/release_dependencies.rs": "2b9f9f578647cecd31ee72985bef19c879778f34a886e90b27de01f981347e24",
+    "snapback4/crates/snapback4/src/verbs/release_narration.rs": "0230af77681e3f3dfe294b7bd0ce36d83a1471087e8b7dc991de0334b186042e",
+    "snapback4/crates/snapback4/src/verbs/release_safeguards.rs": "33866885665ed2f6a3e6053efe72338d0ed5fd448cd115c9702dd07251951d40",
+    "snapback4/crates/snapback4/src/verbs/release_preview.rs": "d220a138408e39f85ffe52034776bc7f26174485afc0167d5e77c474be37fb90",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "148b743eb0737e2d51ec1498b50e3f227474de6962b3d12f1c62d6d326d87105",
+    "snapback4/crates/snapback4-lang/src/guide/deploy.md": "08d7e688c33132030228acb427822b68e722a714bf7e98062f77444ba0fedb81"
+  },
+  "reviews": {
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "reasoningEffort": "high",
+      "verdict": "READY",
+      "rawTranscript": "snapback4/reports/20261016-wave14-day4/preview-review-r2-muse.transcript.txt.gz",
+      "rawTranscriptSha256": "16748241e24e3654899dd733178b801a0a511b1cef4c1ff0e3f4a654cd41310a",
+      "command": "timeout 1800 /home/ccheever/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file llp/reviews/3000.000.000-day4-r2.brief.md"
+    },
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
+      "verdict": "NOT READY",
+      "rawTranscript": "snapback4/reports/20261016-wave14-day4/preview-review-r2-codex.transcript.txt.gz",
+      "rawTranscriptSha256": "8527e4f639859654f5b895d650037b2c9c36ad4185ee0c7f75e6debbc34e15d2",
+      "command": "timeout 1800 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < llp/reviews/3000.000.000-day4-r2.brief.md"
+    }
+  }
+}

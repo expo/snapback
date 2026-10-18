@@ -5,29 +5,34 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 const verbs = new Set('init new check device types dev deploy rollback prune releases serve run clock reset test why guide data sql token doctor upgrade witness'.split(' '));
 export function changelogFlags(changelog) {
-  const flags = [];
+  // Changelog entries are newest first. The newest mention decides whether
+  // an option is supported; explicit retirement prose must not announce it.
+  const flags = new Map();
   for (const line of changelog.split('\n')) {
     let verb;
+    const retired = [...line.matchAll(/\b(?:drops?|dropped|removes?|removed|retires?|retired)\s+(?:(?:the|unsupported)\s+)*[A-Za-z-]+\s+--[a-z][a-z-]*/gi)];
     // Every flag must follow a named owner; preserve owner through adjacent flags.
     // Exact's rebuild command is an external tool, explicitly outside binary help.
-    for (const match of line.matchAll(/\b(?:exact\.mjs|[A-Za-z]+)\b|--[a-z][a-z-]*/g)) {
+    for (const match of line.matchAll(/\b(?:exact\.mjs|[A-Za-z]+)\b|--[a-z][a-z0-9-]*/g)) {
       const token = match[0];
-      if (token === 'exact.mjs') verb = 'exact';
+      if (['npm', 'bun', 'pnpm'].includes(token)) verb = 'package-manager';
+      else if (token === 'exact.mjs') verb = 'exact';
       else if (verbs.has(token.toLowerCase())) verb = token.toLowerCase();
       else if (token.startsWith('--')) {
-        if (verb === 'exact' && token === '--rebuild') continue;
+        if (verb === 'package-manager' || verb === 'exact' && token === '--rebuild') continue;
         if (!verb || verb === 'exact') throw new Error(`changelog flag ${token} needs an explicit Snapback verb: ${line}`);
-        flags.push([verb, token]);
+        const key = `${verb} ${token}`;
+        if (!flags.has(key)) flags.set(key, retired.some(span => match.index >= span.index && match.index < span.index + span[0].length) ? null : [verb, token]);
       }
     }
   }
-  return flags;
+  return [...flags.values()].filter(Boolean);
 }
 export function assertChangelogHelp(changelog, help) {
   const failures = [];
   for (const [verb, flag] of changelogFlags(changelog)) {
     const output = help(verb);
-    if (!new RegExp(`${flag}(?![a-z-])`).test(output)) failures.push(`${verb} --help omits announced ${flag}`);
+    if (!new RegExp(`${flag}(?![a-z0-9-])`).test(output)) failures.push(`${verb} --help omits announced ${flag}`);
   }
   if (failures.length) throw new Error(failures.join('\n'));
 }

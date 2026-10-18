@@ -15,8 +15,8 @@ export const alpineRoot = {
   sha256: "42d0e6d8de5521e7bf92e075e032b5690c1d948fa9775efa32a51a38b25460fb",
 };
 export const ubuntuNode = {
-  url: "https://nodejs.org/dist/v22.22.0/node-v22.22.0-linux-x64.tar.xz",
-  sha256: "9aa8e9d2298ab68c600bd6fb86a6c13bce11a4eca1ba9b39d79fa021755d7c37",
+  url: "https://nodejs.org/dist/v24.13.1/node-v24.13.1-linux-x64.tar.xz",
+  sha256: "30215f90ea3cd04dfbc06e762c021393fa173a1d392974298bbc871a8e461089",
 };
 export const alpinePackages = [
   {
@@ -93,7 +93,7 @@ export const alpinePackages = [
   }
 ];
 export const prootDistributions = [
-  { base: "ubuntu:24.04", node: "22.22.0", rootfs: ubuntuRoot, tools: [prootInput, ubuntuNode] },
+  { base: "ubuntu:24.04", node: "24.13.1", rootfs: ubuntuRoot, tools: [prootInput, ubuntuNode] },
   { base: "alpine", node: "24.18.1", rootfs: alpineRoot, tools: [prootInput, ...alpinePackages] },
 ];
 export function matchesPinnedProof(proof) {

@@ -9,6 +9,10 @@ fn admission_survives_closed_stderr() { check(false); }
 #[test]
 fn admission_survives_full_stderr() { check(true); }
 fn check(full: bool) {
+        // Both cases hold 130 sockets; overlapping them exceeds macOS's
+        // ordinary 256-descriptor test-process limit before exercising the server.
+        static SOCKETS: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _sockets = SOCKETS.lock().unwrap();
         let dir = std::env::temp_dir().join(format!("sb4-overload-{}-{full}", std::process::id()));
         fs::create_dir_all(dir.join("snapback")).unwrap();
         fs::write(dir.join("snapback/schema.q"), "use personas alice\nquery hello():\n  return 1\n").unwrap();

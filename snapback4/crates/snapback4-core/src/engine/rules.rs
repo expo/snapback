@@ -1451,3 +1451,11 @@ mod reference;
 
 #[cfg(all(test, feature = "sqlite"))]
 pub(super) use reference::evaluate as evaluate_reference;
+
+#[cfg(feature = "server-search")]
+mod snapshots;
+/// Server-only: a readable captured point and surviving guards prove the whole row rule.
+#[cfg(feature = "server-search")]
+pub fn snapshot_decided_scans(schema: &Schema, program: &crate::ir::Program) -> BTreeSet<String> {
+    snapshots::decided(schema, program)
+}

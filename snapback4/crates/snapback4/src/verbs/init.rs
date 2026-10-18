@@ -9,8 +9,10 @@ mod web;
 mod social;
 mod starter;
 mod adapt;
+mod production;
 mod ports;
 mod proof;
+mod proof_advice;
 pub(crate) use adapt::{report as starter_leftovers, report_json as starter_leftovers_json};
 
 fn usage() -> String { format!("usage: {}", crate::cli_flags::synopsis("init")) }
@@ -19,12 +21,19 @@ pub fn init(options: &Options) -> i32 {
     let usage = usage();
     // @ref LLP 3000.011.003.000#7.2 — the init-first path: fit the starter already written to the schema written since.
     if options.flags.contains_key("adapt") {
-        if options.positionals.len() > 1 || options.flags.keys().any(|flag| !matches!(flag.as_str(), "adapt" | "web" | "expo" | "dry-run" | "apply")) {
+        if options.positionals.len() > 1 || options.flags.keys().any(|flag| !matches!(flag.as_str(), "adapt" | "production" | "web" | "expo" | "dry-run" | "apply" | "day2")) {
             eprintln!("{usage}\n  --adapt fits the starter files init wrote to your snapback/*.q; it takes no other starter flags");
             return 2;
         }
         if options.flags.contains_key("dry-run") && options.flags.contains_key("apply") { eprintln!("E_INPUT: --dry-run and --apply are mutually exclusive"); return 2; }
-        return adapt::adapt(options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new(".")), options.flags.contains_key("dry-run"), options.flags.contains_key("apply"));
+        if options.flags.contains_key("production") {
+            return production::adapt(options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new(".")), options.flags.contains_key("apply"));
+        }
+        return adapt::adapt(options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new(".")), options.flags.contains_key("dry-run"), options.flags.contains_key("apply"), options.flags.contains_key("day2"));
+    }
+    if options.flags.contains_key("production") {
+        eprintln!("E_INPUT: --production requires init --adapt; preview with init --adapt --production");
+        return 2;
     }
     let template = options.flags.get("template").map(String::as_str);
     let modes = ["online", "expo", "web"].iter().filter(|flag| options.flags.contains_key(**flag)).count();
@@ -54,7 +63,14 @@ pub fn init(options: &Options) -> i32 {
         return 2;
     }
     let online_web = modes == 2 && options.flags.contains_key("online") && options.flags.contains_key("web");
-    if options.positionals.len() > 1 || (modes > 1 && !online_web) || options.flags.contains_key("recipe") || options.flags.contains_key("dry-run") || options.flags.contains_key("apply") {
+    if options.flags.contains_key("expo") && options.flags.contains_key("online") {
+        eprintln!("{usage}\nE_INPUT: --expo already selects the online client in Expo Go and for schemas without synced tables; --online is the backend/web starter selection. Use `snapback4 init --expo`, then declare online-only tables for an entirely online app.");
+        return 2;
+    }
+    if options.flags.contains_key("day2") && !(social || options.flags.contains_key("web") || options.flags.contains_key("expo")) {
+        eprintln!("E_INPUT: --day2 adds saved-release proofs to a UI starter; use `snapback4 init --web --day2` or `snapback4 init --expo --day2`"); return 2;
+    }
+    if options.positionals.len() > 1 || (modes > 1 && !online_web) || options.flags.contains_key("recipe") || options.flags.contains_key("apply") {
         eprintln!("{usage}");
         return 2;
     }
@@ -242,6 +258,12 @@ pub fn init(options: &Options) -> i32 {
         eprintln!("E_INIT_CONFLICT: no files written{first}\n  {}\n  rewrite: {recipe}reconcile any listed package.json entries first. Do not init into another directory and copy it over: that overwrites your files", conflicts.join("\n  "));
         return 1;
     }
+    if options.flags.contains_key("dry-run") {
+        println!("init: preview only; {} files in {}", files.len(), dir.display());
+        for (name, _) in &files { println!("  {name}"); }
+        println!("No files written; rerun without --dry-run to create this starter.");
+        return 0;
+    }
     let readme = files.iter().find(|(name, _)| name.starts_with("README.")).map(|(name, _)| *name);
     let mut created = Vec::new();
     let mut write = || -> std::io::Result<()> {
@@ -286,6 +308,7 @@ pub fn init(options: &Options) -> i32 {
     println!("init: files: {}", written_files(&files.iter().map(|(name, _)| *name).collect::<Vec<_>>()));
     // @ref LLP 3000.011.003.000#7.4 — the advisories are read before the install that reports them, not after.
     if expo && files.iter().any(|(name, _)| *name == "package.json") {
+        println!("init: Expo dependencies are pinned; next: `npm install`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.");
         println!("init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)");
     }
     if web {
@@ -328,7 +351,7 @@ pub fn init(options: &Options) -> i32 {
             Some(_) => {},
         }
     }
-    if web || expo { println!("\x1b[1mnpm install\x1b[0m"); }
+    if web || expo { println!("npm install"); }
     0
 }
 
@@ -621,7 +644,7 @@ fn expo_files() -> Vec<(&'static str, String)> {
     let config: Value = serde_json::from_str(include_str!("../../../../apps/chat-expo/app.json")).unwrap();
     let client = include_str!("init/expo-client.ts");
     let inbox = include_str!("../../../../apps/chat-expo/src/Inbox.tsx").replace("../../chat/snapback/generated/api", "../snapback/generated/api");
-    let thread = include_str!("../../../../apps/chat-expo/src/Thread.tsx").replace("../../chat/snapback/generated/api", "../snapback/generated/api");
+    let thread = include_str!("../../../../apps/chat-expo/src/Thread.tsx").replace("../../chat/snapback/generated/api", "../snapback/generated/api").replace("<FlatList inverted", "<FlatList testID=\"thread-results\" inverted");
     // @ref LLP 3000.009.000#3 — the Expo starter teaches the core; the reference app's invitation worker is optional server work.
     let schema = core_expo_schema(include_str!("../../../../apps/chat/snapback/schema.q"));
     vec![

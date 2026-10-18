@@ -22,7 +22,7 @@ test("proof usage guards report actual received values", () => {
 });
 test("generated day-two proof fails at business placeholder and releases its hosts", async t => {
   const cwd = fixture(t);
-  assert.equal((await cli(["init", "--web"], { cwd })).code, 0);
+  assert.equal((await cli(["init", "--web", "--day2"], { cwd })).code, 0);
   const pkg = JSON.parse(readFileSync(join(cwd, "package.json")));
   assert.match(pkg.scripts["day2:proof"], /versions\/v1 versions\/v2$/);
   const result = await command(process.execPath, ["scripts/day2-proof.mjs", "versions/v1", "versions/v2"], { cwd, timeoutMs: 60_000 });
@@ -32,7 +32,7 @@ test("generated day-two proof fails at business placeholder and releases its hos
 });
 test("frontend proof invokes its own build before starting any host", async t => {
   const cwd = fixture(t);
-  assert.equal((await cli(["init", "--web"], { cwd })).code, 0);
+  assert.equal((await cli(["init", "--web", "--day2"], { cwd })).code, 0);
   const pkg = JSON.parse(readFileSync(join(cwd, "package.json")));
   pkg.scripts.build = "node build.mjs";
   writeFileSync(join(cwd, "package.json"), JSON.stringify(pkg));
@@ -46,7 +46,7 @@ test("frontend proof invokes its own build before starting any host", async t =>
 
 test("expiry recovery refuses while the deployment owner is serving", async t => {
   const cwd = fixture(t);
-  assert.equal((await cli(["init", "--web"], { cwd })).code, 0);
+  assert.equal((await cli(["init", "--web", "--day2"], { cwd })).code, 0);
   await deploy("deployment", "versions/v1/schema.q", { cwd });
   const serve = await startServe("deployment", { cwd });
   try {
@@ -54,4 +54,18 @@ test("expiry recovery refuses while the deployment owner is serving", async t =>
     assert.notEqual(result.code, 0);
     assert.match(result.stderr, /E_STORE_IN_USE|owned|owner|serving/);
   } finally { await serve.stop(); }
+});
+
+// The emitted npm defaults, direct argv form and explicit destination share one parser.
+test("day-two destination works with direct args and npm defaults", async t => {
+  const cwd = fixture(t);
+  assert.equal((await cli(["init", "--web", "--day2"], { cwd })).code, 0);
+  for (const [binary,args] of [[process.execPath,["scripts/day2-proof.mjs","versions/v1","versions/v2","./direct-deploy"]],["npm",["run","day2:proof","--","./npm-deploy"]]]) {
+    const result = await command(binary,args,{cwd,timeoutMs:60_000});
+    assert.notEqual(result.code,0);
+    assert.match(result.stderr,/needs a business assertion for v1/);
+    assert.doesNotMatch(result.stderr,/usage:/);
+  }
+  assert.ok(existsSync(join(cwd,"direct-deploy/store.sqlite")));
+  assert.ok(existsSync(join(cwd,"npm-deploy/store.sqlite")));
 });

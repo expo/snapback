@@ -1,0 +1,12 @@
+{
+  "source": "0130e0f041562b10daa7fe3cd63488bc1d6b8586",
+  "xcode": "Xcode 27.0\nBuild version 27A266a",
+  "versions": {
+    "expo": "57.0.22",
+    "expo-modules-core": "57.0.23",
+    "react": "19.2.3",
+    "react-native": "0.86.3",
+    "snapback4": "0.4.31",
+    "snapback4-expo": "0.4.31"
+  }
+}

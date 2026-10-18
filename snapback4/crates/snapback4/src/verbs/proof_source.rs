@@ -40,8 +40,8 @@ pub(super) fn project(options: &Options, flag: &str) -> Result<Project, String> 
 
 /// A private companion build uses the selected schema's generated contracts.
 /// Packaging still records the original host installation, never this scratch.
-pub(super) struct Candidate { pub project: Project }
-impl Drop for Candidate { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.project.root); } }
+pub(super) struct Candidate { pub project: Project, cleanup: std::path::PathBuf }
+impl Drop for Candidate { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.cleanup); } }
 impl Candidate {
     pub(super) fn prepare(original: &Project, stage: &Path, bound: &snapback4_lang::Bound) -> Result<Self, String> {
         use std::sync::atomic::{AtomicUsize, Ordering};
@@ -49,42 +49,25 @@ impl Candidate {
         let root = std::env::temp_dir().join(format!("snapback4-saved-source-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
         std::fs::create_dir(&root).map_err(|e| e.to_string())?;
         #[cfg(unix)] snapback4_core::private_fs::directory(&root).map_err(|e| e.to_string())?;
-        let candidate = Self { project: Project { root } };
+        let mut candidate = Self { project: Project { root: root.clone() }, cleanup: root };
+        candidate.project.root = crate::dev_worker::private_scope(original, &candidate.cleanup)?;
         // The worker snapshotter captures the actual import closure and refuses
         // symlinks. Copy those captured bytes, not an unbounded application tree.
         copy_tree(stage, &candidate.project.root).map_err(|e| e.to_string())?;
-        if original.schema_dir().is_dir() {
-            copy_companions(&original.schema_dir(), &candidate.project.schema_dir()).map_err(|e| e.to_string())?;
-        }
-        // Capture previously checked imports outside snapback/. An absent or
-        // stale graph can only cause a private typecheck refusal, never reuse
-        // the working generated signature.
-        if let Ok(text) = std::fs::read_to_string(original.generated_dir().join("server-watch.json")) {
-            let graph: Vec<(std::path::PathBuf, Option<(String, String)>)> = serde_json::from_str(&text).map_err(|e| e.to_string())?;
-            let root = original.root.canonicalize().map_err(|e| e.to_string())?;
-            for (path, state) in graph {
-                if state.is_none() { continue; }
-                let Ok(relative) = path.strip_prefix(&root) else { continue; };
-                if relative.starts_with("snapback") || relative.components().any(|part| part.as_os_str() == "node_modules") { continue; }
-                let target = candidate.project.root.join(relative);
-                std::fs::create_dir_all(target.parent().unwrap()).map_err(|e| e.to_string())?;
-                if path.symlink_metadata().map_err(|e| e.to_string())?.is_file() { std::fs::copy(path, target).map_err(|e| e.to_string())?; }
-                else { return Err("saved-source server imports must be regular files".into()); }
-            }
+        // Discover the current dependency graph without installing selected
+        // contracts in the working project. A failed typecheck still publishes
+        // its graph; the copied bytes are checked with selected contracts below.
+        if let Some(entry) = crate::dev_worker::source(original) {
+            let _ = original.check_entry(&entry);
+            crate::dev_worker::package_entry(original, &candidate.project.root)?;
         }
         candidate.project.write_generated_from(bound, original).map_err(|e| e.to_string())?;
         if !crate::native::declared(bound).is_empty() && original.native_manifest().exists() {
             copy_tree(&original.native_dir(), &candidate.project.native_dir()).map_err(|e| e.to_string())?;
             rebase_tree(&candidate.project.native_dir(), &original.native_dir()).map_err(|e| format!("saved-source native snapshot: {e}"))?;
         }
-        if original.root.join("package.json").is_file() { std::fs::copy(original.root.join("package.json"), candidate.project.root.join("package.json")).map_err(|e| e.to_string())?; }
-        #[cfg(unix)] {
-            // Dependencies are host installation bytes, as in ordinary release
-            // workers. Source and generated contracts remain private copies.
-            let dependencies = original.root.ancestors().map(|root| root.join("node_modules")).find(|path| path.is_dir());
-            if let Some(dependencies) = dependencies { std::os::unix::fs::symlink(dependencies, candidate.project.root.join("node_modules")).map_err(|e| e.to_string())?; }
-        }
-        candidate.project.check_server()?;
+        crate::dev_worker::link_dependencies(original, &candidate.project.root)?;
+        if let Some(entry) = crate::dev_worker::source(&candidate.project) { candidate.project.check_entry(&entry)?; }
         Ok(candidate)
     }
 }
@@ -101,18 +84,6 @@ fn copy_tree(source: &Path, target: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-fn copy_companions(source: &Path, target: &Path) -> std::io::Result<()> {
-    std::fs::create_dir_all(target)?;
-    for entry in std::fs::read_dir(source)? {
-        let entry = entry?; let name = entry.file_name();
-        if matches!(name.to_str(), Some("generated" | "native" | "workers" | "node_modules" | "target" | ".git")) || entry.path().extension().is_some_and(|ext| ext == "q") { continue; }
-        let kind = entry.file_type()?;
-        if kind.is_dir() { copy_companions(&entry.path(), &target.join(name))?; }
-        else if kind.is_file() { std::fs::copy(entry.path(), target.join(name))?; }
-        else { return Err(std::io::Error::other("saved-source companions must be regular files")); }
-    }
-    Ok(())
-}
 
 #[cfg(test)]
 mod tests {

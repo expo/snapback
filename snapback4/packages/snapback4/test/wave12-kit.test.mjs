@@ -9,7 +9,7 @@ import { chromium } from 'playwright-core';
 import { listenerSnapshot } from '../../../scripts/proof-listener-audit.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const baseline = process.env.KIT_BASELINE;
-const bin = baseline ? '/tmp/kit-baseline/snapback4' : join(root, 'target/debug/snapback4');
+const bin = baseline ? '/tmp/kit-baseline/snapback4' : process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4');
 const kit = await import(baseline ? '/tmp/kit-baseline/proof.mjs' : '../dist/proof.js');
 const source = `use identity guests\ntable notes:\n  title: text <=80\n  public 'proof notes'\n  insert <- allow\n  online only\nquery mine():\n  return notes first 20 by .id\nmutation add(title: text <=80):\n  return insert notes { title }\n`;
 const fixture = t => { const dir = mkdtempSync(join(root, 'target/kit12-')); t.after(()=>rmSync(dir,{recursive:true,force:true})); return dir; };
@@ -58,7 +58,7 @@ test('H8 witness claims the trusted button form submit, preserving canonical nul
   writeFileSync(join(cwd,'dist/index.html'),`<form><button type="submit">Save</button></form><script type="module">
 import {registerWebWitness} from './bridge.js';
 const op={kind:'mutation',name:'save'},client={viewer:()=> 'dev:alice',onWrite:()=>()=>{},mutate:async()=>({state:'sent',id:'submitted',seq:1})};
-const app={client,ready:Promise.resolve(),mutate:async(...a)=>{await Promise.resolve();return client.mutate(...a)}};
+const app={client,ready:Promise.resolve({ok:true}),mutate:async(...a)=>{await Promise.resolve();return client.mutate(...a)}};
 registerWebWitness(app,{save:op});document.querySelector('form').onsubmit=e=>{e.preventDefault();void app.mutate(op,{optional:null,title:'new'})};</script>`);
   const web=await kit.startStatic('dist',{cwd});
   try { await kit.withBrowser({logsDir:join(root,'target/kit12-browser-logs'),executablePath:process.env.CHROME},async context=>{
@@ -93,11 +93,11 @@ if (!baseline) {
  test('init preserves package identity, reports current range, and adapt is read-only by default', t=>{
   for(const platform of ['--web','--expo']){
    const cwd=fixture(t);writeFileSync(join(cwd,'package.json'),'{"name":"my-product","version":"7.2.1"}');
-   const result=invoke(cwd,['init',platform],{PORT_LO:'29120',PORT_HI:'29129'});okay(result);
+   const result=invoke(cwd,['init',platform,'--day2'],{PORT_LO:'29120',PORT_HI:'29129'});okay(result);
    const pkg=JSON.parse(readFileSync(join(cwd,'package.json')));
    assert.equal(pkg.name,'my-product');assert.equal(pkg.version,'7.2.1');
    assert.match(result.stdout,/http:\/\/127.0.0.1:29120/);assert.match(result.stdout,/localhost:29121/);
-   assert.equal(result.stdout.trim().split('\n').at(-1),'\x1b[1mnpm install\x1b[0m');
+   assert.equal(result.stdout.trim().split('\n').at(-1),'npm install');
    assert.equal(pkg.scripts['day2:proof'],'node scripts/day2-proof.mjs versions/v1 versions/v2');
    assert.equal(readFileSync(join(cwd,'versions/v1/schema.q'),'utf8'),readFileSync(join(cwd,'snapback/schema.q'),'utf8'));
    writeFileSync(join(cwd,'snapback/schema.q'),source);
@@ -136,7 +136,7 @@ if (!baseline) test('unclaimable events, operations and arguments settle with re
  let calls=0;
  const listeners=new Set();
  const client={viewer:()=> 'dev:a',onWrite:fn=>{listeners.add(fn);return()=>listeners.delete(fn)},mutate:async()=>{calls++;return{state:'sent',id:'write',seq:1}}};
- const app={client,ready:Promise.resolve(),mutate:(...args)=>client.mutate(...args)};
+ const app={client,ready:Promise.resolve({ok:true}),mutate:(...args)=>client.mutate(...args)};
  registerWebWitness(app,{save:op,other});
  for(const reason of ['event','operation','arguments']){
   window.__snapback4Witness.beginForm('save',{x:null},button);
@@ -155,8 +155,8 @@ if (!baseline) test('unclaimable events, operations and arguments settle with re
 });
 
 if (!baseline) test('day2 caller source arguments override npm defaults and malformed argument lists refuse', t=>{
- const cwd=fixture(t);okay(invoke(cwd,['init','--web']));symlinkSync(join(root,'node_modules'),join(cwd,'node_modules'));
- for(const args of [['versions/v1.q','versions/v2.q','versions/v1.q','missing.q'],['versions/v1.q','versions/v2.q','extra.q']]){
+ const cwd=fixture(t);okay(invoke(cwd,['init','--web','--day2']));symlinkSync(join(root,'node_modules'),join(cwd,'node_modules'));
+ for(const args of [['versions/v1','versions/v2','versions/v1','missing.q'],['versions/v1','versions/v2','one','two','three','four']]){
   const result=spawnSync(process.execPath,['scripts/day2-proof.mjs',...args],{cwd,encoding:'utf8',timeout:5000});
   assert.notEqual(result.status,0);assert.match(result.stderr,/missing.q|usage: npm run day2:proof/);
  }

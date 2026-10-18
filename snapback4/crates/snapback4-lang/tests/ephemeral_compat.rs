@@ -342,7 +342,32 @@ fn strip_client_metadata(types: &str, bound: &snapback4_lang::Bound) -> String {
     assert_eq!(types.matches(IMPORTS).count(), 1);
     const UNWRAP: &str = " Unwrap with isReady(read) && read.data, or matchRead(read, handlers) from snapback4/contract (also snapback4/react).";
     assert_eq!(types.matches(UNWRAP).count(), bound.programs.iter().filter(|p| p.program.kind == ProgramKind::Query).count());
-    let mut normalized = types.replacen(IMPORTS, "", 1).replace(UNWRAP, "");
+    // Wave 14 adds only this generated header and one timing sentence per
+    // durable mutation. Pin their exact text/counts independently of the emitter
+    // before removing them; every frozen schema/type byte still compares below.
+    const PREDICTION_HEADER: &str = concat!(
+        "// Mutation predicts is per operation: eligible may render a pending row before useMutation().run() settles; never has no predicted row.\n",
+        "// Eligibility needs a device and held facts; otherwise the write queues. run() waits for sent/failed unless waitSeconds: 0 requests custody.\n",
+        "// UI proofs await a fresh sent receipt before asserting committed data; a rendered pending row is not a commit.\n",
+    );
+    const TIMING_NEVER: &str = " Timing: no predicted row; query results change after server settlement and delivery.";
+    const TIMING_ELIGIBLE: &str = " Timing: with a device and held facts, a pending row may render before run() settles; otherwise queues without a predicted row.";
+    assert_eq!(types.matches(PREDICTION_HEADER).count(), 1);
+    assert_eq!(types.find(PREDICTION_HEADER), types.find('\n').map(|at| at + 1), "prediction header follows the generated banner");
+    let (mut never, mut eligible) = (0, 0);
+    for program in bound.programs.iter().filter(|p| p.program.kind == ProgramKind::Mutation) {
+        let fact = &bound.schema.operations[&program.program.name];
+        if fact.ephemeral { continue; }
+        match fact.predicts.as_deref() {
+            Some("never") => never += 1,
+            Some("eligible") => eligible += 1,
+            other => panic!("{}: unexpected durable prediction fact {other:?}", program.program.name),
+        }
+    }
+    assert_eq!(types.matches(TIMING_NEVER).count(), never);
+    assert_eq!(types.matches(TIMING_ELIGIBLE).count(), eligible);
+    let mut normalized = types.replacen(IMPORTS, "", 1).replace(UNWRAP, "")
+        .replacen(PREDICTION_HEADER, "", 1).replace(TIMING_NEVER, "").replace(TIMING_ELIGIBLE, "");
     let mut count = 0;
     for program in &bound.programs {
         let program = &program.program;

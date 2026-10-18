@@ -28,7 +28,15 @@ test("native and static bind beyond an occupied port; identity and independent l
   const env = { PORT_LO: String(port), PORT_HI: String(Math.min(65535, port + 20)) };
   const dev = await startDev({ cwd, env }); let web;
   try {
+    assert.deepEqual(dev.personas, ["alice", "bob"]);
     assert.ok(Number(new URL(dev.url).port) > port); assert.equal((await (await fetch(dev.url + "/dev/status")).json()).pid, dev.pid);
+    const before = await dev.now();
+    const advanced = await fetch(dev.url + "/dev/clock/advance", { method: "POST", body: JSON.stringify({duration:"2h"}) }).then(r=>r.json());
+    assert.ok(advanced.now >= before + 7_200_000); assert.ok(Math.abs(advanced.skewMs - 7_200_000) < 1000);
+    assert.ok(await dev.now() >= advanced.now);
+    const reset = await fetch(dev.url + "/dev/reset", { method: "POST", body: "{}" }).then(r=>r.json());
+    assert.ok(reset.now >= advanced.now); assert.ok(reset.skewMs >= 7_199_000);
+    assert.ok(await dev.now() >= reset.now);
     web = await startStatic("dist", { cwd, env }); assert.notEqual(web.url, dev.url);
     assert.equal(await (await fetch(web.url)).text(), "<h1>owned</h1>");
     for (const log of Object.values(dev.logs)) assert.ok(log.startsWith(join(cwd, "logs")), "default logs survive temp-root harness cleanup");
@@ -38,6 +46,7 @@ test("native and static bind beyond an occupied port; identity and independent l
 test("exhausted range and missing export fail with bounded cleanup", async t => {
   const cwd = fixture(t), held = createServer(), port = await bind(held); t.after(() => held.close());
   await assert.rejects(startDev({ cwd, env: { PORT_LO: String(port), PORT_HI: String(port) }, timeoutMs: 5000 }), /before ready/);
+  await assert.rejects(startStatic("dist", { cwd, timeoutMs: 5000 }), /startStatic: .*dist does not exist; frontend proofs build their own dist \(await command\("npm", \["run", "build"\]\)\)/);
   for (let attempt = 0; attempt < 3; attempt++) await assert.rejects(startStatic("snapback", { cwd, timeoutMs: 5000 }), /index.html/);
 });
 test("static host serves wasm correctly and refuses escaped symlink assets", async t => {
@@ -75,7 +84,7 @@ test("saved-source deploy, preview, hot forward, rollback and fixture test never
   } finally { await serve.stop(); }
   assert.equal(readFileSync(join(cwd, "snapback/schema.q"), "utf8"), "invalid current working source");
   assert.equal(readFileSync(join(cwd, "deploy/releases/1/snapback/schema.q"), "utf8"), schema);
-  assert.equal((await testSource(v1, { cwd, args: ["--fixture", "fixtures"] })).code, 0);
+  assert.equal((await testSource(v1, { cwd, args: ["--fixture", "fixtures"], fixtureOnly: true })).code, 0);
   assert.equal(readFileSync(join(cwd, "snapback/schema.q"), "utf8"), "invalid current working source");
 });
 test("cli awaits close, separates output and returns refusal status", async t => {
@@ -196,7 +205,8 @@ test("secret stdout stays in memory; token CLI automatically selects secret capt
   assert.equal(logsDir({cwd}), join(cwd, "logs"));
   const result = await command(process.execPath, ["-e", "console.log('private bearer'); console.error('diagnostic')"], {cwd, secret:true});
   assert.equal(result.stdout, "private bearer\n");
-  assert.equal(readFileSync(result.logs.stdout, "utf8"), "");
+  assert.match(readFileSync(result.logs.stdout, "utf8"), /^stdout withheld: secret command/);
+  assert.doesNotMatch(readFileSync(result.logs.stdout, "utf8"), /private bearer/);
   assert.equal(readFileSync(result.logs.stderr, "utf8"), "diagnostic\n");
   const original=process.env.SNAPBACK4_BIN;
   const fake=join(cwd,'token.mjs');
@@ -205,7 +215,8 @@ test("secret stdout stays in memory; token CLI automatically selects secret capt
   try {
     const token = await cli(['token'], {cwd});
     assert.equal(token.code,0);assert.equal(token.stdout,'minted bearer\n');
-    assert.equal(readFileSync(token.logs.stdout,'utf8'),'');
+    assert.match(readFileSync(token.logs.stdout,'utf8'),/^stdout withheld: secret command/);
+    assert.doesNotMatch(readFileSync(token.logs.stdout,'utf8'),/minted bearer/);
   } finally { if(original===undefined)delete process.env.SNAPBACK4_BIN;else process.env.SNAPBACK4_BIN=original; }
 });
 test("startDev args preserve memory isolation unless a store is explicit", async t => {

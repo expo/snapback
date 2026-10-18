@@ -1,0 +1,41 @@
+{
+  "round": 2,
+  "scope": "proof",
+  "mutuallyBlind": true,
+  "freshCodexSession": true,
+  "snapshot": "snapback4/reports/20261016-wave14-day4/proof-review-r2-snapshot.tar.gz",
+  "sourceHashes": {
+    "llp/3000.011.003.000.000-packaged-proof-kit.rfc.md": "40c2e8b38147f93218680630c49a1aad4943343cdcdeba713035ebfe2f688b0f",
+    "snapback4/crates/snapback4/src/verbs/init.rs": "a1bcfc2f67a621816552e4874dfcd4ff03a87be7e7abd205ada4b6aa907444f5",
+    "snapback4/crates/snapback4/src/verbs/init/adapt.rs": "cb13facc1c6c6a76074d8495bc32589b6196e5bdad62d345bf207df6c532449f",
+    "snapback4/crates/snapback4/src/verbs/init/proof.rs": "c9c85d749c8eebc4cb4781c394f340b15d5b62ca3e46e5d95f383e4920a2bbd0",
+    "snapback4/crates/snapback4/src/verbs/init/day2-proof.mjs": "546d786c11a45de1e939fd37d0aa6c525a76bfb7dd777bdf9ce2a8b37f7ea0b9",
+    "snapback4/crates/snapback4/src/verbs/init/proof_advice.rs": "f9af180aaaa80d777be27228b8535a9140588574b6c0dff362b1a2a8e5b2ae84",
+    "snapback4/crates/snapback4/src/verbs/init/proof-digests.json": "7ac7298b42b938224faa3a8a5e2780748b414129267aee4f27d823c3e77b0fba",
+    "snapback4/crates/snapback4/src/verbs/testing.rs": "9bb89131e6c43f8a9c3aad53b4a40dfc2aad4406eaeb1baa0c7d0050b9c60f81",
+    "snapback4/crates/snapback4/src/verbs/saved_fixture_drift.rs": "07e9544bfa4cb0db0c13abf76f8273ea889cf2eb4ac74d4268a52b50405f03fc",
+    "snapback4/packages/snapback4/src/proof.ts": "f558ac3401dd711eb77cca8bc41cd156e2931e5dbdf269b2cd7be3083fb913da",
+    "snapback4/crates/snapback4/tests/day3.rs": "bcb973b5fdc0b7812596700cd99fbd54db7ab3798724ba966c78306c5bdeacda",
+    "snapback4/crates/snapback4/tests/day4.rs": "fc377c53aeb46c153ec60658012b9a011c12ec22863c94ed3e36dad1830ebff3",
+    "snapback4/packages/snapback4/test/day4-proofs.test.mjs": "9ca6329c91367a0be2cf2d94822a0aaff4ef9d914a845b6d7948df5802bde444",
+    "snapback4/scripts/publication-day4.mjs": "b51c1b50da8e8034f2d7e4bba0cca79d31203a4a7653dbdab5ca1faf887cc27c"
+  },
+  "reviews": {
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "reasoningEffort": "high",
+      "verdict": "READY",
+      "rawTranscript": "snapback4/reports/20261016-wave14-day4/proof-review-r2-muse.transcript.txt.gz",
+      "rawTranscriptSha256": "b9c17ef595b1b89c70e8fd1295dd93bf408251b4230bc81d8df10f976cd67db9",
+      "command": "timeout 1800 /home/ccheever/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file llp/reviews/3000.011.003.000.000-day4-r2.brief.md"
+    },
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
+      "verdict": "NOT READY",
+      "rawTranscript": "snapback4/reports/20261016-wave14-day4/proof-review-r2-codex.transcript.txt.gz",
+      "rawTranscriptSha256": "875e6742bad7717d61c56e0a87843d1d8c48605ee570eacbf096fd409b3d1e98",
+      "command": "timeout 1800 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < llp/reviews/3000.011.003.000.000-day4-r2.brief.md"
+    }
+  }
+}

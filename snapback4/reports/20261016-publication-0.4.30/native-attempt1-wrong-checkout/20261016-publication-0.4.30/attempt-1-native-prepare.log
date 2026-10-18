@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/Users/ccheever/sb4-pub-0430/helpers-0.4.30/native-prepare.py", line 9, in <module>
+    assert run('git','status','--porcelain','--untracked-files=no')=='', 'tracked files differ from HEAD'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: tracked files differ from HEAD

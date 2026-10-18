@@ -308,6 +308,9 @@ pub struct QueryOutcome {
     /// placeholder; client transports publish loading, never a ready null.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub unavailable: bool,
+    /// Host-only publication dependency; never part of a wire or device reply.
+    #[serde(skip)]
+    pub pending_opening: Option<(String, String)>,
     pub complete: bool,
     pub cut: Option<ReadCut>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -701,7 +704,7 @@ impl Engine {
     /// carries, so a client can order it against answers (LLP 3000.018 §3.2).
     pub fn query_at(&mut self, name: &str, context: Context) -> (Result<QueryOutcome, Refusal>, Option<u64>) {
         let mut cut = None;
-        let result = self.query_reading(name, context, &mut cut, None, &mut None, DeliveryManifest::Build);
+        let result = self.query_reading(name, context, &mut cut, None, &mut None, DeliveryManifest::Build, true);
         (result, cut)
     }
 
@@ -717,14 +720,25 @@ impl Engine {
     pub fn query_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>,
     ) {
         let (mut cut, mut current) = (None, None);
-        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, true);
         (result, cut, current)
     }
 
-    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest) -> Result<QueryOutcome, Refusal> {
+    /// Host evaluation after its one ordinary opening prelude. Retrying this
+    /// snapshot never advances an unrelated row from the global opening ledger.
+    // @ref LLP 3000.036.003#10 — memory and detached hosts share the same request-local publication scheduling.
+    #[cfg(feature = "server-search")]
+    pub fn query_materialized_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest)
+        -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
+        let (mut cut, mut current) = (None, None);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false);
+        (result, cut, current)
+    }
+
+    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest, advance_opening: bool) -> Result<QueryOutcome, Refusal> {
         context.generation = self.generation;
         let requested = context.now.unwrap_or_else(crate::now_ms);
-        context.now = Some(self.advance_time_audience(requested)?);
+        context.now = Some(if advance_opening { self.advance_time_audience(requested)? } else { requested });
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind != ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is a {}, not a query", program.kind.word())).into());
@@ -771,7 +785,7 @@ impl Engine {
                 };
                 runner.charge_output(&data)?;
                 let (delivery, delivery_meter) = match manifest { DeliveryManifest::Build => runner.delivery_manifest(&data), DeliveryManifest::Skip => (None, None) };
-                let outcome = QueryOutcome { decoration_expiry: None, search_rows: None, search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: !runner.query_unavailable && runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
+                let outcome = QueryOutcome { decoration_expiry: None, search_rows: None, search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, pending_opening: runner.pending_opening.clone(), complete: !runner.query_unavailable && runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
                 drop(layered); drop(hub);
                 tx.rollback()?;
@@ -790,8 +804,12 @@ impl Engine {
                 .ok_or_else(|| {
                     RuntimeError::Input("this query does not support retained search overlap".into())
                 })?;
-            *_current = Some(runner.search_overlap(&descriptor, ids)?);
-            if let Some((order, _)) = &runner.context.search_retained_order {
+            *_current = match runner.search_overlap(&descriptor, ids) {
+                Ok(current) => Some(current),
+                Err(RuntimeError::TimeAudiencePending) => { runner.query_unavailable = true; None },
+                Err(error) => return Err(error.into()),
+            };
+            if !runner.query_unavailable && let Some((order, _)) = &runner.context.search_retained_order {
                 if order.len() != ids.len() { return Err(RuntimeError::Input("retained search keys must match candidate IDs".into()).into()); }
                 let current: std::collections::BTreeSet<_> = _current.as_ref().unwrap().iter().collect();
                 runner.meter.heap((ids.len() * 160) as u64)?;
@@ -799,14 +817,14 @@ impl Engine {
                 runner.context.search_retained_candidates = ids.iter().zip(order).map(|(id, at)| (id.clone(), *at, current.contains(id))).collect();
             }
         }
-        let data = match runner.run_server_query(&program) {
+        let data = if runner.query_unavailable { Value::Null } else { match runner.run_server_query(&program) {
             Ok(value) => value,
             Err(RuntimeError::TimeAudiencePending) => {
                 runner.query_unavailable = true;
                 Value::Null
             }
             Err(error) => return Err(error.into()),
-        };
+        } };
         runner.charge_output(&data)?;
         let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };
         // `complete` is a class, not a count: a query with a scan the prefix
@@ -817,7 +835,7 @@ impl Engine {
             #[cfg(feature = "server-search")] search_scopes: runner.search_scopes.take(),
             #[cfg(not(feature = "server-search"))] search_scopes: None,
             delivery, delivery_meter, ephemeral: version,
-            unavailable: runner.query_unavailable,
+            unavailable: runner.query_unavailable, pending_opening: runner.pending_opening.clone(),
             complete: !runner.query_unavailable && runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.value_source_incomplete && !runner.page_position_lost() && !runner.timeline_pending,
             cut: runner.read_cut(),
             capped_at: runner.meter.capped_at.clone(),

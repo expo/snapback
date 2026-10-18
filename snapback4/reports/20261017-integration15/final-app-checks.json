@@ -1,0 +1,12 @@
+{
+  "source": "bbf8dfaae407d407432ba5cb2269307572564899",
+  "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+  "binarySha256": "70f4745231ed118d226905afee95b757ff2cb1241a411d295d15cdb1403a3a30",
+  "client": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-pack3/snapback4-0.4.31.tgz",
+  "clientSha256": "690360a0a72397b9711a0e337c19addb7898a9367faf61f6070e030a931c0022",
+  "exactCommit": "85cc746b56437e8897720538cd9d8f9dbbb8cfc8",
+  "exactBackendCommand": "snapback4 dev --port <recorded per-app port> --no-watch",
+  "exactBackendCwd": "parent of each app directory",
+  "exactResults": "2 web tests \u00d7 2 repetitions \u00d7 2 apps = 8 passed",
+  "upgrade": "rows, store id, authored files preserved; valid Expo retained, old Expo floor repaired"
+}

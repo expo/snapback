@@ -446,6 +446,9 @@ fn no_watch_names_an_unadopted_edit_and_seed_names_the_id_form() {
     let p = Project::new(); p.initialize();
     let host = Running::start(&p, "host", &["dev", "--port", "0", "--no-watch"]);
     wait(|| host.logs().split_inclusive('\n').any(|line| line.ends_with('\n') && line.contains("snapback4 dev: http://")));
+    // The --no-watch line follows the URL line (after the source pin), so wait for it too: on macOS's
+    // long /var/folders temp paths the pin can lag the URL line (0.4.31 Mac dry run 1).
+    wait(|| host.logs().contains("--no-watch — schema edits are not re-adopted"));
     assert!(host.logs().contains("--no-watch — schema edits are not re-adopted"), "{}", host.logs());
     let address = host.logs().split("snapback4 dev: ").nth(1).unwrap().split_whitespace().next().unwrap().to_owned();
     // Before any edit an unknown operation is only unknown.

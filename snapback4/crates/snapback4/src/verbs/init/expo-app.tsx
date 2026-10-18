@@ -2,7 +2,7 @@ import { useNativeSmokeGuest } from "./src/native-smoke";
 import { useState } from "react";
 import { Button, SafeAreaView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { AppProvider, useAuth, useLink } from "snapback4/react";
+import { AppProvider, useAppReady, useAuth, useLink } from "snapback4/react";
 import { app, tier, url } from "./src/client";
 import { Inbox } from "./src/Inbox";
 import { Thread } from "./src/Thread";
@@ -15,8 +15,10 @@ export function App() {
 function Account() {
   useNativeSmokeGuest();
   const auth = useAuth();
+  const ready = useAppReady();
   const [problem, setProblem] = useState("");
   if (auth.state === "restoring") return <Text>Restoring your account…</Text>;
+  if (auth.state === "signed-in" && !ready) return <Text>{auth.why?.message ?? "Opening your account…"}</Text>;
   if (auth.state === "signed-in") return <Home />;
   return <View><Text>{problem || auth.why?.message || "Welcome"}</Text>
     <Button title="Continue as a guest" onPress={() => { void auth.guest().then(result => { if (!result.ok) setProblem(result.why.message); }); }} />

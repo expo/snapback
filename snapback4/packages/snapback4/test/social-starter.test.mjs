@@ -112,7 +112,7 @@ test("social seed script creates two password accounts, signs in and refuses cro
   assert.notEqual(accounts[0].principal, accounts[1].principal);
   assert.deepEqual(reused.stdout, created.stdout, "login reuses the same accounts");
   await assert.rejects(run("signup"), error => {
-    assert.match(error.stderr, /Account 1: E_AUTH: that email already has an account; sign in instead/);
+    assert.match(error.stderr, /Account 1: that email already has an account; sign in instead/);
     assert.equal(error.stdout, "");
     assert.equal(error.stderr.includes(password), false);
     return true;

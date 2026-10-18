@@ -558,6 +558,7 @@ fn ordinary_starters_still_check_and_preserve_their_server_opt_in() {
             assert!(!document.server && document.actions.is_empty() && document.routes.is_empty());
             assert!(document.schedules.iter().all(|schedule| schedule.target != "invite"));
             for (path, bytes) in snapshot(&dir.0) {
+                if path.starts_with(dir.0.join("recipes/production")) { continue; }
                 assert!(!path.file_name().unwrap().to_string_lossy().starts_with("worker."));
                 if let Some(bytes) = bytes { assert!(!String::from_utf8_lossy(&bytes).contains("invite"), "{}", path.display()); }
             }
@@ -611,7 +612,11 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         }
         let texts = starter_texts(&dir.0);
         // Three kit scripts replace builder-owned process orchestration.
-        assert!(texts.len() <= 28, "{flag}: {} files", texts.len());
+        let app_files = texts.iter().filter(|(path, _)| !path.starts_with(dir.0.join("recipes/production"))).count();
+        assert!(app_files <= 28, "{flag}: {app_files} application files");
+        for recipe in ["schema.q", "App.tsx", "client.ts", "fixtures/test.cases.jsonl"] {
+            assert!(dir.0.join("recipes/production").join(recipe).is_file(), "missing runnable recipe {recipe}");
+        }
         let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), schema)]);
         assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
@@ -1431,7 +1436,8 @@ fn adapt_adds_missing_proof_files_and_preserves_application_proofs() {
     fs::remove_dir_all(dir.0.join("scripts")).unwrap();
     let path = dir.0.join("package.json");
     let mut package: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-    package["scripts"].as_object_mut().unwrap().remove("frontend:proof");
+    // The missing proof is still referenced by frontend:proof.
+
     package["devDependencies"].as_object_mut().unwrap().remove("playwright-core");
     fs::write(&path, package.to_string()).unwrap();
     assert!(dir.init(&["--adapt", "--apply"]).status.success());
@@ -1445,4 +1451,13 @@ fn adapt_adds_missing_proof_files_and_preserves_application_proofs() {
     let package: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
     assert_eq!(package["scripts"]["frontend:proof"], "my-custom-proof");
     assert_eq!(fs::read_to_string(dir.0.join("scripts/frontend-proof.mjs")).unwrap(), "// application-owned proof\n");
+}
+
+#[test]
+fn social_pins_the_sdk_supported_router_animation_peers() {
+    let dir = Dir::new();
+    assert!(dir.init(&["--template", "social"]).status.success());
+    let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
+    assert_eq!(package["dependencies"]["react-native-reanimated"], "4.5.1");
+    assert_eq!(package["dependencies"]["react-native-worklets"], "0.10.1");
 }

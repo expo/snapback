@@ -1,0 +1,151 @@
+[
+  {
+    "cmd": "npm",
+    "args": [
+      "install",
+      "--ignore-scripts",
+      "--omit=optional",
+      "--no-audit",
+      "--no-fund",
+      "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-pack3/snapback4-0.4.31.tgz"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave15/synced-final",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "/home/ccheever/sb4-loop/prewave15/exact2/scripts/exact.mjs",
+      "new",
+      "/home/ccheever/sb4-loop/prewave15/synced-final/app",
+      "--snapback",
+      "--port",
+      "34287"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave15/synced-final",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "snapback",
+      "--port",
+      "34287"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave15/synced-final/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "contract",
+      "types",
+      "app.contract",
+      "-o",
+      "app.contract.d.ts"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave15/synced-final/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:34287"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave15/synced-final/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:34287"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave15/synced-final/app",
+    "exit": 0
+  },
+  {
+    "cmd": "npm",
+    "args": [
+      "install",
+      "--ignore-scripts",
+      "--omit=optional",
+      "--no-audit",
+      "--no-fund",
+      "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-pack3/snapback4-0.4.31.tgz"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave15/online-guest-final",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "/home/ccheever/sb4-loop/prewave15/exact2/scripts/exact.mjs",
+      "new",
+      "/home/ccheever/sb4-loop/prewave15/online-guest-final/app",
+      "--snapback",
+      "--online",
+      "--port",
+      "37985"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave15/online-guest-final",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "snapback",
+      "--port",
+      "37985"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave15/online-guest-final/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "contract",
+      "types",
+      "app.contract",
+      "-o",
+      "app.contract.d.ts"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave15/online-guest-final/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:37985"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave15/online-guest-final/app",
+    "exit": 0
+  },
+  {
+    "cmd": "bun",
+    "args": [
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:37985"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave15/online-guest-final/app",
+    "exit": 0
+  }
+]

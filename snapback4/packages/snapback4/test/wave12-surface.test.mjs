@@ -17,6 +17,9 @@ test('publication check catches 0.4.28 deploy --schema omission and covers every
   assert.throws(()=>assertChangelogHelp('- deploy --schema selects saved complete source',()=>deploy), /deploy --help omits announced --schema/);
   assert.throws(()=>assertChangelogHelp('- deploy --unknown-new-flag does something',()=>cli('deploy','--help')), /omits announced --unknown-new-flag/);
   assert.throws(()=>changelogFlags('- --unknown lacks a verb'), /needs an explicit/);
+  for (const pm of ['npm','bun','pnpm']) {
+    assert.deepEqual(changelogFlags(`- Run the new helper: ${pm} install --save-exact snapback4@0.4.31; deploy --schema saved.q`), [['deploy','--schema']]);
+  }
   checkVerbHelp(binary,changelog);
   const help=cli('deploy','--help');assert.match(help,/--schema file.q.*saved complete source; keep it outside snapback\//);
 });
@@ -54,4 +57,13 @@ test('a staged standalone binary owns every native verb help without companion J
   const web=spawnSync(staged,['witness','web','--help'],{cwd:dir,env,encoding:'utf8',timeout:30000});
   assert.equal(web.status,0,web.stderr);assert.match(web.stdout,/^snapback4 witness <web\|acquire\|ios\|status>/m);assert.match(web.stdout,/web exercises a visible form/);assert.match(web.stdout,/--password-env/);
   checkVerbHelp(staged,changelog);
+});
+
+
+test('changelog help distinguishes flag retirement from supported announcements', () => {
+  const removal = '- CLI help drops the unsupported clock --release flag.';
+  assert.deepEqual(changelogFlags(removal + '\n- clock --release chooses a deployment'), []);
+  assert.doesNotThrow(() => assertChangelogHelp(removal, () => 'clock advance [amount]'));
+  assert.deepEqual(changelogFlags('- clock --release is reintroduced\n' + removal), [['clock', '--release']]);
+  assert.throws(() => assertChangelogHelp('- clock --new-flag is supported', () => ''), /omits announced --new-flag/);
 });

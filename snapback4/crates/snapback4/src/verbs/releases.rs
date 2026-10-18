@@ -266,7 +266,7 @@ pub fn deploy(options: &Options) -> i32 {
             }
             crate::dev_worker::package(&project, &stage)?;
             // @ref LLP 3000.011.003.000.000#2 — saved schemas prepare companion types in a private snapshot, never in working generated/.
-            let private = if options.flags.contains_key("schema") {
+            let private = if options.flags.contains_key("schema") || crate::dev_worker::source(&project).is_some() {
                 Some(super::proof_source::Candidate::prepare(&project, &stage, &bound)?)
             } else { None };
             let build_project = private.as_ref().map(|candidate| &candidate.project).unwrap_or(&project);
@@ -280,15 +280,7 @@ pub fn deploy(options: &Options) -> i32 {
                     .map_err(|e| e.to_string())?;
             }
             std::fs::write(stage.join("device-compatibility.json"), serde_json::to_vec_pretty(&snapback4_core::device_protocol::compatibility(&bound.schema.public_projection())).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
-            if private.is_some() && project.server_source().is_some() {
-                let source = build_project.server_source().ok_or("saved-source server snapshot is absent")?;
-                std::fs::copy(&source, stage.join("snapback").join(source.file_name().unwrap())).map_err(|e| e.to_string())?;
-                let generated = stage.join("snapback/generated");
-                std::fs::create_dir_all(&generated).map_err(|e| e.to_string())?;
-                for name in ["api.ts", "server.ts", "package.json"] {
-                    std::fs::copy(build_project.generated_dir().join(name), generated.join(name)).map_err(|e| e.to_string())?;
-                }
-            }
+            crate::dev_worker::package_entry(build_project, &stage)?;
             if let Some(previous)=previous {
                 if held["release"].as_u64()==Some(previous) && crate::release_files::digest(&stage)?==crate::release_files::digest(&releases.join(previous.to_string()))? {
                     std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;
@@ -396,6 +388,9 @@ pub fn rollback(options: &Options) -> i32 {
                 .ok_or("nothing to roll back to")?;
             selectable(&dir, previous)?;
             let bound = bound_at(dir.join("releases").join(previous.to_string()))?;
+            // @ref LLP 3000.000.000#14-wave-14-rollback-narration — resolve bare/latest selection visibly before any preview or live activation.
+            let target_line=format!("resolved rollback target: release {previous} (current release {active})");
+            if options.json {eprintln!("{target_line}");} else {println!("{target_line}");}
             check_change(&dir, Some(active), &bound, options, Some(previous))?;
             if options.flags.contains_key("check") {
                 return super::release_preview::preview(&dir.join("store.sqlite"),dir.join("releases").join(previous.to_string()),previous,options);

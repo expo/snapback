@@ -208,6 +208,7 @@ pub struct Runner<'a> {
     pub(super) scalar_unavailable: bool,
     /// An interrupted evaluation's null placeholder is not an application value.
     pub(crate) query_unavailable: bool,
+    pub(crate) pending_opening: Option<(String, String)>,
     /// A lane-discovery source was truncated before all values were known.
     /// Declared answer bounds do not set this (LLP 3000.027 §2).
     pub(crate) page_overflow: bool,
@@ -223,6 +224,8 @@ pub struct Runner<'a> {
     /// authority. Online-only and horizon reads may need the server.
     pub(crate) device: bool,
     pub(super) query_program: bool,
+    #[cfg(feature = "server-search")]
+    pub(super) snapshot_decided: BTreeSet<String>,
     /// Prediction deduplicates keys within this attempt, never in the server ledger.
     pub(super) effect_once_keys: BTreeSet<String>,
     pub(crate) event_free: bool,
@@ -381,7 +384,7 @@ impl<'a> Runner<'a> {
             shape_cursors: BTreeMap::new(),
             non_uniform: false,
             scalar_unavailable: false,
-            query_unavailable: false,
+            query_unavailable: false, pending_opening: None,
             page_overflow: false,
             discovering_values: false,
             value_source_incomplete: false,
@@ -390,6 +393,8 @@ impl<'a> Runner<'a> {
             word_cut_at: None,
             device: false,
             query_program: false,
+            #[cfg(feature = "server-search")]
+            snapshot_decided: BTreeSet::new(),
             effect_once_keys: BTreeSet::new(),
             event_free: false,
             #[cfg(feature = "sqlite")]
@@ -436,6 +441,8 @@ impl<'a> Runner<'a> {
     }
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
+        #[cfg(feature = "server-search")]
+        { self.snapshot_decided = if self.device { BTreeSet::new() } else { super::rules::snapshot_decided_scans(self.schema, program) }; }
         self.reserve_bounded_plans(program)?;
         if let Some(value) = self.run_decorated_search(program)? { return Ok(value); }
         self.insert_uses = (program.kind != ProgramKind::Query).then(|| effects::Effects::variable_uses(&program.body));
