@@ -268,7 +268,18 @@ fn overview_with(name: &str, card: &str, first_section: bool) -> Option<String> 
         let (section, (_, heading, start, end)) = found.iter().enumerate().find(|(_, (_, _, start, end))| lines[start + 1..*end].iter().any(|line| !line.trim().is_empty())).unwrap_or((0, &found[0]));
         let section = section + 1;
         let limit = start + FIRST_SECTION_LINES;
-        let stop = if end - start <= FIRST_SECTION_LINES { *end } else { boundary(&lines, start + 1, *end, limit).unwrap_or(limit) };
+        let stop = if end - start <= FIRST_SECTION_LINES { *end } else {
+            boundary(&lines, start + 1, *end, limit).unwrap_or_else(|| {
+                // An indivisible first code block must stay runnable. If no
+                // earlier paragraph fits, finish that block before shortening.
+                let mut fenced = false;
+                for (i, line) in lines.iter().enumerate().take(*end).skip(start + 1) {
+                    if line.trim_start().starts_with("```") { fenced = !fenced; }
+                    if i >= limit && !fenced && line.trim().is_empty() { return i; }
+                }
+                *end
+            })
+        };
         out.push_str("\n\n");
         out.push_str(lines[*start..stop].join("\n").trim_end());
         if stop < *end { out.push_str(&format!("\n\n… section {section} ({heading}) continues for {} lines: snapback4 guide {name} --section {section}", end - stop)); }
