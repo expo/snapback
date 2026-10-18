@@ -979,7 +979,7 @@ query input(n: int):
     const mixedSaved=state(join(deployment,'store.sqlite'));
     const mixed=run('rollback',deployment,'--to','1','--check');
     assert.match(mixed,/1 row, 20 cells, 0 index entries dormant/);
-    for(let n=0;n<20;n++) assert.ok(mixed.includes(`tables.values.columns.spare${n}: column values.spare${n} is removed; its cells become dormant (1 cells; restored on forward)`),mixed);
+    for(let n=0;n<20;n++) assert.ok(mixed.includes(`values.spare${n}: column values.spare${n} is removed; its cells become dormant (1 cells; restored on forward)`),mixed);
     const mixedJson=JSON.parse(run('rollback',deployment,'--to','1','--check','--json'));
     const dormantRow=mixedJson.plan.items.find(item=>item.key==='rows:values');
     assert.equal(dormantRow.rows,1);assert.deepEqual(dormantRow.sample_ids,[added.result.id]);
