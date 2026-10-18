@@ -105,7 +105,9 @@ The output legend: examined = rows visited; entries = index entries visited;
 probes = rule lookups; steps = interpreter work; heap B = charged heap bytes;
 output B = encoded answer bytes. The ceilings row gives the corresponding limits.
 OK cases passed their explicit expectations; complete is the whole answer;
-capped is a partial answer; denied is a refusal. A green sweep alone is no business assertion.
+capped is a partial answer; refused is an expected-case or program-require refusal;
+denied is an unexpected refusal that fails the sweep; not run means no coverage.
+A green sweep alone is no business assertion.
 `complete` is the whole answer; `capped` is a partial answer, not a refusal.
 Sweep refusals from a program's own require (family rule) are advisory and do
 not fail the run. Other refused sweep queries fail unless that query/persona's

@@ -54,13 +54,13 @@ try {
     {as:'alice',op:'counts',args:{},save:'rows',count:1},
     {as:'alice',op:'bump',args:{counterId:'$rows.0.id'}},
     {as:'alice',op:'counts',args:{},match:[{n:1}]}].map(JSON.stringify).join('\n'));
-  const tested=await cli(['test'],{cwd});assert.equal(tested.code,0,tested.stdout+tested.stderr);
+  const tested=await cli(['test'],{cwd});assert.equal(tested.code,0,tested.stdout+tested.stderr);assert.match(tested.stdout,/legend: examined=rows visited/);assert.match(tested.stdout,/denied=unexpected refusal/);
   dev=await startDev({cwd,args:['--no-watch']});
   const post=async(path,body)=>(await fetch(dev.url+path,{method:'POST',headers:{'x-snapback-persona':'alice'},body:JSON.stringify(body)})).json();
   await post('/seed',[{table:'counters',row:{id:'counter',n:0}}]);
   const refused=await post('/dev/clock/advance',{duration:'30d',eachBoundary:true});
   assert.equal(refused.denied.code,'E_CLOCK_INPUT');assert.match(refused.denied.message,/--each-boundary.*10000.*omit --each-boundary/);
-  assert.equal((await (await fetch(dev.url+'/dev/status')).json()).clockOffsetMs,0);
+  const status=await (await fetch(dev.url+'/dev/status')).json();assert.equal(status.clockOffsetMs,0);assert.equal(status.temporary,true,'the replay control owns a memory dev');
   const advanced=await post('/dev/clock/advance',{duration:'30d'});
   assert.equal(advanced.offsetMs,30*86400000);assert.equal(advanced.schedules.length,2);
   for(const schedule of advanced.schedules) {assert.equal(schedule.firedWindows.length,1);assert.ok(schedule.skippedPeriods>=8639&&schedule.skippedPeriods<=8640);assert.equal(schedule.skippedBoundariesOmitted,schedule.skippedPeriods-32);}

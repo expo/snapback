@@ -78,6 +78,6 @@ test('KIT4 fixture auth errors identify persona or token fingerprint without lea
   const url=`http://127.0.0.1:${server.address().port}`;
   await assert.rejects(loadFixtures('.',{url,persona:'mallory'}),/using persona "mallory"/);
   await assert.rejects(loadFixtures('.',{url,headers:{authorization:'Bearer private-token'}}),error=>{
-    assert.match(error.message,/using token sha256:[0-9a-f]{12}/);assert.doesNotMatch(error.message,/private-token/);return true;
+    assert.match(error.message,/using token sha256:[0-9a-f]{12}/);assert.equal(error.message.includes("private-token"),false);return true;
   });
 });

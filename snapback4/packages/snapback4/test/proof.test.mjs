@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, symlinkSync, cpSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn, execFileSync } from "node:child_process";
@@ -313,4 +313,20 @@ test('KIT4 missing static output names the app build script', async t => {
     writeFileSync(join(cwd,'package.json'),JSON.stringify({scripts:{[script]:'builder'}}));
     await assert.rejects(startStatic('dist',{cwd}), error=>{assert.ok(error.message.includes(`run", "${script}"`),error.message);return true;});
   }
+});
+
+test('KIT4 missing browser peer refuses before logs or the proof callback', async t => {
+  const cwd=mkdtempSync(join(tmpdir(),'kit4-missing-peer-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  cpSync(join(root,'packages/snapback4/dist'),join(cwd,'dist'),{recursive:true});
+  writeFileSync(join(cwd,'package.json'),'{"type":"module"}');
+  writeFileSync(join(cwd,'peer.mjs'),`
+import assert from 'node:assert/strict';
+import {existsSync} from 'node:fs';
+import {withBrowser} from './dist/proof.js';
+let called=false;
+await assert.rejects(withBrowser({cwd:process.cwd()},async()=>{called=true;}),/E_PROOF_BROWSER: withBrowser requires playwright-core.*npm install/);
+assert.equal(called,false);assert.equal(existsSync('logs'),false);
+`);
+  const result=await command(process.execPath,['peer.mjs'],{cwd,logsDir:join(cwd,'driver-logs'),env:{NODE_PATH:''}});
+  assert.equal(result.code,0,result.stdout+result.stderr);
 });
