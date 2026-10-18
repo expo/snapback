@@ -342,17 +342,18 @@ proof process helpers are `guide testing`; release narration is `guide changes`.
 
 ## Runnable React and Expo production slice
 
-Every small React and Expo starter carries `recipes/production/`: a complete
-schema, screen, client and acceptance cases. It runs beside the default app
+The installed package carries a complete production schema, screen, client
+and acceptance cases under `node_modules/snapback4/dist/recipes/production/`.
+Ordinary starters contain only their application and proof support. The slice runs beside the default app
 without making your existing schema adopt a directory policy. In a disposable
 React starter (`init --web`), run these commands as written:
 
 ```sh
-cp recipes/production/schema.q snapback/schema.q
-cp recipes/production/App.tsx src/App.tsx
-cp recipes/production/client.ts src/client.ts
+cp node_modules/snapback4/dist/recipes/production/web/schema.q snapback/schema.q
+cp node_modules/snapback4/dist/recipes/production/web/App.tsx src/App.tsx
+cp node_modules/snapback4/dist/recipes/production/web/client.ts src/client.ts
 npx snapback4 check
-npx snapback4 test --fixture recipes/production/fixtures
+npx snapback4 test --fixture node_modules/snapback4/dist/recipes/production/web
 npm run typecheck
 npm run build
 ```
@@ -360,11 +361,11 @@ npm run build
 For an Expo starter (`init --expo`), use this mapping instead:
 
 ```sh
-cp recipes/production/schema.q snapback/schema.q
-cp recipes/production/App.tsx App.tsx
-cp recipes/production/client.ts src/client.ts
+cp node_modules/snapback4/dist/recipes/production/expo/schema.q snapback/schema.q
+cp node_modules/snapback4/dist/recipes/production/expo/App.tsx App.tsx
+cp node_modules/snapback4/dist/recipes/production/expo/client.ts src/client.ts
 npx snapback4 check
-npx snapback4 test --fixture recipes/production/fixtures
+npx snapback4 test --fixture node_modules/snapback4/dist/recipes/production/expo
 npm run typecheck
 npm run build:web
 ```

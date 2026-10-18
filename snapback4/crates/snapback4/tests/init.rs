@@ -612,11 +612,9 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         }
         let texts = starter_texts(&dir.0);
         // Three kit scripts replace builder-owned process orchestration.
-        let app_files = texts.iter().filter(|(path, _)| !path.starts_with(dir.0.join("recipes/production"))).count();
+        let app_files = texts.len();
         assert!(app_files <= 28, "{flag}: {app_files} application files");
-        for recipe in ["schema.q", "App.tsx", "client.ts", "fixtures/test.cases.jsonl"] {
-            assert!(dir.0.join("recipes/production").join(recipe).is_file(), "missing runnable recipe {recipe}");
-        }
+        assert!(!dir.0.join("recipes").exists(), "ordinary starters must not ship unused guide recipes");
         let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), schema)]);
         assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);

@@ -1,6 +1,6 @@
 # Client: answers stay on screen
 
-**Start here:** `useQuery`/`usePage`, `matchRead`/`readPresentation`; composers/receipts above rows. `useFollowing` (`guide feeds`).
+**Start here:** `useQueryData`/`useQueryResult` ([short screens](CLIENT-AND-OPERATIONS.md#short-screens)); `useQuery`/`usePage` for metadata; composers above rows; `useFollowing` (`guide feeds`).
 
 ```tsx
 import { matchRead, readPresentation, usePage } from "snapback4/react";

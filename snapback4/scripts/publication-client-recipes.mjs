@@ -1,7 +1,7 @@
 // Packed client contracts: execute the guide's narrowing recipe verbatim and
 // typecheck the handler argument shapes against the installed declarations.
 import assert from "node:assert/strict";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -28,6 +28,9 @@ export async function proveClientRecipes(client, platform, directory) {
   mkdirSync(join(cwd, "src"), { recursive: true });
   mkdirSync(join(cwd, "snapback"), { recursive: true });
   writeFileSync(join(cwd, "src/workspace.tsx"), workspace);
+  const short = [...readFileSync(join(cwd, "node_modules/snapback4/CLIENT-AND-OPERATIONS.md"), "utf8").matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("function ShortScreen"));
+  assert.ok(short, "packed guide has the short-screen recipe");
+  writeFileSync(join(cwd, "src/short-screen.tsx"), short);
   writeFileSync(join(cwd, "snapback/schema.q"), schema);
   await run(process.execPath, [cli, "check"]);
   await run(process.execPath, [join(cwd, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
@@ -35,12 +38,12 @@ export async function proveClientRecipes(client, platform, directory) {
   // Bundler resolution preserves the extensionless generated-api import exactly
   // as the guide writes it; this same form is used by both starter toolchains.
   await run(process.execPath, [join(cwd, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
-    "--module", "ESNext", "--moduleResolution", "Bundler", "--jsx", "react-jsx", "--noEmit", "src/workspace.tsx"]);
+    "--module", "ESNext", "--moduleResolution", "Bundler", "--jsx", "react-jsx", "--noEmit", "src/workspace.tsx", "src/short-screen.tsx"]);
   writeFileSync(join(cwd, "verify.mjs"), verify);
   await run(process.execPath, ["verify.mjs"]);
   writeFileSync(join(cwd, "guide-client.md"), guide.stdout);
   const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-  await run(process.execPath, ["--test", join(root, "packages/snapback4/test/kit2-client-react.test.mjs")], {
+  await run(process.execPath, ["--test", join(root, "packages/snapback4/test/kit2-client-react.test.mjs"), join(root, "packages/snapback4/test/front-data-react.test.mjs")], {
     SNAPBACK4_CLIENT_GUIDE: join(cwd, "guide-client.md"), SNAPBACK4_CLIENT_DIST: join(cwd, "node_modules/snapback4/dist"),
   });
   return { status: "passed", recipes: ["guide client listLabel", "guide client StaffWorkspace"], contracts: ["matchRead", "matchReadList", "otherwiseAll", "usePage", "useAuth configuration refusal"] };

@@ -4119,3 +4119,29 @@ export function SharedList<T extends {id: string}>({page, remove, label}: {page:
     <button disabled={!page.hasMore} onClick={page.loadMore}>More</button></>; }
 ```
 Pass usePage(api.list) and useMutation(api.remove). Match page.read, render page.items. `absent` can be an authorised empty list; query myMembership for roles. createClient takes generated handles (api.op), never names.
+
+## Short screens
+
+`useQueryData(op,args)` returns data or undefined while loading. Refusals throw
+`QueryRefusal` (its `why` is a typed Refusal) for an error boundary. For an inline
+refusal use `useQueryResult`; `read` retains the full metadata. Both show partial
+and stale data as it arrives: use `useQuery`/`usePage` when completeness, freshness
+or pagination matters. Null, false, zero and empty lists remain data. Arguments
+are inferred from the generated operation. `SignedIn` mounts children only after
+sign-in; restoration defaults to null. Place it inside AppProvider.
+
+```tsx
+import { SignedIn, useQueryData, useQueryResult } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function QuickNotes({team}:{team:string}) {
+  const rows = useQueryData(api.staffNotes, {team});
+  return rows === undefined ? <p>Loading…</p> : <ul>{rows.map(row => <li key={row.id}>{row.title}</li>)}</ul>;
+}
+export function InlineNotes({team}:{team:string}) {
+  const {data,why} = useQueryResult(api.staffNotes, {team});
+  return why ? <p role="alert">{why.message}</p> : data === undefined ? <p>Loading…</p> : <ul>{data.map(row => <li key={row.id}>{row.title}</li>)}</ul>;
+}
+export function ShortScreen() {
+  return <SignedIn fallback={<p>Sign in</p>} restoring={<p>Restoring…</p>}><InlineNotes team="t" /></SignedIn>;
+}
+```
