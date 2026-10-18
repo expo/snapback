@@ -131,7 +131,12 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
         let missing=schema.tables.keys().filter(|table|super::cascade_repair::reaches(schema,&parent,table)).flat_map(|table|schema.referencing(table))
             .filter(|r|r.action.writes() && schema.reference_cap(r.child,r.column).is_none())
             .map(|r|format!("{}.{} needs `cap N by {}` or plain single-column `unique {}`",r.child,r.column,r.column,r.column)).collect::<Vec<_>>().join("; ");
-        diagnostics.push(Diagnostic::new(&site,"E_CASCADE_BOUND",format!("delete {parent} needs a product bound"),super::cascade_repair::recipe(schema,&parent,false)).details(format!("{missing}; {}", super::cascade_repair::evidence(schema,&parent,false))).guide("writes"));
+        let enabling: Vec<_> = catalog.tables.iter().filter(|(table, _)| super::cascade_repair::reaches(schema, table, &parent))
+            .flat_map(|(table, info)| info.decl.rules.iter().filter(|rule| rule.effect == Effect::Delete && !matches!(&rule.value, Expr::Name { name, .. } if name == "deny"))
+                .map(move |rule| format!("{table}: `delete <- {}` at {}", crate::print::expression(&rule.value), rule.site))).collect();
+        let source = if enabling.is_empty() { String::new() } else { format!("; enabled by {}", enabling.join("; ")) };
+        let disable = if enabling.is_empty() { String::new() } else { " If that table entry point is unintended, use `delete <- deny`; authored deletes and expiry remain separate delete sources.".into() };
+        diagnostics.push(Diagnostic::new(&site,"E_CASCADE_BOUND",format!("delete {parent} needs a product bound{source}"),format!("{}{disable}", super::cascade_repair::recipe(schema,&parent,false))).details(format!("{missing}; {}", super::cascade_repair::evidence(schema,&parent,false))).guide("writes"));
     }
     // Structural cycles are independent of whether a finite reservation is
     // available: a dormant descendant may deliberately have no cap yet.

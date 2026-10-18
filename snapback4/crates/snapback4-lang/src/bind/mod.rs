@@ -16,6 +16,7 @@ mod auth_lints;
 mod owner_equality;
 mod write_affordances;
 mod rule_composition;
+mod query_branches;
 pub(crate) mod audience_diagnostics;
 mod row_views;
 mod through;
@@ -337,6 +338,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     notes.extend(auth_lints::notes(&catalog, &schema));
     notes.extend(write_affordances::notes(&catalog, &schema));
     notes.extend(rule_composition::notes(&catalog));
+    notes.extend(query_branches::notes(&catalog, &schema));
     notes.extend(optional_patches::notes(&catalog));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));
@@ -771,7 +773,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     u64::from(n) <= page.take.maximum() && u64::from(n) <= snapback4_core::Ceilings::default().examined
                 })
             };
-            if !page.opaque_cursor && !group_complete && returned.contains(site) && noted.insert(site) {
+            if page.after.is_none() && page.before.is_none() && !page.opaque_cursor && !group_complete && returned.contains(site) && noted.insert(site) {
                 let (table, take) = (&page.table, page.take.maximum());
                 // @ref LLP 3000.027#3 — continuation advice does not question a top-N answer's completeness.
                 notes.push(Diagnostic::new(&bound.site, "N_NO_CURSOR", format!("{} {} returns a page of {take} {table} rows with no cursor, so the page cannot continue: rows past the first {take} are not reachable. Fine for a top-{take} list, or a list that stays under {take} rows; a pinned unique key or a `cap` at or under {take} silences this when its full planned walk fits the examined allowance", bound.program.kind.word(), bound.program.name), format!("if the screen pages, declare `c: cursor ?` in {} and append `after c` to this {table} page, keeping its current predicate, direction and column order", bound.program.name)).guide("reads"));

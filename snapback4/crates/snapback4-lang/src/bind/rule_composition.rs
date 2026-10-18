@@ -81,13 +81,20 @@ fn probe(catalog: &Catalog, expr: &Expr, env: &Env, image: Option<&BTreeMap<Stri
     let positional: Vec<_> = read.keys.iter().filter(|key| key.column.is_none()).collect();
     let mut pins = BTreeMap::new();
     if !positional.is_empty() {
-        // Only viewer has an unambiguous principal type here. Raw id and
-        // reference arguments have the binder's intrinsic-id precedence;
-        // never guess a unique ID-valued column from its width.
-        if positional.iter().any(|key| !matches!(&key.value, Expr::Name { name, .. } if name == "viewer")) { return None; }
-        let indexes: Vec<_> = info.indexes.iter().filter(|index| index.unique && index.is_plain()
-            && index.columns.len() == positional.len()
-            && index.columns.iter().all(|column| info.columns.get(column).is_some_and(|ty| matches!(ty.kind, TypeKind::Principal) && !ty.optional))
+        // Infer only unambiguous scalar literals/viewer positions. Raw ids
+        // retain the binder’s intrinsic-id precedence and are not guessed.
+        let fits = |ty: &ScalarType, expr: &Expr| match (&ty.kind, expr) {
+            (TypeKind::Principal, Expr::Name { name, .. }) => name == "viewer",
+            (TypeKind::Enum { variants: values }, Expr::Literal { value: Literal::Str(value), .. }) => values.contains(value),
+            (TypeKind::Text { .. }, Expr::Literal { value: Literal::Str(_), .. }) => true,
+            (TypeKind::Int { .. }, Expr::Literal { value: Literal::Number(_), .. }) => true,
+            (TypeKind::Bool, Expr::Literal { value: Literal::Bool(_), .. }) => true,
+            _ => false,
+        };
+        let indexes: Vec<_> = info.indexes.iter().filter(|index| info.total_unique(index)
+            && index.columns.len() >= positional.len()
+            && index.columns.iter().zip(&positional).all(|(column,key)| info.columns.get(column).is_some_and(|ty| fits(ty, &key.value)))
+            && index.columns.iter().skip(positional.len()).all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column)))
             && read.index.as_ref().is_none_or(|name| name == &index.name)).collect();
         let [index] = indexes.as_slice() else { return None };
         for (column, key) in index.columns.iter().zip(positional) { pins.insert(column.clone(), key.value.clone()); }
@@ -119,10 +126,34 @@ fn probe_branches(catalog: &Catalog, expr: &Expr, env: &Env) -> Option<Vec<GateB
         _ => Some(vec![GateBranch { probes: probe(catalog, expr, env, None).into_iter().collect(), facts: predicate(expr, env, None, true, false) }]),
     }
 }
+// A service equality is an independent caller alternative, never evidence for
+// a human role. Inequalities, negation and mixed human ORs do not qualify.
+fn service_only(expr: &Expr) -> bool {
+    match expr {
+        Expr::Binary { op, left, right, .. } if op == "=" => {
+            let pair = |a: &Expr, b: &Expr| matches!(a, Expr::Name { name, .. } if name == "viewer")
+                && matches!(b, Expr::Literal { value: Literal::Str(value), .. } if value.starts_with("service:") && value.len() > 8);
+            pair(left, right) || pair(right, left)
+        }
+        Expr::Binary { op, left, right, .. } if op == "and" => service_only(left) || service_only(right),
+        _ => false,
+    }
+}
 fn gate_note(catalog: &Catalog, p: &ProgramDecl, table: &str, rule: &RuleDecl, image: &BTreeMap<String, String>, env: &Env, facts: &Facts, site: &crate::Site) -> Option<Diagnostic> {
     if !possible(facts) { return None; }
-    let need = probe(catalog, &rule.value, env, Some(image))?;
-    let proves = |branch: &GateBranch| branch.probes.iter().any(|have| have.0 == need.0 && need.1.iter().all(|(key, value)| have.1.get(key) == Some(value)));
+    let mut human = &rule.value;
+    let mut services = Vec::new();
+    fn human_arm<'a>(expr: &'a Expr, services: &mut Vec<&'a Expr>) -> &'a Expr {
+        if let Expr::Binary { op, left, right, .. } = expr && op == "or" {
+            if service_only(left) { services.push(left); return human_arm(right, services); }
+            if service_only(right) { services.push(right); return human_arm(left, services); }
+        }
+        expr
+    }
+    human = human_arm(human, &mut services);
+    let need = probe(catalog, human, env, Some(image))?;
+    let proves = |branch: &GateBranch| branch.probes.iter().any(|have| have.0 == need.0 && need.1.iter().all(|(key, value)| have.1.get(key) == Some(value)))
+        || services.iter().any(|service| !possible(&combine(combine(facts.clone(), branch.facts.clone(), true), predicate(service, env, Some(image), false, true), true)));
     let viable = |branch: &&GateBranch| possible(&combine(facts.clone(), branch.facts.clone(), true));
     let (gate, _) = env.gates.iter().find(|(_, branches)| {
         let Some(branches) = branches else { return false };

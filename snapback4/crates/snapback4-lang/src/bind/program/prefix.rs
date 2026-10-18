@@ -90,7 +90,7 @@ impl Binder<'_> {
                 None => format!("{} has no cap over this prefix; this position needs a bounded page", read.table),
             };
             return Err(if position == Position::Domain && self.caller_kind != ProgramKind::Query {
-                Diagnostic::new(&read.site, "E_QUARRY_FANOUT", format!("{message}; an atomic mutation must bound the whole population it writes"), rewrite).guide("bounds")
+                Diagnostic::new(&read.site, "E_QUARRY_FANOUT", format!("{} needs a bound over the whole population it writes; an atomic mutation cannot page its fanout", read.table), format!("declare a real product limit `cap N{columns}` on {}, fitting the {ceiling} examined ceiling, or move this work into a resumable job (guide jobs); a first-N preview cannot stand in for every row", read.table)).guide("bounds")
             } else { Diagnostic::new(&read.site, "E_QUARRY_BOUND", message, rewrite).guide("bounds") });
         };
         if !read.seeks.is_empty() && read.order_keys.is_empty() && !matches!(position, Position::Aggregate | Position::Exists) && !(position == Position::Domain && self.caller_kind == ProgramKind::Job) {

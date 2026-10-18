@@ -2,6 +2,73 @@
 use std::{fs, process::Command};
 
 #[test]
+fn explicit_note_review_is_shareable_invalidates_and_never_hides_json_findings() {
+    let dir = std::env::temp_dir().join(format!("sb4-note-review-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    let source = "table rows:\n  public\n  online only\nquery page():\n  return rows first 50 by .id\n";
+    fs::write(dir.join("snapback/schema.q"), source).unwrap();
+    let run = |args: &[&str]| Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
+    let json = |args: &[&str]| {
+        let output = run(args);
+        assert!(output.status.success(), "{output:?}");
+        serde_json::from_slice::<serde_json::Value>(&output.stdout).unwrap()
+    };
+    let before = json(&["check", "--json"]);
+    assert!(before["notes"].as_array().unwrap().iter().any(|n| n["code"] == "N_NO_CURSOR"));
+    assert_eq!(before["notes"], before["newNotes"]);
+    assert!(!dir.join("snapback/check-notes.json").exists());
+    let ack = json(&["check", "--ack-notes", "--json"]);
+    assert!(ack["acknowledgedNotes"].as_array().unwrap().iter().any(|n| n["code"] == "N_NO_CURSOR"));
+    assert_eq!(ack["notes"], before["notes"]);
+    assert_eq!(ack["notes"].as_array().unwrap().len(), ack["newNotes"].as_array().unwrap().len() + ack["acknowledgedNotes"].as_array().unwrap().len());
+    let normal = String::from_utf8(run(&["check"]).stdout).unwrap();
+    assert!(!normal.contains("N_NO_CURSOR"), "{normal}");
+    assert!(normal.contains("reviewed notes"));
+    let verbose = String::from_utf8(run(&["check", "--verbose"]).stdout).unwrap();
+    assert!(verbose.contains("N_NO_CURSOR"));
+    let later = json(&["check", "--verbose", "--json"]);
+    assert_eq!(ack["notes"], later["notes"]);
+    assert_eq!(ack["newNotes"], later["newNotes"]);
+    let file = dir.join("snapback/check-notes.json");
+    let reviewed = fs::read(&file).unwrap();
+    let mut data: serde_json::Value = serde_json::from_slice(&reviewed).unwrap();
+    data["reviewed"] = serde_json::json!([]);
+    fs::write(&file, data.to_string()).unwrap();
+    assert_eq!(json(&["check", "--json"])["newNotes"], before["notes"], "a changed finding fingerprint is new");
+    fs::write(&file, &reviewed).unwrap();
+    // Cross-directory copies carry no machine-bound absolute path in the digest.
+    let moved = dir.join("copy");
+    fs::create_dir_all(moved.join("snapback")).unwrap();
+    fs::write(moved.join("snapback/schema.q"), source).unwrap();
+    fs::write(moved.join("snapback/check-notes.json"), &reviewed).unwrap();
+    let copy = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&moved).args(["check", "--json"]).output().unwrap();
+    assert!(copy.status.success(), "{copy:?}");
+    let copy: serde_json::Value = serde_json::from_slice(&copy.stdout).unwrap();
+    assert_eq!(copy["acknowledgedNotes"], ack["acknowledgedNotes"]);
+    fs::write(dir.join("snapback/extra.q"), "-- an added module invalidates review\n").unwrap();
+    assert_eq!(json(&["check", "--json"])["newNotes"], before["notes"]);
+    fs::remove_file(dir.join("snapback/extra.q")).unwrap();
+    fs::write(dir.join("snapback/schema.q"), format!("{source}-- source change\n")).unwrap();
+    assert!(String::from_utf8(run(&["check"]).stdout).unwrap().contains("N_NO_CURSOR"));
+    fs::write(&file, b"{invalid").unwrap();
+    let invalid = run(&["check", "--json"]);
+    let findings: serde_json::Value = serde_json::from_slice(&invalid.stdout).unwrap();
+    assert_eq!(findings["notes"], findings["newNotes"]);
+    assert!(!findings["notes"].as_array().unwrap().is_empty());
+    assert_eq!(findings["acknowledgedNotes"], serde_json::json!([]));
+    for args in [["check", "--json"], ["check", "--ack-notes"]] {
+        let invalid = run(&args);
+        assert_eq!(invalid.status.code(), Some(2));
+        assert_eq!(fs::read(&file).unwrap(), b"{invalid");
+    }
+    fs::write(&file, &reviewed).unwrap();
+    fs::write(dir.join("snapback/schema.q"), "broken syntax\n").unwrap();
+    assert!(!run(&["check", "--ack-notes"]).status.success());
+    assert_eq!(fs::read(&file).unwrap(), reviewed, "errors cannot acknowledge or replace review");
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
 fn sync_order_note_is_printed_on_every_check_and_clears_with_matching_window() {
     let dir = std::env::temp_dir().join(format!("sb4-check-sync-order-{}", std::process::id()));
     fs::create_dir_all(dir.join("snapback")).unwrap();

@@ -1,0 +1,3 @@
+# N_QUERY_FILTERED
+
+N_QUERY_FILTERED means an explicit query caller branch does not establish the returned table’s read rule. Those callers may get a filtered or empty page. Different roles can overlap: the note identifies a missing proof, not necessarily a refusal. Require or filter by the matching read condition in each branch, or deliberately handle caller-filtered rows. Table authorization still decides every row. This note concerns caller authority; completeness notes concern whether the whole authorized population can be certified. See guide rules; Authorization recipes are in guide rule-recipes.

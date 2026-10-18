@@ -1,5 +1,10 @@
 # Snapback 4 behavior changes
 
+## 0.4.32
+
+- Quarry notes recognize declared continuations, mandatory later reference lookups in atomic mutations, and key-equal computed locals. Join refusals name row tables; duplicate rules have a dedicated code without cascading unknown-table errors. Maintained views accept literal `in [...]` predicates. Probe notes cite backing unique keys; sync-order notes explain offline behavior. Caller-gate notes distinguish service alternatives and flag explicit query branches missing a read-authority proof.
+- explicitly review compiler notes with `check --ack-notes`; `snapback/check-notes.json` is shareable and invalidates on any Quarry edit or changed finding. Text check shows new notes; verbose and JSON retain all findings (`newNotes` and `acknowledgedNotes` partition `notes`). Dynamic store/readiness findings remain unacknowledged. Bounds name enabling delete rules and avoid paging advice for atomic fanout; `why E_CASCADE_BOUND` includes reservation arithmetic. `guide cleanup` includes tested background cleanup and active-row reference recipes. No checked-reference annotation is added; explicit existence and active-state guards retain their current semantics.
+
 ## 0.4.31
 
 - Existing stores keep their rows, ids, schema and captured `read through` authority. No automatic data repair or audience expansion occurs. Regenerate declarations and rebuild web, native and Exact clients to pick up the runtime and client changes below; review new correctness notes before deploying edited schemas.

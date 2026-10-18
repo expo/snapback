@@ -32,6 +32,7 @@ pub(crate) const CASES_FILE: &str = test_cases::FILE;
 mod adoption;
 mod package_versions;
 mod check_surface;
+mod note_reviews;
 mod saved_fixture_drift;
 mod upgrade_history;
 #[cfg(test)]
@@ -287,10 +288,15 @@ pub fn check(options: &Options) -> i32 {
     let started = Instant::now();
     package_versions::warn(&project);
     upgrade_history::report(&project, options.json);
-    let mut bound = match fix::checked(if options.flags.contains_key("fix") { fix::compile(&project) } else { project.compile() }) {
-        Ok(bound) => bound,
-        Err(code) => return code,
+    if options.flags.contains_key("fix") {
+        if let Err(code) = fix::checked(fix::compile(&project)) { return code; }
+    }
+    let compiled_sources = match project.sources() {
+        Ok(sources) => sources,
+        Err(error) => { eprintln!("cannot read snapback/: {error}"); return 2; }
     };
+    let mut bound = snapback4_lang::compile(&compiled_sources);
+    let reviewable_notes = bound.notes.iter().map(note_reviews::fingerprint).collect();
     for warning in saved_fixture_drift::warnings(&project) {
         eprintln!("check: WARNING: saved fixture drift: {warning}");
     }
@@ -358,11 +364,19 @@ pub fn check(options: &Options) -> i32 {
             Err(error) => { eprintln!("residency measurement failed: {error}"); return 1; }
         }
     } else { None };
+    let reviewed = match note_reviews::review(&project, &compiled_sources, &bound.notes, &reviewable_notes, options.flags.contains_key("ack-notes")) {
+        Ok(review) => review,
+        Err(error) => {
+            if options.json { println!("{}", json!({"ok": false, "problems": [{"code": "E_CHECK_NOTES", "message": error}], "notes": bound.notes, "newNotes": bound.notes, "acknowledgedNotes": []})); }
+            else { eprintln!("check: E_CHECK_NOTES: {error}"); }
+            return 2;
+        }
+    };
     let present = |text: &str| crate::presentation::indexes(&bound.schema, text, options.flags.contains_key("verbose"));
     let details = acquisition.is_none() || options.flags.contains_key("verbose");
     let certificates: Vec<_> = bound.programs.iter().map(|p| crate::scale::analyze_bound(&bound.schema, p)).collect();
     let scale_summary = crate::scale::summary(&certificates);
-    let note_count = bound.notes.len() + certificates.iter().map(|certificate| certificate.search.len()).sum::<usize>();
+    let note_count = reviewed.new.len() + certificates.iter().map(|certificate| certificate.search.len()).sum::<usize>();
     let field_authority: Vec<_> = bound.schema.visible_tables().flat_map(|(name,table)| table.written_by.iter().map(move |(column,authority)|
         format!("{name}.{column}: written by .{}; visibility: {}", authority.owner, if authority.audience { "readable by audience" } else { "private to owner" }))).collect();
     let row_views = bound.schema.maintains.iter().filter_map(|m| m.row_key.as_ref().map(|k| json!({
@@ -375,9 +389,10 @@ pub fn check(options: &Options) -> i32 {
         format!("sequence {name}.{column}: counter per {} row through .{reference}; immutable, provisional while pending", table.columns[reference])
     })).collect();
     if options.json {
-        println!("{}", json!({ "ok": true, "followingHistory": bound.programs.iter().filter_map(|p| crate::scale::following::certificate(&bound.schema, &p.program)).collect::<Vec<_>>(), "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_none()).count(), "views": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_some()).count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "starterLeftovers": init::starter_leftovers_json(&project.root), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+        println!("{}", json!({ "ok": true, "followingHistory": bound.programs.iter().filter_map(|p| crate::scale::following::certificate(&bound.schema, &p.program)).collect::<Vec<_>>(), "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_none()).count(), "views": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_some()).count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "newNotes": reviewed.new, "acknowledgedNotes": reviewed.acknowledged, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "starterLeftovers": init::starter_leftovers_json(&project.root), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
         println!("check: ok — {} ({synced} synced), {} operations, no problems{}, {:.1} ms{}", table_counts(&bound.schema), bound.programs.len(), if note_count == 0 { String::new() } else { format!(", {} note{}", note_count, if note_count == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
+        if !reviewed.acknowledged.is_empty() { println!("{} reviewed notes (check --verbose to inspect); source edits require review again", reviewed.acknowledged.len()); }
         if options.flags.contains_key("verbose") {
             for line in &sequences { println!("  {line}"); }
             for (name, _) in bound.schema.visible_tables().filter(|(_, t)| t.ephemeral.is_some()) {
@@ -396,7 +411,7 @@ pub fn check(options: &Options) -> i32 {
             for report in note_reports(&ranked, true) { println!("{}", present(&report)); }
         } else {
             // Notes are advisory: ranked and grouped after the ok line, repeats shortened (note_rank).
-            let notes = bound.notes.iter().map(|note| {
+            let notes = reviewed.new.iter().map(|note| {
                 let compact = completeness_note(note);
                 crate::note_rank::Note { site: note.site.to_string(), code: note.code.clone(), summary: present(&note_summary(note)),
                     form: compact.is_none().then(|| crate::note_rank::compiled_form(&note.code, &note.rewrite)).flatten().map(|(lead, code)| (lead, present(&code))), compact }
@@ -1138,6 +1153,10 @@ pub fn why(options: &Options) -> i32 {
                 let entries: Vec<_> = bound.diagnostics.iter().chain(&bound.notes).filter(|diagnostic| diagnostic.code == *subject)
                     .map(|diagnostic| format!("{}\nrewrite: {}", diagnostic.message, diagnostic.rewrite)).collect();
                 Some(format!("{explanation}\n\nProduction transition checklist (all bootstrap blockers):\n{}", if entries.is_empty() { "No fixture-only first writers found; verify your account and seat journeys.".into() } else { entries.join("\n\n") }))
+            } else if subject == "E_CASCADE_BOUND" {
+                let entries: Vec<_> = bound.diagnostics.iter().filter(|d| d.code == *subject)
+                    .map(|d| format!("{}\n{}", d.message, d.details.as_deref().unwrap_or(""))).collect();
+                Some(format!("{explanation}\n\n{}", entries.join("\n\n")))
             } else { bound.diagnostics.iter().chain(&bound.notes).find(|diagnostic| diagnostic.code == *subject).and_then(|diagnostic| diagnostic.explanation()) }
         });
         let explanation = contextual.unwrap_or(explanation);

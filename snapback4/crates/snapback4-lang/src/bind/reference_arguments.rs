@@ -68,18 +68,53 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
             let mut emitted = BTreeSet::new();
             for candidate in candidates {
                 if candidate.checked
+                    || later_lookup(catalog, schema, &body, &[], &candidate)
                     || write_contract_checks(schema, &candidate)
                     || !emitted.insert(candidate.argument.clone())
                 {
                     continue;
                 }
                 notes.push(Diagnostic::new(&candidate.site, "N_REFERENCE_UNCHECKED",
-                    format!("mutation {} stores argument {} directly in {}.{}, but never looks up {}[{}]: a reference accepts any well-formed id even when the row is absent", program.name, candidate.argument, candidate.child, candidate.column, candidate.target, candidate.argument),
-                    format!("add `require exists {}[{}] else NOT_FOUND` before the write; keep the direct id only when dangling references are intentional", candidate.target, candidate.argument)).guide("types"));
+                    format!("mutation {} stores argument {} directly in {}.{}, without a mandatory lookup of {}[{}] on every committing path: a reference accepts any well-formed id even when the row is absent", program.name, candidate.argument, candidate.child, candidate.column, candidate.target, candidate.argument),
+                    format!("add `require exists {}[{}] else NOT_FOUND` in the same atomic mutation; keep the direct id only when dangling references are intentional", candidate.target, candidate.argument)).guide("types"));
             }
         }
     }
     notes
+}
+
+/// Analyze the continuation of this write, rather than requiring lookup on
+/// paths that never wrote. A return has no enclosing continuation. The helper
+/// proof preserves alias identity, early returns and optional-loop edges.
+// @ref LLP 3000.036.002#131-notes-and-declarations — atomic success may establish the exact input after the write.
+fn later_lookup(catalog: &Catalog, schema: &Schema, body: &[Stmt], tail: &[Stmt], candidate: &Candidate) -> bool {
+    for (at, statement) in body.iter().enumerate() {
+        let rest: Vec<_> = body[at+1..].iter().chain(tail).cloned().collect();
+        let nested = match statement {
+            Stmt::If { then_body, else_body, .. } => later_lookup(catalog, schema, then_body, &rest, candidate)
+                || later_lookup(catalog, schema, else_body, &rest, candidate),
+            Stmt::As { body, .. } | Stmt::For { body, .. } => later_lookup(catalog, schema, body, &rest, candidate),
+            _ => false,
+        };
+        if nested { return true; }
+        // Inspect only this statement's expression; nested bodies were handled
+        // with their own committing edges above.
+        let mut direct = statement.clone();
+        match &mut direct {
+            Stmt::If { then_body, else_body, .. } => { then_body.clear(); else_body.clear(); }
+            Stmt::For { body, .. } | Stmt::As { body, .. } => body.clear(),
+            _ => {}
+        }
+        let mut found = false;
+        super::intent_walk::statements(&mut [direct], &mut |expr| {
+            if matches!(expr, Expr::Write { site, .. } if site == &candidate.site) { found = true; }
+        });
+        if !found { continue; }
+        let mut suffix = vec![statement.clone()];
+        if !matches!(statement, Stmt::Return { .. }) { suffix.extend(rest); }
+        return statements_must_lookup(catalog, schema, &suffix, &candidate.argument, &candidate.target, &mut BTreeSet::new());
+    }
+    false
 }
 
 /// Follow only paths that can reach a write. A lookup fact joins by

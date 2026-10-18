@@ -94,12 +94,14 @@ fn spread(source: &A, ty: &Ty) -> String {
     } else { format!("{{ ...({text}) }}") }
 }
 
-fn description(kind: &str) -> &str {
+fn description(kind: &str) -> String {
+    if let Some(table) = kind.strip_prefix("Row<").and_then(|v| v.strip_suffix('>')) { return format!("a row of {table} (Row)"); }
+    if let Some(table) = kind.strip_prefix("WriteRow<").and_then(|v| v.strip_suffix('>')) { return format!("a write result of {table} (WriteRow)"); }
     match kind {
         "Row" => "a row (Row)", "WriteRow" => "a write result (WriteRow)",
         "RowShape" => "a row shape (RowShape)", "RowObject" => "a spread object (RowObject)",
         "Object" => "a plain object (Object)", other => other,
-    }
+    }.into()
 }
 
 fn refusal(error: JoinError, site: &Site, rewrite: String) -> Diagnostic {

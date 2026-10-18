@@ -183,6 +183,22 @@ pub(super) fn predicate(source: &TableInfo, expr: &Expr) -> Fallible<Predicate> 
             else { Err(refusal(expr.site(), "a bare maintain predicate needs a required boolean column", "compare .column with a scalar literal, or declare column: bool")) }
         }
         Expr::Unary { op, value, .. } if op == "not" => Ok(Predicate::Not(Box::new(predicate(source, value)?))),
+        // @ref LLP 3000.036.002#131-notes-and-declarations — literal membership reuses typed comparisons and the existing predicate wire form.
+        Expr::Binary { op, left, right, site } if op == "in" => {
+            let Expr::Array { items, .. } = right.as_ref() else { return Err(restricted(expr)); };
+            let (_, ty) = operand(source, left)?;
+            if !matches!(ty.required(), Ty::Null | Ty::Bool | Ty::Int | Ty::Decimal { .. } | Ty::Money { .. } | Ty::Time | Ty::Text(_) | Ty::Enum(_) | Ty::Id | Ty::Ref(_) | Ty::Principal) {
+                return Err(refusal(left.site(), "maintained membership needs a scalar operand, including for an empty list", "use a scalar column or scalar literal in the membership predicate"));
+            }
+            let mut result = Predicate::Bool(false);
+            for item in items {
+                if !matches!(item, Expr::Literal { .. } | Expr::Unary { .. }) { return Err(restricted(item)); }
+                let equality = Expr::Binary { op: "=".into(), left: left.clone(), right: Box::new(item.clone()), site: site.clone() };
+                let equal = predicate(source, &equality)?;
+                result = match result { Predicate::Bool(false) => equal, prior => Predicate::Or(Box::new(prior), Box::new(equal)) };
+            }
+            Ok(result)
+        }
         Expr::Binary { op, left, right, .. } if op == "and" || op == "or" => {
             let (a,b) = (Box::new(predicate(source, left)?), Box::new(predicate(source, right)?));
             Ok(if op == "and" { Predicate::And(a,b) } else { Predicate::Or(a,b) })

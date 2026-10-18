@@ -662,8 +662,8 @@ fn reference_argument_lookups_must_reach_each_write() {
         "a one-sided direct lookup does not dominate the write");
     assert_eq!(notes("  for check in checks:\n    ignored = exists parents[parent]\n  insert kids { id, parent }\n", ", checks: [bool] <=2"), 1,
         "a possibly empty loop does not prove a later lookup");
-    assert_eq!(notes("  insert kids { id, parent }\n  ignored = exists parents[parent]\n", ""), 1,
-        "a later lookup cannot suppress the earlier write's note");
+    assert_eq!(notes("  insert kids { id, parent }\n  ignored = exists parents[parent]\n", ""), 0,
+        "a mandatory later lookup is part of the same atomic mutation");
     assert_eq!(notes("  ignored = parents where exists parents[id = parent] first 1 by .id\n  insert kids { id, parent }\n", ""), 1,
         "a scan filter may never run when its source is empty");
     assert_eq!(notes("  ignored = parents first 1 by .id { checked: exists parents[id = parent] }\n  insert kids { id, parent }\n", ""), 1,

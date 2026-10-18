@@ -50,6 +50,9 @@ mutation annotateNotes(): server
 Pages still need uniform plain prefixes; unswept expired rows cost no meter
 (guide bounds).
 
+Review findings with `check --ack-notes`; source edits invalidate
+`snapback/check-notes.json`. JSON keeps every note. Details: `why E_CHECK_NOTES`.
+
 ### App files and modules
 
 ```
