@@ -99,7 +99,7 @@ export function registerWebWitness(app: App, api: Operations): void {
               const diagnostic = (window as unknown as { __snapback4ProofDiagnostic?: (value: unknown) => Promise<void> }).__snapback4ProofDiagnostic;
               // The proof driver writes values only to its mode-0600 private log.
               // A failed diagnostic must never prevent the application's write.
-              if (diagnostic) await diagnostic({ code: "E_WITNESS_UNCLAIMED", mutation: op.name, armed: expected, actual: args }).catch(() => {});
+              try { void diagnostic?.({ code: "E_WITNESS_UNCLAIMED", mutation: op.name, armed: expected, actual: args }).catch(() => {}); } catch { /* Diagnostic failure cannot block the write. */ }
             }
             finish({ state: "failed", mutation: op.name, why: { code: "E_WITNESS_UNCLAIMED", reason: !eventMatches || options?.[outsideClick] ? "event" : "arguments", message: reason } });
           }
