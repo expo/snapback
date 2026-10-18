@@ -1,0 +1,2055 @@
+[
+  {
+    "lane": "002-day2-scaffold-tag-board",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "002-day2-scaffold-tag-board",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "002-day2-scaffold-tag-board",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "004-day2-arc-reviewer-copies",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "004-day2-arc-reviewer-copies",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "004-day2-arc-reviewer-copies",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "006-day2-duplicate-bridge-boards",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "006-day2-duplicate-bridge-boards",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      },
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "006-day2-duplicate-bridge-boards",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "008-day2-docket-deadline-calendar",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "008-day2-docket-deadline-calendar",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "008-day2-docket-deadline-calendar",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "010-day2-propane-tank-readings",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "010-day2-propane-tank-readings",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "010-day2-propane-tank-readings",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "012-day2-pet-addendum-approvals",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "012-day2-pet-addendum-approvals",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      },
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "012-day2-pet-addendum-approvals",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "014-day2-venue-date-holds",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "014-day2-venue-date-holds",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "014-day2-venue-date-holds",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "016-day2-waste-accumulation-clock",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "016-day2-waste-accumulation-clock",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "016-day2-waste-accumulation-clock",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "018-day2-bike-serial-registry",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "018-day2-bike-serial-registry",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      },
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "018-day2-bike-serial-registry",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "020-day2-four-h-project-records",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "020-day2-four-h-project-records",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "020-day2-four-h-project-records",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "022-day2-barrel-shipment-consolidation",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "022-day2-barrel-shipment-consolidation",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "022-day2-barrel-shipment-consolidation",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "024-day2-reading-room-pulls",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "024-day2-reading-room-pulls",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "024-day2-reading-room-pulls",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "026-day2-dropzone-load-manifest",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "026-day2-dropzone-load-manifest",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "026-day2-dropzone-load-manifest",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "028-day2-understudy-readiness",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it); refresh also updates its sign-in mode",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "028-day2-understudy-readiness",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 an older starter version (0.4.28; adapt can refresh it); refresh also updates its sign-in mode",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      },
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "028-day2-understudy-readiness",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it); refresh also updates its sign-in mode",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "030-day2-color-formula-cards",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "030-day2-color-formula-cards",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      },
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "030-day2-color-formula-cards",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "032-day2-dismissal-change-requests",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "032-day2-dismissal-change-requests",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "032-day2-dismissal-change-requests",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "034-day2-cla-signature-ledger",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "034-day2-cla-signature-ledger",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "034-day2-cla-signature-ledger",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "036-day2-jersey-number-requests",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "036-day2-jersey-number-requests",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "036-day2-jersey-number-requests",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "038-day2-magic-method-vault",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "038-day2-magic-method-vault",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "038-day2-magic-method-vault",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "040-day2-doula-backup-rotation",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "040-day2-doula-backup-rotation",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      },
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "040-day2-doula-backup-rotation",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "042-day2-bite-quarantine-checks",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "042-day2-bite-quarantine-checks",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "042-day2-bite-quarantine-checks",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "044-day2-screen-time-tokens",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "044-day2-screen-time-tokens",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "044-day2-screen-time-tokens",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "046-day2-heritage-plaque-applications",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "046-day2-heritage-plaque-applications",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "046-day2-heritage-plaque-applications",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "048-day2-hot-work-permits",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "048-day2-hot-work-permits",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "048-day2-hot-work-permits",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "050-day2-impound-release-desk",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "050-day2-impound-release-desk",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "050-day2-impound-release-desk",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "052-day2-furniture-bank-pickups",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "052-day2-furniture-bank-pickups",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "052-day2-furniture-bank-pickups",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "054-day2-ballot-drop-box-sweeps",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "054-day2-ballot-drop-box-sweeps",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "054-day2-ballot-drop-box-sweeps",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "056-day2-shellfish-harvest-closures",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "056-day2-shellfish-harvest-closures",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      },
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "056-day2-shellfish-harvest-closures",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "058-day2-guest-stay-limits",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 2 files left from `snapback4 init` that do not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 2 files from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it); refresh also updates its sign-in mode",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "058-day2-guest-stay-limits",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 an older starter version (0.4.28; adapt can refresh it); refresh also updates its sign-in mode",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      },
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "058-day2-guest-stay-limits",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 2 files left from `snapback4 init` that do not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 2 files from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it); refresh also updates its sign-in mode",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "060-day2-poster-session-gallery",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "060-day2-poster-session-gallery",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "060-day2-poster-session-gallery",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "062-day2-burn-permit-days",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "062-day2-burn-permit-days",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "062-day2-burn-permit-days",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "064-day2-exhibit-label-review",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "064-day2-exhibit-label-review",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "064-day2-exhibit-label-review",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "066-day2-quiz-pack-exchange",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "066-day2-quiz-pack-exchange",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "066-day2-quiz-pack-exchange",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "068-day2-two-bin-reorder-cards",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "068-day2-two-bin-reorder-cards",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "068-day2-two-bin-reorder-cards",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "070-day2-sealed-preregistration",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "070-day2-sealed-preregistration",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "070-day2-sealed-preregistration",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "072-day2-daycare-milk-bottles",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "072-day2-daycare-milk-bottles",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "072-day2-daycare-milk-bottles",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "074-day2-ditch-rider-water-turns",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "074-day2-ditch-rider-water-turns",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "074-day2-ditch-rider-water-turns",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "076-day2-rain-check-desk",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "076-day2-rain-check-desk",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "076-day2-rain-check-desk",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "078-day2-practicum-placements",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "078-day2-practicum-placements",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      },
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "078-day2-practicum-placements",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "080-day2-stop-headcount-tally",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "080-day2-stop-headcount-tally",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "080-day2-stop-headcount-tally",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "082-day2-roster-lock-window",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "082-day2-roster-lock-window",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "082-day2-roster-lock-window",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "084-day2-cube-comp-scrambles",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "084-day2-cube-comp-scrambles",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "084-day2-cube-comp-scrambles",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "086-day2-patient-grievance-clock",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "086-day2-patient-grievance-clock",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "086-day2-patient-grievance-clock",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "088-day2-ppe-issue-ledger",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "088-day2-ppe-issue-ledger",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "088-day2-ppe-issue-ledger",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "090-day2-custody-handoff-bag",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "090-day2-custody-handoff-bag",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "090-day2-custody-handoff-bag",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "092-day2-summit-register-book",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "092-day2-summit-register-book",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "rewrite src/native-smoke.ts \u2014 an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      },
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "092-day2-summit-register-book",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [
+      {
+        "line": "info: starter: 1 file left from `snapback4 init` that does not fit your schema",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ],
+    "appeared": [
+      {
+        "line": "info: starter: 1 file from `snapback4 init` to review",
+        "why": "R2: use a neutral review heading because recognized older starter bytes can be age advice rather than a schema mismatch."
+      },
+      {
+        "line": "src/native-smoke.ts: an older starter version (0.4.28; adapt can refresh it)",
+        "why": "R2: distinguish recognized older helper bytes from actual identity/schema mismatch; keep application-owned edits unchanged."
+      }
+    ]
+  },
+  {
+    "lane": "094-day2-backflow-test-reports",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "094-day2-backflow-test-reports",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "094-day2-backflow-test-reports",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "096-day2-litter-pick-order",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "096-day2-litter-pick-order",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "096-day2-litter-pick-order",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "098-day2-giving-circle-pitches",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "098-day2-giving-circle-pitches",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "098-day2-giving-circle-pitches",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "100-day2-busking-pitch-rota",
+    "command": "check",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  },
+  {
+    "lane": "100-day2-busking-pitch-rota",
+    "command": "adapt",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": [
+      {
+        "line": "extend package.json \u2014 inherited proof infrastructure",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "snapback4.starter.day2: null \u2192 true",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      },
+      {
+        "line": "serialize package.json (including script key ordering)",
+        "why": "C4 / schema-adapted starter: preview every managed metadata/file mutation; remove only recognized todo proof, fixture and README leftovers; preserve custom files."
+      }
+    ]
+  },
+  {
+    "lane": "100-day2-busking-pitch-rota",
+    "command": "upgrade",
+    "beforeCode": 0,
+    "afterCode": 0,
+    "disappeared": [],
+    "appeared": []
+  }
+]

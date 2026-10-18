@@ -1,0 +1,29 @@
+{
+  "finalSource": "0a07ef3e2e0f90053f52c15e2eb0d15599a879f0",
+  "host": "macstudio-charlie-apt101-a",
+  "results": {
+    "mac-final-reports": {
+      "install": 0,
+      "build": 0,
+      "client-build": 0,
+      "rust": 0,
+      "core": 0,
+      "clients": 0
+    },
+    "mac-r3-reports": {
+      "build": 0,
+      "rust": 0,
+      "clients": 0
+    },
+    "mac-r4-reports": {
+      "build": 0,
+      "rust": 0,
+      "clients": 0
+    },
+    "mac-r5-reports": {
+      "build": 0,
+      "init-unit": 0,
+      "starters": 0
+    }
+  }
+}
