@@ -54,13 +54,22 @@ pub struct Options {
 /// Explicit control ports remain an intentional selection; otherwise discover
 /// a unique, identity-validated project host (persisted or temporary).
 pub(crate) fn dev_address(options: &Options) -> Result<(std::net::SocketAddr, Option<String>), String> {
+    control_address(options, false)
+}
+
+pub(crate) fn registered_dev_address(options: &Options) -> Result<(std::net::SocketAddr, Option<String>), String> {
+    control_address(options, true)
+}
+
+fn control_address(options: &Options, registered_only: bool) -> Result<(std::net::SocketAddr, Option<String>), String> {
     if let Some(text)=options.flags.get("port") {
         let port=text.parse::<u16>().ok().filter(|n|*n>0).ok_or("E_INPUT: --port must be an integer in 1..65535")?;
         return Ok((std::net::SocketAddr::from((std::net::Ipv4Addr::LOCALHOST,port)),None));
     }
     let cwd=std::env::current_dir().map_err(|e|e.to_string())?;
     let project=Project::locate(&cwd).ok_or("E_INPUT: cannot discover dev outside a project; pass --port N using the port dev printed")?;
-    let host=adoption::host(&project,options)?.ok_or("E_INPUT: no running dev discovered for this project; start dev or pass --port N using the port dev printed")?;
+    let host=if registered_only { adoption::registered_host(&project,options) } else { adoption::host(&project,options) }?
+        .ok_or("E_INPUT: no running dev discovered for this project; start dev or pass --port N using the port dev printed")?;
     let address=host["address"].as_str().ok_or("dev did not report an address")?.parse().map_err(|e|format!("invalid dev address: {e}"))?;
     Ok((address,host["instance"].as_str().map(str::to_owned)))
 }
@@ -1284,6 +1293,7 @@ mod release_narration;
 mod release_dependencies;
 mod clause_compare;
 pub use releases::{deploy, prune, releases, rollback, serve_release};
+pub(crate) use releases::existing_deployment;
 pub(crate) use releases::release_bind;
 
 /// `token --service <name> [--days N] [--release <dir>]`: a bearer session
@@ -1296,8 +1306,13 @@ pub fn token(options: &Options) -> i32 {
         return 2;
     };
     let days: i64 = options.flags.get("days").and_then(|d| d.parse().ok()).unwrap_or(365);
-    let path = options.flags.get("release").map(|dir| Path::new(dir).join("store.sqlite"))
-        .unwrap_or_else(|| project_or_exit().store_path());
+    let path = match options.flags.get("release") {
+        Some(dir) => match releases::existing_deployment(Path::new(dir)) {
+            Ok(dir) => dir.join("store.sqlite"),
+            Err(error) => { eprintln!("token: {error}"); return 2; }
+        },
+        None => project_or_exit().store_path(),
+    };
     if !options.flags.contains_key("release") && !path.is_file() {
         eprintln!("cannot open the store: no store at {}; run `snapback4 dev` first", path.display());
         return 2;

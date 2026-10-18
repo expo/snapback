@@ -147,7 +147,9 @@ fn seat_rules(file: &str, source: &str, table: &TableDecl, read: &RuleExpr, inse
             let (left, value) = old.split_once("<-").ok_or("roster rule needs <-")?;
             // Group the original expression, preserving bindings, comments and
             // every existing branch. The closing line cannot be commented out.
-            let new = format!("{}<- (\n{}\n  ) or {grant}\n", left, value.trim_end());
+            let indent = left.len() - left.trim_start().len();
+            let body = value.trim().lines().map(|line| format!("{}{}", " ".repeat(indent + 2), line.trim_start())).collect::<Vec<_>>().join("\n");
+            let new = format!("{left}<- (\n{body}\n{}) or {grant}\n", " ".repeat(indent));
             edits.push((start, end.min(lines.len()), new));
         } else if effect == Effect::Read && table.public.is_some() {
             // Public rows already admit the seat; preserve the authored reason.

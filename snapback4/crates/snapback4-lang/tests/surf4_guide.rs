@@ -8,6 +8,11 @@ fn shipped_cards_exclude_internal_work_labels_and_open_with_content() {
         }
         if let Some(overview) = guide::overview(name, text) {
             let sections = guide::sections(text);
+            if sections.is_empty() {
+                assert!(overview.contains("Truncated:") && overview.contains("--full"), "{name}");
+                assert!(!overview.contains("```"), "{name}: a single recipe is printed only in full");
+                continue;
+            }
             let first = sections.iter().find(|section| text.lines().skip(section.2 + 1).take(section.3 - section.2 - 1).any(|line| !line.trim().is_empty())).unwrap();
             let content = text.lines().skip(first.2).take((first.3 - first.2).min(3)).collect::<Vec<_>>().join("\n");
             assert!(overview.contains(&content), "{name}: first section content is visible");
@@ -29,7 +34,7 @@ fn release_json_reference_is_discoverable_without_growing_the_deploy_card() {
     assert!(deploy.lines().count() <= 150);
     assert!(deploy.contains("guide release-json"));
     let reference = guide::card("release-json").unwrap();
-    for field in ["release", "previous_active", "latest", "generation", "revision", "native_digest", "events_after", "items_after", "workers", "selected"] {
+    for field in ["current", "release", "previous_active", "latest", "generation", "revision", "native_digest", "events_after", "items_after", "workers", "selected"] {
         assert!(reference.contains(field), "missing release JSON field {field}");
     }
     assert!(reference.contains("startServe") && reference.contains("timeoutMs"));

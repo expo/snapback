@@ -1,4 +1,5 @@
 import test from 'node:test';
+import {spawnSync} from 'node:child_process';
 import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,symlinkSync} from 'node:fs';
 import {join,resolve} from 'node:path';
@@ -181,4 +182,63 @@ for(const entry of ['worker.mjs','server.mjs']) test(`${entry}: ESM-only package
  writeFileSync(join(cwd,'snapback',entry),`import {marker as imported} from 'import-only-package';import {marker} from '#branch';import {createRequire} from 'node:module';const require=createRequire(import.meta.url);console.log(imported,marker,require('#branch').marker);setInterval(()=>{},1000);\n`);
  await ok(['deploy','deployment'],cwd);writeFileSync(join(cwd,'src/branch.mjs'),'throw Error("mutable ESM branch");\n');writeFileSync(join(cwd,'src/branch.cjs'),'throw Error("mutable require branch");\n');
  const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_IMPORT_ONLY SURF4_ESM_BRANCH SURF4_REQUIRE_BRANCH'),'import/require conditions lost',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
+});
+
+
+test('seed loads directories and arrays through dev without clearing prior rows', {timeout:60000}, async t => {
+ const cwd=fixture(t,`use personas alice
+table notes:
+  body: text <=100
+  until: time
+  public 'fixture'
+  online only
+query list():
+  return notes first 20 by .id
+`);
+ mkdirSync(join(cwd,'fixtures'));
+ writeFileSync(join(cwd,'fixtures/notes.jsonl'),JSON.stringify({id:'a',body:'first',until:'now+2h'})+'\n');
+ writeFileSync(join(cwd,'seed.json'),JSON.stringify([{table:'notes',row:{id:'b',body:'second',until:'now+2h'}}]));
+ const host=await startDev({cwd});
+ try {
+  await ok(['seed','fixtures','--port',new URL(host.url).port],cwd);
+  await ok(['seed','seed.json'],cwd);
+  const stale=await fetch(host.url+'/seed',{method:'POST',headers:{'content-type':'application/json','x-snapback-dev-instance':'stale-instance'},body:JSON.stringify([{table:'notes',row:{id:'c',body:'must not seed',until:'now+2h'}}])});
+  assert.equal(stale.status,409);assert.equal((await stale.json()).denied.code,'E_INPUT');
+  const reply=await(await fetch(host.url+'/q/list',{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':'alice'},body:'{}'})).json();
+  assert.equal(reply.complete,true);assert.deepEqual(reply.data.map(row=>row.id).sort(),['a','b']);assert.ok(reply.data.every(row=>row.until>Date.now()));
+ } finally { await host.stop(); }
+ await ok(['deploy','deployment'],cwd);
+ const release=await startServe('deployment',{cwd});
+ try {
+  const refused=await cli(['seed','seed.json','--port',new URL(release.url).port],{cwd});assert.notEqual(refused.code,0);assert.match(refused.stderr,/E_AUTH/);
+  const raw=await fetch(release.url+'/seed',{method:'POST',headers:{'content-type':'application/json','x-snapback-dev-instance':'stale-instance'},body:'[]'});
+  assert.equal(raw.status,403);assert.equal((await raw.json()).denied.code,'E_AUTH');
+ }
+ finally {await release.stop();}
+});
+test('current release identity follows rollback while latest retains the newest source', {timeout:60000},async t=>{
+ const cwd=fixture(t);await ok(['deploy','deployment'],cwd);
+ writeFileSync(join(cwd,'snapback/schema.q'),'query alive():\n  return false\n');await ok(['deploy','deployment'],cwd);
+ await ok(['rollback','deployment','--to','1'],cwd);
+ for(const selected of ['current','latest']){
+  const status=JSON.parse((await ok(['releases','deployment',selected,'--json'],cwd)).stdout);
+  assert.equal(status.current,1);assert.equal(status.release,1);assert.equal(status.latest,2);
+  assert.equal(status.selected.release,selected==='current'?1:2);assert.equal(status.selected.current,selected==='current');
+ }
+});
+
+test('release preflight reads live status and stopped committed WAL with a missing pointer', {timeout:60000},async t=>{
+ const cwd=fixture(t);await ok(['deploy','deployment'],cwd);
+ writeFileSync(join(cwd,'snapback/schema.q'),'query alive():\n  return false\n');await ok(['deploy','deployment'],cwd);
+ const host=await startServe('deployment',{cwd});
+ try {
+  rmSync(join(cwd,'deployment/current'));
+  const token=await ok(['token','--release','deployment','--service','ops','--quiet'],cwd);assert.ok(token.stdout.trim());
+  assert.equal(JSON.parse((await ok(['releases','deployment','current','--json'],cwd)).stdout).current,2);
+ } finally {await host.stop();}
+ const writer=spawnSync(process.execPath,['--input-type=module','-e',`import {DatabaseSync} from 'node:sqlite';const db=new DatabaseSync(process.argv[1]);db.exec("PRAGMA journal_mode=WAL; PRAGMA wal_autocheckpoint=0; UPDATE _meta SET value='1' WHERE key='release'");process.exit(0);`,join(cwd,'deployment/store.sqlite')],{encoding:'utf8',timeout:10000});
+ assert.equal(writer.status,0,writer.stderr);
+ assert.ok(readFileSync(join(cwd,'deployment/store.sqlite-wal')).length>0);
+ const status=JSON.parse((await ok(['releases','deployment','current','--json'],cwd)).stdout);assert.equal(status.current,1);
+ await ok(['token','--release','deployment','--service','ops','--quiet'],cwd);
 });

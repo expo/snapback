@@ -43,12 +43,12 @@ fn published_text_needs_no_checkout_or_lane_reports() {
         // Source annotations explain the code; published prose must explain itself.
         let text = doc.lines().filter(|line| !line.contains(concat!("@", "ref "))).collect::<Vec<_>>().join(" ");
         assert!(!published::contains_llp_reference(&text), "{name}: inaccessible LLP reference");
-        for forbidden in ["LLP ", "snapback4/reports/", "../reports/", "ROUND2.md", "round2-measurements.json", "see its report", ".test.mjs", "reports/20", "../llp/"] {
+        for forbidden in ["RULES3", "KIT2", "wave-13 lanes", "LLP ", "snapback4/reports/", "../reports/", "ROUND2.md", "round2-measurements.json", "see its report", ".test.mjs", "reports/20", "../llp/"] {
             assert!(!text.contains(forbidden), "{name}: inaccessible {forbidden}");
         }
         for words in text.split_whitespace().collect::<Vec<_>>().windows(2) {
             let lane_name = |word: &str| word.len() <= 3 && word.len() >= 2 && word.chars().all(|c| c.is_ascii_uppercase());
-            assert!(!(words[0].eq_ignore_ascii_case("lane") && lane_name(words[1].trim_end_matches("'s"))) && !(lane_name(words[0]) && words[1].starts_with("round-")), "{name}: lane reference {words:?}");
+            assert!(!(matches!(words[0].to_ascii_lowercase().as_str(), "lane" | "lanes") && (lane_name(words[1].trim_end_matches("'s")) || words[1].trim_matches(|c: char| !c.is_ascii_digit()).parse::<u32>().is_ok())) && !(lane_name(words[0]) && words[1].starts_with("round-")), "{name}: lane reference {words:?}");
         }
     }
 }

@@ -1572,11 +1572,13 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
         let card = snapback4_lang::guide::card(keyword).unwrap();
         assert_eq!(full.trim_end().lines().count(), card.trim_end().lines().count(), "{keyword} --full prints the whole card");
         let (_, default) = guide(&[keyword]);
-        if card.lines().count() > snapback4_lang::guide::FULL_LINES {
-            let (title, body)=full.split_once('\n').unwrap();
-            assert!(default.starts_with(&format!("{title}\n{body}")), "{keyword}: piped output preserves the complete card body");
+        if snapback4_lang::guide::alias_section(keyword).is_some() {
+            assert!(default.contains("--full"), "{keyword}: section aliases retain their direct landing");
+        } else if card.lines().count() > snapback4_lang::guide::FULL_LINES {
+            let (title, _)=full.split_once('\n').unwrap();
+            assert!(default.starts_with(&format!("{title}\n(Truncated:")), "{keyword}: piped output explains its bounded view before content");
             let canonical = snapback4_lang::guide::resolve(keyword).unwrap_or(keyword);
-            assert!(default.contains(&format!("{canonical}: ")), "{keyword}: piped output adds its canonical index");
+            assert!(default.contains(&format!("Sections of guide {canonical}:")), "{keyword}: piped output adds its canonical index");
             let section_flag = if snapback4_lang::guide::sections(card).is_empty() { "--full" } else { "--section" };
             assert!(default.contains(&format!("snapback4 guide {canonical} {section_flag}")), "{keyword}: index names the supported selector");
             for (_,heading,_,_) in snapback4_lang::guide::sections(card) {assert!(default.contains(&heading),"{keyword}: {heading}");}

@@ -97,5 +97,124 @@ fn releases_json_uses_the_documented_field_names() {
     success(app.run(&["deploy", "deployment"]));
     let status: serde_json::Value = serde_json::from_str(&success(app.run(&["releases", "deployment", "latest", "--json"]))).unwrap();
     for field in ["release", "previous_active", "latest", "generation", "revision", "native_digest", "events", "events_after", "items", "items_after", "event", "workers", "selected"] { assert!(status.get(field).is_some(), "missing {field}: {status}"); }
-    assert_eq!(status["release"], 1); assert_eq!(status["selected"]["current"], true);
+    assert_eq!(status["release"], 1); assert_eq!(status["current"], status["release"]); assert_eq!(status["selected"]["current"], true);
+}
+
+#[test]
+fn release_consumers_refuse_without_creating_any_files() {
+    let app = App::new();
+    for existing in [false, true] {
+        let dir = app.0.join(if existing { "empty" } else { "missing" });
+        if existing { fs::create_dir(&dir).unwrap(); }
+        let path = dir.to_str().unwrap();
+        for args in [vec!["serve", path], vec!["token", "--release", path, "--service", "ops"],
+            vec!["rollback", path], vec!["rollback", path, "--check"], vec!["prune", path], vec!["releases", path, "--json"],
+            vec!["data", "notes", "--release", path], vec!["sql", "select 1", "--release", path],
+            vec!["doctor", "--release", path, "--json"], vec!["run", "alive", "--release", path],
+            vec!["why", "E_SCHEMA", "--release", path]] {
+            let output = app.run(&args);
+            assert!(!output.status.success(), "{args:?}: {output:?}");
+            assert!(output.stdout.is_empty(), "{output:?}");
+            assert!(String::from_utf8_lossy(&output.stderr).contains("no current release"), "{output:?}");
+            if existing { assert_eq!(fs::read_dir(&dir).unwrap().count(), 0, "{args:?}"); }
+            else { assert!(!dir.exists(), "{args:?}"); }
+        }
+    }
+}
+#[test]
+fn release_preflight_uses_database_selection_without_convenience_pointer() {
+    let app = App::new(); fs::create_dir(app.0.join("snapback")).unwrap();
+    fs::write(app.0.join("snapback/schema.q"), "query alive():\n  return true\n").unwrap();
+    success(app.run(&["deploy", "deployment"]));
+    fs::remove_file(app.0.join("deployment/current")).unwrap();
+    success(app.run(&["token", "--release", "deployment", "--service", "ops", "--quiet"]));
+    let value: serde_json::Value = serde_json::from_str(&success(app.run(&["releases", "deployment"]))).unwrap();
+    assert_eq!(value["release"], 1);
+    fs::write(app.0.join("deployment/current"), "999\n").unwrap();
+    success(app.run(&["token", "--release", "deployment", "--service", "ops", "--quiet"]));
+}
+
+#[test]
+fn discovery_names_directory_roles_seed_and_current_release() {
+    let app = App::new();
+    let help = success(app.run(&["deploy", "--help"]));
+    assert!(help.contains("deployment directory") && help.contains("file.q|source-dir"), "{help}");
+    let seed = success(app.run(&["seed", "--help"]));
+    assert!(seed.starts_with("snapback4 seed <fixtures-dir|seed.json>") && seed.contains("POST /seed"), "{seed}");
+    let missing = app.run(&["seed"]); assert!(!missing.status.success());
+    assert!(!String::from_utf8_lossy(&missing.stderr).contains("unknown verb"));
+    assert_eq!(fs::read_dir(&app.0).unwrap().count(), 0);
+    assert!(success(app.run(&["guide", "bootstrap"])).contains("Production"));
+    let guide = success(app.run(&["guide", "testing"]));
+    assert!(guide.lines().nth(1).unwrap().contains("Truncated:"), "{guide}");
+    assert!(guide.contains("## ") && guide.contains("--full"), "{guide}");
+}
+#[test]
+fn init_port_note_is_conditional_and_preview_rules_are_indented() {
+    let app = App::new();
+    assert!(!success(app.run(&["init", "web", "--web"])).contains("PORT_LO/PORT_HI set at init"));
+    let output = Command::new(BIN).current_dir(&app.0).args(["init", "ranged", "--web"]).env("PORT_LO", "25000").env("PORT_HI", "25009").output().unwrap();
+    assert!(success(output).contains("PORT_LO/PORT_HI set at init"));
+    fs::create_dir(app.0.join("snapback")).unwrap();
+    fs::write(app.0.join("snapback/schema.q"), "use personas alice\ntable members:\n  principal: principal\n  unique principal\n  read <- .principal = viewer -- own seat\n  insert <- deny\n  online only\n").unwrap();
+    let preview = success(app.run(&["init", "--adapt", "--production"]));
+    assert!(preview.contains("  read <- (\n    .principal = viewer -- own seat\n  ) or viewer = 'service:ops'"), "{preview}");
+    assert!(preview.contains("  insert <- (\n    deny\n  ) or viewer = 'service:ops'"), "{preview}");
+}
+
+#[test]
+fn release_consumers_refuse_a_development_store_without_new_sidecars() {
+    let app = App::new();let dir=app.0.join("development");fs::create_dir(&dir).unwrap();
+    { let _store=snapback4_core::Store::open(&dir.join("store.sqlite")).unwrap(); }
+    drop(snapback4_core::private_fs::owner_file(&dir.join("store.sqlite")).unwrap());
+    let names=|| { let mut names=fs::read_dir(&dir).unwrap().map(|e|e.unwrap().file_name()).collect::<Vec<_>>();names.sort();names };
+    // Reproduce a checkpointed WAL database whose sidecars have been removed.
+    for suffix in ["-wal", "-shm"] { let _=fs::remove_file(dir.join(format!("store.sqlite{suffix}"))); }
+    let before=names();let path=dir.to_str().unwrap();
+    for args in [vec!["serve",path],vec!["token","--release",path,"--service","ops"],vec!["rollback",path],vec!["prune",path],
+        vec!["data","notes","--release",path],vec!["sql","select 1","--release",path],
+        vec!["doctor","--release",path,"--json"],vec!["run","alive","--release",path],vec!["why","E_SCHEMA","--release",path]] {
+        let output=app.run(&args);assert!(!output.status.success(),"{output:?}");assert_eq!(names(),before,"{args:?}");
+    }
+}
+
+#[test]
+fn current_selector_keeps_legacy_pointer_fallback() {
+    let app=App::new();fs::create_dir(app.0.join("snapback")).unwrap();
+    fs::write(app.0.join("snapback/schema.q"),"query alive():\n  return true\n").unwrap();
+    success(app.run(&["deploy","deployment"]));
+    let conn=rusqlite::Connection::open(app.0.join("deployment/store.sqlite")).unwrap();
+    conn.execute("DELETE FROM _meta WHERE key='release'",[]).unwrap();drop(conn);
+    let value:serde_json::Value=serde_json::from_str(&success(app.run(&["releases","deployment","current","--json"]))).unwrap();
+    assert_eq!(value["current"],1);assert_eq!(value["release"],1);assert_eq!(value["selected"]["release"],1);
+}
+
+#[test]
+fn administrative_release_consumers_can_inspect_damaged_retained_source() {
+    let app=App::new();fs::create_dir(app.0.join("snapback")).unwrap();
+    fs::write(app.0.join("snapback/schema.q"),"table notes:\n  body: text <=50\n  public 'test'\n  online only\n").unwrap();
+    success(app.run(&["deploy","deployment"]));
+    fs::write(app.0.join("deployment/releases/1/snapback/schema.q"),"broken retained source\n").unwrap();
+    assert_eq!(success(app.run(&["data","notes","--release","deployment","--json"])).trim(),"[]");
+    success(app.run(&["token","--release","deployment","--service","ops","--quiet"]));
+    let doctor=app.run(&["doctor","--release","deployment","--json"]);
+    assert!(!doctor.status.success());
+    let value:serde_json::Value=serde_json::from_slice(&doctor.stdout).unwrap();
+    assert_eq!(value["storage"]["row_count"],0);
+}
+
+#[test]
+fn failed_seed_discovery_does_not_open_a_legacy_store_or_create_sidecars() {
+    let app=App::new();fs::create_dir(app.0.join("snapback")).unwrap();
+    fs::write(app.0.join("snapback/schema.q"),"query alive():\n  return true\n").unwrap();
+    let dir=app.0.join(".snapback4");fs::create_dir(&dir).unwrap();
+    { let _store=snapback4_core::Store::open(&dir.join("store.sqlite")).unwrap(); }
+    let listener=std::net::TcpListener::bind("127.0.0.1:0").unwrap();let address=listener.local_addr().unwrap();drop(listener);
+    fs::write(dir.join("serve.lock"),format!("{}\nhttp://{address}\n",address.port())).unwrap();
+    fs::write(app.0.join("seed.json"),"[]").unwrap();
+    for suffix in ["-wal","-shm"] {let _=fs::remove_file(dir.join(format!("store.sqlite{suffix}")));}
+    let snapshot=|| {let mut files=fs::read_dir(&dir).unwrap().map(|e| {let path=e.unwrap().path();(path.file_name().unwrap().to_owned(),path.is_file().then(||fs::read(&path).unwrap()))}).collect::<Vec<_>>();files.sort();files};
+    let before=snapshot();let result=app.run(&["seed","seed.json"]);
+    assert!(!result.status.success(),"{result:?}");assert!(String::from_utf8_lossy(&result.stderr).contains("no running dev discovered"),"{result:?}");
+    assert_eq!(snapshot(),before);
 }

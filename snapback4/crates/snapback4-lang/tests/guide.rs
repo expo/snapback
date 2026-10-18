@@ -1157,6 +1157,7 @@ fn terminal_and_compatibility_overviews_carry_the_first_nonempty_section() {
     for name in KEYWORDS {
         let text = card(name).unwrap();
         let (Some(short), Some(piped)) = (guide::overview(name, text), guide::overview_and_first_section(name, text)) else { continue };
+        if guide::sections(text).is_empty() { assert!(piped.contains("indivisible recipe") && !piped.contains("```")); continue; }
         assert_eq!(short, piped, "{name}: terminal overview also carries the first section");
         assert!(piped.lines().count() <= 150, "{name}: {} lines piped", piped.lines().count());
         let sections = guide::sections(text);
@@ -1578,15 +1579,16 @@ mod client;
 #[path = "guide/start.rs"]
 mod start;
 
-// @ref LLP 3000.011.003.000#9 — every piped card is complete.
+// @ref LLP 3000.000.000.000.000#8 — tool output starts with a visible truncation hint.
 #[test]
-fn a_piped_card_prints_whole() {
+fn a_piped_card_shows_its_first_section_and_truncation_hint() {
     for name in KEYWORDS {
         let text = card(name).unwrap();
         let printed = guide::piped(name, text);
         if text.lines().count() > guide::FULL_LINES {
-            assert!(printed.contains(&guide::section_index(name, text)), "{name}");
-            assert!(printed.starts_with(text), "{name}: whole body precedes the index");
+            assert!(printed.contains("Truncated:"), "{name}: {printed}");
+            assert_eq!(printed, guide::overview_and_first_section(name, text).unwrap());
+            assert!(printed.contains("--full") && printed.contains("Sections of guide"), "{name}");
         } else { assert_eq!(printed, text); }
     }
 }
@@ -1618,3 +1620,15 @@ mod deploy;
 
 #[path = "guide/surf.rs"]
 mod surf;
+
+#[test]
+fn bounded_discovery_never_prints_a_partial_quarry_fence() {
+    let source=format!("query alive():\n  return true\n{}", "-- one indivisible recipe\n".repeat(100));
+    let text=format!("# Large card\n\nOpening.\n\n## First recipe\n```quarry\n{source}```\n\n## Other details\n{}", "More prose.\n".repeat(60));
+    let printed=guide::piped("synthetic",&text);
+    assert!(printed.contains("Truncated:"));
+    assert_eq!(printed.lines().filter(|line|line.trim_start().starts_with("```")).count(),2,"{printed}");
+    let blocks=quarry(&printed);assert_eq!(blocks.len(),1);
+    let bound=snapback4_lang::compile(&[("schema.q".into(),blocks[0].clone())]);
+    assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+}

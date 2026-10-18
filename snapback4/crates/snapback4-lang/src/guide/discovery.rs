@@ -3,7 +3,7 @@ use super::{ALIASES, KEYWORDS, SERVER_KEYWORDS};
 
 // @ref LLP 3000.007#20.1 — the ~200 aliases moved behind `guide aliases`; the bare listing stays one screen.
 pub fn listing() -> String {
-    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nOn terminals, cards over {FULL_LINES} lines print their opening and section index; pipes print whole cards. Narrow with guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\nAliases: {} words open a card, or one section of it (pagination, roles, capacity, aggregates, …); snapback4 guide aliases lists them.", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.len())
+    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nCards over {FULL_LINES} lines print a truncation hint, their opening, first section and section index. Narrow with guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\nAliases: {} words open a card, or one section of it (pagination, roles, capacity, aggregates, …); snapback4 guide aliases lists them.", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.len())
 }
 
 /// `guide aliases`: every alias, one per line, with the card (and section) it opens.
@@ -211,12 +211,10 @@ pub fn overview_and_first_section(name: &str, card: &str) -> Option<String> { ov
 /// The most lines of a card's first section the piped overview prints.
 const FIRST_SECTION_LINES: usize = 80;
 
-/// Non-TTY reads print the full card; callers can select --section or --find.
-// @ref LLP 3000.011.003.000#9 — an agent reads the complete card without a hidden truncation boundary.
+/// Tool reads use the same bounded discovery view as terminal reads.
+// @ref LLP 3000.000.000.000.000#8 — hint before the body survives batched tool truncation.
 pub fn piped(name: &str, card: &str) -> String {
-    if card.lines().count() <= FULL_LINES { return card.to_owned(); }
-    let (title, rest) = card.split_once('\n').unwrap_or((card, ""));
-    format!("{title}\n{rest}\n\n{}", section_index(name, card))
+    overview_and_first_section(name, card).unwrap_or_else(|| card.to_owned())
 }
 
 /// The last paragraph boundary (a blank line outside a fence) in
@@ -236,8 +234,16 @@ fn boundary(lines: &[&str], from: usize, to: usize, limit: usize) -> Option<usiz
 fn overview_with(name: &str, card: &str, first_section: bool) -> Option<String> {
     let total = card.lines().count();
     let found = sections(card);
-    if total <= FULL_LINES || found.is_empty() { return None; }
+    if total <= FULL_LINES { return None; }
     let lines: Vec<&str> = card.lines().collect();
+    if found.is_empty() {
+        // A single long fenced recipe is indivisible. Show its prose opening,
+        // never half of a runnable code fence; --full prints the entire recipe.
+        let end = lines.iter().position(|line| line.trim_start().starts_with("```"))
+            .unwrap_or_else(|| boundary(&lines, 0, lines.len(), OPENING_LINES).unwrap_or(OPENING_LINES.min(total)));
+        let title = lines.first().copied().unwrap_or("");
+        return Some(format!("{title}\n(Truncated: opening of a {total}-line card with one indivisible recipe; snapback4 guide {name} --full prints the whole recipe.)\n{}\n\nSections of guide {name}:\nSingle recipe: snapback4 guide {name} --full", lines[1..end.max(1)].join("\n").trim_end()));
+    }
     let first = opening_end(card, &found);
     // The opening's paragraph boundaries outside fences; keep the title and lead at least.
     let mut cut = first;
@@ -252,7 +258,7 @@ fn overview_with(name: &str, card: &str, first_section: bool) -> Option<String> 
     }
     // The title line, then the hint in the same paragraph, then the rest of the opening.
     let shown = if first_section { "opening, first section and section index" } else { "opening and section index" };
-    let hint = format!("(This is the {shown} of a {total}-line card: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full prints all of it.)");
+    let hint = format!("(Truncated: this is the {shown} of a {total}-line card: snapback4 guide {name} --section <number or words> prints one section · --find <words> prints matching lines · --full prints all of it.)");
     let mut out = match lines.first().filter(|line| line.starts_with("# ")) {
         Some(title) => format!("{title}\n{hint}\n{}", lines[1..cut].join("\n")),
         None => format!("{hint}\n\n{}", lines[..cut].join("\n")),
@@ -262,7 +268,18 @@ fn overview_with(name: &str, card: &str, first_section: bool) -> Option<String> 
         let (section, (_, heading, start, end)) = found.iter().enumerate().find(|(_, (_, _, start, end))| lines[start + 1..*end].iter().any(|line| !line.trim().is_empty())).unwrap_or((0, &found[0]));
         let section = section + 1;
         let limit = start + FIRST_SECTION_LINES;
-        let stop = if end - start <= FIRST_SECTION_LINES { *end } else { boundary(&lines, start + 1, *end, limit).unwrap_or(limit) };
+        let stop = if end - start <= FIRST_SECTION_LINES { *end } else {
+            boundary(&lines, start + 1, *end, limit).unwrap_or_else(|| {
+                // An indivisible first code block must stay runnable. If no
+                // earlier paragraph fits, finish that block before shortening.
+                let mut fenced = false;
+                for (i, line) in lines.iter().enumerate().take(*end).skip(start + 1) {
+                    if line.trim_start().starts_with("```") { fenced = !fenced; }
+                    if i >= limit && !fenced && line.trim().is_empty() { return i; }
+                }
+                *end
+            })
+        };
         out.push_str("\n\n");
         out.push_str(lines[*start..stop].join("\n").trim_end());
         if stop < *end { out.push_str(&format!("\n\n… section {section} ({heading}) continues for {} lines: snapback4 guide {name} --section {section}", end - stop)); }

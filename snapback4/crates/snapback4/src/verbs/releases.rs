@@ -24,6 +24,104 @@ fn canonical_directory(options: &Options) -> Result<PathBuf, String> {
     Ok(dir)
 }
 
+// @ref LLP 3000.000.000.000.000#8 — validate before any writable ownership or command lock.
+pub(crate) fn existing_deployment(requested: &Path) -> Result<PathBuf, String> {
+    let missing = || format!("no current release in {}; run `snapback4 deploy {}` first", requested.display(), requested.display());
+    if !requested.join("store.sqlite").is_file() { return Err(missing()); }
+    let dir = requested.canonicalize().map_err(|e| e.to_string())?;
+    inspect_current(&dir)?;
+    Ok(dir)
+}
+
+// SQLite READONLY can create WAL sidecars. A stopped store's existing owner
+// lock makes immutable inspection safe; a live host supplies its own status.
+fn inspect_current(dir: &Path) -> Result<u64, String> {
+    use rusqlite::{Connection, OpenFlags, OptionalExtension};
+    let database = dir.join("store.sqlite").canonicalize().map_err(|e| e.to_string())?;
+    let missing = || format!("no current release in {}; run `snapback4 deploy {}` first", dir.display(), dir.display());
+    let owner = match snapback4_core::private_fs::auxiliary_file(&database,
+        &snapback4_core::private_fs::owner_path(&database), false, 0) {
+        Ok(owner) => owner,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            // Relocated/legacy deployments may not yet have a sidecar beside
+            // the resolved DB. Establish a complete current source first; only
+            // a known deployment may let SQLite create its ordinary WAL files.
+            return pointer_current(dir, &database);
+        },
+        Err(error) => return Err(format!("{}; existing ownership sidecar unavailable: {error}", missing())),
+    };
+    match owner.try_lock() {
+        Ok(()) => {},
+        Err(std::fs::TryLockError::WouldBlock) => {
+            match crate::release_control::request(dir, crate::release_control::Command::Status {after:0, items_after:None, event:None}) {
+                Ok(status) => return status["release"].as_u64().filter(|n|*n>0).ok_or_else(missing),
+                Err(error) => {
+                    // A killed host's watchdogs retain ownership during their
+                    // bounded cleanup. Preserve serve's existing restart wait.
+                    if !crate::store_owner::stopped_host(&database) {
+                        // A second source directory may alias the same DB. Its
+                        // source cannot control this host, but its token still
+                        // belongs to the resolved database. Establish current
+                        // source before permitting ordinary read-only WAL work.
+                        return pointer_current(dir, &database).map_err(|_| format!("{}; {error}",missing()));
+                    }
+                    let deadline=std::time::Instant::now()+std::time::Duration::from_secs(5);
+                    loop {
+                        match owner.try_lock() {
+                            Ok(()) => break,
+                            Err(std::fs::TryLockError::WouldBlock) if std::time::Instant::now()<deadline => std::thread::sleep(std::time::Duration::from_millis(25)),
+                            _ => return Err(format!("{}; {error}",missing())),
+                        }
+                    }
+                }
+            }
+        },
+        Err(error) => return Err(error.to_string()),
+    }
+    if !snapback4_core::private_fs::owner_is_named(&database, &owner) {
+        return Err("store ownership changed during release inspection; retry".into());
+    }
+    #[cfg(unix)]
+    let bytes = { use std::os::unix::ffi::OsStrExt; database.as_os_str().as_bytes() };
+    #[cfg(not(unix))]
+    let bytes = database.to_str().ok_or("invalid store path")?.as_bytes();
+    let mut uri = String::from("file:");
+    for byte in bytes {
+        if byte.is_ascii_alphanumeric() || b"/._-".contains(byte) { uri.push(*byte as char); }
+        else { uri.push_str(&format!("%{byte:02X}")); }
+    }
+    let mut wal = database.as_os_str().to_os_string(); wal.push("-wal"); let wal = PathBuf::from(wal);
+    let mut shm = database.as_os_str().to_os_string(); shm.push("-shm"); let shm = PathBuf::from(shm);
+    let has_wal = match std::fs::metadata(&wal) {
+        Ok(meta) => meta.len() > 0,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => false,
+        Err(e) => return Err(e.to_string()),
+    };
+    if has_wal && !shm.is_file() { return Err("store has a WAL without its shared-memory sidecar; run deploy on this stopped deployment to recover it before inspection".into()); }
+    // Immutable SQLite omits WAL reads: use it only for the checkpointed main
+    // image. Existing WAL+SHM can be read normally under the same exclusion.
+    uri.push_str(if has_wal { "?mode=ro" } else { "?mode=ro&immutable=1" });
+    let conn = Connection::open_with_flags(uri, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI).map_err(|e|e.to_string())?;
+    let release: Option<String> = conn.query_row("SELECT value FROM _meta WHERE key='release'", [], |row|row.get(0)).optional().map_err(|e|e.to_string())?;
+    let release = match release {
+        Some(value) => value,
+        None => std::fs::read_to_string(dir.join("current")).map_err(|_| missing())?,
+    };
+    release.trim().parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing)
+}
+
+fn pointer_current(dir: &Path, database: &Path) -> Result<u64, String> {
+    let missing = || format!("no current release in {}; deploy first", dir.display());
+    let pointer = std::fs::read_to_string(dir.join("current")).map_err(|_| missing())?;
+    let pointer = pointer.trim().parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing)?;
+    bound_at(dir.join("releases").join(pointer.to_string()))?;
+    let store = snapback4_core::Store::open_read_only(database).map_err(|e|e.to_string())?;
+    match store.meta("release").map_err(|e|e.to_string())? {
+        Some(value) => value.parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing),
+        None => Ok(pointer),
+    }
+}
+
 /// `dev` and `serve` hold the store-owner lock for their lifetime. Release
 /// commands route to the admitted server when it owns this deployment.
 pub(crate) fn deployment_lock(dir: &Path) -> Result<Owner, String> {
@@ -365,7 +463,7 @@ pub fn rollback(options: &Options) -> i32 {
     report(
         "rollback",
         (|| {
-            let dir = directory(options)?;
+            let dir = existing_deployment(&directory(options)?)?;
             let _command = command_lock(&dir)?;
             let _deployment = target(&dir)?;
             if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
@@ -422,7 +520,7 @@ pub fn releases(options: &Options) -> i32 {
     report(
         "releases",
         (|| {
-            let dir = directory(options)?;
+            let dir = existing_deployment(&directory(options)?)?;
             let after = options
                 .flags
                 .get("after")
@@ -444,9 +542,11 @@ pub fn releases(options: &Options) -> i32 {
                     event,
                 )
                 .map_err(|e| e.to_string())?;
+            if result["release"].is_null() { result["release"]=serde_json::json!(inspect_current(&dir)?); }
+            result["current"]=result["release"].clone();
             result["latest"]=serde_json::json!(latest(&dir).ok());
             if let Some(selector)=options.positionals.get(1) {
-                let n=if selector=="latest" {latest(&dir)?} else {selector.parse::<u64>().ok().filter(|n|*n>0).ok_or("releases selection requires N or latest")?};
+                let n=if selector=="latest" {latest(&dir)?} else if selector=="current" {result["release"].as_u64().ok_or("no current release")?} else {selector.parse::<u64>().ok().filter(|n|*n>0).ok_or("releases selection requires N, latest or current")?};
                 selectable(&dir,n)?;let root=dir.join("releases").join(n.to_string());bound_at(root.clone())?;
                 result["selected"]=serde_json::json!({"release":n,"current":result["release"].as_u64()==Some(n),"digest":crate::release_files::digest(&root)?});
             }
@@ -460,7 +560,7 @@ pub fn prune(options: &Options) -> i32 {
     report(
         "prune",
         (|| {
-            let dir = directory(options)?;
+            let dir = existing_deployment(&directory(options)?)?;
             let _command = command_lock(&dir)?;
             let owner = target(&dir)?;
             let held = status(&dir, owner.as_ref(), 0, None, None)?;
@@ -511,7 +611,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     let capacity = crate::host_limits::Capacity::from_options(&options.flags, |name| {
         std::env::var(name).ok()
     })?;
-    let dir = canonical_directory(options)?;
+    let dir = existing_deployment(&directory(options)?)?;
     crate::host_limits::initialize();
     let owner = crate::store_owner::host(&dir.join("store.sqlite"))?;
     owner.report_reclaim(options.flags.contains_key("verbose"));

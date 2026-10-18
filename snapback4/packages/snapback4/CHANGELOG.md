@@ -27,6 +27,8 @@
 - `upgrade --quiet` prints per-project actions and failures, suppressing successful install/check/history output.
 - Release previews prove pure trailing guards on new columns as tightening, lead with removed guards/refusal codes on rollback, and group related change facts. Internal index paths require `--verbose` or JSON. Constraint refusals name restoring dormant and conflicting active rows. `rollback --check --bridge <new-dir>` saves current source plus this app's rollback checklist for an operator-owned bridge.
 
+- CLI and discovery: release consumers (`serve`, `token --release`, `rollback`, `prune`, `releases`) refuse missing or release-less deployment directories before creating any files. Deploy is the deployment creation command; database selection remains authoritative when the convenience `current` file is absent or stale. `seed` now loads fixtures through a running dev and has dedicated help. Release JSON adds `current` equal to `release` and accepts a `current` selector. Long guide cards show a truncation hint and first section in tools; use `--full` for the whole card. `bootstrap` opens production guidance; deploy help names deployment and saved-source directories. Init prints its port-range note only when the environment range is set, and production preview rule bodies are indented.
+
 ## 0.4.31
 
 - Existing stores keep their rows, ids, schema and captured `read through` authority. No automatic data repair or audience expansion occurs. Regenerate declarations and rebuild web, native and Exact clients to pick up the runtime and client changes below; review new correctness notes before deploying edited schemas.

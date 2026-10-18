@@ -868,7 +868,7 @@ fn handle(mut request: Request, shared: &Shared) {
     }
     // Discovered control requests bind to the inspected serving instance.
     // A listener replaced between GET status and POST cannot receive the action.
-    if method==Method::Post && matches!(path.as_str(), "/dev/clock/advance"|"/dev/reset"|"/dev/latency/reset") {
+    if method==Method::Post && (matches!(path.as_str(), "/dev/clock/advance"|"/dev/reset"|"/dev/latency/reset") || (shared.personas && path=="/seed")) {
         match single_header(&request,"x-snapback-dev-instance") {
             Ok(None)=>{},
             Ok(Some(instance)) if shared.dev_identity.as_ref().is_some_and(|i| i.instance==instance)=>{},

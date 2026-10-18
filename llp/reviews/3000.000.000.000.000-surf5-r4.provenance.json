@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-18",
+  "source": "8368628af0e7ed2d68efe2bf8a2d98324d32381e",
+  "brief": "llp/reviews/3000.000.000.000.000-surf5-r4.brief.md",
+  "brief_sha256": "bc4e9e5c0132ad7f9ed833bfa946819ad53166c2995ae76d5e865d9d91e3f5b4",
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "fresh_session": true,
+    "artifact": "llp/reviews/3000.000.000.000.000-surf5-r4.codex.md",
+    "sha256": "3d80559ec30af3f82a6497f24cf4fcec1bfb86145e628696276fd9e070da077c",
+    "verdict": "READY"
+  },
+  "muse": {
+    "status": "unavailable on all three required-wrapper attempts, retained in rounds 1\u20133; API 429 subscription quota exhausted, reset 2026-10-19T00:00Z; no review or READY claim"
+  },
+  "scope": "Directory-verb admission audit and preserving administrative stored-state inspection; subsequent seed corrections receive separate reviews"
+}

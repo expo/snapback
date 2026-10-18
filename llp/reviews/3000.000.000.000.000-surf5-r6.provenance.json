@@ -1,0 +1,28 @@
+{
+  "date": "2026-10-18",
+  "source": "6b816f68814cc1a917b7a989d4e86dd561c68a69",
+  "brief": "llp/reviews/3000.000.000.000.000-surf5-r6.brief.md",
+  "brief_sha256": "e624c905df454ad04f0a7f41f18e74a3dbd7ce98b3be8c90c9a32eb8a517ef6a",
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "fresh_session": true,
+    "command": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief",
+    "artifact": "llp/reviews/3000.000.000.000.000-surf5-r6.codex.md",
+    "sha256": "c7eabf9ab4baae8654a8302996b658042b4f60fdce69a68a3714b8cc5d9f1f63",
+    "verdict": "READY",
+    "process_exit_code": 0
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning_effort": "high",
+    "wrapper": "~/sb4-loop/muse-exec.sh --yolo",
+    "artifact": "llp/reviews/3000.000.000.000.000-surf5-r6.muse.md",
+    "sha256": "0bbe7e3a1fb5e9e117bee9c063a1aa85543b9a87a675e7ac55e8ae34c2943544",
+    "stderr": "llp/reviews/3000.000.000.000.000-surf5-r6.muse.stderr.txt",
+    "status": "unavailable; required-wrapper fallback then API 429 subscription quota exhausted; reset 2026-10-19T00:00:00Z; no review received",
+    "process_exit_code": 0,
+    "exit_code_note": "wrapper exited zero despite the API-error transcript; no substantive review or verdict was returned"
+  },
+  "scope": "Complete section 8 amendment and direct implementation, including registered-only seed discovery, instance binding, full release-consumer validation, current/help/guide surfaces. No product changes after reviewed source."
+}

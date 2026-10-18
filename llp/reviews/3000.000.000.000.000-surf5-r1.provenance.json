@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-18",
+  "brief": "llp/reviews/3000.000.000.000.000-surf5-r1.brief.md",
+  "brief_sha256": "745ce13112d3bc68f28bb9a97a7578377ea4be7c7ba9ad5cc579246a9c6df4b5",
+  "source": "904707a7e1 plus working changes; review was read-only while tests were added",
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "artifact": "llp/reviews/3000.000.000.000.000-surf5-r1.codex.md",
+    "verdict": "NOT READY",
+    "disposition": "both findings fixed in 217f68db83"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning_effort": "high",
+    "artifact": "llp/reviews/3000.000.000.000.000-surf5-r1.muse.md",
+    "status": "unavailable: subscription quota exhausted after wrapper fallback; no review received"
+  }
+}

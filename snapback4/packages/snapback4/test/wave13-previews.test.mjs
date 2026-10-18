@@ -79,7 +79,7 @@ test('H9 additive preview-noise budget: unchanged probe guards print zero WARNIN
   const rollback=run('rollback',deployment,'--to','1','--check').stdout;
   assert.equal((rollback.match(/WARNING/g)??[]).length,0,rollback);
   assert.doesNotMatch(rollback,/\.require/);
-  const guide=run('guide','deploy').stdout;
+  const guide=run('guide','deploy','--full').stdout;
   assert.ok(guide.indexOf('## Rollback after widening') < guide.indexOf('## Bridge a safety gate'));
   assert.ok(guide.indexOf('## Bridge a safety gate') < guide.indexOf('## What the old release sees'));
 });

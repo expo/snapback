@@ -220,7 +220,7 @@ pub(crate) fn help(verb: &str) -> String {
 mod projection_tests {
     #[test]
     fn every_validated_flag_is_in_its_generated_help() {
-        for verb in ["init","new","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","reset","test","why","guide","data","sql","token","doctor","upgrade","witness"] {
+        for verb in ["init","new","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness"] {
             let page = super::help(verb);
             for name in super::allowed(verb).split_whitespace() {
                 assert!(page.lines().any(|line|line.trim_start().starts_with(&format!("--{name}"))),"{verb}: {name}");
@@ -241,7 +241,7 @@ mod projection_tests {
 
 /// One synopsis for top-level help, per-verb help and usage errors. Flags come
 /// directly from the admission table, including value arity and retired forms.
-pub(crate) const VERBS: &[&str] = &["init","new","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","reset","test","why","guide","data","sql","token","doctor","upgrade","witness","web-shell"];
+pub(crate) const VERBS: &[&str] = &["init","new","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness","web-shell"];
 pub(crate) fn synopsis(verb: &str) -> String {
     let positional = command(verb).map(|command|command.positional.as_str()).filter(|position|!position.is_empty()).map(|position|format!(" {position}")).unwrap_or_default();
     let mut out = format!("snapback4 {verb}{positional}");

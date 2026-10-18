@@ -14,11 +14,14 @@ try {
 ## Fields
 
 `releases <dir> --json` prints the same JSON object as plain `releases`.
-These names use underscores; the active identity is `release`, not `current`.
+The active identity is `current`; `release` is its equal compatibility spelling.
+Select immutable source with `releases <dir> N|latest|current --json`.
+`latest` is the highest successfully adopted source, which may differ from
+`current` after rollback.
 
 | Field | Meaning |
 | --- | --- |
-| release, previous_active, latest | Active release, previous activation target, highest successfully adopted release; null when absent |
+| current, release, previous_active, latest | Active release, previous activation target, highest successfully adopted release; null when absent |
 | generation, revision | Monotone execution generation and release-history revision |
 | native_digest | Active native module digest, or null |
 | events | Up to 16 activation/prune records: id, at (Unix ms), operation, release, previous, generation, revision, summary |
@@ -27,7 +30,7 @@ These names use underscores; the active identity is `release`, not `current`.
 | items_after | Last returned item key, or null; pass as --items-after for the next page |
 | event | Requested event id, or null for the current dormant inventory |
 | workers | Up to 16 [metadata key, status text] pairs; use doctor for handler health |
-| selected | Present only with N/latest: {release, current (boolean), digest} for that immutable source |
+| selected | Present only with N/latest/current: {release, current (boolean), digest} for that immutable source |
 
 Continue while a page is nonempty; a full final page may require one empty read.
 The first stdout line of serve is its listening URL; stderr's SNAPBACK4_READY
