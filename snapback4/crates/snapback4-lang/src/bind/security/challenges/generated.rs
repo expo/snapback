@@ -105,11 +105,14 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
         let before=pending.len();let mut retry=Vec::new();
         for (table,row) in pending{
             if !out.reserve(1){out.unsupported.insert("generated initialization work exhausted; remaining populations uncovered".into());validate_fixture(bound,&mut engine)?;return Ok(engine);}
-            let gate=&bound.schema.tables[&table].rules.insert;
-            if !actors.iter().any(|actor|matches!(engine.fixture_policy(gate,actor,None,&row,NOW),Ok(rules::Verdict::Readable))) {retry.push((table,row));continue;}
-            let mut candidate=engine.fork_fixture().map_err(|e|e.to_string())?;
             let seeded=clean_row(bound,&table,&row);
-            if candidate.seed_at([(table.clone(),seeded)],NOW).is_ok(){engine=candidate;}else{retry.push((table,row));}
+            let mut accepted=None;
+            for actor in &actors{
+                if !out.reserve(1){break;}
+                let mut candidate=engine.fork_fixture().map_err(|e|e.to_string())?;
+                if matches!(candidate.insert_fixture(&table,seeded.clone(),actor,NOW),Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})){accepted=Some(candidate);break;}
+            }
+            if let Some(candidate)=accepted{engine=candidate;}else{retry.push((table,row));}
         }
         pending=retry;if pending.len()==before{break;}
     }

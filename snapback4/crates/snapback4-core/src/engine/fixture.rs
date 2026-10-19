@@ -31,3 +31,17 @@ impl Engine {
         })
     }
 }
+
+impl Engine {
+    /// Test-only population through ordinary insertion, including field authority.
+    /// The temporary program is private to this fixture engine and never adopted.
+    // @ref LLP 3000.036.004#137-wave-19-correction-admissible-starts-and-persistent-refutations — a row gate alone is not complete insertion authority.
+    pub fn insert_fixture(&mut self,table:&str,row:Value,viewer:&str,now:i64)->Result<MutationOutcome,RuntimeError>{
+        let name="$security.generated-insert";
+        if viewer==crate::SYSTEM_PRINCIPAL||self.programs.contains_key(name){return Err(RuntimeError::Schema("fixture insertion requires an ordinary actor and a private probe name".into()));}
+        self.programs.insert(name.into(),Program{name:name.into(),kind:crate::ir::ProgramKind::Mutation,args:BTreeMap::new(),body:vec![crate::ir::Stmt::Insert{table:table.into(),row:crate::ir::Expr::Literal(row)}],read_time_granularity_ms:None,returned_shapes:BTreeMap::new(),native:false});
+        let result=self.mutate(name,None,Context::new(viewer,BTreeMap::new()).at(now));
+        self.programs.remove(name);
+        result
+    }
+}

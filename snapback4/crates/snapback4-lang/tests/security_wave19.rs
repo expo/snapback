@@ -166,3 +166,18 @@ fn principal_keyed_kind_authority_still_gets_two_actors_per_seat(){
  let mut c=Campaign::default();let e=challenges::generated_fixture(&b,&mut c).unwrap();let rows=e.store().rows("seats").unwrap();
  for kind in ["reader","manager"]{assert_eq!(rows.iter().filter(|r|r.field("kind").ok()==Some(&Value::String(kind.into()))).count(),2,"{c:?} {rows:?}");}
 }
+
+#[test]
+fn bootstrap_admission_includes_owned_field_authority(){
+ let source="table docs:\n  owner: principal\n  mark: int default 0 written by .owner readable by audience\n  read <- allow\n  insert <- viewer = 'service:operator' and .owner != viewer\n  online only\ninvariant docs always .mark = 0\n";
+ let b=bind(source);let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
+ assert!(c.violations.is_empty(),"{c:?}");assert!(c.unsupported.iter().any(|s|s.contains("docs")&&s.contains("population uncovered")),"{c:?}");
+ let mut e=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let generation=e.generation();
+ let refused=e.insert_fixture("docs",row(vec![("id",id("bad")),("owner",id("dev:owner")),("mark",Value::Int(1))]),"service:operator",challenges::NOW);
+ assert!(!matches!(refused,Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})));assert!(e.store().rows("docs").unwrap().is_empty());
+ let allowed=e.insert_fixture("docs",row(vec![("id",id("good")),("owner",id("dev:owner"))]),"service:operator",challenges::NOW).unwrap();assert!(matches!(allowed.state,snapback4_core::WriteState::Sent{..}));
+ assert_eq!(e.store().rows("docs").unwrap()[0].field("mark").unwrap(),&Value::Int(0));assert_eq!(e.generation(),generation);assert!(!e.programs().any(|p|p.name=="$security.generated-insert"));
+ assert!(e.insert_fixture("docs",row(vec![]),snapback4_core::SYSTEM_PRINCIPAL,challenges::NOW).is_err());
+ let b=bind(&source.replace("viewer = 'service:operator' and .owner != viewer",".owner = viewer"));let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
+ assert!(c.violations.iter().any(|v|v.reachability==Reachability::GeneratedFixtureTrace&&v.row.field("mark").ok()==Some(&Value::Int(1))),"{c:?}");
+}
