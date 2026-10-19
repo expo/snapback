@@ -1,0 +1,31 @@
+{
+  "source": "9f49a1faa6c4e1be13064846507eaa96ec3be2bc",
+  "status": "passed",
+  "inventories": "passed",
+  "guide": {
+    "passed": 22,
+    "failed": 0,
+    "warnings": 121
+  },
+  "refCheck": {
+    "documents": 556,
+    "refs": 12100,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "docsBudget": {
+    "readmeLines": 319,
+    "limit": 320,
+    "namedTestPassed": 1
+  },
+  "rootLogSha256": "656220d4525ddbbc2854fd682c5a45db49dab3f21415f54336e5f82aab2eef55",
+  "docsLogSha256": "e3913af2b285619d3cb9478a42490cb9f52251966134b7086f899ddf4f6397ac",
+  "bootstrap": "root frozen install, ensure-workspace-hoist and check-generated-artifacts passed before inventories/guide",
+  "evidenceRefCheck": {
+    "status": "passed",
+    "files": 43506,
+    "errors": 0,
+    "unchecked": 0,
+    "logSha256": "55334fc391881c2debccb8246f2128029ecd55a586dd9523318b8c9b943f07a3"
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "compiledSource": "d529cb8989",
+  "crates": [
+    "snapback4",
+    "snapback4-core",
+    "snapback4-device",
+    "snapback4-lang",
+    "snapback4-sim"
+  ],
+  "command": "cargo test --no-fail-fast -p snapback4-core -p snapback4-lang -p snapback4 -p snapback4-device -p snapback4-sim",
+  "exitCode": 101,
+  "completedTestBinaries": 430,
+  "passed": 6827,
+  "failed": 2,
+  "ignored": 45,
+  "failedTargets": [
+    "snapback4-lang/ephemeral_compat",
+    "snapback4-lang/list_lower_bounds"
+  ],
+  "correctionCommit": "9b9b3e78d5",
+  "correctionCoverage": "Complete snapback4-lang rerun at9f49a1faa6:2292 passed/0 failed/14 ignored, exit0; both failed targets green. Mac44/44 output tests also passed.",
+  "logSha256": "8a54033d17e133b8e701b83c35d91a7b65098c5eeb8f7ba8c7ef37014832948d",
+  "remainingFailures": 0
+}

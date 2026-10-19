@@ -1,0 +1,43 @@
+{
+  "cargoAffected": {
+    "log": "mac-final-cargo.log",
+    "snapback4Bin": {
+      "release_files": 2,
+      "release_safeguards": 1,
+      "release_visibility": 2,
+      "rollback_foresight": 2
+    },
+    "snapback4CoreLib": {
+      "backfill_tests": 76,
+      "predicate_only": 1
+    },
+    "status": "passed"
+  },
+  "cleanup": {
+    "earlierFailedRunExactDirectoriesRemoved": 19,
+    "recordedPidsAlive": 0,
+    "remainingOwnedSnapbackScratchInAuditWindow": 0
+  },
+  "clientAffected": {
+    "files": [
+      "release-transitions.test.mjs",
+      "dormant-visibility.test.mjs",
+      "argument-aliases.test.mjs",
+      "release-capabilities.test.mjs",
+      "release-react.test.mjs"
+    ],
+    "log": "mac-final-client.log",
+    "status": "passed",
+    "tests": 13
+  },
+  "packageBuild": {
+    "log": "mac-final-package-build.log",
+    "status": "passed"
+  },
+  "source": "current frozen snapback4 sync; target/node_modules/.lake/dist/reports excluded",
+  "standaloneCliBuild": {
+    "log": "mac-final-build.log",
+    "status": "passed"
+  },
+  "status": "passed"
+}

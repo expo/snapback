@@ -1,0 +1,33 @@
+{
+  "source": "9f49a1faa6",
+  "qualification": "passed",
+  "activeProcessesBeforeRemoval": 0,
+  "consumerBuildDirectoriesRemoved": 23,
+  "allocatedBytesRemoved": 6627201024,
+  "retained": "root consumer/proof JSONs, exact Linux platform tarball; exact client/Expo tarballs retained in fresh-pack-v4",
+  "directories": [
+    "starter-web-chat",
+    "starter-web",
+    "frontend-web-online",
+    "frontend-expo-social",
+    "expo-upgrade-adapter-first",
+    "frontend-web-chat",
+    "client-recipes",
+    "security-policy-bgYa4N",
+    "frontend-web",
+    "frontend-expo-chat",
+    "starter-expo-chat",
+    "expo-upgrade-literal-install",
+    "production-adapt-persona",
+    "proof-kit",
+    "production-web",
+    "production-expo",
+    "starter-web-online",
+    "expo-upgrade-upgrade",
+    "staging-recipe",
+    "starter-expo-social",
+    "day2-compatibility",
+    "starter-expo",
+    "frontend-expo"
+  ]
+}

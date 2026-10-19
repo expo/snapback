@@ -1,0 +1,84 @@
+{
+  "format": 1,
+  "mode": "consumer-only",
+  "source": "9f49a1faa6c4e1be13064846507eaa96ec3be2bc",
+  "version": "0.4.34",
+  "route": "proot",
+  "clientIntegrity": "sha512-w1ZDaTRUnhCsPDEWIpgkNSScZa4czn/ytDtbjJiwjoFs4we9/h5LujuIP9Dplzle8ubL8PEOZGsjE05QsSU6Aw==",
+  "expoIntegrity": "sha512-y4nWpkBVNzHazo2kbwxrjE4PkC0OPYqAn7oKAfzl0eU1NUtm6r//HaWNQ87E9EhmxFXpqzLyQBz2SLmZoa+QLg==",
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.34",
+    "filename": "snapback4-linux-x64-0.4.34.tgz",
+    "integrity": "sha512-Nxa3AO/oLKVn+8G3lHoWk8VFCQek64URsnOiwKPh5sMnF6IUs2IgSrhfePomtTJBPiqXhTjIqtsndUs79qRFEQ==",
+    "bytes": 13369547
+  },
+  "binarySha256": "4533663358f71fb75fb617ef60c956dedc09ed8cc9769df7dc3e35213e73dda6",
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  },
+  "suite": {
+    "status": "not-run"
+  },
+  "publicationQualified": false,
+  "status": "passed",
+  "stageResults": {
+    "regressions": {
+      "status": "passed",
+      "count": 3
+    },
+    "day2Proof": {
+      "status": "passed"
+    },
+    "day4Proof": {
+      "status": "passed"
+    },
+    "day5Proof": {
+      "status": "passed"
+    },
+    "productionProofs": {
+      "status": "passed"
+    },
+    "proofKit": {
+      "status": "passed"
+    },
+    "clientRecipes": {
+      "status": "passed"
+    },
+    "ruleRecipes": {
+      "status": "passed"
+    },
+    "stagingProof": {
+      "status": "passed"
+    },
+    "migrationProof": {
+      "status": "passed"
+    },
+    "securityProof": {
+      "status": "passed"
+    }
+  },
+  "generatedFrontends": {
+    "passed": 12
+  },
+  "hostStarters": {
+    "passed": 6
+  },
+  "cleanUserspaces": [
+    {
+      "base": "ubuntu:24.04",
+      "status": "passed"
+    },
+    {
+      "base": "alpine",
+      "status": "passed"
+    }
+  ],
+  "artifactDigestsVerified": true,
+  "fullEvidenceExternal": "/home/ccheever/sb4-loop/dorm-qualified-linux-v4/consumer.json",
+  "fullEvidenceSha256": "95dc9d414453bec44df20b50ced7c288d211f318d9c2e08f5f1bb376651dfa26",
+  "qualificationLogSha256": "bbaff1382cf37cf6c8b9a0dbc411437e0d552fb6237f446c72d62a7527745180"
+}

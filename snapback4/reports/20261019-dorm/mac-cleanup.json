@@ -1,0 +1,37 @@
+{
+  "host": "macstudio-charlie-apt101-a",
+  "preserved": {
+    "evidenceFiles": 11,
+    "nodeModules": true,
+    "source": true,
+    "toolchain": true
+  },
+  "preservedBinary": {
+    "bytes": 130256256,
+    "path": "final-bin/snapback4",
+    "sha256": "74bb86e3867a91f707f097783227ee48f7fca4fe3c838c8201f1a8dbf61d6659",
+    "sha256Metadata": "final-bin/snapback4.sha256"
+  },
+  "processAudit": {
+    "afterRemovalAnyCargoRustc": 0,
+    "afterRemovalWorkspaceCargoRustcCli": 0,
+    "beforeRemovalWorkspaceCargoRustcCli": 0
+  },
+  "recordedAt": "2026-10-19T15:36:19.333897+00:00",
+  "removedTarget": {
+    "allocatedBytesBefore": 1956175872,
+    "allocatedKilobytesBefore": 1910328,
+    "existsAfter": false,
+    "path": "snapback4/target"
+  },
+  "scratchAudit": {
+    "failedRunPid43177RootsRemaining": 0,
+    "method": "exact roots recorded in owned test logs plus failed-run PID 43177",
+    "recordedOwnedRootsChecked": 13,
+    "recordedOwnedRootsRemaining": 0,
+    "unattributedAmbientScratchModified": false
+  },
+  "status": "passed",
+  "testedRustBinarySourceCommit": "9b9b3e78d5",
+  "workspaceSourceCommit": "9f49a1faa6"
+}

@@ -1,0 +1,37 @@
+{
+  "cleanup": {
+    "recentOwnedSnapbackScratch": 0,
+    "snapback4CliProcesses": 0
+  },
+  "host": "macstudio-charlie-apt101-a",
+  "node": {
+    "file": "argument-aliases.test.mjs",
+    "log": "mac-emitter-node.log",
+    "snapback4Bin": "/Users/ccheever/sb4-ws-dorm/snapback4/target/debug/snapback4",
+    "status": "passed",
+    "tests": 1
+  },
+  "rust": {
+    "log": "mac-emitter-rust.log",
+    "status": "passed",
+    "targets": {
+      "emit_compatibility": 16,
+      "ephemeral_compat": 1,
+      "list_lower_bounds": 14,
+      "operation_evolution": 13
+    },
+    "tests": 44
+  },
+  "sourceCommit": "9b9b3e78d5",
+  "sourceSha256": {
+    "snapback4/crates/snapback4-lang/src/emit.rs": "5035bfd295bce76716a6f9bc5498f05f3b7f925c45900793623c84eb7a755828",
+    "snapback4/crates/snapback4-lang/tests/fixtures/list-lower-bounds.api.txt": "de1c5517a1285b36029dcf0d00ff4128abcecbeb786d6b2444da8c751fb8dbb9",
+    "snapback4/crates/snapback4-lang/tests/operation_evolution.rs": "bda86597d7a098ee74313e3e86f3a9328d7c0c099a6242b80c0e82226923a010",
+    "snapback4/scripts/argument-alias-cases.mjs": "5b3c950e6aa10a7c75b668e25859514b81553f2ddbb43afb618d6fa930a6411a"
+  },
+  "standaloneCliBuild": {
+    "log": "mac-emitter-build.log",
+    "status": "passed"
+  },
+  "status": "passed"
+}
