@@ -91,3 +91,78 @@ fn draft_candidates_are_never_equivalent_to_the_read_gate(){
     assert!(!draft.lines().any(|line|line.contains("invariant docs.body")&&line.contains("'doctor'")));
     assert!(draft.lines().any(|line|line.contains("invariant docs.body")&&line.contains("'volunteer'")));
 }
+
+#[test]
+fn fixture_free_first_caller_role_claim_has_an_actual_empty_start_trace(){
+    let source="table roles:\n  principal: principal\n  role: enum('staff','guest')\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  online only\ntable secrets:\n  read <- exists roles[viewer, role = 'staff']\n  online only\nmutation register(role: text 1..20):\n  require role = 'staff' or role = 'guest' else BAD_ROLE\n  return insert roles {principal: viewer,role}\ninvariant roles.role write only viewer = 'service:operator'\n";
+    let b=bound(source);let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
+    assert!(c.violations.iter().any(|v|v.reachability==Reachability::AuthoredFixtureTrace&&v.history.iter().any(|s|s.operation=="register")&&v.supporting_rows.values().all(Vec::is_empty)),"{c:?}");
+}
+
+#[test]
+fn relationship_argument_transfer_rechecks_live_intent_after_the_authored_write(){
+    let source="table units:\n  landlord: principal\n  read <- allow\n  update <- viewer = 'service:operator'\n  online only\ntable reports:\n  unit: units\n  landlord: principal\n  body: text <=80\n  read <- .landlord = viewer\n  online only\nmutation linkUnit(unit: units, landlord: principal):\n  update units[unit] {landlord}\n  return null\nquery report(report: reports):\n  return reports[report]\ninvariant reports.body read only .unit.landlord = viewer\n";
+    let b=bound(source);let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
+    assert!(c.violations.iter().any(|v|v.reachability==Reachability::GeneratedFixtureTrace&&v.history.iter().any(|s|s.operation=="linkUnit")),"{c:?}");
+}
+
+#[test]
+fn rejected_fallback_final_exists_world_never_becomes_a_failing_fixture(){
+    let source="table roots:\n  creator: principal\n  read <- allow\n  after insert <- exists members[root = .id]\n  online only\ntable members:\n  root: roots\n  proof: image <=1\n  unique root\n  read <- allow\n  online only\ninvariant roots.read only deny\nquery roots():\n  return roots first 100 by .id\n";
+    let b=bound(source);let mut c=Campaign::default();
+    assert!(challenges::generated_fixture(&b,&mut c).is_err(),"invalid final-exists seed must remain unsupported");
+    challenges::generated_campaign(&b,&mut c,false);
+    assert!(c.violations.is_empty(),"{c:?}");
+    assert!(c.unsupported.iter().any(|s|s.contains("final-exists")),"{c:?}");
+}
+
+#[test]
+fn bounded_campaign_charges_initial_worlds_and_every_mutation_step(){
+    let b=bound("table notes:\n  owner: principal\n  body: text <=80\n  read <- allow\n  insert <- .owner = viewer\n  online only\nmutation add():\n  return insert notes {owner: viewer,body: 'x'}\ninvariant notes.read only .owner = viewer\nquery inspect():\n  return notes first 100 by .id\n");
+    let mut c=Campaign::bounded(10000);c.work_remaining=Some(1);
+    let fixture=challenges::generated_fixture(&b,&mut c).unwrap();
+    assert_eq!(c.work_remaining,Some(0));
+    challenges::fixture_observers(&b,&fixture,&mut c);
+    assert_eq!(c.attempted,0);assert!(c.unsupported.iter().any(|s|s.contains("work budget exhausted")));
+    let fixture=snapback4_core::Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
+    let mut c=Campaign::bounded(10000);c.work_remaining=Some(1);
+    challenges::fixture_observers(&b,&fixture,&mut c);
+    assert_eq!(c.attempted,0,"the one reservation pays for the replay world, leaving no mutation step");
+}
+
+#[test]
+fn the_same_update_tuple_reaches_every_role_before_diagonal_variation(){
+    let source=format!("{ROLES}table bouts:\n  status: enum('recorded','overturned')\n  score: int 0..15\n  read <- allow\n  update <- exists roles[viewer, role = 'doctor']\n  online only\ntable appeals:\n  bout: bouts\n  decision: enum('upheld','pending')\n  unique bout\n  read <- allow\n  online only\nmutation correct(bout: bouts, score: int 0..15):\n  require exists roles[viewer, role = 'doctor'] else NO_ROLE\n  b = bouts[bout] ! else MISSING\n  require b.status = 'recorded' else CLOSED\n  update bouts[bout] {{score}}\n  return null\ninvariant bouts.score update only not exists appeals[bout = .id, decision = 'upheld']\n");
+    let b=bound(&source);let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
+    assert!(c.violations.iter().any(|v|v.reachability==Reachability::GeneratedFixtureTrace&&v.history.iter().any(|s|s.operation=="correct")),"{c:?}");
+}
+
+#[test]
+fn principal_columns_vary_independently_even_when_one_drives_the_read_gate(){
+    let b=bound("table docs:\n  a: principal\n  b: principal\n  c: principal\n  read <- .a = viewer or .b != .c\n  online only\ninvariant docs.read only .a = viewer\nquery docs():\n  return docs first 100 by .id\n");
+    let mut c=Campaign::default();c.generated_fixture=true;
+    let fixture=challenges::generated_fixture(&b,&mut c).unwrap();
+    assert!(fixture.store().rows("docs").unwrap().len()>=8);
+    challenges::fixture_observers(&b,&fixture,&mut c);
+    assert!(c.violations.iter().any(|v|v.reachability==Reachability::GeneratedFixtureTrace&&v.operation=="docs"),"{c:?}");
+}
+
+#[test]
+fn a_column_alternate_must_preserve_final_exists_before_observation(){
+    let b=bound("table codes:\n  code: text <=20\n  unique code\n  read <- allow\n  online only\ntable records:\n  value: text <=20\n  read <- allow\n  after insert <- exists codes[code = .value]\n  online only\ninvariant records.value read only deny\nquery probe(record: records):\n  r = records[record] ! else NOT_FOUND\n  return exists codes[code = r.value]\n");
+    let mut c=Campaign::default();c.generated_fixture=true;
+    let fixture=challenges::generated_fixture(&b,&mut c).unwrap();
+    challenges::fixture_observers(&b,&fixture,&mut c);
+    assert!(c.violations.is_empty(),"{c:?}");
+    assert!(c.unsupported.iter().any(|s|s.contains("final-exists")),"{c:?}");
+}
+
+#[test]
+fn absence_worlds_without_observers_still_pay_the_shared_budget(){
+    let b=bound("table docs:\n  marker: enum('a','b','c','d','e','f','g','h')\n  read <- allow\n  online only\ninvariant docs.read only deny\n");
+    let mut setup=Campaign::default();let fixture=challenges::generated_fixture(&b,&mut setup).unwrap();
+    let mut c=Campaign::bounded(10000);c.work_remaining=Some(10);
+    challenges::fixture_observers(&b,&fixture,&mut c);
+    assert!(c.work_remaining.unwrap()<3,"absence forks must be reserved even with no authored queries: {c:?}");
+    assert!(c.unsupported.iter().any(|s|s.contains("work budget exhausted")),"{c:?}");
+}

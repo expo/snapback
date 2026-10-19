@@ -72,6 +72,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
         ledger=prepared;Some(&ledger)
     }else{fixture};
     let altrow=other[&inv.table].iter().find(|r|r.field("id").ok()==row.field("id").ok()).unwrap();
+    let observing=histories::observer_tables(bound,&inv.table);
     let mut actors=histories::viewers(bound);
     for (table,rs) in rows{for r in rs{for (c,k) in &bound.schema.tables[table].columns{if matches!(k.required(),C::Principal)&&let Ok(Value::Id(p))=r.field(c)&&!actors.contains(p){actors.push(p.clone());}}}}
     'actors: for viewer in &actors{
@@ -79,7 +80,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
         if fixture.is_some()&&out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.viewer==*viewer&&v.reachability==Reachability::AuthoredFixtureTrace&&v.history.iter().filter(|s|s.result.get("state").and_then(serde_json::Value::as_str)==Some("sent")).count()<=committed){continue;}
 
         {
-            if !reserve(out,1){return;}
+            if !reserve(out,2){return;}
             let judge=if let Some(fixture)=fixture{fork(bound,fixture,Vec::new())}else{engine(bound,rows,program("$column.intent",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))]))};
             let Ok(mut judge)=judge else{out.unsupported.insert(format!("{}: primary column intent world unavailable",inv.target_label()));continue;};
             let actual=match readback(&judge){Ok(rows)=>rows,Err(why)=>{out.unsupported.insert(why);continue;}};
@@ -89,6 +90,8 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
         for bp in &bound.programs{
             if !reserve(out,1){return;}
             let p=&bp.program;
+            let json=serde_json::to_value(p).unwrap();
+            if !observing.iter().any(|table|super::super::audit::mentions(&json,table)){continue;}
             if !matches!(p.kind,ProgramKind::Query|ProgramKind::Mutation)||p.native{continue;}
             let json=serde_json::to_string(p).unwrap();
             if ["NewId","Emit","JobAs","JobQuery"].iter().any(|s|json.contains(s)){out.unsupported.insert(format!("{}: generated-id/opaque column observer declined",p.name));continue;}
@@ -103,7 +106,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
             }
             let args_list=histories::fixture_cases(p,rows,&actors,out);
             for args in args_list{
-                if !reserve(out,4){return;}
+                if !reserve(out,12){return;}
                 let execute=|alternate:bool|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>,BTreeMap<String,Value>),String>{
                     let seeds=if alternate{&other}else{rows};
                     let mut e=if let Some(fixture)=fixture{
@@ -113,12 +116,13 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
                             let Value::Row(fields)=altrow else{return Err("not a row".into());};
                             let clean=Value::Row(fields.iter().filter(|(c,_)|!t.engine_field(c)&&!t.recorded.contains_key(*c)&&!t.maintained.contains_key(*c)).map(|(c,v)|(c.clone(),v.clone())).collect());
                             if let Err(why)=e.seed_at([(inv.table.clone(),clean.clone())],NOW){
-                                let immutable=t.constraints.iter().any(|c|matches!(c,Constraint::Immutable{fields} if inv.column.as_ref().is_some_and(|c|fields.contains(c)))||matches!(c,Constraint::AppendOnly));
+                                let immutable=t.constraints.iter().any(|c|matches!(c,Constraint::Immutable{fields} if inv.column.as_ref().is_some_and(|c|fields.contains(c)))||matches!(c,Constraint::AppendOnly))||matches!(t.columns[column].required(),C::Image{once:true,..});
                                 if !immutable{return Err(why.to_string());}
                                 e=engine_on_store(bound,&other,Vec::new(),fixture.store().empty_with_asset_ledger().map_err(|e|e.to_string())?)?;
                             }
                         }e
                     }else{engine(bound,seeds,program("$column.pair",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))]))?};
+                    validate_fixture(bound,&mut e)?;
                     let actual=readback(&e)?;
                     let current=actual.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()).ok_or("column target is absent after validation")?;
                     if policy_in(bound,inv,&actual,viewer,None,current,&mut e)!=Ok(false){return Err("validated column-world policy is not false".into());}

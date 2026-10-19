@@ -355,5 +355,12 @@
     "template": null,
     "version": "0.4.33",
     "web": false
+  },
+  {
+    "file": "todo-schema",
+    "version": "0.4.35",
+    "web": false,
+    "template": null,
+    "sha256": "067ed00754a42f4670590b362267175917875e151795eddab231d1cdcbd49060"
   }
 ]

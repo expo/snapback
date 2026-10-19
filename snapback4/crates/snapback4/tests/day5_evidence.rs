@@ -19,11 +19,12 @@ fn snapshot(root:&Path)->BTreeMap<PathBuf,Vec<u8>> {
     let mut out=BTreeMap::new();walk(root,root,&mut out);out
 }
 #[test]
-fn zero_business_cases_refuse_unless_fixture_only_is_explicit() {
+fn generated_campaigns_cover_default_test_but_saved_fixtures_require_business_cases() {
     let app=App::new();app.write("snapback/schema.q","use personas alice\nquery alive():\n  return true\n");
     app.write("versions/v1/schema.q",&app.read("snapback/schema.q"));app.write("versions/v1/fixtures/.gitkeep","");
-    for source in [false,true] {
-        let args=if source {vec!["test","--source","versions/v1"]}else{vec!["test"]};
+    let generated=app.ok(&["test"]);
+    assert!(generated.contains("no authored business cases") && generated.contains("generated-fixture only"), "{generated}");
+    for args in [vec!["test","--source","versions/v1"],vec!["test","--fixture","versions/v1/fixtures"]] {
         let out=app.run(&args);assert!(!out.status.success());assert!(String::from_utf8_lossy(&out.stderr).contains("no business cases executed"),"{out:?}");
         let mut allowed=args;allowed.push("--fixture-only");app.ok(&allowed);
     }
@@ -87,4 +88,13 @@ fn missing_saved_directory_and_empty_working_snapshot_are_not_saved_yet() {
     let empty=app.run(&["deploy","deployment","--save-version","versions/v1"]);
     assert!(!empty.status.success());assert!(String::from_utf8_lossy(&empty.stderr).contains("not saved yet"),"{empty:?}");
     assert!(!app.0.join("versions/v1").exists());
+}
+
+#[test]
+fn generated_password_campaign_prepares_live_read_through_without_a_dev_store() {
+    let app=App::new();
+    app.write("snapback/schema.q", "use identity password\ntable parents:\n  owner: principal\n  read <- .owner = viewer\n  online only\ntable children:\n  parent: parents\n  immutable parent\n  cap 20 by parent\n  read through live .parent\n  online only\nquery parents():\n  return parents first 10 by .id\n");
+    let text=app.ok(&["test"]);
+    assert!(text.contains("security unauthenticated serve HTTP"),"{text}");
+    assert!(!app.0.join(".snapback4/store.sqlite").exists());
 }

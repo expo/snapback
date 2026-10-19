@@ -161,7 +161,8 @@ mod tests {
             }
         }
         expected.push(serde_json::json!({"file":"todo-schema","version":"0.4.30","web":false,"template":null,"sha256":digest(&super::super::without_design_references(include_str!("starter/previous/schema-0.4.30.q")))}));
-        expected.push(serde_json::json!({"file":"todo-schema","version":"0.4.33","web":false,"template":null,"sha256":digest(&super::super::without_design_references(include_str!("starter/schema.q")))}));
+        expected.push(serde_json::json!({"file":"todo-schema","version":"0.4.33","web":false,"template":null,"sha256":digest(&super::super::without_design_references(include_str!("starter/previous/schema-0.4.33.q")))}));
+        expected.push(serde_json::json!({"file":"todo-schema","version":"0.4.35","web":false,"template":null,"sha256":digest(&super::super::without_design_references(include_str!("starter/schema.q")))}));
         if std::env::var_os("SNAPBACK4_UPDATE_PROOF_DIGESTS").is_some() {
             std::fs::write(concat!(env!("CARGO_MANIFEST_DIR"),"/src/verbs/init/proof-digests.json"),serde_json::to_string_pretty(&expected).unwrap()+"\n").unwrap();
         } else {

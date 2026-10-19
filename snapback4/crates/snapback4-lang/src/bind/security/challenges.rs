@@ -27,7 +27,7 @@ impl Reachability {
 #[derive(Clone,Debug,Serialize)]
 pub struct Counterexample {pub reachability:Reachability,pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String, pub observations:Option<paired::Observations>,pub history:Vec<histories::Step>}
 #[derive(Clone,Debug,Default,Serialize)]
-pub struct Campaign {#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
+pub struct Campaign {#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
 impl Campaign {
     pub fn bounded(milliseconds:u64)->Self {Self{work_remaining:Some(512),deadline:Some(std::time::Instant::now()+std::time::Duration::from_millis(milliseconds)),..Self::default()}}
     pub(super) fn reserve(&mut self,cost:usize)->bool {
@@ -38,6 +38,7 @@ impl Campaign {
         }true
     }
     pub(super) fn exhausted(&mut self)->bool {
+        if self.work_remaining==Some(0){self.unsupported.insert("check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign".into());return true;}
         if self.deadline.is_some_and(|deadline|std::time::Instant::now()>=deadline){self.unsupported.insert("check concrete exploration time budget exhausted; remaining paths unproved; run snapback4 test for the full campaign".into());true}else{false}
     }
 }
@@ -156,7 +157,11 @@ fn engine_on_store(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probes:Vec<Pro
         }
     }}}
     engine.seed_at(seeded.iter().flat_map(|(t,rs)|rs.iter().map(move|r|(t.clone(),r.clone()))).collect::<Vec<_>>(),NOW).map_err(|e|format!("generated snapshot rejected by schema: {e}"))?;
-    let actual=readback(&engine)?;
+    validate_fixture(bound,&mut engine)?;
+    Ok(engine)
+}
+fn validate_fixture(bound:&Bound,engine:&mut Engine)->Result<(),String>{
+    let actual=readback(engine)?;
     for (name,values) in &actual {for row in values {
         snapback4_core::engine::validate::validate_row(&bound.schema,name,row).map_err(|e|e.to_string())?;
         for c in &bound.schema.tables[name].constraints {if let Constraint::FinalExistsOnInsert{table,index,key}=c {
@@ -164,8 +169,9 @@ fn engine_on_store(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probes:Vec<Pro
             if engine.fixture_policy(&rule,snapback4_core::SYSTEM_PRINCIPAL,None,row,NOW).map_err(|e|e.to_string())?!=rules::Verdict::Readable {return Err(format!("{name}: trusted seed did not establish final-exists constraint"));}
         }}
     }}
-    Ok(engine)
+    Ok(())
 }
+
 fn replay(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,word:&str,row:&Value)->Result<(bool,Value),String>{
     let name="$security.probe";let table=inv.table.clone();let key=id(&table);
     let read=Read{site:"security challenge".into(),table:table.clone(),index:"byId".into(),key:vec![Expr::Literal(key.clone())],provenance:KeyProvenance::Computed};
@@ -285,6 +291,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
             let rows=match readback(&seeded){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);continue;}};
             let Some(row)=rows.get(&inv.table).and_then(|r|r.first())else{out.unsupported.insert(format!("{}: no generated ordinary row",inv.table));break;};
             for viewer in [VIEWER,OTHER,"account:security-no-role","service:security"]{
+                if !out.reserve(1){break;}
                 if inv.target=="always" {
                     match policy(bound,inv,&rows,viewer,None,row){
                         Ok(false)=>{out.attempted+=1;out.admitted+=1;out.violations.push(Counterexample{reachability:Reachability::TrustedSeedOnly,history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:"$security.seed_at".into(),effect:"always".into(),row:row.clone(),old:None,supporting_rows:rows.clone(),rule_path:"trusted seed ingress; all typed and final-exists constraints rechecked".into(),scope:"actual seed_at commit/read-back; ordinary application reachability is not claimed".into()});found=true;},
@@ -295,6 +302,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                     let Some(p)=bound.programs.iter().find(|p|&p.program.name==operation)else{continue;};
                     let permitted=match policy(bound,inv,&rows,viewer,None,row){Ok(p)=>p,Err(why)=>{out.unsupported.insert(format!("{operation}: operation intent not judged: {why}"));continue;}};
                     let Some(args)=arguments(&p.program.args,variant)else{out.unsupported.insert(format!("{operation}: arguments need fixture assets or unsupported samples"));continue;};
+                    if !out.reserve(1){break;}
                     out.attempted+=1;
                     let mut seeded=match engine(bound,&rows,program("$security.seed",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))])){Ok(e)=>e,Err(e)=>{out.unsupported.insert(e);continue;}};
                     let args=match materialize_arguments(&mut seeded,&p.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{operation}: argument ledger unavailable: {why}"));continue;}};
@@ -318,7 +326,9 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                     let mut admission_rows=rows.clone();if word=="insert"{admission_rows.remove(&inv.table);}
                     let judged=if word=="read"{policy_in(bound,inv,&admission_rows,viewer,Some(row),row,&mut seeded)}else{policy(bound,inv,&admission_rows,viewer,(word!="insert").then_some(row),row)};
                     let allowed=match judged{Ok(v)=>v,Err(e)=>{out.unsupported.insert(e);continue;}};
-                    if allowed{continue;}out.attempted+=1;
+                    if allowed{continue;}
+                    if !out.reserve(1){break;}
+                    out.attempted+=1;
                     let replayed=if word=="read" {seeded.query("$security.seed",Context::new(viewer,BTreeMap::new()).at(NOW)).map(|q|(q.data!=Value::Null,row.clone())).map_err(|e|e.to_string())}else{replay(bound,inv,&rows,viewer,word,row)};
                     match replayed{
                         Ok((false,_))=>out.refused+=1,
@@ -371,6 +381,22 @@ fn materialize_arguments(engine:&mut Engine,args:&BTreeMap<String,ir::ArgType>,v
     values.iter().map(|(n,v)|one(engine,&args[n],v,viewer).map(|v|(n.clone(),v))).collect()
 }
 
+/// Fixture-free campaigns retain empty-start bootstraps and populated role worlds.
+/// The two initial states share the existing 512-single/512-pair work envelope.
+pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
+    campaign.history_limit=64;campaign.generated_fixture=false;
+    if !campaign.reserve(1){return;}
+    match engine_with(bound,&BTreeMap::new(),Vec::new()){
+        Ok(empty)=>fixture_observers(bound,&empty,campaign),
+        Err(why)=>{campaign.unsupported.insert(format!("empty initial campaign unavailable: {why}"));}
+    }
+    campaign.history_limit=448;campaign.generated_fixture=true;
+    match generated_fixture(bound,campaign){
+        Ok(fixture)=>if matrix{operations(bound,&fixture,campaign)}else{fixture_observers(bound,&fixture,campaign)},
+        Err(why)=>{campaign.unsupported.insert(format!("generated fixture campaign unavailable: {why}"));}
+    }
+    campaign.history_limit=0;campaign.generated_fixture=false;
+}
 /// Exercise every authored query/mutation with cross-principal candidates.
 /// This is conformance exploration, not a guessed spec oracle: only declared
 /// policies and replayed violations can fail security acceptance.

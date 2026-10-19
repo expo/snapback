@@ -15,12 +15,14 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
             if !out.reserve(1){return;}
             let rows=match snapshot_mode(bound,inv,variant,true){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);continue;}};
             for now in [NOW,NOW+999,NOW+1000,NOW+1001,NOW+1999,NOW+2000,NOW+2001] {
+                if !out.reserve(1){return;}
                 // Recreate the store for each boundary; never sweep before the
                 // read. Unswept expiry remains a logical absence by contract.
                 let mut engine=match engine(bound,&rows,probe.clone()){Ok(e)=>e,Err(e)=>{out.unsupported.insert(e);continue;}};
                 let actual=match readback(&engine){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);continue;}};
                 let Some(row)=actual.get(&inv.table).and_then(|rs|rs.first())else{continue;};
                 for viewer in [VIEWER,OTHER] {
+                    if !out.reserve(1){return;}
                     out.attempted+=1;
                     let Ok(q)=engine.query(name,Context::new(viewer,BTreeMap::new()).at(now))else{continue;};
                     if q.unavailable||!q.complete||q.data==Value::Null{continue;}

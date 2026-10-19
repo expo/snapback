@@ -141,7 +141,7 @@ fn cascade_why_includes_contextual_arithmetic_while_default_check_stays_compact(
 }
 
 #[test]
-fn sync_order_note_is_printed_on_every_check_and_clears_with_matching_window() {
+fn sync_order_note_is_retained_in_verbose_and_clears_with_matching_window() {
     let dir = std::env::temp_dir().join(format!("sb4-check-sync-order-{}", std::process::id()));
     fs::create_dir_all(dir.join("snapback")).unwrap();
     let source = include_str!("../../snapback4-lang/tests/fixtures/sync-windows.q");
@@ -152,7 +152,7 @@ fn sync_order_note_is_printed_on_every_check_and_clears_with_matching_window() {
         String::from_utf8(output.stdout).unwrap()
     };
     for _ in 0..2 {
-        let text = run(&["check"]);
+        let text = run(&["check", "--verbose"]);
         assert_eq!(text.matches(" — N_SYNC_ORDER:").count(), 1, "{text}");
         assert!(text.contains("schema.q:22:10") && text.contains("index [conversationId, at, id]"), "{text}");
     }
@@ -176,8 +176,10 @@ fn no_horizon_notes_are_compact_in_check_and_explained_by_verbose_or_why() {
         String::from_utf8(output.stdout).unwrap()
     };
     let plain = run(&["check"]);
-    assert_eq!(plain.matches(" — N_NO_HORIZON:").count(), 1, "{plain}");
-    assert!(plain.contains("note: N_NO_HORIZON (as above) also for table second (schema.q:5:1)"), "{plain}");
+    assert!(plain.contains("more actionable notes in check --verbose/JSON"), "{plain}");
+    let full = run(&["check", "--verbose"]);
+    assert_eq!(full.matches(" — N_NO_HORIZON:").count(), 2, "{full}");
+    assert!(full.contains("schema.q:5:1"), "{full}");
     assert!(plain.contains("check --verbose"));
     assert!(plain.contains("schema.q:1:1") && plain.contains("schema.q:5:1"), "{plain}");
     assert!(!plain.contains("rewrite:"));
@@ -438,10 +440,12 @@ fn empty_start_reachability_uses_memory_without_opening_a_project_store() {
  let data:serde_json::Value=serde_json::from_slice(&output.stdout).unwrap();
  assert!(data["security"]["invariants"].as_array().unwrap().iter().any(|v|v["counterexample"]["reachability"]=="authored-fixture-trace"),"{data}");
  for args in [vec!["check"],vec!["check","--all"]]{
+  let args_verbose=args.contains(&"--all");
   let output=Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
   assert_eq!(output.status.code(),Some(1));
   let text=String::from_utf8(output.stderr).unwrap();
-  assert_eq!(text.matches("populated production states remain uncovered").count(),1,"{text}");
+  assert!(text.contains("run snapback4 test") && text.contains("run snapback4 audit"),"{text}");
+  if args_verbose { assert!(text.contains("campaign not covered:"),"{text}"); }
  }
  assert!(!dir.join(".snapback4/store.sqlite").exists(),"security check must not adopt or create a dev store");
 }

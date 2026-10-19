@@ -25,6 +25,14 @@ pub(crate) fn tier(code: &str) -> Tier {
     }
 }
 
+/// Security findings that can grant authority stay ahead of repeated advice.
+pub(crate) fn summary_order(code:&str)->(Tier,u8){
+    (tier(code),match code{
+        "N_PRIVILEGE_ESCALATION"=>0,"N_ROLE_WIDE_READ"=>1,
+        "N_INVARIANT_RESTATES_RULE"=>3,"N_BROAD_READ"=>4,"N_SECURITY_INTENT"=>5,_=>2,
+    })
+}
+
 /// The first words of a note's line: what to do about it, or that nothing
 /// needs doing (wave 7 #11: "put a one-line verdict on every advisory note").
 // @ref LLP 3000.036#17.7 — the verdict leads; the explanation follows it.

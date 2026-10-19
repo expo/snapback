@@ -62,7 +62,11 @@ cross-operation transition assertions still need a separate reduction.
 Predicates use the existing rule vocabulary: `.field`, `viewer`, `exists`,
 comparisons, `and`, `or`, `not`. For a role write use the complete roster probe,
 for example `invariant members.role write only exists roles[viewer, role = 'owner']`
-in a schema declaring those tables. A declaration never grants authority.
+in a schema declaring those tables. A declaration never grants authority. Whole-row read intent also protects logical
+existence: when occupancy totals are intentionally public but roster identities
+are private, declare column read intent for those identities instead. Include
+a service seat explicitly when the spec permits it; seats are ordinary checked
+viewers, never implicitly exempt.
 
 The implemented proof fragment exhaustively checks independent three-valued
 rule predicates. A failed implication is unproved until an engine replay

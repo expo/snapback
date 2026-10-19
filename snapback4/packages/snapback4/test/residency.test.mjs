@@ -243,15 +243,15 @@ test("presence effects residency is additive in check, why and generated artifac
   assert.ok(api.includes(explanation));
   assert.match(api, /name: "send", predicts: "eligible"/);
   writeFileSync(path, effects.replace("  if not exists connected[viewer]:\n    emit notify { target: viewer }", "  require exists connected[viewer] else X"));
-  assert.match(run("check"), /N_NOT_PREDICTABLE[\s\S]*decides a require X/);
+  assert.match(run("check", "--verbose"), /N_NOT_PREDICTABLE[\s\S]*decides a require X/);
   writeFileSync(path, effects);
-  assert.doesNotMatch(run("check"), /N_NOT_PREDICTABLE|N_NOW_SERVER/);
+  assert.doesNotMatch(run("check", "--verbose"), /N_NOT_PREDICTABLE|N_NOW_SERVER/);
 });
 
 test("check sidecar, why and test residency print facts, changes and measured cold rows", { timeout: hangBudget(1) }, async (t) => {
   const directory = project(t);
   const run = (...args) => { const result = spawnSync(binary, args, { cwd: directory, encoding: "utf8" }); assert.equal(result.status, 0, result.stdout + result.stderr); return result.stdout; };
-  const first = run("check", "--residency");
+  const first = run("check", "--residency", "--verbose");
   assert.match(first, /residency \(facts\)/); assert.match(first, /operations \(facts\)/);
   assert.match(first, /from the read rule/); assert.match(first, /inherited from notes/);
   assert.match(first, /N_MAINTAIN_SYNCED/);
@@ -259,8 +259,8 @@ test("check sidecar, why and test residency print facts, changes and measured co
   assert.match(run("why", "notes"), /inferred from read/);
   const path = join(directory, "snapback/schema.q");
   writeFileSync(path, schema.replace("  sync last 2 by byTime", "  online only"));
-  assert.match(run("check"), /N_NOW_SERVER[\s\S]*localNotes/);
-  assert.doesNotMatch(run("check"), /N_NOW_SERVER/);
+  assert.match(run("check", "--verbose"), /N_NOW_SERVER[\s\S]*localNotes/);
+  assert.doesNotMatch(run("check", "--verbose"), /N_NOW_SERVER/);
   writeFileSync(path, schema);
   const fixture = join(directory, "fixture"); mkdirSync(fixture);
   writeFileSync(join(fixture, "notes.jsonl"), [1, 2, 3].map((n) => JSON.stringify({ id: `n${n}`, owner: "dev:alice", text: `note${n}`, at: n })).join("\n"));

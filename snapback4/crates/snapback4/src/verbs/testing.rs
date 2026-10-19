@@ -105,11 +105,7 @@ pub fn test(options: &Options) -> i32 {
             Err(why)=>{security_campaign.unsupported.insert(format!("trusted fixture campaign unavailable: {why}"));}
         }
     }else{
-        security_campaign.generated_fixture=true;
-        match snapback4_lang::security::challenges::generated_fixture(&bound,&mut security_campaign){
-            Ok(isolated)=>snapback4_lang::security::challenges::operations(&bound,&isolated,&mut security_campaign),
-            Err(why)=>{security_campaign.unsupported.insert(format!("generated fixture campaign unavailable: {why}"));}
-        }
+        snapback4_lang::security::challenges::generated_campaign(&bound,&mut security_campaign,true);
     }
     let security_campaign=snapback4_lang::security::challenges::run_selected_after(&bound,None,security_campaign);
     let mut security_campaign=security_campaign;

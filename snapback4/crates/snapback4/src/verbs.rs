@@ -441,7 +441,7 @@ pub fn check(options: &Options) -> i32 {
             })
                 .chain(certificates.iter().flat_map(|certificate| &certificate.search).map(|search| crate::note_rank::Note { site: search.site.to_string(), code: search.code.to_string(), summary: present(search.summary), form: None, compact: None }))
                 .collect::<Vec<_>>();
-            notes.sort_by_key(|note|(crate::note_rank::tier(&note.code),note.site.clone(),note.code.clone(),note.summary.clone()));
+            notes.sort_by_key(|note|(crate::note_rank::summary_order(&note.code),note.site.clone(),note.code.clone(),note.summary.clone()));
             let remaining=notes.len().saturating_sub(5);notes.truncate(5);
             if remaining>0 {println!("{remaining} more actionable notes in check --verbose/JSON");}
             for line in crate::note_rank::render(notes) { println!("{}", crate::presentation::abbreviate_quoted(&line)); }
@@ -487,7 +487,7 @@ pub fn check(options: &Options) -> i32 {
             if options.json { eprintln!("{report}"); } else { println!("{report}"); }
         }
     }
-    if !options.json { security::summary(&security,options.flags.contains_key("verbose")); }
+    if !options.json { security::summary(&security,options.flags.contains_key("verbose")||options.flags.contains_key("all")); }
     // @ref LLP 3000.011.003.000#7.2 — init-first projects keep the todo starter's files; name them and the one command that fits them.
     if !options.json && let Some(report) = init::starter_leftovers(&project.root) { println!("{report}"); }
     if security.refuted() { 1 } else { 0 }

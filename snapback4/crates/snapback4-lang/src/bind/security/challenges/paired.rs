@@ -104,7 +104,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                     let cases=histories::fixture_cases(p,&present,&[VIEWER.into(),OTHER.into()],out);
                     if cases.len()>32{out.unsupported.insert(format!("{}: paired observer arguments capped at 32; remaining combinations not covered",p.name));}
                     for args in cases.into_iter().take(32){
-                    if !out.reserve(4){return;}
+                    if !out.reserve(12){return;}
                         if out.paired_observer_calls+4>8192{out.unsupported.insert("paired observers capped at 8192 call reservations; remaining worlds not covered".into());return;}
                     out.paired_observer_calls+=4;
                     let execute=|seeds:&BTreeMap<String,Vec<Value>>|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>),String>{

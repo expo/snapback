@@ -13,17 +13,12 @@ pub(super) fn report(project:&Project,bound:&Bound,options:&Options)->Report{
     if !bound.invariants.is_empty(){
         let mut selection=options.clone();
         if !selection.flags.contains_key("fixture")&&project.root.join("fixtures").is_dir(){selection.flags.insert("fixture".into(),project.root.join("fixtures").to_string_lossy().into_owned());}
-        let fixture=if selection.flags.contains_key("fixture"){
-            super::test_fixture::engine_at(project,bound,&selection,1_800_000_000_000)
-        }else{
-            campaign.generated_fixture=true;
-            security::challenges::generated_fixture(bound,&mut campaign)
-
-        };
-        match fixture{
-            Ok(fixture)=>security::challenges::fixture_observers(bound,&fixture,&mut campaign),
-            Err(why)=>for verdict in &mut report.invariants{verdict.reasons.push(format!("fixture reachability not covered: {why}"));},
-        }
+        if selection.flags.contains_key("fixture"){
+            match super::test_fixture::engine_at(project,bound,&selection,1_800_000_000_000){
+                Ok(fixture)=>security::challenges::fixture_observers(bound,&fixture,&mut campaign),
+                Err(why)=>{campaign.unsupported.insert(format!("fixture reachability not covered: {why}"));}
+            }
+        }else{security::challenges::generated_campaign(bound,&mut campaign,false);}
     }
     let sites=report.invariants.iter().filter(|v|v.status==security::Status::Unproved&&!campaign.violations.iter().any(|c|c.invariant_site==v.invariant.site.to_string()&&c.reachability.is_reachable())).map(|v|v.invariant.site.to_string()).collect();
     let campaign=security::challenges::run_selected_after(bound,Some(&sites),campaign);

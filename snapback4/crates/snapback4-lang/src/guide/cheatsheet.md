@@ -179,4 +179,4 @@ Default verification loop: `npx snapback4 check` → `npx snapback4 test` →
 `npx snapback4 audit`. State invariants from the spec's roles, resource relationships
 and private columns; copying a rule cannot catch its mistake. Test needs no hand-written
 fixtures and works with password-only apps. Check keeps full reasons behind `--verbose`.
-Staging discovery and provisioning are covered by DX4; see `guide staging`.
+See `guide staging` for real-user provisioning and staging proofs.

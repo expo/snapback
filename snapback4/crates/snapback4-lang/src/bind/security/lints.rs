@@ -61,8 +61,10 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
         let Some(policy)=&inv.policy else{continue;};
         let table=&bound.schema.tables[&inv.table];
         let restates=super::effects(inv).iter().all(|word|{
-            let gate=if *word=="read"{super::columns::admission(table,inv.column.as_deref())}else{table.rules.for_effect(super::effect(word)).clone()};
-            kernel::implies(&gate,policy)==Ok(true)&&kernel::implies(policy,&gate)==Ok(true)
+            if matches!(*word,"insert"|"update")&&!table.written_by.is_empty(){return false;}
+            let gate=if *word=="read"{super::columns::admission(table,inv.column.as_deref())}else if *word=="update"{super::images::stable(table,&table.update_rule_judged())}else{table.rules.for_effect(super::effect(word)).clone()};
+            let intent=if *word=="update"{super::images::stable(table,&policy.old_and_next())}else{policy.clone()};
+            kernel::implies(&gate,&intent)==Ok(true)&&kernel::implies(&intent,&gate)==Ok(true)
         });
         if restates {note(&mut notes,&inv.site,"N_INVARIANT_RESTATES_RULE",format!("{}: this invariant restates the rule and can't catch a mistake in it; state the spec's intent instead",inv.target_label()),"rewrite from the spec: who may see/do what, for which resource and lifecycle state? Declare sensitive-column intent and current-role/relationship conditions independently; review security-invariants.q.draft");}
     }
