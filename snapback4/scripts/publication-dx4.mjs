@@ -16,6 +16,8 @@ export async function proveDX4(directory) {
   };
   const fences=(text,kind)=>[...text.matchAll(new RegExp("```"+kind+"\\n([\\s\\S]*?)\\n```","g"))].map(m=>m[1]);
   try {
+    const deadline=spawnSync(process.execPath,[cli,"why","E_IDENTITY_TIMEOUT"],{cwd,env,encoding:"utf8",timeout:30000});
+    assert.equal(deadline.status,0,deadline.stderr);assert.match(deadline.stdout,/partial|inspect/i);assert.match(deadline.stdout,/guide staging/);
     mkdirSync(join(cwd,"snapback"));
     const assets=await card("uploads","Placement replay");
     const assetSchema=fences(assets,"quarry"),assetScripts=fences(assets,"js");

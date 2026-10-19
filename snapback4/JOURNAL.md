@@ -96910,3 +96910,25 @@ a fresh Codex session both returned READY in round 2; verbatim evidence is in
 `llp/reviews/dx4/`. MIG owns the staging clock, SEC4 the security checks and
 QRY read semantics. Final qualification, copied-app warning transcripts and
 limits are recorded in the root WORKSTREAM-REPORT.md. No bump or push.
+
+
+### 2026-10-19 — DX4 wave-19 identity retry and local production lifecycle
+
+Coordinator's day-two fixes #6/#7: SDK guest/signup/login and proof account
+setup now share bounded retries of delivered auth-429 refusals, honoring the
+server retryAfterMs (older Retry-After), with cancellation and explicit setup
+deadline recovery. No ambiguous signup, token rotation, provisioning or release
+activation is replayed. Refusal gains the optional existing-wire retryAfterMs
+field for this commissioned SDK change; it adds no authority. LLP
+3000.000.000.001 §9 records the semantic amendment and independent Muse/fresh
+Codex READY reviews are under llp/reviews/dx4-wave19/.
+
+Deploy/rollback wait for the actual store owner before admission during local
+shutdown. Proof startServe stop reaps its retained child and awaits a bounded
+read-only owner-sidecar barrier, including worker watchdog cleanup; failed
+cleanup rejects. data --json returns {rows, more, limit}, exposing default
+50-row truncation. All existing CLI consumers and guide changes 0.4.35 are
+updated. SEC4 retains security/check semantics; QRY retains query semantics;
+MIG's staging clock is unchanged. WORKSTREAM-REPORT.md binds exact test,
+packed Linux, assigned Mac Studio and copied-upgrade evidence and its limits.
+No version bump, publication or push.
