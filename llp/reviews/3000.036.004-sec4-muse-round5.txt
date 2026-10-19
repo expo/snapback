@@ -1,0 +1,21 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=d7f84d17-7b70-4c81-b7ba-e697d6302032]: Subscription quota exhausted. Your usage window resets at 2026-10-19T12:47:06Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+No material soundness or design-conformance issue found in this delta.
+
+What was checked:
+
+- [LLP 3000.036.004 §§13, 13.5, 13.6](/home/ccheever/projects/sb4-b18-sec4/llp/3000.036.004-security-invariants-and-exposure.rfc.md): intent quality, generated origins, 512-check budget, compact block, corpus-contradiction handling, preview-capture note.
+- Diff `068a57f578..HEAD` (two commits): challenges, generated fixture, paired/column/history observers, lints, privilege, adoption draft, check/test/audit verbs, release safeguards, [security_sec4.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/tests/security_sec4.rs).
+- Round 2 fixes: fallback final-exists validation via shared `validate_fixture`, plus 512-budget `reserve()` on worlds, steps, and observer calls, with regression tests.
+- Round 4 fixes: column-alternate revalidation before observation ([column_reads.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/security/challenges/column_reads.rs:125)); reservations before absence, ledger-refork, and prior forks ([histories.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs:152)); over-reserved paired blocks covering primary plus repeats (12/4/2-unit reservations); independent principal population via `1 << principal-count` with direct-principal rules kept unlinked, with focused regressions for each.
+- Fair tuples (same first tuple to every actor, then diagonal, with literal pinning). Independent lint (`N_INVARIANT_RESTATES_RULE` both-directions implication only) and question-only draft (equivalent gate filtered out). Update-only grammar, media coupled-ledger witnesses, compact counts with all reachable FAIL sites plus origin, top-5 notes with remainder, and `failed` (never `ok`) beside exit 1.
+- Origins stay distinct (`AuthoredFixtureTrace` vs `GeneratedFixtureTrace`, seed/synthetic supplemental only). Empty-start traces keep the authored label per §13.6. No silencing of the two corpus contradictions was introduced in code; they remain declared-policy contradictions per §13.6.
+- Preview capture `TEMP TABLE` to `TABLE` is scoped to the disposable `VACUUM INTO` snapshot in [release_preview.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4/src/verbs/release_preview.rs:106), deleted on drop. The TEMP-clearing rationale holds. Fresh-snapshot use makes missing `IF NOT EXISTS` a non-issue.
+
+Pending qualification is noted and, per instruction, not treated as a readiness issue.

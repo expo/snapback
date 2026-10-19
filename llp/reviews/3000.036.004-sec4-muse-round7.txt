@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=acf5baee-0244-40b7-8fc2-e4e890a44dad]: Subscription quota exhausted. Your usage window resets at 2026-10-19T12:47:06Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+The new delta is sound and matches the added §13.6 paragraphs. No material issues.
+
+What I checked:
+
+- Stability fix ([stability.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/security/challenges/stability.rs)): `implicit()` now seeds `removed` from explicit deletes plus expiring written tables only, follows on-delete edges solely from possibly removed parents, and propagates removal through cascade (not set-null) while set-null still propagates writes. This is sound against the runtime: cascade/set-null walks live only on the delete path ([write_references.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-core/src/engine/write_references.rs)), and updates can never enter it since patches cannot change `id` ([write.rs `update_attempt`](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-core/src/engine/write.rs)). Maintain and live-through retirement still trigger from merely affected tables, so that closure stays conservative. No `snapback4-core` file changed, so no runtime behavior change holds.
+- The upheld-appeal regression is load-bearing: with the old closure the appeals predicate was weakened away and the violation missed; the new test requires a real `correct` operation trace with `GeneratedFixtureTrace` origin, and it passes.
+- Incomplete-page disclosures ([histories.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs)): dropping the `complete` requirement only adds violations for rows actually returned, with exact-data repeatability still required. Sound, and paired/boolean completeness restrictions are untouched.
+- Absence worlds now revalidate the fixture (including ledger reconstructions), pinned by a new final-exists test. Cartesian gap above three principal columns is an explicit uncovered note, not silent.
+- Presentation/guides: neutral advisory header (no "check passed" beside failures, asserted by test), both TEMPLATE mirror examples and the deploy snippet use operation intent (`toggle`, `revise`, `send`), packed proof adds the plain `todo-backend` case (6→7 starters).
+
+Observed results: `security_sec4` 19/19 pass, including both new tests; targeted `check_notes` header test passes. Prior validations (column/absence/fallback worlds, bounded reservations, distinct origins) are covered by those passing suites, and nothing in the delta suppresses seat/count contradictions — the only output change is the header reword. Not run: the full packed JS proof and complete battery, which need built artifacts; that is pending qualification, separate from design readiness per the brief. No files were written, per the read-only instruction (so no `llp/reviews/` artifact was created).

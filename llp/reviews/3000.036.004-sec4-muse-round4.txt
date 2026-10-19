@@ -1,0 +1,28 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=0003a0f5-5927-4cd7-a414-c85c4e0895cf]: Subscription quota exhausted. Your usage window resets at 2026-10-19T12:47:06Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material design or implementation issues found in this pass. Read-only review; no edits made, and every shell command ran with an explicit timeout.
+
+The two prior Codex findings are fixed at the root cause with common code paths, not special cases:
+
+- Fallback final-exists bypass: both the batch path (`engine_on_store`) and the incremental fallback in [`generated.rs`](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/security/challenges/generated.rs) now go through one shared `validate_fixture`, which rechecks `validate_row` plus every `FinalExistsOnInsert` via `fixture_policy` — including on the reserve-exhausted early return. Regression test `rejected_fallback_final_exists_world_never_becomes_a_failing_fixture` in [`security_sec4.rs`](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/tests/security_sec4.rs) asserts the invalid seed stays an error, yields zero violations, and names final-exists in coverage.
+- 512 budget escape: `Campaign::bounded(1500)` owns one shared 512-unit reservation plus the deadline; generated fixture worlds (initial + fallback + per-row), history singles/pairs and mutation steps, paired/timed/column observers all call `reserve()`, and exhaustion reports unproved, never proof. `generated_campaign` splits empty-start 64 / populated 448 under the existing envelope, with empty traces keeping `AuthoredFixtureTrace`. Regression test `bounded_campaign_charges_initial_worlds_and_every_mutation_step` asserts the single reservation is consumed and replay leaves `attempted == 0` with an exhaustion note.
+
+Other areas checked independently against §§13/13.5/13.6:
+
+- Fair tuples: `fixture_cases` now takes the program, harvests valid typed literals, and rotates with an offset; `histories::run` gives every actor the same first tuple before diagonal variation. Covered by `the_same_update_tuple_reaches_every_role_before_diagonal_variation`.
+- Independent principal columns: second and later principal columns draw distinct roster members (or independent VIEWER/OTHER bits on unlinked payload tables); grant/membership tables sample every actor.
+- Intent lint/draft: `N_INVARIANT_RESTATES_RULE` is advisory equivalence only, and `draft` emits commented role/column questions never equivalent to the read gate. Covered by both advice-only and draft tests.
+- Update-only/media/compact: `price update only` test proves creation is not refuted; media pairs share one verified fixture ledger fork with hydrated alternate uploads; `verbs/security.rs` summary counts proved/refuted/unproved plus supplemental, lists every failing site with origin and one operation, and `note_rank::summary_order` matches the §13.5 consequence order with five-note truncation plus remainder.
+- Origins and contradictions: `GeneratedFixtureTrace` vs `AuthoredFixtureTrace` stay distinct through relabel, `apply` ranking, and FAIL lines; no implicit service-seat exemption exists (seats are explicit actors, and the `Deny` substitution is scoped to caller-role analysis); aggregate/count observations are retained, so the two corpus contradictions (missing seat, public count vs whole-row private intent) surface as declared-policy contradictions rather than silent exemptions.
+
+One non-blocking note: I kicked off `cargo test -p snapback4-lang --test security_sec4` for execution corroboration and it was still running at synthesis time; the assertions above are verified by reading the test bodies and the code they exercise. Per your framing, pending qualification is not a readiness issue, but the verdict's test-execution leg should be closed by that run before landing.
+READY — confirmed with execution evidence. All 14 tests in `security_sec4` pass (`14 passed; 0 failed`, 88.58s), including the two regression tests for the prior Codex findings:
+
+- `rejected_fallback_final_exists_world_never_becomes_a_failing_fixture` — ok
+- `bounded_campaign_charges_initial_worlds_and_every_mutation_step` — ok
+
+No material issues. The pending-qualification caveat from my earlier reply is now closed for this suite; broader qualification (fifty fixture-free campaigns, eleven high-lane outcomes, 200-schema survey per §13.4/§13.6) remains the author's track and is not a design-readiness blocker.
