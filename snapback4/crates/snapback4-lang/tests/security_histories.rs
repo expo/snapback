@@ -235,3 +235,13 @@ fn omitted_nullable_values_have_presence_observers() {
  let c=fixture_campaign(source,vec![("notes".into(),row(&[("id",Value::Id("n".into())),("owner",Value::Id("dev:owner".into()))]))]);
  assert!(c.violations.iter().any(|v|v.operation=="present"&&v.history.is_empty()&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace),"{c:?}");
 }
+
+#[test]
+fn an_empty_trusted_store_can_reach_authored_disclosure() {
+ let source="table notes:\n  owner: principal\n  body: text <=40\n  read <- allow\n  insert <- .owner = viewer\n  online only\nmutation add():\n  return insert notes { owner: viewer, body: 'secret' }\nquery inspect(note: notes):\n  return notes[note]\ninvariant notes.read only .owner = viewer\ninvariant notes.body read only .owner = viewer\n";
+ let c=fixture_campaign(source,vec![]);
+ for effect in ["read","column read observation"] {assert!(c.violations.iter().any(|v|v.effect==effect&&v.operation=="inspect"&&v.history.len()==1&&v.history[0].operation=="add"&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace),"{effect}: {c:?}");}
+ let source=source.replace("mutation add():\n  return insert notes { owner: viewer, body: 'secret' }\n", "");
+ let c=fixture_campaign(&source,vec![]);assert!(c.violations.is_empty(),"{c:?}");
+ let b=compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut r=security::analyze(&b);let c=security::challenges::run(&b);security::challenges::apply(&mut r,&c);assert!(!c.violations.is_empty());assert!(!r.refuted());
+}

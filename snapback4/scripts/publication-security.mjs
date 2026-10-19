@@ -49,7 +49,7 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
   }
   function campaign(project, requireHttp = false) {
     const output = command(["test", "--fixture-only"], project);
-    const counts = /security tests: (\d+) attempted, (\d+) refused, (\d+) violations; finite campaign, not proof/.exec(output);
+    const counts = /security tests: (\d+) attempted, (\d+) refused, (\d+) reachable violations; (\d+) seed\/synthetic observations \(non-failing\); finite campaign, not proof/.exec(output);
     assert.ok(counts, "default test executes the generated finite security campaign");
     assert.ok(Number(counts[1]) > 0, "the security campaign actually attempts challenges");
     assert.equal(Number(counts[3]), 0);
@@ -58,7 +58,7 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     const artifactBoundary = "security not covered: unauthenticated serve HTTP for native/action/effect applications needs its complete deployed artifacts";
     if (requireHttp) assert.ok(http && Number(http[1]) > 0, "the isolated production HTTP campaign runs");
     else assert.ok((http && Number(http[1]) > 0) || output.includes(artifactBoundary), "HTTP coverage is executed or explicitly bounded by deployed artifacts");
-    return { attempted: Number(counts[1]), refused: Number(counts[2]), violations: Number(counts[3]), unauthenticatedHttpRefused: Number(http?.[1] ?? 0),
+    return { attempted: Number(counts[1]), refused: Number(counts[2]), violations: Number(counts[3]), seedSyntheticObservations: Number(counts[4]), unauthenticatedHttpRefused: Number(http?.[1] ?? 0),
       ...(http ? {} : { unauthenticatedHttpNotCovered: "complete deployed native/action/effect artifacts required" }),
       revocationHttpRefused: Number(/security live-session revocation HTTP: (\d+) attempts refused/.exec(output)?.[1] ?? 0) };
   }
@@ -73,6 +73,7 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     assert.match(readFileSync(join(project, "snapback/generated/security-invariants.q.draft"), "utf8"), /DRAFT: NOT ACCEPTED/);
     const audited = JSON.parse(command(["audit", "--json"], project));
     assert.equal(audited.format, 1); assert.ok(audited.exposures.some(exposure => exposure.table === "privateNotes"));
+    assert.ok(audited.exposures.some(exposure => exposure.table === "privateNotes" && exposure.column_audiences?.body), "installed audit exposes the body column audience");
     const checkAudit = JSON.parse(command(["check", "--audit", "--json"], project));
     assert.equal(checkAudit.format, 1); assert.deepEqual(checkAudit, audited, "check --audit is the structured audit alias");
     const finite = campaign(project, true);
@@ -81,7 +82,9 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     writeFileSync(join(project, "snapback/schema.q"), broad);
     const refuted = JSON.parse(command(["check", "--json"], project, 1));
     assert.equal(refuted.ok, false);
-    assert.ok(refuted.security.invariants.some(verdict => verdict.status === "refuted" && verdict.counterexample));
+    const readVerdicts = refuted.security.invariants.filter(verdict => verdict.invariant.target === "read");
+    assert.equal(readVerdicts.length, 2, "the installed card exercises row and column read intent");
+    assert.ok(readVerdicts.every(verdict => verdict.status === "refuted" && verdict.counterexample?.reachability === "authored-fixture-trace"), "ordinary writes from the empty initial store lead to actual row/column disclosure");
     const auditRefuted = JSON.parse(command(["audit", "--json"], project, 1));
     assert.ok(auditRefuted.invariants.some(verdict => verdict.status === "refuted"));
     command(["test", "--fixture-only"], project, 1);

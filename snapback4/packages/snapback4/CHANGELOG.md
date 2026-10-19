@@ -5,7 +5,8 @@
 Security: column read invariants (`invariant table.column read only P`) and
 per-column audit audiences; column-dependent authored observer challenges.
 Generated histories preserve complete fixture stores and media ledgers, range
-reference arguments and include fixture principals. Counterexamples label
+principal/reference/enum/time arguments, start from validated empty stores and
+replay media creation before role changes. Counterexamples label
 fixture reachability separately from seed/synthetic witnesses; only reachable
 violations fail acceptance. `check --all`, `audit --all` and `test --all` expose supplemental witnesses.
 Security notes have source locations, less existence/grant noise and a role

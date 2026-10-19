@@ -13,12 +13,16 @@ pub(super) fn report(project:&Project,bound:&Bound,options:&Options)->Report{
     if !bound.invariants.is_empty(){
         let mut selection=options.clone();
         if !selection.flags.contains_key("fixture")&&project.root.join("fixtures").is_dir(){selection.flags.insert("fixture".into(),project.root.join("fixtures").to_string_lossy().into_owned());}
-        if selection.flags.contains_key("fixture"){
-            match super::test_fixture::engine_at(project,bound,&selection,1_800_000_000_000){
-                Ok(fixture)=>security::challenges::fixture_observers(bound,&fixture,&mut campaign),
-                Err(why)=>for verdict in &mut report.invariants{verdict.reasons.push(format!("fixture reachability not covered: {why}"));},
-            }
-        }else{for verdict in &mut report.invariants{verdict.reasons.push("no trusted fixture: application reachability not covered; seed/synthetic witnesses are non-failing".into());}}
+        let fixture=if selection.flags.contains_key("fixture"){
+            super::test_fixture::engine_at(project,bound,&selection,1_800_000_000_000)
+        }else{
+            campaign.unsupported.insert("no supplied fixture: histories start at the validated empty store; populated production states remain uncovered".into());
+            snapback4_core::Store::memory().and_then(|store|snapback4_core::Engine::new_at(store,bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone()),1_800_000_000_000)).map_err(|why|why.to_string())
+        };
+        match fixture{
+            Ok(fixture)=>security::challenges::fixture_observers(bound,&fixture,&mut campaign),
+            Err(why)=>for verdict in &mut report.invariants{verdict.reasons.push(format!("fixture reachability not covered: {why}"));},
+        }
     }
     let sites=report.invariants.iter().filter(|v|v.status==security::Status::Unproved&&!campaign.violations.iter().any(|c|c.invariant_site==v.invariant.site.to_string()&&c.reachability==security::challenges::Reachability::AuthoredFixtureTrace)).map(|v|v.invariant.site.to_string()).collect();
     let campaign=security::challenges::run_selected_after(bound,Some(&sites),campaign);

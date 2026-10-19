@@ -244,7 +244,6 @@ fn role_candidates<'a>(bound:&Bound,p:&'a Program,initial:&BTreeMap<String,Vec<V
 pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     if bound.invariants.is_empty(){return;}
     let initial=match readback(fixture){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);return;}};
-    if initial.values().all(Vec::is_empty){out.unsupported.insert("history needs a trusted fixture; generated snapshots have separate reachability labels".into());return;}
     if initial.values().map(Vec::len).sum::<usize>()>1000{out.unsupported.insert("history fixture exceeds 1000 rows".into());return;}
     let actors=actors(bound,&initial);
     let probes=Vec::new();

@@ -426,3 +426,16 @@ fn two_scans_in_one_query_keep_their_distinct_audiences() {
     for audience in ["exists staff[viewer]", "exists tutors[viewer]"] { assert!(text.contains(audience), "{text}"); }
     for table in ["tickets[..]", "papers[..]"] { assert!(text.contains(table), "{text}"); }
 }
+
+#[test]
+fn empty_start_reachability_uses_memory_without_opening_a_project_store() {
+ let dir=std::env::temp_dir().join(format!("sb4-security-empty-start-{}",std::process::id()));
+ fs::create_dir_all(dir.join("snapback")).unwrap();
+ struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}let _scratch=Scratch(dir.clone());
+ fs::write(dir.join("snapback/schema.q"),"table notes:\n  owner: principal\n  body: text <=40\n  read <- allow\n  insert <- .owner = viewer\n  online only\nmutation add():\n  return insert notes { owner: viewer, body: 'secret' }\nquery inspect(note: notes):\n  return notes[note]\ninvariant notes.body read only .owner = viewer\n").unwrap();
+ let output=Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(["check","--json"]).output().unwrap();
+ assert_eq!(output.status.code(),Some(1),"{output:?}");
+ let data:serde_json::Value=serde_json::from_slice(&output.stdout).unwrap();
+ assert!(data["security"]["invariants"].as_array().unwrap().iter().any(|v|v["counterexample"]["reachability"]=="authored-fixture-trace"),"{data}");
+ assert!(!dir.join(".snapback4/store.sqlite").exists(),"security check must not adopt or create a dev store");
+}
