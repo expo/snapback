@@ -1,0 +1,16 @@
+{
+  "source": "crates/snapback4-difftest/tests/lean.rs:CLASSIFIED",
+  "classified": [
+    "lean--code--E_RULE~NOT_FOUND",
+    "lean--continuation-next--next~no-next",
+    "lean--next--next~no-next",
+    "lean--prelude-code--E_RULE~NOT_FOUND"
+  ],
+  "observed": {
+    "lean--code--E_RULE~NOT_FOUND": 3,
+    "lean--continuation-next--next~no-next": 35,
+    "lean--next--next~no-next": 67,
+    "lean--prelude-code--E_RULE~NOT_FOUND": 25
+  },
+  "newSignatures": []
+}

@@ -1,0 +1,443 @@
+{
+  "exit": 1,
+  "sourceSha256": "8ab8cf7fdc337841a4d3d88084f13ccc461e3c2cdb64f6713e162dfc9259984a",
+  "intent": "-- Careful-builder intent from the spec (repro only).\ninvariant reports.notes read only .homeowner = viewer or .author = viewer or exists rentalUnits[chimney = .chimney, landlord = viewer] or exists assignments[chimney = .chimney, sweep = viewer] or exists roles[viewer, role = 'master']\ninvariant reports.photos read only .homeowner = viewer or .author = viewer or exists rentalUnits[chimney = .chimney, landlord = viewer] or exists assignments[chimney = .chimney, sweep = viewer] or exists roles[viewer, role = 'master']\n",
+  "totalWitnesses": 12,
+  "board": [
+    {
+      "origin": "generated-fixture-trace",
+      "viewer": "account:security-roles-sweep-0",
+      "operation": "reportDetail",
+      "row": {
+        "author": "dev:security-b",
+        "chimney": "security-chimneys-1",
+        "homeowner": "dev:security-a",
+        "id": "security-reports-1",
+        "inspectedAt": 1799999999000,
+        "landlord": "dev:security-a",
+        "notes": "sample1",
+        "originalRating": "do-not-use",
+        "photos": [
+          {
+            "bytes": 24,
+            "duration": null,
+            "height": 1,
+            "id": "01MCC5RM005VKBVC07AP7H1B3K",
+            "type": "image/png",
+            "width": 1
+          }
+        ],
+        "rating": "do-not-use"
+      },
+      "history": []
+    },
+    {
+      "origin": "generated-fixture-trace",
+      "viewer": "account:security-roles-sweep-1",
+      "operation": "reportDetail",
+      "row": {
+        "author": "dev:security-b",
+        "chimney": "security-chimneys-1",
+        "homeowner": "dev:security-a",
+        "id": "security-reports-1",
+        "inspectedAt": 1799999999000,
+        "landlord": "dev:security-a",
+        "notes": "sample1",
+        "originalRating": "do-not-use",
+        "photos": [
+          {
+            "bytes": 24,
+            "duration": null,
+            "height": 1,
+            "id": "01MCC5RM005VKBVC07AP7H1B3K",
+            "type": "image/png",
+            "width": 1
+          }
+        ],
+        "rating": "do-not-use"
+      },
+      "history": []
+    },
+    {
+      "origin": "generated-fixture-trace",
+      "viewer": "account:security-roles-sweep-0",
+      "operation": "reportDetail",
+      "row": {
+        "author": "dev:security-b",
+        "chimney": "security-chimneys-1",
+        "homeowner": "dev:security-a",
+        "id": "security-reports-1",
+        "inspectedAt": 1799999999000,
+        "landlord": "dev:security-a",
+        "notes": "sample1",
+        "originalRating": "do-not-use",
+        "photos": [
+          {
+            "bytes": 24,
+            "duration": null,
+            "height": 1,
+            "id": "01MCC5RM005VKBVC07AP7H1B3K",
+            "type": "image/png",
+            "width": 1
+          }
+        ],
+        "rating": "do-not-use"
+      },
+      "history": []
+    },
+    {
+      "origin": "generated-fixture-trace",
+      "viewer": "account:security-roles-sweep-1",
+      "operation": "reportDetail",
+      "row": {
+        "author": "dev:security-b",
+        "chimney": "security-chimneys-1",
+        "homeowner": "dev:security-a",
+        "id": "security-reports-1",
+        "inspectedAt": 1799999999000,
+        "landlord": "dev:security-a",
+        "notes": "sample1",
+        "originalRating": "do-not-use",
+        "photos": [
+          {
+            "bytes": 24,
+            "duration": null,
+            "height": 1,
+            "id": "01MCC5RM005VKBVC07AP7H1B3K",
+            "type": "image/png",
+            "width": 1
+          }
+        ],
+        "rating": "do-not-use"
+      },
+      "history": []
+    },
+    {
+      "origin": "generated-fixture-trace",
+      "viewer": "account:security-roles-sweep-0",
+      "operation": "reportDetail",
+      "row": {
+        "author": "dev:security-b",
+        "chimney": "security-chimneys-1",
+        "homeowner": "dev:security-a",
+        "id": "security-reports-1",
+        "inspectedAt": 1799999999000,
+        "landlord": "dev:security-a",
+        "notes": "sample1",
+        "originalRating": "do-not-use",
+        "photos": [
+          {
+            "bytes": 24,
+            "duration": null,
+            "height": 1,
+            "id": "01MCC5RM005VKBVC07AP7H1B3K",
+            "type": "image/png",
+            "width": 1
+          }
+        ],
+        "rating": "do-not-use"
+      },
+      "history": [
+        {
+          "operation": "register",
+          "viewer": "service:operator",
+          "args": {
+            "role": {
+              "String": "homeowner"
+            }
+          },
+          "result": {
+            "result": {
+              "Row": {
+                "id": {
+                  "Id": "01MCC5RM008KG03630MMNBXT5D"
+                },
+                "principal": {
+                  "Id": "service:operator"
+                },
+                "role": {
+                  "String": "homeowner"
+                }
+              }
+            },
+            "seq": 82,
+            "state": "sent"
+          }
+        }
+      ]
+    },
+    {
+      "origin": "generated-fixture-trace",
+      "viewer": "account:security-roles-sweep-1",
+      "operation": "reportDetail",
+      "row": {
+        "author": "dev:security-b",
+        "chimney": "security-chimneys-1",
+        "homeowner": "dev:security-a",
+        "id": "security-reports-1",
+        "inspectedAt": 1799999999000,
+        "landlord": "dev:security-a",
+        "notes": "sample1",
+        "originalRating": "do-not-use",
+        "photos": [
+          {
+            "bytes": 24,
+            "duration": null,
+            "height": 1,
+            "id": "01MCC5RM005VKBVC07AP7H1B3K",
+            "type": "image/png",
+            "width": 1
+          }
+        ],
+        "rating": "do-not-use"
+      },
+      "history": [
+        {
+          "operation": "register",
+          "viewer": "service:operator",
+          "args": {
+            "role": {
+              "String": "homeowner"
+            }
+          },
+          "result": {
+            "result": {
+              "Row": {
+                "id": {
+                  "Id": "01MCC5RM008KG03630MMNBXT5D"
+                },
+                "principal": {
+                  "Id": "service:operator"
+                },
+                "role": {
+                  "String": "homeowner"
+                }
+              }
+            },
+            "seq": 82,
+            "state": "sent"
+          }
+        }
+      ]
+    }
+  ],
+  "copiedLandlord": [
+    {
+      "origin": "generated-fixture-trace",
+      "viewer": "dev:security-a",
+      "operation": "unitReports",
+      "row": {
+        "author": "dev:security-b",
+        "chimney": "security-chimneys-11",
+        "homeowner": "dev:security-b",
+        "id": "security-reports-11",
+        "inspectedAt": 1799999999000,
+        "landlord": "dev:security-a",
+        "notes": "sample11",
+        "originalRating": "pass",
+        "photos": [
+          {
+            "bytes": 24,
+            "duration": null,
+            "height": 1,
+            "id": "01MCC5RM005VKBVC07AP7H1B3X",
+            "type": "image/png",
+            "width": 1
+          }
+        ],
+        "rating": "pass"
+      },
+      "history": []
+    },
+    {
+      "origin": "generated-fixture-trace",
+      "viewer": "dev:security-b",
+      "operation": "unitReports",
+      "row": {
+        "author": "dev:security-a",
+        "chimney": "security-chimneys-4",
+        "homeowner": "dev:security-a",
+        "id": "security-reports-4",
+        "inspectedAt": 1799999999000,
+        "landlord": "dev:security-b",
+        "notes": null,
+        "originalRating": "do-not-use",
+        "photos": [
+          {
+            "bytes": 24,
+            "duration": null,
+            "height": 1,
+            "id": "01MCC5RM005VKBVC07AP7H1B3P",
+            "type": "image/png",
+            "width": 1
+          }
+        ],
+        "rating": "do-not-use"
+      },
+      "history": []
+    },
+    {
+      "origin": "generated-fixture-trace",
+      "viewer": "dev:security-a",
+      "operation": "unitReports",
+      "row": {
+        "author": "dev:security-b",
+        "chimney": "security-chimneys-11",
+        "homeowner": "dev:security-b",
+        "id": "security-reports-11",
+        "inspectedAt": 1799999999000,
+        "landlord": "dev:security-a",
+        "notes": "sample11",
+        "originalRating": "pass",
+        "photos": [
+          {
+            "bytes": 24,
+            "duration": null,
+            "height": 1,
+            "id": "01MCC5RM005VKBVC07AP7H1B3X",
+            "type": "image/png",
+            "width": 1
+          }
+        ],
+        "rating": "pass"
+      },
+      "history": []
+    },
+    {
+      "origin": "generated-fixture-trace",
+      "viewer": "dev:security-b",
+      "operation": "unitReports",
+      "row": {
+        "author": "dev:security-a",
+        "chimney": "security-chimneys-4",
+        "homeowner": "dev:security-a",
+        "id": "security-reports-4",
+        "inspectedAt": 1799999999000,
+        "landlord": "dev:security-b",
+        "notes": null,
+        "originalRating": "do-not-use",
+        "photos": [
+          {
+            "bytes": 24,
+            "duration": null,
+            "height": 1,
+            "id": "01MCC5RM005VKBVC07AP7H1B3P",
+            "type": "image/png",
+            "width": 1
+          }
+        ],
+        "rating": "do-not-use"
+      },
+      "history": []
+    },
+    {
+      "origin": "generated-fixture-trace",
+      "viewer": "dev:security-a",
+      "operation": "unitReports",
+      "row": {
+        "author": "dev:security-b",
+        "chimney": "security-chimneys-11",
+        "homeowner": "dev:security-b",
+        "id": "security-reports-11",
+        "inspectedAt": 1799999999000,
+        "landlord": "dev:security-a",
+        "notes": "sample11",
+        "originalRating": "pass",
+        "photos": [
+          {
+            "bytes": 24,
+            "duration": null,
+            "height": 1,
+            "id": "01MCC5RM005VKBVC07AP7H1B3X",
+            "type": "image/png",
+            "width": 1
+          }
+        ],
+        "rating": "pass"
+      },
+      "history": [
+        {
+          "operation": "register",
+          "viewer": "service:operator",
+          "args": {
+            "role": {
+              "String": "homeowner"
+            }
+          },
+          "result": {
+            "result": {
+              "Row": {
+                "id": {
+                  "Id": "01MCC5RM008KG03630MMNBXT5D"
+                },
+                "principal": {
+                  "Id": "service:operator"
+                },
+                "role": {
+                  "String": "homeowner"
+                }
+              }
+            },
+            "seq": 82,
+            "state": "sent"
+          }
+        }
+      ]
+    },
+    {
+      "origin": "generated-fixture-trace",
+      "viewer": "dev:security-b",
+      "operation": "unitReports",
+      "row": {
+        "author": "dev:security-a",
+        "chimney": "security-chimneys-4",
+        "homeowner": "dev:security-a",
+        "id": "security-reports-4",
+        "inspectedAt": 1799999999000,
+        "landlord": "dev:security-b",
+        "notes": null,
+        "originalRating": "do-not-use",
+        "photos": [
+          {
+            "bytes": 24,
+            "duration": null,
+            "height": 1,
+            "id": "01MCC5RM005VKBVC07AP7H1B3P",
+            "type": "image/png",
+            "width": 1
+          }
+        ],
+        "rating": "do-not-use"
+      },
+      "history": [
+        {
+          "operation": "register",
+          "viewer": "service:operator",
+          "args": {
+            "role": {
+              "String": "homeowner"
+            }
+          },
+          "result": {
+            "result": {
+              "Row": {
+                "id": {
+                  "Id": "01MCC5RM008KG03630MMNBXT5D"
+                },
+                "principal": {
+                  "Id": "service:operator"
+                },
+                "role": {
+                  "String": "homeowner"
+                }
+              }
+            },
+            "seq": 82,
+            "state": "sent"
+          }
+        }
+      ]
+    }
+  ],
+  "authoredTransfers": []
+}
