@@ -636,3 +636,21 @@ fn pruned_suspended_output_preimages_refuse_plain_reexposure() {
  let hidden=old.replace("  score: int ?\n","");let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3,"score":7}));adopt(&mut e,&next,2).unwrap();adopt(&mut e,&hidden,3).unwrap();
  e.store_mut().prune_dormant(true,None).unwrap();let generation=e.generation();let error=adopt(&mut e,old,1).unwrap_err().to_string();assert!(error.contains("explicitly pruned"),"{error}");assert_eq!(e.generation(),generation);assert_eq!(e.store().count("items").unwrap(),1);
 }
+
+#[test]
+fn declaration_names_keep_their_meaning_after_table_or_declaration_gaps() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";let first=old.to_owned()+"backfill items double(n: int):\n  {n:n * 2}\n";let changed=first.replace("n * 2","n * 3");
+ for gap in [old,"query empty():\n  return true\n"] {let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&first,2).unwrap();adopt(&mut e,gap,3).unwrap();let generation=e.generation();let error=adopt(&mut e,&changed,4).unwrap_err().to_string();assert!(error.contains("changed historical meaning"),"{error}");assert_eq!(e.generation(),generation);}
+}
+#[test]
+fn reentering_a_same_column_transform_refuses_edits_to_its_reversed_view() {
+ let old="table items:\n  n: int\n  score: int default 7\n  public 'fixture'\n  update <- allow\n  online only\nmutation edit():\n  update items['a'] {score:11}\n";
+ let next=old.to_owned()+"backfill items twice(n: int):\n  {score:n * 2}\n";
+ for sparse in [false,true] {let mut e=engine(old);seed(&mut e,"items",if sparse{json!({"id":"a","n":3})}else{json!({"id":"a","n":3,"score":7})});adopt(&mut e,&next,2).unwrap();adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();adopt(&mut e,old,1).unwrap();write(&mut e,"edit");let generation=e.generation();let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains("changed while backfill"),"{error}");assert_eq!(e.generation(),generation);assert_eq!(field(&mut e,"items","a","score"),Value::Int(11));}
+}
+
+#[test]
+fn partial_output_suspension_keeps_original_absence_distinct_from_rollback_default() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";let plain=old.replace("  n:","  score: int default 10\n  n:");let next=plain.clone()+"backfill items increment(score: int ?):\n  {score:(score ?? 0) + 1}\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(1));adopt(&mut e,&plain,3).unwrap();adopt(&mut e,&next,2).unwrap();adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(1));adopt(&mut e,&plain,3).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(10));
+}

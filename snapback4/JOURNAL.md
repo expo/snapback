@@ -96746,3 +96746,13 @@ and absent-feature audits and final qualification are recorded in the MIG
 report; this measurement alone does not claim those checks have passed.
 
 2026-10-19 MIG final wasm: metered text argument accounting measures 2,385,447 raw / 726,623 gzip bytes; budget tightened to 727,123 (measurement +500). Server-only backfill metadata remains absent from web wasm.
+
+2026-10-19 MIG review closure: per-output view tracking now preserves rollback
+preimages through column/table suspension, mapping replacement and cohort replay.
+Inverse absence is shared by arguments, lookup rows and indexes. Explicit prune
+retains suspended reversal-unavailable field identities. Historical declaration
+names remain immutable across gaps; re-entry refuses edits to reversed values.
+Inactive snapshots apply original input omissions after retained output preimages.
+The 63 regression cases include all fifty wave-17 shapes. Packed production recipe,
+Linux/Mac clocks, copied-lane measurements and final qualification results are
+recorded in WORKSTREAM-REPORT.md; this entry does not pre-claim pending checks.

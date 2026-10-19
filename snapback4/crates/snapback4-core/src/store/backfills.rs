@@ -103,6 +103,17 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     // A name is immutable within a continuous lineage. Replacing a transform
     // deliberately goes through an old-source/bridge transition first.
     if let Some(old)=previous {for f in &next.backfills {if old.backfills.iter().any(|p|p.table==f.table && p.name==f.name && p.key()!=f.key()) {return Err(refusal(format!("backfill {} {} changed; use a new name in a bridge release rather than replacing historical meaning",f.table,f.name)));}}}
+    // Names keep one meaning throughout durable store history, including gaps
+    // without the table or declaration. A different transform needs a new name.
+    let mut known=tx.conn().prepare("SELECT octet_length(definition),definition FROM _backfill_definitions ORDER BY digest")?;
+    let mut definitions=known.query([])?;
+    while let Some(row)=definitions.next()? {
+        let mut meter=Meter::new(Ceilings::job(),Cut::Abort);meter.heap((row.get::<_,i64>(0)?.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
+        let old:Backfill=decode(&row.get::<_,String>(1)?)?;
+        if next.backfills.iter().any(|f|f.table==old.table && f.name==old.name && f.key()!=old.key()) {
+            return Err(refusal(format!("backfill {} {} changed historical meaning; use a new name in a bridge release",old.table,old.name)));
+        }
+    }
     for fill in &next.backfills {
         tx.conn().execute("INSERT OR IGNORE INTO _backfill_definitions VALUES(?1,?2)",params![fill.key(),canonical_json(fill)])?;
     }
@@ -260,6 +271,9 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     let deps_same=prior.inputs==inputs && prior.after==patch;
                     let current=fields.get(c);
                     let original=prior.before.get(c);
+                    if !transformed && prior.before.contains_key(c) && before.get(c)!=original && before.get(c)!=prior.after.get(c) {
+                        bad.add(id,&format!("{}.{} changed while backfill {} was absent; keep a bridge and resolve the conflict",fill.table,c,fill.name));return Ok(())
+                    }
                     if deps_same && transformed && current.is_some() {
                         // Added columns retain edits under v1's dormant storage.
                         desired.insert(c.clone(),current.unwrap().clone());
@@ -478,12 +492,12 @@ fn inactive_snapshot(tx:&Tx<'_>,_previous:Option<&Schema>,keys:&BTreeSet<String>
         let data:Option<String>=tx.conn().query_row("SELECT data FROM r WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0)).optional()?;let Some(data)=data else{continue};
         tx.conn().execute("INSERT OR IGNORE INTO temp._backfill_originals SELECT t,id,data FROM r WHERE t=?1 AND id=?2",params![t,id])?;
         let mut row:Value=decode(&data)?;if let Value::Row(fields)|Value::Map(fields)=&mut row {
+            for c in &e.retained {fields.insert(c.clone(),e.before.get(c).cloned().unwrap_or(Value::Null));}
             for c in &e.absent {
                 let invalid:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3 AND invalid=1)",params![t,id,input_ref(&key,c)],|r|r.get(0))?;
                 if invalid {return Err(refusal(format!("historical backfill reference {c} on {id} lost its parent lifetime")));}
                 if let Ok(value)=e.inputs.field(c){fields.insert(c.clone(),value.clone());}
             }
-            for c in &e.retained {fields.insert(c.clone(),e.before.get(c).cloned().unwrap_or(Value::Null));}
         }
         tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;
     }Ok(())
