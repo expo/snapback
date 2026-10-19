@@ -9,7 +9,7 @@ export async function proveMigrations(client, platform, directory) {
   const cwd = join(resolve(directory), "migration-recipe"); mkdirSync(cwd, { recursive:true });
   const env = { ...process.env, npm_config_audit:"false", npm_config_fund:"false" };
   delete env.SNAPBACK4_BIN; delete env.PORT_LO; delete env.PORT_HI;
-  const run = (cmd,args) => runToolchainCommand(cmd,args,{cwd,env,timeout:300_000});
+  const run = (cmd,args,at=cwd) => runToolchainCommand(cmd,args,{cwd:at,env,timeout:300_000});
   try {
     writeFileSync(join(cwd,"package.json"), '{"private":true,"type":"module"}');
     await run("npm",["install","--ignore-scripts","--no-audit","--no-fund",resolve(client),resolve(platform)]);
@@ -21,8 +21,9 @@ export async function proveMigrations(client, platform, directory) {
     assert.equal(language.status,0,language.stderr);
     const examples=[...language.stdout.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).filter(s=>s.includes("backfill parcels sizes"));
     assert.equal(examples.length,1);
-    mkdirSync(join(cwd,"language-example"));writeFileSync(join(cwd,"language-example/schema.q"),examples[0]);
-    await run(process.execPath,[binary,"check","--schema","language-example"]);
+    const example=join(cwd,"language-example");
+    mkdirSync(join(example,"snapback"),{recursive:true});writeFileSync(join(example,"snapback/schema.q"),examples[0]);
+    await run(process.execPath,[binary,"check"],example);
     const scripts=[...guide.stdout.matchAll(/```js\n([\s\S]*?)\n```/g)].map(m=>m[1]).filter(s=>s.startsWith("// day-two-production.mjs"));
     assert.equal(scripts.length,1,"one complete installed production recipe");
     writeFileSync(join(cwd,"day-two-production.mjs"),scripts[0]);
