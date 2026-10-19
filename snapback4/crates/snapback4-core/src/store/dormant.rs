@@ -33,7 +33,7 @@ pub(crate) fn enable(conn: &Connection) -> Result<(), RuntimeError> {
         // particular retained cell ever had live authority.
         conn.execute_batch("ALTER TABLE _dormant_values ADD COLUMN live_source INTEGER NOT NULL DEFAULT 0;")?;
     }
-    conn.execute("UPDATE _meta SET value=?1 WHERE key='version'", [VERSION])?;
+    conn.execute("UPDATE _meta SET value=?1 WHERE key='version' AND value!='snapback4-release-store-6'", [VERSION])?;
     Ok(())
 }
 
@@ -42,7 +42,7 @@ pub(super) fn live_cells_column(conn:&Connection)->Result<bool,RuntimeError> {
 }
 
 pub(super) fn enabled(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
-    Ok(matches!(tx.meta("version")?.as_deref(),Some(VERSION|"snapback4-release-store-2")))
+    Ok(matches!(tx.meta("version")?.as_deref(),Some(VERSION|"snapback4-release-store-2"|super::backfills::VERSION)))
 }
 
 fn authoritative(table: &Table, column: &str) -> bool {
@@ -177,11 +177,12 @@ pub(super) fn capture_refs(
         "DELETE FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3",
         params![t, id, column],
     )?;
-    let mut refs = Vec::new();
-    references(kind, value, &mut refs);
-    for (parent, parent_id) in refs {
-        add_reference(tx, t, id, column, &parent, &parent_id)?;
-    }
+    capture_refs_preserving(tx,t,id,column,kind,value,&BTreeSet::new())
+}
+
+pub(super) fn capture_refs_preserving(tx:&Tx<'_>,t:i64,id:&str,column:&str,kind:&ColumnType,value:&Value,known:&BTreeSet<String>)->Result<(),RuntimeError>{
+    let mut refs=Vec::new();references(kind,value,&mut refs);
+    for(parent,parent_id)in refs {if !known.contains(&parent_id){add_reference(tx,t,id,column,&parent,&parent_id)?;}}
     Ok(())
 }
 
@@ -322,11 +323,13 @@ pub(super) fn transition(
     previous: Option<&Schema>,
     restore: bool,
     now:i64,
+    report: &mut super::adoption_report::AdoptionReport,
 ) -> Result<BTreeSet<String>, RuntimeError> {
     if !enabled(tx)? {
         return Ok(BTreeSet::new());
     }
     if !super::narrowed::present(tx.conn())? || !live_cells_column(tx.conn())? {enable(tx.conn())?;}
+    super::backfills::prepare_inputs(tx,next,previous)?;
     let whole: Vec<(String, String)> = tx
         .conn()
         .prepare("SELECT table_name,definition FROM _dormant_tables ORDER BY table_name")?
@@ -404,6 +407,7 @@ pub(super) fn transition(
             inventory.iter().map(|i|format!("{}: {} rows; sample ids [{}]",i.key,i.rows,i.sample_ids.join(", "))).collect::<Vec<_>>().join("; ")
         )));
     }
+    let backfilling=!next.backfills.is_empty() || super::backfills::has_evidence(tx)?;
     if let Some(previous) = previous {
         for (name, old) in previous
             .tables
@@ -429,6 +433,7 @@ pub(super) fn transition(
             if candidate.is_none() {
                 tx.conn().execute("INSERT INTO _dormant_tables VALUES(?1,?2) ON CONFLICT(table_name) DO UPDATE SET definition=excluded.definition",params![name,canonical_json(old)])?;
             }
+            if candidate.is_none() && backfilling {continue;} // Backfills require the complete source closure.
             if removed.is_empty() && candidate.is_some() {
                 continue;
             }
@@ -453,14 +458,8 @@ pub(super) fn transition(
                 Ok(())
             })?;
             if candidate.is_none() {
-                tx.conn()
-                    .execute("DELETE FROM r WHERE t=?1", [tx.num(name)?])?;
-                for index in old.indexes.keys() {
-                    tx.conn().execute(
-                        "DELETE FROM i WHERE ti=?1",
-                        [tx.num(&format!("{name}.{index}"))?],
-                    )?;
-                }
+                tx.conn().execute("DELETE FROM r WHERE t=?1",[tx.num(name)?])?;
+                for index in old.indexes.keys(){tx.conn().execute("DELETE FROM i WHERE ti=?1",[tx.num(&format!("{name}.{index}"))?])?;}
             }
         }
     }
@@ -490,6 +489,7 @@ pub(super) fn transition(
                     save_cell(tx, name, old, id, &column, &value, false)?;
                 }
             }
+
             // Full source image/deadlines stay intact until lifetime retirement and narrowed classification.
             Ok(())
         })?;
@@ -527,6 +527,7 @@ pub(super) fn transition(
         };
         super::activation_walk::walk_metered_checked(tx,t,crate::rows::adoption::Work::DECODE,if parent_scratch>0 {Some(&scratch)} else {None},|id,mut row,meter| {
             let old=authority_sources.get(name);
+            super::backfills::record_omissions(tx,t,id,&row)?;
             if let Some(old)=old {
                 materialize_optional_fields(&mut row,old);
                 super::authority_origin::validate(tx,next,&authority_sources,name,old,&row,now,false)?;
@@ -548,7 +549,7 @@ pub(super) fn transition(
     for (name,table) in &restoring {source_definitions.insert(name.clone(),table.clone());}
     crate::engine::through_activation::forward_sources(tx,next,&authority_sources,now)?;
     for (name,column,text) in &cells {
-        if let Some(candidate)=next.table(name).filter(|t|t.columns.contains_key(column)) {
+        if let Some(candidate)=next.table(name).filter(|t|t.columns.contains_key(column) || next.backfills.iter().any(|f|f.table==*name && f.inputs.contains_key(column))) {
             let old:Column=serde_json::from_str(text).map_err(|e|RuntimeError::Store(e.to_string()))?;
             let source=source_definitions.entry(name.clone()).or_insert_with(||candidate.clone());
             if let Some(capture)=&old.capture_source {
@@ -574,6 +575,28 @@ pub(super) fn transition(
     // current parent value fits it. Newly restored narrowed rows reconcile
     // individually inside transition as well.
     crate::engine::through_activation::reconcile_manual(tx,next,&authority_sources,now)?;
+    if backfilling {
+        super::narrowed::restore_images(tx,next,now,&source_definitions,&authority_sources,true)?;
+        super::backfills::retire_snapshot(tx,&source_definitions,previous,now)?;
+    }else{super::narrowed::retire_sources(tx,next,previous,now)?;}
+    // Archive removed tables only after source expiry has closed over every
+    // predecessor child. Capture the surviving post-cascade/set-null image.
+    if backfilling {if let Some(previous)=previous {for (name,old) in &previous.tables {
+        if next.tables.contains_key(name) || old.ephemeral.is_some() || previous.maintain_for(name).is_some(){continue;}
+        let t=tx.num(name)?;
+        tx.conn().execute("DELETE FROM _dormant_rows WHERE t=?1",[t])?;
+        super::activation::walk(tx,t,|id,mut row|{
+            materialize_optional_fields(&mut row,old);
+            tx.conn().execute("INSERT INTO _dormant_rows VALUES(?1,?2,?3)",params![t,id,canonical_json(&row)])?;
+            for (column,kind) in &old.columns {if let Ok(value)=row.field(column) {
+                if !super::authority_origin::live_input(old,column) {capture_refs(tx,t,id,column,kind,value)?;}
+                capture_through_parent(tx,name,old,id,column,&row)?;
+            }}Ok(())
+        })?;
+        tx.conn().execute("DELETE FROM r WHERE t=?1",[t])?;
+        for index in old.indexes.keys(){tx.conn().execute("DELETE FROM i WHERE ti=?1",[tx.num(&format!("{name}.{index}"))?])?;}
+    }}}
+    super::backfills::transition(tx,next,previous,&source_definitions,now,report)?;
     super::narrowed::transition(tx,next,previous,now,restored_images,&source_definitions,&authority_sources)?;
     crate::engine::through_activation::reconcile_manual(tx,next,&authority_sources,now)?;
     check_references(tx, next,&authority_sources)?;
@@ -734,6 +757,7 @@ fn check_references(tx: &Tx<'_>, next: &Schema,sources:&BTreeMap<String,Table>) 
 }
 
 pub(super) fn delete(tx: &Tx<'_>, t: i64, id: &str, name: &str) -> Result<(), RuntimeError> {
+    super::backfills::delete(tx,t,id)?;
     if !enabled(tx)? {
         return Ok(());
     }

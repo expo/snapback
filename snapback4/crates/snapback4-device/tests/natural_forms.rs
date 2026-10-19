@@ -140,3 +140,26 @@ fn text_bounds<H: Host>(host: &mut H) {
 
 #[test] fn default_text_server_and_memory_device() { text_bounds(&mut Memory::new()); }
 #[test] fn default_text_server_and_sqlite_device() { text_bounds(&mut Sqlite::new("natural-text")); }
+
+#[test]
+fn migration_text_primitives_match_the_server_on_both_device_stores() {
+    let source="query parts(s: text <=100):\n  return {first:beforeLast(s, ' '), last:afterLast(s, ' '), before:before(s, ' '), after:after(s, ' '), prefix:startsWith(s, 'A'), digits:allDigits(s)}\nquery badSplit(s: text <=100):\n  return before(s, '')\n";
+    let (mut engine,backend)=compile(source);
+    let mut expected=Vec::new();
+    for text in ["Ada Lovelace","Prince","A B C","123","１２３",""] {
+        let args=std::collections::BTreeMap::from([("s".into(),Value::String(text.into()))]);
+        let result=engine.query("parts",snapback4_core::Context::new("alice",args)).unwrap();
+        assert!(result.complete);expected.push((text,result.data));
+    }
+    fn check<H:Host>(host:&mut H,backend:snapback4_device::device::Backend,expected:&[(&str,Value)]) {
+        let mut device=host.open("text-primitives",Some(backend)).unwrap();
+        for(text,wanted)in expected {
+            let result=device.query("parts","alice",&json!({"s":text}),0).unwrap();
+            assert!(result.complete);assert_eq!(&result.data,wanted,"{}: {text}",host.label());
+        }
+        assert!(device.query("badSplit","alice",&json!({"s":"hello"}),0).is_err());
+        host.close("text-primitives",device);
+    }
+    check(&mut Memory::new(),backend.clone(),&expected);
+    check(&mut Sqlite::new("mig-text"),backend,&expected);
+}

@@ -25,5 +25,5 @@ fn expr(e:&Expr)->bool{match e{
 }}
 fn pure(b:&Builtin)->bool{match b{
     Builtin::JobAs|Builtin::JobQuery{..}=>false,
-    Builtin::ProjectFields{..}|Builtin::ReceiptSettled{..}|Builtin::OptionalField{..}|Builtin::Calendar{..}|Builtin::Civil(_)|Builtin::Len|Builtin::Slice|Builtin::Concat|Builtin::Lower|Builtin::Trim|Builtin::Sha256|Builtin::Join|Builtin::Group{..}|Builtin::First|Builtin::Last|Builtin::At|Builtin::Min|Builtin::Max|Builtin::Extremum{..}|Builtin::ExtremumOf{..}|Builtin::Divmod{..}|Builtin::Divide{..}|Builtin::Sort{..}|Builtin::MentionTokens|Builtin::SearchPresent|Builtin::RequireUncapped|Builtin::DeterministicShare|Builtin::Count|Builtin::Sum|Builtin::CountCapped|Builtin::Connected=>true,
+    Builtin::ProjectFields{..}|Builtin::ReceiptSettled{..}|Builtin::OptionalField{..}|Builtin::Calendar{..}|Builtin::Civil(_)|Builtin::Len|Builtin::Slice|Builtin::Concat|Builtin::Lower|Builtin::Trim | Builtin::Text(_)|Builtin::Sha256|Builtin::Join|Builtin::Group{..}|Builtin::First|Builtin::Last|Builtin::At|Builtin::Min|Builtin::Max|Builtin::Extremum{..}|Builtin::ExtremumOf{..}|Builtin::Divmod{..}|Builtin::Divide{..}|Builtin::Sort{..}|Builtin::MentionTokens|Builtin::SearchPresent|Builtin::RequireUncapped|Builtin::DeterministicShare|Builtin::Count|Builtin::Sum|Builtin::CountCapped|Builtin::Connected=>true,
 }}

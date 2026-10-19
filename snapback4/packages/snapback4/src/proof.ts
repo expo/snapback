@@ -64,19 +64,39 @@ export function startDev(options: ProofOptions | readonly string[] = {}): Promis
   } }));
 }
 export interface ServeHost extends ProofHost {
+  /** Authoritative staging time; requires a staging store and local operator authority. */
+  now(): Promise<number>;
+  /** Advance staging time once and drain due work. A lost reply must not be retried. */
+  advance(duration: string, options?: { eachBoundary?: boolean }): Promise<number>;
   operatorToken(service?: string, days?: number): Promise<string>;
   seedAccounts(options: SeedAccountsOptions): Promise<StagingSessions>;
   sessions?: StagingSessions;
 }
-export interface ServeOptions extends ProofOptions { seedUsers?: SeedAccountsOptions }
+export interface ServeOptions extends ProofOptions { seedUsers?: SeedAccountsOptions; clockOffset?: string }
 // @ref LLP 3000.000.000.001#2-real-staging-accounts — operator authority stays in the existing local store proof; bulk setup refuses production.
 /** @throws E_PROOF_USAGE for missing deployment directory; child exit, readiness deadline or served identity mismatch. */
 export async function startServe(deployDir: string, options: ServeOptions | readonly string[] = {}): Promise<ServeHost> {
   if (typeof deployDir !== "string" || !deployDir.trim()) throw Object.assign(new TypeError("E_PROOF_USAGE: startServe(deployDir, options) requires a deployment directory as its first argument"), { code: "E_PROOF_USAGE" });
   const opts: ServeOptions = Array.isArray(options) ? { args: options } : options as ServeOptions;
   const directory = resolve(opts.cwd ?? ".", deployDir);
-  const host = await nativeHost("serve", [directory], opts);
+  if (opts.clockOffset !== undefined && (typeof opts.clockOffset !== "string" || !/^[+-]?\d+(ms|s|m|h|d|w)$/.test(opts.clockOffset))) throw new TypeError("E_PROOF_USAGE: clockOffset is a signed duration such as +25h");
+  if (opts.clockOffset !== undefined && opts.args?.some(arg => arg === "--clock-offset" || arg.startsWith("--clock-offset="))) throw new TypeError("E_PROOF_USAGE: pass clockOffset once");
+  const host = await nativeHost("serve", [directory], { ...opts, args: [...(opts.args ?? []), ...(opts.clockOffset === undefined ? [] : ["--clock-offset", opts.clockOffset])] });
+  const clockCall = async (body?: object): Promise<number> => {
+    const config = await fetchIdentity(`${host.url}/auth/config`, deadline(opts.timeoutMs, 10_000));
+    if (!config.response.ok || config.body.environment !== "staging") throw Error("E_CLOCK_DEV_ONLY: clock controls require a deploy --staging store");
+    const clockToken = served.operatorToken("clock");
+    const response = await fetch(`${host.url}/dev/clock/${body ? "advance" : "status"}`, { method: body ? "POST" : "GET", headers: { Authorization: `Bearer ${await clockToken}`, "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(deadline(opts.timeoutMs, 60_000)) });
+    const result = await response.json() as { now?: number; denied?: { code?: string; message?: string } };
+    if (!response.ok || result.denied || !Number.isSafeInteger(result.now)) throw Error(`staging clock refused or reply unavailable; inspect clock and queued work before retrying: ${result.denied?.code ?? response.status} ${result.denied?.message ?? ""}`);
+    return result.now!;
+  };
   const served: ServeHost = { ...host,
+    now: () => clockCall(),
+    advance: (duration, options = {}) => {
+      if (typeof duration !== "string" || !/^\+?\d+(ms|s|m|h|d|w)$/.test(duration)) throw new TypeError("E_PROOF_USAGE: advance requires a positive whole duration");
+      return clockCall({ duration, eachBoundary: options.eachBoundary ?? false });
+    },
     operatorToken: async (service = "operator", days = 1) => {
       if (!/^[A-Za-z0-9_-]{1,64}$/.test(service) || !Number.isSafeInteger(days) || days < 1 || days > 3650) throw Error("proof operatorToken: invalid service or days (1..3650)");
       const result = await cli(["token", "--service", service, "--days", String(days), "--release", directory, "--quiet"], opts);

@@ -1,0 +1,7 @@
+NOT READY
+
+- **P1: Inactive re-entry replaces an omitted input’s historical meaning with its rollback default.** In [backfills.rs:481](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs:481), saved omitted inputs are restored first, then overwritten by retained output preimages at line 486.
+
+  Reproduction: start without `score`; adopt `score: int default 10` with `{score: (score ?? 0) + 1}` and historical argument `score: int ?`; remove the declaration while keeping the column; re-enter; hide the column and declaration; re-enter again. The final reconstruction replaces the saved null input with preimage `10`, computing `11` instead of preserving `1`.
+
+  Restore retained output preimages **before** overlaying saved omitted-input interpretations, matching `historical_snapshot`. Add a regression covering this partial-column suspension sequence and verify rollback still restores `10`.

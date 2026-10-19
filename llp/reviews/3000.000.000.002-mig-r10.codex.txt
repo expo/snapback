@@ -1,0 +1,7 @@
+NOT READY
+
+- **P1 — Backfill retirement bypasses reference actions.** [narrowed.rs:256](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/narrowed.rs:256) physically deletes expired source rows through `Tx::delete`, bypassing ordinary expiry’s cascade, set-null, restrict, and retained-child checks. An unswept expired parent with cascade children can therefore disappear during an unrelated backfill while its children remain active; later sweeps cannot recover the missing parent’s deletion provenance. The restored-table path does the same at [dormant.rs:494](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/dormant.rs:494). Run the existing expiry/reference closure against the assembled source before evaluating patches, with atomic refusal for blockers.
+
+- **P2 — Reset disables native-birth tracking.** [dev_reset.rs:60](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/engine/dev_reset.rs:60) empties `_backfill_active` and `_backfill_inputs`, while retaining the adopted schema. Subsequent inserts receive no native marker because [backfills.rs:362](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs:362) relies on that registry. After resetting a schema with `derived = n * 2`, inserting `(n:3, derived:9)`, then rolling back and forward, the authored `9` is overwritten with `6`. Reinitialize declaration metadata from the retained schema before reset reseeding or subsequent writes.
+
+No tests run; no files changed.

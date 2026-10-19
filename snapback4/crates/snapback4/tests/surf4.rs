@@ -26,14 +26,14 @@ fn run_clock_reset_port_help_describes_only_supported_ports() {
     }
 }
 #[test]
-fn clock_does_not_advertise_an_always_refused_release_flag() {
+fn clock_release_help_describes_staging_and_missing_store_stays_read_only() {
     let app = App::new(); let help = success(app.run(&["clock", "--help"]));
-    assert!(!help.contains("--release"), "{help}");
+    assert!(help.contains("--release") && help.contains("staging") && help.contains("Production refuses"), "{help}");
     let output = app.run(&["clock", "advance", "1h", "--release", "missing"]);
-    assert_eq!(output.status.code(), Some(2));
-    assert!(String::from_utf8_lossy(&output.stderr).contains("takes no --release"));
-    assert_eq!(fs::read_dir(&app.0).unwrap().count(), 0);
+    assert!(!output.status.success());
+    assert!(!app.0.join("missing").exists());
 }
+
 #[test]
 fn web_shell_help_includes_base_and_upgrade_includes_positional_version() {
     let app = App::new();

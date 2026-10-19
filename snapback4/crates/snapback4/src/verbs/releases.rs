@@ -416,7 +416,7 @@ pub fn deploy(options: &Options) -> i32 {
                 preview_options.flags.insert("deploy-direction".into(),String::new());
                 preview_options.flags.insert("restore-dormant".into(),String::new());
                 if !checking { preview_options.flags.insert("validation-only".into(),String::new()); }
-                super::release_preview::preview(&dir.join("store.sqlite"),releases.join(n.to_string()),n,&preview_options)?;
+                super::release_preview::preview(&dir.join("store.sqlite"),releases.join(n.to_string()),n,&preview_options,_deployment.as_ref())?;
                 if checking { return Ok(()); }
                 let selected = bound_at(releases.join(n.to_string()))?;
                 activate(&dir,_deployment.as_ref(),n,previous,revision,selected,false,true,options.flags.contains_key("allow-feed-adoption"),options,None)?;
@@ -427,14 +427,14 @@ pub fn deploy(options: &Options) -> i32 {
             let staged_bound = bound_at(stage.clone())?;
             if options.flags.contains_key("check") {
                 let mut preview_options=options.clone();preview_options.flags.insert("deploy-direction".into(),String::new());
-                let result=super::release_preview::preview(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&preview_options);
+                let result=super::release_preview::preview(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&preview_options,None);
                 let _=std::fs::remove_dir_all(&stage);
                 return result;
             }
             let mut validation=options.clone();
             validation.flags.insert("deploy-direction".into(),String::new());
             validation.flags.insert("validation-only".into(),String::new());
-            super::release_preview::preview(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&validation)?;
+            super::release_preview::preview(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&validation,_deployment.as_ref())?;
             if staged_bound.schema != bound.schema { return Err("staged source does not match the compiled schema".into()); }
             n=n.checked_add(1).ok_or("release identity exhausted")?;
             let final_dir=releases.join(n.to_string());
@@ -530,7 +530,7 @@ pub fn rollback(options: &Options) -> i32 {
             if options.json {eprintln!("{target_line}");} else {println!("{target_line}");}
             check_change(&dir, Some(active), &bound, options, Some(previous))?;
             if options.flags.contains_key("check") {
-                return super::release_preview::preview(&dir.join("store.sqlite"),dir.join("releases").join(previous.to_string()),previous,options);
+                return super::release_preview::preview(&dir.join("store.sqlite"),dir.join("releases").join(previous.to_string()),previous,options,_deployment.as_ref());
             }
             activate(
                 &dir,
@@ -650,6 +650,11 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     crate::host_limits::initialize();
     let owner = crate::store_owner::host(&dir.join("store.sqlite"))?;
     owner.report_reclaim(options.flags.contains_key("verbose"));
+    let clock_offset = options.flags.get("clock-offset").map(|text| crate::dev_clock::offset(text).map_err(|e| e.to_string())).transpose()?.unwrap_or(0);
+    if options.flags.contains_key("clock-offset") {
+        let store = owner.open_store(std::time::Duration::from_secs(5)).map_err(|e| e.to_string())?;
+        if store.meta("deployment_environment").map_err(|e|e.to_string())?.as_deref() != Some("staging") { return Err(crate::dev_clock::release().to_string()); }
+    }
     let current = current(&dir, &owner)?.ok_or("no current release; deploy first")?;
     let release = Project {
         root: dir.join("releases").join(current.to_string())
@@ -670,6 +675,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
         release,
         port,
         crate::serve::Mode::Release {
+            clock_offset,
             expected: current,
             worker,
             owner: std::sync::Arc::new(owner),
@@ -811,7 +817,7 @@ pub(super) fn check_release(options:&Options)->i32 {
         let selected=options.flags.get("release").ok_or("--release required")?;
         let n=if selected=="latest"{latest(dir)?}else{selected.parse::<u64>().ok().filter(|n|*n>0).ok_or("--release requires N or latest")?};
         selectable(dir,n)?;
-        super::release_preview::preview(&store,dir.join("releases").join(n.to_string()),n,options)
+        super::release_preview::preview(&store,dir.join("releases").join(n.to_string()),n,options,None)
     })())
 }
 

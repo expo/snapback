@@ -95,6 +95,8 @@ impl Store {
 
     fn activate_transaction_with<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl FnOnce(&Connection) -> Result<(), RuntimeError>, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>,
     ) -> Result<(u64, R), RuntimeError> {
+        // @ref LLP 3000.000.000.002#4-staging-clock — a removed opening boundary cannot lower durable source retirement time.
+        let now=if self.server {now.max(self.meta("time_audience_clock")?.and_then(|s|s.parse().ok()).unwrap_or(i64::MIN))}else{now};
         super::live_activation::configure(&self.conn,schema)?;
         let mut report = super::adoption_report::AdoptionReport::default();
         let mut phase = std::time::Instant::now();
@@ -118,6 +120,9 @@ impl Store {
         // Rollback restores schema/rows and freelist count. It may leave
         // changed free-page contents or journal/WAL residue, not committed data.
         Self::initialize_schema(&sql)?;
+        let now=if self.server {
+            now.max(sql.query_row("SELECT value FROM _meta WHERE key='time_audience_clock'",[],|r|r.get::<_,String>(0)).optional()?.and_then(|s|s.parse().ok()).unwrap_or(i64::MIN))
+        }else{now};
         if programs.is_some() { Self::initialize_change_evidence(&sql)?; }
         index_key_guards(&sql)?;
         // @ref LLP 3000.019#3.6 — reuse an admitted key bound, never assume a legacy store was checked.
@@ -216,7 +221,7 @@ impl Store {
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')", [], |r|r.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
             let restore=tx.meta("activation_restore")?.as_deref()!=Some("false");
-            retained_through=super::dormant::transition(&tx,schema,previous.as_ref(),restore,now)?;
+            retained_through=super::dormant::transition(&tx,schema,previous.as_ref(),restore,now,&mut report)?;
         }
         let population_changed=tx.meta("activation_population")?.as_deref()==Some("true");
         changed |= population_changed;

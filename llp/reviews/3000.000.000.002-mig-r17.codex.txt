@@ -1,0 +1,9 @@
+NOT READY
+
+- **[P1] Restored dormant output values lose their rollback preimages.** [backfills.rs:230](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs:230) saves a preimage only when the immediately previous schema declares the output, or lacks the whole table. It misses columns restored from dormant cells on an existing table.
+
+  Example: v1 has `n=3, score=7` with optional `score`; v2 drops `score`; v3 restores it and backfills `{score:n * 2}`. The restored `7` is overwritten without entering `before`, and restoration consumes its dormant cell. Selecting v1 then removes `score`, yielding null instead of `7`. Required columns instead cause rollback refusal.
+
+  Capture preimages using each row’s assembled historical source, including restored cells and archived definitions. Add this drop-column → restore-and-transform → rollback regression, plus suspended-table re-entry coverage.
+
+Static review only; no tests run or files modified.

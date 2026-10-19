@@ -1,0 +1,9 @@
+{
+  "reviewer": "Muse",
+  "model": "muse-spark-1.3-contributor",
+  "reasoning_effort": "high",
+  "transport": "Meta-key fallback after primary quota error",
+  "verdict": "READY",
+  "candidate": "5816f5453f semantic code; final pruned-overlap delta reviewed separately",
+  "date": "2026-10-19"
+}

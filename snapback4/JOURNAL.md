@@ -96713,17 +96713,55 @@ This is a conservative verification foundation, not a zero-holes capability
 claim. No version bump, push or publication.
 
 
-## 2026-10-19 — REL5 release transitions and old-client contracts
+## 2026-10-19 — MIG staging clock control
 
-Deploy now reactivates matching retained source with restoration, validates new
-source privately, and cleans definitive refusals while preserving in-flight or
-committed source after ambiguous control replies. Deploy previews warn about
-future rollback hazards and old-client input/result/refusal changes. Query and
-mutation literal defaults, ignored deprecated inputs and same-module aliases
-preserve v1 callers; the packed deploy recipe exercises the unchanged calls.
-LLP 3000.000.000 §16 and LLP 3000.000.000.000 §11 record these decisions and
-the final blind Muse/Codex READY reviews at 421a345ea1. Six copied day-two
-runs from lanes 013/030/042 pass without release-selection workarounds; evidence
-is reports/20261019-rel5. Version remains 0.4.33 for the 0.4.34 integration.
-MIG owns backfills/staging clock; SEC3 owns invariant/audit tooling. Qualification
-results and remaining limits are recorded in the root WORKSTREAM-REPORT.md.
+Classified staging stores admit serve --clock-offset and the existing clock
+advance/status wire under a full service token. Production refuses offsets
+before listener startup and all HTTP clock control even with operator authority.
+The writer rechecks classification/session before advancing. startServe exposes
+clockOffset, now and advance; it mints a current staging-clock operator session
+for each control rather than caching a token across arbitrarily large jumps.
+Fixture/reset/persona/job dev doors remain closed. The native-backed client
+regression passed, including CLI advancement and restart dropping the offset.
+The installed-package staging qualifier now exercises the same clock helpers.
+LLP 3000.000.000.002 records the combined MIG language/adoption amendment;
+independent review continues before final acceptance.
+
+
+## 2026-10-19 — MIG declarative backfills and device bytes
+
+Backfills are typed scalar patches evaluated before candidate narrowing, with
+per-lifetime preimages and declaration membership retained through dormancy.
+The existing activation transaction stages every result, checks historical
+lookup uniqueness, then publishes data/indexes/derived state and generation.
+Whole-table and narrowed restoration join the source snapshot. Hot adoption
+and exact previews sample the serving clock, including staging offsets.
+
+The web schema omits server-only migration metadata and evidence. Locked Linux
+measurement is 2,385,285 B raw / 726,681 B gzip, +4,796 raw / +679 gzip versus
+Integration 17. The small deterministic text library must use the same Rust
+interpreter on server and device; the artifact allowance moves to measured
+727,181 B (exactly 500 B headroom). No runtime meter ceiling changes. Family
+and absent-feature audits and final qualification are recorded in the MIG
+report; this measurement alone does not claim those checks have passed.
+
+2026-10-19 MIG final wasm: metered text argument accounting measures 2,385,447 raw / 726,623 gzip bytes; budget tightened to 727,123 (measurement +500). Server-only backfill metadata remains absent from web wasm.
+
+2026-10-19 MIG review closure: per-output view tracking now preserves rollback
+preimages through column/table suspension, mapping replacement and cohort replay.
+Inverse absence is shared by arguments, lookup rows and indexes. Explicit prune
+retains suspended reversal-unavailable field identities. Historical declaration
+names remain immutable across gaps; re-entry refuses edits to reversed values.
+Inactive snapshots apply original input omissions after retained output preimages.
+The 66 regression cases include all fifty wave-17 shapes. Packed production recipe,
+Linux/Mac clocks, copied-lane measurements and final qualification results are
+recorded in WORKSTREAM-REPORT.md; this entry does not pre-claim pending checks.
+
+Native re-entry checks pruned definitions by overlapping output identity; an
+unrelated pruned field cannot invalidate an unchanged authored native value.
+
+Reversal baselines now record the interpreted plain view separately from absent
+physical preimages. Forward re-entry protects edits after literal/optional
+default materialization. Complete receipt saves and staged decodes preflight
+future heap admission; oversized images refuse the originating activation.
+The unpublished store/capability fences are release-store-6/backfills-v3.

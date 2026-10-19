@@ -1107,6 +1107,13 @@ impl<'a> Runner<'a> {
                 self.meter.heap(expression_heap(&value))?;
                 Ok(value)
             }
+            Builtin::Text(function) => {
+                let bytes = args[0].as_str()?.len();
+                let work = args.iter().try_fold(1u64,|sum,arg|arg.as_str().map(|text|sum.saturating_add(text.len() as u64)))?;
+                self.meter.step(work)?;
+                self.meter.heap(crate::rows::word_heap::allocation(bytes).saturating_add(64))?;
+                function.apply(&args)
+            }
             Builtin::Sha256 => {
                 let text = args[0].as_str()?;
                 let work = u64::try_from(text.len()).ok().and_then(|bytes| bytes.checked_add(1)).unwrap_or(u64::MAX);

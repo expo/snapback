@@ -84,11 +84,18 @@ impl Engine {
         )
     }
     pub fn new_release_prepared(
+        store: Store, schema: Schema, programs: impl IntoIterator<Item = Program>,
+        options: &ReleaseActivation, allow_feed_adoption: bool,
+    ) -> Result<Self, RuntimeError> {
+        Self::new_release_prepared_at(store,schema,programs,options,allow_feed_adoption,crate::now_ms())
+    }
+    pub fn new_release_prepared_at(
         mut store: Store,
         mut schema: Schema,
         programs: impl IntoIterator<Item = Program>,
         options: &ReleaseActivation,
         allow_feed_adoption: bool,
+        now: i64,
     ) -> Result<Self, RuntimeError> {
         prepare(&mut schema)?;
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
@@ -97,7 +104,7 @@ impl Engine {
             &schema,
             &programs,
             Some(options),
-            crate::now_ms(),
+            now,
             allow_feed_adoption,
             None,
             None,
@@ -128,11 +135,18 @@ impl Engine {
     }
     /// No replacement engine, post-commit SQL read, or fallible ephemeral swap.
     pub fn adopt_release(
+        &mut self, schema: Schema, programs: impl IntoIterator<Item = Program>,
+        options: &ReleaseActivation, allow_feed_adoption: bool,
+    ) -> Result<u64, RuntimeError> {
+        self.adopt_release_at(schema,programs,options,allow_feed_adoption,crate::now_ms())
+    }
+    pub fn adopt_release_at(
         &mut self,
         mut schema: Schema,
         programs: impl IntoIterator<Item = Program>,
         options: &ReleaseActivation,
         allow_feed_adoption: bool,
+        now: i64,
     ) -> Result<u64, RuntimeError> {
         prepare(&mut schema)?;
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
@@ -142,7 +156,7 @@ impl Engine {
             &schema,
             &programs,
             Some(options),
-            crate::now_ms(),
+            now,
             allow_feed_adoption,
             None,
             None,

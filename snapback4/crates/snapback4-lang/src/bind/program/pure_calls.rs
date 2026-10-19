@@ -115,7 +115,7 @@ fn builtin_pure(builtin: &Builtin) -> bool {
         Builtin::JobAs | Builtin::JobQuery { .. } => false,
         Builtin::Connected | Builtin::ReceiptSettled { .. } => false,
         Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Civil(_)
-        | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim
+        | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Text(_)
         | Builtin::Sha256 | Builtin::Join | Builtin::Group { .. } | Builtin::First | Builtin::Last
         | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Extremum { .. }
         | Builtin::ExtremumOf { .. } | Builtin::Divmod { .. } | Builtin::Divide { .. } | Builtin::Sort { .. }

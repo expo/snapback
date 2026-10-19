@@ -19,6 +19,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+pub(crate) mod backfills;
 mod activation;
 mod activation_cache;
 mod activation_index;
@@ -128,7 +129,7 @@ impl Store {
         let version: String = tx.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| {
                 row.get(0)
             })?;
-        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
+        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" && version != backfills::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
         let catalog = tx.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
         let identity = activation::identity(&tx)?;
         tx.rollback()?;
@@ -271,7 +272,7 @@ impl Store {
         let version: String = opened.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| {
                 row.get(0)
             })?;
-        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
+        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" && version != backfills::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
         let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
             })?.collect::<Result<BTreeMap<_, _>, _>>()?;
@@ -665,6 +666,7 @@ impl<'a> Tx<'a> {
         let t = self.num(table_name)?;
         let id = row.field("id")?.as_str()?;
         narrowed::check_write(self,table_name,table,row,old)?;
+        backfills::observe_write(self,t,id,table,row,old)?;
         let keys = crate::rows::index_write(table_name, table, row, old, id)?;
         self.changes.borrow_mut().record(table_name, table, old, Some(row));
         let data = canonical_json(row);
@@ -1307,3 +1309,7 @@ pub(crate) fn replay_bound(conn: &Connection, principal: &str, id: &str, name: &
 
 // Server-only volatile history reads; no persisted catalog or device change.
 mod following_history;
+
+#[cfg(test)]
+#[path = "store/backfill_tests.rs"]
+mod backfill_tests;

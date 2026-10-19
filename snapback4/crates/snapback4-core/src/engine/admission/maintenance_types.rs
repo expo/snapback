@@ -12,7 +12,7 @@ fn builtin_inspection(builtin: &Builtin) -> Option<Inspection> {
     #[allow(unreachable_patterns)]
     match builtin {
         RequireUncapped | OptionalField { .. } | Len | Count | CountCapped | First | Last | At | Slice | Concat => Some(Inspection::NonInspecting),
-        ProjectFields { .. } | ReceiptSettled { .. } | Calendar { .. } | Civil(_) | Lower | Trim | Sha256 | Join
+        ProjectFields { .. } | ReceiptSettled { .. } | Calendar { .. } | Civil(_) | Text(_) | Lower | Trim | Sha256 | Join
         | Group { .. } | Min | Max | Extremum { .. } | ExtremumOf { .. } | Divmod { .. } | Divide { .. }
         | Sort { .. } | MentionTokens | SearchPresent | DeterministicShare | Sum | Connected => Some(Inspection::Inspecting),
         #[cfg(feature = "sqlite")]
@@ -454,7 +454,7 @@ mod tests {
     fn every_builtin_has_an_explicit_inspection_classification() {
         use Builtin::*;
         let builtins = vec![ProjectFields { table: "t".into() }, ReceiptSettled { table: "t".into() }, OptionalField { field: "id".into() },
-            Calendar { millis: 1 }, Civil(crate::calendar::Civil::Month), Len, Slice, Concat, Lower, Trim, Sha256, Join, Group { field: "id".into(), optional: false },
+            Calendar { millis: 1 }, Civil(crate::calendar::Civil::Month), Text(crate::text::Function::Before), Len, Slice, Concat, Lower, Trim, Sha256, Join, Group { field: "id".into(), optional: false },
             First, Last, At, Min, Max, Extremum { field: "id".into(), max: false, domain: false }, ExtremumOf { max: false, domain: false },
             Divmod { remainder_sink: "r".into() }, Divide { rounding: crate::ir::Rounding::HalfEven, scale: None }, Sort { keys: vec![] }, MentionTokens, SearchPresent, DeterministicShare, Count, Sum, CountCapped, Connected, RequireUncapped];
         #[cfg(feature = "sqlite")]

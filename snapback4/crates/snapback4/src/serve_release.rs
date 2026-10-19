@@ -34,10 +34,12 @@ pub(super) fn apply(
             after,
             items_after,
             event,
-        } => lock(&shared.engine)
-            .store_mut()
-            .release_status(after, items_after.as_deref(), event)
-            .map_err(|e| e.to_string()),
+        } => {
+            let mut engine=lock(&shared.engine);
+            let mut status=engine.store_mut().release_status(after,items_after.as_deref(),event).map_err(|e|e.to_string())?;
+            status["clock"]=json!({"now":shared.now(),"offsetMs":lock(&shared.clock).offset()});
+            Ok(status)
+        },
         Command::Prune {
             confirm,
             expected_revision,
@@ -115,11 +117,12 @@ pub(super) fn apply(
             let _requests=shared.release_requests.write();
             let mut engine = lock(&shared.engine);
             lock(&shared.readers).begin_adoption(&bound);
-            let generation = match engine.adopt_release(
+            let generation = match engine.adopt_release_at(
                 bound.schema.clone(),
                 bound.programs.iter().map(|p| p.program.clone()),
                 &options,
                 allow_feed_adoption,
+                shared.now(),
             ) {
                 Ok(generation) => generation,
                 Err(error) => {

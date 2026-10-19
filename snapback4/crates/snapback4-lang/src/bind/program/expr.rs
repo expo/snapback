@@ -772,6 +772,18 @@ impl Binder<'_> {
                 }
                 Ok((Expr::Builtin { builtin: Builtin::Count, args: vec![e] }, Ty::Int))
             }
+            "before" | "after" | "beforeLast" | "afterLast" | "startsWith" | "allDigits" => {
+                let function = snapback4_core::text::Function::named(name).unwrap();
+                arity(function.arity(), &format!("{name}(text, delimiter)"))?;
+                let mut values = Vec::new(); let mut maximum = 0;
+                for arg in args {
+                    let (value,ty) = self.expr(arg,out)?;
+                    let Some(max) = ty.text_max() else { return Err(type_error(site, format!("{name} takes present text"), format!("{name}(text ?? '', ' ')"))); };
+                    if values.is_empty() { maximum = max; }
+                    values.push(value);
+                }
+                Ok((Expr::Builtin { builtin: Builtin::Text(function), args: values }, if function.boolean() { Ty::Bool } else { Ty::Text(maximum) }))
+            }
             "lower" | "trim" => {
                 arity(1, &format!("{name}(text)"))?;
                 let (value, ty) = self.expr(&args[0], out)?;

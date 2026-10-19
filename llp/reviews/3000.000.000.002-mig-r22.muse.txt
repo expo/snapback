@@ -1,0 +1,14 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-mig (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=9ae6a75f-172d-4703-ba38-73c5eda0066b]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+READY.
+
+Checked the native re-entry path in [backfills.rs](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs). Pruned history conflicts only on overlapping output fields. Disjoint pruned history preserves the complete native image. The dedicated disjoint test covers this.
+
+Re-entry conflict preservation matches the design. Recomputed patches detect changed lookups. Unchanged cohorts preserve added-column edits. Changed dependencies refuse unless current equals saved result or preimage. Reversed same-column edits refuse.
+
+Dormant lifetimes match. Source expiry runs before patches through the ordinary closure. Narrowed re-dormancy updates only transformed authoritative cells. Invalid reference bindings are preserved.
+
+Clock authority matches. Only staging classification admits an offset. Production serve offset refuses before startup. Staging advance requires a full service session and rechecks classification under the writer. Preview uses owner time without minting a session.
+
+No material defects found.

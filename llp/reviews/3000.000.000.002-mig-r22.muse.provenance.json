@@ -1,0 +1,12 @@
+{
+  "reviewer": "Muse",
+  "model": "muse-spark-1.3-contributor",
+  "reasoning_effort": "high",
+  "transport": "Meta-key fallback after primary subscription quota error",
+  "verdict": "READY",
+  "semantic_candidate": "69944d0182",
+  "date": "2026-10-19",
+  "stdout": "3000.000.000.002-mig-r22.muse.txt",
+  "stderr": "3000.000.000.002-mig-r22.muse.stderr.txt",
+  "brief": "3000.000.000.002-mig-r22.muse.brief.md"
+}

@@ -13,6 +13,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
+#[cfg(feature = "sqlite")]
+pub mod backfill;
 pub mod columns;
 pub mod reservations;
 pub mod through;
@@ -40,6 +42,8 @@ pub use field_authority::FieldAuthority;
 pub use routes::RouteSpec;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Schema {
+    #[cfg(feature = "sqlite")]
+    pub backfills: Vec<backfill::Backfill>,
     pub receipts: Vec<ReceiptFamily>,
     /// Schema-time closure; retained on device projections without private derivations.
     pub receipt_dependencies: BTreeMap<String, BTreeSet<String>>,
@@ -1106,6 +1110,16 @@ pub struct SchemaIssue {
 /// maintain has the closed target shape; every `sync` is invertible.
 pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     let mut issues = columns::validate(schema);
+    #[cfg(feature = "sqlite")]
+    {
+    let mut backfill_outputs = BTreeSet::new(); let mut backfill_names = BTreeSet::new();
+    for f in &schema.backfills {
+        if let Err(message) = f.admit(schema) { issues.push(SchemaIssue { path:format!("backfills.{}.{}",f.table,f.name),message }); }
+        if !backfill_names.insert((&f.table,&f.name)) || f.outputs.iter().any(|c|!backfill_outputs.insert((&f.table,c))) {
+            issues.push(SchemaIssue { path:format!("backfills.{}.{}",f.table,f.name),message:"backfills require distinct names and disjoint outputs".into() });
+        }
+    }
+    }
     issues.extend(ephemeral::validate(schema));
     issues.extend(field_authority::validate(schema));
     issues.extend(through::validate(schema));

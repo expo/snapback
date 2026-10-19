@@ -546,74 +546,15 @@ pub struct EffectDecl {
     pub site: Site,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct Document {
-    pub aliases: Vec<(String, String, Site)>,
-    pub invariants: Vec<InvariantDecl>,
-    pub source: crate::source::SourceMap,
-    pub file: String,
-    pub identity: Option<(bool, bool)>,
-    /// Location of the one project-wide `use identity` declaration.
-    pub identity_site: Option<Site>,
-    /// Project-wide opt-in, collected across documents like `use identity`.
-    pub server: bool,
-    pub tables: Vec<TableDecl>,
-    pub maintains: Vec<MaintainDecl>,
-    pub timelines: Vec<TimelineDecl>,
-    pub views: Vec<ViewDecl>,
-    pub feed_views: Vec<FeedView>,
-    pub effects: Vec<EffectDecl>,
-    pub shapes: Vec<ShapeDecl>,
-    pub functions: Vec<FunctionDecl>,
-    pub programs: Vec<ProgramDecl>,
-    pub actions: Vec<ActionDecl>,
-    pub routes: Vec<RouteDecl>,
-    pub schedules: Vec<ScheduleDecl>,
-    /// Personas declared with `use personas alice, bob`.
-    pub personas: Vec<String>,
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct TimelineDecl {
-    pub name: String,
-    pub authors: [String; 2],
-    pub posts: [String; 4],
-    pub reposts: [String; 4],
-    pub edges: [String; 3],
-    pub size: Option<crate::recipe::FollowingCaps>,
-    pub filter: Option<Expr>,
-    pub site: Site,
-}
-
-/// Planned union branches retain their source sites for type/order diagnostics.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ViewDecl {
-    pub name: String,
-    pub branches: Vec<ViewBranch>,
-    pub site: Site,
-}
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ViewBranch {
-    pub source: String,
-    pub predicate: Option<Expr>,
-    pub fields: Vec<ShapeField>,
-    pub site: Site,
-}
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct FeedView {
-    pub name: String,
-    pub source: String,
-    pub predicate: Expr,
-    pub site: Site,
-}
-
-/// Independent policy intent; never used to grant runtime authority.
-// @ref LLP 3000.036.004#2-surface — intent is separate from enforcement.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct InvariantDecl {
+pub struct BackfillDecl {
     pub table: String,
-    pub target: String,
-    pub column: Option<String>,
+    pub name: String,
+    pub args: Vec<ArgDecl>,
     pub value: Expr,
     pub site: Site,
 }
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Document {
+    pub backfills: Vec<BackfillDecl>,

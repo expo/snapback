@@ -15,6 +15,7 @@ pub(super) fn preview(
     root: PathBuf,
     release: u64,
     options: &Options,
+    held_owner: Option<&crate::store_owner::Owner>,
 ) -> Result<(), String> {
     let bound = super::releases::bound_at(root.clone())?;
     let project = Project { root };
@@ -25,6 +26,21 @@ pub(super) fn preview(
     let snapshot = Snapshot(std::env::temp_dir().join(format!("snapback4-release-preview-{id}")));
     snapback4_core::private_fs::directory(&snapshot.0).map_err(|e| e.to_string())?;
     let path = snapshot.0.join("store.sqlite");
+    // Probe the existing filesystem lock, independently of any HTTP address
+    // hint. Keep a stopped store excluded through preview; never create a lock
+    // sidecar or mutate its address record just to inspect ownership.
+    let (live,_stopped_guard)=if held_owner.is_some() {(false,None)} else if store_path.exists() {
+        let database=store_path.canonicalize().map_err(|e|e.to_string())?;
+        match snapback4_core::private_fs::auxiliary_file(&database,&snapback4_core::private_fs::owner_path(&database),false,0) {
+            Ok(owner)=>match owner.try_lock() {
+                Ok(())=>(false,Some(owner)),
+                Err(std::fs::TryLockError::WouldBlock)=>(true,None),
+                Err(std::fs::TryLockError::Error(e))=>return Err(format!("preview owner probe failed: {e}")),
+            },
+            Err(e) if e.kind()==std::io::ErrorKind::NotFound=>return Err("preview cannot establish exclusive store ownership: missing owner sidecar; restart serve once, stop it, then retry".into()),
+            Err(e)=>return Err(format!("preview owner probe failed: {e}")),
+        }
+    }else{(false,None)};
     // SQLite VACUUM INTO takes a coherent read snapshot even with a live WAL writer.
     // Busy/disk errors refuse this preview; never fall back to copying database bytes.
     if store_path.exists() {
@@ -41,6 +57,12 @@ pub(super) fn preview(
     let held = store
         .release_status(0, None, None)
         .map_err(|e| e.to_string())?;
+    // @ref LLP 3000.000.000.002#4-staging-clock — preview uses the owning host's authoritative time, without minting or advancing anything.
+    let activation_now=if live {
+        let status=crate::release_control::request(store_path.parent().ok_or("preview store has no deployment directory")?,crate::release_control::Command::Status{after:0,items_after:None,event:None})?;
+        if status["revision"]!=held["revision"] {return Err("preview raced release activation; retry against the current store".into());}
+        status["clock"]["now"].as_i64().ok_or("serving owner does not expose its activation clock; restart it with this CLI before preview")?
+    }else{snapback4_core::now_ms()};
     let mut activation =
         snapback4_core::engine::release::ReleaseActivation::new(release, held["release"].as_u64());
     activation.expected_revision = held["revision"].as_u64();
@@ -82,12 +104,13 @@ pub(super) fn preview(
         }
     }
     super::release_safeguards::capture(&store)?;
-    let mut engine = snapback4_core::Engine::new_release_prepared(
+    let mut engine = snapback4_core::Engine::new_release_prepared_at(
         store,
         bound.schema,
         bound.programs.into_iter().map(|p| p.program),
         &activation,
         options.flags.contains_key("allow-feed-adoption"),
+        activation_now,
     )
     .map_err(|e| e.to_string())?;
     let mut planned = engine

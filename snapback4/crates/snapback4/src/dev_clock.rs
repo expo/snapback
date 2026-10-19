@@ -1,11 +1,11 @@
-//! A process-local development clock. The release host always reads wall time.
+//! A process-local clock for development and explicitly classified staging stores.
 use snapback4_core::error::Refusal;
 use std::time::{Duration, Instant};
 
 const MAX_TIME: i64 = snapback4_core::value::I53_MAX;
 
 pub fn input(message: impl Into<String>) -> Refusal { Refusal::new("E_CLOCK_INPUT", "clock", message).guide("clock") }
-pub fn release() -> Refusal { Refusal::new("E_CLOCK_DEV_ONLY", "clock", "clock controls require dev; serve always uses wall time").guide("clock") }
+pub fn release() -> Refusal { Refusal::new("E_CLOCK_DEV_ONLY", "clock", "clock controls require dev or a deploy --staging store; production always uses wall time").guide("clock") }
 
 /// Isolated time tests stay inside an assigned range, or request a free port.
 pub(crate) fn isolated_command() -> String {
@@ -104,16 +104,26 @@ impl Clock {
 /// The control CLI only talks to a loopback dev host. It does not open its store.
 pub fn command(options: &crate::verbs::Options) -> i32 {
     let result = (|| -> Result<String, String> {
-        if options.flags.contains_key("release") { return Err(release().to_string()); }
         if options.positionals.len() != 2 || options.positionals[0] != "advance" {
             return Err(input(format!("usage: {}", crate::cli_flags::synopsis("clock"))).to_string());
         }
         duration(&options.positionals[1]).map_err(|e| e.to_string())?;
-        let (address, instance) = crate::verbs::dev_address(options)?;
+        let release_path = options.flags.get("release").map(|dir| std::path::PathBuf::from(dir).join("store.sqlite"));
+        if release_path.is_some() && options.flags.contains_key("port") { return Err("clock --release does not accept --port".into()); }
+        let (address, instance, token) = if let Some(path) = &release_path {
+            let store = snapback4_core::Store::open_read_only(path).map_err(|e|e.to_string())?;
+            if store.meta("deployment_environment").map_err(|e|e.to_string())?.as_deref() != Some("staging") { return Err(release().to_string()); }
+            let address = crate::store_owner::inspector_address(path).ok_or("staging clock requires a running serve")?;
+            let session = crate::serve::token::mint_live(path, "clock", 1).map_err(|(_,error)|error)?;
+            (address,None,Some(session.token))
+        } else { let (address,instance)=crate::verbs::dev_address(options)?; (address,instance,None) };
         let body = serde_json::json!({"duration":options.positionals[1],"eachBoundary":options.flags.contains_key("each-boundary")}).to_string();
         // The common HTTP/1.0 exchange is EOF-delimited and bounds replies at
         // 64 MiB, enough for the preflight's complete explicit window report.
-        let (status, json) = crate::verbs::run_forward::exchange_dev(address, "/dev/clock/advance", instance.as_deref(), &body, Duration::from_secs(60)).map_err(|error| {
+        let response = if let Some(token) = &token {
+            crate::verbs::run_forward::exchange_authorized(address,"POST","/dev/clock/advance",None,Some(token),&body,Duration::from_secs(60))
+        } else { crate::verbs::run_forward::exchange_dev(address, "/dev/clock/advance", instance.as_deref(), &body, Duration::from_secs(60)) };
+        let (status, json) = response.map_err(|error| {
             let evidence = crate::verbs::run_forward::exchange(address, "GET", "/dev/status", None, "", Duration::from_secs(5)).ok()
                 .map(|(_, status)| format!("now={}, skewMs={}", status["now"], status["skewMs"]))
                 .unwrap_or_else(|| "clock status unavailable".into());

@@ -1,0 +1,7 @@
+**NOT READY**
+
+- **[P1] Newly backfilled references can lose parent-lifetime protection during narrowing.** [narrowed.rs:139](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/narrowed.rs:139) archives the transformed row using the predecessor definition and captures references only from that definition’s columns. A newly added reference output therefore gets no dormant parent binding; [backfills.rs:190](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs:190) captures only argument references.
+
+  Reproduction: add `link: parents` through a point-lookup backfill while narrowing an unrelated child column so the transformed child becomes dormant. Delete and recreate the selected parent with the same id, then widen the child column while carrying the declaration. Re-entry computes the same reference id and restores the child against the replacement parent lifetime without refusing.
+
+  Capture newly produced references using candidate output types when archiving transformed rows, preserving existing invalidation evidence. Add a regression covering this sequence with no reference-typed backfill arguments.

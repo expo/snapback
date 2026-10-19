@@ -255,6 +255,7 @@ pub enum Builtin {
     Concat,
     Lower,
     Trim,
+    Text(crate::text::Function),
     Sha256,
     Join,
     Group { field: String, #[serde(default, skip_serializing_if = "std::ops::Not::not")] optional: bool },
@@ -296,6 +297,7 @@ pub enum Builtin {
 impl Builtin {
     pub fn arity(&self) -> usize {
         match self {
+            Self::Text(f) => f.arity(),
             #[cfg(feature = "sqlite")]
             Self::JobQuery { .. } => 1,
             #[cfg(feature = "sqlite")]

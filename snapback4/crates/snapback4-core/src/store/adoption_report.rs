@@ -25,6 +25,7 @@ impl AdoptionReport {
         let mut counts = [0u64; 3];
         let mut samples = std::collections::BTreeMap::<String, std::collections::BTreeSet<String>>::new();
         for item in items {
+            if item.kind=="backfill" {continue;}
             let (slot, label) = match item.kind.as_str() {
                 "column" => (1, format!("cells {}", item.path)),
                 "index" => (2, format!("entries {}", item.path.split('.').next().unwrap_or(&item.path))),

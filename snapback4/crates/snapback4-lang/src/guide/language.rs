@@ -814,4 +814,14 @@ mutation react(message: messages, emoji: text <=32) predicts:
 ```
 
 This inherits `read through .message`; `guide sync` covers lifetime, three-hop immutable references and E_READ_THROUGH/E_SYNC repairs; `guide prediction` covers coverage/rollback.
+```quarry
+table parcels:
+  weight: int
+  sizeClass: enum('small', 'large')
+  read <- deny
+  online only
+backfill parcels sizes(weight: int): {sizeClass: 'large' if weight > 3500 else 'small'}
+```
+
+**Historical data:** `backfill` declares a historical-input patch, applied atomically by deploy; keep it in later schemas. Rollback restores untouched preimages or refuses conflicts. `before`/`after` and `beforeLast`/`afterLast` split at first/last exact delimiter (absent: whole-before/empty-after; empty: refusal). `startsWith` tests an exact prefix; `allDigits` means nonempty ASCII digits. `guide deploy` provides the runnable persistent-production recipe.
 "##;

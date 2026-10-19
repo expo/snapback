@@ -74,6 +74,7 @@ impl Engine {
         tx.changes.borrow_mut().widen();
         let touched: Vec<String> = self.schema.visible_tables().map(|(name, _)| name.clone()).collect();
         tx.record_commit(head + 1, now, "dev reset", crate::SYSTEM_PRINCIPAL, "reset", &touched, 0)?;
+        if crate::store::backfills::has_evidence(&tx)? {crate::store::backfills::prepare_inputs(&tx,&self.schema,None)?;}
         let seeded = seed_rows(&self.schema, &tx, rows, now)?;
         let seq = tx.next_seq()?.saturating_sub(1);
         tx.commit()?;

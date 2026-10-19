@@ -1,0 +1,12 @@
+{
+  "reviewer": "OpenAI Codex",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "fresh_session": true,
+  "reviewed_commit": "890d1a6629",
+  "verdict": "NOT READY",
+  "stdout": "3000.000.000.002-mig-r18.codex.txt",
+  "stderr": "3000.000.000.002-mig-r18.codex.stderr.txt",
+  "brief": "3000.000.000.002-mig-r18.brief.md",
+  "date": "2026-10-19"
+}

@@ -31,7 +31,8 @@ fn blind_update_explanations_agree() {
 #[test]
 fn release_json_reference_is_discoverable_without_growing_the_deploy_card() {
     let deploy = guide::card("deploy").unwrap();
-    assert!(deploy.lines().count() <= 150);
+    assert!(deploy.split("## Persistent production:").next().unwrap().trim_end().lines().count() <= 150);
+    assert!(deploy.lines().count() <= 280);
     assert!(deploy.contains("guide release-json"));
     let reference = guide::card("release-json").unwrap();
     for field in ["current", "release", "previous_active", "latest", "generation", "revision", "native_digest", "events_after", "items_after", "workers", "selected"] {
