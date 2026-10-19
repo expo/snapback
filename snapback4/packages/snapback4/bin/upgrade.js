@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // @ref LLP 3000.011.003.000#14 — resolve once, pin core and adapters to that same release.
+import { upgradeWarnings } from './upgrade-warnings.js';
 import { synopsis } from './cli-usage.js';
 import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -7,6 +8,7 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { previousVersion, installedVersion, acknowledgeVersion, compareVersions, installedHistory, runtimeChanges } from './release-changes.js';
 
+let migrationWarnings = [];
 async function run() {
   const args = process.argv.slice(2).flatMap(arg => arg.startsWith('--to=') ? ['--to', arg.slice(5)] : [arg]);
   if (args.length === 1 && args[0] === '--help') { console.log(`usage: ${synopsis('upgrade')}\nUpgrade snapback4 and every installed snapback4-expo adapter with npm, bun or pnpm; keep exact pins. Default: latest; refuses downgrades unless --to is explicit. Rebuild native apps after changing the adapter.`); return; }
@@ -111,6 +113,8 @@ try {
     }
     if (!quiet) log(`upgrade plan: snapback4/snapback4-expo → ${version}; expo ${current ?? '(absent)'} → ${expo}; align ${[...pins].filter(([name]) => !targets.includes(name)).map(([name, pin]) => `${name}@${pin}`).join(', ')}`);
   }
+  const warnings = migrationWarnings = compareVersions(version, "0.4.33") >= 0 && (!installed || compareVersions(installed, version) < 0) ? upgradeWarnings(root, declarations) : [];
+  for (const warning of warnings) process.stderr.write(`project ${pkg.name ?? root}: upgrade warning: ${warning}\n`);
   if (previous) acknowledgeVersion(root, previous);
   if (schema && installed === previous) {
     // A previous package may predate snapshots. Capture its own compiler output
@@ -182,7 +186,7 @@ try {
     else if (checked.stdout && (!quiet || checked.status !== 0)) process.stdout.write(checked.stdout);
     if (checked.error || checked.status !== 0) { const error = Error(`E_UPGRADE: packages pinned to ${version}; post-upgrade check refused. Repair the reported schema/device issues and run check again.`); error.check = checkedFacts; throw error; }
   }
-  if (json) console.log(JSON.stringify({ ok: true, version, targets, packageManager: pm, check: checkedFacts }));
+  if (json) console.log(JSON.stringify({ ok: true, version, targets, packageManager: pm, warnings, check: checkedFacts }));
   if (!quiet) log(`upgrade: ${targets.join(', ')} pinned to ${version} with ${pm}; commit the lockfile, run check and acceptance tests${targets.includes('snapback4-expo') ? ', and rebuild the native app' : ''}`);
 }
-try { await run(); } catch (error) { if (process.argv.includes('--json')) console.log(JSON.stringify({ ok: false, error: error.message, ...(error.check ? { check: error.check } : {}) })); console.error(error.message); process.exitCode = 1; }
+try { await run(); } catch (error) { if (process.argv.includes('--json')) console.log(JSON.stringify({ ok: false, error: error.message, warnings: migrationWarnings, ...(error.check ? { check: error.check } : {}) })); console.error(error.message); process.exitCode = 1; }

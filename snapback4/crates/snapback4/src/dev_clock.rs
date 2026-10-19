@@ -2,6 +2,8 @@
 use snapback4_core::error::Refusal;
 use std::time::{Duration, Instant};
 
+pub(crate) const SESSION_NOTICE: &str = "Time travel also advances session expiry and unplaced-upload collection: seven-day password sessions may now be expired. Sign in again after the jump and upload unplaced bytes after it; never replay an ambiguous clock advance. Password-only dev clock tools require --unsafe-dev-doors; for real-user previews use guide staging (MIG staging clock).";
+
 const MAX_TIME: i64 = snapback4_core::value::I53_MAX;
 
 pub fn input(message: impl Into<String>) -> Refusal { Refusal::new("E_CLOCK_INPUT", "clock", message).guide("clock") }
@@ -129,6 +131,7 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
                 .unwrap_or_else(|| "clock status unavailable".into());
             format!("clock advance reply failed at {address}: {error}; time may already have advanced ({evidence}); inspect /dev/status and queued work before retrying; for an isolated dev pass --port N")
         })?;
+        if let Some(notice) = json["sessionNotice"].as_str() { eprintln!("clock: {notice}"); }
         if let Some(denied) = json.get("denied") {
             let clock = json["message"].as_str().map(|message| format!("; time remains advanced: {message}")).unwrap_or_default();
             return Err(format!("{}: {}{clock}\n  guide: clock", denied["code"].as_str().unwrap_or("E_CLOCK_INPUT"), denied["message"].as_str().unwrap_or("clock advance failed")));

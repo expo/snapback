@@ -20,6 +20,8 @@ pub(crate) struct Identity {
     pub address: SocketAddr,
     pub temporary: bool,
     pub pid: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub store_path: Option<PathBuf>,
 }
 pub(crate) struct Registration {
     pub identity: Identity,
@@ -145,6 +147,7 @@ pub(crate) fn register(
     mut address: SocketAddr,
     store_id: String,
     temporary: bool,
+    store_path: Option<PathBuf>,
 ) -> Result<Registration, String> {
     // Wildcard bind addresses describe listeners, not safe control targets.
     // The corresponding loopback reaches this listener without leaving the host.
@@ -178,6 +181,7 @@ pub(crate) fn register(
         )
         .map_err(|e| e.to_string())?,
         initial_store_id: store_id,
+        store_path,
         project: root,
         address,
         temporary,
@@ -235,6 +239,7 @@ mod tests {
             "127.0.0.1:1".parse().unwrap(),
             "s".repeat(BYTES as usize),
             true,
+            None,
         )
         .err()
         .expect("oversized registration must refuse");
@@ -246,7 +251,7 @@ mod tests {
             0
         );
         let registration =
-            register(&root, "127.0.0.1:1".parse().unwrap(), "store".into(), true).unwrap();
+            register(&root, "127.0.0.1:1".parse().unwrap(), "store".into(), true, None).unwrap();
         assert_eq!(
             live(&root).unwrap()[0].instance,
             registration.identity.instance
@@ -270,6 +275,7 @@ mod tests {
                 address: "127.0.0.1:1".parse().unwrap(),
                 temporary: true,
                 pid: 1,
+                store_path: None,
             };
             fs::write(
                 dir.join(format!("{}.json", identity.instance)),
@@ -286,7 +292,7 @@ mod tests {
         scan(&root, true).unwrap();
         assert_eq!(fs::read_dir(&dir).unwrap().count(), 0);
         fs::write(dir.join("invalid.json"), "not a record").unwrap();
-        let active = register(&root, "127.0.0.1:1".parse().unwrap(), "store".into(), true).unwrap();
+        let active = register(&root, "127.0.0.1:1".parse().unwrap(), "store".into(), true, None).unwrap();
         assert_eq!(live(&root).unwrap().len(), 1);
         assert!(dir.join("invalid.json").exists());
         drop(active);

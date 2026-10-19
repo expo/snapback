@@ -80,7 +80,7 @@ fn limited(request: Request, shared: &Shared) {
     let mut refusal = Refusal::new(
         "E_RATE_LIMIT",
         "auth",
-        "too many identity requests; retry later",
+        "too many identity requests; honor Retry-After/retryAfterMs. Scripted staging setup should use seedAccounts, which waits. Local dev loopback has no per-minute identity cap; serialize password requests to stay within its bounded KDF slots. Production/staging keep their real limits (30 attempts/peer/minute, 10/email/minute)",
     )
     .guide("personas");
     refusal.retryable = true;

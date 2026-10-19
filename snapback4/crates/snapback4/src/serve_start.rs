@@ -93,17 +93,22 @@ pub fn serve(
             address,
         )?;
     }
+    // @ref LLP 3000.000.000.001#8-wave-18-developer-loop-amendment-dx4 — temporary dev retains the same private token owner.
+    // Disposable hosts also own a private file store. Publish the same mutual
+    // proof as persistent dev; never introduce an unauthenticated token door.
+    let fresh = if matches!(mode, Mode::Dev { fresh: true, .. }) {
+        Some(query_readers::FreshDirectory::new()?)
+    } else { None };
+    if let Some(fresh) = &fresh {
+        let mut owner = crate::store_owner::host(&fresh.path())?;
+        crate::store_owner::announce(&mut owner, address)?;
+        host_lock = Some(owner);
+    }
     let host_owner = match &mode {
         Mode::Release { owner, .. } => Some(owner.clone()),
         _ => host_lock.take().map(Arc::new),
     };
     if let Some(owner) = &host_owner { owner.report_reclaim(matches!(mode, Mode::Dev { verbose: true, .. })); }
-    // `--fresh` has private, disposable storage and the same WAL readers as dev.
-    let fresh = if matches!(mode, Mode::Dev { fresh: true, .. }) {
-        Some(query_readers::FreshDirectory::new()?)
-    } else {
-        None
-    };
     let mut engine = match &mode {
         Mode::Dev { fresh: true, .. } => Engine::new_at(
             fresh.as_ref().unwrap().store().map_err(|e| e.to_string())?,
@@ -172,7 +177,7 @@ pub fn serve(
     // Keep registration custody in this serving frame, independently of worker Arcs.
     let registration = if dev { Some(crate::dev_hosts::register(&project.root, address,
         engine.store().meta("store_id").map_err(|e|e.to_string())?.unwrap_or_default(),
-        matches!(mode, Mode::Dev {fresh:true,..}))?) } else {None};
+        matches!(mode, Mode::Dev {fresh:true,..}), host_owner.as_ref().and_then(|o| o.path().ok()).map(std::path::Path::to_path_buf))?) } else {None};
     let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
     let shared = Arc::new(Shared {
         dev_reset_store: Mutex::new(None),

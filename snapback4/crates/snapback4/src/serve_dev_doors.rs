@@ -183,6 +183,7 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
     let now = shared.now();
     snapback4_core::diagnostic!("snapback4 dev: store reset (store {} → {}, seeded {}) in {} ms", reset.previous_store_id, reset.store_id, reset.seeded, started.elapsed().as_millis());
     respond_timed(request, shared, 200, json!({
+        "sessionNotice":"Reset replaced the store and removed its accounts and sessions. Discard cached credentials/localStorage for this backend, sign up again and reprovision roles; use a fresh memory host per independent proof.",
         "reset": true, "seeded": reset.seeded, "generation": generation, "storeId": reset.store_id,
         "previousStoreId": reset.previous_store_id, "head": reset.seq, "assetsRemoved": assets,
         "now": now, "clockOffsetMs": lock(&shared.clock).offset(), "skewMs": now - snapback4_core::now_ms(), "ms": started.elapsed().as_millis() as u64,

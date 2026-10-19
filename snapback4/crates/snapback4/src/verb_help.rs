@@ -84,8 +84,8 @@ Readiness and ownership:
   everything else goes to stderr, so read stdout alone for it. A script that
   reads both streams through one handler matches the tagged stderr line
   SNAPBACK4_READY verb=dev generation=N url=http://… pid=N [wrapperPid=N]
-  instead. The stderr banner names the server's pid, and GET /dev/status (no
-  credential) answers {pid, wrapperPid, project, temporary, generation,
+  instead. The stderr banner names the server's pid, and GET /auth/config always advertises
+  development/devDoors. When fixture doors are open, GET /dev/status answers {pid, wrapperPid, project, temporary, generation,
   personas, …}: a script that spawned dev can check the pid is the one it
   started. Through the npm wrapper (node_modules/.bin/snapback4, npx), pid is
   the binary's and wrapperPid the wrapper's; a signal to either stops the
@@ -225,7 +225,7 @@ pub fn page(verb: &str) -> Option<String> {
         "seed" => "Load a fixture directory (<table>.jsonl) or a JSON /seed array into a running development host through POST /seed. --port selects the host; otherwise discover the current project's dev. Adds rows as the system without resetting the store; defaults, relative fixture times and constraints are checked atomically. Production serve refuses this door. Exit 1 on refusal, 2 on bad flags.",
         "reset" => "Empty a running development store through POST /dev/reset. --seed reseeds in the same transaction; --clock reset returns to wall time. Production releases refuse this door.",
         "clock" => "Advance dev or a classified staging backend's clock, sweep expiry and run due jobs. --port targets dev; --release <dir> uses local operator authority for staging. Production refuses clock control.",
-        "token" => "Mint a bearer session for a service seat. Default: token and newline on stdout, usage on stderr. --quiet suppresses successful stderr; --json prints {token, principal, expiresAt, store} with no successful stderr. --quiet and --json are mutually exclusive. A token belongs only to its owning store.",
+        "token" => "Mint a bearer session for a service seat. Default: token and newline on stdout, usage on stderr. --quiet suppresses successful stderr; --json prints {token, principal, expiresAt, store} with no successful stderr. --quiet and --json are mutually exclusive. A token belongs only to its owning store. Discovers the unique project dev, including --memory; --port N selects among live dev hosts, --release dir selects serve.",
         "web-shell" => "Install an offline service worker for a static web export (npm wrapper). Export index.html first; --base selects an absolute URL directory such as / or /chat/.",
         "witness" => "Browser executable: set SNAPBACK4_CHROMIUM (or CHROME) to Chromium. Build the static export first and register the app with registerWebWitness(app, api) from snapback4/witness-web. web exercises a visible form; acquire proves native acquisition and retained restart; ios exercises an installed application; status inspects background proof.",
         "" => return None,

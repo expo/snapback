@@ -1339,12 +1339,33 @@ pub fn token(options: &Options) -> i32 {
         return 2;
     };
     let days: i64 = options.flags.get("days").and_then(|d| d.parse().ok()).unwrap_or(365);
+    // @ref LLP 3000.000.000.001#8-wave-18-developer-loop-amendment-dx4 — project registry selects; private mutual proof authorizes.
     let path = match options.flags.get("release") {
         Some(dir) => match releases::existing_deployment(Path::new(dir)) {
             Ok(dir) => dir.join("store.sqlite"),
             Err(error) => { eprintln!("token: {error}"); return 2; }
         },
-        None => project_or_exit().store_path(),
+        None => {
+            let project = project_or_exit();
+            let hosts = match crate::dev_hosts::live(&project.root.canonicalize().unwrap_or(project.root.clone())) {
+                Ok(hosts) => hosts,
+                Err(error) => { eprintln!("token: {error}"); return 2; }
+            };
+            let port = match options.flags.get("port") {
+                Some(value) => match value.parse::<u16>().ok().filter(|p| *p > 0) {
+                    Some(port) => Some(port),
+                    None => { eprintln!("E_INPUT: token --port must be an integer in 1..65535; no mint request sent"); return 2; }
+                },
+                None => None,
+            };
+            let hosts: Vec<_> = hosts.into_iter().filter(|h| port.is_none_or(|p| h.address.port() == p)).collect();
+            if hosts.len() > 1 { eprintln!("E_INPUT: multiple live dev hosts; select token --service {name} --port N"); return 2; }
+            if let Some(host) = hosts.first() {
+                match &host.store_path { Some(path) => path.clone(), None => { eprintln!("token: this older dev host does not publish its store proof path; restart it with this CLI"); return 2; } }
+            } else if port.is_some() {
+                eprintln!("E_INPUT: no registered dev host for this project on the selected port; start dev and use its printed port"); return 2;
+            } else { project.store_path() }
+        },
     };
     if !options.flags.contains_key("release") && !path.is_file() {
         eprintln!("cannot open the store: no store at {}; run `snapback4 dev` first", path.display());

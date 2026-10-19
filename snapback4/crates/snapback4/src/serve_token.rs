@@ -107,10 +107,10 @@ pub(super) fn handle(mut request: Request, shared: &Shared) {
     }
     let result = {
         // Use the same writer and identity routine as offline minting. Sample
-        // wall time as the offline CLI does, independent of dev's test clock.
+        // the current host clock, as session resolution does (including dev jumps).
         let engine = producing_engine(shared);
         shared.owner.as_ref().expect("authorized owner").path().and_then(|_| {
-            let now = if engine.store().meta("deployment_environment")?.as_deref() == Some("staging") { shared.now() } else { snapback4_core::now_ms() };
+            let now = shared.now();
             identity::service_session(engine.store(), &mint.service, now, mint.days)
         })
     };

@@ -67,6 +67,7 @@ pub fn validate(args: &[String]) -> Result<(), String> {
     if verb == "test" && has("verbose") && !has("residency") { return Err("E_INPUT: test --verbose requires --residency".into()); }
     if verb == "run" && has("token-env") && !has("release") { return Err("E_INPUT: run --token-env requires --release".into()); }
     if verb == "why" && has("instance") && crate::verbs::parse(args).positionals.first().map(String::as_str) != Some("recent") { return Err("E_INPUT: why --instance requires why recent".into()); }
+    if verb == "token" && has("port") && has("release") { return Err("E_INPUT: token --port selects dev and cannot combine with --release".into()); }
     if verb == "token" && has("quiet") && has("json") { return Err("E_INPUT: token takes either --quiet or --json".into()); }
     Ok(())
 }

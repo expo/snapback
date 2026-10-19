@@ -123,7 +123,7 @@ pub(crate) fn stopped_host(path: &Path) -> bool {
 pub(crate) fn busy(path: &Path) -> String {
     let owner = address(path).map(|address| match owner_pid(path) { Some(pid) => format!("{address} (pid {pid})"), None => address })
         .unwrap_or_else(|| "another CLI command or a server starting up (address pending)".into());
-    format!("E_STORE_BUSY at {}: this store is live; owned by {owner}; directory {}; no work was admitted. Stop its `snapback4 dev` or `snapback4 serve` process (or wait for the owning CLI command), rerun this command once, then restart the server. Exclusion holds while <database>-owner is left in place; deleting or replacing it while a process runs ends exclusion and does not stop that process", path.display(),path.parent().unwrap_or(Path::new(".")).display())
+    format!("E_STORE_BUSY at {}: this store is live; owned by {owner}; directory {}; no work was admitted. For a disposable parallel proof use `dev --memory` (startDev({{args:[\"--memory\"]}})); otherwise stop its `snapback4 dev` or `snapback4 serve` process (or wait for the owning CLI command), rerun this command once, then restart the server. Exclusion holds while <database>-owner is left in place; deleting or replacing it while a process runs ends exclusion and does not stop that process", path.display(),path.parent().unwrap_or(Path::new(".")).display())
 }
 
 #[cfg(unix)]
