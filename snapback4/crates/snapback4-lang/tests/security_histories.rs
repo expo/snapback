@@ -197,3 +197,11 @@ fn pending_rows_keep_their_write_arm_and_executed_delete() {
  assert!(!c.violations.iter().any(|v|v.effect=="insert"),"{c:?}");
  assert!(c.violations.iter().any(|v|v.effect=="delete"&&v.operation=="remove"&&v.viewer=="dev:owner"),"{c:?}");
 }
+
+#[test]
+fn column_pairs_do_not_change_materialized_asset_inputs() {
+ let source="table notes:\n  owner: principal\n  body: text <=40\n  read <- allow\n  online only\nquery inspect(note: notes, image: image <=5000):\n  return notes[note].body\ninvariant notes.body read only .owner = viewer\n";
+ let c=fixture_campaign(source,vec![("notes".into(),row(&[("id",Value::Id("n".into())),("owner",Value::Id("dev:owner".into())),("body",Value::String("secret".into()))]))]);
+ assert!(c.violations.is_empty(),"{c:?}");
+ assert!(c.unsupported.iter().any(|s|s.contains("coupled asset ledger")),"{c:?}");
+}

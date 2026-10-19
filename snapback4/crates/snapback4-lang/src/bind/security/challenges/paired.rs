@@ -143,6 +143,8 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                         scope:"schema-valid seed-ingress paired worlds; authenticated logical data/refusal only; no application reachability claim".into(),
                         observations:Some(Observations{present:a,absent:b,absent_rows})});
                     break;
+                    }
+                    if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.observations.is_some()){break;}
                 }
                 if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.observations.is_some()){break;}
             }

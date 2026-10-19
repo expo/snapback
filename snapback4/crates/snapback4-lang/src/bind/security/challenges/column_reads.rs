@@ -76,7 +76,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
             let args_list=histories::fixture_cases(&p.args,rows,&actors,out);
             for args in args_list{
                 if !reserve(out,4){return;}
-                let execute=|alternate:bool|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>),String>{
+                let execute=|alternate:bool|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>,BTreeMap<String,Value>),String>{
                     let seeds=if alternate{&other}else{rows};
                     let mut e=if let Some(fixture)=fixture{
                         let mut e=fork(bound,fixture,Vec::new())?;
@@ -95,21 +95,22 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
                     let current=actual.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()).ok_or("column target is absent after validation")?;
                     if policy_in(bound,inv,&actual,viewer,None,current,&mut e)!=Ok(false){return Err("validated column-world policy is not false".into());}
                     let actual_args=materialize_arguments(&mut e,&p.args,&args,viewer)?;
-                    let observed=paired::observe(&mut e,p,viewer,actual_args)?;
-                    Ok((observed,actual))
+                    let observed=paired::observe(&mut e,p,viewer,actual_args.clone())?;
+                    Ok((observed,actual,actual_args))
                 };
-                let (a,primary_rows,b,alternate_rows)=match (execute(false),execute(true)){
-                    (Ok((a,primary)),Ok((b,alternate)))=>(a,primary,b,alternate),
+                let (a,primary_rows,primary_args,b,alternate_rows,alternate_args)=match (execute(false),execute(true)){
+                    (Ok((a,primary,aa)),Ok((b,alternate,ba)))=>(a,primary,aa,b,alternate,ba),
                     (Err(why),_)|(_,Err(why))=>{out.unsupported.insert(format!("{}.{} / {}: declined column world: {why}",inv.table,inv.column.as_deref().unwrap_or(""),p.name));continue;}
                 };
                 out.attempted+=2;*out.operations.entry(p.name.clone()).or_default()+=2;
+                if primary_args!=alternate_args{out.unsupported.insert(format!("{}: paired column arguments require a coupled asset ledger; differing materialized inputs declined",p.name));continue;}
                 let Ok(key)=row.field("id")else{continue;};
                 if !same_base_world(bound,inv,&primary_rows,&alternate_rows,key){out.unsupported.insert(format!("{}.{}: committed worlds change non-protected base fields/captures or populations; reduction unavailable",inv.table,inv.column.as_deref().unwrap()));continue;}
                 if a==b{continue;}
-                if !matches!((execute(false),execute(true)),(Ok((aa,pa)),Ok((bb,pb))) if aa==a&&bb==b&&pa==primary_rows&&pb==alternate_rows){continue;}
+                if !matches!((execute(false),execute(true)),(Ok((aa,pa,aa_args)),Ok((bb,pb,bb_args))) if aa==a&&bb==b&&pa==primary_rows&&pb==alternate_rows&&aa_args==primary_args&&bb_args==alternate_args){continue;}
                 let actual_row=primary_rows[&inv.table].iter().find(|r|r.field("id").ok()==Some(key)).unwrap();
                 let actual_alternate=alternate_rows[&inv.table].iter().find(|r|r.field("id").ok()==Some(key)).unwrap();
-                out.violations.push(Counterexample{reachability:if fixture.is_some(){Reachability::AuthoredFixtureTrace}else{Reachability::SyntheticOperation},invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.clone(),operation:p.name.clone(),effect:"column read observation".into(),row:actual_row.clone(),old:Some(actual_alternate.clone()),supporting_rows:trace.map(|(initial,_)|initial.clone()).unwrap_or_else(||primary_rows.clone()),history:trace.map(|(_,steps)|steps.to_vec()).unwrap_or_default(),rule_path:format!("authored observer depends on {}.{} while policy is false in both typed worlds",inv.table,inv.column.as_deref().unwrap()),scope:if fixture.is_some(){"primary observation executes on trusted fixture; alternate column is a dependency test, not an authored alternate-history claim"}else{"schema-valid synthetic worlds; authored observer, no application reachability claim"}.into(),observations:Some(paired::Observations{present:a,absent:b,absent_rows:alternate_rows})});
+                out.violations.push(Counterexample{reachability:if fixture.is_some(){Reachability::AuthoredFixtureTrace}else{Reachability::SyntheticOperation},invariant_site:inv.site.to_string(),args:primary_args,viewer:viewer.clone(),operation:p.name.clone(),effect:"column read observation".into(),row:actual_row.clone(),old:Some(actual_alternate.clone()),supporting_rows:trace.map(|(initial,_)|initial.clone()).unwrap_or_else(||primary_rows.clone()),history:trace.map(|(_,steps)|steps.to_vec()).unwrap_or_default(),rule_path:format!("authored observer depends on {}.{} while policy is false in both typed worlds",inv.table,inv.column.as_deref().unwrap()),scope:if fixture.is_some(){"primary observation executes on trusted fixture; alternate column is a dependency test, not an authored alternate-history claim"}else{"schema-valid synthetic worlds; authored observer, no application reachability claim"}.into(),observations:Some(paired::Observations{present:a,absent:b,absent_rows:alternate_rows})});
                 continue 'actors;
             }
         }
