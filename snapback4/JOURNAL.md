@@ -96726,3 +96726,21 @@ regression passed, including CLI advancement and restart dropping the offset.
 The installed-package staging qualifier now exercises the same clock helpers.
 LLP 3000.000.000.002 records the combined MIG language/adoption amendment;
 independent review continues before final acceptance.
+
+
+## 2026-10-19 — MIG declarative backfills and device bytes
+
+Backfills are typed scalar patches evaluated before candidate narrowing, with
+per-lifetime preimages and declaration membership retained through dormancy.
+The existing activation transaction stages every result, checks historical
+lookup uniqueness, then publishes data/indexes/derived state and generation.
+Whole-table and narrowed restoration join the source snapshot. Hot adoption
+and exact previews sample the serving clock, including staging offsets.
+
+The web schema omits server-only migration metadata and evidence. Locked Linux
+measurement is 2,385,285 B raw / 726,681 B gzip, +4,796 raw / +679 gzip versus
+Integration 17. The small deterministic text library must use the same Rust
+interpreter on server and device; the artifact allowance moves to measured
+727,181 B (exactly 500 B headroom). No runtime meter ceiling changes. Family
+and absent-feature audits and final qualification are recorded in the MIG
+report; this measurement alone does not claim those checks have passed.

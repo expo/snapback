@@ -8,7 +8,7 @@ bunx snapback4 test
 bunx snapback4 deploy ./deployment
 bunx snapback4 serve ./deployment --port 4400
 ```
-For a complete real-user staging script and first-admin setup, run `guide staging`. Bulk account setup is restricted to fresh `deploy --staging` stores. Generations climb on every actual switch, including rollback and forward; selecting identical execution content is a no-op. `token --service ops --release ./deployment` works while serve runs. Signups are rate-limited: create proof accounts sequentially and respect a returned retry delay. Time-gated mutations on the real clock need a bounded retry of the authored refusal (for example `NOT_OPEN`), with a deadline and short delay; never retry unrelated refusals. Development proofs can advance the clock (`guide time`).
+For a complete real-user staging script and first-admin setup, run `guide staging`. Bulk account setup is restricted to fresh `deploy --staging` stores. Generations climb on every actual switch, including rollback and forward; selecting identical execution content is a no-op. `token --service ops --release ./deployment` works while serve runs. Signups are rate-limited: create proof accounts sequentially and respect a returned retry delay. Time-gated mutations on the real clock need a bounded retry of the authored refusal (for example `NOT_OPEN`), with a deadline and short delay; never retry unrelated refusals. Development and classified staging proofs can advance the clock (`guide time`); production always uses wall time.
 
 ## Upgrade
 `snapback4 upgrade [version]` resolves once and exactly pins core and installed Expo adapters with npm/bun/pnpm. Rebuild native apps after adapter changes; commit the lockfile, run check/typecheck/acceptance. `test` uses ./fixtures; `--fixture dir` overrides it. Use the password and first-admin recipes below.
@@ -60,7 +60,7 @@ This roster is synced. A whole service-seat branch may add the first member; ord
 A synced row has at most one group-roster audience: cross-table crew grants are not a second group. Enroll those readers in the same roster or keep the table `online only` (`guide rule-recipes`). Mint locally against the same store. Token stdout is only the credential; prose is stderr. Protect it; it expires under the seat-session policy. Rotate the credential by revoking its session (guide services) and minting a replacement. Expired or revoked bearer sessions cannot invoke the mutation. A repeat grant hits uniqueness; add membership revocation deliberately. Programmatic account sessions use `mintSession(url, serviceToken, principal)` from `snapback4/worker` (guide services); service seats themselves are minted locally by `token`.
 
 ## Migrations and adoption
-Optional/defaulted columns, new tables/ops, non-unique indexes and wider types are additive. Required new fields need a literal default or explicit backfill; default now/viewer cannot invent historical values. Dev check/adoption refuses incompatible values with E_ADOPT. Release type narrowing instead retains each row whose present values cannot fit. Unique/cap conflicts still refuse atomically; repair active rows, or restore through a widened non-unique bridge, repair, then reinstate constraints. Prefer expand → migrate → contract for client compatibility.
+Optional/defaulted columns, new tables/ops, non-unique indexes and wider types are additive. Required new fields need a literal default or a declarative `backfill table name(fields: types): {column: expression}`; default now/viewer cannot invent historical values. Dev check/adoption refuses incompatible values with E_ADOPT. Release type narrowing instead retains each row whose present values cannot fit. Unique/cap conflicts still refuse atomically; repair active rows, or restore through a widened non-unique bridge, repair, then reinstate constraints. Prefer expand → migrate → contract for client compatibility.
 
 ## Rollback after widening, restore and prune
 ```sh
@@ -148,3 +148,137 @@ snapback4 deploy ./deployment --schema ./bridge --check
 ```
 
 The new versions/v1 captures selected modules, their contemporary fixtures and `versions/v1/release.json` with the actual immutable release id, source hash and CLI version. Unchanged deploy keeps its id; existing snapshots never change. Choose a new positive-numbered versions/vN; saving cannot combine with --check. Saved-source deploy uses its own fixtures. Use the recorded id when choosing a baseline; since_release remains the author-supplied newer-schema label. The bridge starts from complete current Quarry source and this app's `bridge/ROLLBACK-CHECKLIST.md`. Retain current domains, audiences, guards and quotas; repair records through authorized mutations; prove blocked cases refuse and affected lists/counts remain correct; repeat the old-source preview. No bridge is activated or business migration synthesized. JSON includes checklist; --verbose retains full evidence/index paths. Dormant rows reserve ids but no unique slots: new active rows may block restoration. A widened non-unique bridge permits repair before reinstating uniqueness; retained storage cannot supply absent safety logic.
+
+## Persistent production: v1 → v2 → rollback → forward
+
+Save the following as `day-two-production.mjs` in an app with `snapback4`
+installed and run `node day-two-production.mjs`. `PRODUCTION_DIR` selects its
+persistent deployment (default `./production-day-two`). Run it again against
+the same directory: it preserves every existing ticket and adds two real-user
+tickets. It never deletes production storage or reseeds fixtures. Keep the
+deployment, logs and `versions/` outside source control as appropriate.
+
+This example expands with a derived required field and contracts reviewer
+reads to the owner, with an independent read invariant. An old-shaped write
+still works on v2. Rollback deliberately restores v1's broader privacy rule;
+assert that behavior, and use a privacy-preserving bridge when it is unsuitable.
+REL5 owns release reactivation and old-client compatibility reporting; SEC3 owns
+column privacy invariants and audit. Backfills transform stored data, not the
+business rules an older release lacks.
+
+```js
+// day-two-production.mjs — this exact fence runs against the packed package.
+import assert from "node:assert/strict";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { randomUUID } from "node:crypto";
+import { cli, deploy, rollback, startServe } from "snapback4/proof";
+import { signup } from "snapback4/auth";
+
+const directory = resolve(process.env.PRODUCTION_DIR ?? "production-day-two");
+const v1 = `use identity password
+table roles:
+  principal: principal
+  role: enum('member', 'reviewer')
+  unique principal
+  read <- .principal = viewer or viewer = 'service:operator'
+  insert <- viewer = 'service:operator'
+  update <- viewer = 'service:operator'
+  online only
+mutation provision(principal: principal, role: enum('member', 'reviewer')):
+  require viewer = 'service:operator' else NOT_OPERATOR
+  return upsert roles[principal] {principal, role}
+table tickets:
+  owner: principal
+  body: text 1..200
+  weight: int
+  length: int
+  read <- .owner = viewer or exists roles[principal = viewer, role = 'reviewer']
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  online only
+mutation add(body: text 1..200, weight: int, length: int):
+  return insert tickets {owner:viewer, body, weight, length}
+mutation revise(ticket: tickets, weight: int):
+  update tickets[ticket] {weight}
+query ticket(ticket: tickets):
+  return tickets[ticket]
+`;
+const v2 = v1
+  .replace("  owner: principal", "  vehicleClass: enum('car', 'van', 'commercial')\n  owner: principal")
+  .replace("  read <- .owner = viewer or exists roles[principal = viewer, role = 'reviewer']", "  read <- .owner = viewer")
+  .replace("{owner:viewer, body, weight, length}", "{owner:viewer, body, weight, length, vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}")
+  + `backfill tickets vehicleClass(weight: int, length: int):
+  {vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}
+invariant tickets.read only .owner = viewer
+`;
+for (const [version, source] of [["v1", v1], ["v2", v2]]) {
+  mkdirSync(`versions/${version}`, { recursive: true });
+  writeFileSync(`versions/${version}/schema.q`, source);
+}
+async function checked(args) {
+  const result = await cli(args);
+  assert.equal(result.code, 0, result.stderr + result.stdout);
+  return result.stdout;
+}
+async function snapshot() {
+  const count = JSON.parse(await checked(["sql", "SELECT COUNT(*) FROM tickets", "--release", directory, "--json"])).rows[0][0];
+  const full = JSON.parse(await checked(["sql", "SELECT id, owner, body, weight, length FROM tickets ORDER BY id", "--release", directory, "--limit", String(Math.max(1, count + 1)), "--json"]));
+  assert.equal(full.rows.length, count, "inspect the entire production population");
+  return new Map(full.rows.map(row => [row[0], row]));
+}
+if (existsSync(directory + "/store.sqlite")) await rollback(directory, 1);
+else await deploy(directory, "versions/v1");
+const host = await startServe(directory);
+try {
+  const before = await snapshot();
+  const users = [];
+  for (const role of ["member", "reviewer"]) {
+    const signed = await signup(host.url, `${role}-${randomUUID()}@example.test`, randomUUID() + randomUUID());
+    assert.equal(signed.ok, true);
+    users.push(signed.session);
+  }
+  const [alice, reviewer] = users;
+  async function post(path, session, args) {
+    const response = await fetch(host.url + path, { method:"POST", headers:{"content-type":"application/json", authorization:`Bearer ${session.token}`}, body:JSON.stringify({args}), signal:AbortSignal.timeout(10000) });
+    assert.equal(response.status, 200);
+    return response.json();
+  }
+  const operator = {token:await host.operatorToken()};
+  for (const [index, role] of ["member", "reviewer"].entries()) {
+    assert.equal((await post("/m/provision", operator, {principal:users[index].principal, role})).state, "sent");
+  }
+  const first = await post("/m/add", alice, {body:"historical ticket", weight:1000, length:400});
+  assert.equal(first.state, "sent");
+  const ticket = first.result.id;
+  assert.equal((await post("/q/ticket", reviewer, {ticket})).data.body, "historical ticket", "v1 reviewer can read");
+  const historical = await snapshot(); assert.equal(historical.size, before.size + 1);
+  const preview = await checked(["deploy", directory, "--schema", "versions/v2", "--check", "--restore-dormant"]);
+  assert.match(preview, /vehicleClass/);
+  assert.deepEqual(await snapshot(), historical, "preview changes no production rows");
+  await deploy(directory, "versions/v2", {args:["--restore-dormant"]});
+  assert.deepEqual(await snapshot(), historical, "v2 preserves every historical business field");
+  assert.equal((await post("/q/ticket", alice, {ticket})).data.vehicleClass, "car");
+  assert.equal((await post("/q/ticket", reviewer, {ticket})).data, null, "v2 tightened privacy");
+  const oldCall = await post("/m/add", alice, {body:"old-shaped call on v2", weight:4000, length:400});
+  assert.equal(oldCall.state, "sent"); assert.equal(oldCall.result.vehicleClass, "commercial");
+  const allV2 = await snapshot(); assert.equal(allV2.size, historical.size + 1);
+  await rollback(directory, 1);
+  assert.deepEqual(await snapshot(), allV2, "rollback preserves v2-native rows too");
+  const oldView = (await post("/q/ticket", reviewer, {ticket})).data;
+  assert.equal(oldView.body, "historical ticket"); assert.ok(!("vehicleClass" in oldView));
+  assert.equal((await post("/m/revise", alice, {ticket, weight:4000})).state, "sent");
+  const changed = await snapshot();
+  const expected = new Map(allV2); const changedRow = [...expected.get(ticket)]; changedRow[3] = 4000; expected.set(ticket, changedRow);
+  assert.deepEqual(changed, expected, "v1 edits only the intended business value");
+  await rollback(directory, "latest");
+  assert.deepEqual(await snapshot(), changed, "forward preserves the complete production population");
+  assert.equal((await post("/q/ticket", alice, {ticket})).data.vehicleClass, "commercial", "forward catches up the old-release edit");
+  assert.equal((await post("/q/ticket", reviewer, {ticket})).data, null, "forward restores tightened privacy");
+  console.log(JSON.stringify({status:"passed", persistent:true, before:before.size, after:changed.size, backfill:"car → commercial after v1 edit", privacy:"v1 broad → v2 private → v1 broad → v2 private"}));
+} finally { await host.stop(); }
+```
+
+The deployment remains ready for `serve`. Every real user and existing row
+survives. A business-state conflict reports the affected rows and a bridge
+repair; resolve it under truthful old semantics before selecting that source.

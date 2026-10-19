@@ -281,13 +281,13 @@ fn run_now_refuses_live_dev_and_pins_offline_query_mutation_and_job() {
 #[test]
 fn release_refuses_clock_flags_and_the_endpoint() {
     let f = Fixture::new("release");
-    for args in [vec!["serve", "missing", "--clock-offset", "+2m"], vec!["serve", "missing", "--now", "1"], vec!["clock", "advance", "2m", "--release", "missing"], vec!["run", "time", "--now", "1", "--release", "missing"]] {
+    let deployed = f.command(&["deploy", "deployment"]);
+    assert!(deployed.status.success(), "{}", String::from_utf8_lossy(&deployed.stderr));
+    for args in [vec!["serve", "deployment", "--clock-offset", "+2m"], vec!["serve", "deployment", "--now", "1"], vec!["clock", "advance", "2m", "--release", "deployment"], vec!["run", "time", "--now", "1", "--release", "deployment"]] {
         let out = f.command(&args);
         assert!(!out.status.success());
         assert!(String::from_utf8_lossy(&out.stderr).contains("E_CLOCK_DEV_ONLY") || String::from_utf8_lossy(&out.stderr).contains("E_INPUT"), "{out:?}");
     }
-    let deployed = f.command(&["deploy", "deployment"]);
-    assert!(deployed.status.success(), "{}", String::from_utf8_lossy(&deployed.stderr));
     let host = f.start(&["serve", "deployment"]);
     let refused = host.post("/dev/clock/advance", json!({"duration":"+25h"}));
     assert_eq!(refused["denied"]["code"], "E_CLOCK_DEV_ONLY");

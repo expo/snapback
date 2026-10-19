@@ -1,0 +1,72 @@
+[
+  {
+    "lane": 1,
+    "app": "001-snapback-ferry-deck-manifest",
+    "rows": 64,
+    "oldBackendLines": 184,
+    "newBackendLines": 186,
+    "newBackfillLines": 2,
+    "replacedSourceLines": 0,
+    "legacyMs": 1218,
+    "declarativeMs": 679,
+    "savedMs": 539,
+    "oldMigrationAndSplitLines": 4,
+    "migrationLinesSaved": 2
+  },
+  {
+    "lane": 5,
+    "app": "005-snapback-kiln-firing-queue",
+    "rows": 117,
+    "oldBackendLines": 164,
+    "newBackendLines": 168,
+    "newBackfillLines": 4,
+    "replacedSourceLines": 0,
+    "legacyMs": 1351,
+    "declarativeMs": 550,
+    "savedMs": 801,
+    "oldMigrationAndSplitLines": 10,
+    "migrationLinesSaved": 6
+  },
+  {
+    "lane": 6,
+    "app": "006-snapback-dive-boat-buddy-log",
+    "rows": 119,
+    "oldBackendLines": 223,
+    "newBackendLines": 212,
+    "newBackfillLines": 8,
+    "replacedSourceLines": 19,
+    "legacyMs": 2048,
+    "declarativeMs": 570,
+    "savedMs": 1478,
+    "oldMigrationAndSplitLines": 19,
+    "migrationLinesSaved": 11
+  },
+  {
+    "lane": 12,
+    "app": "012-snapback-court-interpreter-slots",
+    "rows": 103,
+    "oldBackendLines": 162,
+    "newBackendLines": 155,
+    "newBackfillLines": 2,
+    "replacedSourceLines": 9,
+    "legacyMs": 822,
+    "declarativeMs": 397,
+    "savedMs": 425,
+    "oldMigrationAndSplitLines": 9,
+    "migrationLinesSaved": 7
+  },
+  {
+    "lane": 36,
+    "app": "036-snapback-robotics-parts-ledger",
+    "rows": 61,
+    "oldBackendLines": 200,
+    "newBackendLines": 197,
+    "newBackfillLines": 2,
+    "replacedSourceLines": 5,
+    "legacyMs": 622,
+    "declarativeMs": 349,
+    "savedMs": 273,
+    "oldMigrationAndSplitLines": 5,
+    "migrationLinesSaved": 3
+  }
+]

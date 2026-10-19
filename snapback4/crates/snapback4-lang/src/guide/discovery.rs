@@ -121,8 +121,12 @@ is running. Rollback keeps removed durable tables, columns and index definitions
 as dormant storage, invisible to old programs and sync. Forward restores their
 values. Older updates preserve dormant cells; deletion removes them. New older-
 release rows receive the forward literal default or optional null. A required
-field without a literal default needs an optional/defaulted bridge, backfill,
-then the required definition; contextual defaults never backfill history.
+field can declare a conditional/derived `backfill` in the candidate schema;
+deploy previews exact transformed-row counts and commits the patch with the
+release. Keep declarations across later releases; rollback restores untouched
+preimages or names a conflict, and forward catches up older writes. Contextual
+defaults never invent history. `guide deploy` contains the complete persistent
+production recipe. REL5 owns release selection and compatibility narration.
 
 An incompatible enum/text/type value becomes a dormant row during release activation,
 with its original values restored on compatible forward. Dev adoption still refuses

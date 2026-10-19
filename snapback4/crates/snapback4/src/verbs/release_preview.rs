@@ -41,6 +41,12 @@ pub(super) fn preview(
     let held = store
         .release_status(0, None, None)
         .map_err(|e| e.to_string())?;
+    // @ref LLP 3000.000.000.002#4-staging-clock — preview uses the owning host's authoritative time, without minting or advancing anything.
+    let activation_now=if crate::store_owner::inspector_address(store_path).is_some() {
+        let status=crate::release_control::request(store_path.parent().ok_or("preview store has no deployment directory")?,crate::release_control::Command::Status{after:0,items_after:None,event:None})?;
+        if status["revision"]!=held["revision"] {return Err("preview raced release activation; retry against the current store".into());}
+        status["clock"]["now"].as_i64().ok_or("serving owner does not expose its activation clock; restart it with this CLI before preview")?
+    }else{snapback4_core::now_ms()};
     let mut activation =
         snapback4_core::engine::release::ReleaseActivation::new(release, held["release"].as_u64());
     activation.expected_revision = held["revision"].as_u64();
@@ -77,12 +83,13 @@ pub(super) fn preview(
         }
     }
     super::release_safeguards::capture(&store)?;
-    let mut engine = snapback4_core::Engine::new_release_prepared(
+    let mut engine = snapback4_core::Engine::new_release_prepared_at(
         store,
         bound.schema,
         bound.programs.into_iter().map(|p| p.program),
         &activation,
         options.flags.contains_key("allow-feed-adoption"),
+        activation_now,
     )
     .map_err(|e| e.to_string())?;
     let mut planned = engine
