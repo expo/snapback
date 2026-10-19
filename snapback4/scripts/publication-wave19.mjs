@@ -16,7 +16,7 @@ import {writeFileSync,readFileSync} from "node:fs";
 import {resolve} from "node:path";
 import {deploy,startServe,rollback,cli} from "snapback4/proof";
 import {guest} from "snapback4/auth";
-const schema="use identity guests\ntable notes:\n  body: text <=80\n  public 'proof'\n  online only\nmutation add(body: text <=80):\n  return insert notes {body}\nquery version():\n  return 1\n";
+const schema="use identity guests\ntable notes:\n  body: text <=80\n  public 'proof'\n  insert <- allow\n  online only\nmutation add(body: text <=80):\n  return insert notes {body}\nquery version():\n  return 1\n";
 writeFileSync("snapback/schema.q",schema);
 const worker=resolve("snapback/worker.mjs"),root=process.cwd();
 writeFileSync(worker,"import {writeFileSync} from 'node:fs';const root="+JSON.stringify(root)+";process.on('SIGTERM',()=>setTimeout(()=>{writeFileSync(root+'/wave19-worker-stopped','yes');process.exit(0);},700));writeFileSync(root+'/wave19-worker-ready','yes');setInterval(()=>{},1000);");

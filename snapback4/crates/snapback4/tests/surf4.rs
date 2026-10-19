@@ -222,7 +222,7 @@ fn failed_seed_discovery_does_not_open_a_legacy_store_or_create_sidecars() {
 #[test]
 fn data_json_reports_default_truncation_empty_and_explicit_limits() {
     let app=App::new();fs::create_dir(app.0.join("snapback")).unwrap();
-    fs::write(app.0.join("snapback/schema.q"),"use personas alice\ntable notes:\n  body: text <=50\n  public 'test'\nmutation add():\n  return insert notes {body: 'row'}\n").unwrap();
+    fs::write(app.0.join("snapback/schema.q"),"use personas alice\ntable notes:\n  body: text <=50\n  public 'test'\n  insert <- allow\nmutation add():\n  return insert notes {body: 'row'}\n").unwrap();
     success(app.run(&["run","add","--as","alice"]));
     for _ in 1..51 {success(app.run(&["run","add","--as","alice"]));}
     for (flags,count,more,limit) in [(vec![],50,true,50),(vec!["--limit","51"],51,false,51),(vec!["--limit","0"],0,true,0)] {
