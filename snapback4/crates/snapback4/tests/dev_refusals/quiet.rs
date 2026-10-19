@@ -67,7 +67,11 @@ fn snapshot_store(dev: &Host) -> String {
 fn real_refusals_keep_individual_records_and_print_one_counted_line() {
     let dev = Host::start(Project::new(), true, false);
     let store = snapshot_store(&dev);
+    let sending = Instant::now();
     for _ in 0..8 { dev.refuse("add"); }
+    // Coalescing is per 1 s window: only when all eight landed inside one window is a
+    // single ×8 line owed (0.4.33 Mac dry run 1 saw ×6 under full-suite load).
+    let one_window = sending.elapsed() < Duration::from_millis(900);
     let end = Instant::now() + Duration::from_secs(10);
     loop {
         let output = dev.project.why(&[]);
@@ -86,8 +90,23 @@ fn real_refusals_keep_individual_records_and_print_one_counted_line() {
     // details stay in `why recent`. This simple clause still fits one short line.
     let text = wait_console(&dev, "dev refusal: add E_RULE at ");
     let lines: Vec<_> = text.lines().filter(|line| line.starts_with("dev refusal:")).collect();
-    assert_eq!(lines.len(), 1, "{text}");
-    assert!(lines[0].ends_with("(table insert rule on rows); clause `insert <- .owner = viewer` ×8 — snapback4 why recent") && lines[0].len() < 180, "{text}");
+    if one_window {
+        assert_eq!(lines.len(), 1, "{text}");
+        assert!(lines[0].ends_with("(table insert rule on rows); clause `insert <- .owner = viewer` ×8 — snapback4 why recent") && lines[0].len() < 180, "{text}");
+    } else {
+        // Spread over windows: each window prints one counted line, and the counts cover all eight.
+        let count = |line: &str| line.rsplit_once(" ×").and_then(|(_, rest)| rest.split_whitespace().next()?.parse::<usize>().ok()).unwrap_or(1);
+        let end = Instant::now() + Duration::from_secs(10);
+        let mut text = text;
+        while text.lines().filter(|line| line.starts_with("dev refusal:")).map(count).sum::<usize>() < 8 {
+            assert!(Instant::now() < end, "{text}");
+            std::thread::sleep(Duration::from_millis(50));
+            text = fs::read_to_string(&dev.stderr).unwrap();
+        }
+        let lines: Vec<_> = text.lines().filter(|line| line.starts_with("dev refusal:")).collect();
+        assert!(lines.len() < 8, "refusals were not coalesced: {text}");
+        assert!(lines.iter().all(|line| line.contains("(table insert rule on rows); clause `insert <- .owner = viewer`") && line.len() < 180), "{text}");
+    }
     assert!(!store.is_empty());
     dev.refuse("add");
     wait_console(&dev, "(table insert rule on rows); clause `insert <- .owner = viewer` — snapback4 why recent");
