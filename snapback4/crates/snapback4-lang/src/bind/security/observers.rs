@@ -28,7 +28,7 @@ pub(super) fn obligations(bound: &Bound, inv: &Invariant) -> Vec<Obligation> {
     let table = &bound.schema.tables[&inv.table];
     let mut out = vec![Obligation::implication(
         "server point/scan/planned view/count/sum/exists payload".into(),
-        Ok(super::temporal::admission(table)), policy)];
+        Ok(super::columns::admission(table,inv.column.as_deref())), policy)];
     for m in bound.schema.maintains.iter().filter(|m| m.source == inv.table) {
         let admission = (|| {
             if m.row_key.is_some() || m.parent_key.is_some() || m.private.is_some()

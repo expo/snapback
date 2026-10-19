@@ -75,7 +75,7 @@ pub fn implies(admission: &R, policy: &R) -> Result<bool,String> {
 pub fn dependencies(rule: &R) -> BTreeSet<String> {
     let mut out=BTreeSet::new();
     match rule {
-        R::Exists{table,..}|R::Created{table,..} => {out.insert(table.clone());}
+        R::Exists{table,key,equalities,..}|R::Created{table,key,equalities,..} => {out.insert(table.clone());for term in key.iter().chain(equalities.iter().map(|(_,t)|t)){for (table,_) in term.references(){out.insert(table.into());}}}
         R::And(xs)|R::Or(xs) => for x in xs {out.extend(dependencies(x));}, R::Not(x) => out.extend(dependencies(x)),
         R::Eq(a,b)|R::Ne(a,b)|R::Compare(_,a,b) => for t in [a,b] { for (table,_) in t.references() {out.insert(table.into());} },
         _=>{}

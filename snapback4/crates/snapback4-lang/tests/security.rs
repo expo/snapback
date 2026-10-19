@@ -56,12 +56,13 @@ fn basic(rule:&str)->String{format!("table notes:\n  owner: principal\n  body: t
 #[test]fn bakeoff_security_advice_names_global_bootstrap_and_existence_oracle(){
  let source=include_str!("security/wave16/021.q");let b=bound(source);
  assert!(security::analyze(&b).notes.iter().any(|n|n.code=="N_VACUOUS_RULE"));
- let src="table notes:\n  owner: principal\n  read <- allow\n  online only\nmutation edit(note: notes):\n  n = notes[note] ! else NOT_FOUND\n  require n.owner = viewer else FORBIDDEN\n  return null\n";let b=bound(src);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("schema.q".into(),src.into())],&b);assert!(r.notes.iter().any(|n|n.code=="N_EXISTENCE_ORACLE"));
+ let src="table notes:\n  owner: principal\n  read <- allow\n  online only\nmutation edit(note: notes):\n  n = notes[note] ! else NOT_FOUND\n  require n.owner = viewer else FORBIDDEN\n  return null\n";let b=bound(src);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("schema.q".into(),src.into())],&b);assert!(!r.notes.iter().any(|n|n.code=="N_EXISTENCE_ORACLE"),"public rows have no private existence boundary");
 }
 
 #[test]fn argument_grants_and_retained_role_grants_receive_advice(){
  let src="table notes:\n  owner: principal\n  read <- .owner = viewer\n  insert <- allow\n  online only\nmutation assign(owner: principal):\n  return insert notes { owner }\n";let b=bound(src);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("schema.q".into(),src.into())],&b);assert!(r.notes.iter().any(|n|n.code=="N_ARGUMENT_GRANT"));
- let b=bound(include_str!("security/wave16/019.q"));assert!(security::analyze(&b).notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"));
+ let source=include_str!("security/wave16/019.q");let b=bound(source);assert!(!security::analyze(&b).notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"));
+ let b=bound(&format!("{source}\ninvariant inspections.insert only exists roles[viewer, role = 'inspector']\n"));assert!(security::analyze(&b).notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"));
 }
 
 #[test]fn sibling_column_edits_and_upsert_insert_arms_do_not_refute_other_effects(){
@@ -72,4 +73,128 @@ fn basic(rule:&str)->String{format!("table notes:\n  owner: principal\n  body: t
 #[test]fn delete_reinsert_and_contextual_probe_literals_cannot_falsely_refute(){
  let b=bound("table notes:\n  body: text <=80\n  read <- allow\n  insert <- allow\n  delete <- allow\n  online only\nmutation replace(note: notes):\n  delete notes[note]\n  upsert notes[note] { body: 'changed' }\n  return null\ninvariant notes.update only deny\n");assert!(security::challenges::run(&b).violations.is_empty());
  let b=bound("table roles:\n  name: text <=80\n  read <- allow\n  online only\ntable docs:\n  n: int 1..10\n  read <- allow\n  online only\ninvariant docs always .n > 0 and exists roles[id = 'security-roles']\n");assert!(security::challenges::run(&b).violations.is_empty());
+}
+
+#[test]
+fn column_read_uses_read_authority_and_authored_projection_observers(){
+    let src="table notes:\n  owner: principal\n  body: text 1..80\n  read <- allow\n  online only\ninvariant notes.body read only .owner = viewer\nquery inspect(note: notes):\n  n = notes[note] ! else NOT_FOUND\n  return n.body\n";
+    let b=bound(src);assert_eq!(b.invariants[0].column.as_deref(),Some("body"));
+    assert_ne!(security::analyze(&b).invariants[0].direct_rule,Status::Proved,"denied delete cannot prove a column read");
+    let c=security::challenges::run(&b);assert!(c.violations.iter().any(|v|v.effect=="column read observation"),"{c:?}");
+    let safe=bound(&src.replace("return n.body","return { owner: n.owner }"));
+    assert!(security::challenges::run(&safe).violations.is_empty(),"projection excluding protected value is not a whole-row disclosure");
+    let audit=security::analyze(&b);assert!(audit.exposures[0].column_audiences.contains_key("body"));
+}
+#[test]
+fn column_private_owner_is_part_of_the_payload_theorem(){
+    let b=bound("table notes:\n  owner: principal\n  body: text <=80 default '' written by .owner\n  read <- allow\n  insert <- .owner = viewer\n  online only\ninvariant notes.body read only .owner = viewer\n");
+    assert_eq!(security::analyze(&b).invariants[0].direct_rule,Status::Proved);
+}
+#[test]
+fn synthetic_refutation_is_visible_but_does_not_fail_acceptance(){
+    let b=bound(&basic("allow"));let mut r=security::analyze(&b);let c=security::challenges::run(&b);
+    security::challenges::apply(&mut r,&c);assert_eq!(r.invariants[0].status,Status::Refuted);assert!(!r.refuted());
+    assert!(r.text().contains("non-failing"));assert!(r.text_with_all(true).contains("counterexample"));
+}
+#[test]
+fn printed_nested_connectives_preserve_the_policy(){
+    let src=basic(".owner = viewer and (viewer = 'service:one' or viewer = 'service:two')");
+    let b=bound(&src);let printed=b.schema.tables["notes"].rules.read.quarry();assert!(printed.contains("("));
+    let round=bound(&basic(&printed));assert_eq!(b.schema.tables["notes"].rules.read,round.schema.tables["notes"].rules.read);
+}
+#[test]
+fn security_notes_have_real_sites_and_self_signup_role_is_flagged(){
+    let src="table roles:\n  principal: principal\n  role: enum('member','admin')\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  online only\ntable notes:\n  read <- exists roles[viewer, role = 'admin']\n  online only\nmutation join(role: enum('member','admin')):\n  return insert roles { principal: viewer, role }\n";
+    let b=bound(src);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),src.into())],&b);
+    assert!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"));assert!(r.notes.iter().all(|n|n.site.line>0));
+    let fixed=src.replace("insert <- .principal = viewer","insert <- viewer = 'service:ops'");
+    let b=bound(&fixed);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),fixed)],&b);
+    assert!(!r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"));
+}
+
+#[test]
+fn kind_named_authority_and_owner_field_patches_receive_escalation_advice(){
+    for owned in [false,true]{
+        let source=format!("table seats:\n  principal: principal\n  kind: enum('member','admin') default 'member'{}\n  unique principal\n  read <- .principal = viewer\n  insert <- {}\n  online only\ntable secrets:\n  read <- exists seats[viewer, kind = 'admin']\n  online only\nmutation appoint(kind: enum('member','admin')):\n  return upsert seats[viewer] {{ principal: viewer, kind }}\n",if owned{" written by .principal readable by audience"}else{""},if owned{"viewer = 'service:ops'"}else{".principal = viewer"});
+        let b=bound(&source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source)],&b);
+        assert!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"owned={owned}: {:?}",r.notes);
+    }
+}
+#[test]
+fn projected_temporal_column_does_not_use_whole_row_temporal_probes(){
+ let b=bound("table notes:\n  body: text <=80\n  until: time\n  read <- allow\n  online only\ninvariant notes.body read only now < .until\nquery inspect(note: notes):\n  n = notes[note] ! else NOT_FOUND\n  return { id: n.id }\n");
+ let c=security::challenges::run(&b);assert!(c.violations.is_empty(),"{c:?}");
+ assert!(c.unsupported.iter().any(|s|s.contains("temporal ticks")));
+}
+#[test]
+fn defaulted_self_signup_authority_is_flagged(){
+ let source="table roles:\n  principal: principal\n  role: enum('member','admin') default 'admin'\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  online only\ntable secrets:\n  read <- exists roles[viewer, role = 'admin']\n  online only\nmutation join():\n  return insert roles { principal: viewer }\n";
+ let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source.into())],&b);assert!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"));
+}
+#[test]
+fn derived_column_values_and_value_dependent_counts_are_observers(){
+ for kind in ["sum notes of .amount","count notes where .amount > 1"]{
+  let b=bound(&format!("table notes:\n  owner: principal\n  amount: int\n  read <- allow\n  online only\nview totals: {kind} by .owner\n  read <- allow\n  online only\nquery total(owner: principal):\n  return totals[owner]\ninvariant notes.amount read only .owner = viewer\n"));
+  let c=security::challenges::run(&b);assert!(c.violations.iter().any(|v|v.effect=="column read observation"),"{kind}: {c:?}");
+ }
+}
+#[test]
+fn defaulted_upsert_role_does_not_borrow_update_authority(){
+ let source="table roles:\n  principal: principal\n  role: enum('member','admin') default 'admin' written by .principal readable by audience\n  unique principal\n  read <- .principal = viewer\n  insert <- viewer = 'service:ops'\n  update <- .principal = viewer\n  online only\ntable secrets:\n  read <- exists roles[viewer, role = 'admin']\n  online only\nmutation touch():\n  return upsert roles[viewer] { principal: viewer }\n";
+ let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source.into())],&b);assert!(!r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
+}
+#[test]
+fn display_name_edits_do_not_make_a_role_revocable(){
+ let source="table roles:\n  principal: principal\n  role: enum('inspector','member')\n  displayName: text <=80\n  unique principal\n  read <- allow\n  update <- viewer = 'service:ops'\n  online only\ntable grants:\n  inspector: principal\n  unique inspector\n  read <- .inspector = viewer\n  insert <- exists roles[viewer, role = 'inspector']\n  online only\ntable reports:\n  read <- exists grants[viewer]\n  online only\ninvariant reports.read only exists roles[viewer, role = 'inspector']\nmutation rename(who: principal, name: text <=80):\n  update roles[who] { displayName: name }\n  return null\n";
+ let b=bound(source);assert!(!security::analyze(&b).notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"));
+ let b=bound(&(source.to_string()+"mutation demote(who: principal):\n  update roles[who] { role: 'member' }\n  return null\n"));assert!(security::analyze(&b).notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"));
+}
+
+#[test]
+fn column_value_existence_is_observed_without_disclosing_other_columns(){
+ let b=bound("table notes:\n  owner: principal\n  secret: text <=30 ?\n  read <- allow\n  online only\nview totals: count notes where .secret != null by .owner\n  read <- allow\n  online only\nquery total(owner: principal):\n  return totals[owner]\ninvariant notes.secret read only .owner = viewer\n");
+ let c=security::challenges::run(&b);assert!(c.violations.iter().any(|v|v.effect=="column read observation"),"{c:?}");
+}
+
+#[test]
+fn fixed_literal_self_signup_of_global_authority_is_flagged(){
+ let source="table roles:\n  principal: principal\n  role: enum('member','admin')\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  update <- viewer = 'service:ops'\n  online only\ntable secrets:\n  read <- exists roles[viewer, role = 'admin']\n  online only\nmutation join():\n  return insert roles { principal: viewer, role: 'admin' }\n";
+ let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source.into())],&b);assert!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
+}
+
+#[test]
+fn helpers_preserve_role_assignment_advice_and_operator_guards(){
+ for guarded in [false,true]{
+  let source=format!("table roles:\n  principal: principal\n  role: enum('member','admin')\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  online only\ntable secrets:\n  read <- exists roles[viewer, role = 'admin']\n  online only\nfn enroll(chosen: enum('member','admin')):\n{}  return insert roles {{ principal: viewer, role: chosen }}\nmutation join(role: enum('member','admin')):\n  return enroll(role)\n",if guarded{"  require viewer = 'service:ops' else OPERATOR\n"}else{""});
+  let b=bound(&source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source)],&b);assert_eq!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),!guarded,"{:?}",r.notes);
+ }
+}
+
+#[test]
+fn tuple_role_probes_and_literal_targets_are_not_hidden_by_arguments(){
+ for tuple in [false,true]{
+  let source=format!("table roles:\n  principal: principal\n  role: enum('member','admin')\n  unique principal{}\n  read <- allow\n  insert <- .principal = viewer\n  online only\ntable secrets:\n  read <- exists roles[{}]\n  online only\nmutation join(role: enum('member')):\n  return insert roles {{ principal: viewer, role: 'admin' }}\n",if tuple{", role"}else{""},if tuple{"viewer, 'admin'"}else{"viewer, role = 'admin'"});
+  let b=bound(&source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source)],&b);assert!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{tuple}: {:?}",r.notes);
+ }
+}
+#[test]
+fn successful_operator_helper_guards_protect_later_caller_writes(){
+ let source="table roles:\n  principal: principal\n  role: enum('member','admin')\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  online only\ntable secrets:\n  read <- exists roles[viewer, role = 'admin']\n  online only\nfn operator():\n  require viewer = 'service:ops' else OPERATOR\n  return null\nmutation join():\n  operator()\n  return insert roles { principal: viewer, role: 'admin' }\n";
+ let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source.into())],&b);assert!(!r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
+}
+
+#[test]
+fn ordinary_project_ownership_is_not_role_delegation(){
+ let source="table projects:\n  owner: principal\n  state: enum('open','closed')\n  unique owner\n  read <- allow\n  insert <- .owner = viewer\n  online only\ntable roles:\n  principal: principal\n  role: enum('member','admin')\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  online only\ntable secrets:\n  read <- exists roles[viewer, role = 'admin']\n  online only\nmutation join():\n  require exists projects[viewer, state = 'open'] else NO_PROJECT\n  return insert roles { principal: viewer, role: 'admin' }\n";
+ let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source.into())],&b);assert!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
+}
+#[test]
+fn insert_intent_does_not_constrain_authorized_role_updates(){
+ let source="table roles:\n  principal: principal\n  role: enum('member','admin','legal')\n  unique principal\n  read <- allow\n  insert <- viewer = 'service:ops'\n  update <- exists roles[viewer, role = 'admin']\n  online only\ntable secrets:\n  read <- exists roles[viewer, role = 'legal']\n  online only\ninvariant roles.role insert only .role = 'member'\nmutation promote(who: principal):\n  return update roles[who] { role: 'legal' }\n";
+ let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source.into())],&b);assert!(!r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
+}
+#[test]
+fn fixed_customer_enrollment_with_self_scoped_permissions_is_quiet(){
+ let source="table roles:\n  principal: principal\n  role: enum('customer','dispatcher')\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer and .role = 'customer'\n  online only\ntable bookings:\n  customer: principal\n  read <- .customer = viewer or exists roles[viewer, role = 'dispatcher']\n  insert <- .customer = viewer and exists roles[viewer, role = 'customer']\n  online only\nmutation join():\n  return insert roles { principal: viewer, role: 'customer' }\n";
+ let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source.into())],&b);assert!(!r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
 }

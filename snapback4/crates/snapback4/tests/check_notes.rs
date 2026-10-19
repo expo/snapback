@@ -10,6 +10,8 @@ fn a_security_refutation_never_acknowledges_compiler_notes() {
     let file = dir.join("snapback/check-notes.json");
     let run = |args: &[&str]| Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
     fs::write(&schema, source).unwrap();
+    fs::create_dir_all(dir.join("fixtures")).unwrap();
+    fs::write(dir.join("fixtures/notes.jsonl"),"{\"id\":\"note-1\",\"owner\":\"dev:security-a\"}\n").unwrap();
     assert!(run(&["check", "--ack-notes"]).status.success());
     let reviewed = fs::read(&file).unwrap();
     fs::write(&schema, source.replace("read <- .owner = viewer", "read <- allow")).unwrap();

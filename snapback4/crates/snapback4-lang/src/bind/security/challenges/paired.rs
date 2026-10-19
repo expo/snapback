@@ -9,7 +9,7 @@ pub struct Observations {
     pub absent_rows: BTreeMap<String,Vec<Value>>,
 }
 
-fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>)->Result<serde_json::Value,String>{
+pub(super) fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>)->Result<serde_json::Value,String>{
     let context=Context::new(viewer,args).at(NOW);
     if p.kind==ProgramKind::Query {
         match engine.query(&p.name,context) {
@@ -35,7 +35,7 @@ fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>
 }
 
 pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>){
-    for inv in bound.invariants.iter().filter(|i|i.target=="read"&&sites.is_none_or(|s|s.contains(&i.site.to_string()))) {
+    for inv in bound.invariants.iter().filter(|i|i.target=="read"&&i.column.as_deref().is_none_or(|c|c=="id")&&sites.is_none_or(|s|s.contains(&i.site.to_string()))) {
         if inv.policy.is_none(){out.unsupported.insert(format!("{}: paired observation needs complete bound policy dependencies; unsupported policy AST is not dependency-free",inv.table));continue;}
         if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()){continue;}
         // Closed transitive observer set: include maintained targets, inherited
@@ -68,6 +68,9 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                 out.unsupported.insert(format!("{}: paired fixture asset identities are not coupled",inv.table));continue;
             }
             let Some(row)=present.get(&inv.table).and_then(|rs|rs.first()).cloned()else{continue;};
+            let prepared=match engine(bound,&present,program("$security.pair.image",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))])){Ok(e)=>e,Err(why)=>{out.unsupported.insert(why);continue;}};
+            let prepared_rows=match readback(&prepared){Ok(rows)=>rows,Err(why)=>{out.unsupported.insert(why);continue;}};
+            let Some(row)=prepared_rows.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()).cloned()else{continue;};
             let mut absent=present.clone();absent.remove(&inv.table);
             // Final-exists validation is a pure judgment of this fixed seeded
             // world, before operation/viewer admission. Retain its rejection
@@ -106,7 +109,8 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                         let actual=readback(&e)?;
                         // Judge the hypothetical protected row in each complete
                         // committed world, before any operation can change roles.
-                        if policy(bound,inv,&actual,viewer,None,&row)!=Ok(false){return Err("paired policy is not definitely false in both worlds".into());}
+                        let focal=actual.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()).cloned().unwrap_or_else(||row.clone());
+                        if policy_in(bound,inv,&actual,viewer,None,&focal,&mut e)!=Ok(false){return Err("paired policy is not definitely false in both worlds".into());}
                         observe(&mut e,p,viewer,args.clone()).map(|value|(value,actual))
                     };
                     let ((a,rows),(b,absent_rows))=match (execute(&present),execute(&absent)) {
@@ -123,7 +127,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                     if !matches!((execute(&present),execute(&absent)),(Ok((aa,_)),Ok((bb,_))) if aa==a&&bb==b){
                         out.unsupported.insert(format!("{}: paired observation is not repeatable",p.name));continue;
                     }
-                    out.violations.push(Counterexample {history:Vec::new(),invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.into(),
+                    out.violations.push(Counterexample {reachability:Reachability::SyntheticOperation,history:Vec::new(),invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.into(),
                         operation:p.name.clone(),effect:"read observation".into(),row:row.clone(),old:None,supporting_rows:rows,
                         rule_path:"paired present/absent engine executions differ while the declared privacy policy is false in both".into(),
                         scope:"schema-valid seed-ingress paired worlds; authenticated logical data/refusal only; no application reachability claim".into(),

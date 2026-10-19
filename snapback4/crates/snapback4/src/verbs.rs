@@ -331,7 +331,7 @@ pub fn check(options: &Options) -> i32 {
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
     }
-    let security = security::report(&project, &bound);
+    let security = security::report(&project, &bound, options);
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
     match adoption::diagnostics(&project, &bound.schema, options.flags.get("store"), options.json || options.flags.contains_key("verbose")) {
         Ok((problems, notes)) => { bound.diagnostics.extend(problems); bound.notes.extend(notes); },
@@ -399,7 +399,7 @@ pub fn check(options: &Options) -> i32 {
     let details = acquisition.is_none() || options.flags.contains_key("verbose");
     let certificates: Vec<_> = bound.programs.iter().map(|p| crate::scale::analyze_bound(&bound.schema, p)).collect();
     let scale_summary = crate::scale::summary(&certificates);
-    let note_count = reviewed.new.len() + certificates.iter().map(|certificate| certificate.search.len()).sum::<usize>();
+    let note_count = security.notes.len() + reviewed.new.len() + certificates.iter().map(|certificate| certificate.search.len()).sum::<usize>();
     let field_authority: Vec<_> = bound.schema.visible_tables().flat_map(|(name,table)| table.written_by.iter().map(move |(column,authority)|
         format!("{name}.{column}: written by .{}; visibility: {}", authority.owner, if authority.audience { "readable by audience" } else { "private to owner" }))).collect();
     let row_views = bound.schema.maintains.iter().filter_map(|m| m.row_key.as_ref().map(|k| json!({
@@ -484,7 +484,7 @@ pub fn check(options: &Options) -> i32 {
             if options.json { eprintln!("{report}"); } else { println!("{report}"); }
         }
     }
-    if !options.json { security::summary(&security); }
+    if !options.json { security::summary(&security,options.flags.contains_key("all")); }
     // @ref LLP 3000.011.003.000#7.2 — init-first projects keep the todo starter's files; name them and the one command that fits them.
     if !options.json && let Some(report) = init::starter_leftovers(&project.root) { println!("{report}"); }
     if security.refuted() { 1 } else { 0 }

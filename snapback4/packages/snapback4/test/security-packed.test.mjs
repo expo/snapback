@@ -33,7 +33,7 @@ test('packed security card and starter run as written; broad reads refute', {tim
  }
  const guide=command(['guide','security','--full']);const blocks=[...guide.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]);assert.ok(blocks.length);
  for(let i=0;i<blocks.length;i++){
-  const app=join(dir,`card-${i}`);mkdirSync(join(app,'snapback'),{recursive:true});writeFileSync(join(app,'snapback/schema.q'),blocks[i]);
+  const app=join(dir,`card-${i}`);mkdirSync(join(app,'snapback'),{recursive:true});writeFileSync(join(app,'snapback/schema.q'),blocks[i]);mkdirSync(join(app,'fixtures'));writeFileSync(join(app,'fixtures/privateNotes.jsonl'),JSON.stringify({id:'note-1',patient:'dev:security-a',body:'private body'})+'\n');
   let checked=JSON.parse(command(['check','--json'],app));assert.equal(checked.ok,true);assert.ok(checked.security.invariants.length);
   assert.match(readFileSync(join(app,"snapback/generated/security-invariants.q.draft"),"utf8"),/DRAFT: NOT ACCEPTED/);
   assert.ok(checked.security.invariants.every(v=>['proved','unproved'].includes(v.status)),JSON.stringify(checked.security));assert.ok(checked.security.invariants.every(v=>v.direct_rule==='proved'));

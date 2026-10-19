@@ -1,11 +1,51 @@
 //! Advice identifies a risk shape; it never supplies a proof assumption.
-// @ref LLP 3000.036.004#6-bakeoff-repairs — current roles, grant writers, required evidence and refusal oracles.
+// @ref LLP 3000.036.004#123-actionable-authority-advice — current roles, grant writers, required evidence and refusal oracles.
 use super::*;
 use crate::ast::{Expr,Stmt,ProgramKind};
+const NOW_FOR_DEFAULTS:i64=1_800_000_000_000;
 fn rule_parts(rule:&RuleExpr)->Vec<&RuleExpr>{match rule{RuleExpr::And(xs)|RuleExpr::Or(xs)=>xs.iter().flat_map(rule_parts).collect(),RuleExpr::Not(x)=>rule_parts(x),r=>vec![r]}}
 fn role_test(rule:&RuleExpr)->bool {rule_parts(rule).iter().any(|r|matches!(r,RuleExpr::Exists{key,equalities,..} if key.iter().any(|t|matches!(t,RuleTerm::Viewer))&&equalities.iter().any(|(_,t)|matches!(t,RuleTerm::Literal(_)))))}
 fn reader_columns(rule:&RuleExpr)->BTreeSet<String>{rule_parts(rule).into_iter().filter_map(|r|match r{RuleExpr::Eq(RuleTerm::Field(f),RuleTerm::Viewer)|RuleExpr::Eq(RuleTerm::Viewer,RuleTerm::Field(f))=>Some(f.clone()),_=>None}).collect()}
 fn note(notes:&mut Vec<Diagnostic>,site:&Site,code:&str,message:String,rewrite:&str){notes.push(Diagnostic::new(site,code,message,rewrite).guide("security"));}
+fn mutable_role(bound:&Bound,name:&str)->bool {
+    let Some(t)=bound.schema.table(name)else{return false;};
+    let roles=super::privilege::role_columns(bound,name);
+    if roles.is_empty(){return false;}
+    let mutable=roles.iter().any(|c|!t.constraints.iter().any(|k|matches!(k,snapback4_core::schema::Constraint::Immutable{fields} if fields.contains(c))));
+    fn supplied(value:&serde_json::Value,roles:&BTreeSet<String>)->bool{
+        if let Some(fields)=value.get("Object").and_then(serde_json::Value::as_object){return fields.keys().any(|c|roles.contains(c));}
+        if let Some(fields)=value.get("Literal").and_then(|v|v.get("Map").or_else(||v.get("Row"))).and_then(serde_json::Value::as_object){return fields.keys().any(|c|roles.contains(c));}
+        true // Dynamic patches cannot establish that role fields are untouched.
+    }
+    fn writes(value:&serde_json::Value,name:&str,roles:&BTreeSet<String>,update:bool,delete:bool)->bool{
+        match value{
+            serde_json::Value::Object(xs)=>{
+                for tag in ["Update","Upsert","WriteTarget"]{if let Some(body)=xs.get(tag){
+                    let target=if tag=="WriteTarget"{body.get("target").and_then(|v|v.get("table"))}else{body.get("table")};
+                    if update&&target.and_then(serde_json::Value::as_str)==Some(name)&&body.get(if tag=="Upsert"{"row"}else{"patch"}).is_some_and(|v|supplied(v,roles)){return true;}
+                }}
+                for tag in ["Delete","DeleteTarget"]{if let Some(body)=xs.get(tag){
+                    let target=if tag=="DeleteTarget"{body.get("target").and_then(|v|v.get("table"))}else{body.get("table")};
+                    if delete&&target.and_then(serde_json::Value::as_str)==Some(name){return true;}
+                }}
+                xs.values().any(|v|writes(v,name,roles,update,delete))
+            },serde_json::Value::Array(xs)=>xs.iter().any(|v|writes(v,name,roles,update,delete)),_=>false,
+        }
+    }
+    bound.programs.iter().any(|p|{
+        let system=p.program.kind==snapback4_core::ir::ProgramKind::Job;
+        let update=mutable&&(system||!matches!(t.rules.update,RuleExpr::Deny)||roles.iter().any(|c|t.written_by.contains_key(c)));
+        let delete=system||!matches!(t.rules.delete,RuleExpr::Deny);
+        writes(&serde_json::to_value(&p.program).unwrap(),name,&roles,update,delete)
+    })
+}
+fn recipient_role(bound:&Bound,name:&str,branch:&RuleExpr,grant:Option<&str>,roster:&str,effect:&str)->bool{
+    if bound.invariants.iter().any(|i|i.table==name&&(i.target==effect||i.target=="write"&&matches!(effect,"insert"|"update"))&&i.policy.as_ref().is_some_and(|p|kernel::dependencies(p).contains(roster))){return true;}
+    let _=(branch,grant,roster);
+    // Field names cannot establish a current-role contract. The missing-intent
+    // note asks for that independent specification before lifetime advice.
+    false
+}
 pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
     let mut notes=Vec::new();
     for (name,t) in bound.schema.visible_tables(){
@@ -27,12 +67,19 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
                 note(&mut notes,&Site::default(),"N_VACUOUS_RULE",format!("{name}: `created {parent}` can bootstrap authority trusted globally by a viewer-only probe; a caller may create their own global administrator grant"),"provision global authority only through an operator/service seat or existing authorized admin; group creation must scope every later grant to that group (guide deploy, first-admin setup)");
             }
         }
-        for branch in t.rules.read.disjuncts(){
+        for (effect,rule) in [("read",&t.rules.read),("insert",&t.rules.insert),("update",&t.rules.update),("delete",&t.rules.delete)] {
+          for branch in rule.disjuncts(){
             if role_test(branch){continue;}
-            for dep in kernel::dependencies(branch){if let Some(g)=bound.schema.table(&dep) && (role_test(&g.rules.insert)||role_test(&g.rules.update)){
-                note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}: `{}` trusts {dep} grants, but this branch does not re-check the reader's current role; existing grants can survive a role change",branch.quarry()),"conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security");
+            for dep in kernel::dependencies(branch){if let Some(g)=bound.schema.table(&dep) {
+                let rosters=[&g.rules.insert,&g.rules.update].into_iter().flat_map(kernel::dependencies).filter(|r|mutable_role(bound,r)).collect::<BTreeSet<_>>();
+                if rosters.iter().any(|r|recipient_role(bound,name,branch,Some(&dep),r,effect))&&(role_test(&g.rules.insert)||role_test(&g.rules.update)){
+                    note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{effect}: `{}` trusts retained {dep} grants while current role in {} can change",branch.quarry(),rosters.into_iter().collect::<Vec<_>>().join(", ")),"recheck the current role in this branch or revoke every derived grant transactionally on role changes; guide security");
+                }
             }}
-            if !reader_columns(branch).is_empty() && (role_test(&t.rules.insert)||role_test(&t.rules.update)){note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}: stored principal {} remains a reader independently of a later role change",branch.quarry()),"if access requires a current role, conjoin that role in the read branch; historic attribution alone is not current authority");}
+            if !reader_columns(branch).is_empty()&&[&t.rules.insert,&t.rules.update].into_iter().flat_map(kernel::dependencies).any(|r|mutable_role(bound,&r)&&recipient_role(bound,name,branch,None,&r,effect))&&(role_test(&t.rules.insert)||role_test(&t.rules.update)) {
+                note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{effect}: stored principal `{}` grants authority after a mutable role changes",branch.quarry()),"recheck the current role as well as stored attribution; guide security");
+            }
+          }
         }
     }
     // Inspect original syntax for argument flow and distinct authored codes.
@@ -43,8 +90,9 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
 }
 pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     let mut out=Vec::new();
-    for (file,source) in sources{
-        let (doc,_)=crate::parse_document(file,source);
+    let documents=sources.iter().map(|(file,source)|crate::parse_document(file,source).0).collect::<Vec<_>>();
+    let catalog=super::super::catalog::Catalog::build(documents.clone(),&mut Vec::new());
+    for doc in documents{
         for p in &doc.programs {
             let mut body=p.prelude.clone();body.extend(p.body.clone());
             let mut seen=BTreeSet::new();
@@ -56,6 +104,25 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                         for key in &read.keys {if let Expr::Name{name,..}=&key.value {guarded.insert(name.clone());}}
                     });
                 }
+            }
+            for (write,context) in super::authority_walk::writes(&catalog,p){
+                let Expr::Write{op,table,fields,site,..}=&write else{continue;};
+                let Some(t)=bound.schema.table(table)else{continue;};
+                let role_columns=super::privilege::role_columns(bound,table);
+                for column in &role_columns {if p.kind==ProgramKind::Mutation&&(fields.iter().any(|f|&f.name==column)||matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&t.defaults.contains_key(column))&&bound.schema.tables.values().any(|other|[&other.rules.read,&other.rules.insert,&other.rules.update,&other.rules.delete].iter().any(|r|kernel::dependencies(r).contains(table))) {
+                    let mut targets=fields.iter().filter(|f|&f.name==column).filter_map(|f|match &f.value{Some(Expr::Literal{value:ast::Literal::Str(s),..})=>Some(s.clone()),_=>None}).collect::<Vec<_>>();
+                    if !fields.iter().any(|f|&f.name==column)&&let Some(snapback4_core::Value::String(role))=t.defaults.get(column).map(|d|d.value(NOW_FOR_DEFAULTS,"$advisory")){targets.push(role);}
+                    let chosen=fields.iter().find(|f|&f.name==column);
+                    let dynamic=chosen.map_or(targets.is_empty(),|f|!matches!(f.value,Some(Expr::Literal{..})));
+                    if let Some(field)=chosen {
+                        if let Some(Expr::Name{name:argument,..})=&field.value&&let Some(arg)=p.args.iter().find(|a|a.name==*argument)&&let ast::TypeKind::Enum{variants}= &arg.type_.kind {targets=variants.clone();}
+                    }
+                    let requirements=catalog.tables.get(table).map(|info|super::operation::requirements(&catalog,info,&context)).unwrap_or_default();
+                    let effective_op=if chosen.is_none()&&*op==ast::WriteOp::Upsert{ast::WriteOp::Insert}else{*op};
+                    if let Some(risk)=super::privilege::risk(bound,table,column,&targets,effective_op,&requirements,dynamic)&&seen.insert((table.clone(),format!("$privilege:{column}"))) {
+                        note(&mut out,site,"N_PRIVILEGE_ESCALATION",format!("{}: {risk}; review the grant's delegation policy",p.name),"restrict role assignment to authorized delegation or an operator seat; use guide staging's first-admin recipe (intentional open enrollment may permit this)");
+                    }
+                }}
             }
             super::super::intent_walk::statements(&mut body,&mut |e|{
                 let Expr::Write{table,fields,site,..}=e else{return};
@@ -71,13 +138,24 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
             });
             // Distinct absent and denial codes disclose logical existence to
             // callers admitted by a broader table rule, even without payload.
-            fn refusals(body:&[Stmt],absent:&mut Option<String>,codes:&mut Vec<(Site,String)>){for s in body{match s{
-                Stmt::Bind{value:Expr::Assert{code,..},..}=>*absent=Some(code.clone()),
+            fn refusals(body:&[Stmt],bound:&Bound,absent:&mut Option<String>,codes:&mut Vec<(Site,String)>){for s in body{match s{
+                Stmt::Bind{value:Expr::Assert{value,code,..},..}=>{
+                    *absent=None;
+                    if let Expr::Read(read)=value.as_ref()&&let Some(t)=bound.schema.table(&read.table){
+                        let own=read.keys.iter().any(|k|matches!(&k.value,Expr::Name{name,..} if name=="viewer"));
+                        if !t.rules.read.is_uniformly_readable()&&!own {
+                            // A table read gate already conflates hidden and absent.
+                            // Only broader program-level privacy intent can make
+                            // its later refusal distinguish private existence.
+                            if bound.invariants.iter().any(|i|i.table==read.table&&i.target=="read"&&i.column.is_none()&&i.policy.as_ref().is_some_and(|policy|kernel::implies(&t.rules.read,policy)==Ok(false))){*absent=Some(code.clone());}
+                        }
+                    }
+                },
                 Stmt::Require{site,code,..}=>if let Some(a)=absent.as_ref()&&a!=code{codes.push((site.clone(),format!("lookup absence {a}, later denial {code}")));},
-                Stmt::If{then_body,else_body,..}=>{refusals(then_body,&mut absent.clone(),codes);refusals(else_body,&mut absent.clone(),codes);},
-                Stmt::For{body,..}|Stmt::As{body,..}=>refusals(body,&mut absent.clone(),codes),_=>{}}}}
-            let mut codes=Vec::new();refusals(&p.body,&mut None,&mut codes);
-            for (site,why) in codes.into_iter().take(1){note(&mut out,&site,"N_EXISTENCE_ORACLE",format!("{}: {why}; callers admitted by the read rule can distinguish these outcomes",p.name),"use the same absence/denial code and message when existence is private, or tighten the table read rule; the read gate already hides rows it denies");}
+                Stmt::If{then_body,else_body,..}=>{refusals(then_body,bound,&mut absent.clone(),codes);refusals(else_body,bound,&mut absent.clone(),codes);},
+                Stmt::For{body,..}|Stmt::As{body,..}=>refusals(body,bound,&mut absent.clone(),codes),_=>{}}}}
+            let mut codes=Vec::new();refusals(&p.body,bound,&mut None,&mut codes);
+            for (site,why) in codes.into_iter().take(1){note(&mut out,&site,"N_EXISTENCE_ORACLE",format!("{}: {why}; row readership is broader than declared private-existence intent",p.name),"use the same absence/denial code and message for private existence, or tighten the row audience");}
             if p.kind==ProgramKind::Job {
                 fn guards(body:&[Stmt],out:&mut Vec<Expr>){for s in body {match s{
                     Stmt::Require{condition,..}=>out.push(condition.clone()),

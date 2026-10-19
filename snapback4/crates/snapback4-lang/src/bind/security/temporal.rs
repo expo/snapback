@@ -46,6 +46,6 @@ pub(super) fn bind(catalog: &Catalog, info: &super::super::catalog::TableInfo, e
         if let (Some(a),Some(b))=(term(info,left),term(info,right)){return Some(comparison(op,a,b));}
     }
     if let Expr::Unary{op,value,..}=expr && op=="not" {return Some(RuleExpr::Not(Box::new(bind(catalog,info,value)?)));}
-    let rule=ast::RuleDecl{effect:ast::Effect::Read,bindings:Vec::new(),value:expr.clone(),site:expr.site().clone()};
+    let rule=ast::RuleDecl{effect:ast::Effect::Insert,bindings:Vec::new(),value:expr.clone(),site:expr.site().clone()};
     super::super::schema::bind_rule(catalog,info,&rule).ok()
 }

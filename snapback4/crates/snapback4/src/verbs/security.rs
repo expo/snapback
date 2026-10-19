@@ -6,23 +6,35 @@ mod http;
 pub(super) fn unauthenticated(bound:&Bound,sources:&[(String,String)])->bool {
     match http::run(bound,sources){Ok(_)=>true,Err(why)=>{eprintln!("security HTTP failure: {why}");false}}
 }
-pub(super) fn report(project:&Project,bound:&Bound)->Report{
+pub(super) fn report(project:&Project,bound:&Bound,options:&Options)->Report{
     let mut report=security::analyze(bound);
     if let Ok(sources)=project.sources(){security::add_source_notes(&mut report,&sources,bound);}
-    let sites=report.invariants.iter().filter(|v|v.status==security::Status::Unproved).map(|v|v.invariant.site.to_string()).collect();
-    let campaign=security::challenges::run_selected(bound,Some(&sites));
+    let mut campaign=security::challenges::Campaign::default();
+    if !bound.invariants.is_empty(){
+        let mut selection=options.clone();
+        if !selection.flags.contains_key("fixture")&&project.root.join("fixtures").is_dir(){selection.flags.insert("fixture".into(),project.root.join("fixtures").to_string_lossy().into_owned());}
+        if selection.flags.contains_key("fixture"){
+            match super::test_fixture::engine_at(project,bound,&selection,1_800_000_000_000){
+                Ok(fixture)=>security::challenges::fixture_observers(bound,&fixture,&mut campaign),
+                Err(why)=>for verdict in &mut report.invariants{verdict.reasons.push(format!("fixture reachability not covered: {why}"));},
+            }
+        }else{for verdict in &mut report.invariants{verdict.reasons.push("no trusted fixture: application reachability not covered; seed/synthetic witnesses are non-failing".into());}}
+    }
+    let sites=report.invariants.iter().filter(|v|v.status==security::Status::Unproved&&!campaign.violations.iter().any(|c|c.invariant_site==v.invariant.site.to_string()&&c.reachability==security::challenges::Reachability::AuthoredFixtureTrace)).map(|v|v.invariant.site.to_string()).collect();
+    let synthetic=security::challenges::run_selected(bound,Some(&sites));
+    security::challenges::apply(&mut report,&synthetic);
     security::challenges::apply(&mut report,&campaign);report
 }
 pub fn audit(options:&Options)->i32{
     let project=project_or_exit();
     let bound=compiled_or_exit(match project.compile(){Ok(b)=>b,Err(e)=>{eprintln!("audit: {e}");return 2;}},options.json);
-    let report=report(&project,&bound);
+    let report=report(&project,&bound,options);
     if options.json {println!("{}",serde_json::to_string(&report).unwrap());}
-    else {print!("{}",report.text());}
+    else {print!("{}",report.text_with_all(options.flags.contains_key("all")));}
     if report.refuted(){1}else{0}
 }
-pub(super) fn summary(report:&Report){
-    for v in &report.invariants {eprintln!("security {:?}: {}.{} {}",v.status,v.invariant.table,v.invariant.target,v.invariant.predicate);for why in &v.reasons{eprintln!("  {why}");}if let Some(c)=&v.counterexample{eprintln!("  counterexample {}",serde_json::to_string(c).unwrap());}}
-    for note in &report.notes{eprintln!("{}: {} — {}",note.code,note.message,note.rewrite);}
+pub(super) fn summary(report:&Report,all:bool){
+    for v in &report.invariants {if !all&&v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability!=security::challenges::Reachability::AuthoredFixtureTrace){eprintln!("security: {} refuted by seed/synthetic witness only (non-failing; --all for detail)",v.invariant.target_label());continue;}eprintln!("security {:?}: {} {}",v.status,v.invariant.target_label(),v.invariant.predicate);for why in &v.reasons{eprintln!("  {why}");}if let Some(c)=&v.counterexample{eprintln!("  counterexample {}",serde_json::to_string(c).unwrap());}}
+    for note in &report.notes{eprintln!("{} {}: {} — {}",note.site,note.code,note.message,note.rewrite);}
     if !report.invariants.is_empty(){eprintln!("security: audit --json lists paths, exclusions and grant writers; guide security explains proof scope");}
 }

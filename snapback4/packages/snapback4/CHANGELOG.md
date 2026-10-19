@@ -1,5 +1,19 @@
 # Snapback 4 behavior changes
 
+## 0.4.34
+
+Security: column read invariants (`invariant table.column read only P`) and
+per-column audit audiences; column-dependent authored observer challenges.
+Generated histories preserve complete fixture stores and media ledgers, range
+reference arguments and include fixture principals. Counterexamples label
+fixture reachability separately from seed/synthetic witnesses; only reachable
+violations fail acceptance. `check --all`, `audit --all` and `test --all` expose supplemental witnesses.
+Security notes have source locations, less existence/grant noise and a role
+escalation advisory pointing to `guide staging`. Nested rule parentheses survive
+printing. Identity rate refusals include retry delays. No runtime authority is
+granted by security declarations. REL5 owns release transitions/compatibility;
+MIG owns migration/backfill and staging-clock changes.
+
 ## 0.4.33
 
 - Declare independent security invariants beside access rules. `check` reports proved, refuted with a replayable counterexample, or unproved. Supported local rule implications, typed aggregate contributor audiences and exact server lifetime admission have scoped proofs; general temporal histories, opaque writers, capture/live-parent reductions and disconnected-device freshness remain explicitly unproved. Passing finite challenges is not a universal security proof.
