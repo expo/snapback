@@ -202,7 +202,7 @@ fn fixed_customer_enrollment_with_self_scoped_permissions_is_quiet(){
 #[test]
 fn operation_specific_delegation_intent_is_honored_by_advice(){
  let source="table roles:\n  principal: principal\n  role: enum('producer','legal')\n  unique principal\n  read <- allow\n  update <- exists roles[viewer, role = 'producer']\n  online only\ntable releases:\n  read <- exists roles[viewer, role = 'legal']\n  online only\ninvariant roles.promote only .role != 'legal'\nmutation promote(who: principal):\n  return update roles[who] { role: 'legal' }\n";
- let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("schema.q".into(),source.into())],&b);assert!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
+ let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source.into())],&b);assert!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
 }
 #[test]
 fn scoped_enum_context_is_not_a_global_role_roster(){
@@ -213,4 +213,12 @@ fn scoped_enum_context_is_not_a_global_role_roster(){
 fn tuple_role_tests_guard_and_explain_retained_grants_consistently(){
  let source="table seats:\n  principal: principal\n  kind: enum('inspector','member')\n  unique principal, kind\n  read <- allow\n  delete <- viewer = 'service:ops'\n  online only\ntable grants:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- exists seats[viewer, 'inspector']\n  online only\ntable leaks:\n  read <- exists grants[viewer]\n  online only\ntable guarded:\n  read <- exists seats[viewer, 'inspector']\n  online only\ninvariant leaks.read only exists seats[viewer, 'inspector']\ninvariant guarded.read only exists seats[viewer, 'inspector']\nmutation revoke(who: principal, kind: enum('inspector','member')):\n  delete seats[who, kind]\n  return null\n";
  let r=security::analyze(&bound(source));assert!(r.notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"&&n.message.starts_with("leaks.")),"{:?}",r.notes);assert!(!r.notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"&&n.message.starts_with("guarded.")),"{:?}",r.notes);
+}
+
+#[test]
+fn a_different_or_negated_role_does_not_discharge_retained_intent(){
+ for test in ["exists roles[viewer, role = 'member']","not exists roles[viewer, role = 'judge']"]{
+  let source=format!("table roles:\n  principal: principal\n  role: enum('judge','member')\n  unique principal\n  read <- allow\n  update <- viewer = 'service:ops'\n  online only\ntable notes:\n  assignee: principal\n  read <- .assignee = viewer and {test}\n  online only\ninvariant notes.read only exists roles[viewer, role = 'judge']\nmutation demote(who: principal):\n  return update roles[who] {{ role: 'member' }}\n");
+  let r=security::analyze(&bound(&source));assert!(r.notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"&&n.message.starts_with("notes.read")),"{:?}",r.notes);
+ }
 }

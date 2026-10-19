@@ -152,7 +152,7 @@ fn operation_matrix_enforces_the_shared_budget_with_many_operations(){
  let mut source="table notes:\n  n: int\n  read <- allow\n  online only\n".to_string();
  for n in 0..600{source.push_str(&format!("query q{n}(mode: enum('a','b','c','d','e','f','g','h')):\n  return notes first 1 by .id\n"));}
  let b=compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
- let fixture=Engine::new_at(snapback4_core::Store::memory().unwrap(),b.schema.clone(),b.programs.iter().map(|p|p.program.clone()),1_800_000_000_000).unwrap();let mut c=security::challenges::Campaign::default();security::challenges::operations(&b,&fixture,&mut c);
+ let mut fixture=Engine::new_at(snapback4_core::Store::memory().unwrap(),b.schema.clone(),b.programs.iter().map(|p|p.program.clone()),1_800_000_000_000).unwrap();fixture.seed_at([("notes".into(),row(&[("id",Value::Id("n".into())),("n",Value::Int(0))]))],1_800_000_000_000).unwrap();let mut c=security::challenges::Campaign::default();security::challenges::operations(&b,&fixture,&mut c);
  assert_eq!(c.operations.len(),600);assert!(c.attempted<=8192,"{}",c.attempted);assert!(c.unsupported.iter().any(|s|s.contains("8192-call budget")));
 }
 

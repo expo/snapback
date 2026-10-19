@@ -74,9 +74,8 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
         }
         for (effect,rule) in [("read",&t.rules.read),("insert",&t.rules.insert),("update",&t.rules.update),("delete",&t.rules.delete)] {
           for branch in rule.disjuncts(){
-            if role_test(bound,branch){continue;}
             for dep in kernel::dependencies(branch){if let Some(g)=bound.schema.table(&dep) {
-                let rosters=[&g.rules.insert,&g.rules.update].into_iter().flat_map(kernel::dependencies).filter(|r|mutable_role(bound,r)).collect::<BTreeSet<_>>();
+                let rosters=[&g.rules.insert,&g.rules.update].into_iter().flat_map(kernel::dependencies).filter(|r|r!=&dep&&mutable_role(bound,r)).collect::<BTreeSet<_>>();
                 if rosters.iter().any(|r|recipient_role(bound,name,branch,Some(&dep),r,effect))&&(role_test(bound,&g.rules.insert)||role_test(bound,&g.rules.update)){
                     note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{effect}: `{}` trusts retained {dep} grants while current role in {} can change",branch.quarry(),rosters.into_iter().collect::<Vec<_>>().join(", ")),"recheck the current role in this branch or revoke every derived grant transactionally on role changes; guide security");
                 }
@@ -92,6 +91,8 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
     // Keeping lints outside Bound.notes preserves the compiler's existing
     // diagnostic contract; check/audit expose this security advice separately.
     let _=exposures;
+    let mut retained=BTreeSet::new();
+    notes.retain(|n|n.code!="N_GRANT_OUTLIVES_ROLE"||retained.insert(n.message.split(':').next().unwrap_or("").to_string()));
     notes
 }
 pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
