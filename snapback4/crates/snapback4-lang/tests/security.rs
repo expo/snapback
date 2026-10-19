@@ -61,7 +61,7 @@ fn basic(rule:&str)->String{format!("table notes:\n  owner: principal\n  body: t
 
 #[test]fn argument_grants_and_retained_role_grants_receive_advice(){
  let src="table notes:\n  owner: principal\n  read <- .owner = viewer\n  insert <- allow\n  online only\nmutation assign(owner: principal):\n  return insert notes { owner }\n";let b=bound(src);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("schema.q".into(),src.into())],&b);assert!(r.notes.iter().any(|n|n.code=="N_ARGUMENT_GRANT"));
- let source=include_str!("security/wave16/019.q");let b=bound(source);assert!(!security::analyze(&b).notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"));
+ let source=include_str!("security/wave16/019.q");let b=bound(source);assert!(security::analyze(&b).notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"&&n.message.contains("confirm whether current-role intent is required")));
  let b=bound(&format!("{source}\ninvariant inspections.insert only exists roles[viewer, role = 'inspector']\n"));assert!(security::analyze(&b).notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"));
 }
 
