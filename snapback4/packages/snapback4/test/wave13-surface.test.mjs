@@ -25,12 +25,16 @@ test('H1/H4/H5 help agrees and ignored flags refuse before filesystem work', t =
     assert.ok(top.stdout.split('\n').map(s=>s.trim()).includes(help.stdout.split('\n')[0]), verb);
     assert.equal(help.stdout.split('\n')[0],synopsis(verb),verb);
   }
-  for (const flags of [['serve','deploy','--now','1'], ['serve','deploy','--resume-clock'], ['serve','deploy','--replay'], ['serve','deploy','--clock-offset','1'], ['check','--url','notaurl'], ['check','--release','1'], ['types','--json'], ['test','--json'], ['test','--verbose'], ['doctor','--instance','x'], ['run','x','--token-env','SECRET'], ['why','E_INPUT','--json'], ['why','E_INPUT','--instance','a'], ['reset','--release','deploy'], ['check','--as','alice'], ['check','--emit-lean','one.q','--fix'], ['check','--store','store.sqlite','--release','1','--cost']]) {
+  for (const flags of [['serve','deploy','--now','1'], ['serve','deploy','--resume-clock'], ['serve','deploy','--replay'], ['check','--url','notaurl'], ['check','--release','1'], ['types','--json'], ['test','--json'], ['test','--verbose'], ['doctor','--instance','x'], ['run','x','--token-env','SECRET'], ['why','E_INPUT','--json'], ['why','E_INPUT','--instance','a'], ['reset','--release','deploy'], ['check','--as','alice'], ['check','--emit-lean','one.q','--fix'], ['check','--store','store.sqlite','--release','1','--cost']]) {
     const r = invoke(cwd, flags); assert.equal(r.status, 2, r.stderr); assert.match(r.stderr,/E_INPUT:/);
   }
   assert.deepEqual(readdirSync(cwd), []);
   const serve = invoke(cwd,['serve','--help']).stdout;
-  assert.doesNotMatch(serve, /--now|--clock-offset|--resume-clock|--replay/);
+  assert.doesNotMatch(serve, /--now|--resume-clock|--replay/);
+  assert.match(serve, /--clock-offset/);
+  const stagingClock=invoke(cwd,['serve','deploy','--clock-offset','+1h']);
+  assert.equal(stagingClock.status,1);assert.match(stagingClock.stderr,/no current release/);
+  assert.deepEqual(readdirSync(cwd), []);
   assert.match(top.stdout,/init .*--port-range/);
   assert.match(invoke(cwd,['deploy','--help']).stdout.split('\n')[0],/--schema file.q/);
 });
@@ -73,7 +77,7 @@ test('proof browser prefers caller-installed @playwright/test', async t => {
 });
 test('guide topic aliases select sections and full long cards carry a section index',t=>{
   const cwd=fixture(t);
-  for(const [word,heading] of [['identity','Deploy and password identity'],['migrations','Migrations and adoption'],['auth/headless','Seed accounts headlessly'],['backfill','Release rollback'],['fields','Column types']]){
+  for(const [word,heading] of [['identity','Deploy and password identity'],['migrations','Migrations and adoption'],['auth/headless','Seed accounts headlessly'],['backfill','Migrations and adoption'],['fields','Column types']]){
     const result=invoke(cwd,['guide',word]);okay(result);assert.match(result.stdout,new RegExp('section .*'+heading));
     assert.ok(result.stdout.length<invoke(cwd,['guide',word,'--full']).stdout.length,word);
   }
