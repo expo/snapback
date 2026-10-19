@@ -28,7 +28,15 @@
     "tests": 3638,
     "ignored": 29
   },
-  "client_pool": "final stable cohort running; previous417 plus20-file recovery passed",
-  "full_count_models": "pending after final client pool",
+  "client_pool": {
+    "status": "passed",
+    "files": 417,
+    "tests": 7769,
+    "pass": 7713,
+    "fail": 0,
+    "skipped": 56,
+    "seconds": 1817.285700559616
+  },
+  "full_count_models": "running in serial slot at unmodified defaults",
   "cleanup": "Mac target removed; local target retained until last consumer"
 }

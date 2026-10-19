@@ -81,5 +81,25 @@
       "scripts/build-wasm.sh"
     ]
   },
-  "limits": "Every shell command bounded by timeout; full models use default unmodified counts; no test.sh, publish, push, version bump or new Lean axiom."
+  "limits": "Every shell command bounded by timeout; full models use default unmodified counts; no test.sh, publish, push, version bump or new Lean axiom.",
+  "measurement": {
+    "binary": "/home/ccheever/sb4-sec3-bin-production-final19",
+    "sha256": "032fe59092b0ee864bac9a939c4e58519fe3f23d7c2ea764a5a6b77c4329f9a8",
+    "environment": [
+      "SEC3_BIN=<retained final static binary>",
+      "SEC3_OUT=<fresh report directory>"
+    ],
+    "driver": "sb4-sec3-measure-r6.py",
+    "grade": "sb4-sec3-grade.py",
+    "earlier_schemas": "sb4-sec3-survey.py",
+    "wave17_notes": "sb4-sec3-notes50.py",
+    "independent_021": "sb4-sec3-measure-f2-fixed.py with SEC3_LANES=21",
+    "origin_inputs": "read-only ~/sb4-loop/wave17/apps and wave17-repro/sec; owned TemporaryDirectories, deleted automatically"
+  },
+  "full_model_defaults": {
+    "app_session_online": 5000,
+    "app_session_local": 5000,
+    "online_client": 3000,
+    "counts_overridden": false
+  }
 }
