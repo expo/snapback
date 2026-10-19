@@ -114,3 +114,12 @@ test('a generation observed on new credentials survives the pending old catalog 
   assert.deepEqual(release.getSnapshot(),{loading:true});generation=3;
   await until(()=>release.getSnapshot().generation===3);
 });
+
+
+test('availability permits extra optional served inputs while preserving existing inputs and kinds', () => {
+  const release={generation:2,operations:{edit:{kind:'mutation',args:{...args,flag:{Optional:'Bool'}}}},tables:{}};
+  assert.equal(operationAvailable(release,'edit','mutation',args),true);
+  assert.equal(operationAvailable({...release,operations:{edit:{kind:'mutation',args:{...args,flag:'Bool'}}}},'edit','mutation',args),false);
+  assert.equal(operationAvailable(release,'edit','query',args),false);
+  assert.equal(operationAvailable(release,'edit','mutation',{text:{Text:{max:50}}}),false);
+});

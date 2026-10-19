@@ -5,7 +5,7 @@ pub(super) fn args(current: &[(String, Ty)], old: Option<&[(String, Ty)]>, since
     if current.is_empty() { return "Record<string, never>".into(); }
     format!("{{ {} }}", current.iter().map(|(name, ty)| {
         let added = old.is_some_and(|old| !old.iter().any(|(n, _)| n == name));
-        let optional = ty.is_optional() || added;
+        let optional = ty.is_optional();
         format!("{}{}{}: {}", if added { format!("/** Since release {}. */ ", since.unwrap()) } else { String::new() }, property(name), if optional { "?" } else { "" }, ty_ts(ty))
     }).collect::<Vec<_>>().join("; "))
 }

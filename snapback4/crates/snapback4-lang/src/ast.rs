@@ -454,6 +454,8 @@ pub struct MaintainDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ArgDecl {
+    pub default: Option<Expr>,
+    pub deprecated: bool,
     pub name: String,
     pub type_: ScalarType,
     pub site: Site,
@@ -546,6 +548,7 @@ pub struct EffectDecl {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Document {
+    pub aliases: Vec<(String, String, Site)>,
     pub invariants: Vec<InvariantDecl>,
     pub source: crate::source::SourceMap,
     pub file: String,

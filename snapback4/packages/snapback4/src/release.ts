@@ -32,7 +32,9 @@ const canonical = (value: unknown): string => JSON.stringify(value, (_, item) =>
 export function operationAvailable(release: ReleaseSnapshot, name: string, kind: string, args: Record<string, unknown>): boolean {
   if (!("generation" in release)) return false;
   const op = release.operations[name];
-  return !!op && op.kind === kind && canonical(op.args) === canonical(args);
+  return !!op && op.kind === kind
+    && Object.entries(args).every(([name, type]) => canonical(op.args[name]) === canonical(type))
+    && Object.entries(op.args).every(([name, type]) => Object.hasOwn(args, name) || (object(type) && Object.hasOwn(type, "Optional")));
 }
 
 function freeze<T>(value: T): T {

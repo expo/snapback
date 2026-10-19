@@ -9,6 +9,16 @@ use crate::lexer::Kind;
 use crate::print;
 
 impl Parser {
+    pub(super) fn parse_alias(&mut self) -> Fallible<()> {
+        let token=self.take("alias")?;
+        let name=self.local_name()?;
+        self.take("=")?;
+        let target=self.local_name()?;
+        self.end_line(&token.site)?;
+        self.document.aliases.push((name,target,token.site));
+        Ok(())
+    }
+
     pub(super) fn parse_require(&mut self) -> Fallible<Stmt> {
         let site = self.take("require")?.site;
         let condition = self.expression(0, &["else"])?;

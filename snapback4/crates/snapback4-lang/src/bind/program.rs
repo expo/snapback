@@ -7,7 +7,7 @@ use super::catalog::{Catalog, TableInfo};
 use crate::ast::{self, Expr as A, Literal, ObjectField, ProgramKind, ReadExpr, ShapeField, Stmt as S, WriteOp};
 use crate::diag::{Diagnostic, Fallible, Site, ambiguous, name_rewrite, placement, type_error, unbound_loop, unknown, unsupported};
 use crate::print;
-use crate::types::{Ty, scalar_to_arg};
+use crate::types::Ty;
 use snapback4_core::ir::{self, BinaryOp, Bound, Builtin, Expr, IndexKeyExpr, Input, KeyProvenance, LoopDomain, Merge, MergeLane, Order, Program, Read, Recurse, Scan, SortKey, Stmt, UnaryOp};
 use snapback4_core::value::Value;
 use std::collections::BTreeMap;
@@ -187,6 +187,7 @@ impl<'a> Binder<'a> {
         binder.declare(pure_calls::CONSTANTS, Ty::Null);
         let mut args = BTreeMap::new();
         let mut arg_types = Vec::new();
+        let mut defaults = setup::Body::default();
         for arg in &decl.args {
             if args.contains_key(&arg.name) {
                 diagnostics.push(unknown(&arg.site, format!("duplicate argument {}", arg.name), "rename one argument"));
@@ -198,10 +199,23 @@ impl<'a> Binder<'a> {
                 diagnostics.push(type_error(&arg.site, format!("argument {} references unknown table {table}", arg.name), name_rewrite(table, catalog.tables.keys().map(String::as_str), None)));
                 return None;
             }
-            let ty = Ty::from_scalar(&arg.type_);
-            binder.scopes[0].insert(arg.name.clone(), Binding { runtime: arg.name.clone(), ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
-            args.insert(arg.name.clone(), scalar_to_arg(&arg.type_));
-            arg_types.push((arg.name.clone(), ty));
+            let ty = if arg.default.is_some() {Ty::from_scalar(&arg.type_).required()} else {Ty::from_scalar(&arg.type_)};
+            let (wire_type, default) = match super::operation_evolution::argument(arg, schema) {
+                Ok(value) => value,
+                Err(error) => {diagnostics.push(error);return None;}
+            };
+            let runtime = if let Some(value)=default {
+                let runtime=binder.temp("argumentDefault");
+                defaults.push(Stmt::Let {name:runtime.clone(),value:ir::var(&arg.name)});
+                let mut fallback=setup::Body::default();
+                fallback.push(Stmt::Assign {name:runtime.clone(),value:Expr::Literal(value)});
+                defaults.push_if(Expr::Binary {op:ir::BinaryOp::Eq,left:Box::new(ir::var(&runtime)),right:Box::new(Expr::Literal(Value::Null))},fallback,setup::Body::default());
+                runtime
+            } else {arg.name.clone()};
+            if !arg.deprecated { binder.scopes[0].insert(arg.name.clone(), Binding { runtime, ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
+            }
+            args.insert(arg.name.clone(), wire_type);
+            arg_types.push((arg.name.clone(), if arg.default.is_some() || arg.deprecated {ty.optional()} else {ty}));
         }
         if decl.native {
             // The body is the app's Rust (LLP 3000.005): nothing to bind, the
@@ -213,7 +227,7 @@ impl<'a> Binder<'a> {
             };
             return Some(BoundProgram { maintenance_scopes: binder.maintenance_scopes, statement_ends: Vec::new(), page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, receipt_sources: binder.receipt_sources, receipt_returns: binder.receipt_returns, implicit_write_results: binder.implicit_write_results, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers });
         }
-        let mut body = setup::Body::default();
+        let mut body = defaults;
         let mut shape_candidates = Vec::new();
         let mut statement_ends = Vec::new();
         let mut failed = false;

@@ -18,15 +18,10 @@ impl Parser {
                 }
                 d
             })?;
-            if self.at("=") || self.at("default") {
-                let at = self.peek().site.clone();
-                self.position += 1;
-                let fallback = self.expression(0, &[",", ")"])?;
-                let mut optional = type_.clone(); optional.optional = true;
-                return Err(syntax_with(&at, "operation parameters have no literal defaults; omission is null for an optional parameter",
-                    format!("declare `{binding}: {}` and bind `{binding}Value = {binding} ?? {}` at the start of the body", print::scalar_type(&optional), print::expression(&fallback))).guide("types"));
-            }
-            args.push(ArgDecl { name: binding, type_, site: name.site });
+            let default = if self.maybe("default") { Some(self.expression(0, &[",", ")", "deprecated"])? ) } else { None };
+            let deprecated = self.maybe("deprecated");
+            if self.at("=") { return Err(syntax(&self.peek().site,"argument defaults use `default <literal>`")); }
+            args.push(ArgDecl { name: binding, type_, default, deprecated, site: name.site });
             if !self.maybe(",") {
                 break;
             }
