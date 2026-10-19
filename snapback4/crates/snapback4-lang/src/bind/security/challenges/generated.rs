@@ -84,7 +84,17 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
     let proposed=proposals(bound,out)?;
     let rows=readback(&proposed)?;
     let actors=histories::actors(bound,&rows);
-    let rosters=bound.schema.visible_tables().filter(|(name,_)|!super::super::privilege::role_columns(bound,name).is_empty()).map(|(name,_)|name.clone()).collect::<BTreeSet<_>>();
+    // A principal key and a field named role are insufficient: payload tables
+    // must execute their creators even when they happen to have that shape.
+    fn authority_roster(bound:&Bound,name:&str)->bool{
+        let columns=super::super::privilege::role_columns(bound,name);
+        fn used(bound:&Bound,rule:&RuleExpr,name:&str,columns:&BTreeSet<String>)->bool{match rule{
+            RuleExpr::Exists{table,index,key,equalities,..} if table==name&&key.iter().chain(equalities.iter().map(|(_,v)|v)).any(|v|matches!(v,RuleTerm::Viewer))=>super::super::privilege::probe_pairs(bound,table,index,key,equalities).iter().any(|(c,v)|columns.contains(c)&&matches!(v,RuleTerm::Literal(Value::String(_)))),
+            RuleExpr::And(xs)|RuleExpr::Or(xs)=>xs.iter().any(|r|used(bound,r,name,columns)),RuleExpr::Not(r)=>used(bound,r,name,columns),_=>false,
+        }}
+        !columns.is_empty()&&bound.schema.tables.values().any(|t|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|used(bound,r,name,&columns)))
+    }
+    let rosters=bound.schema.visible_tables().filter(|(name,_)|authority_roster(bound,name)).map(|(name,_)|name.clone()).collect::<BTreeSet<_>>();
     let creators=bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native&&!bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral)&&ir::write_tables(&p.program).iter().any(|(_,kind)|matches!(*kind,"insert"|"upsert"))).collect::<Vec<_>>();
     let created=creators.iter().flat_map(|p|ir::write_tables(&p.program)).filter(|(_,kind)|matches!(*kind,"insert"|"upsert")).map(|(t,_)|t).collect::<BTreeSet<_>>();
     let mut engine=engine_on_store(bound,&BTreeMap::new(),Vec::new(),proposed.store().empty_with_asset_ledger().map_err(|e|e.to_string())?)?;

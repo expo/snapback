@@ -145,12 +145,13 @@ fn immutable_column_alternates_cannot_drop_unrelated_live_ephemeral_state(){
 
 #[test]
 fn payload_role_columns_preserve_authored_creators_and_integrity(){
- for principal in [false,true]{
+ for unique in ["", "  unique principal\n", "  unique principal,role\n"]{for principal in [false,true]{
+  if !principal&&!unique.is_empty(){continue;}
   let field=if principal{"  principal: principal\n"}else{""};let value=if principal{"principal: viewer, "}else{""};
-  let source=format!("table reports:\n{field}  role: enum('draft','final')\n  approved: bool\n  read <- allow\n  insert <- allow\n  online only\nmutation file():\n  return insert reports {{{value}role: 'draft', approved: true}}\ninvariant reports always .approved\n");
+  let source=format!("table reports:\n{field}  role: enum('draft','final')\n  approved: bool\n{unique}  read <- allow\n  insert <- allow\n  online only\nmutation file():\n  return insert reports {{{value}role: 'draft', approved: true}}\ninvariant reports always .approved\n");
   let b=bind(&source);let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);assert!(c.violations.is_empty(),"{c:?}");
   let bad=bind(&source.replace("approved: true","approved: false"));let mut c=Campaign::default();challenges::generated_campaign(&bad,&mut c,false);assert!(c.violations.iter().any(|v|v.reachability==Reachability::AuthoredFixtureTrace&&v.history.iter().any(|s|s.operation=="file")),"{c:?}");
- }
+ }}
 }
 
 #[test]
