@@ -49,8 +49,8 @@ fn mutable_role(bound:&Bound,name:&str)->bool {
 fn recipient_role(bound:&Bound,name:&str,branch:&RuleExpr,grant:Option<&str>,roster:&str,effect:&str)->bool{
     if bound.invariants.iter().any(|i|i.table==*name&&(i.target==effect||i.target=="write"&&matches!(effect,"insert"|"update"))&&i.policy.as_ref().is_some_and(|p|kernel::dependencies(p).contains(roster)&&role_test(bound,p)&&kernel::implies(branch,p)!=Ok(true))){return true;}
     let _=(branch,grant,roster);
-    // Field names cannot establish a current-role contract. The missing-intent
-    // note asks for that independent specification before lifetime advice.
+    // Field names cannot establish a current-role contract. Without independent
+    // intent, retained access may be deliberate, so lifetime advice stays silent.
     false
 }
 pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
