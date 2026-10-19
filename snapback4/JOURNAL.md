@@ -96765,3 +96765,5 @@ evidence cannot authorize publication. Finite witnesses do not close general
 opaque/device/wire/history-induction proof obligations: the proof-gap ticket
 remains Open. REL5 owns release/compatibility changes; MIG owns data lifecycle
 and staging clocks; STAGE owns the first-admin recipe. No version bump or push.
+
+SEC3 final client verification: all 417 files pass (7,713 subtests, 56 expected skips); both full-count model files pass 81/81 tests with 5,000 online sessions, 5,000 local sessions and 3,000 online-client interleavings. Compact logs and coverage diagnostics are in reports/20261019-sec3/client-final.json. Owned local/Mac build output and identified scratch are removed; qualified tarball hashes are retained.

@@ -31,12 +31,50 @@
   "client_pool": {
     "status": "passed",
     "files": 417,
-    "tests": 7769,
-    "pass": 7713,
-    "fail": 0,
-    "skipped": 56,
-    "seconds": 1817.285700559616
+    "requested_files": 417,
+    "failed_files": 0,
+    "counts": {
+      "tests": 7769,
+      "pass": 7713,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 56,
+      "todo": 0
+    }
   },
-  "full_count_models": "running in serial slot at unmodified defaults",
-  "cleanup": "Mac target removed; local target retained until last consumer"
+  "full_count_models": {
+    "status": "passed",
+    "files": 2,
+    "requested_files": 2,
+    "failed_files": 0,
+    "counts": {
+      "tests": 81,
+      "pass": 81,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "session_online": 5000,
+    "session_local": 5000,
+    "online_client": 3000
+  },
+  "cleanup": {
+    "date": "2026-10-19 07:04:09.266937+00:00",
+    "local_snapback4_target_removed": true,
+    "mac_owned_target_removed": true,
+    "consumer_installed_scratch_removed": true,
+    "obsolete_binaries_removed_bytes": 475342536,
+    "owned_packed_test_tmp_remaining": 0,
+    "review_scope_tmp_remaining": false,
+    "qualified_artifacts_retained": "/home/ccheever/sb4-sec3-qualified-artifacts",
+    "active_local_target_executables": []
+  },
+  "delivery_status": "complete",
+  "final_ref_check": {
+    "llps": 555,
+    "refs": 12074,
+    "files": 43287,
+    "errors": 0
+  }
 }
