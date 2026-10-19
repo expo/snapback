@@ -1,0 +1,347 @@
+2026-10-19 09:56:56.446 CEST [1170663] LOG:  statement: SET search_path = "sb4_eval_cpcap_1170441_18ce7ccf4af3bc39", pg_catalog;
+2026-10-19 09:56:56.446 CEST [1170663] LOG:  duration: 0.189 ms
+2026-10-19 09:56:56.447 CEST [1170663] LOG:  duration: 0.301 ms  parse s18: SELECT version,schema,programs FROM _backend WHERE singleton
+2026-10-19 09:56:56.447 CEST [1170663] LOG:  duration: 0.433 ms  bind s18: SELECT version,schema,programs FROM _backend WHERE singleton
+2026-10-19 09:56:56.447 CEST [1170663] LOG:  execute s18: SELECT version,schema,programs FROM _backend WHERE singleton
+2026-10-19 09:56:56.447 CEST [1170663] LOG:  duration: 0.174 ms
+2026-10-19 09:56:56.448 CEST [1170663] LOG:  duration: 0.395 ms  parse s19: SELECT t, ix, COUNT(*) FROM i WHERE octet_length(k) > $1 GROUP BY t, ix ORDER BY t, ix LIMIT 1
+2026-10-19 09:56:56.448 CEST [1170663] LOG:  duration: 0.219 ms  bind s19: SELECT t, ix, COUNT(*) FROM i WHERE octet_length(k) > $1 GROUP BY t, ix ORDER BY t, ix LIMIT 1
+2026-10-19 09:56:56.448 CEST [1170663] DETAIL:  parameters: $1 = '2048'
+2026-10-19 09:56:56.448 CEST [1170663] LOG:  execute s19: SELECT t, ix, COUNT(*) FROM i WHERE octet_length(k) > $1 GROUP BY t, ix ORDER BY t, ix LIMIT 1
+2026-10-19 09:56:56.448 CEST [1170663] DETAIL:  parameters: $1 = '2048'
+2026-10-19 09:56:56.449 CEST [1170663] LOG:  duration: 0.880 ms
+2026-10-19 09:56:56.449 CEST [1170663] LOG:  statement: START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE
+2026-10-19 09:56:56.449 CEST [1170663] LOG:  duration: 0.024 ms
+2026-10-19 09:56:56.449 CEST [1170663] LOG:  statement: SET LOCAL statement_timeout = '5s'; SET LOCAL lock_timeout = '5s';
+2026-10-19 09:56:56.450 CEST [1170663] LOG:  duration: 0.029 ms
+2026-10-19 09:56:56.450 CEST [1170663] LOG:  duration: 0.048 ms  parse s20: SELECT seq FROM _head WHERE singleton FOR UPDATE
+2026-10-19 09:56:56.450 CEST [1170663] LOG:  duration: 0.067 ms  bind s20: SELECT seq FROM _head WHERE singleton FOR UPDATE
+2026-10-19 09:56:56.450 CEST [1170663] LOG:  execute s20: SELECT seq FROM _head WHERE singleton FOR UPDATE
+2026-10-19 09:56:56.450 CEST [1170663] LOG:  duration: 0.024 ms
+2026-10-19 09:56:56.450 CEST [1170663] LOG:  duration: 0.015 ms  parse s21: SELECT version,schema,programs FROM _backend WHERE singleton
+2026-10-19 09:56:56.450 CEST [1170663] LOG:  duration: 0.022 ms  bind s21: SELECT version,schema,programs FROM _backend WHERE singleton
+2026-10-19 09:56:56.450 CEST [1170663] LOG:  execute s21: SELECT version,schema,programs FROM _backend WHERE singleton
+2026-10-19 09:56:56.450 CEST [1170663] LOG:  duration: 0.069 ms
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  duration: 0.314 ms  parse s22: SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid = '_backend'::regclass AND attname = $1 AND NOT attisdropped)
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  duration: 0.207 ms  bind s22: SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid = '_backend'::regclass AND attname = $1 AND NOT attisdropped)
+2026-10-19 09:56:56.451 CEST [1170663] DETAIL:  parameters: $1 = 'generation'
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  execute s22: SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid = '_backend'::regclass AND attname = $1 AND NOT attisdropped)
+2026-10-19 09:56:56.451 CEST [1170663] DETAIL:  parameters: $1 = 'generation'
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  duration: 0.030 ms
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  duration: 0.067 ms  bind s22: SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid = '_backend'::regclass AND attname = $1 AND NOT attisdropped)
+2026-10-19 09:56:56.451 CEST [1170663] DETAIL:  parameters: $1 = 'through_shortened'
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  execute s22: SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid = '_backend'::regclass AND attname = $1 AND NOT attisdropped)
+2026-10-19 09:56:56.451 CEST [1170663] DETAIL:  parameters: $1 = 'through_shortened'
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  duration: 0.014 ms
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  duration: 0.061 ms  bind s22: SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid = '_backend'::regclass AND attname = $1 AND NOT attisdropped)
+2026-10-19 09:56:56.451 CEST [1170663] DETAIL:  parameters: $1 = 'maintained_identity_version'
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  execute s22: SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid = '_backend'::regclass AND attname = $1 AND NOT attisdropped)
+2026-10-19 09:56:56.451 CEST [1170663] DETAIL:  parameters: $1 = 'maintained_identity_version'
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  duration: 0.013 ms
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  duration: 0.045 ms  parse s23: SELECT t, ix, COUNT(*) FROM i WHERE octet_length(k) > $1 GROUP BY t, ix ORDER BY t, ix LIMIT 1
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  duration: 0.064 ms  bind s23: SELECT t, ix, COUNT(*) FROM i WHERE octet_length(k) > $1 GROUP BY t, ix ORDER BY t, ix LIMIT 1
+2026-10-19 09:56:56.451 CEST [1170663] DETAIL:  parameters: $1 = '2048'
+2026-10-19 09:56:56.451 CEST [1170663] LOG:  execute s23: SELECT t, ix, COUNT(*) FROM i WHERE octet_length(k) > $1 GROUP BY t, ix ORDER BY t, ix LIMIT 1
+2026-10-19 09:56:56.451 CEST [1170663] DETAIL:  parameters: $1 = '2048'
+2026-10-19 09:56:56.452 CEST [1170663] LOG:  duration: 0.662 ms
+2026-10-19 09:56:56.452 CEST [1170663] LOG:  statement: CREATE TABLE IF NOT EXISTS _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value BIGINT NOT NULL, PRIMARY KEY(parent, id));
+2026-10-19 09:56:56.452 CEST [1170663] LOG:  duration: 0.091 ms
+2026-10-19 09:56:56.452 CEST [1170663] LOG:  statement: 
+	CREATE TABLE IF NOT EXISTS _read_sessions (token_digest TEXT COLLATE "C" PRIMARY KEY, principal TEXT COLLATE "C" NOT NULL, kind TEXT NOT NULL, family TEXT COLLATE "C" NOT NULL, created_at BIGINT NOT NULL, expires_at BIGINT NOT NULL, cap_expires_at BIGINT NOT NULL, principal_generation BIGINT NOT NULL);
+	CREATE INDEX IF NOT EXISTS _read_sessions_family ON _read_sessions(principal, family, expires_at);
+	
+2026-10-19 09:56:56.452 CEST [1170663] LOG:  duration: 0.197 ms
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  statement: DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.041 ms
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.055 ms  parse s24: SELECT to_regclass('_cap_counts')::text
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.023 ms  bind s24: SELECT to_regclass('_cap_counts')::text
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  execute s24: SELECT to_regclass('_cap_counts')::text
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.017 ms
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.017 ms  parse s25: SELECT schema,generation FROM _backend WHERE singleton
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.031 ms  bind s25: SELECT schema,generation FROM _backend WHERE singleton
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  execute s25: SELECT schema,generation FROM _backend WHERE singleton
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.053 ms
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.017 ms  parse s26: SELECT maintained_identity_version FROM _backend WHERE singleton
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.026 ms  bind s26: SELECT maintained_identity_version FROM _backend WHERE singleton
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  execute s26: SELECT maintained_identity_version FROM _backend WHERE singleton
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.009 ms
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  statement: SET statement_timeout = '5s'; SET lock_timeout = '5s';
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.016 ms
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  statement: COMMIT
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.128 ms
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  statement: START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.040 ms
+2026-10-19 09:56:56.453 CEST [1170663] LOG:  duration: 0.027 ms  parse s27: SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.049 ms  bind s27: SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  execute s27: SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.029 ms
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.051 ms  parse s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.129 ms  bind s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.454 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-0'
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  execute s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.454 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-0'
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.007 ms
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  statement: ROLLBACK
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.035 ms
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  statement: START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.023 ms
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.011 ms  bind s20: SELECT seq FROM _head WHERE singleton FOR UPDATE
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  execute s20: SELECT seq FROM _head WHERE singleton FOR UPDATE
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.028 ms
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.014 ms  parse s29: SELECT generation FROM _backend WHERE singleton
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.025 ms  bind s29: SELECT generation FROM _backend WHERE singleton
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  execute s29: SELECT generation FROM _backend WHERE singleton
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.013 ms
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.024 ms  bind s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.454 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-0'
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  execute s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.454 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-0'
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.005 ms
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  statement: SAVEPOINT program
+2026-10-19 09:56:56.454 CEST [1170663] LOG:  duration: 0.021 ms
+2026-10-19 09:56:56.455 CEST [1170663] LOG:  duration: 0.151 ms  parse s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.455 CEST [1170663] LOG:  duration: 0.217 ms  bind s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.455 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.455 CEST [1170663] LOG:  execute s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.455 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.455 CEST [1170663] LOG:  duration: 0.035 ms
+2026-10-19 09:56:56.455 CEST [1170663] LOG:  duration: 0.045 ms  parse s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.455 CEST [1170663] LOG:  duration: 0.101 ms  bind s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.455 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.455 CEST [1170663] LOG:  execute s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.455 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.455 CEST [1170663] LOG:  duration: 0.013 ms
+2026-10-19 09:56:56.455 CEST [1170663] LOG:  duration: 0.085 ms  bind s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.455 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.455 CEST [1170663] LOG:  execute s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.455 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.456 CEST [1170663] LOG:  duration: 0.011 ms
+2026-10-19 09:56:56.456 CEST [1170663] LOG:  duration: 0.076 ms  bind s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.456 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.456 CEST [1170663] LOG:  execute s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.456 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.456 CEST [1170663] LOG:  duration: 0.011 ms
+2026-10-19 09:56:56.456 CEST [1170663] LOG:  duration: 0.023 ms  parse s32: UPDATE r SET data = $3 WHERE t = $1 AND id = $2
+2026-10-19 09:56:56.456 CEST [1170663] LOG:  duration: 0.028 ms  bind s32: UPDATE r SET data = $3 WHERE t = $1 AND id = $2
+2026-10-19 09:56:56.456 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'c1', $3 = '{"Row":{"id":{"Id":"c1"},"value":{"Int":1}}}'
+2026-10-19 09:56:56.456 CEST [1170663] LOG:  execute s32: UPDATE r SET data = $3 WHERE t = $1 AND id = $2
+2026-10-19 09:56:56.456 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'c1', $3 = '{"Row":{"id":{"Id":"c1"},"value":{"Int":1}}}'
+2026-10-19 09:56:56.456 CEST [1170663] LOG:  duration: 0.067 ms
+2026-10-19 09:56:56.456 CEST [1170663] LOG:  statement: RELEASE SAVEPOINT program
+2026-10-19 09:56:56.456 CEST [1170663] LOG:  duration: 0.026 ms
+2026-10-19 09:56:56.456 CEST [1170663] LOG:  duration: 0.278 ms  parse s33: WITH head AS (
+	            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - 1 RETURNING seq
+	        ), committed AS (
+	            INSERT INTO _commits SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq
+	        ), logged AS (
+	            INSERT INTO _log SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c
+	            CROSS JOIN unnest($8::text[],$9::bigint[],$10::text[],$11::text[],$12::text[],$13::text[]) AS l(partition,ord,t,kind,id,data)
+	        ), effects AS (
+	            INSERT INTO _outbox SELECT e.id,c.seq,e.effect,e.payload,'queued',0,$2 FROM committed c
+	            CROSS JOIN unnest($14::text[],$15::text[],$16::text[]) AS e(id,effect,payload)
+	        ) SELECT count(*) FROM committed
+2026-10-19 09:56:56.457 CEST [1170663] LOG:  duration: 0.205 ms  bind s33: WITH head AS (
+	            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - 1 RETURNING seq
+	        ), committed AS (
+	            INSERT INTO _commits SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq
+	        ), logged AS (
+	            INSERT INTO _log SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c
+	            CROSS JOIN unnest($8::text[],$9::bigint[],$10::text[],$11::text[],$12::text[],$13::text[]) AS l(partition,ord,t,kind,id,data)
+	        ), effects AS (
+	            INSERT INTO _outbox SELECT e.id,c.seq,e.effect,e.payload,'queued',0,$2 FROM committed c
+	            CROSS JOIN unnest($14::text[],$15::text[],$16::text[]) AS e(id,effect,payload)
+	        ) SELECT count(*) FROM committed
+2026-10-19 09:56:56.457 CEST [1170663] DETAIL:  parameters: $1 = '2', $2 = '1000', $3 = 'increment', $4 = 'alice', $5 = 'mutation', $6 = '["counters"]', $7 = '1', $8 = '{public}', $9 = '{0}', $10 = '{counters}', $11 = '{put}', $12 = '{c1}', $13 = '{"{\"Row\":{\"id\":{\"Id\":\"c1\"},\"value\":{\"Int\":1}}}"}', $14 = '{}', $15 = '{}', $16 = '{}'
+2026-10-19 09:56:56.457 CEST [1170663] LOG:  execute s33: WITH head AS (
+	            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - 1 RETURNING seq
+	        ), committed AS (
+	            INSERT INTO _commits SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq
+	        ), logged AS (
+	            INSERT INTO _log SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c
+	            CROSS JOIN unnest($8::text[],$9::bigint[],$10::text[],$11::text[],$12::text[],$13::text[]) AS l(partition,ord,t,kind,id,data)
+	        ), effects AS (
+	            INSERT INTO _outbox SELECT e.id,c.seq,e.effect,e.payload,'queued',0,$2 FROM committed c
+	            CROSS JOIN unnest($14::text[],$15::text[],$16::text[]) AS e(id,effect,payload)
+	        ) SELECT count(*) FROM committed
+2026-10-19 09:56:56.457 CEST [1170663] DETAIL:  parameters: $1 = '2', $2 = '1000', $3 = 'increment', $4 = 'alice', $5 = 'mutation', $6 = '["counters"]', $7 = '1', $8 = '{public}', $9 = '{0}', $10 = '{counters}', $11 = '{put}', $12 = '{c1}', $13 = '{"{\"Row\":{\"id\":{\"Id\":\"c1\"},\"value\":{\"Int\":1}}}"}', $14 = '{}', $15 = '{}', $16 = '{}'
+2026-10-19 09:56:56.457 CEST [1170663] LOG:  duration: 0.406 ms
+2026-10-19 09:56:56.457 CEST [1170663] LOG:  duration: 0.019 ms  parse s34: INSERT INTO _ops(principal,id,seq,outcome,name,args_digest,at) VALUES ($1,$2,$3,$4,$5,$6,$7)
+2026-10-19 09:56:56.457 CEST [1170663] LOG:  duration: 0.014 ms  bind s34: INSERT INTO _ops(principal,id,seq,outcome,name,args_digest,at) VALUES ($1,$2,$3,$4,$5,$6,$7)
+2026-10-19 09:56:56.457 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-0', $3 = '2', $4 = '{"id":"capture-0","replayed":true,"seq":2,"state":"sent"}', $5 = 'increment', $6 = '9acc01a1b8d6d1476070406c156e19349f53cf23b10a42535ccb17cd923f8a22', $7 = '1000'
+2026-10-19 09:56:56.457 CEST [1170663] LOG:  execute s34: INSERT INTO _ops(principal,id,seq,outcome,name,args_digest,at) VALUES ($1,$2,$3,$4,$5,$6,$7)
+2026-10-19 09:56:56.457 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-0', $3 = '2', $4 = '{"id":"capture-0","replayed":true,"seq":2,"state":"sent"}', $5 = 'increment', $6 = '9acc01a1b8d6d1476070406c156e19349f53cf23b10a42535ccb17cd923f8a22', $7 = '1000'
+2026-10-19 09:56:56.457 CEST [1170663] LOG:  duration: 0.124 ms
+2026-10-19 09:56:56.457 CEST [1170663] LOG:  statement: COMMIT
+2026-10-19 09:56:56.457 CEST [1170663] LOG:  duration: 0.072 ms
+2026-10-19 09:56:56.457 CEST [1170663] LOG:  statement: START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.011 ms
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.014 ms  bind s27: SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  execute s27: SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.011 ms
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.035 ms  bind s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.458 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-1'
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  execute s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.458 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-1'
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.006 ms
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  statement: ROLLBACK
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.012 ms
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  statement: START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.007 ms
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.006 ms  bind s20: SELECT seq FROM _head WHERE singleton FOR UPDATE
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  execute s20: SELECT seq FROM _head WHERE singleton FOR UPDATE
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.008 ms
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.004 ms  bind s29: SELECT generation FROM _backend WHERE singleton
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  execute s29: SELECT generation FROM _backend WHERE singleton
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.004 ms
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.021 ms  bind s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.458 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-1'
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  execute s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.458 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-1'
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.015 ms
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  statement: SAVEPOINT program
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.008 ms
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.098 ms  bind s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.458 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  execute s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.458 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.020 ms
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.084 ms  bind s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.458 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  execute s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.458 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.013 ms
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.081 ms  bind s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.458 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  execute s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.458 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.012 ms
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.076 ms  bind s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.458 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  execute s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.458 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.458 CEST [1170663] LOG:  duration: 0.011 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.023 ms  bind s32: UPDATE r SET data = $3 WHERE t = $1 AND id = $2
+2026-10-19 09:56:56.459 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'c1', $3 = '{"Row":{"id":{"Id":"c1"},"value":{"Int":2}}}'
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  execute s32: UPDATE r SET data = $3 WHERE t = $1 AND id = $2
+2026-10-19 09:56:56.459 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'c1', $3 = '{"Row":{"id":{"Id":"c1"},"value":{"Int":2}}}'
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.019 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  statement: RELEASE SAVEPOINT program
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.010 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.136 ms  bind s33: WITH head AS (
+	            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - 1 RETURNING seq
+	        ), committed AS (
+	            INSERT INTO _commits SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq
+	        ), logged AS (
+	            INSERT INTO _log SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c
+	            CROSS JOIN unnest($8::text[],$9::bigint[],$10::text[],$11::text[],$12::text[],$13::text[]) AS l(partition,ord,t,kind,id,data)
+	        ), effects AS (
+	            INSERT INTO _outbox SELECT e.id,c.seq,e.effect,e.payload,'queued',0,$2 FROM committed c
+	            CROSS JOIN unnest($14::text[],$15::text[],$16::text[]) AS e(id,effect,payload)
+	        ) SELECT count(*) FROM committed
+2026-10-19 09:56:56.459 CEST [1170663] DETAIL:  parameters: $1 = '3', $2 = '1000', $3 = 'increment', $4 = 'alice', $5 = 'mutation', $6 = '["counters"]', $7 = '1', $8 = '{public}', $9 = '{0}', $10 = '{counters}', $11 = '{put}', $12 = '{c1}', $13 = '{"{\"Row\":{\"id\":{\"Id\":\"c1\"},\"value\":{\"Int\":2}}}"}', $14 = '{}', $15 = '{}', $16 = '{}'
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  execute s33: WITH head AS (
+	            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - 1 RETURNING seq
+	        ), committed AS (
+	            INSERT INTO _commits SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq
+	        ), logged AS (
+	            INSERT INTO _log SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c
+	            CROSS JOIN unnest($8::text[],$9::bigint[],$10::text[],$11::text[],$12::text[],$13::text[]) AS l(partition,ord,t,kind,id,data)
+	        ), effects AS (
+	            INSERT INTO _outbox SELECT e.id,c.seq,e.effect,e.payload,'queued',0,$2 FROM committed c
+	            CROSS JOIN unnest($14::text[],$15::text[],$16::text[]) AS e(id,effect,payload)
+	        ) SELECT count(*) FROM committed
+2026-10-19 09:56:56.459 CEST [1170663] DETAIL:  parameters: $1 = '3', $2 = '1000', $3 = 'increment', $4 = 'alice', $5 = 'mutation', $6 = '["counters"]', $7 = '1', $8 = '{public}', $9 = '{0}', $10 = '{counters}', $11 = '{put}', $12 = '{c1}', $13 = '{"{\"Row\":{\"id\":{\"Id\":\"c1\"},\"value\":{\"Int\":2}}}"}', $14 = '{}', $15 = '{}', $16 = '{}'
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.119 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.014 ms  bind s34: INSERT INTO _ops(principal,id,seq,outcome,name,args_digest,at) VALUES ($1,$2,$3,$4,$5,$6,$7)
+2026-10-19 09:56:56.459 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-1', $3 = '3', $4 = '{"id":"capture-1","replayed":true,"seq":3,"state":"sent"}', $5 = 'increment', $6 = '9acc01a1b8d6d1476070406c156e19349f53cf23b10a42535ccb17cd923f8a22', $7 = '1000'
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  execute s34: INSERT INTO _ops(principal,id,seq,outcome,name,args_digest,at) VALUES ($1,$2,$3,$4,$5,$6,$7)
+2026-10-19 09:56:56.459 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-1', $3 = '3', $4 = '{"id":"capture-1","replayed":true,"seq":3,"state":"sent"}', $5 = 'increment', $6 = '9acc01a1b8d6d1476070406c156e19349f53cf23b10a42535ccb17cd923f8a22', $7 = '1000'
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.014 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  statement: COMMIT
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.061 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  statement: START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.010 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.009 ms  bind s27: SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  execute s27: SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.014 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.028 ms  bind s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.459 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-2'
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  execute s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.459 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-2'
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.007 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  statement: ROLLBACK
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.011 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  statement: START TRANSACTION ISOLATION LEVEL READ COMMITTED, READ WRITE
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.007 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.005 ms  bind s20: SELECT seq FROM _head WHERE singleton FOR UPDATE
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  execute s20: SELECT seq FROM _head WHERE singleton FOR UPDATE
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.008 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.004 ms  bind s29: SELECT generation FROM _backend WHERE singleton
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  execute s29: SELECT generation FROM _backend WHERE singleton
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.004 ms
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.021 ms  bind s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.459 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-2'
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  execute s28: SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2
+2026-10-19 09:56:56.459 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-2'
+2026-10-19 09:56:56.459 CEST [1170663] LOG:  duration: 0.006 ms
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  statement: SAVEPOINT program
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  duration: 0.007 ms
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  duration: 0.112 ms  bind s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.460 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  execute s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.460 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  duration: 0.018 ms
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  duration: 0.133 ms  bind s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.460 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  execute s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.460 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  duration: 0.019 ms
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  duration: 0.125 ms  bind s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.460 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  execute s30: SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.460 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  duration: 0.021 ms
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  duration: 0.117 ms  bind s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.460 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  execute s31: SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5
+2026-10-19 09:56:56.460 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'byId', $3 = '\x0663310000', $4 = '\x0663310000ff', $5 = '1'
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  duration: 0.027 ms
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  duration: 0.040 ms  bind s32: UPDATE r SET data = $3 WHERE t = $1 AND id = $2
+2026-10-19 09:56:56.460 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'c1', $3 = '{"Row":{"id":{"Id":"c1"},"value":{"Int":3}}}'
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  execute s32: UPDATE r SET data = $3 WHERE t = $1 AND id = $2
+2026-10-19 09:56:56.460 CEST [1170663] DETAIL:  parameters: $1 = 'counters', $2 = 'c1', $3 = '{"Row":{"id":{"Id":"c1"},"value":{"Int":3}}}'
+2026-10-19 09:56:56.460 CEST [1170663] LOG:  duration: 0.047 ms
+2026-10-19 09:56:56.461 CEST [1170663] LOG:  statement: RELEASE SAVEPOINT program
+2026-10-19 09:56:56.461 CEST [1170663] LOG:  duration: 0.015 ms
+2026-10-19 09:56:56.461 CEST [1170663] LOG:  duration: 0.151 ms  bind s33: WITH head AS (
+	            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - 1 RETURNING seq
+	        ), committed AS (
+	            INSERT INTO _commits SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq
+	        ), logged AS (
+	            INSERT INTO _log SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c
+	            CROSS JOIN unnest($8::text[],$9::bigint[],$10::text[],$11::text[],$12::text[],$13::text[]) AS l(partition,ord,t,kind,id,data)
+	        ), effects AS (
+	            INSERT INTO _outbox SELECT e.id,c.seq,e.effect,e.payload,'queued',0,$2 FROM committed c
+	            CROSS JOIN unnest($14::text[],$15::text[],$16::text[]) AS e(id,effect,payload)
+	        ) SELECT count(*) FROM committed
+2026-10-19 09:56:56.461 CEST [1170663] DETAIL:  parameters: $1 = '4', $2 = '1000', $3 = 'increment', $4 = 'alice', $5 = 'mutation', $6 = '["counters"]', $7 = '1', $8 = '{public}', $9 = '{0}', $10 = '{counters}', $11 = '{put}', $12 = '{c1}', $13 = '{"{\"Row\":{\"id\":{\"Id\":\"c1\"},\"value\":{\"Int\":3}}}"}', $14 = '{}', $15 = '{}', $16 = '{}'
+2026-10-19 09:56:56.461 CEST [1170663] LOG:  execute s33: WITH head AS (
+	            UPDATE _head SET seq = $1::bigint WHERE singleton AND seq = $1::bigint - 1 RETURNING seq
+	        ), committed AS (
+	            INSERT INTO _commits SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq
+	        ), logged AS (
+	            INSERT INTO _log SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c
+	            CROSS JOIN unnest($8::text[],$9::bigint[],$10::text[],$11::text[],$12::text[],$13::text[]) AS l(partition,ord,t,kind,id,data)
+	        ), effects AS (
+	            INSERT INTO _outbox SELECT e.id,c.seq,e.effect,e.payload,'queued',0,$2 FROM committed c
+	            CROSS JOIN unnest($14::text[],$15::text[],$16::text[]) AS e(id,effect,payload)
+	        ) SELECT count(*) FROM committed
+2026-10-19 09:56:56.461 CEST [1170663] DETAIL:  parameters: $1 = '4', $2 = '1000', $3 = 'increment', $4 = 'alice', $5 = 'mutation', $6 = '["counters"]', $7 = '1', $8 = '{public}', $9 = '{0}', $10 = '{counters}', $11 = '{put}', $12 = '{c1}', $13 = '{"{\"Row\":{\"id\":{\"Id\":\"c1\"},\"value\":{\"Int\":3}}}"}', $14 = '{}', $15 = '{}', $16 = '{}'
+2026-10-19 09:56:56.461 CEST [1170663] LOG:  duration: 0.174 ms
+2026-10-19 09:56:56.461 CEST [1170663] LOG:  duration: 0.017 ms  bind s34: INSERT INTO _ops(principal,id,seq,outcome,name,args_digest,at) VALUES ($1,$2,$3,$4,$5,$6,$7)
+2026-10-19 09:56:56.461 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-2', $3 = '4', $4 = '{"id":"capture-2","replayed":true,"seq":4,"state":"sent"}', $5 = 'increment', $6 = '9acc01a1b8d6d1476070406c156e19349f53cf23b10a42535ccb17cd923f8a22', $7 = '1000'
+2026-10-19 09:56:56.461 CEST [1170663] LOG:  execute s34: INSERT INTO _ops(principal,id,seq,outcome,name,args_digest,at) VALUES ($1,$2,$3,$4,$5,$6,$7)
+2026-10-19 09:56:56.461 CEST [1170663] DETAIL:  parameters: $1 = 'alice', $2 = 'capture-2', $3 = '4', $4 = '{"id":"capture-2","replayed":true,"seq":4,"state":"sent"}', $5 = 'increment', $6 = '9acc01a1b8d6d1476070406c156e19349f53cf23b10a42535ccb17cd923f8a22', $7 = '1000'
+2026-10-19 09:56:56.461 CEST [1170663] LOG:  duration: 0.021 ms
+2026-10-19 09:56:56.461 CEST [1170663] LOG:  statement: COMMIT
+2026-10-19 09:56:56.461 CEST [1170663] LOG:  duration: 0.067 ms
