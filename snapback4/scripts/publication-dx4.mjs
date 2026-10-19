@@ -18,6 +18,9 @@ export async function proveDX4(directory) {
   try {
     const deadline=spawnSync(process.execPath,[cli,"why","E_IDENTITY_TIMEOUT"],{cwd,env,encoding:"utf8",timeout:30000});
     assert.equal(deadline.status,0,deadline.stderr);assert.match(deadline.stdout,/partial|inspect/i);assert.match(deadline.stdout,/guide staging/);
+    assert.match(deadline.stdout,/internal sign-in deadline/);
+    const setup=spawnSync(process.execPath,[cli,"why","E_STAGING_TIMEOUT"],{cwd,env,encoding:"utf8",timeout:30000});
+    assert.equal(setup.status,0,setup.stderr);assert.match(setup.stdout,/setup deadline expired/);assert.match(setup.stdout,/Partial accounts\/grants may exist/);
     mkdirSync(join(cwd,"snapback"));
     const assets=await card("uploads","Placement replay");
     const assetSchema=fences(assets,"quarry"),assetScripts=fences(assets,"js");

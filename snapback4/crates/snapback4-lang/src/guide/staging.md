@@ -113,13 +113,6 @@ first-admin recipe below for intended production users. Source edits and a
 directory named staging never change a production store's classification.
 
 
-### Identity request deadline
-
-E_IDENTITY_TIMEOUT is the internal sign-in deadline cause (SDK E_OFFLINE).
-Signup outcome may be unknown: inspect before retrying. Increase timeoutMs to
-allow server retryAfterMs waits. seedAccounts maps it to E_STAGING_TIMEOUT
-with the partial-account recovery guidance below.
-
 ### Account setup refusals
 
 E_STAGING_INPUT means the account plan is invalid. Provide 1..100 accounts,
@@ -135,6 +128,13 @@ or discard the disposable deployment before retrying.
 E_STAGING_PROVISION means the operator mutation refused or returned an invalid
 reply. Repair its arguments and operator-only rules; partial accounts/grants
 may exist, so inspect or discard the disposable deployment before retrying.
+
+### Identity request deadline
+
+E_IDENTITY_TIMEOUT is the internal sign-in deadline cause (SDK E_OFFLINE).
+Signup outcome may be unknown: inspect before retrying. Increase timeoutMs to
+allow server retryAfterMs waits. seedAccounts maps it to E_STAGING_TIMEOUT
+with the partial-account recovery guidance above.
 
 ## First admin on production
 
