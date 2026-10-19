@@ -92,6 +92,41 @@ fn column_observers_recheck_fixture_roles_after_demotion(){
 }
 
 #[test]
+fn aliases_defaults_and_deprecated_inputs_preserve_column_challenges_and_audit() {
+ // @ref LLP 3000.036.004#12.1-column-read-intent — compatibility forms keep the same disclosure obligations.
+ for fixed in [false, true] {
+  let source = SOURCE.replace("invariant reports.read only", "invariant reports.body read only")
+   .replace("query inspect(report: reports):", "query inspect(report: reports, enabled: bool default true, old: text <=20 deprecated):")
+   .replace("  return reports[report]", "  require enabled else DISABLED\n  return reports[report]")
+   + "alias legacyInspect = inspect\n";
+  let source = if fixed { source.replace("read <- exists grants[viewer]", "read <- exists grants[viewer] and exists roles[viewer, role = 'inspector']") } else { source };
+  let b=compile(&[("schema.q".into(), source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+  let report=security::analyze(&b);
+  let exposure=report.exposures.iter().find(|e|e.table=="reports").unwrap();
+  for name in ["inspect (query)", "legacyInspect (query)"] { assert!(exposure.operations.iter().any(|op|op==name),"{exposure:?}"); }
+  let now=1_800_000_000_000;
+  let mut fixture=Engine::new_at(snapback4_core::Store::memory().unwrap(),b.schema.clone(),b.programs.iter().map(|p|p.program.clone()),now).unwrap();
+  fixture.seed_at([
+   ("roles".into(),row(&[("id",Value::Id("role".into())),("principal",Value::Id("dev:fixture-only".into())),("role",Value::String("inspector".into()))])),
+   ("grants".into(),row(&[("id",Value::Id("grant".into())),("principal",Value::Id("dev:fixture-only".into()))])),
+   ("reports".into(),row(&[("id",Value::Id("report".into())),("body",Value::String("private".into()))]))
+  ],now).unwrap();
+  let mut campaign=security::challenges::Campaign::default();security::challenges::operations(&b,&fixture,&mut campaign);
+  for name in ["inspect", "legacyInspect"] {assert!(campaign.operations.contains_key(name),"{campaign:?}");}
+  assert_eq!(campaign.violations.is_empty(),fixed,"{campaign:?}");
+  let args=std::collections::BTreeMap::from([("report".into(),Value::Id("report".into())),("old".into(),Value::String("old caller".into()))]);
+  let mut context=snapback4_core::Context::new("dev:fixture-only",args);context.now=now;
+  let demote=std::collections::BTreeMap::from([("who".into(),Value::Id("dev:fixture-only".into()))]);
+  let mut operator=snapback4_core::Context::new("service:ops",demote);operator.now=now;
+  fixture.mutate("demote",None,operator).unwrap();
+  for name in ["inspect", "legacyInspect"] {
+   let observed=fixture.query(name,context.clone()).unwrap();
+   assert_eq!(observed.data==Value::Null,fixed,"{name}: {observed:?}");
+  }
+ }
+}
+
+#[test]
 fn immutable_column_pairs_use_independent_valid_worlds(){
  let source="table notes:\n  owner: principal\n  body: text <=80\n  immutable owner, body\n  read <- allow\n  online only\ninvariant notes.body read only .owner = viewer\nquery inspect(note: notes):\n  n = notes[note] ! else NOT_FOUND\n  return n.body\n";
  let b=compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);

@@ -128,7 +128,46 @@ query list():
     d.source(rows.replace('int 0..10','int 0..20').replace('text 1..20','text 0..20'));
     const domains=JSON.parse((await d.run(['deploy',d.deployment,'--check','--json'])).stdout).clientCompatibility.join('\n');
     assert.match(domains,/RESULT REVIEW.*items.label/);assert.match(domains,/RESULT REVIEW.*items.n/);
-    return {status:'passed',reactivation:['cold','hot','same-id','dormant-values','unchanged'],refusals:['adoption','post-validation-pointer','no-candidate-left'],rollbackForesight:'dropped-required-column-and-later-writes',oldClients:'installed-guide-signature-diff-baseline-projected-domains'};
+    // Cross-lane acceptance: retained release identity owns its backfill receipts.
+    const b=fixture('backfill-reactivation');
+    const original=`use identity guests
+table counters:
+  value: int
+  public 'release backfill proof'
+  insert <- allow
+mutation add(value: int):
+  return insert counters {value}
+query list():
+  return counters first 20 by .id
+`;
+    const transformed=original.replace('mutation add(value: int):','mutation current(value: int default 10):')+`alias add = current
+backfill counters increment(value: int): {value: value + 1}
+`;
+    b.source(original);await b.run(['deploy',b.deployment]);
+    const backfillHost=await b.serve();
+    assert.equal((await backfillHost.post('/m/add',{value:4},'integ18-original')).state,'sent');
+    b.source(transformed);
+    const combined=JSON.parse((await b.run(['deploy',b.deployment,'--check','--json'])).stdout);
+    assert.ok(combined.backfills.length,JSON.stringify(combined));
+    assert.ok(Array.isArray(combined.clientCompatibility),JSON.stringify(combined));
+    assert.equal((await backfillHost.post('/q/list')).data[0].value,4,'preview is read-only');
+    await b.run(['deploy',b.deployment]);
+    assert.equal((await backfillHost.post('/q/list')).data[0].value,5);
+    for(let round=0;round<2;round++) {
+      await b.run(['rollback',b.deployment,'--to','1']);
+      assert.equal((await backfillHost.post('/q/list')).data[0].value,4);
+      await b.run(['deploy',b.deployment]);
+      assert.equal((await b.status()).release,2);
+      assert.equal((await backfillHost.post('/q/list')).data[0].value,5,'non-idempotent backfill runs once per historical view');
+      assert.deepEqual(b.releases(),['1','2']);
+    }
+    assert.equal((await backfillHost.post('/m/add',{},'integ18-default')).result.value,10,'alias shares the default');
+    assert.equal((await backfillHost.post('/m/current',{value:20},'integ18-native')).result.value,20);
+    await b.run(['rollback',b.deployment,'--to','1']);
+    await b.run(['deploy',b.deployment]);
+    assert.deepEqual((await backfillHost.post('/q/list')).data.map(row=>row.value).sort((a,b)=>a-b),[5,10,20],'native outputs survive reactivation');
+    await backfillHost.host.stop();active.delete(backfillHost.host);
+    return {status:'passed',reactivation:['cold','hot','same-id','dormant-values','unchanged','backfill-receipts'],refusals:['adoption','post-validation-pointer','no-candidate-left'],rollbackForesight:'dropped-required-column-and-later-writes',oldClients:'installed-guide-signature-diff-baseline-projected-domains'};
   } finally {
     try {for(const host of active)await host.stop();} finally {rmSync(root,{recursive:true,force:true});}
   }
