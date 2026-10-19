@@ -106,3 +106,17 @@ fn refresh_expiry_after_initial_resolution_preserves_the_refusal_envelope() {
         }
     }
 }
+
+#[test]
+fn identity_rate_limit_returns_a_retry_delay_on_the_wire() {
+    let host=Host::new(false);
+    let mut refusal=None;
+    for _ in 0..31 {
+        let response=host.request("POST","/auth/guest","", "{}");
+        if status(&response)==429 {refusal=Some(response);break;}
+    }
+    let response=refusal.expect("identity attempts must reach the unchanged limit");
+    assert!(response.to_ascii_lowercase().contains("retry-after: 60\r\n"),"{response}");
+    let denied=body(&response)["denied"].clone();
+    assert_eq!(denied["code"],"E_RATE_LIMIT");assert_eq!(denied["retryAfterMs"],60_000);assert_eq!(denied["retryable"],true);
+}

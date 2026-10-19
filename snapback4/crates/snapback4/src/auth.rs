@@ -84,7 +84,12 @@ fn limited(request: Request, shared: &Shared) {
     )
     .guide("personas");
     refusal.retryable = true;
-    respond_timed(request, shared, 429, json!({ "denied": refusal_json(&refusal) }));
+    let mut denied=refusal_json(&refusal);
+    denied["retryAfterMs"]=json!(WINDOW.as_millis() as u64);
+    crate::serve::respond_with_headers(request, shared, 429, json!({ "denied": denied }),vec![
+        tiny_http::Header::from_bytes("Retry-After",WINDOW.as_secs().to_string()).unwrap(),
+        tiny_http::Header::from_bytes("Access-Control-Expose-Headers","Retry-After").unwrap(),
+    ]);
 }
 
 pub fn handle(request: Request, shared: &Shared, path: &str, body: &str) {
