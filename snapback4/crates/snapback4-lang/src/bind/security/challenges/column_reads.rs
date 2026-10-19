@@ -33,7 +33,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
     let altrow=other[&inv.table].iter().find(|r|r.field("id").ok()==row.field("id").ok()).unwrap();
     let mut actors=histories::viewers(bound);
     for (table,rs) in rows{for r in rs{for (c,k) in &bound.schema.tables[table].columns{if matches!(k.required(),C::Principal)&&let Ok(Value::Id(p))=r.field(c)&&!actors.contains(p){actors.push(p.clone());}}}}
-    for viewer in &actors{
+    'actors: for viewer in &actors{
         let committed=trace.map(|(_,steps)|steps.iter().filter(|s|s.result.get("state").and_then(serde_json::Value::as_str)==Some("sent")).count()).unwrap_or(0);
         if fixture.is_some()&&out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.viewer==*viewer&&v.reachability==Reachability::AuthoredFixtureTrace&&v.history.iter().filter(|s|s.result.get("state").and_then(serde_json::Value::as_str)==Some("sent")).count()<=committed){continue;}
 
@@ -101,7 +101,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
                 if a==b{continue;}
                 if !matches!((execute(false),execute(true)),(Ok(aa),Ok(bb)) if aa==a&&bb==b){continue;}
                 out.violations.push(Counterexample{reachability:if fixture.is_some(){Reachability::AuthoredFixtureTrace}else{Reachability::SyntheticOperation},invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.clone(),operation:p.name.clone(),effect:"column read observation".into(),row:row.clone(),old:Some(altrow.clone()),supporting_rows:trace.map(|(initial,_)|initial.clone()).unwrap_or_else(||rows.clone()),history:trace.map(|(_,steps)|steps.to_vec()).unwrap_or_default(),rule_path:format!("authored observer depends on {}.{} while policy is false in both typed worlds",inv.table,inv.column.as_deref().unwrap()),scope:if fixture.is_some(){"primary observation executes on trusted fixture; alternate column is a dependency test, not an authored alternate-history claim"}else{"schema-valid synthetic worlds; authored observer, no application reachability claim"}.into(),observations:Some(paired::Observations{present:a,absent:b,absent_rows:other.clone()})});
-                return;
+                continue 'actors;
             }
         }
     }

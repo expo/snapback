@@ -52,14 +52,15 @@ fn violation(out:&mut Campaign,inv:&Invariant,steps:&[Step],viewer:&str,row:&Val
     if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.viewer==viewer&&v.reachability==Reachability::AuthoredFixtureTrace&&committed(&v.history)==committed(steps)){return;}
     out.violations.push(Counterexample{reachability:Reachability::AuthoredFixtureTrace,observations:None,history:steps.to_vec(),invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:steps.last().map(|s|s.operation.clone()).unwrap_or("$fixture.read".into()),effect:effect.into(),row:row.clone(),old:old.cloned(),supporting_rows:initial.clone(),rule_path:"actual authored operation/read from the trusted fixture".into(),scope:"reachable from recorded trusted fixture; finite trace, not an all-history proof".into()});
 }
-fn typed_disclosure(ty:&crate::types::Ty,data:&Value,table:&str,key:&Value)->bool{
+fn typed_disclosure(ty:&crate::types::Ty,data:&Value,table:&str,key:&Value,column:Option<&str>,physical:&Value)->bool{
     use crate::types::Ty;
+    let payload=|data:&Value|matches!(data,Value::Row(_))&&data.field("id").ok()==Some(key)&&column.is_none_or(|c|data.field(c).ok().is_some_and(|v|physical.field(c).ok()==Some(v)));
     match ty{
-        Ty::Row(t)|Ty::WriteRow(t) if t==table=>matches!(data,Value::Row(_))&&data.field("id").ok()==Some(key),
-        Ty::Optional(inner)=>typed_disclosure(inner,data,table,key),
-        Ty::Page(t,_) if t==table=>matches!(data,Value::Array(xs) if xs.iter().any(|r|matches!(r,Value::Row(_))&&r.field("id").ok()==Some(key))),
-        Ty::List(inner,_)|Ty::Collection(inner,_)=>matches!(data,Value::Array(xs) if xs.iter().any(|r|typed_disclosure(inner,r,table,key))),
-        Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>fields.iter().any(|(name,ty)|data.field(name).ok().is_some_and(|v|typed_disclosure(ty,v,table,key))),
+        Ty::Row(t)|Ty::WriteRow(t) if t==table=>payload(data),
+        Ty::Optional(inner)=>typed_disclosure(inner,data,table,key,column,physical),
+        Ty::Page(t,_) if t==table=>matches!(data,Value::Array(xs) if xs.iter().any(payload)),
+        Ty::List(inner,_)|Ty::Collection(inner,_)=>matches!(data,Value::Array(xs) if xs.iter().any(|r|typed_disclosure(inner,r,table,key,column,physical))),
+        Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>fields.iter().any(|(name,ty)|data.field(name).ok().is_some_and(|v|typed_disclosure(ty,v,table,key,column,physical))),
         _=>false,
     }
 }
@@ -80,8 +81,8 @@ fn reserve_observers(out:&mut Campaign,calls:usize)->bool{
 }
 fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,actors:&[String],steps:&[Step],out:&mut Campaign){
     if !reserve_observers(out,0)||out.history_observer_calls>=32768{return;}
-    for inv in bound.invariants.iter().filter(|i|i.target=="read"&&i.column.as_deref().is_none_or(|c|c=="id")){
-        let direct=inv.policy.as_ref().is_some_and(|p|kernel::implies(&super::super::columns::admission(&bound.schema.tables[&inv.table],None),p)==Ok(true));
+    for inv in bound.invariants.iter().filter(|i|i.target=="read"){
+        let direct=inv.policy.as_ref().is_some_and(|p|kernel::implies(&super::super::columns::admission(&bound.schema.tables[&inv.table],inv.column.as_deref()),p)==Ok(true));
         let indirect=bound.schema.maintains.iter().any(|m|m.source==inv.table)||bound.schema.tables.values().any(|t|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|kernel::dependencies(r).contains(&inv.table)));
         if direct&&!indirect{continue;}
 
@@ -91,6 +92,8 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
             if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.viewer==*viewer&&v.reachability==Reachability::AuthoredFixtureTrace&&v.history.iter().filter(|s|s.result.get("state").and_then(serde_json::Value::as_str)==Some("sent")).count()==committed){continue;}
             match policy_in(bound,inv,rows,viewer,None,row,e){Ok(false)=>{},Ok(true)=>continue,Err(why)=>{out.unsupported.insert(format!("{}: {why}",inv.target_label()));continue;}}
             let Ok(key)=row.field("id")else{continue;};
+            if inv.column.as_ref().and_then(|c|bound.schema.tables[&inv.table].written_by.get(c)).is_some_and(|gate|!gate.audience&&row.field(&gate.owner).ok()!=Some(&Value::Id(viewer.clone()))){continue 'actors;}
+
             // A typed authored row return is already a payload witness. It does
             // not require an invalid absent world that deletes referenced data.
             for bp in bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Query&&!p.program.native&&typed_source(&p.result,&inv.table)){
@@ -98,13 +101,14 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
                 if cases.len()>32{out.unsupported.insert(format!("{}: typed read-observer arguments capped at 32",bp.program.name));}
                 for args in cases.into_iter().take(32){
                     if !reserve_observers(out,1){return;}out.attempted+=1;
-                    if let Ok(q)=e.query(&bp.program.name,Context::new(viewer,args.clone()).at(NOW))&&q.complete&&!q.unavailable&&typed_disclosure(&bp.result,&q.data,&inv.table,key){
-                        violation(out,inv,steps,viewer,row,None,initial,"read");
-                        if let Some(v)=out.violations.last_mut(){v.operation=bp.program.name.clone();v.args=args;v.rule_path="authored query returned a compiler-typed row of the protected table while current policy is false".into();}
+                    if let Ok(q)=e.query(&bp.program.name,Context::new(viewer,args.clone()).at(NOW))&&q.complete&&!q.unavailable&&typed_disclosure(&bp.result,&q.data,&inv.table,key,inv.column.as_deref(),row){
+                        violation(out,inv,steps,viewer,row,None,initial,if inv.column.is_some(){"column read observation"}else{"read"});
+                        if let Some(v)=out.violations.last_mut(){v.operation=bp.program.name.clone();v.args=args;v.rule_path="authored query returned a compiler-typed row/column payload of the protected table while current policy is false".into();}
                         continue 'actors;
                     }
                 }
             }
+            if inv.column.as_deref().is_some_and(|c|c!="id"){continue 'actors;}
             if bound.schema.tables.values().any(|t|t.columns.values().any(|k|matches!(k.required(),C::Ref{table} if table==&inv.table))){out.unsupported.insert(format!("{}: history paired absence needs a referentially valid closure",inv.table));continue;}
             let Ok(id)=key.as_str()else{continue;};
             let mut absent=match fork(bound,e,Vec::new()){Ok(e)=>e,Err(why)=>{out.unsupported.insert(format!("{}: absent world fork: {why}",inv.table));continue;}};

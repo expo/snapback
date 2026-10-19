@@ -222,3 +222,9 @@ fn a_different_or_negated_role_does_not_discharge_retained_intent(){
   let r=security::analyze(&bound(&source));assert!(r.notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"&&n.message.starts_with("notes.read")),"{:?}",r.notes);
  }
 }
+
+#[test]
+fn caller_chosen_ordinary_roles_with_only_own_record_rights_are_quiet(){
+ let source="table roles:\n  principal: principal\n  role: enum('customer','reader')\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  online only\ntable requests:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer and exists roles[viewer, role = 'customer']\n  online only\nmutation join(role: enum('customer','reader')):\n  return insert roles { principal: viewer, role }\n";
+ let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source.into())],&b);assert!(!r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
+}

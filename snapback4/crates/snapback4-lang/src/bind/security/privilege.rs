@@ -60,10 +60,8 @@ pub(super) fn risk(bound:&Bound,roster:&str,column:&str,operation:&str,targets:&
             if violates_intent{return Some(format!("{roster}.{column} assignment to '{target}' is not established by the independent delegation intent for {}",caller.unwrap_or("a caller without a role")));}
             for (name,t) in bound.schema.visible_tables(){for (effect,rule) in [("read",&t.rules.read),("insert",&t.rules.insert),("update",&t.rules.update),("delete",&t.rules.delete)]{
                 let granted=substitute(bound,rule,roster,column,Some(target),None);let previous=substitute(bound,rule,roster,column,caller,None);
-                if !dynamic {
-                    let global=kernel::implies(&RuleExpr::Allow,&granted)==Ok(true);
-                    if !global||!(matches!(effect,"read"|"delete")||!role_columns(bound,name).is_empty()){continue;}
-                }
+                if kernel::implies(&RuleExpr::Allow,&granted)!=Ok(true){continue;}
+                if !dynamic&&!(matches!(effect,"read"|"delete")||!role_columns(bound,name).is_empty()){continue;}
                 if kernel::implies(&granted,&previous)==Ok(false){return Some(format!("{} can confer '{target}', which adds {name}.{effect} authority not held by {}",roster,caller.unwrap_or("a caller without a role")));}
             }}
         }

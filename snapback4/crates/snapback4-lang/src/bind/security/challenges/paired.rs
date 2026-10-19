@@ -68,9 +68,12 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                 out.unsupported.insert(format!("{}: paired fixture asset identities are not coupled",inv.table));continue;
             }
             let Some(row)=present.get(&inv.table).and_then(|rs|rs.first()).cloned()else{continue;};
-            let prepared=match engine(bound,&present,program("$security.pair.image",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))])){Ok(e)=>e,Err(why)=>{out.unsupported.insert(why);continue;}};
-            let prepared_rows=match readback(&prepared){Ok(rows)=>rows,Err(why)=>{out.unsupported.insert(why);continue;}};
-            let Some(row)=prepared_rows.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()).cloned()else{continue;};
+            let prepared=(||->Result<Value,String>{
+                let e=engine(bound,&present,program("$security.pair.image",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))]))?;
+                let actual=readback(&e)?;
+                actual.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()).cloned().ok_or_else(||"protected paired row is absent after validation".into())
+            })();
+            let row=prepared.as_ref().unwrap_or(&row);
             let mut absent=present.clone();absent.remove(&inv.table);
             // Final-exists validation is a pure judgment of this fixed seeded
             // world, before operation/viewer admission. Retain its rejection
@@ -98,6 +101,8 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                     if opaque(&json){out.unsupported.insert(format!("{}: generated-id/opaque effects excluded from paired determinism",p.name));continue;}
                     let Some(args)=arguments(&p.args,variant)else{continue;};
                     let execute=|seeds:&BTreeMap<String,Vec<Value>>|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>),String>{
+                        if let Err(why)=&prepared{return Err(why.clone());}
+
                         let slot=usize::from(std::ptr::eq(seeds,&absent));
                         if let Some(why)=&invalid.borrow()[slot]{return Err(why.clone());}
                         let mut e=match engine(bound,seeds,program("$security.pair",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))])){

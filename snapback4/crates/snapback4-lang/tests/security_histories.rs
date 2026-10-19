@@ -161,3 +161,15 @@ fn trusted_column_observation_precedes_mutation_prefixes(){
  let source="table notes:\n  owner: principal\n  body: text <=80\n  read <- allow\n  online only\ntable counters:\n  n: int\n  update <- allow\n  online only\ninvariant notes.body read only .owner = viewer\nquery inspect(note: notes):\n  n = notes[note] ! else NOT_FOUND\n  return n.body\nmutation unrelated(counter: counters):\n  return update counters[counter] { n: 1 }\n";
  let c=fixture_campaign(source,vec![("notes".into(),row(&[("id",Value::Id("n".into())),("owner",Value::Id("dev:owner".into())),("body",Value::String("secret".into()))])),("counters".into(),row(&[("id",Value::Id("c".into())),("n",Value::Int(0))]))]);let disclosures=c.violations.iter().filter(|v|v.effect=="column read observation").collect::<Vec<_>>();assert!(!disclosures.is_empty());assert!(disclosures.iter().all(|v|v.history.is_empty()),"{c:?}");
 }
+
+#[test]
+fn typed_media_column_payloads_are_witnesses_and_private_nulls_are_not(){
+ let source="table roles:\n  principal: principal\n  role: enum('inspector','member')\n  unique principal\n  read <- allow\n  online only\ntable notes:\n  owner: principal\n  photo: image <=5000\n  body: text <=80 ? default null written by .owner\n  read <- allow\n  online only\ninvariant notes.photo read only .owner = viewer\ninvariant notes.body read only .owner = viewer and exists roles[viewer, role = 'inspector']\nquery inspect(note: notes):\n  return notes[note]\n";
+ let b=compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let now=1_800_000_000_000;
+ let mut fixture=Engine::new_at(snapback4_core::Store::memory().unwrap(),b.schema.clone(),b.programs.iter().map(|p|p.program.clone()),now).unwrap();
+ let png=[137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1];let photo=fixture.store_asset("service:ops",&png,now).unwrap().column_value();
+ fixture.seed_at([("roles".into(),row(&[("id",Value::Id("r".into())),("principal",Value::Id("dev:owner".into())),("role",Value::String("inspector".into()))])),("notes".into(),row(&[("id",Value::Id("n".into())),("owner",Value::Id("dev:owner".into())),("photo",photo),("body",Value::Null)]))],now).unwrap();
+ let mut c=security::challenges::Campaign::default();security::challenges::fixture_observers(&b,&fixture,&mut c);
+ assert!(c.violations.iter().any(|v|v.invariant_site==b.invariants[0].site.to_string()&&v.operation=="inspect"&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace),"{c:?}");
+ assert!(!c.violations.iter().any(|v|v.invariant_site==b.invariants[1].site.to_string()),"{c:?}");
+}
