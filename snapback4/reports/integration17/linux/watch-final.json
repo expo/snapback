@@ -1,0 +1,43 @@
+{
+  "rust-full2.log": {
+    "raw_test_result_summaries": 429,
+    "raw_reported_passed": 6668,
+    "raw_reported_failed": 0,
+    "raw_reported_ignored": 45,
+    "FAILED_lines": 0,
+    "error_prefix_lines": 0,
+    "final_exit_markers": []
+  },
+  "rust-full3.log": {
+    "raw_test_result_summaries": 429,
+    "raw_reported_passed": 6668,
+    "raw_reported_failed": 0,
+    "raw_reported_ignored": 45,
+    "FAILED_lines": 0,
+    "error_prefix_lines": 0,
+    "final_exit_markers": [
+      "FINAL_RUST_EXIT_CODE=0"
+    ]
+  },
+  "clients_full2_final_summary": "-- client files: 422/422; failed 0; tests {\"tests\":7811,\"pass\":7755,\"fail\":0,\"cancelled\":0,\"skipped\":56,\"todo\":0}",
+  "packed_consumer": {
+    "source": "fc7a63ea0fbbb23005df12f83ae4c4b25955ca02",
+    "version": "0.4.33",
+    "mode": "consumer-only",
+    "publicationQualified": false,
+    "suite": {
+      "status": "not-run"
+    },
+    "distribution_statuses": [
+      {
+        "base": "ubuntu:24.04",
+        "status": "passed"
+      },
+      {
+        "base": "alpine",
+        "status": "passed"
+      }
+    ]
+  },
+  "free_GiB": 42.6
+}

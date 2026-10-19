@@ -1,0 +1,115 @@
+{
+  "format": 1,
+  "productSource": "fc7a63ea0fbbb23005df12f83ae4c4b25955ca02",
+  "rust": {
+    "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+    "environment": {
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_PROFILE_DEV_DEBUG": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "CARGO_BUILD_JOBS": "12",
+      "RUST_TEST_THREADS": "8"
+    },
+    "runs": {
+      "rust-full1.log": {
+        "resultSummaries": 429,
+        "reportedPassed": 6664,
+        "reportedFailed": 3,
+        "reportedIgnored": 45,
+        "failedSummaries": 3,
+        "sha256": "fb5b9c37b4fbf95bd99364b376616674add5679bbbb9c304f7b7bf6a212e50a2",
+        "capturedExitCode": null
+      },
+      "rust-full2.log": {
+        "resultSummaries": 429,
+        "reportedPassed": 6668,
+        "reportedFailed": 0,
+        "reportedIgnored": 45,
+        "failedSummaries": 0,
+        "sha256": "3a743c3b79cc2821dcc8d1999477c7d635dc77c63c7bd36dcc49c7c53d87c3ed",
+        "capturedExitCode": null
+      },
+      "rust-full3.log": {
+        "resultSummaries": 429,
+        "reportedPassed": 6668,
+        "reportedFailed": 0,
+        "reportedIgnored": 45,
+        "failedSummaries": 0,
+        "sha256": "f88bec1dc57f8afc9f52c40b170504be2ccaa06e52c23556f74bbc771089ba41",
+        "capturedExitCode": 0
+      }
+    },
+    "countsAre": "Raw test-result summaries include 13 nested targeted self-test invocations; totals are reported execution counts, not distinct top-level Cargo targets.",
+    "priorExitCustody": "Provider interruption lost first/second tool returns; final required run actual subprocess marker and captured tool exit both 0.",
+    "intermittentFlakesObserved": false
+  },
+  "clients": {
+    "clients-full2.log": {
+      "files": 422,
+      "failedFiles": 0,
+      "tests": 7811,
+      "pass": 7755,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 56,
+      "todo": 0
+    },
+    "models-full.log": {
+      "files": 2,
+      "failedFiles": 0,
+      "tests": 81,
+      "pass": 81,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "fixtures.log": {
+      "files": 1,
+      "failedFiles": 0,
+      "tests": 9,
+      "pass": 9,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "packed": {
+    "mode": "consumer-only",
+    "source": "fc7a63ea0fbbb23005df12f83ae4c4b25955ca02",
+    "route": "proot",
+    "publicationQualified": false,
+    "suite": {
+      "status": "not-run"
+    },
+    "binarySha256": "a744bf6a29189dbcfd5fe1ecc9197db94ee79443eff2873cc4a3288cc3e5ce43"
+  },
+  "mac": {
+    "files": 61,
+    "passed": 1097,
+    "skipped": 14,
+    "failed": 0,
+    "nativeWitness": "offline and restart passed; fresh XCFramework and Expo Release",
+    "custody": "../mac/README.md"
+  },
+  "survey": {
+    "passed": 150,
+    "ordinaryNotes": [
+      488,
+      147
+    ],
+    "securityNotes": [
+      968,
+      582
+    ],
+    "originalSourcesUnchanged": true
+  },
+  "exact": {
+    "syncedWebPassed": 2,
+    "onlineWebPassed": 2,
+    "custody": "../bindings-closeout-README.md"
+  },
+  "upgrade": "full actual 0.4.32 package upgrade plus final private-backup replay passed",
+  "publication": "No push/publication. Full scripts/test.sh intentionally not run; requested suites run individually."
+}
