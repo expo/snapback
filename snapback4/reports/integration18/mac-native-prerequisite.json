@@ -1,0 +1,56 @@
+{
+  "xcode": {
+    "argv": [
+      "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+      "-version"
+    ],
+    "exit": 0,
+    "stdout": "Xcode 27.1\nBuild version 27A9275\n",
+    "stderr": ""
+  },
+  "os": {
+    "argv": [
+      "sw_vers"
+    ],
+    "exit": 0,
+    "stdout": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434\n",
+    "stderr": ""
+  },
+  "sudo": {
+    "argv": [
+      "sudo",
+      "-n",
+      "-l"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "sudo: a password is required\n"
+  },
+  "host": "macstudio-charlie-apt101-a",
+  "scratch": "~/sb4-ws-integ18",
+  "blocked": "Simulator runtime listing, Expo simulator launch and native witness",
+  "runtimeProbe": {
+    "argv": [
+      "xcrun",
+      "simctl",
+      "list",
+      "runtimes",
+      "-j"
+    ],
+    "timeout": 120,
+    "diagnostic": "Install Failed: Authorization is required to install the packages.",
+    "logSha256": "eaa159018d1e5a93f5134f3cac61ea76e9cf2c4a67fec1975222a81a17cd16cb"
+  },
+  "directSimctl": "also timed out after120s; no alternative Xcode installed",
+  "requiredFollowup": "Administrator completes Xcode component setup; rerun .34 Expo native witness",
+  "genericReleaseBuild": {
+    "prebuild": "passed",
+    "pods": "passed",
+    "status": "blocked/interrupted",
+    "exit": -15,
+    "seconds": 643.109,
+    "lastStep": "CompileStoryboard SplashScreen.storyboard",
+    "stalledSecondsAtGuard": 606.66,
+    "guard": "Only owned xcodebuild and owned orphan ibtool child signaled after two exact identity checks; shared services untouched"
+  }
+}

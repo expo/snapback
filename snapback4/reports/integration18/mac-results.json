@@ -1,0 +1,798 @@
+{
+  "host": "macstudio-charlie-apt101-a",
+  "scratch": "/Users/ccheever/sb4-ws-integ18",
+  "os": "macOS-27.0.1-arm64-arm-64bit",
+  "cargoEnvironment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "runs": {
+    "tests": [
+      {
+        "label": "rust-snapback4-core",
+        "args": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4-core",
+          "--no-fail-fast",
+          "--lib"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 147.461,
+        "logSha256": "b61a25f2eede316baa87242c328600543bb34457c7261405ebea8b45bf60daec",
+        "summaries": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 440 filtered out; finished in 0.10s",
+          "test result: ok. 438 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 91.41s"
+        ]
+      },
+      {
+        "label": "rust-snapback4-lang",
+        "args": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4-lang",
+          "--no-fail-fast",
+          "--lib",
+          "--test",
+          "guide",
+          "--test",
+          "operation_evolution",
+          "--test",
+          "security",
+          "--test",
+          "security_histories",
+          "--test",
+          "security_observers",
+          "--test",
+          "surf4_guide",
+          "--test",
+          "wave11_qdiag"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 101,
+        "seconds": 44.279,
+        "logSha256": "d85de30d890df4c6c463065b7f53ce9ae61be91ee3c1ce6f07b1ba2fd7d5a541",
+        "summaries": []
+      },
+      {
+        "label": "rust-snapback4-device",
+        "args": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4-device",
+          "--no-fail-fast",
+          "--lib",
+          "--test",
+          "natural_forms",
+          "--test",
+          "readauth"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 50.565,
+        "logSha256": "cbd1f693f5f89263a54b12730e95f0c6f9bd09fd2d27f210feeb74d8087ab84c",
+        "summaries": [
+          "test result: ok. 64 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s",
+          "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s",
+          "test result: ok. 88 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.42s"
+        ]
+      },
+      {
+        "label": "rust-snapback4",
+        "args": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4",
+          "--no-fail-fast",
+          "--bin",
+          "snapback4",
+          "--test",
+          "check",
+          "--test",
+          "check_notes",
+          "--test",
+          "clock",
+          "--test",
+          "day5_previews",
+          "--test",
+          "surf4"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 103.377,
+        "logSha256": "fbcf6b12fab801d8967de2f38448db9a06ccdafdc4841e4f9836978d0092893b",
+        "summaries": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 0.35s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 0.33s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 0.90s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 0.41s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 0.49s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 0.32s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 0.02s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 0.27s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 0.12s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 0.87s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 0.98s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 6.24s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 489 filtered out; finished in 6.45s",
+          "test result: ok. 485 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 15.33s",
+          "test result: ok. 105 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.67s",
+          "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.89s",
+          "test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.17s",
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s",
+          "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s"
+        ]
+      },
+      {
+        "label": "rust-snapback4-sim",
+        "args": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4-sim",
+          "--no-fail-fast",
+          "--lib",
+          "--test",
+          "clique"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 140.555,
+        "logSha256": "7c6d5faae94c7bd447d52437c2f54884195b64d06d5bf7c52edc85ca652c80b1",
+        "summaries": [
+          "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.89s",
+          "test result: ok. 254 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 101.02s"
+        ]
+      },
+      {
+        "label": "clients",
+        "args": [
+          "node",
+          "scripts/run-client-tests.mjs",
+          "3",
+          "files",
+          "packages/snapback4/test/api-index.test.mjs",
+          "packages/snapback4/test/client-recipes.test.mjs",
+          "packages/snapback4/test/client-seams.test.mjs",
+          "packages/snapback4/test/decorated-search.test.mjs",
+          "packages/snapback4/test/dev-reset.test.mjs",
+          "packages/snapback4/test/device-version.test.mjs",
+          "packages/snapback4/test/expo-media-storage.test.mjs",
+          "packages/snapback4/test/expo-save-asset.test.mjs",
+          "packages/snapback4/test/expo-scenes.test.mjs",
+          "packages/snapback4/test/expo-session-store.test.mjs",
+          "packages/snapback4/test/export-background.test.mjs",
+          "packages/snapback4/test/export-failure.test.mjs",
+          "packages/snapback4/test/export-native-round2.test.mjs",
+          "packages/snapback4/test/export-native.test.mjs",
+          "packages/snapback4/test/export-publication.test.mjs",
+          "packages/snapback4/test/external-device.test.mjs",
+          "packages/snapback4/test/following-history.test.mjs",
+          "packages/snapback4/test/following-hook-react.test.mjs",
+          "packages/snapback4/test/following-unfollow.test.mjs",
+          "packages/snapback4/test/front-data-react.test.mjs",
+          "packages/snapback4/test/init-recipe.test.mjs",
+          "packages/snapback4/test/linux-package.test.mjs",
+          "packages/snapback4/test/live-contention.test.mjs",
+          "packages/snapback4/test/maintenance-evidence.test.mjs",
+          "packages/snapback4/test/migrations.test.mjs",
+          "packages/snapback4/test/native-e2e.test.mjs",
+          "packages/snapback4/test/native-opening.test.mjs",
+          "packages/snapback4/test/native-smoke.test.mjs",
+          "packages/snapback4/test/online-journal-browser.test.mjs",
+          "packages/snapback4/test/ordinary-history.test.mjs",
+          "packages/snapback4/test/periphery.test.mjs",
+          "packages/snapback4/test/production-starters.test.mjs",
+          "packages/snapback4/test/proof-fixtures.test.mjs",
+          "packages/snapback4/test/proof.test.mjs",
+          "packages/snapback4/test/publish-linux.test.mjs",
+          "packages/snapback4/test/publish-signing.test.mjs",
+          "packages/snapback4/test/qualify-linux.test.mjs",
+          "packages/snapback4/test/readme-examples.test.mjs",
+          "packages/snapback4/test/recorded-compatibility.test.mjs",
+          "packages/snapback4/test/release-activation.test.mjs",
+          "packages/snapback4/test/release-capabilities.test.mjs",
+          "packages/snapback4/test/release-transitions.test.mjs",
+          "packages/snapback4/test/reservation-parity.test.mjs",
+          "packages/snapback4/test/rx-rule-hop-capability.test.mjs",
+          "packages/snapback4/test/schema-capabilities.test.mjs",
+          "packages/snapback4/test/schema-capability-refusals.test.mjs",
+          "packages/snapback4/test/security-packed.test.mjs",
+          "packages/snapback4/test/server-e2e.test.mjs",
+          "packages/snapback4/test/staging.test.mjs",
+          "packages/snapback4/test/sync-generation.test.mjs",
+          "packages/snapback4/test/test-file-runner.test.mjs",
+          "packages/snapback4/test/test-platform-audit.test.mjs",
+          "packages/snapback4/test/test-processes.test.mjs",
+          "packages/snapback4/test/test-signals.test.mjs",
+          "packages/snapback4/test/wave12-kit.test.mjs",
+          "packages/snapback4/test/wave13-previews.test.mjs",
+          "packages/snapback4/test/wave13-surface.test.mjs",
+          "packages/snapback4/test/wave14-rule-recipes.test.mjs",
+          "packages/snapback4/test/wave9-dx.test.mjs",
+          "packages/snapback4/test/web-admission-review.test.mjs",
+          "packages/snapback4/test/web-pages.test.mjs",
+          "packages/snapback4/test/web-session-authority.test.mjs",
+          "packages/snapback4/test/worker-regressions.test.mjs",
+          "packages/snapback4/test/worker.test.mjs"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 1,
+        "seconds": 962.855,
+        "logSha256": "9c7ef0bd8872d8a206065df8171de549ab8551d4bf85c18faf2e2fc5fab475a3",
+        "summaries": [
+          "-- client files: 64/64; failed 2; tests {\"tests\":1181,\"pass\":1164,\"fail\":3,\"cancelled\":0,\"skipped\":14,\"todo\":0}"
+        ]
+      }
+    ],
+    "corrected-tests": [
+      {
+        "label": "build",
+        "args": [
+          "cargo",
+          "build",
+          "-p",
+          "snapback4"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 10.155,
+        "logSha256": "6fc8d53cdeacac5f8bf73534495e01939f50a7da67794972b12366e3cb9b0dfd",
+        "summaries": []
+      },
+      {
+        "label": "client-build",
+        "args": [
+          "bun",
+          "run",
+          "--cwd",
+          "packages/snapback4",
+          "build"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 1.468,
+        "logSha256": "504ce3189c95c0c2911f044e53584e7f995ad8bf60740d5710ba2f6eb4f04257",
+        "summaries": []
+      },
+      {
+        "label": "rust-snapback4-lang",
+        "args": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4-lang",
+          "--no-fail-fast",
+          "--lib",
+          "--test",
+          "guide",
+          "--test",
+          "operation_evolution",
+          "--test",
+          "security",
+          "--test",
+          "security_histories",
+          "--test",
+          "security_observers",
+          "--test",
+          "surf4_guide",
+          "--test",
+          "wave11_qdiag"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 279.378,
+        "logSha256": "7aef5795dd119f87aa45d796d82966678467a04e4fb8680e4e345e5964cbc74e",
+        "summaries": [
+          "test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s",
+          "test result: ok. 126 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.35s",
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+          "test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.62s",
+          "test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 238.65s",
+          "test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.98s",
+          "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+        ]
+      },
+      {
+        "label": "rust-snapback4",
+        "args": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4",
+          "--no-fail-fast",
+          "--bin",
+          "snapback4",
+          "--test",
+          "check",
+          "--test",
+          "check_notes",
+          "--test",
+          "clock",
+          "--test",
+          "day5_previews",
+          "--test",
+          "surf4"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 87.604,
+        "logSha256": "5a0076686ef1def204eb82d77824ae335dff2cfefe2f857afbdd7b0eb28fb1e2",
+        "summaries": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.43s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.45s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 1.07s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.48s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.51s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.09s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.77s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.06s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.57s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.93s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 0.98s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 7.60s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 490 filtered out; finished in 7.52s",
+          "test result: ok. 486 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 17.01s",
+          "test result: ok. 105 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.74s",
+          "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.87s",
+          "test result: ok. 45 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.21s",
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s",
+          "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.65s"
+        ]
+      },
+      {
+        "label": "clients",
+        "args": [
+          "node",
+          "scripts/run-client-tests.mjs",
+          "3",
+          "files",
+          "packages/snapback4/test/api-index.test.mjs",
+          "packages/snapback4/test/client-recipes.test.mjs",
+          "packages/snapback4/test/client-seams.test.mjs",
+          "packages/snapback4/test/decorated-search.test.mjs",
+          "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+          "packages/snapback4/test/dev-reset.test.mjs",
+          "packages/snapback4/test/device-version.test.mjs",
+          "packages/snapback4/test/expo-media-storage.test.mjs",
+          "packages/snapback4/test/expo-save-asset.test.mjs",
+          "packages/snapback4/test/expo-scenes.test.mjs",
+          "packages/snapback4/test/expo-session-store.test.mjs",
+          "packages/snapback4/test/export-background.test.mjs",
+          "packages/snapback4/test/export-failure.test.mjs",
+          "packages/snapback4/test/export-native-round2.test.mjs",
+          "packages/snapback4/test/export-native.test.mjs",
+          "packages/snapback4/test/export-publication.test.mjs",
+          "packages/snapback4/test/external-device.test.mjs",
+          "packages/snapback4/test/following-history.test.mjs",
+          "packages/snapback4/test/following-hook-react.test.mjs",
+          "packages/snapback4/test/following-unfollow.test.mjs",
+          "packages/snapback4/test/front-data-react.test.mjs",
+          "packages/snapback4/test/init-recipe.test.mjs",
+          "packages/snapback4/test/linux-package.test.mjs",
+          "packages/snapback4/test/live-contention.test.mjs",
+          "packages/snapback4/test/maintenance-evidence.test.mjs",
+          "packages/snapback4/test/migrations.test.mjs",
+          "packages/snapback4/test/native-e2e.test.mjs",
+          "packages/snapback4/test/native-opening.test.mjs",
+          "packages/snapback4/test/native-smoke.test.mjs",
+          "packages/snapback4/test/online-journal-browser.test.mjs",
+          "packages/snapback4/test/ordinary-history.test.mjs",
+          "packages/snapback4/test/periphery.test.mjs",
+          "packages/snapback4/test/production-starters.test.mjs",
+          "packages/snapback4/test/proof-fixtures.test.mjs",
+          "packages/snapback4/test/proof.test.mjs",
+          "packages/snapback4/test/publish-linux.test.mjs",
+          "packages/snapback4/test/publish-signing.test.mjs",
+          "packages/snapback4/test/qualify-linux.test.mjs",
+          "packages/snapback4/test/readme-examples.test.mjs",
+          "packages/snapback4/test/recorded-compatibility.test.mjs",
+          "packages/snapback4/test/release-activation.test.mjs",
+          "packages/snapback4/test/release-capabilities.test.mjs",
+          "packages/snapback4/test/release-transitions.test.mjs",
+          "packages/snapback4/test/reservation-parity.test.mjs",
+          "packages/snapback4/test/rx-rule-hop-capability.test.mjs",
+          "packages/snapback4/test/schema-capabilities.test.mjs",
+          "packages/snapback4/test/schema-capability-refusals.test.mjs",
+          "packages/snapback4/test/security-packed.test.mjs",
+          "packages/snapback4/test/server-e2e.test.mjs",
+          "packages/snapback4/test/staging.test.mjs",
+          "packages/snapback4/test/sync-generation.test.mjs",
+          "packages/snapback4/test/test-file-runner.test.mjs",
+          "packages/snapback4/test/test-platform-audit.test.mjs",
+          "packages/snapback4/test/test-processes.test.mjs",
+          "packages/snapback4/test/test-signals.test.mjs",
+          "packages/snapback4/test/wave11-narration.test.mjs",
+          "packages/snapback4/test/wave12-kit.test.mjs",
+          "packages/snapback4/test/wave13-previews.test.mjs",
+          "packages/snapback4/test/wave13-surface.test.mjs",
+          "packages/snapback4/test/wave14-rule-recipes.test.mjs",
+          "packages/snapback4/test/wave9-dx.test.mjs",
+          "packages/snapback4/test/web-admission-review.test.mjs",
+          "packages/snapback4/test/web-pages.test.mjs",
+          "packages/snapback4/test/web-session-authority.test.mjs",
+          "packages/snapback4/test/worker-regressions.test.mjs",
+          "packages/snapback4/test/worker.test.mjs"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 1,
+        "seconds": 1015.543,
+        "logSha256": "a2541ebfcafbf3f2d5862f869535e7ad01be1cf760d5d4fe1373607eb13d1963",
+        "summaries": [
+          "-- client files: 66/66; failed 1; tests {\"tests\":1628,\"pass\":1613,\"fail\":1,\"cancelled\":0,\"skipped\":14,\"todo\":0}"
+        ]
+      }
+    ],
+    "closeout": [
+      {
+        "label": "build",
+        "args": [
+          "cargo",
+          "build",
+          "-p",
+          "snapback4"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 10.124,
+        "logSha256": "999a048e9406e556b3b63d4342d84fc50d24498aa4731aea6fc7a52cba297e13",
+        "summaries": []
+      },
+      {
+        "label": "client-build",
+        "args": [
+          "bun",
+          "run",
+          "--cwd",
+          "packages/snapback4",
+          "build"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 1.411,
+        "logSha256": "504ce3189c95c0c2911f044e53584e7f995ad8bf60740d5710ba2f6eb4f04257",
+        "summaries": []
+      },
+      {
+        "label": "guide",
+        "args": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4-lang",
+          "--test",
+          "guide",
+          "--no-fail-fast"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 22.953,
+        "logSha256": "3767e8730afdbac5ee0340d0cd863df85b953aa85b487b5f82f100db21ea5351",
+        "summaries": [
+          "test result: ok. 126 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.26s"
+        ]
+      },
+      {
+        "label": "fixture-and-portable-declarations",
+        "args": [
+          "node",
+          "scripts/run-client-tests.mjs",
+          "2",
+          "files",
+          "packages/snapback4/test/live-contention.test.mjs",
+          "packages/snapback4/test/package-typecheck.test.mjs",
+          "packages/snapback4/test/wave11-upgrade-history.test.mjs"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 2.623,
+        "logSha256": "8f0c94b8fcc54bfc2a81b912fd8ab3a941ed211fd9f202c3a3d262af7991453c",
+        "summaries": [
+          "-- client files: 3/3; failed 0; tests {\"tests\":7,\"pass\":6,\"fail\":0,\"cancelled\":0,\"skipped\":1,\"todo\":0}"
+        ]
+      }
+    ],
+    "native": [
+      {
+        "label": "extra-platform-client-files",
+        "args": [
+          "node",
+          "scripts/run-client-tests.mjs",
+          "2",
+          "files",
+          "packages/snapback4/test/init-typecheck.test.mjs",
+          "packages/snapback4/test/export-maintenance-wakeup.test.mjs"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 91.721,
+        "logSha256": "b4e5fe7e3980db49bad25689a0cf634291daac0d15484e40c203dc353039ed60",
+        "summaries": [
+          "-- client files: 2/2; failed 0; tests {\"tests\":31,\"pass\":31,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+        ]
+      },
+      {
+        "label": "xcframework",
+        "args": [
+          "bash",
+          "scripts/build-xcframework.sh"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 129.534,
+        "logSha256": "6908cb41f10006914da1c144832ce8d6846b9d23776509f8744d5f8d12546504",
+        "summaries": []
+      },
+      {
+        "label": "chat-api",
+        "args": [
+          "/Users/ccheever/sb4-ws-integ18/snapback4/target/debug/snapback4",
+          "check"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4/apps/chat",
+        "exit": 0,
+        "seconds": 4.014,
+        "logSha256": "5c4c1d97e3eea4d7afb28691afc19c7f9284f540351fce0eb0af1b292aaab5db",
+        "summaries": []
+      }
+    ],
+    "final-clients": [
+      {
+        "label": "clients",
+        "args": [
+          "node",
+          "scripts/run-client-tests.mjs",
+          "3",
+          "files",
+          "packages/snapback4/test/api-index.test.mjs",
+          "packages/snapback4/test/client-recipes.test.mjs",
+          "packages/snapback4/test/client-seams.test.mjs",
+          "packages/snapback4/test/decorated-search.test.mjs",
+          "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+          "packages/snapback4/test/dev-reset.test.mjs",
+          "packages/snapback4/test/device-version.test.mjs",
+          "packages/snapback4/test/expo-media-storage.test.mjs",
+          "packages/snapback4/test/expo-save-asset.test.mjs",
+          "packages/snapback4/test/expo-scenes.test.mjs",
+          "packages/snapback4/test/expo-session-store.test.mjs",
+          "packages/snapback4/test/export-background.test.mjs",
+          "packages/snapback4/test/export-failure.test.mjs",
+          "packages/snapback4/test/export-maintenance-wakeup.test.mjs",
+          "packages/snapback4/test/export-native-round2.test.mjs",
+          "packages/snapback4/test/export-native.test.mjs",
+          "packages/snapback4/test/export-publication.test.mjs",
+          "packages/snapback4/test/external-device.test.mjs",
+          "packages/snapback4/test/following-history.test.mjs",
+          "packages/snapback4/test/following-hook-react.test.mjs",
+          "packages/snapback4/test/following-unfollow.test.mjs",
+          "packages/snapback4/test/front-data-react.test.mjs",
+          "packages/snapback4/test/init-recipe.test.mjs",
+          "packages/snapback4/test/init-typecheck.test.mjs",
+          "packages/snapback4/test/linux-package.test.mjs",
+          "packages/snapback4/test/live-contention.test.mjs",
+          "packages/snapback4/test/maintenance-evidence.test.mjs",
+          "packages/snapback4/test/migrations.test.mjs",
+          "packages/snapback4/test/native-e2e.test.mjs",
+          "packages/snapback4/test/native-opening.test.mjs",
+          "packages/snapback4/test/native-smoke.test.mjs",
+          "packages/snapback4/test/online-journal-browser.test.mjs",
+          "packages/snapback4/test/ordinary-history.test.mjs",
+          "packages/snapback4/test/package-typecheck.test.mjs",
+          "packages/snapback4/test/periphery.test.mjs",
+          "packages/snapback4/test/production-starters.test.mjs",
+          "packages/snapback4/test/proof-fixtures.test.mjs",
+          "packages/snapback4/test/proof.test.mjs",
+          "packages/snapback4/test/publish-linux.test.mjs",
+          "packages/snapback4/test/publish-signing.test.mjs",
+          "packages/snapback4/test/qualify-linux.test.mjs",
+          "packages/snapback4/test/readme-examples.test.mjs",
+          "packages/snapback4/test/recorded-compatibility.test.mjs",
+          "packages/snapback4/test/release-activation.test.mjs",
+          "packages/snapback4/test/release-capabilities.test.mjs",
+          "packages/snapback4/test/release-transitions.test.mjs",
+          "packages/snapback4/test/reservation-parity.test.mjs",
+          "packages/snapback4/test/rx-rule-hop-capability.test.mjs",
+          "packages/snapback4/test/schema-capabilities.test.mjs",
+          "packages/snapback4/test/schema-capability-refusals.test.mjs",
+          "packages/snapback4/test/security-packed.test.mjs",
+          "packages/snapback4/test/server-e2e.test.mjs",
+          "packages/snapback4/test/staging.test.mjs",
+          "packages/snapback4/test/sync-generation.test.mjs",
+          "packages/snapback4/test/test-file-runner.test.mjs",
+          "packages/snapback4/test/test-platform-audit.test.mjs",
+          "packages/snapback4/test/test-processes.test.mjs",
+          "packages/snapback4/test/test-signals.test.mjs",
+          "packages/snapback4/test/wave11-narration.test.mjs",
+          "packages/snapback4/test/wave11-upgrade-history.test.mjs",
+          "packages/snapback4/test/wave12-kit.test.mjs",
+          "packages/snapback4/test/wave13-previews.test.mjs",
+          "packages/snapback4/test/wave13-surface.test.mjs",
+          "packages/snapback4/test/wave14-rule-recipes.test.mjs",
+          "packages/snapback4/test/wave9-dx.test.mjs",
+          "packages/snapback4/test/web-admission-review.test.mjs",
+          "packages/snapback4/test/web-pages.test.mjs",
+          "packages/snapback4/test/web-session-authority.test.mjs",
+          "packages/snapback4/test/worker-regressions.test.mjs",
+          "packages/snapback4/test/worker.test.mjs"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 1143.462,
+        "logSha256": "ea70d57114ef039097b6dbd473bbd329335f36860d215f763659c697e996af24",
+        "summaries": [
+          "-- client files: 70/70; failed 0; tests {\"tests\":1665,\"pass\":1650,\"fail\":0,\"cancelled\":0,\"skipped\":15,\"todo\":0}"
+        ]
+      }
+    ],
+    "remaining-targets": [
+      {
+        "label": "rust-list-lower-bounds",
+        "args": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4-lang",
+          "--test",
+          "list_lower_bounds",
+          "--no-fail-fast"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 1.486,
+        "logSha256": "73139453fe674d30640650d2567a5da91e46483bbba149eb46b7c3dd52020ff8",
+        "summaries": [
+          "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s"
+        ]
+      },
+      {
+        "label": "rust-serve-identity",
+        "args": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4",
+          "--test",
+          "serve_identity",
+          "--no-fail-fast"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 101,
+        "seconds": 0.139,
+        "logSha256": "93778ff1cf677777a45bf6bded875905bcf822948a457f1077ba31143b0dbea2",
+        "summaries": []
+      }
+    ],
+    "remaining-targets-corrected": [
+      {
+        "label": "rust-list-lower-bounds",
+        "args": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4-lang",
+          "--test",
+          "list_lower_bounds",
+          "--no-fail-fast"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 0.368,
+        "logSha256": "c52914149e917ce9114e5c7d0474f6ae19418a016f75da0660b9ef1830d563cc",
+        "summaries": [
+          "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s"
+        ]
+      },
+      {
+        "label": "rust-serve-identity",
+        "args": [
+          "cargo",
+          "test",
+          "-p",
+          "snapback4",
+          "--bin",
+          "snapback4",
+          "diagnostics",
+          "--no-fail-fast"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4",
+        "exit": 0,
+        "seconds": 32.859,
+        "logSha256": "942cd9252c1744555e2029ca74f840990f59f0fe2fcc055f082f1f531035accf",
+        "summaries": [
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 485 filtered out; finished in 0.48s"
+        ]
+      }
+    ],
+    "native-generic": [
+      {
+        "label": "expo-prebuild",
+        "args": [
+          "bun",
+          "x",
+          "expo",
+          "prebuild",
+          "--platform",
+          "ios",
+          "--no-install"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4/apps/chat-expo",
+        "exit": 0,
+        "seconds": 0.416,
+        "logSha256": "760817c0abef0754ae42e2529d618519cf915fee2cdeec02b4741f131bac4111",
+        "summaries": []
+      },
+      {
+        "label": "pods",
+        "args": [
+          "pod",
+          "install"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4/apps/chat-expo/ios",
+        "exit": 0,
+        "seconds": 15.675,
+        "logSha256": "66dbb326017eb60277b2c9a0ede760ea565fbdfa514197e77360fdc45d84604e",
+        "summaries": []
+      },
+      {
+        "label": "expo-release-generic",
+        "args": [
+          "xcodebuild",
+          "-workspace",
+          "/Users/ccheever/sb4-ws-integ18/snapback4/apps/chat-expo/ios/Snapback4chat.xcworkspace",
+          "-scheme",
+          "Snapback4chat",
+          "-configuration",
+          "Release",
+          "-sdk",
+          "iphonesimulator",
+          "-destination",
+          "generic/platform=iOS Simulator",
+          "-derivedDataPath",
+          "/Users/ccheever/sb4-ws-integ18/evidence/native-generic/DerivedData",
+          "CODE_SIGNING_ALLOWED=NO",
+          "build"
+        ],
+        "cwd": "/Users/ccheever/sb4-ws-integ18/snapback4/apps/chat-expo",
+        "exit": -15,
+        "seconds": 643.109,
+        "logSha256": "1203ca89566db63424791a7d962cf08a96ed34b1a28f2a17226dc30b89ccc5b8",
+        "summaries": []
+      }
+    ]
+  },
+  "genericGuard": {
+    "pid": 38182,
+    "identity": "38182 37558   501 Mon Oct 19 02:09:35 2026     10:43 /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -workspace /Users/ccheever/sb4-ws-integ18/snapback4/apps/chat-expo/ios/Snapback4chat.xcworkspace -scheme Snapback4chat -configuration Release -sdk iphonesimulator -destination generic/platform=iOS Simulator -derivedDataPath /Users/ccheever/sb4-ws-integ18/evidence/native-generic/DerivedData CODE_SIGNING_ALLOWED=NO build",
+    "idleSeconds": 606.66,
+    "reason": "Interface Builder stalled with confirmed Xcode first-launch exit69 and component installation requiring administrator authorization",
+    "action": "SIGTERM own xcodebuild after double identity verification"
+  },
+  "genericChildCleanup": {
+    "pid": 40763,
+    "before": "40763     1   501 Mon Oct 19 02:10:12 2026     /Applications/Xcode.app/Contents/Developer/usr/bin/ibtool --errors --warnings --notices --module Snapback4chat --output-partial-info-plist /Users/ccheever/sb4-ws-integ18/evidence/native-generic/DerivedData/Build/Intermediates.noindex/Snapback4chat.build/Release-iphonesimulator/Snapback4chat.build/SplashScreen-SBPartialInfo.plist --auto-activate-custom-fonts --target-device iphone --target-device ipad --minimum-deployment-target 16.4 --output-format human-readable-text /Users/ccheever/sb4-ws-integ18/snapback4/apps/chat-expo/ios/Snapback4chat/SplashScreen.storyboard --compilation-directory /Users/ccheever/sb4-ws-integ18/evidence/native-generic/DerivedData/Build/Intermediates.noindex/Snapback4chat.build/Release-iphonesimulator/Snapback4chat.build",
+    "action": "SIGTERM own orphaned Interface Builder child after double identity verification"
+  },
+  "productSource": "20cb01ee562bd9750ab26e1fea160511473c5fba",
+  "candidate": "865fc1273c",
+  "sourceBinding": "Tracked snapshot plus exact corrected-source overlays. Final client pool includes the candidate packed fixture and current changelog. Core/device/sim source unchanged by later server-only fixes.",
+  "finalDisposition": {
+    "clientFiles": 70,
+    "tests": 1665,
+    "pass": 1650,
+    "skip": 15,
+    "fail": 0,
+    "affectedRustTargets": "passed; initial compile/fixture/invocation failures superseded by corrected targets",
+    "xcframework": "passed",
+    "expoPrebuild": "passed",
+    "pods": "passed",
+    "expoRelease": "blocked/interrupted at Interface Builder; see prerequisite",
+    "expoNativeWitness": "not run; Xcode component setup requires authorized administrator"
+  }
+}
