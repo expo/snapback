@@ -1372,14 +1372,7 @@ fn leave(tx: &dyn crate::store::StreamTx, schema: &Schema, table_name: &str, gro
 }
 
 fn typed_args(program: &Program, args: &serde_json::Value) -> Result<BTreeMap<String, Value>, RuntimeError> {
-    let mut typed = BTreeMap::new();
-    if let serde_json::Value::Object(fields) = args {
-        for (name, value) in fields {
-            let kind = program.args.get(name).ok_or_else(|| RuntimeError::Input(format!("{} takes no argument {name}", program.name)))?;
-            typed.insert(name.clone(), wire::from_json(kind, value).map_err(|why| RuntimeError::Input(format!("argument {name}: {why}")))?);
-        }
-    }
-    Ok(typed)
+    wire::arguments_from_json(program, args)
 }
 
 /// The columns a table's audience pins: a group's prefix.

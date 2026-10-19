@@ -7,7 +7,7 @@ use snapback4_core::{Context, Engine};
 use std::collections::BTreeMap;
 
 pub fn program(name: &str, kind: ProgramKind, body: Vec<Stmt>) -> Program {
-    Program { name: name.into(), kind, args: BTreeMap::new(), read_time_granularity_ms: None, body, native: false, returned_shapes: Default::default() }
+    Program { name: name.into(), kind, args: BTreeMap::new(), arg_aliases: Default::default(), read_time_granularity_ms: None, body, native: false, returned_shapes: Default::default() }
 }
 
 pub fn builtin(builtin: Builtin, args: Vec<Expr>) -> Expr { Expr::Builtin { builtin, args } }

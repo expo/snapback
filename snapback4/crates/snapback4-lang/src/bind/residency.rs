@@ -41,6 +41,7 @@ pub(super) fn presence_facts(schema: &Schema, program: &Program, ownership: &sup
 
 pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presence: Option<&Execution>) -> Execution {
     let mut fact = Execution::default();
+    fact.argument_aliases = !program.arg_aliases.is_empty();
     let presence = (program.kind == ProgramKind::Mutation).then(|| presence.cloned().unwrap_or_else(|| presence_facts(schema, program, &BTreeMap::new(), &[])));
     for read in ir::read_sites(program) {
         if presence.as_ref().is_some_and(|fact| fact.effect_payload_reads.iter().any(|site| site.site == read.site)) { continue; }

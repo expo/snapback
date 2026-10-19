@@ -66,7 +66,7 @@ fn duplicate_target_never_changes_projection_or_system_read_privacy() {
         let scan = Scan { cursor_pins: 0, variant: None, table: target.clone(), index: "byId".into(), prefix: vec![], order: Order::Asc, take: Bound::Literal(1), site: "probe".into(), provenance: KeyProvenance::Computed, existence: false, after: None, before: None, range: None, filter: None, opaque_cursor: false, merge_site: None };
         let tx = engine.store_mut().transaction().unwrap();
         for expression in [Expr::Get(read.clone()), Expr::Exists(read), Expr::Scan(scan)] {
-            let program = Program { name: "probe".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, body: vec![Stmt::Return(expression)], native: false, returned_shapes: Default::default() };
+            let program = Program { name: "probe".into(), kind: ProgramKind::Query, args: BTreeMap::new(), arg_aliases: Default::default(), read_time_granularity_ms: None, body: vec![Stmt::Return(expression)], native: false, returned_shapes: Default::default() };
             let mut runner = Runner::new(&tx, &raw, Context::system(), Meter::new(Ceilings::unbounded(), Cut::Abort), 1);
             let error = runner.run(&program).unwrap_err();
             assert_eq!(error.code(), "E_MAINTAINED_COLUMN_PRIVATE");
@@ -110,7 +110,7 @@ fn every_private_target_refuses_nested_ir_and_native_program_admission() {
         for native in [false,true] {
             for statement in [Stmt::Return(Expr::Array(vec![Expr::Get(read.clone())])),
                 Stmt::If {condition:Expr::Literal(Value::Bool(false)),then_body:vec![Stmt::Insert {table:maintain.target.clone(),row:Expr::Literal(Value::Null)}],else_body:vec![]}] {
-                let program=Program {name:"bad".into(),kind:ProgramKind::Mutation,args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![statement],native,returned_shapes:Default::default()};
+                let program=Program {name:"bad".into(),kind:ProgramKind::Mutation,args:BTreeMap::new(),arg_aliases:Default::default(),read_time_granularity_ms:None,body:vec![statement],native,returned_shapes:Default::default()};
                 let error=Engine::memory(schema.clone(),[program]).err().expect("private IR admitted");
                 assert_eq!(error.code(),"E_MAINTAINED_COLUMN_PRIVATE","{error}");
                 assert!(error.to_string().contains(&maintain.label()));

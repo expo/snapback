@@ -2,9 +2,9 @@
 use crate::{ast::*, diag::{Diagnostic, Fallible, type_error, unknown}};
 use snapback4_core::{Schema, ir::ArgType, value::Value};
 
-fn modified(args: &[ArgDecl]) -> bool { args.iter().any(|a|a.default.is_some() || a.deprecated) }
+fn modified(args: &[ArgDecl]) -> bool { args.iter().any(|a|a.default.is_some() || a.alias.is_some() || a.deprecated) }
 fn invalid(site: &crate::Site) -> Diagnostic {
-    type_error(site,"argument defaults/deprecation are supported on non-native queries and mutations only","keep ordinary parameters here; use a query/mutation for a release-compatible wrapper").guide("deploy")
+    type_error(site,"argument aliases/defaults/deprecation are supported on non-native queries and mutations only","keep ordinary parameters here; use a query/mutation for a release-compatible wrapper").guide("deploy")
 }
 pub(super) fn expand(documents: &mut [Document], diagnostics: &mut Vec<Diagnostic>) {
     for doc in documents {
@@ -24,6 +24,9 @@ pub(super) fn expand(documents: &mut [Document], diagnostics: &mut Vec<Diagnosti
 }
 
 pub(super) fn argument(arg: &ArgDecl, schema: &Schema) -> Fallible<(ArgType,Option<Value>)> {
+    if arg.alias.is_some() && arg.deprecated {
+        return Err(type_error(&arg.site,format!("argument {} cannot be both an alias target and deprecated",arg.name),"keep the canonical argument with `alias oldName`; remove deprecated").guide("deploy"));
+    }
     let kind=crate::types::scalar_to_arg(&arg.type_);
     let bad=||type_error(&arg.site,format!("default for {} must be a fitting non-null scalar literal and cannot combine with deprecated",arg.name),"use default <literal>, or mark the unused parameter deprecated").guide("deploy");
     let value=if let Some(expr)=&arg.default {

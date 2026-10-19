@@ -94,7 +94,7 @@ fn all_owned_tables_refuse_principal_and_system_program_writes() {
         ] {
             for ctx in [context("a",&[],1),Context::system().at(2)] {
                 let b=bound(true); let mut programs:Vec<_>=b.programs.into_iter().map(|p|p.program).collect();
-                programs.push(Program { name: "bad".into(), kind: ProgramKind::Mutation, args: Default::default(), read_time_granularity_ms: None, body: vec![statement.clone()], returned_shapes: Default::default(), native: false });
+                programs.push(Program { name: "bad".into(), kind: ProgramKind::Mutation, args: Default::default(), arg_aliases: Default::default(), read_time_granularity_ms: None, body: vec![statement.clone()], returned_shapes: Default::default(), native: false });
                 let mut e=Engine::memory(b.schema,programs).unwrap();let before=snapshot(&e);
                 let out=e.mutate("bad",None,ctx).unwrap();
                 assert!(matches!(&out.state,WriteState::Failed{why,..} if why.code=="E_TIMELINE_OWNED"),"{table} {kind}: {out:?}");

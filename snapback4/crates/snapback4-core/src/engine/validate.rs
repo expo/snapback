@@ -196,6 +196,7 @@ pub(super) fn validate_device_inputs(schema: &Schema, program: &Program, inputs:
 }
 
 fn validate_arguments(schema: &Schema, program: &Program, inputs: &mut BTreeMap<String, Value>) -> Result<(), RuntimeError> {
+    program.canonicalize_arguments(inputs)?;
     for (name, kind) in &program.args {
         if !inputs.contains_key(name) && (kind.is_optional() || matches!(kind, ArgType::Cursor)) {
             inputs.insert(name.clone(), Value::Null);

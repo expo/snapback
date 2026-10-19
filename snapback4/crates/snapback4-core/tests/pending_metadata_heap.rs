@@ -20,7 +20,7 @@ fn query(rows: &dyn Rows, value: Expr, heap_bytes: u64) -> QueryOutcome {
 }
 fn query_result(rows: &dyn Rows, value: Expr, heap_bytes: u64) -> Result<QueryOutcome, snapback4_core::error::Refusal> {
     let program = Program {
-        name: "metadata".into(), kind: ProgramKind::Query, args: BTreeMap::new(),
+        name: "metadata".into(), kind: ProgramKind::Query, args: BTreeMap::new(), arg_aliases: Default::default(),
         body: vec![Stmt::Return(value)], read_time_granularity_ms: None,
         returned_shapes: BTreeMap::new(), native: false,
     };

@@ -118,20 +118,16 @@ fn run_presented(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(
         let explicit = case.get("expect").and_then(Json::as_str);
         let expect = explicit.unwrap_or(match program.kind { ProgramKind::Query if never_complete.is_some() => "ok", ProgramKind::Query => "complete", _ => "sent" });
         let label = case.get("label").and_then(Json::as_str).map(|l| format!(" — {l}")).unwrap_or_default();
-        let mut raw_args = substitute_arguments(case.get("args").cloned().unwrap_or_else(|| json!({})), &saved, &program.args).map_err(|why| format!("{at}: {why}"))?;
+        let mut accepted_types = program.args.clone();
+        for (alias, canonical) in &program.arg_aliases { accepted_types.insert(alias.clone(), program.args[canonical].clone()); }
+        let mut raw_args = substitute_arguments(case.get("args").cloned().unwrap_or_else(|| json!({})), &saved, &accepted_types).map_err(|why| format!("{at}: {why}"))?;
         super::test_fixture::argument_times(&program.args, &mut raw_args, now).map_err(|why| format!("{at}: {why}"))?;
         let expected_data = case.get("data").cloned().map(|data| substitute(data, &saved)).transpose().map_err(|why| format!("{at}: {why}"))?;
         let expected_match = case.get("match").cloned().map(|data| substitute(data, &saved)).transpose().map_err(|why| format!("{at}: {why}"))?;
         let expected_set = case.get("matchSet").cloned().map(|data| substitute(data, &saved)).transpose().map_err(|why| format!("{at}: {why}"))?;
         let input = (|| -> Result<_, Refusal> {
             if let Some(why)=crate::persona_principals::arguments(&bound.personas,&program.args,&raw_args) { return Err(why); }
-            let mut args = BTreeMap::new();
-            let fields = raw_args.as_object().ok_or_else(|| Refusal::new("E_INPUT", "input", "args must be an object"))?;
-            for (name, value) in fields {
-                let kind = program.args.get(name).ok_or_else(|| Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")))?;
-                args.insert(name.clone(), wire::from_json(kind, value).map_err(|why| Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")))?);
-            }
-            Ok(args)
+            wire::arguments_from_json(&program, &raw_args).map_err(|error| error.refusal())
         })();
         let input_refusal = input.as_ref().err().cloned();
         let args = input.unwrap_or_default();

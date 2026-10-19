@@ -121,10 +121,12 @@ fn fixture_notes(project: &Project, bound: &Bound, fixture: Option<&String>) -> 
             super::test_fixture::argument_times(&program.args, &mut args, now)?;
             let args = args.as_object().ok_or("args must be an object")?;
             for (name, kind) in &program.args {
-                if !args.contains_key(name) && !kind.is_optional() && !matches!(kind, ArgType::Cursor) { return Err(format!("{op}: missing argument {name}")); }
+                let supplied = args.contains_key(name) || program.arg_aliases.iter().any(|(alias, canonical)| canonical == name && args.contains_key(alias));
+                if !supplied && !kind.is_optional() && !matches!(kind, ArgType::Cursor) { return Err(format!("{op}: missing argument {name}")); }
             }
+            for (alias, canonical) in &program.arg_aliases { if args.contains_key(alias) && args.contains_key(canonical) { return Err(format!("{op} received both argument {canonical} and its alias {alias}; send exactly one")); } }
             for (name, value) in args {
-                let kind = program.args.get(name).ok_or_else(|| format!("{op} takes no argument {name}"))?;
+                let (_, kind) = program.argument(name).ok_or_else(|| format!("{op} takes no argument {name}"))?;
                 // Saved answers are runtime values; never claim a type failure for one.
                 if saved(value) { continue; }
                 let value = wire::from_json(kind, value).map_err(|e| format!("{name}: {e}"))?;

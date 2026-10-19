@@ -23,6 +23,10 @@ pub struct Program {
     pub kind: ProgramKind,
     #[serde(default)]
     pub args: BTreeMap<String, ArgType>,
+    /// Accepted legacy wire name -> canonical argument name. Program bodies
+    /// bind only canonical names.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub arg_aliases: BTreeMap<String, String>,
     #[serde(default)]
     pub read_time_granularity_ms: Option<u64>,
     pub body: Vec<Stmt>,
@@ -34,6 +38,32 @@ pub struct Program {
     /// native host one chunk per commit (LLP 3000.005). The body is empty.
     #[serde(default, skip_serializing_if = "is_false")]
     pub native: bool,
+}
+
+impl Program {
+    /// Resolve one accepted wire name without changing the name visible to the
+    /// program body. The returned name is always canonical.
+    pub fn argument(&self, name: &str) -> Option<(&str, &ArgType)> {
+        if let Some((canonical,kind)) = self.args.get_key_value(name) { return Some((canonical.as_str(), kind)); }
+        let canonical = self.arg_aliases.get(name)?;
+        self.args.get(canonical).map(|kind| (canonical.as_str(), kind))
+    }
+
+    /// Move legacy wire names onto their canonical bindings. Supplying both is
+    /// always ambiguous, including when the two values compare equal.
+    pub fn canonicalize_arguments(&self, inputs: &mut BTreeMap<String, Value>) -> Result<(), crate::RuntimeError> {
+        for (alias, canonical) in &self.arg_aliases {
+            let Some(value) = inputs.remove(alias) else { continue; };
+            if inputs.contains_key(canonical) {
+                return Err(crate::RuntimeError::Input(format!("{} received both argument {canonical} and its alias {alias}; send exactly one", self.name)));
+            }
+            if !self.args.contains_key(canonical) {
+                return Err(crate::RuntimeError::Schema(format!("{} has argument alias {alias} for unknown canonical argument {canonical}", self.name)));
+            }
+            inputs.insert(canonical.clone(), value);
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

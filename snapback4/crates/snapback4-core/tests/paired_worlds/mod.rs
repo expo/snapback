@@ -96,7 +96,7 @@ impl Pair {
         programs.push(snapback4_core::ir::Program {
             name: "pairSeed".into(),
             kind: ProgramKind::Mutation,
-            args: Default::default(),
+            args: Default::default(), arg_aliases: Default::default(),
             read_time_granularity_ms: None,
             body,
             native: false,

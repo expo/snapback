@@ -39,7 +39,7 @@ impl RouteSpec {
     /// Private work is never a public action declaration or client operation.
     /// Even accidental insertion into the public program map cannot admit it.
     pub fn program(&self, name: &str) -> Program {
-        Program { name: format!("{ACTION_PREFIX}{name}"), kind: ProgramKind::Action,
+        Program { name: format!("{ACTION_PREFIX}{name}"), kind: ProgramKind::Action, arg_aliases: Default::default(),
             args: BTreeMap::from([("request".into(), ArgType::Json { max_bytes: ENVELOPE_BYTES })]),
             read_time_granularity_ms: None, native: false, returned_shapes: Default::default(),
             body: vec![Stmt::Require { condition: Expr::Literal(Value::Bool(false)), code: "E_ROUTE_PRIVATE".into(), site: None, message: None }] }

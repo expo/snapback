@@ -68,13 +68,25 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
             lines.push(format!("{prefix}: INPUT BREAK: removed operation; old calls get E_OP; keep `alias {name} = replacement` for a same-module query/mutation, or retain a wrapper"));continue;
         };
         if before.program.kind!=after.program.kind {lines.push(format!("{prefix}: INPUT BREAK: operation kind changed; retain the old endpoint kind"));continue;}
+        let compatible_rename = |new_name: &str, new_kind: &A| before.program.args.iter().find(|(old_name, old_kind)|
+            !after.program.args.contains_key(*old_name) && accepts(old_kind,new_kind) &&
+            after.program.arg_aliases.get(*old_name).is_none_or(|canonical|canonical==new_name));
         for (arg,kind) in &after.program.args {
-            if !before.program.args.contains_key(arg) && !matches!(kind,A::Optional(_)) {
-                lines.push(format!("{prefix}: INPUT BREAK: clients calling without new required argument {arg} get E_INPUT; give {arg} a fitting `default <literal>` or retain a compatible wrapper"));
+            if before.program.args.contains_key(arg) { continue; }
+            if let Some((old,old_kind))=before.program.args.iter().find(|(old,_)|after.program.arg_aliases.get(*old)==Some(arg)) {
+                if !accepts(old_kind,kind) {lines.push(format!("{prefix}: INPUT BREAK: aliased argument {old} → {arg} narrows the old input domain ({old_kind:?} → {kind:?}); retain the old input domain or a compatible wrapper"));}
+            } else if !matches!(kind,A::Optional(_)) {
+                if let Some((old,_))=compatible_rename(arg,kind) {
+                    lines.push(format!("{prefix}: INPUT BREAK: required argument {old} appears renamed to {arg}; old calls get E_INPUT; declare `{arg}: <new type> alias {old}` if it is the same value, or retain a compatible wrapper"));
+                } else {
+                    lines.push(format!("{prefix}: INPUT BREAK: clients calling without new required argument {arg} get E_INPUT; give {arg} a fitting `default <literal>` or retain a compatible wrapper"));
+                }
             }
         }
         for (arg,kind) in &before.program.args {
             match after.program.args.get(arg) {
+                None if after.program.arg_aliases.contains_key(arg)=>{},
+                None if after.program.args.iter().any(|(new,next)|compatible_rename(new,next).is_some_and(|(old,_)|old==arg))=>{},
                 None=>lines.push(format!("{prefix}: INPUT BREAK: removed argument {arg}; old calls sending it get E_INPUT; retain `{arg}: <old type> deprecated` on a query/mutation")),
                 Some(next) if !accepts(kind,next)=>lines.push(format!("{prefix}: INPUT BREAK: argument {arg} retyped or narrowed ({kind:?} → {next:?}); old values may get E_INPUT; retain the old input domain or a compatible wrapper")),
                 _=>{}

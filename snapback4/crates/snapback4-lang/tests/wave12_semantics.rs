@@ -449,7 +449,7 @@ query zero():
 
     use snapback4_core::ir::{Builtin, Expr, Program, ProgramKind, Rounding, Stmt};
     let overflow = Program {
-        name: "overflow".into(), kind: ProgramKind::Query, args: BTreeMap::new(),
+        name: "overflow".into(), kind: ProgramKind::Query, args: BTreeMap::new(), arg_aliases: Default::default(),
         read_time_granularity_ms: None, native: false, returned_shapes: BTreeMap::new(),
         body: vec![Stmt::Return(Expr::Builtin { builtin: Builtin::Divide { rounding: Rounding::TowardZero, scale: None },
             args: vec![Expr::Literal(Value::Int(i64::MIN)), Expr::Literal(Value::Int(-1))] })],

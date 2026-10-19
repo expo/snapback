@@ -56,6 +56,10 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    // Table-bearing backend schemas carry this in the ordinary schema fence.
+    // A tableless program has no constraint carrier, so device_protocol also
+    // derives the same requirement directly from its operation facts.
+    (crate::device_protocol::ARGUMENT_ALIAS, |s| !s.tables.is_empty() && s.operations.values().any(|operation| operation.argument_aliases)),
     #[cfg(feature = "sqlite")]
     ("release-backfills-v3", |s| !s.backfills.is_empty()),
     ("live-parent-copy-v1", |s| s.tables.values().any(|t| t.through.as_ref().is_some_and(|t| t.live.is_some()))),

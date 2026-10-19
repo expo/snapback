@@ -921,7 +921,7 @@ mod adapter {
         let schema: Schema = serde_json::from_value(corpus_case("asset-optional-clear").schema).unwrap();
         let program = Program {
             name: "asset.metadata".into(), kind: ProgramKind::Mutation,
-            args: BTreeMap::from([("photo".into(), ArgType::Image { max: 5_000_000 })]),
+            args: BTreeMap::from([("photo".into(), ArgType::Image { max: 5_000_000 })]), arg_aliases: Default::default(),
             read_time_granularity_ms: None, native: false, returned_shapes: Default::default(),
             body: vec![snapback4_core::ir::Stmt::Return(Expr::Object(["width", "height", "duration", "bytes"].into_iter().map(|name| (name.to_owned(), snapback4_core::ir::field(snapback4_core::ir::var("photo"), name))).collect()))],
         };

@@ -74,6 +74,24 @@ pub fn from_json(kind: &ArgType, json: &Json) -> Result<Value, String> {
     })
 }
 
+/// Decode one operation's wire object, resolving legacy argument aliases to
+/// canonical bindings before the interpreter sees them.
+pub fn arguments_from_json(program: &crate::ir::Program, json: &Json) -> Result<BTreeMap<String, Value>, crate::RuntimeError> {
+    let fields = json.as_object().ok_or_else(|| crate::RuntimeError::Input("args must be an object".into()))?;
+    for (alias, canonical) in &program.arg_aliases {
+        if fields.contains_key(alias) && fields.contains_key(canonical) {
+            return Err(crate::RuntimeError::Input(format!("{} received both argument {canonical} and its alias {alias}; send exactly one", program.name)));
+        }
+    }
+    let mut typed = BTreeMap::new();
+    for (wire_name, value) in fields {
+        let (canonical, kind) = program.argument(wire_name).ok_or_else(|| crate::RuntimeError::Input(format!("{} takes no argument {wire_name}", program.name)))?;
+        let decoded = from_json(kind, value).map_err(|why| crate::RuntimeError::Input(format!("argument {wire_name}: {why}")))?;
+        typed.insert(canonical.to_owned(), decoded);
+    }
+    Ok(typed)
+}
+
 /// JSON with no declared type: numbers are ints, strings are text.
 pub fn untyped(json: &Json) -> Result<Value, String> {
     Ok(match json {

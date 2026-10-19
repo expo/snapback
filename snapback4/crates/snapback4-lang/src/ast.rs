@@ -454,6 +454,7 @@ pub struct MaintainDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ArgDecl {
+    pub alias: Option<String>,
     pub default: Option<Expr>,
     pub deprecated: bool,
     pub name: String,

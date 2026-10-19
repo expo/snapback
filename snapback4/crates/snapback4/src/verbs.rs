@@ -709,24 +709,10 @@ pub fn run(options: &Options) -> i32 {
         },
         None => json!({}),
     };
-    let mut args = BTreeMap::new();
-    if let Json::Object(fields) = &args_json {
-        for (name, value) in fields {
-            let Some(kind) = program.args.get(name) else {
-                eprintln!("{op} takes no argument {name}");
-                return 1;
-            };
-            match wire::from_json(kind, value) {
-                Ok(typed) => {
-                    args.insert(name.clone(), typed);
-                }
-                Err(why) => {
-                    eprintln!("argument {name}: {why}");
-                    return 1;
-                }
-            }
-        }
-    }
+    let args = match wire::arguments_from_json(&program, &args_json) {
+        Ok(args) => args,
+        Err(error) => { eprintln!("{error}"); return 1; }
+    };
     let principal = match options.flags.get("as") {
         Some(name) if bound.personas.contains(name) => persona_principal(name),
         // A local run takes any principal id (scale data names thousands), but
