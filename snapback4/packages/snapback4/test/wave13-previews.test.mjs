@@ -68,17 +68,20 @@ const additive = probe.replace("enum('draft')", "enum('draft', 'live')").replace
   online only
 `;
 
-test('H9 additive preview-noise budget: unchanged probe guards print zero WARNINGs in both directions', t => {
+test('H9 additive preview-noise budget: unchanged guards stay quiet beside rollback and client risks', t => {
   const {schema,deployment,run}=fixture(t);
   writeFileSync(schema,probe);run('deploy',deployment);
   writeFileSync(schema,additive);
   const deploy=run('deploy',deployment,'--check').stdout;
-  assert.equal((deploy.match(/WARNING/g)??[]).length,0,deploy);
-  assert.doesNotMatch(deploy,/\.require/);
+  assert.equal((deploy.match(/WARNING/g)??[]).length,1,deploy);
+  assert.match(deploy,/rollback foresight.*notes.status/);
+  assert.match(deploy,/old-client compatibility.*RESULT REVIEW/);
+  assert.doesNotMatch(deploy,/\.require|roles changed|guards unproved/);
   run('deploy',deployment);
   const rollback=run('rollback',deployment,'--to','1','--check').stdout;
-  assert.equal((rollback.match(/WARNING/g)??[]).length,0,rollback);
-  assert.doesNotMatch(rollback,/\.require/);
+  assert.equal((rollback.match(/WARNING/g)??[]).length,1,rollback);
+  assert.match(rollback,/old-client compatibility.*RESULT REVIEW/);
+  assert.doesNotMatch(rollback,/\.require|roles changed|guards unproved/);
   const guide=run('guide','deploy','--full').stdout;
   assert.ok(guide.indexOf('## Rollback after widening') < guide.indexOf('## Bridge a safety gate'));
   assert.ok(guide.indexOf('## Bridge a safety gate') < guide.indexOf('## What the old release sees'));
@@ -264,7 +267,9 @@ test('row-presence guards and field guards ignore new unconsulted defaulted colu
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('  body: text <=80',"  body: text <=80\n  label: text <=20 default 'label'"));
-  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|publish.require/);
+  const added=run('deploy',deployment,'--check').stdout;
+  assert.match(added,/old-client compatibility.*operation add: RESULT REVIEW/);
+  assert.doesNotMatch(added,/publish.require|guards unproved|operation publish:/);
   writeFileSync(schema,source.replace('  body: text <=80','  body: text <=90'));
   const widened=run('deploy',deployment,'--check').stdout;
   assert.doesNotMatch(widened,/notes changed: .*guards? unproved across publish/);
@@ -703,7 +708,9 @@ mutation resultGuard():
   const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
   assert.equal((await host.post('/m/resultGuard',{})).state,'sent');
   writeFileSync(schema,source.replace('  body: text <=80', "  body: text <=80\n  label: text <=20 default 'none'"));
-  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|resultGuard.require/);
+  const added=run('deploy',deployment,'--check').stdout;
+  assert.match(added,/old-client compatibility.*operation seedNote: RESULT REVIEW/);
+  assert.doesNotMatch(added,/resultGuard.require|guards unproved|operation resultGuard:/);
   writeFileSync(schema,source.replace("{body: 'safe'}","{body: 'blocked'}"));
   assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*changes \(implication unproved\) resultGuard.require/);
   run('deploy',deployment);assert.equal((await host.post('/m/resultGuard',{})).why.code,'BLOCKED');await host.stop();
@@ -787,7 +794,7 @@ test('discarded conditional writes retain old-field default dependencies', {time
   assert.equal(result.state,'failed',JSON.stringify(result));assert.equal(result.why.code,'E_CONFLICT');await host.stop();
 });
 
-test('unused null-only optional references are silent in both directions; populated retained references still warn', {timeout:hangBudget(6)}, async t => {
+test('null-only references keep guards quiet beside row-result reviews; populated retained references warn', {timeout:hangBudget(6)}, async t => {
   const {schema,deployment,run}=fixture(t);
   const source=probe.replace('  public\n  online only\ntable notes:', '  public\n  insert <- allow\n  update <- allow\n  online only\ntable notes:')+`table teams:
   name: text <=20
@@ -802,9 +809,13 @@ mutation grant():
   const host=await serve(t,deployment);assert.equal((await host.post('/m/grant',{})).state,'sent');
   const nullable=source.replace('  immutable principal, role', '  team: teams ?\n  immutable principal, role');
   writeFileSync(schema,nullable);
-  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|\.require/);
+  const forward=run('deploy',deployment,'--check').stdout;
+  assert.match(forward,/old-client compatibility.*operation grant: RESULT REVIEW/);
+  assert.doesNotMatch(forward,/\.require|guards unproved|operation (add|edit|remove):/);
   run('deploy',deployment);
-  assert.doesNotMatch(run('rollback',deployment,'--to','1','--check').stdout,/WARNING|\.require/);
+  const backward=run('rollback',deployment,'--to','1','--check').stdout;
+  assert.match(backward,/old-client compatibility.*operation grant: RESULT REVIEW/);
+  assert.doesNotMatch(backward,/\.require|guards unproved|operation (add|edit|remove):/);
   const assigned=nullable+`mutation assignTeam():
   return update roles['role'] {team: 'team'}
 `;

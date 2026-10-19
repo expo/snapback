@@ -17,7 +17,8 @@ fn optional_reference_checks_join_the_null_edge() {
 #[test]
 fn syntax_repairs_name_the_actual_form() {
     let b = checked("mutation add(body: text <=20 = 'hi'):\n  return body\n");
-    assert!(b.diagnostics.iter().any(|d| d.rewrite.contains("body ?? 'hi'") && d.rewrite.contains("text <=20 ?")), "{:?}", b.diagnostics);
+    assert!(b.diagnostics.iter().any(|d| d.message.contains("default <literal>")), "{:?}", b.diagnostics);
+    assert!(checked("mutation add(body: text <=20 default 'hi'):\n  return body\n").diagnostics.is_empty());
     let b = checked("mutation add(a: bool, b: bool):\n  require (a or\n    b)\n  else NOPE\n  return true\n");
     assert!(b.diagnostics.iter().any(|d| d.rewrite.contains("closing line") && d.rewrite.contains("else NOPE")), "{:?}", b.diagnostics);
     let b = checked("table parents:\n  public\ntable kids:\n  parent: parents on delete keep ?\n");
