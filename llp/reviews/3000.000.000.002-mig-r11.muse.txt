@@ -1,0 +1,14 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-mig (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=583e2d55-c7d0-4214-990a-b44f9478b086]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+READY
+
+Read-only review of the RFC against all 17 named files. No material defect found in the reviewed surface.
+
+Lifetime security holds: backfill reads run as the trusted system principal against the assembled historical snapshot (`store/backfills.rs` runner context), point lookups require unique plain indexes with pre-evaluation cardinality validation and meter-cut refusal, reference/asset overwrites are refused in favor of new columns, receipt reference inputs use private `$backfill:`-namespaced ledger bindings validated before restoration, and expiry/retirement closes over the predecessor schema before any patch runs.
+
+Re-entry holds: leave-by-preimage with conflict refusal, suspended membership on table removal, epoch-separated cohort overlays with staged temp patches applied only after all cohorts succeed, native-birth fingerprints keyed by normalized definition digest, omission tracked independently of interpreted defaults, and prune tombstones refusing re-entry that needs lost values. The `observe_write` receipt-absence clearing I chased resolves to intended behavior: it fires only on meaningful interpreted edits to that column, where the overlay must no longer restore the original absence over authored values; unrelated writes and default materialization preserve it.
+
+Snapshot semantics hold: entering patches are evaluated against the assembled source snapshot with per-row job meters, staged before any application, recomputed on re-entry with saved-argument/output comparison that never overwrites manual edits, and rollback/adoption stays atomic with revision/duplicate-sample refusals.
+
+Preview/clock parity holds in the named files: hot activation passes `shared.now()` under the engine lock through `adopt_release_at` with the persisted floor applied inside activation; live preview probes the owner lock independently of HTTP hints, holds the stopped-store guard, samples time through the owner status protocol with a revision race refusal, and falls back to wall time cold — with backfill counts reported identically in hot JSON and preview JSON/text. Staging-classification gating itself lives outside the named files and was not judged here.

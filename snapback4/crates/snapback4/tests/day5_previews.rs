@@ -94,3 +94,17 @@ fn a_table_named_indexes_keeps_its_column_changes() {
     let text=app.ok(&["deploy","deployment","--check"]);
     assert!(text.contains("indexes.label"),"{text}");
 }
+
+#[test]
+fn missing_owner_sidecar_refuses_preview_until_canonical_ownership_is_reestablished() {
+ for staging in [false,true] {
+    let app=App::new();app.write("snapback/schema.q","use identity password\nquery alive():\n  return true\n");
+    app.ok(if staging {&["deploy","deployment","--staging"]}else{&["deploy","deployment"]});
+    let database=app.0.join("deployment/store.sqlite").canonicalize().unwrap();let owner=snapback4_core::private_fs::owner_path(&database);fs::remove_file(&owner).unwrap();
+    app.write("snapback/schema.q","use identity password\nquery alive():\n  return false\n");
+    let out=app.run(&["deploy","deployment","--check"]);assert!(!out.status.success());assert!(String::from_utf8_lossy(&out.stderr).contains("missing owner sidecar"),"{out:?}");assert!(!owner.exists());
+    let out=app.run(&["check","--store","deployment/store.sqlite","--release","1"]);assert!(!out.status.success());assert!(String::from_utf8_lossy(&out.stderr).contains("missing owner sidecar"),"{out:?}");assert!(!owner.exists());
+    // Rollback owns the canonical command guard already; preview reuses it.
+    app.ok(&["rollback","deployment","--to","1","--check"]);assert!(owner.exists());app.ok(&["deploy","deployment","--check"]);
+ }
+}

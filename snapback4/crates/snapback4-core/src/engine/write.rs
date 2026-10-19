@@ -476,7 +476,7 @@ impl Runner<'_> {
     /// the schema's declared effects on rows that reference the root. A
     /// read-through child still retains the expired parent physically.
     // @ref LLP 3000.039#3 — expiry cleanup runs the same closure/restrict/set-null actions as an authored delete.
-    pub(super) fn retire_expired_row(&mut self, table_name: &str, old: &Value) -> Result<bool, RuntimeError> {
+    pub(crate) fn retire_expired_row(&mut self, table_name: &str, old: &Value) -> Result<bool, RuntimeError> {
         if self.physical_children(table_name, old.field("id")?)? { return Ok(false); }
         let current = if self.schema.is_referenced(table_name) {
             self.apply_reference_actions(table_name, old)?;

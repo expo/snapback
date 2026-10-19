@@ -298,15 +298,17 @@ fn reentry_keeps_absence_distinct_from_a_later_default() {
 }
 #[test]
 fn saved_reference_inputs_keep_their_own_lifetime_after_live_retargeting() {
+ for kind in ["parents","id"] {
  let parents="table parents:\n  n: int\n  public 'fixture'\n  online only\n";
  let mutation="mutation retarget():\n  update children['c'] {parent:'q'}\n";
  let old=parents.to_owned()+"table children:\n  parent: parents on delete keep\n  public 'fixture'\n  update <- allow\n  online only\n"+mutation;
- let fill="backfill children copy(parent: parents):\n  {copied:(parents[parent] ! else NOT_FOUND).n}\n";
- let next=old.replace("  parent: parents","  copied: int\n  parent: parents")+fill;
+ let fill=format!("backfill children copy(parent: {kind}):\n  {{copied:(parents[parent] ! else NOT_FOUND).n}}\n");
+ let next=old.replace("  parent: parents","  copied: int\n  parent: parents")+&fill;
  let dropped=next.replace("  parent: parents on delete keep\n","").replace(mutation,"");
  let mut e=engine(&old);for(id,n)in[("p",3),("q",9)]{seed(&mut e,"parents",json!({"id":id,"n":n}));}seed(&mut e,"children",json!({"id":"c","parent":"p"}));adopt(&mut e,&next,2).unwrap();write(&mut e,"retarget");adopt(&mut e,&dropped,3).unwrap();
  let table=e.schema().tables["parents"].clone();{let tx=e.store_mut().transaction().unwrap();let r=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&r).unwrap();tx.commit().unwrap();}seed(&mut e,"parents",json!({"id":"p","n":77}));
  adopt(&mut e,parents,4).unwrap();let error=adopt(&mut e,&dropped,3).unwrap_err().to_string();assert!(error.contains("parent lifetime"),"{error}");
+}
 }
 
 #[test]
@@ -370,4 +372,126 @@ fn native_authored_outputs_survive_matching_inputs_and_refuse_changed_inputs() {
  let next=old.replace("  n: int","  derived: int\n  n: int")+"backfill items twice(n: int):\n  {derived:n * 2}\n";
  let mut e=engine(old);adopt(&mut e,&next,2).unwrap();seed(&mut e,"items",json!({"id":"native","n":3,"derived":9}));adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","native","derived"),Value::Int(9));
  adopt(&mut e,old,1).unwrap();write(&mut e,"edit");let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains("native backfill inputs changed"),"{error}");
+}
+
+#[test]
+fn backfill_source_expiry_applies_cascade_set_null_and_restrict_atomically() {
+ for action in ["cascade","set null","restrict"] {for restored in [false,true] {
+  let optional=if action=="set null" {" ?"}else{""};
+  let old=format!("table parents:\n  until: time\n  expire at .until\n  public 'fixture'\n  online only\ntable children:\n  parent: parents{optional} on delete {action}\n  cap 4 by parent\n  public 'fixture'\n  online only\ntable items:\n  n: int\n  public 'fixture'\n  online only\n");
+  let next=old.replace("table items:\n  n:","table items:\n  doubled: int\n  n:")+"backfill items twice(n: int):\n  {doubled:n * 2}\n";
+  let(s,p)=compile(&old);let mut e=Engine::new_release_prepared_at(Store::memory().unwrap(),s,p,&ReleaseActivation::new(1,None),false,0).unwrap();
+  let rows=[("parents",json!({"id":"p","until":50})),("children",json!({"id":"c","parent":"p"})),("items",json!({"id":"i","n":3}))];
+  let rows=rows.into_iter().map(|(t,r)|(t.to_owned(),wire::row_from_json(&e.schema().tables[t],&r).unwrap())).collect::<Vec<_>>();e.seed_at(rows,0).unwrap();
+  if restored {let(s,p)=compile("table items:\n  n: int\n  public 'fixture'\n  online only\n");e.adopt_release_at(s,p,&ReleaseActivation::new(2,Some(1)),false,1).unwrap();}
+  let g=e.generation();let(s,p)=compile(&next);let result=e.adopt_release_at(s,p,&ReleaseActivation::new(3,Some(if restored {2}else{1})),false,100);
+  if action=="restrict" {let error=result.unwrap_err().to_string();assert!(error.contains("source expiry")&&error.contains("restrict"),"{error}");assert_eq!(g,e.generation());assert!(row(&mut e,"items","i").field("doubled").is_err());}
+  else {result.unwrap();assert_eq!(e.store().count("parents").unwrap(),0);if action=="cascade" {assert_eq!(e.store().count("children").unwrap(),0);}else{assert_eq!(field(&mut e,"children","c","parent"),Value::Null);}assert_eq!(field(&mut e,"items","i","doubled"),Value::Int(6));}
+ }}
+}
+#[test]
+fn reset_rebuilds_retained_schema_metadata_before_native_inserts_or_reseeding() {
+ for reseed in [false,true] {
+  let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+  let next=old.replace("  n: int","  derived: int\n  n: int")+"backfill items twice(n: int):\n  {derived:n * 2}\n";
+  let mut e=engine(old);adopt(&mut e,&next,2).unwrap();
+  let native=wire::row_from_json(&e.schema().tables["items"],&json!({"id":"native","n":3,"derived":9})).unwrap();
+  e.dev_reset_at(if reseed {vec![("items".into(),native)]}else{vec![]},crate::now_ms()).unwrap();
+  if !reseed {seed(&mut e,"items",json!({"id":"native","n":3,"derived":9}));}
+  adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","native","derived"),Value::Int(9));
+ }
+}
+
+#[test]
+fn enum_replacement_accepts_original_preimages_and_preserves_native_outputs() {
+ let old="table cues:\n  status: enum('standby','done')\n  public 'fixture'\n  online only\n";
+ let second=old.replace("enum('standby','done')","enum('standby','complete','skipped')")+"backfill cues complete(status: enum('standby','done')):\n  {status:'complete' if status = 'done' else status}\n";
+ let third=old.replace("enum('standby','done')","enum('standby','finished','skipped')")+"backfill cues finished(status: enum('standby','done','complete','skipped')):\n  {status:'finished' if status = 'done' or status = 'complete' else status}\n";
+ let mut e=engine(old);seed(&mut e,"cues",json!({"id":"a","status":"done"}));adopt(&mut e,&second,2).unwrap();seed(&mut e,"cues",json!({"id":"native","status":"complete"}));
+ adopt(&mut e,&third,3).unwrap();for id in ["a","native"]{assert_eq!(field(&mut e,"cues",id,"status"),Value::String("finished".into()));}
+ adopt(&mut e,&second,2).unwrap();for id in ["a","native"]{assert_eq!(field(&mut e,"cues",id,"status"),Value::String("complete".into()));}
+}
+
+#[test]
+fn retained_hidden_optional_inputs_are_used_when_reentering_a_backfill() {
+ let old="table items:\n  n: int ?\n  public 'fixture'\n  online only\n";
+ let next="table items:\n  derived: int\n  public 'fixture'\n  online only\nbackfill items twice(n: int ?):\n  {derived:(n ?? 0) * 2}\n";
+ let bridge="table items:\n  public 'fixture'\n  online only\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,next,2).unwrap();assert_eq!(field(&mut e,"items","a","derived"),Value::Int(6));
+ adopt(&mut e,old,1).unwrap();adopt(&mut e,bridge,3).unwrap();adopt(&mut e,next,2).unwrap();assert_eq!(field(&mut e,"items","a","derived"),Value::Int(6));
+}
+#[test]
+fn source_expiry_observes_children_removed_in_the_same_release() {
+ for action in ["cascade","set null","restrict"] {
+  let optional=if action=="set null" {" ?"}else{""};
+  let parent="table parents:\n  until: time\n  expire at .until\n  public 'fixture'\n  online only\n";
+  let child=format!("table children:\n  parent: parents{optional} on delete {action}\n  cap 4 by parent\n  public 'fixture'\n  online only\n");
+  let item="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+  let old=format!("{parent}{child}{item}");let next=format!("{parent}{}backfill items twice(n: int):\n  {{doubled:n * 2}}\n",item.replace("  n:","  doubled: int\n  n:"));
+  let(s,p)=compile(&old);let mut e=Engine::new_release_prepared_at(Store::memory().unwrap(),s,p,&ReleaseActivation::new(1,None),false,0).unwrap();
+  let rows=[("parents",json!({"id":"p","until":50})),("children",json!({"id":"c","parent":"p"})),("items",json!({"id":"i","n":3}))];
+  let rows=rows.into_iter().map(|(t,r)|(t.to_owned(),wire::row_from_json(&e.schema().tables[t],&r).unwrap())).collect::<Vec<_>>();e.seed_at(rows,0).unwrap();
+  let(s,p)=compile(&next);let result=e.adopt_release_at(s,p,&ReleaseActivation::new(2,Some(1)),false,100);
+  if action=="restrict" {let error=result.unwrap_err().to_string();assert!(error.contains("restrict"),"{error}");assert_eq!(e.store().count("parents").unwrap(),1);}else{
+   result.unwrap();assert_eq!(e.store().count("parents").unwrap(),0);
+   let tx=e.store_mut().transaction().unwrap();let t=tx.num("children").unwrap();
+   let saved:Option<String>=tx.conn().query_row("SELECT data FROM _dormant_rows WHERE t=?1 AND id='c'",[t],|r|r.get(0)).optional().unwrap();
+   if action=="cascade" {assert!(saved.is_none());}else{let saved:Value=serde_json::from_str(&saved.unwrap()).unwrap();assert_eq!(*saved.field("parent").unwrap(),Value::Null);}
+  }
+ }
+}
+
+#[test]
+fn physically_sparse_defaults_are_interpreted_and_receipts_keep_that_interpretation() {
+ for kind in ["int","int ?"] {
+  let old="table items:\n  public 'fixture'\n  online only\n";
+  let defaulted=old.replace("  public","  n: int default 3\n  public");
+  let fill=format!("backfill items twice(n: {kind}):\n  {{doubled:(n ?? 0) * 2}}\n");
+  let next=defaulted.replace("  n:","  doubled: int\n  n:")+&fill;
+  let mut e=engine(old);seed(&mut e,"items",json!({"id":"a"}));adopt(&mut e,&defaulted,2).unwrap();
+  assert!(row(&mut e,"items","a").field("n").is_err(),"fixture is physically sparse");
+  adopt(&mut e,&next,3).unwrap();assert_eq!(field(&mut e,"items","a","doubled"),Value::Int(6));
+  let later=next.replace("default 3","default 100");adopt(&mut e,&later,4).unwrap();adopt(&mut e,"query empty():\n  return true\n",5).unwrap();adopt(&mut e,&later,4).unwrap();
+  assert_eq!(field(&mut e,"items","a","doubled"),Value::Int(6));
+  let rollback=later.replace("  doubled: int\n","").replace(&fill,"");adopt(&mut e,&rollback,6).unwrap();adopt(&mut e,&later,4).unwrap();
+  assert_eq!(field(&mut e,"items","a","doubled"),Value::Int(6),"rollback/forward keeps the original omitted-input interpretation");
+ }
+}
+
+#[test]
+fn saved_generic_id_binding_survives_type_erasure_and_multiple_restorations() {
+ let parents="table parents:\n  n: int\n  public 'fixture'\n  online only\n";
+ let old=parents.to_owned()+"table children:\n  parent: parents on delete keep\n  public 'fixture'\n  online only\n";
+ let next=old.replace("  parent:","  copied: int\n  parent:")+"backfill children copy(parent: id):\n  {copied:(parents[parent] ! else NOT_FOUND).n}\n";
+ let erased=next.replace("parent: parents on delete keep","parent: id");
+ let mut e=engine(&old);seed(&mut e,"parents",json!({"id":"p","n":3}));seed(&mut e,"children",json!({"id":"c","parent":"p"}));adopt(&mut e,&next,2).unwrap();adopt(&mut e,&erased,3).unwrap();
+ adopt(&mut e,parents,4).unwrap();adopt(&mut e,&erased,3).unwrap();adopt(&mut e,parents,4).unwrap();
+ let table=e.schema().tables["parents"].clone();{let tx=e.store_mut().transaction().unwrap();let r=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&r).unwrap();tx.commit().unwrap();}
+ seed(&mut e,"parents",json!({"id":"p","n":77}));let error=adopt(&mut e,&erased,3).unwrap_err().to_string();assert!(error.contains("parent lifetime"),"{error}");
+}
+
+#[test]
+fn reentering_omission_cohorts_do_not_change_a_new_declarations_source_snapshot() {
+ let old="table items:\n  public 'fixture'\n  online only\n";
+ let defaulted=old.replace("  public","  n: int default 3\n  public");
+ let fill="backfill items twice(n: int):\n  {doubled:n * 2}\n";
+ let next=defaulted.replace("  n:","  doubled: int\n  n:")+fill;
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a"}));adopt(&mut e,&defaulted,2).unwrap();adopt(&mut e,&next,3).unwrap();
+ let rollback=defaulted.replace("default 3","default 100");adopt(&mut e,&rollback,4).unwrap();
+ let fresh=next.replace("default 3","default 100").replace("  doubled:","  fresh: int\n  doubled:")+"backfill items current(n: int):\n  {fresh:n * 2}\n";
+ adopt(&mut e,&fresh,5).unwrap();assert_eq!(field(&mut e,"items","a","doubled"),Value::Int(6));assert_eq!(field(&mut e,"items","a","fresh"),Value::Int(200));
+}
+
+#[test]
+fn set_null_expiry_updates_a_column_archived_during_that_release() {
+ let parent="table parents:\n  until: time\n  expire at .until\n  public 'fixture'\n  online only\n";
+ let child="table children:\n  parent: parents ? on delete set null\n  cap 4 by parent\n  public 'fixture'\n  online only\n";
+ let item="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+ let old=format!("{parent}{child}{item}");let next=old.replace("  parent: parents ? on delete set null\n","").replace("  cap 4 by parent\n","").replace("  n:","  doubled: int\n  n:")+"backfill items twice(n: int):\n  {doubled:n * 2}\n";
+ let(s,p)=compile(&old);let mut e=Engine::new_release_prepared_at(Store::memory().unwrap(),s,p,&ReleaseActivation::new(1,None),false,0).unwrap();
+ let rows=[("parents",json!({"id":"p","until":50})),("children",json!({"id":"c","parent":"p"})),("items",json!({"id":"i","n":3}))];
+ let rows=rows.into_iter().map(|(t,r)|(t.to_owned(),wire::row_from_json(&e.schema().tables[t],&r).unwrap())).collect::<Vec<_>>();e.seed_at(rows,0).unwrap();
+ let(s,p)=compile(&next);e.adopt_release_at(s,p,&ReleaseActivation::new(2,Some(1)),false,100).unwrap();assert_eq!(e.store().count("parents").unwrap(),0);
+ let fresh=wire::row_from_json(&e.schema().tables["parents"],&json!({"id":"p","until":500})).unwrap();e.seed_at([("parents".into(),fresh)],100).unwrap();
+ let(s,p)=compile(&old);e.adopt_release_at(s,p,&ReleaseActivation::new(1,Some(2)),false,101).unwrap();assert_eq!(field(&mut e,"children","c","parent"),Value::Null);
 }

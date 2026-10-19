@@ -298,13 +298,19 @@ pub(super) fn restore_images(tx:&Tx<'_>,next:&Schema,now:i64,source_definitions:
             serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
         super::backfills::record_omissions(tx,t,&id,&row)?;
         crate::schema::materialize_optional_fields(&mut row,&old);
+        if for_backfills && old.expired(&row,now) {
+            // Expose an expired source only inside the uncommitted lifecycle
+            // phase so the ordinary engine can close its reference actions.
+            tx.conn().execute("INSERT INTO r(t,id,data) VALUES(?1,?2,?3)",params![t,id,canonical_json(&row)])?;
+            continue;
+        }
         let mut authority=crate::engine::through_activation::manual_authority_fields(next,&name,&old);
         if for_backfills { authority.extend(rewritten.get(&name).into_iter().flatten().cloned()); }
         if incompatible_except(tx,next,&name,&row,&authority)? {
             continue;
         }
         // Retained source deadlines precede projection, including removal of read-through itself.
-        if crate::engine::through_activation::Retirement::retires_image(table,&old,&row,now) || for_backfills && old.expired(&row,now) {
+        if crate::engine::through_activation::Retirement::retires_image(table,&old,&row,now)  {
             tx.delete(&name,&old,&row)?;
             continue;
         }

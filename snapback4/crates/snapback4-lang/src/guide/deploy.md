@@ -151,20 +151,9 @@ The new versions/v1 captures selected modules, their contemporary fixtures and `
 
 ## Persistent production: v1 → v2 → rollback → forward
 
-Save the following as `day-two-production.mjs` in an app with `snapback4`
-installed and run `node day-two-production.mjs`. `PRODUCTION_DIR` selects its
-persistent deployment (default `./production-day-two`). Run it again against
-the same directory: it preserves every existing ticket and adds two real-user
-tickets. It never deletes production storage or reseeds fixtures. Keep the
-deployment, logs and `versions/` outside source control as appropriate.
+Replacement transforms read reversible preimages; input types must cover original and native rows. Re-entry preserves native outputs with unchanged inputs; otherwise use a bridge.
 
-This example expands with a derived required field and contracts reviewer
-reads to the owner, with an independent read invariant. An old-shaped write
-still works on v2. Rollback deliberately restores v1's broader privacy rule;
-assert that behavior, and use a privacy-preserving bridge when it is unsuitable.
-REL5 owns release reactivation and old-client compatibility reporting; SEC3 owns
-column privacy invariants and audit. Backfills transform stored data, not the
-business rules an older release lacks.
+Save this script and run it with Node. `PRODUCTION_DIR` selects its persistent store; reruns preserve rows/users. It proves backfill, privacy and rollback/forward behavior. Rollback restores v1's broader reads; bridge if inappropriate. REL5 owns reactivation/old-client reporting; SEC3 owns privacy/audit.
 
 ```js
 // day-two-production.mjs — this exact fence runs against the packed package.
@@ -224,7 +213,7 @@ async function checked(args) {
 async function snapshot() {
   const count = JSON.parse(await checked(["sql", "SELECT COUNT(*) FROM tickets", "--release", directory, "--json"])).rows[0][0];
   const full = JSON.parse(await checked(["sql", "SELECT id, owner, body, weight, length FROM tickets ORDER BY id", "--release", directory, "--limit", String(Math.max(1, count + 1)), "--json"]));
-  assert.equal(full.rows.length, count, "inspect the entire production population");
+  assert.equal(full.rows.length, count, "complete population");
   return new Map(full.rows.map(row => [row[0], row]));
 }
 if (existsSync(directory + "/store.sqlite")) await rollback(directory, 1);
@@ -255,30 +244,28 @@ try {
   const historical = await snapshot(); assert.equal(historical.size, before.size + 1);
   const preview = await checked(["deploy", directory, "--schema", "versions/v2", "--check", "--restore-dormant"]);
   assert.match(preview, /vehicleClass/);
-  assert.deepEqual(await snapshot(), historical, "preview changes no production rows");
+  assert.deepEqual(await snapshot(), historical, "read-only preview");
   await deploy(directory, "versions/v2", {args:["--restore-dormant"]});
-  assert.deepEqual(await snapshot(), historical, "v2 preserves every historical business field");
+  assert.deepEqual(await snapshot(), historical, "historical fields preserved");
   assert.equal((await post("/q/ticket", alice, {ticket})).data.vehicleClass, "car");
   assert.equal((await post("/q/ticket", reviewer, {ticket})).data, null, "v2 tightened privacy");
   const oldCall = await post("/m/add", alice, {body:"old-shaped call on v2", weight:4000, length:400});
   assert.equal(oldCall.state, "sent"); assert.equal(oldCall.result.vehicleClass, "commercial");
   const allV2 = await snapshot(); assert.equal(allV2.size, historical.size + 1);
   await rollback(directory, 1);
-  assert.deepEqual(await snapshot(), allV2, "rollback preserves v2-native rows too");
+  assert.deepEqual(await snapshot(), allV2, "native rows preserved");
   const oldView = (await post("/q/ticket", reviewer, {ticket})).data;
   assert.equal(oldView.body, "historical ticket"); assert.ok(!("vehicleClass" in oldView));
   assert.equal((await post("/m/revise", alice, {ticket, weight:4000})).state, "sent");
   const changed = await snapshot();
   const expected = new Map(allV2); const changedRow = [...expected.get(ticket)]; changedRow[3] = 4000; expected.set(ticket, changedRow);
-  assert.deepEqual(changed, expected, "v1 edits only the intended business value");
+  assert.deepEqual(changed, expected, "only intended edit");
   await rollback(directory, "latest");
-  assert.deepEqual(await snapshot(), changed, "forward preserves the complete production population");
-  assert.equal((await post("/q/ticket", alice, {ticket})).data.vehicleClass, "commercial", "forward catches up the old-release edit");
-  assert.equal((await post("/q/ticket", reviewer, {ticket})).data, null, "forward restores tightened privacy");
+  assert.deepEqual(await snapshot(), changed, "complete population preserved");
+  assert.equal((await post("/q/ticket", alice, {ticket})).data.vehicleClass, "commercial", "old edit caught up");
+  assert.equal((await post("/q/ticket", reviewer, {ticket})).data, null, "privacy restored");
   console.log(JSON.stringify({status:"passed", persistent:true, before:before.size, after:changed.size, backfill:"car → commercial after v1 edit", privacy:"v1 broad → v2 private → v1 broad → v2 private"}));
 } finally { await host.stop(); }
 ```
 
-The deployment remains ready for `serve`. Every real user and existing row
-survives. A business-state conflict reports the affected rows and a bridge
-repair; resolve it under truthful old semantics before selecting that source.
+Storage, users and rows survive. Resolve reported conflicts through a truthful bridge.

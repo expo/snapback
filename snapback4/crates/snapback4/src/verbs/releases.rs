@@ -399,7 +399,7 @@ pub fn deploy(options: &Options) -> i32 {
             let staged_bound = bound_at(stage.clone())?;
             if options.flags.contains_key("check") {
                 let mut preview_options=options.clone();preview_options.flags.insert("deploy-direction".into(),String::new());
-                let result=super::release_preview::preview(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&preview_options);
+                let result=super::release_preview::preview(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&preview_options,None);
                 let _=std::fs::remove_dir_all(&stage);
                 return result;
             }
@@ -502,7 +502,7 @@ pub fn rollback(options: &Options) -> i32 {
             if options.json {eprintln!("{target_line}");} else {println!("{target_line}");}
             check_change(&dir, Some(active), &bound, options, Some(previous))?;
             if options.flags.contains_key("check") {
-                return super::release_preview::preview(&dir.join("store.sqlite"),dir.join("releases").join(previous.to_string()),previous,options);
+                return super::release_preview::preview(&dir.join("store.sqlite"),dir.join("releases").join(previous.to_string()),previous,options,_deployment.as_ref());
             }
             activate(
                 &dir,
@@ -788,7 +788,7 @@ pub(super) fn check_release(options:&Options)->i32 {
         let selected=options.flags.get("release").ok_or("--release required")?;
         let n=if selected=="latest"{latest(dir)?}else{selected.parse::<u64>().ok().filter(|n|*n>0).ok_or("--release requires N or latest")?};
         selectable(dir,n)?;
-        super::release_preview::preview(&store,dir.join("releases").join(n.to_string()),n,options)
+        super::release_preview::preview(&store,dir.join("releases").join(n.to_string()),n,options,None)
     })())
 }
 

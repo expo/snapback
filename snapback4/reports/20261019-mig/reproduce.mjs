@@ -1,6 +1,6 @@
 // Five real wave-17 schemas/stores, copied read-only. No original app is changed.
 import assert from 'node:assert/strict';
-import {cpSync, mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync, chmodSync} from 'node:fs';
+import {cpSync, mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync, chmodSync, existsSync, statSync} from 'node:fs';
 import {join, resolve, dirname} from 'node:path';
 import {fileURLToPath, pathToFileURL} from 'node:url';
 import {execFileSync} from 'node:child_process';
@@ -91,7 +91,21 @@ for(const n of [1,5,6,12,36]){
  cpSync(join(app,'deploy/current'),join(prepared,'current'));
  cpSync(join(app,'deploy/releases.jsonl'),join(prepared,'releases.jsonl'));
  cpSync(join(app,'deploy/releases'),join(prepared,'releases'),{recursive:true,filter:path=>!path.split('/').some(p=>['node_modules','.snapback4','generated','dist','.native'].includes(p))});
- execFileSync('python3',['-c',backup,join(app,'deploy/store.sqlite'),join(prepared,'store.sqlite')],{timeout:30000});chmodSync(join(prepared,'store.sqlite'),0o600);
+ // Copy database/WAL bytes first. SQLite opens only our private copy, so even
+ // its shared-memory read marks never touch the evidence lane.
+ const snapshotCopy=join(cwd,'source-snapshot');mkdirSync(snapshotCopy);
+ const sourceDb=join(app,'deploy/store.sqlite');
+ const stamp=path=>existsSync(path)?[statSync(path).size,statSync(path).mtimeMs]:null;
+ let stable=false;
+ for(let attempt=0;attempt<3&&!stable;attempt++){
+  const before=JSON.stringify([stamp(sourceDb),stamp(sourceDb+'-wal')]);
+  for(const suffix of ['', '-wal'])if(existsSync(sourceDb+suffix))cpSync(sourceDb+suffix,join(snapshotCopy,'store.sqlite'+suffix));
+  stable=before===JSON.stringify([stamp(sourceDb),stamp(sourceDb+'-wal')]);
+  if(!stable){rmSync(snapshotCopy,{recursive:true,force:true});mkdirSync(snapshotCopy);}
+ }
+ assert.ok(stable,'evidence store changed during the read-only byte copy');
+ execFileSync('python3',['-c',backup,join(snapshotCopy,'store.sqlite'),join(prepared,'store.sqlite')],{timeout:30000});
+ rmSync(snapshotCopy,{recursive:true,force:true});chmodSync(join(prepared,'store.sqlite'),0o600);
  await checked(cwd,['rollback',prepared,'--to','1']);
  // Reconstruct the exact v1 shape in this private copy, dropping only retained
  // v2 cells/tables. The original production store is never pruned or opened RW.
@@ -128,6 +142,6 @@ for(const n of [1,5,6,12,36]){
  writeFileSync(join(out,'results.json'),JSON.stringify(results,null,2)+'\n');console.log(JSON.stringify(record));
  // Keep modified schemas, previews and measured results. Private cloned stores,
  // credentials, copied release trees and subprocess logs are scratch.
- for(const dir of ['prepared','legacy-deployment','declarative-deployment','logs'])rmSync(join(cwd,dir),{recursive:true,force:true});
+ for(const dir of ['source-snapshot','prepared','legacy-deployment','declarative-deployment','logs'])rmSync(join(cwd,dir),{recursive:true,force:true});
 }
 writeFileSync(join(root,'reports/20261019-mig/five-lanes.json'),JSON.stringify(results,null,2)+'\n');

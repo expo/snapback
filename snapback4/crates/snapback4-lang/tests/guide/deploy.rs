@@ -3,7 +3,8 @@ use super::*;
 #[test]
 fn deploy_recipe_bootstraps_an_admin_without_a_public_privilege_race() {
     let text = card("deploy").unwrap();
-    assert!(text.lines().count() <= 150, "keep the day-two card compact");
+    assert!(text.split("## Persistent production:").next().unwrap().trim_end().lines().count() <= 150, "keep the operational card compact");
+    assert!(text.lines().count() <= 280, "packed-tested production recipe has a bounded 130-line allowance");
     for alias in ["release", "serve", "migration", "migrate", "rollback", "identity", "signup", "sign-up", "signin", "login", "register", "tokens", "admin"] {
         assert_eq!(card(alias), Some(text), "{alias}");
     }
