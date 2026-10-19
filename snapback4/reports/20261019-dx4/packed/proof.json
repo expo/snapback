@@ -1,0 +1,35 @@
+{
+  "format": 1,
+  "source": "6578745b85ff6f8e5f4b58d8b4c0d4956810ce95",
+  "mode": "affected-packed-dx4",
+  "clientIntegrity": "sha512-UA6iB0JcehA3/jcQasCyePG9eeRlm6kLNdptLgFKI09m86NuvipJ7qbQsiMVh8LJ1G86q1ZwTCSEqoSbyEbMJw==",
+  "platformIntegrity": "sha512-A3jP4wI4fuZqMrIpx2Z9vy0UAzOKarPrrnzB63K/P0cX77GMWtTJ183wNfc1nugEF5W0QdcNzruHv0aFKl2HTA==",
+  "binarySha256": "48b073e5f803ad5f1af6e620c94ed96398e17a1f528c4850e953102ae97050ff",
+  "staging": {
+    "status": "passed",
+    "guide": "staging",
+    "recipes": "verbatim installed card",
+    "roles": {
+      "admin": 2,
+      "member": 2
+    },
+    "mode": "serve",
+    "realPasswordLogin": "passed",
+    "data": "passed",
+    "selfGrant": "refused",
+    "productionBulkSeed": "refused before mint",
+    "productionRelabel": "refused",
+    "firstAdmin": "passed",
+    "privateCredentials": "0600"
+  },
+  "dx4": {
+    "status": "passed",
+    "recipes": "verbatim installed guide",
+    "uploads": "file hint, one home, foreign upload refusal, reference and download",
+    "staging": "discoverable, custom seat and merged args",
+    "dev": "memory mint selection, clock and reset recovery",
+    "upgrade": "project warning scan"
+  },
+  "sharedConsumerSource": "29f7b91e81be4da8fa9c0509fcd0efe1f70ea477",
+  "publicationQualified": false
+}

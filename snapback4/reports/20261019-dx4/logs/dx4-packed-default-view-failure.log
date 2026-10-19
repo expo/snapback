@@ -1,0 +1,81 @@
+
+added 6 packages in 2s
+check: ok — 2 tables (0 synced), 4 operations, no problems, 2 notes, 6.4 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+schema.q:1:1 N_SECURITY_INTENT: 2 tables have access rules and no security invariants: notes, roles; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+schema.q:13:10 N_ARGUMENT_GRANT: provision writes argument principal straight into reader-grant column roles.principal — require the chosen principal's current role and relationship before granting access; caller authority alone does not validate the recipient
+{"backendUrl":"http://127.0.0.1:40527","credentialsFile":"staging-users.json"}
+release 1 is current as generation 1; 0 rows, 0 cells, 0 index entries dormant; 4.8 ms
+First admin provisioned; sign in with the chosen email and password
+First admin provisioned; sign in with the chosen email and password
+snapback4: Time travel also advances session expiry and unplaced-upload collection: seven-day password sessions may now be expired. Sign in again after the jump and upload unplaced bytes after it; never replay an ambiguous clock advance. Password-only dev clock tools require --unsafe-dev-doors; for real-user previews use guide staging (MIG staging clock).
+packed staging: serve, real users/data, first admin, production refusal passed
+check: ok — 2 tables (0 synced), 2 operations, no problems, 2 notes, 5.2 ms
+1 advisory note — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema:1:1 — N_NO_PRODUCTION_WRITER: no action without use identity. persona-only: safe to ignore without `use identity`; no production identity — snapback4 why N_NO_PRODUCTION_WRITER
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+schema.q:1:1 N_SECURITY_INTENT: 2 tables have access rules and no security invariants: copies, documents; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+check: ok — 0 tables (0 synced), 1 operations, no problems, 3.2 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+snapback4: password-only development doors CLOSED (/seed, /dev/*, personas). For shared previews and probe:serve run snapback4 deploy staging --staging, then startServe("staging"); see snapback4 guide staging. Local fixtures require dev --unsafe-dev-doors.
+snapback4: Time travel also advances session expiry and unplaced-upload collection: seven-day password sessions may now be expired. Sign in again after the jump and upload unplaced bytes after it; never replay an ambiguous clock advance. Password-only dev clock tools require --unsafe-dev-doors; for real-user previews use guide staging (MIG staging clock).
+DX4 packed local/provisioning/upgrade cases passed
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: default guide cheatsheet must surface staging
+    at proveDX4 (file:///home/ccheever/projects/sb4-b18-dx4/snapback4/scripts/publication-dx4.mjs:32:56)
+    at async file:///home/ccheever/dx4-packed-final.mjs:14:66 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: '# Cheatsheet: the common forms on one screen\n' +
+    '(Truncated: this is the opening, first section and section index of a 189-line card: snapback4 guide cheatsheet --section <number or words> prints one section · --find <words> prints matching lines · --full prints all of it.)\n' +
+    '\n' +
+    'The forms most apps need, in one schema that compiles, then the commands and client calls; each line names the card with the rest.\n' +
+    '\n' +
+    '… the opening continues for 75 lines: snapback4 guide cheatsheet --section 0\n' +
+    '\n' +
+    '## Quarry\n' +
+    '\n' +
+    '- Comments start with `--` (never `//`); blocks indent two spaces; `snapback/*.q` share one namespace.\n' +
+    "- Types: `text <=N`, `text M..N` (a length), `int`, `int 1..5` / `int 0..` / `int ..100` (a value range, checked on every write), `bool`, `time` (Unix ms), `money USD`, `decimal 2`, `enum('a', 'b')`,\n" +
+    '  `json <=N`, `bytes <=N`, `[text <=20] <=8`, `image <=N`, a table name (a reference); `T ?` is optional (`guide types`).\n' +
+    '- Operators: `= != < <= > >=`, `and or not`, `+ - * / %`, `x ?? fallback`, `a if cond else b`, `exists t[k]`.\n' +
+    '  `/` and `%` take ints (and times) and floor: `7 / 2` is 3, `-7 / 2` is -4, `-7 % 2` is 1; zero refuses E_DIV_ZERO.\n' +
+    '  `money` and `decimal` add, subtract and multiply by an int but do not divide; `share(total, people, viewer)` splits an amount.\n' +
+    '- Text: `\'it\\\'s\'` or `"it\'s"`; `\\\\`, `\\n`, `\\t` escape; `+` joins; a reference never becomes text. Durations (ms): `500ms 30s 15m 24h 7d`, `now + 1h`, `day(now)` (day number; UTC midnight: `day(now) * 1d`), `month(now)`, `monthStart(m)` (`guide time`).\n' +
+    "- Rows: `t[id]` (null when absent or hidden), `r = t[id] ! else CODE`, `require cond else CODE 'message'`. `t[a, b]` takes\n" +
+    "  a unique key's values in column order; `t[col = x]` names a column; in brackets a bare name is a local or argument, `.col` the row's.\n" +
+    '- Pages: `where` is optional (`return pieces first 50 by .id after c`). Shapes: `t[x] { id, name: .title }` renames `title`; `name: title` reads a local.\n' +
+    '- Writes: `insert t { .. }`, `update t[id] { .. }`, `upsert t[k] { .. }`, `delete t[id]` (`guide writes`).\n' +
+    '  A missing target refuses NOT_FOUND, `delete` too: guard it with `if exists t[id]:` and `delete t[id]` on the next line.\n' +
+    '  Each statement checks `unique`, so swap two keys through a free value. A reference says what deleting\n' +
+    '  its target does: `on delete restrict` (default; E_REFERENCED), `cascade`, `set null`, `keep` (`guide recipes`).\n' +
+    '- Table clauses: `unique a, b else CODE`, `cap N by col`, `cap N` (whole-table bound), `immutable col`, `expire at .col`, `search col`,\n' +
+    "  `public 'why'`, `online only`, `sync to .col last N by .at` (`guide sync`, `guide bounds`).\n" +
+    '- Reserved as column names: `after by cap delete deliver ephemeral expire immutable insert online public read\n' +
+    '  retain search sync unique update` (and `id`). As parameter, local and loop names: `and as break commit continue\n' +
+    '  created delete device elif else emit exists false for if insert merge new not now null oblivious or require return\n' +
+    '  true update upsert viewer walk while`. A shape or object field cannot be named `pending` (row metadata).\n' +
+    '- Time-varying access: `not before .opensAt`/`expire at .endsAt`; an event copies private payload into an authorized publication table (`guide rule-recipes`). A clock does not belong in read rules.\n' +
+    '- Background work: `job`, `schedule x every 1d at 03:00: x`, `every 1 month at day 1 09:00` (UTC), `effect` (`guide jobs`, `guide effects`).\n' +
+    '\n' +
+    'Rules are per row: one readable row never authorizes its neighbours. `last N` is newest-first; `first N` is oldest-first by the selected key. Client-minted ids are time-ordered, and do not sort like hand-written fixture ids.\n' +
+    '\n' +
+    'Sections of guide cheatsheet:\n' +
+    '    0. Opening (78 lines)\n' +
+    '    1. Quarry (27 lines)\n' +
+    '    2. Roles and rosters (33 lines)\n' +
+    '    3. The loop (12 lines)\n' +
+    '    4. Client (21 lines)\n' +
+    '    5. Tests (11 lines)\n' +
+    '    6. Serve real users (7 lines)\n' +
+    'More: snapback4 guide cheatsheet --section <number or words> prints one section · --find <words> prints matching lines · --full prints all 189 lines\n',
+  expected: /guide staging/,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v24.13.1

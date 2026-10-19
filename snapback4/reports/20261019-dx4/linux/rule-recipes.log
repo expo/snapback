@@ -1,0 +1,31 @@
+▶ packed rule recipes run as written and preserve authority at boundaries
+  ✔ the compact opening recipe grants only its owner (222.513033ms)
+  ✔ current department transfer maintains every existing child atomically (1373.268334ms)
+  ✔ live parent transfers the packed guide authority, invalidates held reads and moves devices (1353.708487ms)
+  ✔ live asset placement follows the current parent without moving its home (271.174726ms)
+  ✔ private waitlist publishes occupancy without exposing membership (226.041885ms)
+  ✔ membership pages stop at grant expiry without relying on cleanup (261.674989ms)
+  ✔ bare union has an explicit cold-start tradeoff and both audiences read (268.24356ms)
+  ✔ public mirror requires its own image placement and never publishes private notes (239.503104ms)
+  ✔ staff guard and table read rule agree, with custom refusal before lookup (221.481094ms)
+  ✔ upsert refusal ladder executes before a later custom require and rolls back (235.129675ms)
+  ✔ asserted hidden read precedes the business refusal (224.055465ms)
+  ✔ hidden unique conflicts redact even the authored code (189.716573ms)
+  ✔ rule and program exists deliberately see different populations (189.4415ms)
+  ✔ caller totals include every own row and exclude every hidden row (202.31545ms)
+  ✔ presence gates durable writes across poll grace and reconnect (252.420158ms)
+  ✔ scheduled publication withdraws, invalidates approval on edit and reapproves (267.695818ms)
+  ✔ availability is public without granting booking identities or overselling (232.869565ms)
+  ✔ leaderboard consent publishes only opted-in totals and withdrawal removes them (244.01461ms)
+  ✔ three levels share live root authority without chained captures (278.687174ms)
+  ✔ 077 distinct middle policy follows mutable root probes without widening owners (230.876786ms)
+  ✔ versioned transitions reject stale and hidden targets and retain private atomic history (241.284756ms)
+✔ packed rule recipes run as written and preserve authority at boundaries (8918.537372ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9021.072046

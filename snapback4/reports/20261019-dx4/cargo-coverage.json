@@ -1,0 +1,3878 @@
+{
+  "covered": 430,
+  "expected": 430,
+  "missing": [],
+  "red": [],
+  "outcomes": [
+    {
+      "crate": "snapback4",
+      "target": "test:aggregate_identity_upgrade",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 4,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:check",
+      "status": "ok",
+      "passed": 105,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:check_cost_source",
+      "status": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:check_notes",
+      "status": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:cli_friction",
+      "status": "ok",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-linux-corrections.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:clock",
+      "status": "ok",
+      "passed": 45,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-linux-corrections.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:column_commit",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:day3",
+      "status": "ok",
+      "passed": 20,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:day4",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:day5_evidence",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:day5_previews",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:day5_starters",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:delivery_page",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:dev_refusals",
+      "status": "ok",
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:dev_reset",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:expiry_writes",
+      "status": "ok",
+      "passed": 41,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:familiar",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:feed_bridge",
+      "status": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:fix",
+      "status": "ok",
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:following_view",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:http",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:http_emfile",
+      "status": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:init",
+      "status": "ok",
+      "passed": 51,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:init_dx3",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:init_production",
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:intent_issue_tracker",
+      "status": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:latency",
+      "status": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:lifecycle",
+      "status": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:maintenance_chunks",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:maintenance_latency",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 4,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:overload",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:read_latency",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:replay",
+      "status": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:run_admission",
+      "status": "ok",
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:scale",
+      "status": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:scale_curves",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:scale_extremum_expressions",
+      "status": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:scale_intent",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:scale_row_ranges",
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:scale_variants",
+      "status": "ok",
+      "passed": 36,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:scale_windows_expiry",
+      "status": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:surf4",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:timeline",
+      "status": "ok",
+      "passed": 23,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:timeline_adoption",
+      "status": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:timeline_delivery",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:timeline_delivery_counterexample",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:timeline_design",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:token_live",
+      "status": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-linux-corrections.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:wave13_rules",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:witness",
+      "status": "ok",
+      "passed": 34,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:witness_web",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:work_records",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "test:written_by",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4",
+      "target": "unit:src/main.rs",
+      "status": "ok",
+      "passed": 494,
+      "failed": 0,
+      "ignored": 5,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "doc",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:action_context",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:adoption_scale",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:asset_lists",
+      "status": "ok",
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:born_perf",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:bound_session",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:corpus",
+      "status": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:delivery_bounds",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:dev_reset",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:disclosure",
+      "status": "ok",
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:effect_policy",
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:ephemeral",
+      "status": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:event_slot_snapshot",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:expiring_adoption",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:file_assets",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-linux-corrections.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:identity",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:job_time_audiences",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:lane_source",
+      "status": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:maintained_columns_review",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:membership_discovery_steps",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:meter",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:pending_metadata_heap",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:read_sessions",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:refused_open",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:review_walk",
+      "status": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:revocation_history",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 1,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:routes",
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:row_view_accounting",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:row_view_disclosure",
+      "status": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:row_view_legacy",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:row_view_witness",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:rows",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:schema_capabilities",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:schema_capabilities_legacy",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:sequence_by",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:sequence_disclosure",
+      "status": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:stream_receipts",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:sync_count_batch",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:time_audiences",
+      "status": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:unicode_fold",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:update_rule_images",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:upload_intents",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "test:work_records",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-core",
+      "target": "unit:src/lib.rs",
+      "status": "ok",
+      "passed": 438,
+      "failed": 0,
+      "ignored": 3,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "doc",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:acquisition_crash",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:adoption",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:asset_lists",
+      "status": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:background_durability",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:bounded_calendar_caps",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:bounded_following",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:branch_merge",
+      "status": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:codec",
+      "status": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:column_activation",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:components",
+      "status": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:cut",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:delivery",
+      "status": "ok",
+      "passed": 30,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:device",
+      "status": "ok",
+      "passed": 440,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:device_diet",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:diet_timing",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:disclosure",
+      "status": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:ephemeral",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:event_slots",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:event_slots_trace",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:expiring_counts",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 1,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:expiring_counts_probe",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:expiring_counts_upgrade",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:expiring_mutations",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:expiry_maintained_columns",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:extrema",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:extremum_expressions",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:file_assets",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:first_instinct",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:first_paste",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:following_meters",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:following_model",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:following_view",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:heavy_acquisition",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:helper_pages",
+      "status": "ok",
+      "passed": 90,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:index_key_bound",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:intent_variants",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:intent_views",
+      "status": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:list_lower_bounds",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:live_parent",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:matching_order",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:mixed_keys",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:monotonic_ids",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:mp_builder",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:named_key_lookup",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:native",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:native_following",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:native_reads",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:natural_forms",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:nl_qe2_integration",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:own_keys",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:own_keys_cost",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:point_probe_admission",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:prediction_write_set",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:qe2_allocations",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:qe2_ergonomics",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:query_unavailable",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:read_through",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:read_through_review",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:readauth",
+      "status": "ok",
+      "passed": 88,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-linux-corrections.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:recorded_coverage",
+      "status": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:reference_actions",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:repair_b",
+      "status": "ok",
+      "passed": 110,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:repair_b_boundaries",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:repair_b_counterexample",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:repair_b_legacy_r6",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:repair_b_round2_counterexample",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:repair_b_round3_counterexample",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:residency",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:retained_history",
+      "status": "ok",
+      "passed": 20,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:retained_release",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:review_parent_floor",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:row_keyed_views",
+      "status": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:row_view_disclosure",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:row_view_expiry",
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:rx_rule_hops",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:schema_capabilities",
+      "status": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:schema_capabilities_legacy",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:search_exists",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:sequence_by",
+      "status": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:sequence_disclosure",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:server_clock",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:shape_overrides",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:spread_metadata",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:spread_pending_union",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:sqlite_bulk",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:sync_windows",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:time_audiences",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:timed_search",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:timeline",
+      "status": "ok",
+      "passed": 26,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:topn_complete",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:unicode",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:unread_range",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:upload_intents",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:upload_receipts",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:upsert_constraints",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:w13g_probe",
+      "status": "ok",
+      "passed": 142,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:wave11_qdiag",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:wave12_language",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:wave13_lang2",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:write_authority",
+      "status": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "test:written_by",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-device-resume.log"
+    },
+    {
+      "crate": "snapback4-device",
+      "target": "unit:src/lib.rs",
+      "status": "ok",
+      "passed": 64,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-cargo-final.log"
+    },
+    {
+      "crate": "snapback4-difftest",
+      "target": "doc",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-difftest",
+      "target": "test:devices",
+      "status": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-difftest",
+      "target": "test:lang2",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-difftest",
+      "target": "test:lean",
+      "status": "ok",
+      "passed": 45,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-difftest",
+      "target": "test:smoke",
+      "status": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-difftest",
+      "target": "test:stores",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-difftest",
+      "target": "test:wave11_qdiag",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-difftest",
+      "target": "test:wave12_expiry_actions_generated",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-difftest",
+      "target": "test:wave12_generated_semantics",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-difftest",
+      "target": "test:wave13_lang2",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-difftest",
+      "target": "unit:src/lib.rs",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-difftest",
+      "target": "unit:src/main.rs",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "doc",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:actions",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:aggregate_copies",
+      "status": "ok",
+      "passed": 64,
+      "failed": 0,
+      "ignored": 4,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:attribution_guide",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:audience_bounds",
+      "status": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:audience_bounds_runtime",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 1,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:bounded_calendar_caps",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:bounded_following",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:branch_merge",
+      "status": "ok",
+      "passed": 57,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:builder_guidance",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:chat",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:clique_03",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:components",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:constraint_diagnostics",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:control_flow",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:cursor_advice",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:declarative_receipts",
+      "status": "ok",
+      "passed": 211,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:delivery",
+      "status": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:delivery_clause",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:delivery_integration",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:delivery_replay_conversion",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 1,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:denied_writes",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:derived_maintains",
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:effect_reads",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:emit_compatibility",
+      "status": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:ephemeral",
+      "status": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:ephemeral_compat",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:ergonomics",
+      "status": "ok",
+      "passed": 25,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:expiring_mutations",
+      "status": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 1,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:extrema",
+      "status": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:extremum_expressions",
+      "status": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:familiar_guesses",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:familiar_predicates",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:familiar_repairs",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:familiar_source_repairs",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:familiar_verified_repairs",
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:feed_forms",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:file_assets",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:first_paste",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:following_adoption_research",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 2,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:following_atomic_launch",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 2,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:following_history",
+      "status": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:following_history_research",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 2,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:following_view",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:front_semantics",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:frontend_regressions",
+      "status": "ok",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:guide",
+      "status": "ok",
+      "passed": 127,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-guide-rendered-final.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:held_unknown",
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:helper_placement",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:intent_aggregate_safety",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:intent_delta10",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:intent_followup",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:intent_nulls",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:intent_order",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:intent_predicates",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:intent_review",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:intent_target",
+      "status": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:intent_variants",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:intent_variants_review",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:job_viewer",
+      "status": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:joined_shapes",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:lane_domains",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:lean_emit",
+      "status": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:list_expressions",
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:list_lower_bounds",
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:list_reference_repair",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:list_widening",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:live_parent",
+      "status": "ok",
+      "passed": 48,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:live_parent_admission",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:lookup_selection",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:lowering",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:maintained_columns",
+      "status": "ok",
+      "passed": 42,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:maintained_result_types",
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:maintains",
+      "status": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:matching_order",
+      "status": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:membership_nullable_authorization",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:membership_paths",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:mixed_keys",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:mp_reproduction",
+      "status": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:mutation_result_types",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:natural_forms",
+      "status": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:operation_evolution",
+      "status": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:own_keys",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:page2_membership",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:page3",
+      "status": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:page4",
+      "status": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:papercuts",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:prefix_reads",
+      "status": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:presence",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:printed_rewrites",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:pure_call_narrowing",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:qe2_ergonomics",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:query_settlement",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:read_through",
+      "status": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:read_through_provenance",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:read_through_review",
+      "status": "ok",
+      "passed": 35,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:read_through_sync",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:read_through_transactions",
+      "status": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:receipt_gaps",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:recorded_round1",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:reference_actions",
+      "status": "ok",
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:repairs",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:reservation_app_headroom",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:residency_notes",
+      "status": "ok",
+      "passed": 44,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:revocation_soundness",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:routes",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:row_keyed_views",
+      "status": "ok",
+      "passed": 46,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:rx_legacy_identity",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:rx_rule_enforcement",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:rx_rule_hops",
+      "status": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:schedule_durations",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:search_guidance",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:security",
+      "status": "ok",
+      "passed": 46,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:security_custody",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:security_histories",
+      "status": "ok",
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:security_observers",
+      "status": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:security_wave16",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:selected_prefix",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:selected_prefix_cursors",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:selected_prefix_regressions",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:sequence_by",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:server_opt_in",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:shape_meter",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:shape_overrides",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:sparse_filter",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:spelling",
+      "status": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:surf4_guide",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:sync_audiences",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:sync_windows",
+      "status": "ok",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:system_principal",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:time_audiences",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:time_indexes",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:timeline_background",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:timeline_epoch_counterexample",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:timeline_fairness",
+      "status": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:timeline_guide",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:timeline_live_latency",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:typed_positional_keys",
+      "status": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:typed_positional_sync",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:union_limits",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:verified_index_repairs",
+      "status": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave10_guard_notes",
+      "status": "ok",
+      "passed": 23,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave10_rules_expressiveness",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave10_runtime_diagnostics",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave11_docs",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave11_qdiag",
+      "status": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave11_runtime",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave12_diagnostics",
+      "status": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave12_rule_composition",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave12_rule_recipes",
+      "status": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave12_semantics",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave13_lang2",
+      "status": "ok",
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave13_rules",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave14_authorization",
+      "status": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave14_client_docs",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave14_lang3",
+      "status": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave14_snapshot_ir",
+      "status": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave15_notes",
+      "status": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave1_rule_language",
+      "status": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave2_rule_language",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave3_rule_language",
+      "status": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave4_rule_language",
+      "status": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave5_rule_language",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave6_rule_language",
+      "status": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 1,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave7_rule_language",
+      "status": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave8_rule_language",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave9_completeness_notes",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:wave9_rule_diagnostic_rewrites",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "test:written_by",
+      "status": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-lang",
+      "target": "unit:src/lib.rs",
+      "status": "ok",
+      "passed": 35,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-native",
+      "target": "doc",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-native",
+      "target": "unit:src/lib.rs",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "doc",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:adoption",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:clique",
+      "status": "ok",
+      "passed": 254,
+      "failed": 0,
+      "ignored": 1,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:condition_authority",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:decorated_search",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:device",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:digest_count",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:exhaustive",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 1,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:expiry_reference_actions",
+      "status": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:filters",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:helper_pages",
+      "status": "ok",
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:helper_sweep",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:intent_integration",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:loopbar",
+      "status": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:maintain_measurement",
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:maintains",
+      "status": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:maintains_recorded",
+      "status": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:maintains_review",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:membership",
+      "status": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:membership_search",
+      "status": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:native",
+      "status": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 1,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:ordinary_search",
+      "status": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:page_admission",
+      "status": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:reference_exhaustive",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:residency",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:retained_release",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:review_corrections",
+      "status": "ok",
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:reviews",
+      "status": "ok",
+      "passed": 30,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:roster",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:search_merge",
+      "status": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:security",
+      "status": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:time_audiences",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:timed_search",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:topn_complete",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:union",
+      "status": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 2,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:wave11_qdiag",
+      "status": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:wave12_language",
+      "status": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:wave13_lang2",
+      "status": "ok",
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:work_intent",
+      "status": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:work_intent_review",
+      "status": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:work_intent_review2",
+      "status": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:work_intent_review3",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:work_intent_review4",
+      "status": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "test:write_authority",
+      "status": "ok",
+      "passed": 35,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-tail-resume.log"
+    },
+    {
+      "crate": "snapback4-sim",
+      "target": "unit:src/lib.rs",
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "log": "logs/dx4-remaining-crates.log"
+    }
+  ]
+}

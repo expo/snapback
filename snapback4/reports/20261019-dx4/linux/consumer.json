@@ -1,0 +1,2250 @@
+{
+  "format": 1,
+  "mode": "consumer-only",
+  "source": "29f7b91e81be4da8fa9c0509fcd0efe1f70ea477",
+  "version": "0.4.34",
+  "route": "proot",
+  "clientIntegrity": "sha512-UA6iB0JcehA3/jcQasCyePG9eeRlm6kLNdptLgFKI09m86NuvipJ7qbQsiMVh8LJ1G86q1ZwTCSEqoSbyEbMJw==",
+  "expoIntegrity": "sha512-y4nWpkBVNzHazo2kbwxrjE4PkC0OPYqAn7oKAfzl0eU1NUtm6r//HaWNQ87E9EhmxFXpqzLyQBz2SLmZoa+QLg==",
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.34",
+    "filename": "snapback4-linux-x64-0.4.34.tgz",
+    "integrity": "sha512-i137IopUbxKEb8Bhhfb3IKnbQ2ir5Yl9Rfe2olC2MswXrPWqmIzJnvqzODVO+bRtIW3IRLs1YmC6sZty9JsTZw==",
+    "bytes": 13302690
+  },
+  "binarySha256": "3fdcef9677494e3a2d04a0b3f6fa95b710b2d0b665d0c8171d571bc5fd7e6063",
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  },
+  "regressions": [
+    {
+      "mode": "literal-install",
+      "status": "passed",
+      "fromExpo": "57.0.22",
+      "expo": "57.0.22",
+      "version": "0.4.34",
+      "webExport": "passed"
+    },
+    {
+      "mode": "upgrade",
+      "status": "passed",
+      "fromExpo": "57.0.22",
+      "expo": "57.0.22",
+      "version": "0.4.34",
+      "webExport": "passed"
+    },
+    {
+      "mode": "adapter-first",
+      "status": "passed",
+      "fromExpo": null,
+      "expo": "57.0.30",
+      "version": "0.4.34",
+      "webExport": "passed"
+    }
+  ],
+  "day2Proof": {
+    "status": "passed",
+    "directory": "/home/ccheever/dx4-linux-final/day2-compatibility",
+    "savedSourceCompatibility": "passed",
+    "expoPrintedWrittenPorts": "passed",
+    "previewNoise": "passed",
+    "helperContracts": "passed",
+    "fixtureAgreement": "passed"
+  },
+  "day4Proof": {
+    "status": "passed",
+    "checks": [
+      {
+        "mode": "custom",
+        "status": "passed"
+      },
+      {
+        "mode": "removed",
+        "status": "passed"
+      },
+      {
+        "mode": "legacy",
+        "status": "passed"
+      },
+      {
+        "mode": "optin",
+        "status": "passed"
+      },
+      {
+        "mode": "template",
+        "status": "passed"
+      }
+    ]
+  },
+  "day5Proof": {
+    "status": "passed",
+    "directory": "/home/ccheever/dx4-linux-final/day2-compatibility",
+    "guideRecipe": "capture-release-and-bridge",
+    "starterCustody": [
+      "web",
+      "expo"
+    ]
+  },
+  "productionProofs": {
+    "status": "passed",
+    "starters": [
+      {
+        "kind": "web",
+        "cwd": "/home/ccheever/dx4-linux-final/production-web",
+        "status": "passed",
+        "commands": [
+          "cp node_modules/snapback4/dist/recipes/production/web/schema.q snapback/schema.q",
+          "cp node_modules/snapback4/dist/recipes/production/web/App.tsx src/App.tsx",
+          "cp node_modules/snapback4/dist/recipes/production/web/client.ts src/client.ts",
+          "npx snapback4 check",
+          "npx snapback4 test --fixture node_modules/snapback4/dist/recipes/production/web",
+          "npm run typecheck",
+          "npm run build"
+        ],
+        "schema": "compiled",
+        "savedTests": "passed",
+        "typecheck": "passed",
+        "build": "passed"
+      },
+      {
+        "kind": "expo",
+        "cwd": "/home/ccheever/dx4-linux-final/production-expo",
+        "status": "passed",
+        "commands": [
+          "cp node_modules/snapback4/dist/recipes/production/expo/schema.q snapback/schema.q",
+          "cp node_modules/snapback4/dist/recipes/production/expo/App.tsx App.tsx",
+          "cp node_modules/snapback4/dist/recipes/production/expo/client.ts src/client.ts",
+          "npx snapback4 check",
+          "npx snapback4 test --fixture node_modules/snapback4/dist/recipes/production/expo",
+          "npm run typecheck",
+          "npm run build:web"
+        ],
+        "schema": "compiled",
+        "savedTests": "passed",
+        "typecheck": "passed",
+        "build": "passed"
+      }
+    ],
+    "realAccounts": "passed",
+    "browserRecipes": "passed",
+    "adaptation": [
+      {
+        "kind": "persona-only starter",
+        "status": "passed",
+        "preview": "unchanged",
+        "apply": "compiled",
+        "frontend": "unchanged",
+        "identity": [
+          "use identity"
+        ],
+        "writers": [
+          "bootstrapstaffRole1",
+          "bootstrapstaffRole2"
+        ],
+        "idempotent": true,
+        "alreadyProvisioned": false
+      }
+    ]
+  },
+  "proofKit": {
+    "status": "passed",
+    "dayTwo": "production accounts, UI sign-in, v1/hot v2/rollback/forward business assertions",
+    "wire": "literal first section, actual packed CLI trace",
+    "clock": "30-day coalesced jump, each-boundary cap, memory replay command, page sampling",
+    "aliases": "array index path through packed test"
+  },
+  "clientRecipes": {
+    "status": "passed",
+    "recipes": [
+      "guide client listLabel",
+      "guide client StaffWorkspace",
+      "guide client uploadPdf"
+    ],
+    "contracts": [
+      "matchRead",
+      "matchReadList",
+      "otherwiseAll",
+      "usePage",
+      "useAuth configuration refusal"
+    ]
+  },
+  "ruleRecipes": {
+    "status": "passed",
+    "log": "/home/ccheever/dx4-linux-final/rule-recipes.log",
+    "client": "/home/ccheever/dx4-qualified-client-final/snapback4-0.4.34.tgz",
+    "platform": "/tmp/snapback4-linux-N8OwJ1/snapback4-linux-x64-0.4.34.tgz"
+  },
+  "frontendProofs": [
+    {
+      "starter": "web",
+      "kind": "web",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 6092,
+      "range": [
+        42521,
+        42541
+      ],
+      "occupied": 42521,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        38.84,
+        58.31,
+        68.01
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 3,
+        "listeners": [
+          {
+            "pid": 1436522,
+            "port": 42522
+          },
+          {
+            "pid": 1436522,
+            "port": 42522
+          },
+          {
+            "pid": 1436597,
+            "port": 42523
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 1436883,
+            "state": "absent",
+            "record": "???( <unfinished ...>"
+          }
+        ],
+        "range": [
+          42521,
+          42541
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/dx4-linux-final/frontend-web/proof-logs-1"
+    },
+    {
+      "starter": "web",
+      "kind": "web",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 6003,
+      "range": [
+        44077,
+        44097
+      ],
+      "occupied": 44077,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        37.97,
+        57.81,
+        67.8
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 3,
+        "listeners": [
+          {
+            "pid": 1439236,
+            "port": 44078
+          },
+          {
+            "pid": 1439236,
+            "port": 44078
+          },
+          {
+            "pid": 1439321,
+            "port": 44079
+          }
+        ],
+        "nonReturned": [],
+        "range": [
+          44077,
+          44097
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/dx4-linux-final/frontend-web/proof-logs-2"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 4849,
+      "range": [
+        40055,
+        40075
+      ],
+      "occupied": 40055,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        34.34,
+        56.04,
+        67.06
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 3,
+        "listeners": [
+          {
+            "pid": 1447019,
+            "port": 40056
+          },
+          {
+            "pid": 1447019,
+            "port": 40056
+          },
+          {
+            "pid": 1447081,
+            "port": 40057
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 1447445,
+            "state": "absent",
+            "record": "???(1447399 +++ exited with 0 +++"
+          }
+        ],
+        "range": [
+          40055,
+          40075
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/dx4-linux-final/frontend-web-online/proof-logs-1"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 4949,
+      "range": [
+        38409,
+        38429
+      ],
+      "occupied": 38409,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        33.99,
+        55.6,
+        66.86
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 3,
+        "listeners": [
+          {
+            "pid": 1448909,
+            "port": 38410
+          },
+          {
+            "pid": 1448909,
+            "port": 38410
+          },
+          {
+            "pid": 1448988,
+            "port": 38411
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 1449383,
+            "state": "absent",
+            "record": "???( <unfinished ...>"
+          }
+        ],
+        "range": [
+          38409,
+          38429
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/dx4-linux-final/frontend-web-online/proof-logs-2"
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 12661,
+      "range": [
+        38549,
+        38569
+      ],
+      "occupied": 38549,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        32.91,
+        53.28,
+        65.73
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 3,
+        "listeners": [
+          {
+            "pid": 1460899,
+            "port": 38550
+          },
+          {
+            "pid": 1460899,
+            "port": 38550
+          },
+          {
+            "pid": 1460956,
+            "port": 38551
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 1462563,
+            "state": "absent",
+            "record": "???( <unfinished ...>"
+          }
+        ],
+        "range": [
+          38549,
+          38569
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/dx4-linux-final/frontend-expo/proof-logs-1"
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 12015,
+      "range": [
+        46689,
+        46709
+      ],
+      "occupied": 46689,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        32.68,
+        52.56,
+        65.36
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 3,
+        "listeners": [
+          {
+            "pid": 1466445,
+            "port": 46690
+          },
+          {
+            "pid": 1466445,
+            "port": 46690
+          },
+          {
+            "pid": 1466466,
+            "port": 46691
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 1466747,
+            "state": "absent",
+            "record": "???( <unfinished ...>"
+          }
+        ],
+        "range": [
+          46689,
+          46709
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/dx4-linux-final/frontend-expo/proof-logs-2"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 6764,
+      "range": [
+        35877,
+        35897
+      ],
+      "occupied": 35877,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        31,
+        50.59,
+        64.37
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 3,
+        "listeners": [
+          {
+            "pid": 1472240,
+            "port": 35878
+          },
+          {
+            "pid": 1472240,
+            "port": 35878
+          },
+          {
+            "pid": 1472284,
+            "port": 35879
+          }
+        ],
+        "nonReturned": [],
+        "range": [
+          35877,
+          35897
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/dx4-linux-final/frontend-web-chat/proof-logs-1"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 7010,
+      "range": [
+        36945,
+        36965
+      ],
+      "occupied": 36945,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        30.97,
+        49.94,
+        64.01
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 3,
+        "listeners": [
+          {
+            "pid": 1473329,
+            "port": 36946
+          },
+          {
+            "pid": 1473329,
+            "port": 36946
+          },
+          {
+            "pid": 1473355,
+            "port": 36947
+          }
+        ],
+        "nonReturned": [],
+        "range": [
+          36945,
+          36965
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/dx4-linux-final/frontend-web-chat/proof-logs-2"
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 5512,
+      "range": [
+        45349,
+        45369
+      ],
+      "occupied": 45349,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        28.5,
+        47.84,
+        62.94
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 3,
+        "listeners": [
+          {
+            "pid": 1477750,
+            "port": 45350
+          },
+          {
+            "pid": 1477750,
+            "port": 45350
+          },
+          {
+            "pid": 1477781,
+            "port": 45351
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 1477983,
+            "state": "absent",
+            "record": "???( <unfinished ...>"
+          },
+          {
+            "pid": 1477981,
+            "state": "absent",
+            "record": "???(1477950 +++ exited with 0 +++"
+          }
+        ],
+        "range": [
+          45349,
+          45369
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/dx4-linux-final/frontend-expo-chat/proof-logs-1"
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 5726,
+      "range": [
+        42261,
+        42281
+      ],
+      "occupied": 42261,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        28.94,
+        47.61,
+        62.78
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 3,
+        "listeners": [
+          {
+            "pid": 1478703,
+            "port": 42262
+          },
+          {
+            "pid": 1478703,
+            "port": 42262
+          },
+          {
+            "pid": 1478718,
+            "port": 42263
+          }
+        ],
+        "nonReturned": [],
+        "range": [
+          42261,
+          42281
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/dx4-linux-final/frontend-expo-chat/proof-logs-2"
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 6812,
+      "range": [
+        34487,
+        34507
+      ],
+      "occupied": 34487,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        32.46,
+        46.21,
+        61.67
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 3,
+        "listeners": [
+          {
+            "pid": 1484153,
+            "port": 34488
+          },
+          {
+            "pid": 1484153,
+            "port": 34488
+          },
+          {
+            "pid": 1484234,
+            "port": 34489
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 1484594,
+            "state": "absent",
+            "record": "???(1484556 +++ exited with 0 +++"
+          }
+        ],
+        "range": [
+          34487,
+          34507
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/dx4-linux-final/frontend-expo-social/proof-logs-1"
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 6934,
+      "range": [
+        38601,
+        38621
+      ],
+      "occupied": 38601,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        33.7,
+        46.24,
+        61.6
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 3,
+        "listeners": [
+          {
+            "pid": 1485173,
+            "port": 38602
+          },
+          {
+            "pid": 1485173,
+            "port": 38602
+          },
+          {
+            "pid": 1485277,
+            "port": 38603
+          }
+        ],
+        "nonReturned": [],
+        "range": [
+          38601,
+          38621
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/dx4-linux-final/frontend-expo-social/proof-logs-2"
+    }
+  ],
+  "starterProofs": [
+    {
+      "starter": "web",
+      "kind": "web",
+      "fixtureGuide": "passed",
+      "status": "passed",
+      "adapted": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "web",
+          "kind": "web",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 7656,
+          "range": [
+            44311,
+            44331
+          ],
+          "occupied": 44311,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            36.39,
+            46.04,
+            61.21
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1490025,
+                "port": 44312
+              },
+              {
+                "pid": 1490025,
+                "port": 44312
+              },
+              {
+                "pid": 1490037,
+                "port": 44313
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              44311,
+              44331
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-web/proof-logs-1"
+        },
+        {
+          "starter": "web",
+          "kind": "web",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 5795,
+          "range": [
+            38007,
+            38027
+          ],
+          "occupied": 38007,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            45.41,
+            47.6,
+            61.55
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1491224,
+                "port": 38008
+              },
+              {
+                "pid": 1491224,
+                "port": 38008
+              },
+              {
+                "pid": 1491239,
+                "port": 38009
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              38007,
+              38027
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-web/proof-logs-2"
+        }
+      ],
+      "adaptedProofs": [
+        {
+          "starter": "web",
+          "kind": "web",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 5059,
+          "range": [
+            42393,
+            42413
+          ],
+          "occupied": 42393,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            41.91,
+            46.72,
+            61.04
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1494600,
+                "port": 42394
+              },
+              {
+                "pid": 1494600,
+                "port": 42394
+              },
+              {
+                "pid": 1494612,
+                "port": 42395
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 1494811,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              }
+            ],
+            "range": [
+              42393,
+              42413
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-web/proof-logs-1"
+        },
+        {
+          "starter": "web",
+          "kind": "web",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 4972,
+          "range": [
+            37715,
+            37735
+          ],
+          "occupied": 37715,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            40.64,
+            46.38,
+            60.85
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1495329,
+                "port": 37716
+              },
+              {
+                "pid": 1495329,
+                "port": 37716
+              },
+              {
+                "pid": 1495346,
+                "port": 37717
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 1495543,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              },
+              {
+                "pid": 1495351,
+                "state": "absent",
+                "record": "???(1495333 +++ exited with 0 +++"
+              }
+            ],
+            "range": [
+              37715,
+              37735
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-web/proof-logs-2"
+        }
+      ],
+      "negativeProof": {
+        "status": "passed",
+        "expected": "no write scenario: replace the Home assertions",
+        "listenerAudit": {
+          "status": "passed",
+          "method": "strace-listen",
+          "samples": 3,
+          "listeners": [
+            {
+              "pid": 1493090,
+              "port": 30000
+            },
+            {
+              "pid": 1493090,
+              "port": 30000
+            },
+            {
+              "pid": 1493157,
+              "port": 30001
+            }
+          ],
+          "nonReturned": [
+            {
+              "pid": 1493288,
+              "state": "absent",
+              "record": "???(1493278 +++ exited with 0 +++"
+            }
+          ],
+          "range": [
+            30000,
+            30020
+          ],
+          "tracerVersion": "strace -- version 6.8"
+        }
+      },
+      "formSubmit": "passed"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "fixtureGuide": "passed",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "web-online",
+          "kind": "web",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 5004,
+          "range": [
+            41413,
+            41433
+          ],
+          "occupied": 41413,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            37.81,
+            45.46,
+            60.31
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1498945,
+                "port": 41414
+              },
+              {
+                "pid": 1498945,
+                "port": 41414
+              },
+              {
+                "pid": 1498964,
+                "port": 41415
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              41413,
+              41433
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-web-online/proof-logs-1"
+        },
+        {
+          "starter": "web-online",
+          "kind": "web",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 5290,
+          "range": [
+            33719,
+            33739
+          ],
+          "occupied": 33719,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            38.31,
+            45.44,
+            60.23
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1499872,
+                "port": 33720
+              },
+              {
+                "pid": 1499872,
+                "port": 33720
+              },
+              {
+                "pid": 1499896,
+                "port": 33721
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 1499901,
+                "state": "absent",
+                "record": "???(1499877 +++ exited with 0 +++"
+              }
+            ],
+            "range": [
+              33719,
+              33739
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-web-online/proof-logs-2"
+        }
+      ]
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "fixtureGuide": "passed",
+      "status": "passed",
+      "adapted": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 12049,
+          "range": [
+            37293,
+            37313
+          ],
+          "occupied": 37293,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            49.5,
+            47.16,
+            60.17
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1508370,
+                "port": 37294
+              },
+              {
+                "pid": 1508370,
+                "port": 37294
+              },
+              {
+                "pid": 1508392,
+                "port": 37295
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              37293,
+              37313
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-expo/proof-logs-1"
+        },
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 11835,
+          "range": [
+            40571,
+            40591
+          ],
+          "occupied": 40571,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            43.22,
+            45.88,
+            59.54
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1509820,
+                "port": 40572
+              },
+              {
+                "pid": 1509820,
+                "port": 40572
+              },
+              {
+                "pid": 1509849,
+                "port": 40573
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 1510225,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              }
+            ],
+            "range": [
+              40571,
+              40591
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-expo/proof-logs-2"
+        }
+      ],
+      "adaptedProofs": [
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 11111,
+          "range": [
+            35729,
+            35749
+          ],
+          "occupied": 35729,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            33.28,
+            43.06,
+            58.08
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1516926,
+                "port": 35730
+              },
+              {
+                "pid": 1516926,
+                "port": 35730
+              },
+              {
+                "pid": 1517043,
+                "port": 35731
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              35729,
+              35749
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-expo/proof-logs-1"
+        },
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 11340,
+          "range": [
+            33957,
+            33977
+          ],
+          "occupied": 33957,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            32.51,
+            42.58,
+            57.77
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1518881,
+                "port": 33958
+              },
+              {
+                "pid": 1518881,
+                "port": 33958
+              },
+              {
+                "pid": 1518922,
+                "port": 33959
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 1518929,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              },
+              {
+                "pid": 1518927,
+                "state": "absent",
+                "record": "???(1518916 +++ exited with 0 +++"
+              }
+            ],
+            "range": [
+              33957,
+              33977
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-expo/proof-logs-2"
+        }
+      ],
+      "negativeProof": {
+        "status": "passed",
+        "expected": "no write scenario: replace the Home assertions",
+        "listenerAudit": {
+          "status": "passed",
+          "method": "strace-listen",
+          "samples": 3,
+          "listeners": [
+            {
+              "pid": 1514494,
+              "port": 30000
+            },
+            {
+              "pid": 1514494,
+              "port": 30000
+            },
+            {
+              "pid": 1514549,
+              "port": 30001
+            }
+          ],
+          "nonReturned": [],
+          "range": [
+            30000,
+            30020
+          ],
+          "tracerVersion": "strace -- version 6.8"
+        }
+      },
+      "formSubmit": "not-applicable"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "template": "chat",
+      "fixtureGuide": "passed",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "web-chat",
+          "kind": "web",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 7288,
+          "range": [
+            36531,
+            36551
+          ],
+          "occupied": 36531,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            30.9,
+            41.42,
+            56.98
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1522116,
+                "port": 36532
+              },
+              {
+                "pid": 1522116,
+                "port": 36532
+              },
+              {
+                "pid": 1522143,
+                "port": 36533
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              36531,
+              36551
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-web-chat/proof-logs-1"
+        },
+        {
+          "starter": "web-chat",
+          "kind": "web",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 6371,
+          "range": [
+            39989,
+            40009
+          ],
+          "occupied": 39989,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            29.65,
+            40.8,
+            56.61
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1522966,
+                "port": 39990
+              },
+              {
+                "pid": 1522966,
+                "port": 39990
+              },
+              {
+                "pid": 1523004,
+                "port": 39992
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 1523094,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              }
+            ],
+            "range": [
+              39989,
+              40009
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-web-chat/proof-logs-2"
+        }
+      ]
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "template": "chat",
+      "fixtureGuide": "passed",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "expo-chat",
+          "kind": "expo",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 5682,
+          "range": [
+            38327,
+            38347
+          ],
+          "occupied": 38327,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            26.6,
+            39,
+            55.51
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1528035,
+                "port": 38328
+              },
+              {
+                "pid": 1528035,
+                "port": 38328
+              },
+              {
+                "pid": 1528077,
+                "port": 38329
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              38327,
+              38347
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-expo-chat/proof-logs-1"
+        },
+        {
+          "starter": "expo-chat",
+          "kind": "expo",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 5630,
+          "range": [
+            43085,
+            43105
+          ],
+          "occupied": 43085,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            26.31,
+            38.73,
+            55.33
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1529312,
+                "port": 43086
+              },
+              {
+                "pid": 1529312,
+                "port": 43086
+              },
+              {
+                "pid": 1529344,
+                "port": 43087
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 1529537,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              },
+              {
+                "pid": 1529536,
+                "state": "absent",
+                "record": "???(1529509 +++ exited with 0 +++"
+              }
+            ],
+            "range": [
+              43085,
+              43105
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-expo-chat/proof-logs-2"
+        }
+      ]
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "template": "social",
+      "fixtureGuide": "passed",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "expo-social",
+          "kind": "expo",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 7201,
+          "range": [
+            46399,
+            46419
+          ],
+          "occupied": 46399,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            26.81,
+            37.28,
+            54.14
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1536381,
+                "port": 46400
+              },
+              {
+                "pid": 1536381,
+                "port": 46400
+              },
+              {
+                "pid": 1536574,
+                "port": 46401
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 1536580,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              },
+              {
+                "pid": 1536579,
+                "state": "absent",
+                "record": "???(1537164 +++ exited with 0 +++"
+              }
+            ],
+            "range": [
+              46399,
+              46419
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-expo-social/proof-logs-1"
+        },
+        {
+          "starter": "expo-social",
+          "kind": "expo",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 7326,
+          "range": [
+            43757,
+            43777
+          ],
+          "occupied": 43757,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            27.61,
+            37.1,
+            53.91
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 3,
+            "listeners": [
+              {
+                "pid": 1537527,
+                "port": 43758
+              },
+              {
+                "pid": 1537527,
+                "port": 43758
+              },
+              {
+                "pid": 1537592,
+                "port": 43759
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 1537755,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              },
+              {
+                "pid": 1537648,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              },
+              {
+                "pid": 1537650,
+                "state": "absent",
+                "record": "???(1537573 +++ exited with 0 +++"
+              }
+            ],
+            "range": [
+              43757,
+              43777
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/dx4-linux-final/starter-expo-social/proof-logs-2"
+        }
+      ]
+    }
+  ],
+  "stagingProof": {
+    "status": "passed",
+    "guide": "staging",
+    "recipes": "verbatim installed card",
+    "roles": {
+      "admin": 2,
+      "member": 2
+    },
+    "mode": "serve",
+    "realPasswordLogin": "passed",
+    "data": "passed",
+    "selfGrant": "refused",
+    "productionBulkSeed": "refused before mint",
+    "productionRelabel": "refused",
+    "firstAdmin": "passed",
+    "privateCredentials": "0600"
+  },
+  "migrationProof": {
+    "status": "passed",
+    "guide": "deploy",
+    "recipe": "verbatim installed card",
+    "runs": 2,
+    "persistentProduction": true,
+    "realUsers": true,
+    "backfill": true,
+    "privacyInvariant": true,
+    "rollback": true,
+    "forwardCatchup": true,
+    "fullPopulationAssertions": true
+  },
+  "securityProof": {
+    "status": "passed",
+    "guide": "verbatim installed security card",
+    "artifacts": {
+      "clientSha256": "bd4aa5bbd039f8a03871561865de24cae04189d4ac84c157033fa839efb53c0e",
+      "platformSha256": "ae91977df1a6efc2084247cd9b2cf28e9dfc9fd5f90b2bebc705fd7bc9f1f115",
+      "binarySha256": "3fdcef9677494e3a2d04a0b3f6fa95b710b2d0b665d0c8171d571bc5fd7e6063"
+    },
+    "guideCases": [
+      {
+        "block": 0,
+        "invariants": 3,
+        "audit": "passed",
+        "finite": {
+          "attempted": 1096,
+          "refused": 0,
+          "violations": 0,
+          "seedSyntheticObservations": 0,
+          "unauthenticatedHttpRefused": 7,
+          "revocationHttpRefused": 0
+        },
+        "broadRead": "refuted",
+        "expectedFailureExits": [
+          1,
+          1,
+          1
+        ]
+      }
+    ],
+    "sessions": [
+      {
+        "method": "guests",
+        "status": "passed",
+        "attempted": 1048,
+        "refused": 0,
+        "violations": 0,
+        "seedSyntheticObservations": 0,
+        "unauthenticatedHttpRefused": 7,
+        "revocationHttpRefused": 14,
+        "disconnectedDevice": "not covered"
+      },
+      {
+        "method": "password",
+        "status": "passed",
+        "attempted": 1048,
+        "refused": 0,
+        "violations": 0,
+        "seedSyntheticObservations": 0,
+        "unauthenticatedHttpRefused": 7,
+        "revocationHttpRefused": 14,
+        "disconnectedDevice": "not covered"
+      }
+    ],
+    "starters": [
+      {
+        "id": "todo-online",
+        "status": "passed",
+        "invariants": 1,
+        "attempted": 1204,
+        "refused": 764,
+        "violations": 0,
+        "seedSyntheticObservations": 0,
+        "unauthenticatedHttpRefused": 11,
+        "revocationHttpRefused": 0
+      },
+      {
+        "id": "social",
+        "status": "passed",
+        "invariants": 5,
+        "attempted": 453,
+        "refused": 85,
+        "violations": 0,
+        "seedSyntheticObservations": 0,
+        "unauthenticatedHttpRefused": 0,
+        "unauthenticatedHttpNotCovered": "complete deployed native/action/effect artifacts required",
+        "revocationHttpRefused": 0
+      },
+      {
+        "id": "todo-web",
+        "status": "passed",
+        "invariants": 1,
+        "attempted": 1216,
+        "refused": 649,
+        "violations": 0,
+        "seedSyntheticObservations": 0,
+        "unauthenticatedHttpRefused": 11,
+        "revocationHttpRefused": 18
+      },
+      {
+        "id": "chat-web",
+        "status": "passed",
+        "invariants": 5,
+        "attempted": 1368,
+        "refused": 1368,
+        "violations": 0,
+        "seedSyntheticObservations": 0,
+        "unauthenticatedHttpRefused": 0,
+        "unauthenticatedHttpNotCovered": "complete deployed native/action/effect artifacts required",
+        "revocationHttpRefused": 0
+      },
+      {
+        "id": "chat-expo",
+        "status": "passed",
+        "invariants": 5,
+        "attempted": 1368,
+        "refused": 1368,
+        "violations": 0,
+        "seedSyntheticObservations": 0,
+        "unauthenticatedHttpRefused": 25,
+        "revocationHttpRefused": 32
+      },
+      {
+        "id": "production-recipe",
+        "status": "passed",
+        "source": "installed dist/recipes/production/web/schema.q",
+        "invariants": 2,
+        "attempted": 17528,
+        "refused": 749,
+        "violations": 0,
+        "seedSyntheticObservations": 0,
+        "unauthenticatedHttpRefused": 13,
+        "revocationHttpRefused": 20
+      }
+    ],
+    "scope": "finite campaigns and declared policy checks; no zero-hole or disconnected-device revocation claim",
+    "commands": [
+      {
+        "args": [
+          "guide",
+          "security",
+          "--full"
+        ],
+        "project": ".",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "check",
+          "--json"
+        ],
+        "project": "/card-0",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "audit",
+          "--json"
+        ],
+        "project": "/card-0",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "check",
+          "--audit",
+          "--json"
+        ],
+        "project": "/card-0",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "test",
+          "--fixture-only"
+        ],
+        "project": "/card-0",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "check",
+          "--json"
+        ],
+        "project": "/card-0",
+        "exitCode": 1,
+        "expectedExitCode": 1
+      },
+      {
+        "args": [
+          "audit",
+          "--json"
+        ],
+        "project": "/card-0",
+        "exitCode": 1,
+        "expectedExitCode": 1
+      },
+      {
+        "args": [
+          "test",
+          "--fixture-only"
+        ],
+        "project": "/card-0",
+        "exitCode": 1,
+        "expectedExitCode": 1
+      },
+      {
+        "args": [
+          "check",
+          "--json"
+        ],
+        "project": "/revocation-guests",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "test",
+          "--fixture-only"
+        ],
+        "project": "/revocation-guests",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "check",
+          "--json"
+        ],
+        "project": "/revocation-password",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "test",
+          "--fixture-only"
+        ],
+        "project": "/revocation-password",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "init",
+          "/home/ccheever/dx4-linux-final/security-policy-82aZfw/todo-online",
+          "--online"
+        ],
+        "project": ".",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "check",
+          "--json"
+        ],
+        "project": "/todo-online",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "test",
+          "--fixture-only"
+        ],
+        "project": "/todo-online",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "init",
+          "/home/ccheever/dx4-linux-final/security-policy-82aZfw/social",
+          "--template",
+          "social"
+        ],
+        "project": ".",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "check",
+          "--json"
+        ],
+        "project": "/social",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "test",
+          "--fixture-only"
+        ],
+        "project": "/social",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "init",
+          "/home/ccheever/dx4-linux-final/security-policy-82aZfw/todo-web",
+          "--web"
+        ],
+        "project": ".",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "check",
+          "--json"
+        ],
+        "project": "/todo-web",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "test",
+          "--fixture-only"
+        ],
+        "project": "/todo-web",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "init",
+          "/home/ccheever/dx4-linux-final/security-policy-82aZfw/chat-web",
+          "--template",
+          "chat",
+          "--web"
+        ],
+        "project": ".",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "check",
+          "--json"
+        ],
+        "project": "/chat-web",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "test",
+          "--fixture-only"
+        ],
+        "project": "/chat-web",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "init",
+          "/home/ccheever/dx4-linux-final/security-policy-82aZfw/chat-expo",
+          "--template",
+          "chat",
+          "--expo"
+        ],
+        "project": ".",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "check",
+          "--json"
+        ],
+        "project": "/chat-expo",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "test",
+          "--fixture-only"
+        ],
+        "project": "/chat-expo",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "check",
+          "--json"
+        ],
+        "project": "/production-recipe",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      },
+      {
+        "args": [
+          "test",
+          "--fixture-only"
+        ],
+        "project": "/production-recipe",
+        "exitCode": 0,
+        "expectedExitCode": 0
+      }
+    ]
+  },
+  "proofs": [
+    {
+      "base": "ubuntu:24.04",
+      "node": "24.13.1",
+      "rootfs": {
+        "url": "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-amd64.tar.gz",
+        "sha256": "6bc2cde3930ad088b3bb46fa45279e96d25bc3810f209850ecbe4722711874f9"
+      },
+      "tools": [
+        {
+          "url": "https://github.com/proot-me/proot/releases/download/v5.4.1/proot",
+          "sha256": "19f44283f5c0e73091c60195f5fcd4f4c1165505e44410d434e2ab1b677c1a09"
+        },
+        {
+          "url": "https://nodejs.org/dist/v24.13.1/node-v24.13.1-linux-x64.tar.xz",
+          "sha256": "30215f90ea3cd04dfbc06e762c021393fa173a1d392974298bbc871a8e461089"
+        }
+      ],
+      "route": "proot",
+      "runtime": "proot",
+      "status": "passed",
+      "elapsedMs": 426308,
+      "clientIntegrity": "sha512-UA6iB0JcehA3/jcQasCyePG9eeRlm6kLNdptLgFKI09m86NuvipJ7qbQsiMVh8LJ1G86q1ZwTCSEqoSbyEbMJw==",
+      "platformIntegrity": "sha512-i137IopUbxKEb8Bhhfb3IKnbQ2ir5Yl9Rfe2olC2MswXrPWqmIzJnvqzODVO+bRtIW3IRLs1YmC6sZty9JsTZw==",
+      "expoIntegrity": "sha512-y4nWpkBVNzHazo2kbwxrjE4PkC0OPYqAn7oKAfzl0eU1NUtm6r//HaWNQ87E9EhmxFXpqzLyQBz2SLmZoa+QLg==",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    },
+    {
+      "base": "alpine",
+      "node": "24.18.1",
+      "rootfs": {
+        "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/x86_64/alpine-minirootfs-3.23.3-x86_64.tar.gz",
+        "sha256": "42d0e6d8de5521e7bf92e075e032b5690c1d948fa9775efa32a51a38b25460fb"
+      },
+      "tools": [
+        {
+          "url": "https://github.com/proot-me/proot/releases/download/v5.4.1/proot",
+          "sha256": "19f44283f5c0e73091c60195f5fcd4f4c1165505e44410d434e2ab1b677c1a09"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/nodejs-24.18.1-r0.apk",
+          "sha256": "3c78c9bc8a1d52cc18e79f94120d69ae7705dab1d77054dfa040a064bf344b87"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/ada-libs-3.3.0-r0.apk",
+          "sha256": "5afb61331b184c47e91d0637ecb706aaf30e9270e845a6c0417235bdec2009c1"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/brotli-libs-1.2.0-r0.apk",
+          "sha256": "09fbf1ddf0c71c6c4ab7bc12aef3452d8ace5adeab10c4c30214fc70f5e0e087"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/c-ares-1.34.8-r0.apk",
+          "sha256": "7a570d080d05e60b1256ea73586924bf9a25f468c57aae10d1cdfe7fcc3f93a2"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/ca-certificates-20260909-r0.apk",
+          "sha256": "68ee230255f291fcc7539bacd1cc38cb15debda9cff66e57e9ff022a2c38816c"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/icu-data-en-76.1-r1.apk",
+          "sha256": "82d55e064ca2ff15e6ef6c3b7009eb2e869469f56f36c0d84411b265825a3251"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/icu-libs-76.1-r1.apk",
+          "sha256": "c6b53c168bb1af380fcbc305ff9e25c30e3cab756165fd7b8f77d4dac132aa4d"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libcrypto3-3.5.8-r0.apk",
+          "sha256": "a5592b5cf276bc7a30ac7b161d46446085490b640faa1f839ea98eb15aacad31"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libgcc-15.2.0-r2.apk",
+          "sha256": "4279d14cbf43311312d3a7d43619f4c15ede2e46d5608ba421ed157ded57c700"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libssl3-3.5.8-r0.apk",
+          "sha256": "f80b76cb5e5a52cfc1ced08f8dc3022adc0ce0a3d6e7741976731b22c71fe310"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libstdc++-15.2.0-r2.apk",
+          "sha256": "d4be2967a06d78b499f5e136323f4ebe51ad367b381933b3369539499c4f5752"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/nghttp2-libs-1.69.0-r0.apk",
+          "sha256": "e52a5325b8720449ed4f123a33202794361b6b164c127abdb4b3c057467e7a41"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/simdjson-3.12.0-r0.apk",
+          "sha256": "1dfe639550b5457018b7993a9ac9417a6b3d0e4ecbbdacf0ef0e3b42582173e4"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/simdutf-7.5.0-r1.apk",
+          "sha256": "6ca498fdaf3eae672e656f3746c2b4a4740a1924d1210af43ec6233b4a5a1476"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/sqlite-libs-3.53.4-r0.apk",
+          "sha256": "414be12c879052f4614a42a10fc12af67a88ba49e8e1e33f78cd9ddbbdb13fee"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/zlib-1.3.2-r0.apk",
+          "sha256": "f56dea63692059bd65854bb179b7551971a441000b0d98c5b031291ca0450b56"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/zstd-libs-1.5.7-r2.apk",
+          "sha256": "d5fcc58f7f071a5658d97b09838668e4443203217631992915b8e60656904104"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/community/x86_64/npm-11.11.0-r0.apk",
+          "sha256": "9ceb98c5ee7b2a5f63b4d7b9a95f48682d5f169031bfe7dd60b68c922cea46e4"
+        }
+      ],
+      "route": "proot",
+      "runtime": "proot",
+      "status": "passed",
+      "elapsedMs": 562240,
+      "clientIntegrity": "sha512-UA6iB0JcehA3/jcQasCyePG9eeRlm6kLNdptLgFKI09m86NuvipJ7qbQsiMVh8LJ1G86q1ZwTCSEqoSbyEbMJw==",
+      "platformIntegrity": "sha512-i137IopUbxKEb8Bhhfb3IKnbQ2ir5Yl9Rfe2olC2MswXrPWqmIzJnvqzODVO+bRtIW3IRLs1YmC6sZty9JsTZw==",
+      "expoIntegrity": "sha512-y4nWpkBVNzHazo2kbwxrjE4PkC0OPYqAn7oKAfzl0eU1NUtm6r//HaWNQ87E9EhmxFXpqzLyQBz2SLmZoa+QLg==",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    }
+  ],
+  "suite": {
+    "status": "not-run"
+  },
+  "publicationQualified": false
+}

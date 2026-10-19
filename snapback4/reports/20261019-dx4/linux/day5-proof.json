@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "directory": "/home/ccheever/dx4-linux-final/day2-compatibility",
+  "guideRecipe": "capture-release-and-bridge",
+  "starterCustody": [
+    "web",
+    "expo"
+  ]
+}
