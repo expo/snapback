@@ -50,10 +50,10 @@ fn bundle_digest(root: &Path, executable: bool) -> Result<String, String> {
         let name = path.strip_prefix(root).unwrap().to_string_lossy();
         // @ref LLP 3000.000.000.000.000#4-cli-surface-contracts — metadata does not change executable release identity.
         if name == ".pending-adoption" || name == "provenance.json" {continue;}
-        // @ref LLP 3000.000.000#16-release-reactivation-and-rollback-foresight-rel5 — the compiler version in this report is not executable content.
-        // Keep the full report in control-request integrity; only release identity
-        // ignores it. Activation recompiles and checks the retained source normally.
-        if executable && name == "device-compatibility.json" {continue;}
+        // @ref LLP 3000.000.000#16-release-reactivation-and-rollback-foresight-rel5 — compiler and host-location reports are not executable content.
+        // Keep both reports in control-request integrity; only release identity
+        // ignores them. Activation recompiles and checks the retained source normally.
+        if executable && matches!(name.as_ref(), "device-compatibility.json" | "worker-package.json") {continue;}
         hash.update((name.len() as u64).to_le_bytes());
         hash.update(name.as_bytes());
         #[cfg(unix)]
@@ -249,6 +249,7 @@ mod identity_tests {
         }
         fs::write(a.join("device-compatibility.json"),r#"{"server_version":"0.4.33"}"#).unwrap();
         fs::write(b.join("device-compatibility.json"),r#"{"server_version":"0.4.34"}"#).unwrap();
+        fs::write(a.join("worker-package.json"),r#"{"directory":"/old/app"}"#).unwrap();
         assert_eq!(executable_digest(&a).unwrap(),executable_digest(&b).unwrap());
         assert_ne!(digest(&a).unwrap(),digest(&b).unwrap(),"control integrity still covers the captured report");
         for file in ["snapback/schema.q","snapback/generated/native.wasm","worker.mjs"] {

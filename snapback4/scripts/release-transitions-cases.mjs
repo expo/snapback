@@ -198,7 +198,69 @@ mutation setup():
     assert.ok(timedPreview.backfills.length);
     assert.ok(!timedPreview.hazards.some(line=>line.includes('refuses on the post-deploy snapshot')),JSON.stringify(timedPreview));
     await clockHost.host.stop();active.delete(clockHost.host);
-    return {status:'passed',reactivation:['cold','hot','same-id','dormant-values','unchanged','backfill-receipts'],refusals:['adoption','post-validation-pointer','no-candidate-left'],rollbackForesight:'dropped-required-column-and-later-writes',oldClients:'installed-guide-signature-diff-baseline-projected-domains'};
+    // Preview capture must survive activation changing SQLite temp_store for
+    // live-parent restoration. Exercise both live and captured read-through
+    // records across rollback preview and retained-source deploy restoration.
+    const p=fixture('preview-live-and-captured-refs');
+    const refs=`use identity guests
+table liveParents:
+  owner: principal
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+table liveChildren:
+  parent: liveParents
+  body: text <=40
+  immutable parent
+  cap 5 by parent
+  read through live .parent
+  insert <- allow
+  online only
+table capturedParents:
+  owner: principal
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+table capturedChildren:
+  parent: capturedParents
+  body: text <=40
+  immutable parent
+  read through .parent
+  insert <- allow
+  online only
+mutation setup():
+  liveParent = insert liveParents {owner:viewer}
+  insert liveChildren {parent:liveParent.id, body:'live'}
+  capturedParent = insert capturedParents {owner:viewer}
+  return insert capturedChildren {parent:capturedParent.id, body:'captured'}
+query liveRows():
+  return liveChildren first 10 by .id
+query capturedRows():
+  return capturedChildren first 10 by .id
+`;
+    const empty=`use identity guests
+table markers:
+  body: text <=40
+  public 'preview marker'
+  online only
+`;
+    p.source(refs);await p.run(['deploy',p.deployment]);
+    const refHost=await p.serve();assert.equal((await refHost.post('/m/setup',{},'dorm-preview-refs')).state,'sent');
+    assert.equal((await refHost.post('/q/liveRows')).data[0].body,'live');
+    assert.equal((await refHost.post('/q/capturedRows')).data[0].body,'captured');
+    p.source(empty);await p.run(['deploy',p.deployment]);
+    const beforeRefPreview=await p.status();
+    const checked=await p.run(['rollback',p.deployment,'--to','1','--check','--json']);
+    assert.equal(JSON.parse(checked.stdout).plan.release,1);assert.deepEqual(await p.status(),beforeRefPreview);
+    p.source(refs);await p.run(['deploy',p.deployment,'--restore-dormant']);
+    assert.equal((await p.status()).release,1);
+    assert.equal((await refHost.post('/q/liveRows')).data[0].body,'live');
+    assert.equal((await refHost.post('/q/capturedRows')).data[0].body,'captured');
+    assert.deepEqual(p.releases(),['1','2']);
+    await refHost.host.stop();active.delete(refHost.host);
+    return {status:'passed',reactivation:['cold','hot','same-id','dormant-values','unchanged','backfill-receipts','live-and-captured-ref-preview'],refusals:['adoption','post-validation-pointer','no-candidate-left'],rollbackForesight:'dropped-required-column-and-later-writes',oldClients:'installed-guide-signature-diff-baseline-projected-domains'};
   } finally {
     try {for(const host of active)await host.stop();} finally {rmSync(root,{recursive:true,force:true});}
   }
