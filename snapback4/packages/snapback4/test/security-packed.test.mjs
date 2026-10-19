@@ -58,5 +58,7 @@ test('an escalation note stays visible above repeated broad-read advice', {timeo
  const result=spawnSync(binary,['check'],{cwd:dir,encoding:'utf8',timeout:30000});
  assert.equal(result.status,0,result.stdout+result.stderr);
  assert.match(result.stdout,/N_PRIVILEGE_ESCALATION/);
- assert.ok(result.stdout.indexOf('N_PRIVILEGE_ESCALATION')<result.stdout.indexOf('N_BROAD_READ'));
+ const broad=result.stdout.indexOf('N_BROAD_READ');
+ assert.ok(broad<0||result.stdout.indexOf('N_PRIVILEGE_ESCALATION')<broad);
+ assert.match(result.stdout,/more actionable notes/);
 });
