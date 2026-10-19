@@ -95,7 +95,7 @@ pub fn test(options: &Options) -> i32 {
             return 0;
         }
     }
-    let mut security_campaign = snapback4_lang::security::challenges::run(&bound);
+    let mut security_campaign = snapback4_lang::security::challenges::Campaign::default();
     if options.flags.contains_key("fixture"){
         match test_fixture::engine_at(&project,&bound,options,snapback4_lang::security::challenges::NOW){
             Ok(security_fixture)=>snapback4_lang::security::challenges::operations(&bound,&security_fixture,&mut security_campaign),
@@ -110,6 +110,8 @@ pub fn test(options: &Options) -> i32 {
             }
         }
     }
+    let security_campaign=snapback4_lang::security::challenges::run_selected_after(&bound,None,security_campaign);
+    let mut security_campaign=security_campaign;
     let security_http_ok=security::unauthenticated(&bound,&sources);
     if security_http_ok{security_campaign.unsupported.retain(|s|!s.starts_with("unauthenticated HTTP attempts require"));}
     println!("security histories: {} ordered short operation sequences replayed",security_campaign.sequences);

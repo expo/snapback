@@ -21,8 +21,7 @@ pub(super) fn report(project:&Project,bound:&Bound,options:&Options)->Report{
         }else{for verdict in &mut report.invariants{verdict.reasons.push("no trusted fixture: application reachability not covered; seed/synthetic witnesses are non-failing".into());}}
     }
     let sites=report.invariants.iter().filter(|v|v.status==security::Status::Unproved&&!campaign.violations.iter().any(|c|c.invariant_site==v.invariant.site.to_string()&&c.reachability==security::challenges::Reachability::AuthoredFixtureTrace)).map(|v|v.invariant.site.to_string()).collect();
-    let synthetic=security::challenges::run_selected(bound,Some(&sites));
-    security::challenges::apply(&mut report,&synthetic);
+    let campaign=security::challenges::run_selected_after(bound,Some(&sites),campaign);
     security::challenges::apply(&mut report,&campaign);report
 }
 pub fn audit(options:&Options)->i32{

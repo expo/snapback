@@ -1,7 +1,7 @@
 //! Role authority is compared by effective gates, never by names like 'admin'.
 // @ref LLP 3000.036.004#123-actionable-authority-advice — advisory grant-edge analysis, not a security proof or implicit exemption.
 use super::*;
-fn probe_pairs(bound:&Bound,table:&str,index:&str,key:&[RuleTerm],equalities:&[(String,RuleTerm)])->Vec<(String,RuleTerm)>{
+pub(super) fn probe_pairs(bound:&Bound,table:&str,index:&str,key:&[RuleTerm],equalities:&[(String,RuleTerm)])->Vec<(String,RuleTerm)>{
     let mut pairs=equalities.to_vec();
     if let Some(idx)=bound.schema.table(table).and_then(|t|t.index(index)){for (component,term) in idx.components.iter().zip(key){if let Some(column)=component.column(){pairs.push((column.into(),term.clone()));}}}
     pairs
@@ -12,7 +12,9 @@ fn substitute(bound:&Bound,rule:&RuleExpr,roster:&str,column:&str,role:Option<&s
         RuleExpr::Exists{table,key,index,equalities,..} if table==roster&&key.iter().chain(equalities.iter().map(|(_,t)|t)).any(|k|matches!(k,RuleTerm::Viewer))=>{
             let pairs=probe_pairs(bound,table,index,key,equalities);
             let requested=pairs.iter().find(|(c,_)|c==column).and_then(|(_,t)|if let RuleTerm::Literal(snapback4_core::Value::String(s))=t{Some(s.as_str())}else{None});
-            if requested.is_none(){rule.clone()}else if requested==role{RuleExpr::Allow}else{RuleExpr::Deny}
+            if requested.is_none(){rule.clone()}else if requested==role{
+                if pairs.iter().all(|(c,t)|c==column||matches!(t,RuleTerm::Viewer)){RuleExpr::Allow}else{rule.clone()}
+            }else{RuleExpr::Deny}
         },
         RuleExpr::Eq(RuleTerm::Viewer,RuleTerm::Literal(snapback4_core::Value::Id(seat)))|RuleExpr::Eq(RuleTerm::Literal(snapback4_core::Value::Id(seat)),RuleTerm::Viewer) if seat.starts_with("service:")=>RuleExpr::Deny,
         RuleExpr::Eq(a,b)|RuleExpr::Ne(a,b)=>if let (Some(a),Some(b))=(known(a),known(b)){if (a==b)==matches!(rule,RuleExpr::Eq(..)){RuleExpr::Allow}else{RuleExpr::Deny}}else{rule.clone()},
@@ -22,8 +24,8 @@ fn substitute(bound:&Bound,rule:&RuleExpr,roster:&str,column:&str,role:Option<&s
         _=>rule.clone(),
     }
 }
-pub(super) fn risk(bound:&Bound,roster:&str,column:&str,targets:&[String],op:ast::WriteOp,requirements:&[RuleExpr],dynamic:bool)->Option<String>{
-    if op==ast::WriteOp::Upsert{return risk(bound,roster,column,targets,ast::WriteOp::Insert,requirements,dynamic).or_else(||risk(bound,roster,column,targets,ast::WriteOp::Update,requirements,dynamic));}
+pub(super) fn risk(bound:&Bound,roster:&str,column:&str,operation:&str,targets:&[String],op:ast::WriteOp,requirements:&[RuleExpr],dynamic:bool)->Option<String>{
+    if op==ast::WriteOp::Upsert{return risk(bound,roster,column,operation,targets,ast::WriteOp::Insert,requirements,dynamic).or_else(||risk(bound,roster,column,operation,targets,ast::WriteOp::Update,requirements,dynamic));}
     let table=bound.schema.table(roster)?;
     if requirements.iter().any(|r|!r.disjuncts().is_empty()&&r.disjuncts().iter().all(|b|b.service_grant().is_some())){return None;}
     let gates=match op{ast::WriteOp::Insert=>vec![&table.rules.insert],ast::WriteOp::Update=>vec![&table.rules.update],ast::WriteOp::Upsert=>vec![&table.rules.insert,&table.rules.update],ast::WriteOp::Delete=>return None};
@@ -35,7 +37,7 @@ pub(super) fn risk(bound:&Bound,roster:&str,column:&str,targets:&[String],op:ast
         }}
         for t in bound.schema.tables.values(){for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete]{collect(bound,r,roster,column,&mut roles);}}roles.into_iter().collect()
     },_=>return None};
-    let intents=bound.invariants.iter().filter(|i|i.table==roster&&i.column.as_deref().is_none_or(|c|c==column)&&i.operation.is_none()&&(i.target=="write"||i.target==if op==ast::WriteOp::Insert{"insert"}else{"update"})).filter_map(|i|i.policy.as_ref()).collect::<Vec<_>>();
+    let intents=bound.invariants.iter().filter(|i|i.table==roster&&i.column.as_deref().is_none_or(|c|c==column)&&(i.operation.as_deref()==Some(operation)||i.operation.is_none()&&(i.target=="write"||i.target==if op==ast::WriteOp::Insert{"insert"}else{"update"}))).filter_map(|i|i.policy.as_ref()).collect::<Vec<_>>();
     fn role_guards(bound:&Bound,rule:&RuleExpr,roster:&str,column:&str,out:&mut Vec<RuleExpr>){match rule{
         RuleExpr::Exists{table,index,key,equalities,..} if key.iter().chain(equalities.iter().map(|(_,v)|v)).any(|k|matches!(k,RuleTerm::Viewer))&&table==roster&&probe_pairs(bound,table,index,key,equalities).iter().any(|(c,v)|c==column&&matches!(v,RuleTerm::Literal(snapback4_core::Value::String(_))))=>out.push(rule.clone()),
         RuleExpr::And(xs)|RuleExpr::Or(xs)=>for r in xs{role_guards(bound,r,roster,column,out)},_=>{}
@@ -59,25 +61,15 @@ pub(super) fn risk(bound:&Bound,roster:&str,column:&str,targets:&[String],op:ast
             for (name,t) in bound.schema.visible_tables(){for (effect,rule) in [("read",&t.rules.read),("insert",&t.rules.insert),("update",&t.rules.update),("delete",&t.rules.delete)]{
                 let granted=substitute(bound,rule,roster,column,Some(target),None);let previous=substitute(bound,rule,roster,column,caller,None);
                 if !dynamic {
-                    let global=kernel::implies(&RuleExpr::Allow,&granted)==Ok(true);
-                    if !global||!(matches!(effect,"read"|"delete")||!role_columns(bound,name).is_empty()){continue;}
-                }
-                if kernel::implies(&granted,&previous)==Ok(false){return Some(format!("{} can confer '{target}', which adds {name}.{effect} authority not held by {}",roster,caller.unwrap_or("a caller without a role")));}
-            }}
-        }
-    }None
-}
-
-pub(super) fn role_columns(bound:&Bound,table:&str)->BTreeSet<String>{
-    let mut columns=BTreeSet::new();
-    if let Some(t)=bound.schema.table(table){for c in ["role","kind"]{if t.columns.contains_key(c){columns.insert(c.into());}}}
-    fn collect(bound:&Bound,rule:&RuleExpr,table:&str,columns:&mut BTreeSet<String>){match rule{
-        RuleExpr::Exists{table:t,index,key,equalities,..} if t==table&&key.iter().chain(equalities.iter().map(|(_,v)|v)).any(|k|matches!(k,RuleTerm::Viewer))=>for (c,v) in &probe_pairs(bound,t,index,key,equalities){if matches!(v,RuleTerm::Literal(snapback4_core::Value::String(_))){columns.insert(c.clone());}},
-        RuleExpr::And(xs)|RuleExpr::Or(xs)=>for r in xs{collect(bound,r,table,columns)},RuleExpr::Not(r)=>collect(bound,r,table,columns),_=>{}
-    }}
+                    let named=columns.clone();let mut observed=BTreeSet::new();
+    for t in bound.schema.tables.values(){for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete]{collect(bound,r,table,&mut observed);}}
     let global=bound.schema.table(table).is_some_and(|t|t.indexes.values().any(|index|{
-        index.unique&&index.components.iter().any(|part|part.column().is_some_and(|c|matches!(t.columns.get(c).map(|k|k.required()),Some(snapback4_core::schema::ColumnType::Principal))))
-            &&index.components.iter().all(|part|part.column().is_some_and(|c|columns.contains(c)||matches!(t.columns.get(c).map(|k|k.required()),Some(snapback4_core::schema::ColumnType::Principal|snapback4_core::schema::ColumnType::Enum{..}))))
+        if !index.unique{return false;}
+        let Some(parts)=index.components.iter().map(|p|p.column()).collect::<Option<Vec<_>>>()else{return false;};
+        let principals=parts.iter().filter(|c|matches!(t.columns.get(**c).map(|k|k.required()),Some(snapback4_core::schema::ColumnType::Principal))).count();
+        if principals!=1{return false;}
+        parts.iter().all(|c|matches!(t.columns.get(*c).map(|k|k.required()),Some(snapback4_core::schema::ColumnType::Principal))||named.contains(*c))
+            ||named.is_empty()&&observed.len()==1&&parts.len()==2&&parts.iter().all(|c|observed.contains(*c)||matches!(t.columns.get(*c).map(|k|k.required()),Some(snapback4_core::schema::ColumnType::Principal)))
     }));
     if global{for t in bound.schema.tables.values(){for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete]{collect(bound,r,table,&mut columns);}}}else{columns.clear();}
     columns

@@ -4,7 +4,12 @@ use super::*;
 use crate::ast::{Expr,Stmt,ProgramKind};
 const NOW_FOR_DEFAULTS:i64=1_800_000_000_000;
 fn rule_parts(rule:&RuleExpr)->Vec<&RuleExpr>{match rule{RuleExpr::And(xs)|RuleExpr::Or(xs)=>xs.iter().flat_map(rule_parts).collect(),RuleExpr::Not(x)=>rule_parts(x),r=>vec![r]}}
-fn role_test(rule:&RuleExpr)->bool {rule_parts(rule).iter().any(|r|matches!(r,RuleExpr::Exists{key,equalities,..} if key.iter().any(|t|matches!(t,RuleTerm::Viewer))&&equalities.iter().any(|(_,t)|matches!(t,RuleTerm::Literal(_)))))}
+fn role_test(bound:&Bound,rule:&RuleExpr)->bool {rule_parts(rule).iter().any(|r|match r{
+    RuleExpr::Exists{table,index,key,equalities,..} if key.iter().chain(equalities.iter().map(|(_,v)|v)).any(|t|matches!(t,RuleTerm::Viewer))=>{
+        let columns=super::privilege::role_columns(bound,table);
+        super::privilege::probe_pairs(bound,table,index,key,equalities).iter().any(|(c,t)|columns.contains(c)&&matches!(t,RuleTerm::Literal(_)))
+    },_=>false,
+})}
 fn reader_columns(rule:&RuleExpr)->BTreeSet<String>{rule_parts(rule).into_iter().filter_map(|r|match r{RuleExpr::Eq(RuleTerm::Field(f),RuleTerm::Viewer)|RuleExpr::Eq(RuleTerm::Viewer,RuleTerm::Field(f))=>Some(f.clone()),_=>None}).collect()}
 fn note(notes:&mut Vec<Diagnostic>,site:&Site,code:&str,message:String,rewrite:&str){notes.push(Diagnostic::new(site,code,message,rewrite).guide("security"));}
 fn mutable_role(bound:&Bound,name:&str)->bool {
@@ -40,7 +45,7 @@ fn mutable_role(bound:&Bound,name:&str)->bool {
     })
 }
 fn recipient_role(bound:&Bound,name:&str,branch:&RuleExpr,grant:Option<&str>,roster:&str,effect:&str)->bool{
-    if bound.invariants.iter().any(|i|i.table==name&&(i.target==effect||i.target=="write"&&matches!(effect,"insert"|"update"))&&i.policy.as_ref().is_some_and(|p|kernel::dependencies(p).contains(roster))){return true;}
+    if bound.invariants.iter().any(|i|i.table==*name&&(i.target==effect||i.target=="write"&&matches!(effect,"insert"|"update"))&&i.policy.as_ref().is_some_and(|p|kernel::dependencies(p).contains(roster)&&role_test(bound,p)&&kernel::implies(branch,p)!=Ok(true))){return true;}
     let _=(branch,grant,roster);
     // Field names cannot establish a current-role contract. The missing-intent
     // note asks for that independent specification before lifetime advice.
@@ -69,15 +74,16 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
         }
         for (effect,rule) in [("read",&t.rules.read),("insert",&t.rules.insert),("update",&t.rules.update),("delete",&t.rules.delete)] {
           for branch in rule.disjuncts(){
-            if role_test(branch){continue;}
+            if role_test(bound,branch){continue;}
             for dep in kernel::dependencies(branch){if let Some(g)=bound.schema.table(&dep) {
                 let rosters=[&g.rules.insert,&g.rules.update].into_iter().flat_map(kernel::dependencies).filter(|r|mutable_role(bound,r)).collect::<BTreeSet<_>>();
-                if rosters.iter().any(|r|recipient_role(bound,name,branch,Some(&dep),r,effect))&&(role_test(&g.rules.insert)||role_test(&g.rules.update)){
+                if rosters.iter().any(|r|recipient_role(bound,name,branch,Some(&dep),r,effect))&&(role_test(bound,&g.rules.insert)||role_test(bound,&g.rules.update)){
                     note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{effect}: `{}` trusts retained {dep} grants while current role in {} can change",branch.quarry(),rosters.into_iter().collect::<Vec<_>>().join(", ")),"recheck the current role in this branch or revoke every derived grant transactionally on role changes; guide security");
                 }
             }}
-            if !reader_columns(branch).is_empty()&&[&t.rules.insert,&t.rules.update].into_iter().flat_map(kernel::dependencies).any(|r|mutable_role(bound,&r)&&recipient_role(bound,name,branch,None,&r,effect))&&(role_test(&t.rules.insert)||role_test(&t.rules.update)) {
-                note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{effect}: stored principal `{}` grants authority after a mutable role changes",branch.quarry()),"recheck the current role as well as stored attribution; guide security");
+            let declared=bound.invariants.iter().filter(|i|i.table==*name&&(i.target==effect||i.target=="write"&&matches!(effect,"insert"|"update"))).filter_map(|i|i.policy.as_ref()).flat_map(kernel::dependencies).filter(|r|mutable_role(bound,r)).collect::<BTreeSet<_>>();
+            if !reader_columns(branch).is_empty()&&declared.iter().any(|r|recipient_role(bound,name,branch,None,r,effect)) {
+                note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{effect}: principal branch `{}` does not recheck the declared mutable current role",branch.quarry()),"recheck the current role as well as principal attribution; guide security");
             }
           }
         }
@@ -119,7 +125,7 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                     }
                     let requirements=catalog.tables.get(table).map(|info|super::operation::requirements(&catalog,info,&context)).unwrap_or_default();
                     let effective_op=if chosen.is_none()&&*op==ast::WriteOp::Upsert{ast::WriteOp::Insert}else{*op};
-                    if let Some(risk)=super::privilege::risk(bound,table,column,&targets,effective_op,&requirements,dynamic)&&seen.insert((table.clone(),format!("$privilege:{column}"))) {
+                    if let Some(risk)=super::privilege::risk(bound,table,column,&super::super::operation_name(std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy().as_ref(),&p.name),&targets,effective_op,&requirements,dynamic)&&seen.insert((table.clone(),format!("$privilege:{column}"))) {
                         note(&mut out,site,"N_PRIVILEGE_ESCALATION",format!("{}: {risk}; review the grant's delegation policy",p.name),"restrict role assignment to authorized delegation or an operator seat; use guide staging's first-admin recipe (intentional open enrollment may permit this)");
                     }
                 }}

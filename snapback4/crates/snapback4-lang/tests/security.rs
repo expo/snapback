@@ -190,11 +190,27 @@ fn ordinary_project_ownership_is_not_role_delegation(){
 }
 #[test]
 fn insert_intent_does_not_constrain_authorized_role_updates(){
- let source="table roles:\n  principal: principal\n  role: enum('member','admin','legal')\n  unique principal\n  read <- allow\n  insert <- viewer = 'service:ops'\n  update <- exists roles[viewer, role = 'admin']\n  online only\ntable secrets:\n  read <- exists roles[viewer, role = 'legal']\n  online only\ninvariant roles.role insert only .role = 'member'\nmutation promote(who: principal):\n  return update roles[who] { role: 'legal' }\n";
+ let source="table roles:\n  principal: principal\n  role: enum('member','admin','legal')\n  unique principal\n  read <- allow\n  insert <- viewer = 'service:ops'\n  update <- exists roles[viewer, role = 'admin']\n  online only\ntable secrets:\n  read <- exists roles[viewer, role = 'legal']\n  online only\ninvariant roles.insert only .role = 'member'\nmutation promote(who: principal):\n  return update roles[who] { role: 'legal' }\n";
  let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source.into())],&b);assert!(!r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
 }
 #[test]
 fn fixed_customer_enrollment_with_self_scoped_permissions_is_quiet(){
  let source="table roles:\n  principal: principal\n  role: enum('customer','dispatcher')\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer and .role = 'customer'\n  online only\ntable bookings:\n  customer: principal\n  read <- .customer = viewer or exists roles[viewer, role = 'dispatcher']\n  insert <- .customer = viewer and exists roles[viewer, role = 'customer']\n  online only\nmutation join():\n  return insert roles { principal: viewer, role: 'customer' }\n";
  let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source.into())],&b);assert!(!r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
+}
+
+#[test]
+fn operation_specific_delegation_intent_is_honored_by_advice(){
+ let source="table roles:\n  principal: principal\n  role: enum('producer','legal')\n  unique principal\n  read <- allow\n  update <- exists roles[viewer, role = 'producer']\n  online only\ntable releases:\n  read <- exists roles[viewer, role = 'legal']\n  online only\ninvariant roles.promote only .role != 'legal'\nmutation promote(who: principal):\n  return update roles[who] { role: 'legal' }\n";
+ let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("schema.q".into(),source.into())],&b);assert!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
+}
+#[test]
+fn scoped_enum_context_is_not_a_global_role_roster(){
+ let source="table roles:\n  principal: principal\n  region: enum('north','south')\n  role: enum('member','admin')\n  unique principal, region\n  read <- allow\n  insert <- .principal = viewer and .role = 'member'\n  online only\ntable notes:\n  region: enum('north','south')\n  read <- exists roles[viewer, .region, role = 'member']\n  online only\nmutation join(region: enum('north','south')):\n  return insert roles { principal: viewer, region, role: 'member' }\n";
+ let b=bound(source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("schema.q".into(),source.into())],&b);assert!(!r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"{:?}",r.notes);
+}
+#[test]
+fn tuple_role_tests_guard_and_explain_retained_grants_consistently(){
+ let source="table seats:\n  principal: principal\n  kind: enum('inspector','member')\n  unique principal, kind\n  read <- allow\n  delete <- viewer = 'service:ops'\n  online only\ntable grants:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- exists seats[viewer, 'inspector']\n  online only\ntable leaks:\n  read <- exists grants[viewer]\n  online only\ntable guarded:\n  read <- exists seats[viewer, 'inspector']\n  online only\ninvariant leaks.read only exists seats[viewer, 'inspector']\ninvariant guarded.read only exists seats[viewer, 'inspector']\nmutation revoke(who: principal, kind: enum('inspector','member')):\n  delete seats[who, kind]\n  return null\n";
+ let r=security::analyze(&bound(source));assert!(r.notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"&&n.message.starts_with("leaks.")),"{:?}",r.notes);assert!(!r.notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"&&n.message.starts_with("guarded.")),"{:?}",r.notes);
 }

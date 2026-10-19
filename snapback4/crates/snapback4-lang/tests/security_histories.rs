@@ -155,3 +155,9 @@ fn operation_matrix_enforces_the_shared_budget_with_many_operations(){
  let fixture=Engine::new_at(snapback4_core::Store::memory().unwrap(),b.schema.clone(),b.programs.iter().map(|p|p.program.clone()),1_800_000_000_000).unwrap();let mut c=security::challenges::Campaign::default();security::challenges::operations(&b,&fixture,&mut c);
  assert_eq!(c.operations.len(),600);assert!(c.attempted<=8192,"{}",c.attempted);assert!(c.unsupported.iter().any(|s|s.contains("8192-call budget")));
 }
+
+#[test]
+fn trusted_column_observation_precedes_mutation_prefixes(){
+ let source="table notes:\n  owner: principal\n  body: text <=80\n  read <- allow\n  online only\ntable counters:\n  n: int\n  update <- allow\n  online only\ninvariant notes.body read only .owner = viewer\nquery inspect(note: notes):\n  n = notes[note] ! else NOT_FOUND\n  return n.body\nmutation unrelated(counter: counters):\n  return update counters[counter] { n: 1 }\n";
+ let c=fixture_campaign(source,vec![("notes".into(),row(&[("id",Value::Id("n".into())),("owner",Value::Id("dev:owner".into())),("body",Value::String("secret".into()))])),("counters".into(),row(&[("id",Value::Id("c".into())),("n",Value::Int(0))]))]);let disclosures=c.violations.iter().filter(|v|v.effect=="column read observation").collect::<Vec<_>>();assert!(!disclosures.is_empty());assert!(disclosures.iter().all(|v|v.history.is_empty()),"{c:?}");
+}

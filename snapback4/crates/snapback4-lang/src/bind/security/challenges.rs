@@ -209,8 +209,9 @@ fn operation_preflight(bound:&Bound,inv:&Invariant)->Result<(),String>{
 pub fn run(bound:&Bound)->Campaign{run_selected(bound,None)}
 /// `check` searches unproved direct obligations; unsearched blockers remain
 /// explicitly unproved. Default `test` passes None and runs the whole set.
-pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
-    let mut out=Campaign::default();
+pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{run_selected_after(bound,sites,Campaign::default())}
+/// Continue after trusted observations, preserving one set of work budgets.
+pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:Campaign)->Campaign{
     // A direct component theorem needs no repeated concrete search for that
     // same component. Indirect observers, temporal reads and actual authored
     // operations below still run; the whole declaration remains unproved.
@@ -229,11 +230,12 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
         }
     }
     for inv in &assertions{
+        if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.reachability==Reachability::AuthoredFixtureTrace){continue;}
         if inv.target=="read"&&inv.column.as_deref().is_some_and(|c|c!="id"){continue;}
         if sites.is_some_and(|sites|!sites.contains(&inv.site.to_string())){continue;}
         if inv.operation.is_none()&&discharged.contains(&inv.site.to_string()){continue;}
         if let Err(why)=operation_preflight(bound,inv){out.unsupported.insert(why);continue;}
-        let mut found=false;
+        let mut found=false;let mut seen=BTreeSet::new();
         let combinations=bound.schema.tables.values().flat_map(|t|t.columns.values()).filter_map(|k|if let C::Enum{variants}=k.required(){Some(variants.len())}else{None}).fold(1usize,usize::saturating_mul).max(24);
         if combinations>512{out.unsupported.insert("schema enum Cartesian matrix exceeds 512 samples; remaining tuples are not covered".into());}
         for sample in 0..=combinations.min(512) {
@@ -254,6 +256,10 @@ pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{
                 }}
                 if !inv.policy.as_ref().zip(rows.get_mut(&inv.table).and_then(|rs|rs.first_mut())).is_some_and(|(p,row)|pin(p,row)){continue;}
             }
+            let candidate_args=inv.operation.as_ref().and_then(|op|bound.programs.iter().find(|p|&p.program.name==op)).and_then(|p|arguments(&p.program.args,variant));
+            // Pruned dependencies can repeat after unrelated schema enum digits.
+            // Identical seed/typed-argument candidates are one search input.
+            if !seen.insert(serde_json::to_string(&(&rows,&candidate_args)).unwrap()){continue;}
             let mut seeded=match engine(bound,&rows,program("$security.seed",ProgramKind::Query,vec![Stmt::Return(Expr::Get(Read{site:"security read".into(),table:inv.table.clone(),index:"byId".into(),key:vec![Expr::Literal(id(&inv.table))],provenance:KeyProvenance::Computed}))])){Ok(e)=>e,Err(e)=>{out.unsupported.insert(e);continue;}};
             let rows=match readback(&seeded){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);continue;}};
             let Some(row)=rows.get(&inv.table).and_then(|r|r.first())else{out.unsupported.insert(format!("{}: no generated ordinary row",inv.table));break;};
@@ -344,8 +350,8 @@ fn materialize_arguments(engine:&mut Engine,args:&BTreeMap<String,ir::ArgType>,v
 /// This is conformance exploration, not a guessed spec oracle: only declared
 /// policies and replayed violations can fail security acceptance.
 pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
-    histories::run(bound,fixture,campaign);
     column_reads::fixture(bound,fixture,campaign);
+    histories::run(bound,fixture,campaign);
 }
 pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
     fixture_observers(bound,fixture,campaign);
