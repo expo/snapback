@@ -43,5 +43,35 @@
     "log": "/home/ccheever/sb4-loop/integ18/final-report-checks.log",
     "sha256": "c17104f1621e067746377ebdba631ae808ec31118d8b02be638104efba8c83e3",
     "summary": "inventories PASS; ref-check556 LLPs,12096refs,43481files,0 errors,0 unchecked"
+  },
+  {
+    "label": "flake-alone",
+    "exit": 0,
+    "log": "/home/ccheever/sb4-loop/integ18/flake-alone.log",
+    "sha256": "d42e41542c7a87c9ab98e52a4a58f15e487d5c65606c7085ea5a9c5eb1cebd45",
+    "disposition": "passed alone; final complete suite retained separately"
+  },
+  {
+    "label": "following-alone",
+    "exit": 0,
+    "log": "/home/ccheever/sb4-loop/integ18/following-alone.log",
+    "sha256": "2c51a53b9416017b7bfb1ecee1fe599d9aa05e564237a75e30729a5e170203db",
+    "disposition": "passed alone; final complete suite retained separately"
+  },
+  {
+    "label": "cargo-final",
+    "exit": 0,
+    "source": "865fc1273c",
+    "summary": "all412 primary targets plus4 doctest groups;6798pass45ignore0fail; exact Cargo census matches",
+    "log": "/home/ccheever/sb4-loop/integ18/cargo-final.log",
+    "sha256": "3db45f247df2c6659308c023a54064c3efc5da0c2e5792e420a6087f10f3d90b"
+  },
+  {
+    "label": "ref-closeout",
+    "exit": 0,
+    "command": "./ref-check --verbose",
+    "log": "/home/ccheever/sb4-loop/integ18/ref-closeout.log",
+    "sha256": "774abd95b4ffb8e58bff770ea0262c270d90935b2bd71e3c571469f4762e36b2",
+    "output": "ref-check: ok \u2014 556 LLP docs, 12096 refs in 43482 files, 0 errors, 0 unchecked"
   }
 ]

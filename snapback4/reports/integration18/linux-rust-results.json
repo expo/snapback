@@ -1,0 +1,7894 @@
+{
+  "source": "865fc1273c",
+  "exit": 0,
+  "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUST_TEST_THREADS": "8",
+    "CARGO_BUILD_JOBS": "16"
+  },
+  "primaryExecutables": 412,
+  "allMetadataTargetsCovered": true,
+  "doctestGroups": 4,
+  "totals": {
+    "passed": 6798,
+    "failed": 0,
+    "ignored": 45,
+    "measured": 0,
+    "filtered": 0
+  },
+  "targets": [
+    {
+      "target": "Running unittests src/main.rs (target/debug/deps/snapback4-c2f24ad67bb7c161)",
+      "passed": 494,
+      "failed": 0,
+      "ignored": 5,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 16.81,
+      "package": "snapback4",
+      "name": "snapback4"
+    },
+    {
+      "target": "Running tests/aggregate_identity_upgrade.rs (target/debug/deps/aggregate_identity_upgrade-f5ac7bee61c5d544)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 4,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4",
+      "name": "aggregate_identity_upgrade"
+    },
+    {
+      "target": "Running tests/check.rs (target/debug/deps/check-a09b05c1e3d5e86f)",
+      "passed": 105,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 15.6,
+      "package": "snapback4",
+      "name": "check"
+    },
+    {
+      "target": "Running tests/check_cost_source.rs (target/debug/deps/check_cost_source-a383a5b78df8557b)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.07,
+      "package": "snapback4",
+      "name": "check_cost_source"
+    },
+    {
+      "target": "Running tests/check_notes.rs (target/debug/deps/check_notes-36c4f320353d2dc8)",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 10.1,
+      "package": "snapback4",
+      "name": "check_notes"
+    },
+    {
+      "target": "Running tests/cli_friction.rs (target/debug/deps/cli_friction-83778b5b20748517)",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.1,
+      "package": "snapback4",
+      "name": "cli_friction"
+    },
+    {
+      "target": "Running tests/clock.rs (target/debug/deps/clock-a01b8561f76508c8)",
+      "passed": 45,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 10.47,
+      "package": "snapback4",
+      "name": "clock"
+    },
+    {
+      "target": "Running tests/column_commit.rs (target/debug/deps/column_commit-fd8be9060cfde8e1)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.35,
+      "package": "snapback4",
+      "name": "column_commit"
+    },
+    {
+      "target": "Running tests/day3.rs (target/debug/deps/day3-34c30112be208858)",
+      "passed": 20,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 12.98,
+      "package": "snapback4",
+      "name": "day3"
+    },
+    {
+      "target": "Running tests/day4.rs (target/debug/deps/day4-92d9102bbe96bbea)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.96,
+      "package": "snapback4",
+      "name": "day4"
+    },
+    {
+      "target": "Running tests/day5_evidence.rs (target/debug/deps/day5_evidence-8866b6efe733e64f)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.74,
+      "package": "snapback4",
+      "name": "day5_evidence"
+    },
+    {
+      "target": "Running tests/day5_previews.rs (target/debug/deps/day5_previews-b21b96fdfbd88dc4)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.2,
+      "package": "snapback4",
+      "name": "day5_previews"
+    },
+    {
+      "target": "Running tests/day5_starters.rs (target/debug/deps/day5_starters-fb43afa64c9c6ed2)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 8.66,
+      "package": "snapback4",
+      "name": "day5_starters"
+    },
+    {
+      "target": "Running tests/delivery_page.rs (target/debug/deps/delivery_page-4de4e8cd6af4021d)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.02,
+      "package": "snapback4",
+      "name": "delivery_page"
+    },
+    {
+      "target": "Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-0381affd2833c98d)",
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.22,
+      "package": "snapback4",
+      "name": "dev_refusals"
+    },
+    {
+      "target": "Running tests/dev_reset.rs (target/debug/deps/dev_reset-cd37bfc546b98294)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.16,
+      "package": "snapback4",
+      "name": "dev_reset"
+    },
+    {
+      "target": "Running tests/expiry_writes.rs (target/debug/deps/expiry_writes-130eefabf40b6c0d)",
+      "passed": 41,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 21.81,
+      "package": "snapback4",
+      "name": "expiry_writes"
+    },
+    {
+      "target": "Running tests/familiar.rs (target/debug/deps/familiar-21442af7f25c1580)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.15,
+      "package": "snapback4",
+      "name": "familiar"
+    },
+    {
+      "target": "Running tests/feed_bridge.rs (target/debug/deps/feed_bridge-57650c96b4ce2d1a)",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.59,
+      "package": "snapback4",
+      "name": "feed_bridge"
+    },
+    {
+      "target": "Running tests/fix.rs (target/debug/deps/fix-1ca0dbd9f3565f7e)",
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4",
+      "name": "fix"
+    },
+    {
+      "target": "Running tests/following_view.rs (target/debug/deps/following_view-0759be3e055306b7)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.11,
+      "package": "snapback4",
+      "name": "following_view"
+    },
+    {
+      "target": "Running tests/http.rs (target/debug/deps/http-29d2a9e11ea32134)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.4,
+      "package": "snapback4",
+      "name": "http"
+    },
+    {
+      "target": "Running tests/http_emfile.rs (target/debug/deps/http_emfile-f6f44e908a856fc3)",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 8.23,
+      "package": "snapback4",
+      "name": "http_emfile"
+    },
+    {
+      "target": "Running tests/init.rs (target/debug/deps/init-2f08eef3f2b9f604)",
+      "passed": 51,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 326.61,
+      "package": "snapback4",
+      "name": "init"
+    },
+    {
+      "target": "Running tests/init_dx3.rs (target/debug/deps/init_dx3-d8486ec247c81d81)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 13.67,
+      "package": "snapback4",
+      "name": "init_dx3"
+    },
+    {
+      "target": "Running tests/init_production.rs (target/debug/deps/init_production-83f3e935ee4f6892)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.14,
+      "package": "snapback4",
+      "name": "init_production"
+    },
+    {
+      "target": "Running tests/intent_issue_tracker.rs (target/debug/deps/intent_issue_tracker-0b400db9d57a1df9)",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.54,
+      "package": "snapback4",
+      "name": "intent_issue_tracker"
+    },
+    {
+      "target": "Running tests/latency.rs (target/debug/deps/latency-01b09702cf5ec856)",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.15,
+      "package": "snapback4",
+      "name": "latency"
+    },
+    {
+      "target": "Running tests/lifecycle.rs (target/debug/deps/lifecycle-bce9cdacba6fa1c8)",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 22.44,
+      "package": "snapback4",
+      "name": "lifecycle"
+    },
+    {
+      "target": "Running tests/maintenance_chunks.rs (target/debug/deps/maintenance_chunks-1c84647becd22cf9)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.43,
+      "package": "snapback4",
+      "name": "maintenance_chunks"
+    },
+    {
+      "target": "Running tests/maintenance_latency.rs (target/debug/deps/maintenance_latency-3fc362e69702a32a)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 4,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4",
+      "name": "maintenance_latency"
+    },
+    {
+      "target": "Running tests/overload.rs (target/debug/deps/overload-466b3c97fe8e9351)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 3.11,
+      "package": "snapback4",
+      "name": "overload"
+    },
+    {
+      "target": "Running tests/read_latency.rs (target/debug/deps/read_latency-df317c6120228922)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4",
+      "name": "read_latency"
+    },
+    {
+      "target": "Running tests/replay.rs (target/debug/deps/replay-2ed2fb6fc29f4469)",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.09,
+      "package": "snapback4",
+      "name": "replay"
+    },
+    {
+      "target": "Running tests/run_admission.rs (target/debug/deps/run_admission-0f2b5f008749573b)",
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 15.05,
+      "package": "snapback4",
+      "name": "run_admission"
+    },
+    {
+      "target": "Running tests/scale.rs (target/debug/deps/scale-c0039e75aaeb4e99)",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.6,
+      "package": "snapback4",
+      "name": "scale"
+    },
+    {
+      "target": "Running tests/scale_curves.rs (target/debug/deps/scale_curves-4e40aedffc9c0501)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.96,
+      "package": "snapback4",
+      "name": "scale_curves"
+    },
+    {
+      "target": "Running tests/scale_extremum_expressions.rs (target/debug/deps/scale_extremum_expressions-7d7c9d6ceb93fc60)",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.18,
+      "package": "snapback4",
+      "name": "scale_extremum_expressions"
+    },
+    {
+      "target": "Running tests/scale_intent.rs (target/debug/deps/scale_intent-8e718fe9adad028f)",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.16,
+      "package": "snapback4",
+      "name": "scale_intent"
+    },
+    {
+      "target": "Running tests/scale_row_ranges.rs (target/debug/deps/scale_row_ranges-2eaf9fcc4b11d82c)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.46,
+      "package": "snapback4",
+      "name": "scale_row_ranges"
+    },
+    {
+      "target": "Running tests/scale_variants.rs (target/debug/deps/scale_variants-362c7a0f4a10e5c3)",
+      "passed": 36,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4",
+      "name": "scale_variants"
+    },
+    {
+      "target": "Running tests/scale_windows_expiry.rs (target/debug/deps/scale_windows_expiry-a9b0574800cc4abf)",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 4.08,
+      "package": "snapback4",
+      "name": "scale_windows_expiry"
+    },
+    {
+      "target": "Running tests/surf4.rs (target/debug/deps/surf4-2e51dcad0fd84d55)",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.83,
+      "package": "snapback4",
+      "name": "surf4"
+    },
+    {
+      "target": "Running tests/timeline.rs (target/debug/deps/timeline-3c3cbf570ea4e9e3)",
+      "passed": 23,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.87,
+      "package": "snapback4",
+      "name": "timeline"
+    },
+    {
+      "target": "Running tests/timeline_adoption.rs (target/debug/deps/timeline_adoption-90537bb52ecba1a5)",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.8,
+      "package": "snapback4",
+      "name": "timeline_adoption"
+    },
+    {
+      "target": "Running tests/timeline_delivery.rs (target/debug/deps/timeline_delivery-dc456e6d3ebbf14e)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.99,
+      "package": "snapback4",
+      "name": "timeline_delivery"
+    },
+    {
+      "target": "Running tests/timeline_delivery_counterexample.rs (target/debug/deps/timeline_delivery_counterexample-022e6b777e314dc2)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.42,
+      "package": "snapback4",
+      "name": "timeline_delivery_counterexample"
+    },
+    {
+      "target": "Running tests/timeline_design.rs (target/debug/deps/timeline_design-3fae0b7b7da861ae)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.07,
+      "package": "snapback4",
+      "name": "timeline_design"
+    },
+    {
+      "target": "Running tests/token_live.rs (target/debug/deps/token_live-193de373362f14d1)",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.27,
+      "package": "snapback4",
+      "name": "token_live"
+    },
+    {
+      "target": "Running tests/wave13_rules.rs (target/debug/deps/wave13_rules-50de42c2f5e996fc)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.9,
+      "package": "snapback4",
+      "name": "wave13_rules"
+    },
+    {
+      "target": "Running tests/witness.rs (target/debug/deps/witness-6c50830996e04601)",
+      "passed": 34,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 3.17,
+      "package": "snapback4",
+      "name": "witness"
+    },
+    {
+      "target": "Running tests/witness_web.rs (target/debug/deps/witness_web-02386b39594f7090)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.09,
+      "package": "snapback4",
+      "name": "witness_web"
+    },
+    {
+      "target": "Running tests/work_records.rs (target/debug/deps/work_records-3c1e67a84dc8ce44)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.11,
+      "package": "snapback4",
+      "name": "work_records"
+    },
+    {
+      "target": "Running tests/written_by.rs (target/debug/deps/written_by-83af6907b89e41b7)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4",
+      "name": "written_by"
+    },
+    {
+      "target": "Running unittests src/lib.rs (target/debug/deps/snapback4_core-48212f2264c7493d)",
+      "passed": 438,
+      "failed": 0,
+      "ignored": 3,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 208.31,
+      "package": "snapback4-core",
+      "name": "snapback4_core"
+    },
+    {
+      "target": "Running tests/action_context.rs (target/debug/deps/action_context-f81ef9028bc5c085)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.45,
+      "package": "snapback4-core",
+      "name": "action_context"
+    },
+    {
+      "target": "Running tests/adoption_scale.rs (target/debug/deps/adoption_scale-647b380d168bb035)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-core",
+      "name": "adoption_scale"
+    },
+    {
+      "target": "Running tests/asset_lists.rs (target/debug/deps/asset_lists-938216b4bb650a6f)",
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.8,
+      "package": "snapback4-core",
+      "name": "asset_lists"
+    },
+    {
+      "target": "Running tests/born_perf.rs (target/debug/deps/born_perf-2378c6f168613936)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.87,
+      "package": "snapback4-core",
+      "name": "born_perf"
+    },
+    {
+      "target": "Running tests/bound_session.rs (target/debug/deps/bound_session-5ffa66ef3d77568a)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.28,
+      "package": "snapback4-core",
+      "name": "bound_session"
+    },
+    {
+      "target": "Running tests/corpus.rs (target/debug/deps/corpus-02f9af6ca4c836a3)",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.49,
+      "package": "snapback4-core",
+      "name": "corpus"
+    },
+    {
+      "target": "Running tests/delivery_bounds.rs (target/debug/deps/delivery_bounds-a27be6874319bdc5)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.41,
+      "package": "snapback4-core",
+      "name": "delivery_bounds"
+    },
+    {
+      "target": "Running tests/dev_reset.rs (target/debug/deps/dev_reset-9060322f085ecf4a)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.11,
+      "package": "snapback4-core",
+      "name": "dev_reset"
+    },
+    {
+      "target": "Running tests/disclosure.rs (target/debug/deps/disclosure-c827af2f4afb7727)",
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 90.36,
+      "package": "snapback4-core",
+      "name": "disclosure"
+    },
+    {
+      "target": "Running tests/effect_policy.rs (target/debug/deps/effect_policy-a32c694d34afe67d)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.24,
+      "package": "snapback4-core",
+      "name": "effect_policy"
+    },
+    {
+      "target": "Running tests/ephemeral.rs (target/debug/deps/ephemeral-fdff96441559a606)",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.42,
+      "package": "snapback4-core",
+      "name": "ephemeral"
+    },
+    {
+      "target": "Running tests/event_slot_snapshot.rs (target/debug/deps/event_slot_snapshot-c9904a5e047393cb)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.24,
+      "package": "snapback4-core",
+      "name": "event_slot_snapshot"
+    },
+    {
+      "target": "Running tests/expiring_adoption.rs (target/debug/deps/expiring_adoption-194a98a4ce57542d)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.71,
+      "package": "snapback4-core",
+      "name": "expiring_adoption"
+    },
+    {
+      "target": "Running tests/file_assets.rs (target/debug/deps/file_assets-fce80759f074e892)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.16,
+      "package": "snapback4-core",
+      "name": "file_assets"
+    },
+    {
+      "target": "Running tests/identity.rs (target/debug/deps/identity-96f7c44499175133)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.26,
+      "package": "snapback4-core",
+      "name": "identity"
+    },
+    {
+      "target": "Running tests/job_time_audiences.rs (target/debug/deps/job_time_audiences-292b1c98076b3497)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.13,
+      "package": "snapback4-core",
+      "name": "job_time_audiences"
+    },
+    {
+      "target": "Running tests/lane_source.rs (target/debug/deps/lane_source-446990364cb6b89f)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.61,
+      "package": "snapback4-core",
+      "name": "lane_source"
+    },
+    {
+      "target": "Running tests/maintained_columns_review.rs (target/debug/deps/maintained_columns_review-7a5dbb4e24413c2c)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.31,
+      "package": "snapback4-core",
+      "name": "maintained_columns_review"
+    },
+    {
+      "target": "Running tests/membership_discovery_steps.rs (target/debug/deps/membership_discovery_steps-b3fc2884852811c1)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.15,
+      "package": "snapback4-core",
+      "name": "membership_discovery_steps"
+    },
+    {
+      "target": "Running tests/meter.rs (target/debug/deps/meter-d44cd86fd9a39d80)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.35,
+      "package": "snapback4-core",
+      "name": "meter"
+    },
+    {
+      "target": "Running tests/pending_metadata_heap.rs (target/debug/deps/pending_metadata_heap-6310fee028f79534)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-core",
+      "name": "pending_metadata_heap"
+    },
+    {
+      "target": "Running tests/read_sessions.rs (target/debug/deps/read_sessions-1112f98f6afbaab8)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.18,
+      "package": "snapback4-core",
+      "name": "read_sessions"
+    },
+    {
+      "target": "Running tests/refused_open.rs (target/debug/deps/refused_open-f0d6218673ea5fef)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.1,
+      "package": "snapback4-core",
+      "name": "refused_open"
+    },
+    {
+      "target": "Running tests/review_walk.rs (target/debug/deps/review_walk-0bf266d85e388a14)",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 4.43,
+      "package": "snapback4-core",
+      "name": "review_walk"
+    },
+    {
+      "target": "Running tests/revocation_history.rs (target/debug/deps/revocation_history-65ab10e7ecda1874)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.27,
+      "package": "snapback4-core",
+      "name": "revocation_history"
+    },
+    {
+      "target": "Running tests/routes.rs (target/debug/deps/routes-550b586469b7b27e)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.22,
+      "package": "snapback4-core",
+      "name": "routes"
+    },
+    {
+      "target": "Running tests/row_view_accounting.rs (target/debug/deps/row_view_accounting-53c9edfa2e54d2c4)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 15.14,
+      "package": "snapback4-core",
+      "name": "row_view_accounting"
+    },
+    {
+      "target": "Running tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-a4d67f081461fdd9)",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 322.17,
+      "package": "snapback4-core",
+      "name": "row_view_disclosure"
+    },
+    {
+      "target": "Running tests/row_view_legacy.rs (target/debug/deps/row_view_legacy-dd495afba87fbf48)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-core",
+      "name": "row_view_legacy"
+    },
+    {
+      "target": "Running tests/row_view_witness.rs (target/debug/deps/row_view_witness-c20e915336849fb8)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 9.72,
+      "package": "snapback4-core",
+      "name": "row_view_witness"
+    },
+    {
+      "target": "Running tests/rows.rs (target/debug/deps/rows-9c9f2a47333f2f4a)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.36,
+      "package": "snapback4-core",
+      "name": "rows"
+    },
+    {
+      "target": "Running tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-80611fdb9ac13cf2)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-core",
+      "name": "schema_capabilities"
+    },
+    {
+      "target": "Running tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-91d32beac953292a)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.02,
+      "package": "snapback4-core",
+      "name": "schema_capabilities_legacy"
+    },
+    {
+      "target": "Running tests/sequence_by.rs (target/debug/deps/sequence_by-bf48027ca081c9cc)",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.69,
+      "package": "snapback4-core",
+      "name": "sequence_by"
+    },
+    {
+      "target": "Running tests/sequence_disclosure.rs (target/debug/deps/sequence_disclosure-2064dc5b0c07f205)",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 103.14,
+      "package": "snapback4-core",
+      "name": "sequence_disclosure"
+    },
+    {
+      "target": "Running tests/stream_receipts.rs (target/debug/deps/stream_receipts-b3f9da592f6045d5)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-core",
+      "name": "stream_receipts"
+    },
+    {
+      "target": "Running tests/sync_count_batch.rs (target/debug/deps/sync_count_batch-12bd291bb0c19fb2)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.28,
+      "package": "snapback4-core",
+      "name": "sync_count_batch"
+    },
+    {
+      "target": "Running tests/time_audiences.rs (target/debug/deps/time_audiences-4f4a21466333e6d0)",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.07,
+      "package": "snapback4-core",
+      "name": "time_audiences"
+    },
+    {
+      "target": "Running tests/unicode_fold.rs (target/debug/deps/unicode_fold-fd6660acf111f000)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.45,
+      "package": "snapback4-core",
+      "name": "unicode_fold"
+    },
+    {
+      "target": "Running tests/update_rule_images.rs (target/debug/deps/update_rule_images-93bfbff1964b3cd7)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.25,
+      "package": "snapback4-core",
+      "name": "update_rule_images"
+    },
+    {
+      "target": "Running tests/upload_intents.rs (target/debug/deps/upload_intents-aa843e34c29b5163)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.19,
+      "package": "snapback4-core",
+      "name": "upload_intents"
+    },
+    {
+      "target": "Running tests/work_records.rs (target/debug/deps/work_records-1ad651fbbd6398a7)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.13,
+      "package": "snapback4-core",
+      "name": "work_records"
+    },
+    {
+      "target": "Running unittests src/lib.rs (target/debug/deps/snapback4_device-dd1097061274a077)",
+      "passed": 64,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.39,
+      "package": "snapback4-device",
+      "name": "snapback4_device"
+    },
+    {
+      "target": "Running tests/acquisition_crash.rs (target/debug/deps/acquisition_crash-dda699407941121c)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 6.15,
+      "package": "snapback4-device",
+      "name": "acquisition_crash"
+    },
+    {
+      "target": "Running tests/adoption.rs (target/debug/deps/adoption-6dae574d266371d6)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.47,
+      "package": "snapback4-device",
+      "name": "adoption"
+    },
+    {
+      "target": "Running tests/asset_lists.rs (target/debug/deps/asset_lists-15331ee44957d140)",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.88,
+      "package": "snapback4-device",
+      "name": "asset_lists"
+    },
+    {
+      "target": "Running tests/background_durability.rs (target/debug/deps/background_durability-2180a3d0be315cf3)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.11,
+      "package": "snapback4-device",
+      "name": "background_durability"
+    },
+    {
+      "target": "Running tests/bounded_calendar_caps.rs (target/debug/deps/bounded_calendar_caps-b129f84196ea0034)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.34,
+      "package": "snapback4-device",
+      "name": "bounded_calendar_caps"
+    },
+    {
+      "target": "Running tests/bounded_following.rs (target/debug/deps/bounded_following-7de4a8ef1ac8fc83)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.31,
+      "package": "snapback4-device",
+      "name": "bounded_following"
+    },
+    {
+      "target": "Running tests/branch_merge.rs (target/debug/deps/branch_merge-f999e2cc8ba7b272)",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.12,
+      "package": "snapback4-device",
+      "name": "branch_merge"
+    },
+    {
+      "target": "Running tests/codec.rs (target/debug/deps/codec-34445489bac7d744)",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.24,
+      "package": "snapback4-device",
+      "name": "codec"
+    },
+    {
+      "target": "Running tests/column_activation.rs (target/debug/deps/column_activation-efdf7021acab0ebc)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.63,
+      "package": "snapback4-device",
+      "name": "column_activation"
+    },
+    {
+      "target": "Running tests/components.rs (target/debug/deps/components-9de315bd937713ba)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.38,
+      "package": "snapback4-device",
+      "name": "components"
+    },
+    {
+      "target": "Running tests/cut.rs (target/debug/deps/cut-f326ae81aa18a131)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.13,
+      "package": "snapback4-device",
+      "name": "cut"
+    },
+    {
+      "target": "Running tests/delivery.rs (target/debug/deps/delivery-53ab1ec297ef083f)",
+      "passed": 30,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.77,
+      "package": "snapback4-device",
+      "name": "delivery"
+    },
+    {
+      "target": "Running tests/device.rs (target/debug/deps/device-41afaeb002fb6ebd)",
+      "passed": 440,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 271.43,
+      "package": "snapback4-device",
+      "name": "device"
+    },
+    {
+      "target": "Running tests/device_diet.rs (target/debug/deps/device_diet-31c79445344bf228)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-device",
+      "name": "device_diet"
+    },
+    {
+      "target": "Running tests/diet_timing.rs (target/debug/deps/diet_timing-e8d8f13d0e77129f)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-device",
+      "name": "diet_timing"
+    },
+    {
+      "target": "Running tests/disclosure.rs (target/debug/deps/disclosure-35b28f97123d4e95)",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 272.13,
+      "package": "snapback4-device",
+      "name": "disclosure"
+    },
+    {
+      "target": "Running tests/ephemeral.rs (target/debug/deps/ephemeral-b4b99b72992583ce)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.04,
+      "package": "snapback4-device",
+      "name": "ephemeral"
+    },
+    {
+      "target": "Running tests/event_slots.rs (target/debug/deps/event_slots-7825d444b459d8db)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.6,
+      "package": "snapback4-device",
+      "name": "event_slots"
+    },
+    {
+      "target": "Running tests/event_slots_trace.rs (target/debug/deps/event_slots_trace-b38b50edf0838fd6)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.47,
+      "package": "snapback4-device",
+      "name": "event_slots_trace"
+    },
+    {
+      "target": "Running tests/expiring_counts.rs (target/debug/deps/expiring_counts-65af09d979e5fdeb)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 4.32,
+      "package": "snapback4-device",
+      "name": "expiring_counts"
+    },
+    {
+      "target": "Running tests/expiring_counts_probe.rs (target/debug/deps/expiring_counts_probe-b47a4d2b158744e0)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 3.87,
+      "package": "snapback4-device",
+      "name": "expiring_counts_probe"
+    },
+    {
+      "target": "Running tests/expiring_counts_upgrade.rs (target/debug/deps/expiring_counts_upgrade-a1bd9c389e81b217)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.13,
+      "package": "snapback4-device",
+      "name": "expiring_counts_upgrade"
+    },
+    {
+      "target": "Running tests/expiring_mutations.rs (target/debug/deps/expiring_mutations-4efa0f303b8277ff)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.17,
+      "package": "snapback4-device",
+      "name": "expiring_mutations"
+    },
+    {
+      "target": "Running tests/expiry_maintained_columns.rs (target/debug/deps/expiry_maintained_columns-9418c01bf600437c)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.04,
+      "package": "snapback4-device",
+      "name": "expiry_maintained_columns"
+    },
+    {
+      "target": "Running tests/extrema.rs (target/debug/deps/extrema-2c978135355281b7)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.1,
+      "package": "snapback4-device",
+      "name": "extrema"
+    },
+    {
+      "target": "Running tests/extremum_expressions.rs (target/debug/deps/extremum_expressions-ab3234836ecb5f2e)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.62,
+      "package": "snapback4-device",
+      "name": "extremum_expressions"
+    },
+    {
+      "target": "Running tests/file_assets.rs (target/debug/deps/file_assets-59a1bcdcd6283099)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.11,
+      "package": "snapback4-device",
+      "name": "file_assets"
+    },
+    {
+      "target": "Running tests/first_instinct.rs (target/debug/deps/first_instinct-b7f539c56ae41331)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 3.65,
+      "package": "snapback4-device",
+      "name": "first_instinct"
+    },
+    {
+      "target": "Running tests/first_paste.rs (target/debug/deps/first_paste-7038dec2cd00dacf)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.04,
+      "package": "snapback4-device",
+      "name": "first_paste"
+    },
+    {
+      "target": "Running tests/following_meters.rs (target/debug/deps/following_meters-4ab32bef606bd64f)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-device",
+      "name": "following_meters"
+    },
+    {
+      "target": "Running tests/following_model.rs (target/debug/deps/following_model-8d8fae57c6b49e65)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 4.8,
+      "package": "snapback4-device",
+      "name": "following_model"
+    },
+    {
+      "target": "Running tests/following_view.rs (target/debug/deps/following_view-9b7e3ce0b0f1acf4)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.91,
+      "package": "snapback4-device",
+      "name": "following_view"
+    },
+    {
+      "target": "Running tests/heavy_acquisition.rs (target/debug/deps/heavy_acquisition-e740deed2d251c1f)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.58,
+      "package": "snapback4-device",
+      "name": "heavy_acquisition"
+    },
+    {
+      "target": "Running tests/helper_pages.rs (target/debug/deps/helper_pages-38cd390a10e0f118)",
+      "passed": 90,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 32.26,
+      "package": "snapback4-device",
+      "name": "helper_pages"
+    },
+    {
+      "target": "Running tests/index_key_bound.rs (target/debug/deps/index_key_bound-b917dfa5630b413a)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.02,
+      "package": "snapback4-device",
+      "name": "index_key_bound"
+    },
+    {
+      "target": "Running tests/intent_variants.rs (target/debug/deps/intent_variants-692a501b19ce2aa6)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.14,
+      "package": "snapback4-device",
+      "name": "intent_variants"
+    },
+    {
+      "target": "Running tests/intent_views.rs (target/debug/deps/intent_views-e3b16722c388c0a8)",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.59,
+      "package": "snapback4-device",
+      "name": "intent_views"
+    },
+    {
+      "target": "Running tests/list_lower_bounds.rs (target/debug/deps/list_lower_bounds-69c8eb90ec6772f2)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-device",
+      "name": "list_lower_bounds"
+    },
+    {
+      "target": "Running tests/live_parent.rs (target/debug/deps/live_parent-c674c0b6a8e723c3)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.24,
+      "package": "snapback4-device",
+      "name": "live_parent"
+    },
+    {
+      "target": "Running tests/matching_order.rs (target/debug/deps/matching_order-cb6863f1ff365cfa)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.39,
+      "package": "snapback4-device",
+      "name": "matching_order"
+    },
+    {
+      "target": "Running tests/mixed_keys.rs (target/debug/deps/mixed_keys-e99d4ea8f6278b85)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4-device",
+      "name": "mixed_keys"
+    },
+    {
+      "target": "Running tests/monotonic_ids.rs (target/debug/deps/monotonic_ids-83ddc1911273b84a)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.07,
+      "package": "snapback4-device",
+      "name": "monotonic_ids"
+    },
+    {
+      "target": "Running tests/mp_builder.rs (target/debug/deps/mp_builder-36f34b8e5e2763c8)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.85,
+      "package": "snapback4-device",
+      "name": "mp_builder"
+    },
+    {
+      "target": "Running tests/named_key_lookup.rs (target/debug/deps/named_key_lookup-5ad9adc59229fd5f)",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.9,
+      "package": "snapback4-device",
+      "name": "named_key_lookup"
+    },
+    {
+      "target": "Running tests/native.rs (target/debug/deps/native-e03fa11abe448ba7)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.45,
+      "package": "snapback4-device",
+      "name": "native"
+    },
+    {
+      "target": "Running tests/native_following.rs (target/debug/deps/native_following-771ae9c9e36e2dd3)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.54,
+      "package": "snapback4-device",
+      "name": "native_following"
+    },
+    {
+      "target": "Running tests/native_reads.rs (target/debug/deps/native_reads-51b332a63bfd64fd)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.33,
+      "package": "snapback4-device",
+      "name": "native_reads"
+    },
+    {
+      "target": "Running tests/natural_forms.rs (target/debug/deps/natural_forms-e96048860ebad6f4)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.2,
+      "package": "snapback4-device",
+      "name": "natural_forms"
+    },
+    {
+      "target": "Running tests/nl_qe2_integration.rs (target/debug/deps/nl_qe2_integration-e8f95c05202dded4)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 5.14,
+      "package": "snapback4-device",
+      "name": "nl_qe2_integration"
+    },
+    {
+      "target": "Running tests/own_keys.rs (target/debug/deps/own_keys-80fba74d9ac8a8fa)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.26,
+      "package": "snapback4-device",
+      "name": "own_keys"
+    },
+    {
+      "target": "Running tests/own_keys_cost.rs (target/debug/deps/own_keys_cost-a34f44b6620fa6c1)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-device",
+      "name": "own_keys_cost"
+    },
+    {
+      "target": "Running tests/point_probe_admission.rs (target/debug/deps/point_probe_admission-c5c6b94e0e8ffc5a)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.0,
+      "package": "snapback4-device",
+      "name": "point_probe_admission"
+    },
+    {
+      "target": "Running tests/prediction_write_set.rs (target/debug/deps/prediction_write_set-8f747a39420cdc8a)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.04,
+      "package": "snapback4-device",
+      "name": "prediction_write_set"
+    },
+    {
+      "target": "Running tests/qe2_allocations.rs (target/debug/deps/qe2_allocations-ba6ee543b9fdd659)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.5,
+      "package": "snapback4-device",
+      "name": "qe2_allocations"
+    },
+    {
+      "target": "Running tests/qe2_ergonomics.rs (target/debug/deps/qe2_ergonomics-61a858200e392de6)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.04,
+      "package": "snapback4-device",
+      "name": "qe2_ergonomics"
+    },
+    {
+      "target": "Running tests/query_unavailable.rs (target/debug/deps/query_unavailable-aea0eb66a01ff9dc)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.06,
+      "package": "snapback4-device",
+      "name": "query_unavailable"
+    },
+    {
+      "target": "Running tests/read_through.rs (target/debug/deps/read_through-cab9c39b17063945)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.28,
+      "package": "snapback4-device",
+      "name": "read_through"
+    },
+    {
+      "target": "Running tests/read_through_review.rs (target/debug/deps/read_through_review-6808220abcad051b)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.14,
+      "package": "snapback4-device",
+      "name": "read_through_review"
+    },
+    {
+      "target": "Running tests/readauth.rs (target/debug/deps/readauth-444b15c6e2593cbd)",
+      "passed": 88,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 5.43,
+      "package": "snapback4-device",
+      "name": "readauth"
+    },
+    {
+      "target": "Running tests/recorded_coverage.rs (target/debug/deps/recorded_coverage-b3cd18df59036083)",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 5.05,
+      "package": "snapback4-device",
+      "name": "recorded_coverage"
+    },
+    {
+      "target": "Running tests/reference_actions.rs (target/debug/deps/reference_actions-972e23533a3bd4cc)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.45,
+      "package": "snapback4-device",
+      "name": "reference_actions"
+    },
+    {
+      "target": "Running tests/repair_b.rs (target/debug/deps/repair_b-cfd444ade6a22340)",
+      "passed": 110,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 15.98,
+      "package": "snapback4-device",
+      "name": "repair_b"
+    },
+    {
+      "target": "Running tests/repair_b_boundaries.rs (target/debug/deps/repair_b_boundaries-2659433393c544d2)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.08,
+      "package": "snapback4-device",
+      "name": "repair_b_boundaries"
+    },
+    {
+      "target": "Running tests/repair_b_counterexample.rs (target/debug/deps/repair_b_counterexample-638470f7af9e259a)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-device",
+      "name": "repair_b_counterexample"
+    },
+    {
+      "target": "Running tests/repair_b_legacy_r6.rs (target/debug/deps/repair_b_legacy_r6-4b164a99d93122e0)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.11,
+      "package": "snapback4-device",
+      "name": "repair_b_legacy_r6"
+    },
+    {
+      "target": "Running tests/repair_b_round2_counterexample.rs (target/debug/deps/repair_b_round2_counterexample-5803b55ae884ad90)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.11,
+      "package": "snapback4-device",
+      "name": "repair_b_round2_counterexample"
+    },
+    {
+      "target": "Running tests/repair_b_round3_counterexample.rs (target/debug/deps/repair_b_round3_counterexample-1e98092052adaa00)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.42,
+      "package": "snapback4-device",
+      "name": "repair_b_round3_counterexample"
+    },
+    {
+      "target": "Running tests/residency.rs (target/debug/deps/residency-33037a6b9085c8c2)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.56,
+      "package": "snapback4-device",
+      "name": "residency"
+    },
+    {
+      "target": "Running tests/retained_history.rs (target/debug/deps/retained_history-56bce47625f049de)",
+      "passed": 20,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.72,
+      "package": "snapback4-device",
+      "name": "retained_history"
+    },
+    {
+      "target": "Running tests/retained_release.rs (target/debug/deps/retained_release-c8cc0a3bfff6e3e5)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.36,
+      "package": "snapback4-device",
+      "name": "retained_release"
+    },
+    {
+      "target": "Running tests/review_parent_floor.rs (target/debug/deps/review_parent_floor-b66183fde70b4f51)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.19,
+      "package": "snapback4-device",
+      "name": "review_parent_floor"
+    },
+    {
+      "target": "Running tests/row_keyed_views.rs (target/debug/deps/row_keyed_views-402e4ea94a15b086)",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.32,
+      "package": "snapback4-device",
+      "name": "row_keyed_views"
+    },
+    {
+      "target": "Running tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-d8c740a73eba52cb)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 525.18,
+      "package": "snapback4-device",
+      "name": "row_view_disclosure"
+    },
+    {
+      "target": "Running tests/row_view_expiry.rs (target/debug/deps/row_view_expiry-1d802b65d58f2f4f)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 8.87,
+      "package": "snapback4-device",
+      "name": "row_view_expiry"
+    },
+    {
+      "target": "Running tests/rx_rule_hops.rs (target/debug/deps/rx_rule_hops-23a9edd4593f5324)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.13,
+      "package": "snapback4-device",
+      "name": "rx_rule_hops"
+    },
+    {
+      "target": "Running tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-dc927186c865026d)",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.97,
+      "package": "snapback4-device",
+      "name": "schema_capabilities"
+    },
+    {
+      "target": "Running tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-1f1e40aa446ac28c)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.04,
+      "package": "snapback4-device",
+      "name": "schema_capabilities_legacy"
+    },
+    {
+      "target": "Running tests/search_exists.rs (target/debug/deps/search_exists-bea1d2f81bb1da25)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.16,
+      "package": "snapback4-device",
+      "name": "search_exists"
+    },
+    {
+      "target": "Running tests/sequence_by.rs (target/debug/deps/sequence_by-16375553dd267a45)",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.3,
+      "package": "snapback4-device",
+      "name": "sequence_by"
+    },
+    {
+      "target": "Running tests/sequence_disclosure.rs (target/debug/deps/sequence_disclosure-e73691e10b437e5e)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 71.22,
+      "package": "snapback4-device",
+      "name": "sequence_disclosure"
+    },
+    {
+      "target": "Running tests/server_clock.rs (target/debug/deps/server_clock-e65d69874f1d6a46)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.45,
+      "package": "snapback4-device",
+      "name": "server_clock"
+    },
+    {
+      "target": "Running tests/shape_overrides.rs (target/debug/deps/shape_overrides-086a809900e67ad1)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-device",
+      "name": "shape_overrides"
+    },
+    {
+      "target": "Running tests/spread_metadata.rs (target/debug/deps/spread_metadata-a94690b829d3ca1a)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.07,
+      "package": "snapback4-device",
+      "name": "spread_metadata"
+    },
+    {
+      "target": "Running tests/spread_pending_union.rs (target/debug/deps/spread_pending_union-f030c11685a64f25)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.09,
+      "package": "snapback4-device",
+      "name": "spread_pending_union"
+    },
+    {
+      "target": "Running tests/sqlite_bulk.rs (target/debug/deps/sqlite_bulk-b0929729def54bfb)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-device",
+      "name": "sqlite_bulk"
+    },
+    {
+      "target": "Running tests/sync_windows.rs (target/debug/deps/sync_windows-4ca483b93daeef8c)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-device",
+      "name": "sync_windows"
+    },
+    {
+      "target": "Running tests/time_audiences.rs (target/debug/deps/time_audiences-69e96b556cad1d37)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.21,
+      "package": "snapback4-device",
+      "name": "time_audiences"
+    },
+    {
+      "target": "Running tests/timed_search.rs (target/debug/deps/timed_search-9ca212bed5697c29)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.17,
+      "package": "snapback4-device",
+      "name": "timed_search"
+    },
+    {
+      "target": "Running tests/timeline.rs (target/debug/deps/timeline-8132ed558bece9ac)",
+      "passed": 26,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.04,
+      "package": "snapback4-device",
+      "name": "timeline"
+    },
+    {
+      "target": "Running tests/topn_complete.rs (target/debug/deps/topn_complete-6ed2b47fe36fbe21)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.49,
+      "package": "snapback4-device",
+      "name": "topn_complete"
+    },
+    {
+      "target": "Running tests/unicode.rs (target/debug/deps/unicode-8427f22328930e36)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-device",
+      "name": "unicode"
+    },
+    {
+      "target": "Running tests/unread_range.rs (target/debug/deps/unread_range-f7369d03443fd19f)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 20.77,
+      "package": "snapback4-device",
+      "name": "unread_range"
+    },
+    {
+      "target": "Running tests/upload_intents.rs (target/debug/deps/upload_intents-854bafcfb4348990)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.21,
+      "package": "snapback4-device",
+      "name": "upload_intents"
+    },
+    {
+      "target": "Running tests/upload_receipts.rs (target/debug/deps/upload_receipts-67426218b26f917d)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.04,
+      "package": "snapback4-device",
+      "name": "upload_receipts"
+    },
+    {
+      "target": "Running tests/upsert_constraints.rs (target/debug/deps/upsert_constraints-1824a01b7ab0b6d6)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.12,
+      "package": "snapback4-device",
+      "name": "upsert_constraints"
+    },
+    {
+      "target": "Running tests/w13g_probe.rs (target/debug/deps/w13g_probe-19054863d297a33e)",
+      "passed": 142,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 18.99,
+      "package": "snapback4-device",
+      "name": "w13g_probe"
+    },
+    {
+      "target": "Running tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-0219748220ac6e92)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.04,
+      "package": "snapback4-device",
+      "name": "wave11_qdiag"
+    },
+    {
+      "target": "Running tests/wave12_language.rs (target/debug/deps/wave12_language-1365a6310186e5a8)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.04,
+      "package": "snapback4-device",
+      "name": "wave12_language"
+    },
+    {
+      "target": "Running tests/wave13_lang2.rs (target/debug/deps/wave13_lang2-916067d35c2f6254)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.17,
+      "package": "snapback4-device",
+      "name": "wave13_lang2"
+    },
+    {
+      "target": "Running tests/write_authority.rs (target/debug/deps/write_authority-ff1aab440293fbe0)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.94,
+      "package": "snapback4-device",
+      "name": "write_authority"
+    },
+    {
+      "target": "Running tests/written_by.rs (target/debug/deps/written_by-07a0606693992f75)",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.0,
+      "package": "snapback4-device",
+      "name": "written_by"
+    },
+    {
+      "target": "Running unittests src/lib.rs (target/debug/deps/snapback4_lang-d2b867e07d5e0c6a)",
+      "passed": 35,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.04,
+      "package": "snapback4-lang",
+      "name": "snapback4_lang"
+    },
+    {
+      "target": "Running tests/actions.rs (target/debug/deps/actions-75d369fa1654a2c2)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "actions"
+    },
+    {
+      "target": "Running tests/aggregate_copies.rs (target/debug/deps/aggregate_copies-5b92f786bd832980)",
+      "passed": 64,
+      "failed": 0,
+      "ignored": 4,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.95,
+      "package": "snapback4-lang",
+      "name": "aggregate_copies"
+    },
+    {
+      "target": "Running tests/attribution_guide.rs (target/debug/deps/attribution_guide-5ee4505cd20cb36e)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-lang",
+      "name": "attribution_guide"
+    },
+    {
+      "target": "Running tests/audience_bounds.rs (target/debug/deps/audience_bounds-cf6af0343bec6065)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.57,
+      "package": "snapback4-lang",
+      "name": "audience_bounds"
+    },
+    {
+      "target": "Running tests/audience_bounds_runtime.rs (target/debug/deps/audience_bounds_runtime-40399881456b6e28)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 5.28,
+      "package": "snapback4-lang",
+      "name": "audience_bounds_runtime"
+    },
+    {
+      "target": "Running tests/bounded_calendar_caps.rs (target/debug/deps/bounded_calendar_caps-d0bad4dddd7865ba)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.13,
+      "package": "snapback4-lang",
+      "name": "bounded_calendar_caps"
+    },
+    {
+      "target": "Running tests/bounded_following.rs (target/debug/deps/bounded_following-3587529a8a231a0a)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.02,
+      "package": "snapback4-lang",
+      "name": "bounded_following"
+    },
+    {
+      "target": "Running tests/branch_merge.rs (target/debug/deps/branch_merge-eb000667a4d4cdad)",
+      "passed": 57,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.7,
+      "package": "snapback4-lang",
+      "name": "branch_merge"
+    },
+    {
+      "target": "Running tests/builder_guidance.rs (target/debug/deps/builder_guidance-5c0e0c9922c6ba21)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "builder_guidance"
+    },
+    {
+      "target": "Running tests/chat.rs (target/debug/deps/chat-eee15941766e2e52)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-lang",
+      "name": "chat"
+    },
+    {
+      "target": "Running tests/clique_03.rs (target/debug/deps/clique_03-564561fd022f5064)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.49,
+      "package": "snapback4-lang",
+      "name": "clique_03"
+    },
+    {
+      "target": "Running tests/components.rs (target/debug/deps/components-d7e48deff50707f0)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "components"
+    },
+    {
+      "target": "Running tests/constraint_diagnostics.rs (target/debug/deps/constraint_diagnostics-0a63e596db156c31)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.07,
+      "package": "snapback4-lang",
+      "name": "constraint_diagnostics"
+    },
+    {
+      "target": "Running tests/control_flow.rs (target/debug/deps/control_flow-714834ec9d482c6a)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 7.78,
+      "package": "snapback4-lang",
+      "name": "control_flow"
+    },
+    {
+      "target": "Running tests/cursor_advice.rs (target/debug/deps/cursor_advice-4c3129e4b1902a3a)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "cursor_advice"
+    },
+    {
+      "target": "Running tests/declarative_receipts.rs (target/debug/deps/declarative_receipts-8c69ca978c06896d)",
+      "passed": 211,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 239.04,
+      "package": "snapback4-lang",
+      "name": "declarative_receipts"
+    },
+    {
+      "target": "Running tests/delivery.rs (target/debug/deps/delivery-050f0a8ff066baf6)",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.56,
+      "package": "snapback4-lang",
+      "name": "delivery"
+    },
+    {
+      "target": "Running tests/delivery_clause.rs (target/debug/deps/delivery_clause-12c66bffb87a464a)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-lang",
+      "name": "delivery_clause"
+    },
+    {
+      "target": "Running tests/delivery_integration.rs (target/debug/deps/delivery_integration-0403ddab23f0a05e)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.11,
+      "package": "snapback4-lang",
+      "name": "delivery_integration"
+    },
+    {
+      "target": "Running tests/delivery_replay_conversion.rs (target/debug/deps/delivery_replay_conversion-03fb4715f5b2f0d5)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4-lang",
+      "name": "delivery_replay_conversion"
+    },
+    {
+      "target": "Running tests/denied_writes.rs (target/debug/deps/denied_writes-1cab789b502ac34d)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-lang",
+      "name": "denied_writes"
+    },
+    {
+      "target": "Running tests/derived_maintains.rs (target/debug/deps/derived_maintains-9cf3b411fce328f3)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.24,
+      "package": "snapback4-lang",
+      "name": "derived_maintains"
+    },
+    {
+      "target": "Running tests/effect_reads.rs (target/debug/deps/effect_reads-af213b824a671fcc)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "effect_reads"
+    },
+    {
+      "target": "Running tests/emit_compatibility.rs (target/debug/deps/emit_compatibility-4d914c994c285ce3)",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.11,
+      "package": "snapback4-lang",
+      "name": "emit_compatibility"
+    },
+    {
+      "target": "Running tests/ephemeral.rs (target/debug/deps/ephemeral-4eba3ac7384483ac)",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "ephemeral"
+    },
+    {
+      "target": "Running tests/ephemeral_compat.rs (target/debug/deps/ephemeral_compat-007afb37039fcfe3)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4-lang",
+      "name": "ephemeral_compat"
+    },
+    {
+      "target": "Running tests/ergonomics.rs (target/debug/deps/ergonomics-01f518b798597fcc)",
+      "passed": 25,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.2,
+      "package": "snapback4-lang",
+      "name": "ergonomics"
+    },
+    {
+      "target": "Running tests/expiring_mutations.rs (target/debug/deps/expiring_mutations-c9029c6980162da1)",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.13,
+      "package": "snapback4-lang",
+      "name": "expiring_mutations"
+    },
+    {
+      "target": "Running tests/extrema.rs (target/debug/deps/extrema-8273232bb15860f5)",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.76,
+      "package": "snapback4-lang",
+      "name": "extrema"
+    },
+    {
+      "target": "Running tests/extremum_expressions.rs (target/debug/deps/extremum_expressions-b25f7611a0cd26a3)",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.34,
+      "package": "snapback4-lang",
+      "name": "extremum_expressions"
+    },
+    {
+      "target": "Running tests/familiar_guesses.rs (target/debug/deps/familiar_guesses-99c766899e97d996)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-lang",
+      "name": "familiar_guesses"
+    },
+    {
+      "target": "Running tests/familiar_predicates.rs (target/debug/deps/familiar_predicates-164c0d3357310fc8)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "familiar_predicates"
+    },
+    {
+      "target": "Running tests/familiar_repairs.rs (target/debug/deps/familiar_repairs-55a13fcd0d6e240f)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "familiar_repairs"
+    },
+    {
+      "target": "Running tests/familiar_source_repairs.rs (target/debug/deps/familiar_source_repairs-62e27440af47c838)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.06,
+      "package": "snapback4-lang",
+      "name": "familiar_source_repairs"
+    },
+    {
+      "target": "Running tests/familiar_verified_repairs.rs (target/debug/deps/familiar_verified_repairs-8af5f27dfb8c8df9)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.74,
+      "package": "snapback4-lang",
+      "name": "familiar_verified_repairs"
+    },
+    {
+      "target": "Running tests/feed_forms.rs (target/debug/deps/feed_forms-9c3325cd2c5c1439)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.19,
+      "package": "snapback4-lang",
+      "name": "feed_forms"
+    },
+    {
+      "target": "Running tests/file_assets.rs (target/debug/deps/file_assets-6aff779f82312c2c)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "file_assets"
+    },
+    {
+      "target": "Running tests/first_paste.rs (target/debug/deps/first_paste-1b37ebf923bb47b5)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.54,
+      "package": "snapback4-lang",
+      "name": "first_paste"
+    },
+    {
+      "target": "Running tests/following_adoption_research.rs (target/debug/deps/following_adoption_research-a084d0d08b038f0c)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 2,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.28,
+      "package": "snapback4-lang",
+      "name": "following_adoption_research"
+    },
+    {
+      "target": "Running tests/following_atomic_launch.rs (target/debug/deps/following_atomic_launch-06acf66e0e656824)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 2,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.31,
+      "package": "snapback4-lang",
+      "name": "following_atomic_launch"
+    },
+    {
+      "target": "Running tests/following_history.rs (target/debug/deps/following_history-c7e7ebf8c80925fa)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.82,
+      "package": "snapback4-lang",
+      "name": "following_history"
+    },
+    {
+      "target": "Running tests/following_history_research.rs (target/debug/deps/following_history_research-407894041d33252c)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 2,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.29,
+      "package": "snapback4-lang",
+      "name": "following_history_research"
+    },
+    {
+      "target": "Running tests/following_view.rs (target/debug/deps/following_view-79bf451dae5286ff)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.76,
+      "package": "snapback4-lang",
+      "name": "following_view"
+    },
+    {
+      "target": "Running tests/front_semantics.rs (target/debug/deps/front_semantics-d7735be2ba250418)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "front_semantics"
+    },
+    {
+      "target": "Running tests/frontend_regressions.rs (target/debug/deps/frontend_regressions-3b04d3bcfa584ed2)",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.73,
+      "package": "snapback4-lang",
+      "name": "frontend_regressions"
+    },
+    {
+      "target": "Running tests/guide.rs (target/debug/deps/guide-cfda383454ee7ea9)",
+      "passed": 126,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 4.2,
+      "package": "snapback4-lang",
+      "name": "guide"
+    },
+    {
+      "target": "Running tests/held_unknown.rs (target/debug/deps/held_unknown-1e0cedab9157646d)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-lang",
+      "name": "held_unknown"
+    },
+    {
+      "target": "Running tests/helper_placement.rs (target/debug/deps/helper_placement-d026c17871ab43f4)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.06,
+      "package": "snapback4-lang",
+      "name": "helper_placement"
+    },
+    {
+      "target": "Running tests/intent_aggregate_safety.rs (target/debug/deps/intent_aggregate_safety-3896a77584e37e98)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.37,
+      "package": "snapback4-lang",
+      "name": "intent_aggregate_safety"
+    },
+    {
+      "target": "Running tests/intent_delta10.rs (target/debug/deps/intent_delta10-983e6de004e6f840)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.44,
+      "package": "snapback4-lang",
+      "name": "intent_delta10"
+    },
+    {
+      "target": "Running tests/intent_followup.rs (target/debug/deps/intent_followup-d0539a9661102a39)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.1,
+      "package": "snapback4-lang",
+      "name": "intent_followup"
+    },
+    {
+      "target": "Running tests/intent_nulls.rs (target/debug/deps/intent_nulls-10be46b6e1bdff30)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.74,
+      "package": "snapback4-lang",
+      "name": "intent_nulls"
+    },
+    {
+      "target": "Running tests/intent_order.rs (target/debug/deps/intent_order-4b2635247b5be50f)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.17,
+      "package": "snapback4-lang",
+      "name": "intent_order"
+    },
+    {
+      "target": "Running tests/intent_predicates.rs (target/debug/deps/intent_predicates-a832e61d875cdb7d)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.31,
+      "package": "snapback4-lang",
+      "name": "intent_predicates"
+    },
+    {
+      "target": "Running tests/intent_review.rs (target/debug/deps/intent_review-d53b620858631c2d)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.31,
+      "package": "snapback4-lang",
+      "name": "intent_review"
+    },
+    {
+      "target": "Running tests/intent_target.rs (target/debug/deps/intent_target-3bc576fc2768b1a1)",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.33,
+      "package": "snapback4-lang",
+      "name": "intent_target"
+    },
+    {
+      "target": "Running tests/intent_variants.rs (target/debug/deps/intent_variants-6a3159edd053b790)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.22,
+      "package": "snapback4-lang",
+      "name": "intent_variants"
+    },
+    {
+      "target": "Running tests/intent_variants_review.rs (target/debug/deps/intent_variants_review-129f2779c7883373)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.92,
+      "package": "snapback4-lang",
+      "name": "intent_variants_review"
+    },
+    {
+      "target": "Running tests/job_viewer.rs (target/debug/deps/job_viewer-da5209a73c053f6d)",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 8.21,
+      "package": "snapback4-lang",
+      "name": "job_viewer"
+    },
+    {
+      "target": "Running tests/joined_shapes.rs (target/debug/deps/joined_shapes-ff7685730244632b)",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.95,
+      "package": "snapback4-lang",
+      "name": "joined_shapes"
+    },
+    {
+      "target": "Running tests/lane_domains.rs (target/debug/deps/lane_domains-a4542433a679aead)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "lane_domains"
+    },
+    {
+      "target": "Running tests/lean_emit.rs (target/debug/deps/lean_emit-6f5760bf914ddc60)",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "lean_emit"
+    },
+    {
+      "target": "Running tests/list_expressions.rs (target/debug/deps/list_expressions-da8b4be9690bb662)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.33,
+      "package": "snapback4-lang",
+      "name": "list_expressions"
+    },
+    {
+      "target": "Running tests/list_lower_bounds.rs (target/debug/deps/list_lower_bounds-67449821dd6e34c3)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.4,
+      "package": "snapback4-lang",
+      "name": "list_lower_bounds"
+    },
+    {
+      "target": "Running tests/list_reference_repair.rs (target/debug/deps/list_reference_repair-ef4abadad83a989e)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.02,
+      "package": "snapback4-lang",
+      "name": "list_reference_repair"
+    },
+    {
+      "target": "Running tests/list_widening.rs (target/debug/deps/list_widening-b8c9d113b58f2d47)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.43,
+      "package": "snapback4-lang",
+      "name": "list_widening"
+    },
+    {
+      "target": "Running tests/live_parent.rs (target/debug/deps/live_parent-a69c8ad3789fc67f)",
+      "passed": 48,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.6,
+      "package": "snapback4-lang",
+      "name": "live_parent"
+    },
+    {
+      "target": "Running tests/live_parent_admission.rs (target/debug/deps/live_parent_admission-b58e212fef10e160)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.26,
+      "package": "snapback4-lang",
+      "name": "live_parent_admission"
+    },
+    {
+      "target": "Running tests/lookup_selection.rs (target/debug/deps/lookup_selection-6cb6461e990fdbc3)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "lookup_selection"
+    },
+    {
+      "target": "Running tests/lowering.rs (target/debug/deps/lowering-567a6aa9ad223225)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 196.97,
+      "package": "snapback4-lang",
+      "name": "lowering"
+    },
+    {
+      "target": "Running tests/maintained_columns.rs (target/debug/deps/maintained_columns-42b229636472d8ee)",
+      "passed": 42,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 8.93,
+      "package": "snapback4-lang",
+      "name": "maintained_columns"
+    },
+    {
+      "target": "Running tests/maintained_result_types.rs (target/debug/deps/maintained_result_types-ebe9210e34556ea3)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.02,
+      "package": "snapback4-lang",
+      "name": "maintained_result_types"
+    },
+    {
+      "target": "Running tests/maintains.rs (target/debug/deps/maintains-ceb8ad080c5a9c5c)",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "maintains"
+    },
+    {
+      "target": "Running tests/matching_order.rs (target/debug/deps/matching_order-6e31de8bc82c921f)",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "matching_order"
+    },
+    {
+      "target": "Running tests/membership_nullable_authorization.rs (target/debug/deps/membership_nullable_authorization-724a38916b57eb8d)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.13,
+      "package": "snapback4-lang",
+      "name": "membership_nullable_authorization"
+    },
+    {
+      "target": "Running tests/membership_paths.rs (target/debug/deps/membership_paths-f1731d9b8f5a4646)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.25,
+      "package": "snapback4-lang",
+      "name": "membership_paths"
+    },
+    {
+      "target": "Running tests/mixed_keys.rs (target/debug/deps/mixed_keys-49842f38ee953446)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.21,
+      "package": "snapback4-lang",
+      "name": "mixed_keys"
+    },
+    {
+      "target": "Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-608140436ca62206)",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 52.14,
+      "package": "snapback4-lang",
+      "name": "mp_reproduction"
+    },
+    {
+      "target": "Running tests/mutation_result_types.rs (target/debug/deps/mutation_result_types-457ca279d2e42e40)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.06,
+      "package": "snapback4-lang",
+      "name": "mutation_result_types"
+    },
+    {
+      "target": "Running tests/natural_forms.rs (target/debug/deps/natural_forms-05441cdcff36da15)",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.09,
+      "package": "snapback4-lang",
+      "name": "natural_forms"
+    },
+    {
+      "target": "Running tests/operation_evolution.rs (target/debug/deps/operation_evolution-c9619f80e95dd794)",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "operation_evolution"
+    },
+    {
+      "target": "Running tests/own_keys.rs (target/debug/deps/own_keys-b6515160f027dda9)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.11,
+      "package": "snapback4-lang",
+      "name": "own_keys"
+    },
+    {
+      "target": "Running tests/page2_membership.rs (target/debug/deps/page2_membership-e6149b0c66bc488e)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.11,
+      "package": "snapback4-lang",
+      "name": "page2_membership"
+    },
+    {
+      "target": "Running tests/page3.rs (target/debug/deps/page3-bcd6089859b44002)",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.56,
+      "package": "snapback4-lang",
+      "name": "page3"
+    },
+    {
+      "target": "Running tests/page4.rs (target/debug/deps/page4-2ff594241f6b77da)",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.32,
+      "package": "snapback4-lang",
+      "name": "page4"
+    },
+    {
+      "target": "Running tests/papercuts.rs (target/debug/deps/papercuts-f45c9d9be42503d5)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "papercuts"
+    },
+    {
+      "target": "Running tests/prefix_reads.rs (target/debug/deps/prefix_reads-a078051f54fee040)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "prefix_reads"
+    },
+    {
+      "target": "Running tests/presence.rs (target/debug/deps/presence-07d276441245473e)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.04,
+      "package": "snapback4-lang",
+      "name": "presence"
+    },
+    {
+      "target": "Running tests/printed_rewrites.rs (target/debug/deps/printed_rewrites-5db3d3ca2b1322e8)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.31,
+      "package": "snapback4-lang",
+      "name": "printed_rewrites"
+    },
+    {
+      "target": "Running tests/pure_call_narrowing.rs (target/debug/deps/pure_call_narrowing-3625526273651a0b)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-lang",
+      "name": "pure_call_narrowing"
+    },
+    {
+      "target": "Running tests/qe2_ergonomics.rs (target/debug/deps/qe2_ergonomics-c44bfbd8d7281546)",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.34,
+      "package": "snapback4-lang",
+      "name": "qe2_ergonomics"
+    },
+    {
+      "target": "Running tests/query_settlement.rs (target/debug/deps/query_settlement-b8e3212de23224b1)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-lang",
+      "name": "query_settlement"
+    },
+    {
+      "target": "Running tests/read_through.rs (target/debug/deps/read_through-06716fef0f11658f)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.72,
+      "package": "snapback4-lang",
+      "name": "read_through"
+    },
+    {
+      "target": "Running tests/read_through_provenance.rs (target/debug/deps/read_through_provenance-51b40a8f5cba3138)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-lang",
+      "name": "read_through_provenance"
+    },
+    {
+      "target": "Running tests/read_through_review.rs (target/debug/deps/read_through_review-209e4b8a220a4dce)",
+      "passed": 35,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 4.35,
+      "package": "snapback4-lang",
+      "name": "read_through_review"
+    },
+    {
+      "target": "Running tests/read_through_sync.rs (target/debug/deps/read_through_sync-32efcc41e6a05256)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "read_through_sync"
+    },
+    {
+      "target": "Running tests/read_through_transactions.rs (target/debug/deps/read_through_transactions-f7ba65ccf26e16ad)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.81,
+      "package": "snapback4-lang",
+      "name": "read_through_transactions"
+    },
+    {
+      "target": "Running tests/receipt_gaps.rs (target/debug/deps/receipt_gaps-9f0bf04f6101a19a)",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.53,
+      "package": "snapback4-lang",
+      "name": "receipt_gaps"
+    },
+    {
+      "target": "Running tests/recorded_round1.rs (target/debug/deps/recorded_round1-1d95adedbebe95dc)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "recorded_round1"
+    },
+    {
+      "target": "Running tests/reference_actions.rs (target/debug/deps/reference_actions-761ef8fafaa32299)",
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.82,
+      "package": "snapback4-lang",
+      "name": "reference_actions"
+    },
+    {
+      "target": "Running tests/repairs.rs (target/debug/deps/repairs-5fc2abf0015ce5b5)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.51,
+      "package": "snapback4-lang",
+      "name": "repairs"
+    },
+    {
+      "target": "Running tests/reservation_app_headroom.rs (target/debug/deps/reservation_app_headroom-dec34e8b514ed818)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.9,
+      "package": "snapback4-lang",
+      "name": "reservation_app_headroom"
+    },
+    {
+      "target": "Running tests/residency_notes.rs (target/debug/deps/residency_notes-88c171fa93ded95f)",
+      "passed": 44,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.26,
+      "package": "snapback4-lang",
+      "name": "residency_notes"
+    },
+    {
+      "target": "Running tests/revocation_soundness.rs (target/debug/deps/revocation_soundness-e044f0861b5a2e83)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 147.3,
+      "package": "snapback4-lang",
+      "name": "revocation_soundness"
+    },
+    {
+      "target": "Running tests/routes.rs (target/debug/deps/routes-14b80be15269a082)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.82,
+      "package": "snapback4-lang",
+      "name": "routes"
+    },
+    {
+      "target": "Running tests/row_keyed_views.rs (target/debug/deps/row_keyed_views-6a99a0a07f1c9bd3)",
+      "passed": 46,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 5.29,
+      "package": "snapback4-lang",
+      "name": "row_keyed_views"
+    },
+    {
+      "target": "Running tests/rx_legacy_identity.rs (target/debug/deps/rx_legacy_identity-0917888d34a6fa52)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "rx_legacy_identity"
+    },
+    {
+      "target": "Running tests/rx_rule_enforcement.rs (target/debug/deps/rx_rule_enforcement-1bab4a9f9b16c4a9)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.66,
+      "package": "snapback4-lang",
+      "name": "rx_rule_enforcement"
+    },
+    {
+      "target": "Running tests/rx_rule_hops.rs (target/debug/deps/rx_rule_hops-5e1070701c473c02)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "rx_rule_hops"
+    },
+    {
+      "target": "Running tests/schedule_durations.rs (target/debug/deps/schedule_durations-fe39f95d11f6ea98)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.09,
+      "package": "snapback4-lang",
+      "name": "schedule_durations"
+    },
+    {
+      "target": "Running tests/search_guidance.rs (target/debug/deps/search_guidance-75603981fa40eb1c)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "search_guidance"
+    },
+    {
+      "target": "Running tests/security.rs (target/debug/deps/security-da2722779ac6be84)",
+      "passed": 46,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 7.64,
+      "package": "snapback4-lang",
+      "name": "security"
+    },
+    {
+      "target": "Running tests/security_custody.rs (target/debug/deps/security_custody-58a2b2b8de7fe94b)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.04,
+      "package": "snapback4-lang",
+      "name": "security_custody"
+    },
+    {
+      "target": "Running tests/security_histories.rs (target/debug/deps/security_histories-d8c1e5674b950a96)",
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 593.76,
+      "package": "snapback4-lang",
+      "name": "security_histories"
+    },
+    {
+      "target": "Running tests/security_observers.rs (target/debug/deps/security_observers-aebb11187ea2b0fd)",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 8.68,
+      "package": "snapback4-lang",
+      "name": "security_observers"
+    },
+    {
+      "target": "Running tests/security_wave16.rs (target/debug/deps/security_wave16-bdb31984e5aa8c2c)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 56.02,
+      "package": "snapback4-lang",
+      "name": "security_wave16"
+    },
+    {
+      "target": "Running tests/selected_prefix.rs (target/debug/deps/selected_prefix-6292f98faea26b10)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.12,
+      "package": "snapback4-lang",
+      "name": "selected_prefix"
+    },
+    {
+      "target": "Running tests/selected_prefix_cursors.rs (target/debug/deps/selected_prefix_cursors-a259bc9fa4465236)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.53,
+      "package": "snapback4-lang",
+      "name": "selected_prefix_cursors"
+    },
+    {
+      "target": "Running tests/selected_prefix_regressions.rs (target/debug/deps/selected_prefix_regressions-3255c9509684b8fc)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.5,
+      "package": "snapback4-lang",
+      "name": "selected_prefix_regressions"
+    },
+    {
+      "target": "Running tests/sequence_by.rs (target/debug/deps/sequence_by-7a5478cf055204b9)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "sequence_by"
+    },
+    {
+      "target": "Running tests/server_opt_in.rs (target/debug/deps/server_opt_in-ee4df2086debc255)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "server_opt_in"
+    },
+    {
+      "target": "Running tests/shape_meter.rs (target/debug/deps/shape_meter-d7626cbb848b5486)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.82,
+      "package": "snapback4-lang",
+      "name": "shape_meter"
+    },
+    {
+      "target": "Running tests/shape_overrides.rs (target/debug/deps/shape_overrides-c18453a25998e58b)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-lang",
+      "name": "shape_overrides"
+    },
+    {
+      "target": "Running tests/sparse_filter.rs (target/debug/deps/sparse_filter-d0ca52c06d2d57b7)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4-lang",
+      "name": "sparse_filter"
+    },
+    {
+      "target": "Running tests/spelling.rs (target/debug/deps/spelling-1aae256c1cdc5f3b)",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.92,
+      "package": "snapback4-lang",
+      "name": "spelling"
+    },
+    {
+      "target": "Running tests/surf4_guide.rs (target/debug/deps/surf4_guide-85b90acb4c483aa5)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "surf4_guide"
+    },
+    {
+      "target": "Running tests/sync_audiences.rs (target/debug/deps/sync_audiences-ce8c5fb098538c38)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.02,
+      "package": "snapback4-lang",
+      "name": "sync_audiences"
+    },
+    {
+      "target": "Running tests/sync_windows.rs (target/debug/deps/sync_windows-e4b3fdf76bbb5588)",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.97,
+      "package": "snapback4-lang",
+      "name": "sync_windows"
+    },
+    {
+      "target": "Running tests/system_principal.rs (target/debug/deps/system_principal-cb0e4c03f386775e)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "system_principal"
+    },
+    {
+      "target": "Running tests/time_audiences.rs (target/debug/deps/time_audiences-1a0fb121975de4ba)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "time_audiences"
+    },
+    {
+      "target": "Running tests/time_indexes.rs (target/debug/deps/time_indexes-9a3283a654554a19)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "time_indexes"
+    },
+    {
+      "target": "Running tests/timeline_background.rs (target/debug/deps/timeline_background-d4e09433659bcbd3)",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 3.6,
+      "package": "snapback4-lang",
+      "name": "timeline_background"
+    },
+    {
+      "target": "Running tests/timeline_epoch_counterexample.rs (target/debug/deps/timeline_epoch_counterexample-9c38ed1c2b9cdf2e)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.93,
+      "package": "snapback4-lang",
+      "name": "timeline_epoch_counterexample"
+    },
+    {
+      "target": "Running tests/timeline_fairness.rs (target/debug/deps/timeline_fairness-6b08a5d6a37e6072)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.88,
+      "package": "snapback4-lang",
+      "name": "timeline_fairness"
+    },
+    {
+      "target": "Running tests/timeline_guide.rs (target/debug/deps/timeline_guide-4efdeabe93f6b80d)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4-lang",
+      "name": "timeline_guide"
+    },
+    {
+      "target": "Running tests/timeline_live_latency.rs (target/debug/deps/timeline_live_latency-32c215c496402a05)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.8,
+      "package": "snapback4-lang",
+      "name": "timeline_live_latency"
+    },
+    {
+      "target": "Running tests/typed_positional_keys.rs (target/debug/deps/typed_positional_keys-bab10088ae72198e)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4-lang",
+      "name": "typed_positional_keys"
+    },
+    {
+      "target": "Running tests/typed_positional_sync.rs (target/debug/deps/typed_positional_sync-4539d40a5f5b3117)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "typed_positional_sync"
+    },
+    {
+      "target": "Running tests/union_limits.rs (target/debug/deps/union_limits-51556d22d32f0513)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "union_limits"
+    },
+    {
+      "target": "Running tests/verified_index_repairs.rs (target/debug/deps/verified_index_repairs-7ec99b8756008a25)",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.02,
+      "package": "snapback4-lang",
+      "name": "verified_index_repairs"
+    },
+    {
+      "target": "Running tests/wave10_guard_notes.rs (target/debug/deps/wave10_guard_notes-755c456b2924cea2)",
+      "passed": 23,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "wave10_guard_notes"
+    },
+    {
+      "target": "Running tests/wave10_rules_expressiveness.rs (target/debug/deps/wave10_rules_expressiveness-1478629ac7414695)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-lang",
+      "name": "wave10_rules_expressiveness"
+    },
+    {
+      "target": "Running tests/wave10_runtime_diagnostics.rs (target/debug/deps/wave10_runtime_diagnostics-6c4c2d7e4cd4f7d8)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4-lang",
+      "name": "wave10_runtime_diagnostics"
+    },
+    {
+      "target": "Running tests/wave11_docs.rs (target/debug/deps/wave11_docs-d35d195962ebaa8c)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.39,
+      "package": "snapback4-lang",
+      "name": "wave11_docs"
+    },
+    {
+      "target": "Running tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-3a99a6b196d3cc67)",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "wave11_qdiag"
+    },
+    {
+      "target": "Running tests/wave11_runtime.rs (target/debug/deps/wave11_runtime-a1c9fce670d481cd)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.16,
+      "package": "snapback4-lang",
+      "name": "wave11_runtime"
+    },
+    {
+      "target": "Running tests/wave12_diagnostics.rs (target/debug/deps/wave12_diagnostics-ed9ec5b0be55e2a9)",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.12,
+      "package": "snapback4-lang",
+      "name": "wave12_diagnostics"
+    },
+    {
+      "target": "Running tests/wave12_rule_composition.rs (target/debug/deps/wave12_rule_composition-d76c67b20c6f29e2)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.14,
+      "package": "snapback4-lang",
+      "name": "wave12_rule_composition"
+    },
+    {
+      "target": "Running tests/wave12_rule_recipes.rs (target/debug/deps/wave12_rule_recipes-d0bf612e8d8b53f1)",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.68,
+      "package": "snapback4-lang",
+      "name": "wave12_rule_recipes"
+    },
+    {
+      "target": "Running tests/wave12_semantics.rs (target/debug/deps/wave12_semantics-af4e863417478bfc)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.11,
+      "package": "snapback4-lang",
+      "name": "wave12_semantics"
+    },
+    {
+      "target": "Running tests/wave13_lang2.rs (target/debug/deps/wave13_lang2-27915db598d02a91)",
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.57,
+      "package": "snapback4-lang",
+      "name": "wave13_lang2"
+    },
+    {
+      "target": "Running tests/wave13_rules.rs (target/debug/deps/wave13_rules-c7671c2a79bcc9a0)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4-lang",
+      "name": "wave13_rules"
+    },
+    {
+      "target": "Running tests/wave14_authorization.rs (target/debug/deps/wave14_authorization-3a70fce2079b7c47)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4-lang",
+      "name": "wave14_authorization"
+    },
+    {
+      "target": "Running tests/wave14_client_docs.rs (target/debug/deps/wave14_client_docs-8f6214ff26bcca15)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-lang",
+      "name": "wave14_client_docs"
+    },
+    {
+      "target": "Running tests/wave14_lang3.rs (target/debug/deps/wave14_lang3-f63187b66666202e)",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-lang",
+      "name": "wave14_lang3"
+    },
+    {
+      "target": "Running tests/wave14_snapshot_ir.rs (target/debug/deps/wave14_snapshot_ir-7d2af34d107ee248)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.19,
+      "package": "snapback4-lang",
+      "name": "wave14_snapshot_ir"
+    },
+    {
+      "target": "Running tests/wave15_notes.rs (target/debug/deps/wave15_notes-83d5a2c5c3b796cc)",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.02,
+      "package": "snapback4-lang",
+      "name": "wave15_notes"
+    },
+    {
+      "target": "Running tests/wave1_rule_language.rs (target/debug/deps/wave1_rule_language-22c7cced9044a42c)",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-lang",
+      "name": "wave1_rule_language"
+    },
+    {
+      "target": "Running tests/wave2_rule_language.rs (target/debug/deps/wave2_rule_language-1523ef06b4277f4b)",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.2,
+      "package": "snapback4-lang",
+      "name": "wave2_rule_language"
+    },
+    {
+      "target": "Running tests/wave3_rule_language.rs (target/debug/deps/wave3_rule_language-16ec4988469154be)",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.52,
+      "package": "snapback4-lang",
+      "name": "wave3_rule_language"
+    },
+    {
+      "target": "Running tests/wave4_rule_language.rs (target/debug/deps/wave4_rule_language-b5f7c3aa89f32152)",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.28,
+      "package": "snapback4-lang",
+      "name": "wave4_rule_language"
+    },
+    {
+      "target": "Running tests/wave5_rule_language.rs (target/debug/deps/wave5_rule_language-2c4c3585318a89b3)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.85,
+      "package": "snapback4-lang",
+      "name": "wave5_rule_language"
+    },
+    {
+      "target": "Running tests/wave6_rule_language.rs (target/debug/deps/wave6_rule_language-c54ecb380b637512)",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.65,
+      "package": "snapback4-lang",
+      "name": "wave6_rule_language"
+    },
+    {
+      "target": "Running tests/wave7_rule_language.rs (target/debug/deps/wave7_rule_language-277e15f9dccb7ea1)",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 12.06,
+      "package": "snapback4-lang",
+      "name": "wave7_rule_language"
+    },
+    {
+      "target": "Running tests/wave8_rule_language.rs (target/debug/deps/wave8_rule_language-9206b562aa738c37)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "wave8_rule_language"
+    },
+    {
+      "target": "Running tests/wave9_completeness_notes.rs (target/debug/deps/wave9_completeness_notes-3a99c8515064f979)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.02,
+      "package": "snapback4-lang",
+      "name": "wave9_completeness_notes"
+    },
+    {
+      "target": "Running tests/wave9_rule_diagnostic_rewrites.rs (target/debug/deps/wave9_rule_diagnostic_rewrites-ac54122e42fd7b2f)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4-lang",
+      "name": "wave9_rule_diagnostic_rewrites"
+    },
+    {
+      "target": "Running tests/written_by.rs (target/debug/deps/written_by-0be005243f32cd12)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-lang",
+      "name": "written_by"
+    },
+    {
+      "target": "Running unittests src/lib.rs (target/debug/deps/snapback4_sim-f72ce07d871d9a12)",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.74,
+      "package": "snapback4-sim",
+      "name": "snapback4_sim"
+    },
+    {
+      "target": "Running tests/adoption.rs (target/debug/deps/adoption-d23250cb0a5fbf6f)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.15,
+      "package": "snapback4-sim",
+      "name": "adoption"
+    },
+    {
+      "target": "Running tests/clique.rs (target/debug/deps/clique-5de6534d31f1da06)",
+      "passed": 254,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 120.51,
+      "package": "snapback4-sim",
+      "name": "clique"
+    },
+    {
+      "target": "Running tests/condition_authority.rs (target/debug/deps/condition_authority-b8ecb6cae2625d21)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.85,
+      "package": "snapback4-sim",
+      "name": "condition_authority"
+    },
+    {
+      "target": "Running tests/decorated_search.rs (target/debug/deps/decorated_search-185b6fc685401bbd)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.36,
+      "package": "snapback4-sim",
+      "name": "decorated_search"
+    },
+    {
+      "target": "Running tests/device.rs (target/debug/deps/device-2e9261cc17de0f14)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.03,
+      "package": "snapback4-sim",
+      "name": "device"
+    },
+    {
+      "target": "Running tests/digest_count.rs (target/debug/deps/digest_count-14ba1304be13c918)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 6.98,
+      "package": "snapback4-sim",
+      "name": "digest_count"
+    },
+    {
+      "target": "Running tests/exhaustive.rs (target/debug/deps/exhaustive-13adf8303051b4e8)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 4.94,
+      "package": "snapback4-sim",
+      "name": "exhaustive"
+    },
+    {
+      "target": "Running tests/expiry_reference_actions.rs (target/debug/deps/expiry_reference_actions-eb3c8745af1ee0d7)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.2,
+      "package": "snapback4-sim",
+      "name": "expiry_reference_actions"
+    },
+    {
+      "target": "Running tests/filters.rs (target/debug/deps/filters-28d881d70179105f)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.12,
+      "package": "snapback4-sim",
+      "name": "filters"
+    },
+    {
+      "target": "Running tests/helper_pages.rs (target/debug/deps/helper_pages-bc92f7c6e4f1a86e)",
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 10.29,
+      "package": "snapback4-sim",
+      "name": "helper_pages"
+    },
+    {
+      "target": "Running tests/helper_sweep.rs (target/debug/deps/helper_sweep-0c706f6fa2056942)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.06,
+      "package": "snapback4-sim",
+      "name": "helper_sweep"
+    },
+    {
+      "target": "Running tests/intent_integration.rs (target/debug/deps/intent_integration-ce99f580b2b79360)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.78,
+      "package": "snapback4-sim",
+      "name": "intent_integration"
+    },
+    {
+      "target": "Running tests/loopbar.rs (target/debug/deps/loopbar-3b234e1d589a2126)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.69,
+      "package": "snapback4-sim",
+      "name": "loopbar"
+    },
+    {
+      "target": "Running tests/maintain_measurement.rs (target/debug/deps/maintain_measurement-543dd4e02f2c915e)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0,
+      "package": "snapback4-sim",
+      "name": "maintain_measurement"
+    },
+    {
+      "target": "Running tests/maintains.rs (target/debug/deps/maintains-2794fc8e832cc9bb)",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 46.3,
+      "package": "snapback4-sim",
+      "name": "maintains"
+    },
+    {
+      "target": "Running tests/maintains_recorded.rs (target/debug/deps/maintains_recorded-c898b7bb3968b98b)",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.82,
+      "package": "snapback4-sim",
+      "name": "maintains_recorded"
+    },
+    {
+      "target": "Running tests/maintains_review.rs (target/debug/deps/maintains_review-25c417e7297ea165)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 4.63,
+      "package": "snapback4-sim",
+      "name": "maintains_review"
+    },
+    {
+      "target": "Running tests/membership.rs (target/debug/deps/membership-a8917ddceddebd0f)",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.83,
+      "package": "snapback4-sim",
+      "name": "membership"
+    },
+    {
+      "target": "Running tests/membership_search.rs (target/debug/deps/membership_search-38738eb54f217c08)",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.74,
+      "package": "snapback4-sim",
+      "name": "membership_search"
+    },
+    {
+      "target": "Running tests/native.rs (target/debug/deps/native-149a33406cd144c7)",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 1,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 1.41,
+      "package": "snapback4-sim",
+      "name": "native"
+    },
+    {
+      "target": "Running tests/ordinary_search.rs (target/debug/deps/ordinary_search-087546871566da1b)",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 6.53,
+      "package": "snapback4-sim",
+      "name": "ordinary_search"
+    },
+    {
+      "target": "Running tests/page_admission.rs (target/debug/deps/page_admission-24cb02ae361534b0)",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 8.91,
+      "package": "snapback4-sim",
+      "name": "page_admission"
+    },
+    {
+      "target": "Running tests/reference_exhaustive.rs (target/debug/deps/reference_exhaustive-cc0a5c4a55e554d4)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 2.48,
+      "package": "snapback4-sim",
+      "name": "reference_exhaustive"
+    },
+    {
+      "target": "Running tests/residency.rs (target/debug/deps/residency-8370299a97027195)",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.29,
+      "package": "snapback4-sim",
+      "name": "residency"
+    },
+    {
+      "target": "Running tests/retained_release.rs (target/debug/deps/retained_release-7ff5af7c4494ac12)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.35,
+      "package": "snapback4-sim",
+      "name": "retained_release"
+    },
+    {
+      "target": "Running tests/review_corrections.rs (target/debug/deps/review_corrections-68bfed2bceb82761)",
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.92,
+      "package": "snapback4-sim",
+      "name": "review_corrections"
+    },
+    {
+      "target": "Running tests/reviews.rs (target/debug/deps/reviews-c84e70e870fe264a)",
+      "passed": 30,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.92,
+      "package": "snapback4-sim",
+      "name": "reviews"
+    },
+    {
+      "target": "Running tests/roster.rs (target/debug/deps/roster-05c97c1eec211344)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 5.18,
+      "package": "snapback4-sim",
+      "name": "roster"
+    },
+    {
+      "target": "Running tests/search_merge.rs (target/debug/deps/search_merge-079bf2db78c5b9bd)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.5,
+      "package": "snapback4-sim",
+      "name": "search_merge"
+    },
+    {
+      "target": "Running tests/security.rs (target/debug/deps/security-351d1df40ef60d48)",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.3,
+      "package": "snapback4-sim",
+      "name": "security"
+    },
+    {
+      "target": "Running tests/time_audiences.rs (target/debug/deps/time_audiences-0cfc44e44383eb09)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.08,
+      "package": "snapback4-sim",
+      "name": "time_audiences"
+    },
+    {
+      "target": "Running tests/timed_search.rs (target/debug/deps/timed_search-60f5ec77872d8fe6)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-sim",
+      "name": "timed_search"
+    },
+    {
+      "target": "Running tests/topn_complete.rs (target/debug/deps/topn_complete-f892204f835c91db)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.14,
+      "package": "snapback4-sim",
+      "name": "topn_complete"
+    },
+    {
+      "target": "Running tests/union.rs (target/debug/deps/union-f364c799023b1be1)",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 2,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 353.77,
+      "package": "snapback4-sim",
+      "name": "union"
+    },
+    {
+      "target": "Running tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-de33ffaa89f487c8)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-sim",
+      "name": "wave11_qdiag"
+    },
+    {
+      "target": "Running tests/wave12_language.rs (target/debug/deps/wave12_language-85107c7fc0559c81)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.01,
+      "package": "snapback4-sim",
+      "name": "wave12_language"
+    },
+    {
+      "target": "Running tests/wave13_lang2.rs (target/debug/deps/wave13_lang2-6b42fbd074663569)",
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.57,
+      "package": "snapback4-sim",
+      "name": "wave13_lang2"
+    },
+    {
+      "target": "Running tests/work_intent.rs (target/debug/deps/work_intent-d84927ec3cfbb8f6)",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 32.84,
+      "package": "snapback4-sim",
+      "name": "work_intent"
+    },
+    {
+      "target": "Running tests/work_intent_review.rs (target/debug/deps/work_intent_review-53a31bf89980cf4a)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.19,
+      "package": "snapback4-sim",
+      "name": "work_intent_review"
+    },
+    {
+      "target": "Running tests/work_intent_review2.rs (target/debug/deps/work_intent_review2-06ffcbfe1144cec1)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.97,
+      "package": "snapback4-sim",
+      "name": "work_intent_review2"
+    },
+    {
+      "target": "Running tests/work_intent_review3.rs (target/debug/deps/work_intent_review3-cb60fc6e27d22267)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.05,
+      "package": "snapback4-sim",
+      "name": "work_intent_review3"
+    },
+    {
+      "target": "Running tests/work_intent_review4.rs (target/debug/deps/work_intent_review4-77880c7fe9616488)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.44,
+      "package": "snapback4-sim",
+      "name": "work_intent_review4"
+    },
+    {
+      "target": "Running tests/write_authority.rs (target/debug/deps/write_authority-21855f9a005f9310)",
+      "passed": 35,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 8.57,
+      "package": "snapback4-sim",
+      "name": "write_authority"
+    },
+    {
+      "target": "Doc-tests snapback4_core",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.15
+    },
+    {
+      "target": "Doc-tests snapback4_device",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0
+    },
+    {
+      "target": "Doc-tests snapback4_lang",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0
+    },
+    {
+      "target": "Doc-tests snapback4_sim",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "measured": 0,
+      "filtered": 0,
+      "seconds": 0.0
+    }
+  ],
+  "expectedCargoTargets": [
+    {
+      "package": "snapback4",
+      "name": "snapback4",
+      "kind": [
+        "bin"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "aggregate_identity_upgrade",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "check",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "check_cost_source",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "check_notes",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "cli_friction",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "clock",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "column_commit",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "day3",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "day4",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "day5_evidence",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "day5_previews",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "day5_starters",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "delivery_page",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "dev_refusals",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "dev_reset",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "expiry_writes",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "familiar",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "feed_bridge",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "fix",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "following_view",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "http",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "http_emfile",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "init",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "init_dx3",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "init_production",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "intent_issue_tracker",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "latency",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "lifecycle",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "maintenance_chunks",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "maintenance_latency",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "overload",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "read_latency",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "replay",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "run_admission",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "scale",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "scale_curves",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "scale_extremum_expressions",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "scale_intent",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "scale_row_ranges",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "scale_variants",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "scale_windows_expiry",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "surf4",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "timeline",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "timeline_adoption",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "timeline_delivery",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "timeline_delivery_counterexample",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "timeline_design",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "token_live",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "wave13_rules",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "witness",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "witness_web",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "work_records",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4",
+      "name": "written_by",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "snapback4_core",
+      "kind": [
+        "lib"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "action_context",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "adoption_scale",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "asset_lists",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "born_perf",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "bound_session",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "corpus",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "delivery_bounds",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "dev_reset",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "disclosure",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "effect_policy",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "ephemeral",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "event_slot_snapshot",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "expiring_adoption",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "file_assets",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "identity",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "job_time_audiences",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "lane_source",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "maintained_columns_review",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "membership_discovery_steps",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "meter",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "pending_metadata_heap",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "read_sessions",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "refused_open",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "review_walk",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "revocation_history",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "routes",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "row_view_accounting",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "row_view_disclosure",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "row_view_legacy",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "row_view_witness",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "rows",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "schema_capabilities",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "schema_capabilities_legacy",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "sequence_by",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "sequence_disclosure",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "stream_receipts",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "sync_count_batch",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "time_audiences",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "unicode_fold",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "update_rule_images",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "upload_intents",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-core",
+      "name": "work_records",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "snapback4_lang",
+      "kind": [
+        "lib"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "actions",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "aggregate_copies",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "attribution_guide",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "audience_bounds",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "audience_bounds_runtime",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "bounded_calendar_caps",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "bounded_following",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "branch_merge",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "builder_guidance",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "chat",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "clique_03",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "components",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "constraint_diagnostics",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "control_flow",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "cursor_advice",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "declarative_receipts",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "delivery",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "delivery_clause",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "delivery_integration",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "delivery_replay_conversion",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "denied_writes",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "derived_maintains",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "effect_reads",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "emit_compatibility",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "ephemeral",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "ephemeral_compat",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "ergonomics",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "expiring_mutations",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "extrema",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "extremum_expressions",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "familiar_guesses",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "familiar_predicates",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "familiar_repairs",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "familiar_source_repairs",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "familiar_verified_repairs",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "feed_forms",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "file_assets",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "first_paste",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "following_adoption_research",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "following_atomic_launch",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "following_history",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "following_history_research",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "following_view",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "front_semantics",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "frontend_regressions",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "guide",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "held_unknown",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "helper_placement",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "intent_aggregate_safety",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "intent_delta10",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "intent_followup",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "intent_nulls",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "intent_order",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "intent_predicates",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "intent_review",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "intent_target",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "intent_variants",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "intent_variants_review",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "job_viewer",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "joined_shapes",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "lane_domains",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "lean_emit",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "list_expressions",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "list_lower_bounds",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "list_reference_repair",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "list_widening",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "live_parent",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "live_parent_admission",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "lookup_selection",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "lowering",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "maintained_columns",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "maintained_result_types",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "maintains",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "matching_order",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "membership_nullable_authorization",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "membership_paths",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "mixed_keys",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "mp_reproduction",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "mutation_result_types",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "natural_forms",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "operation_evolution",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "own_keys",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "page2_membership",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "page3",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "page4",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "papercuts",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "prefix_reads",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "presence",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "printed_rewrites",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "pure_call_narrowing",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "qe2_ergonomics",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "query_settlement",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "read_through",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "read_through_provenance",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "read_through_review",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "read_through_sync",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "read_through_transactions",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "receipt_gaps",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "recorded_round1",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "reference_actions",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "repairs",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "reservation_app_headroom",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "residency_notes",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "revocation_soundness",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "routes",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "row_keyed_views",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "rx_legacy_identity",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "rx_rule_enforcement",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "rx_rule_hops",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "schedule_durations",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "search_guidance",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "security",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "security_custody",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "security_histories",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "security_observers",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "security_wave16",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "selected_prefix",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "selected_prefix_cursors",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "selected_prefix_regressions",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "sequence_by",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "server_opt_in",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "shape_meter",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "shape_overrides",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "sparse_filter",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "spelling",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "surf4_guide",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "sync_audiences",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "sync_windows",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "system_principal",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "time_audiences",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "time_indexes",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "timeline_background",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "timeline_epoch_counterexample",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "timeline_fairness",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "timeline_guide",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "timeline_live_latency",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "typed_positional_keys",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "typed_positional_sync",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "union_limits",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "verified_index_repairs",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave10_guard_notes",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave10_rules_expressiveness",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave10_runtime_diagnostics",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave11_docs",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave11_qdiag",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave11_runtime",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave12_diagnostics",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave12_rule_composition",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave12_rule_recipes",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave12_semantics",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave13_lang2",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave13_rules",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave14_authorization",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave14_client_docs",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave14_lang3",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave14_snapshot_ir",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave15_notes",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave1_rule_language",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave2_rule_language",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave3_rule_language",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave4_rule_language",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave5_rule_language",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave6_rule_language",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave7_rule_language",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave8_rule_language",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave9_completeness_notes",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "wave9_rule_diagnostic_rewrites",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-lang",
+      "name": "written_by",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "snapback4_device",
+      "kind": [
+        "cdylib",
+        "staticlib",
+        "rlib"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "acquisition_crash",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "adoption",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "asset_lists",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "background_durability",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "bounded_calendar_caps",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "bounded_following",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "branch_merge",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "codec",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "column_activation",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "components",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "cut",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "delivery",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "device",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "device_diet",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "diet_timing",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "disclosure",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "ephemeral",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "event_slots",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "event_slots_trace",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "expiring_counts",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "expiring_counts_probe",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "expiring_counts_upgrade",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "expiring_mutations",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "expiry_maintained_columns",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "extrema",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "extremum_expressions",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "file_assets",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "first_instinct",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "first_paste",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "following_meters",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "following_model",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "following_view",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "heavy_acquisition",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "helper_pages",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "index_key_bound",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "intent_variants",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "intent_views",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "list_lower_bounds",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "live_parent",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "matching_order",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "mixed_keys",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "monotonic_ids",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "mp_builder",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "named_key_lookup",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "native",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "native_following",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "native_reads",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "natural_forms",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "nl_qe2_integration",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "own_keys",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "own_keys_cost",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "point_probe_admission",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "prediction_write_set",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "qe2_allocations",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "qe2_ergonomics",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "query_unavailable",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "read_through",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "read_through_review",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "readauth",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "recorded_coverage",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "reference_actions",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "repair_b",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "repair_b_boundaries",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "repair_b_counterexample",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "repair_b_legacy_r6",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "repair_b_round2_counterexample",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "repair_b_round3_counterexample",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "residency",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "retained_history",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "retained_release",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "review_parent_floor",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "row_keyed_views",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "row_view_disclosure",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "row_view_expiry",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "rx_rule_hops",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "schema_capabilities",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "schema_capabilities_legacy",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "search_exists",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "sequence_by",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "sequence_disclosure",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "server_clock",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "shape_overrides",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "spread_metadata",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "spread_pending_union",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "sqlite_bulk",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "sync_windows",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "time_audiences",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "timed_search",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "timeline",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "topn_complete",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "unicode",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "unread_range",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "upload_intents",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "upload_receipts",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "upsert_constraints",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "w13g_probe",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "wave11_qdiag",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "wave12_language",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "wave13_lang2",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "write_authority",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-device",
+      "name": "written_by",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "snapback4_sim",
+      "kind": [
+        "lib"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "adoption",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "clique",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "condition_authority",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "decorated_search",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "device",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "digest_count",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "exhaustive",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "expiry_reference_actions",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "filters",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "helper_pages",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "helper_sweep",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "intent_integration",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "loopbar",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "maintain_measurement",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "maintains",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "maintains_recorded",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "maintains_review",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "membership",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "membership_search",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "native",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "ordinary_search",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "page_admission",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "reference_exhaustive",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "residency",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "retained_release",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "review_corrections",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "reviews",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "roster",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "search_merge",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "security",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "time_audiences",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "timed_search",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "topn_complete",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "union",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "wave11_qdiag",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "wave12_language",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "wave13_lang2",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "work_intent",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "work_intent_review",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "work_intent_review2",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "work_intent_review3",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "work_intent_review4",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    },
+    {
+      "package": "snapback4-sim",
+      "name": "write_authority",
+      "kind": [
+        "test"
+      ],
+      "requiredFeatures": []
+    }
+  ],
+  "log": "/home/ccheever/sb4-loop/integ18/cargo-final.log",
+  "sha256": "3db45f247df2c6659308c023a54064c3efc5da0c2e5792e420a6087f10f3d90b"
+}

@@ -52,5 +52,11 @@
     "lastStep": "CompileStoryboard SplashScreen.storyboard",
     "stalledSecondsAtGuard": 606.66,
     "guard": "Only owned xcodebuild and owned orphan ibtool child signaled after two exact identity checks; shared services untouched"
+  },
+  "finalFirstLaunchCheck": {
+    "at": "2026-10-19T09:39:01.668942+00:00",
+    "exit": 69,
+    "stdout": "",
+    "stderr": ""
   }
 }
