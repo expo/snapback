@@ -442,3 +442,9 @@ export function awaitBoundary() {
 // startDev adds persona discovery and current-clock sampling, and witnessForm
 // awaits the explicit handler. These orchestration waits do not enter SDK
 // delivery/recovery; the 213 delivery sites and their fault recipes are unchanged.
+
+// Integration 18: the four additional proof.ts awaits fetch staging auth
+// configuration, mint an operator token, perform clock control and decode its
+// reply. These operator proof controls do not enter application write custody,
+// offline delivery or settlement. The packed staging and clock cases exercise
+// their refusal/production boundaries. Delivery sites and recipes are unchanged.

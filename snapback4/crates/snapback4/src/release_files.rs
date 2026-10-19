@@ -37,6 +37,12 @@ fn files(root: &Path, path: &Path, out: &mut Vec<PathBuf>) -> Result<(), String>
     Ok(())
 }
 pub(crate) fn digest(root: &Path) -> Result<String, String> {
+    bundle_digest(root, false)
+}
+pub(crate) fn executable_digest(root: &Path) -> Result<String, String> {
+    bundle_digest(root, true)
+}
+fn bundle_digest(root: &Path, executable: bool) -> Result<String, String> {
     let mut paths = Vec::new();
     files(root, root, &mut paths)?;
     let mut hash = Sha256::new();
@@ -44,6 +50,10 @@ pub(crate) fn digest(root: &Path) -> Result<String, String> {
         let name = path.strip_prefix(root).unwrap().to_string_lossy();
         // @ref LLP 3000.000.000.000.000#4-cli-surface-contracts — metadata does not change executable release identity.
         if name == ".pending-adoption" || name == "provenance.json" {continue;}
+        // @ref LLP 3000.000.000#16-release-reactivation-and-rollback-foresight-rel5 — the compiler version in this report is not executable content.
+        // Keep the full report in control-request integrity; only release identity
+        // ignores it. Activation recompiles and checks the retained source normally.
+        if executable && name == "device-compatibility.json" {continue;}
         hash.update((name.len() as u64).to_le_bytes());
         hash.update(name.as_bytes());
         #[cfg(unix)]
@@ -220,5 +230,31 @@ mod candidate_tests {
         store.conn().execute("INSERT INTO _release_events VALUES(3,NULL)",[]).unwrap();
         drop(Candidate::new(&root,3));
         assert!(root.join("releases/3").is_dir());
+    }
+}
+
+#[cfg(test)]
+mod identity_tests {
+    use super::*;
+    #[test]
+    fn compiler_reports_do_not_change_release_identity_but_remain_integrity_bound() {
+        struct Scratch(PathBuf);
+        impl Drop for Scratch { fn drop(&mut self) {let _=fs::remove_dir_all(&self.0);} }
+        let id=snapback4_core::ids::mint(snapback4_core::now_ms(),&mut snapback4_core::ids::Mint::default()).unwrap();
+        let root=Scratch(std::env::temp_dir().join(format!("sb4-release-identity-{id}")));
+        let a=root.0.join("old");let b=root.0.join("new");
+        for dir in [&a,&b] {
+            fs::create_dir_all(dir.join("snapback")).unwrap();
+            fs::write(dir.join("snapback/schema.q"),"query q():\n  return 1\n").unwrap();
+        }
+        fs::write(a.join("device-compatibility.json"),r#"{"server_version":"0.4.33"}"#).unwrap();
+        fs::write(b.join("device-compatibility.json"),r#"{"server_version":"0.4.34"}"#).unwrap();
+        assert_eq!(executable_digest(&a).unwrap(),executable_digest(&b).unwrap());
+        assert_ne!(digest(&a).unwrap(),digest(&b).unwrap(),"control integrity still covers the captured report");
+        for file in ["snapback/schema.q","snapback/generated/native.wasm","worker.mjs"] {
+            let path=b.join(file);fs::create_dir_all(path.parent().unwrap()).unwrap();fs::write(&path,b"changed executable").unwrap();
+            assert_ne!(executable_digest(&a).unwrap(),executable_digest(&b).unwrap(),"{file}");
+            if file=="snapback/schema.q" {fs::write(path,"query q():\n  return 1\n").unwrap();}else{fs::remove_file(path).unwrap();}
+        }
     }
 }

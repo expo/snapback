@@ -96876,3 +96876,13 @@ published; all four `latest` stayed at 0.4.30. The coordinator abandoned it for
 The 0.4.33 Mac gate now watches AC power, the lid and sleep during the run, and
 restarts an attempt it marks environment-invalid. Details:
 [reports/20261017-publication-0.4.31/REPORT.md](reports/20261017-publication-0.4.31/REPORT.md).
+
+Integration 18 upgrade correction: retained executable identity ignores the
+compiler-generated device compatibility report, whose server version changes
+on a CLI upgrade. The full control-request digest still covers that report;
+activation recompiles/rechecks the unchanged retained source. An actual 0.4.33
+store with declared privacy intent and rollback history exposed this mismatch.
+The focused unit regression distinguishes identity from integrity and preserves
+source/native/worker byte changes as new executable content. Proof hosts also
+honor their explicit binary environment so qualification cannot accidentally
+select a stale checkout release binary.

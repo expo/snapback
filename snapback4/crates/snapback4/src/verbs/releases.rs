@@ -392,7 +392,7 @@ pub fn deploy(options: &Options) -> i32 {
             std::fs::write(stage.join("device-compatibility.json"), serde_json::to_vec_pretty(&snapback4_core::device_protocol::compatibility(&bound.schema.public_projection())).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
             crate::dev_worker::package_entry(build_project, &stage)?;
             if let Some(previous)=previous {
-                if held["release"].as_u64()==Some(previous) && crate::release_files::digest(&stage)?==crate::release_files::digest(&releases.join(previous.to_string()))? {
+                if held["release"].as_u64()==Some(previous) && crate::release_files::executable_digest(&stage)?==crate::release_files::executable_digest(&releases.join(previous.to_string()))? {
                     std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;
                     if let Some(saved) = &mut saved_version { saved.finish(previous,&source_hash)?; }
                     if options.json {println!("{}",serde_json::json!({"unchanged":true,"release":previous,"generation":held["generation"]}));}
@@ -401,7 +401,7 @@ pub fn deploy(options: &Options) -> i32 {
                 }
             }
             // @ref LLP 3000.000.000#16-release-reactivation-and-rollback-foresight-rel5 — equal retained executable bytes select their existing identity.
-            let staged_digest = crate::release_files::digest(&stage)?;
+            let staged_digest = crate::release_files::executable_digest(&stage)?;
             let mut matching = std::fs::read_dir(&releases).map_err(|e|e.to_string())?
                 .filter_map(Result::ok).filter_map(|e| e.file_name().to_str()?.parse::<u64>().ok())
                 .filter(|n| selectable(&dir, *n).is_ok())
@@ -409,7 +409,7 @@ pub fn deploy(options: &Options) -> i32 {
             matching.sort_unstable_by(|a,b| b.cmp(a));
             let mut matched = None;
             for n in matching {
-                if crate::release_files::digest(&releases.join(n.to_string()))? == staged_digest { matched=Some(n); break; }
+                if crate::release_files::executable_digest(&releases.join(n.to_string()))? == staged_digest { matched=Some(n); break; }
             }
             if let Some(n) = matched {
                 let mut preview_options=options.clone();
