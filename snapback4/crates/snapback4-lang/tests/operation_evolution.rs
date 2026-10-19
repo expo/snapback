@@ -129,3 +129,16 @@ fn whole_rows_and_write_images_keep_declared_text_minima() {
         assert!(compare(&old,&new,"release 1").iter().any(|line|line.contains("RESULT REVIEW")),"{body}");
     }
 }
+
+#[test]
+fn scalar_returning_writes_keep_their_payload_and_lookup_domains() {
+    let table="table items:\n  n: int 0..10\n  label: text 1..20\n  unused: int ?\n  unique label\n  public\n  insert <- allow\n  update <- allow\n";
+    for body in ["mutation q(n: int, label: text <=20):\n  insert items {n, label}\n  return true\n", "mutation q(id: items, n: int, label: text <=20):\n  update items[id] {n, label}\n  return true\n", "mutation q(label: text <=20, n: int):\n  upsert items[label = label] {n}\n  return true\n"] {
+        let source=format!("{table}{body}");let old=checked(&source);
+        for (from,to,field) in [("n: int 0..10","n: int 0..20","items.n"),("text 1..20","text 0..20","items.label")] {
+            let new=checked(&source.replace(from,to));assert!(compare(&old,&new,"release 1").iter().any(|line|line.contains("RESULT REVIEW")&&line.contains(field)),"{body}: {:?}",compare(&old,&new,"release 1"));
+        }
+        let unused=checked(&source.replace("unused: int ?","unused: int 0..100 ?"));
+        assert!(compare(&old,&unused,"release 1").is_empty(),"{body}: {:?}",compare(&old,&unused,"release 1"));
+    }
+}

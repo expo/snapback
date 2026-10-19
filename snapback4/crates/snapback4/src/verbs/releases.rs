@@ -185,6 +185,9 @@ fn check_change(
         for line in lines {
             eprintln!("{line}");
         }
+        if target_release.is_some() {
+            for warning in snapback4_lang::client_contracts::compare(&old,bound,&format!("release {n}")) {eprintln!("WARNING {warning}");}
+        }
     }
     if options.flags.contains_key("allow-destructive") {
         eprintln!(

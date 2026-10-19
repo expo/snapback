@@ -108,6 +108,13 @@ mutation add():
     writeFileSync(join(c.cwd,'snapback/client-compatibility.json'),JSON.stringify({baseline:'versions/v1',since_release:2}));
     const baseline=await c.run(['check']);assert.match(baseline.stderr,/old-client compatibility \(baseline .*new required argument suffix/);
     const generated=readFileSync(join(c.cwd,'snapback/generated/api.ts'),'utf8');assert.match(generated,/suffix: string/);assert.doesNotMatch(generated,/suffix\?:/);
+    const coldRollback=await c.run(['rollback',c.deployment,'--to','1']);
+    assert.match(coldRollback.stderr,/old-client compatibility.*release 2.*greeting.*removed operation/);
+    const hotRollback=await c.serve();
+    await c.run(['rollback',c.deployment,'--to','2']);
+    const hotWarning=await c.run(['rollback',c.deployment,'--to','1']);
+    assert.match(hotWarning.stderr,/old-client compatibility.*release 2.*greeting.*removed operation/);
+    await hotRollback.host.stop();active.delete(hotRollback.host);
     const d=fixture('projected-domains');
     const rows=`use identity guests
 table items:

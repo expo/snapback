@@ -14,10 +14,57 @@ fn consumed(value:&Value,tables:&mut BTreeSet<String>,fields:&mut BTreeSet<Strin
             if let Some(table)=object.get("table").and_then(Value::as_str) {tables.insert(table.into());}
             if let Some(field)=object.get("Field") && let Some(name)=field["name"].as_str() {fields.insert(name.into());}
             // Aggregate, optional-field, range and sort selectors carry field directly.
-            if let Some(field)=object.get("field").and_then(Value::as_str) {fields.insert(field.into());}
+            for key in ["field","next_field"] {if let Some(field)=object.get(key).and_then(Value::as_str) {fields.insert(field.into());}}
             for child in object.values() {consumed(child,tables,fields);}
         }
         Value::Array(array)=>for child in array {consumed(child,tables,fields);},
+        _=>{}
+    }
+}
+type Definitions=BTreeMap<String,Vec<Value>>;
+fn definitions(value:&Value,defs:&mut Definitions) {
+    match value {
+        Value::Object(object)=> {
+            for kind in ["Let","Const","Assign"] {
+                if let Some(binding)=object.get(kind) && let Some(name)=binding["name"].as_str() {defs.entry(name.into()).or_default().push(binding["value"].clone());}
+            }
+            for child in object.values(){definitions(child,defs);}
+        }
+        Value::Array(array)=>for child in array{definitions(child,defs);},
+        _=>{}
+    }
+}
+fn payload_keys(value:&Value,defs:&Definitions,seen:&mut BTreeSet<String>)->Option<BTreeSet<String>> {
+    if let Some(object)=value.get("Object").and_then(Value::as_object) {return Some(object.keys().cloned().collect());}
+    if let Some(name)=value.get("Variable").and_then(Value::as_str) {
+        if !seen.insert(name.into()){return None;}
+        let mut keys=BTreeSet::new();
+        for value in defs.get(name)? {keys.extend(payload_keys(value,defs,&mut seen.clone())?);}
+        return Some(keys);
+    }
+    if let Some(shape)=value.get("Shape") {
+        let mut keys=payload_keys(&shape["base"],defs,seen)?;
+        keys.extend(shape["fields"].as_object()?.keys().cloned());return Some(keys);
+    }
+    if let Some(block)=value.get("Block") {return payload_keys(&block["value"],defs,seen);}
+    None
+}
+fn writes(value:&Value,defs:&Definitions,bound:&Bound,fields:&mut BTreeSet<String>) {
+    match value {
+        Value::Object(object)=> {
+            for (kind,payload) in [("Insert","row"),("InsertIfAbsent","row"),("Upsert","row"),("Update","patch"),("WriteTarget","patch")] {
+                if let Some(write)=object.get(kind) {
+                    if let Some(keys)=payload_keys(&write[payload],defs,&mut BTreeSet::new()) {fields.extend(keys);}
+                    else {
+                        // Opaque/spread write images conservatively consume their target domain.
+                        let table=if kind=="WriteTarget" {write["target"]["table"].as_str()} else {write["table"].as_str()};
+                        if let Some(table)=table.and_then(|name|bound.schema.table(name)) {fields.extend(table.columns.keys().cloned());}
+                    }
+                }
+            }
+            for child in object.values(){writes(child,defs,bound,fields);}
+        }
+        Value::Array(array)=>for child in array{writes(child,defs,bound,fields);},
         _=>{}
     }
 }
@@ -33,7 +80,12 @@ fn row_fields(ty:&crate::types::Ty,bound:&Bound,fields:&mut BTreeSet<String>) {
 }
 pub(crate) fn signature(program:&BoundProgram,bound:&Bound)->BTreeMap<String,String> {
     let mut tables=BTreeSet::new();let mut fields=BTreeSet::new();
-    consumed(&serde_json::to_value(&program.program.body).unwrap(),&mut tables,&mut fields);
+    let body=serde_json::to_value(&program.program.body).unwrap();
+    consumed(&body,&mut tables,&mut fields);
+    let mut defs=Definitions::new();definitions(&body,&mut defs);writes(&body,&defs,bound,&mut fields);
+    for read in snapback4_core::ir::read_sites(&program.program) {
+        if let Some(index)=bound.schema.table(&read.table).and_then(|t|t.index(&read.index)) {fields.extend(index.columns());}
+    }
     row_fields(&program.result,bound,&mut fields);
     let mut out=BTreeMap::new();
     for name in tables {
