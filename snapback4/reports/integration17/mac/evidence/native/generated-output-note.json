@@ -1,0 +1,6 @@
+{
+  "file": "snapback4/metrics/witness.jsonl",
+  "effect": "Expo native witness appended its two success records; captured as evidence/native/witness-metrics.jsonl and restored unchanged source fixture before final source binding",
+  "sourceGitBlob": "0a496b2d3faa30e17a81be5c8e5d4bfb76c1b5f0",
+  "capturedSha256": "b0a842b8e2485ba27acf694886081e6f35df64a91ce77a8d9fde2f886bab3315"
+}

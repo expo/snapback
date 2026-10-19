@@ -1,0 +1,57 @@
+[
+  {
+    "args": [
+      "uname",
+      "-a"
+    ],
+    "exit": 0,
+    "stdout": "Darwin MacStudio-Charlie-Apt101-A 27.0.0 Darwin Kernel Version 27.0.0: Tue Aug 11 21:06:40 PDT 2026; root:xnu-13432.1.9~1/RELEASE_ARM64_T6050 arm64\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "xcodebuild",
+      "-version"
+    ],
+    "exit": 0,
+    "stdout": "Xcode 27.0\nBuild version 27A266a\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "node",
+      "--version"
+    ],
+    "exit": 0,
+    "stdout": "v24.13.1\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "bun",
+      "--version"
+    ],
+    "exit": 0,
+    "stdout": "1.4.2\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "rustc",
+      "-vV"
+    ],
+    "exit": 0,
+    "stdout": "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: aarch64-apple-darwin\nrelease: 1.97.0\nLLVM version: 22.1.6\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "exit": 0,
+    "stdout": "4df9ef0e878f7b750f76798dbe300fa837aaf3fb\n",
+    "stderr": ""
+  }
+]

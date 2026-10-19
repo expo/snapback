@@ -1,0 +1,13 @@
+[
+  {
+    "base": "999598649f5323f14ff43fb577e54650352416e3",
+    "overlay": "c588ed5f0c",
+    "tar": "integ17-mac-overlay1.tar"
+  },
+  {
+    "base": "c588ed5f0c",
+    "overlay": "d9b90af4fb",
+    "tar": "integ17-mac-overlay2.tar",
+    "archiveSha256": "2690e799f87a5010ade3e520b7b821e1dd0c977af930985e518312ed70f3e31b"
+  }
+]

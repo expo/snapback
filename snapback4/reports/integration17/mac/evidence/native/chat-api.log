@@ -1,0 +1,90 @@
+check: ok — 5 tables, 1 view (5 synced), 12 operations, no problems, 7 notes, 798.1 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:85:10 — N_REFERENCE_UNCHECKED: review: this reference argument has no mandatory target lookup. mutation addMember stores argument conversationId directly in memberships.conversationId, without a mandatory lookup of conversations[conversationId] on every committing path: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:94:9); mutation sendPhoto (schema.q:99:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:30:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:40:1); profiles: no production writer can bootstrap this root (schema.q:16:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: N_NO_CURSOR: no action for a top-N list. Pages without continuation: query inbox (schema.q:79:1); if the screen pages, add `c: cursor ?` and `after c` — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+security Unproved: conversations.read exists memberships[.id, viewer]
+  addMember may copy protected data into another table; cross-table disclosure reduction is unproved
+  addMember: authored refusal observations are not reduced to this read policy
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  inbox: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  leave may copy protected data into another table; cross-table disclosure reduction is unproved
+  leave: authored refusal observations are not reduced to this read policy
+  markRead may copy protected data into another table; cross-table disclosure reduction is unproved
+  markRead: authored refusal observations are not reduced to this read policy
+  send may copy protected data into another table; cross-table disclosure reduction is unproved
+  send: authored refusal observations are not reduced to this read policy
+  sendPhoto may copy protected data into another table; cross-table disclosure reduction is unproved
+  sendPhoto: authored refusal observations are not reduced to this read policy
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  thread: authored refusal observations are not reduced to this read policy
+  thread: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: memberships.read exists memberships[.conversationId, viewer]
+  addMember: authored refusal observations are not reduced to this read policy
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  inbox: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  leave: authored refusal observations are not reduced to this read policy
+  markRead may copy protected data into another table; cross-table disclosure reduction is unproved
+  markRead: authored refusal observations are not reduced to this read policy
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  raw rule probe/reference from conversations can observe memberships independently of its read rule
+  raw rule probe/reference from memberships can observe memberships independently of its read rule
+  raw rule probe/reference from messageCounts can observe memberships independently of its read rule
+  raw rule probe/reference from messages can observe memberships independently of its read rule
+  raw rule probe/reference from readMarkers can observe memberships independently of its read rule
+  send may copy protected data into another table; cross-table disclosure reduction is unproved
+  send: authored refusal observations are not reduced to this read policy
+  sendPhoto may copy protected data into another table; cross-table disclosure reduction is unproved
+  sendPhoto: authored refusal observations are not reduced to this read policy
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  thread: authored refusal observations are not reduced to this read policy
+  thread: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: messages.read exists memberships[.conversationId, viewer]
+  blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  edit: authored refusal observations are not reduced to this read policy
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  send: authored refusal observations are not reduced to this read policy
+  sendPhoto: authored refusal observations are not reduced to this read policy
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  thread: authored refusal observations are not reduced to this read policy
+  thread: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  unsend: authored refusal observations are not reduced to this read policy
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: messageCounts.read exists memberships[.conversationId, viewer]
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  inbox: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: readMarkers.read (.principal = viewer)
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  markRead: authored refusal observations are not reduced to this read policy
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+N_BROAD_READ: conversations is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_GRANT_OUTLIVES_ROLE: conversations: `exists memberships[.id, viewer]` trusts memberships grants, but this branch does not re-check the reader's current role; existing grants can survive a role change — conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security
+N_BROAD_READ: memberships is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_GRANT_OUTLIVES_ROLE: memberships: `exists memberships[.conversationId, viewer]` trusts memberships grants, but this branch does not re-check the reader's current role; existing grants can survive a role change — conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security
+N_BROAD_READ: messageCounts is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_GRANT_OUTLIVES_ROLE: messageCounts: `exists memberships[.conversationId, viewer]` trusts memberships grants, but this branch does not re-check the reader's current role; existing grants can survive a role change — conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security
+N_BROAD_READ: messages is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_OPTIONAL_EVIDENCE: messages.photo permits omitted or empty media evidence — if the spec requires evidence, declare a required image/file or [image] 1..N; otherwise retain optionality deliberately (guide security)
+N_GRANT_OUTLIVES_ROLE: messages: `exists memberships[.conversationId, viewer]` trusts memberships grants, but this branch does not re-check the reader's current role; existing grants can survive a role change — conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security
+N_BROAD_READ: profiles is readable by every signed-in user: public — confirm the spec permits these columns and declare read intent; snapback4 audit lists inherited grants and their writers
+N_SECURITY_INTENT: 1 tables have access rules and no security invariants: profiles; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+N_EXISTENCE_ORACLE: edit: lookup absence NOT_FOUND, later denial NOT_AUTHOR; callers admitted by the read rule can distinguish these outcomes — use the same absence/denial code and message when existence is private, or tighten the table read rule; the read gate already hides rows it denies
+N_EXISTENCE_ORACLE: unsend: lookup absence NOT_FOUND, later denial NOT_AUTHOR; callers admitted by the read rule can distinguish these outcomes — use the same absence/denial code and message when existence is private, or tighten the table read rule; the read gate already hides rows it denies
+security: audit --json lists paths, exclusions and grant writers; guide security explains proof scope

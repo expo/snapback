@@ -1,0 +1,217 @@
+-- client file start: packages/snapback4/test/init-typecheck.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: init  typechecks
+ok 1 - init  typechecks
+  ---
+  duration_ms: 740.145875
+  type: 'test'
+  ...
+# Subtest: init --online typechecks
+ok 2 - init --online typechecks
+  ---
+  duration_ms: 686.291875
+  type: 'test'
+  ...
+# Subtest: init --web typechecks
+ok 3 - init --web typechecks
+  ---
+  duration_ms: 892.394167
+  type: 'test'
+  ...
+# Subtest: init --expo typechecks
+ok 4 - init --expo typechecks
+  ---
+  duration_ms: 764.238375
+  type: 'test'
+  ...
+# Subtest: init --web --template chat typechecks
+ok 5 - init --web --template chat typechecks
+  ---
+  duration_ms: 777.751583
+  type: 'test'
+  ...
+# Subtest: init --expo --template chat typechecks
+ok 6 - init --expo --template chat typechecks
+  ---
+  duration_ms: 854.057959
+  type: 'test'
+  ...
+# Subtest: init --template social typechecks
+ok 7 - init --template social typechecks
+  ---
+  duration_ms: 3915.665791
+  type: 'test'
+  ...
+# Subtest: custom web qualification component typechecks and refuses reapplication
+ok 8 - custom web qualification component typechecks and refuses reapplication
+  ---
+  duration_ms: 440.3165
+  type: 'test'
+  ...
+# Subtest: custom expo qualification component typechecks and refuses reapplication
+ok 9 - custom expo qualification component typechecks and refuses reapplication
+  ---
+  duration_ms: 376.182458
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9700.989458
+-- process inspection: {"snapshots":3,"unrelatedRows":16041}
+-- client file ok: packages/snapback4/test/init-typecheck.test.mjs (10614 ms)
+-- isolated timer files: 1; concurrency: 1
+-- client file start: packages/snapback4/test/export-maintenance-wakeup.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: maintenance wakeup: empty second check cannot strand a coalesced request
+ok 1 - maintenance wakeup: empty second check cannot strand a coalesced request
+  ---
+  duration_ms: 642.543125
+  type: 'test'
+  ...
+# Subtest: maintenance wakeup: expiry guard cannot strand a coalesced request
+ok 2 - maintenance wakeup: expiry guard cannot strand a coalesced request
+  ---
+  duration_ms: 1275.035791
+  type: 'test'
+  ...
+# Subtest: maintenance wakeup: cancellation guard cannot strand a coalesced request
+ok 3 - maintenance wakeup: cancellation guard cannot strand a coalesced request
+  ---
+  duration_ms: 661.699042
+  type: 'test'
+  ...
+# Subtest: maintenance wakeup: producer retries when the holder exits before notification
+ok 4 - maintenance wakeup: producer retries when the holder exits before notification
+  ---
+  duration_ms: 1356.478667
+  type: 'test'
+  ...
+# Subtest: maintenance wakeup: expiry remains a stop without a fresh producer
+ok 5 - maintenance wakeup: expiry remains a stop without a fresh producer
+  ---
+  duration_ms: 1340.232208
+  type: 'test'
+  ...
+# Subtest: maintenance wakeup: cancellation remains a stop without a fresh producer
+ok 6 - maintenance wakeup: cancellation remains a stop without a fresh producer
+  ---
+  duration_ms: 717.253667
+  type: 'test'
+  ...
+# maintenance evidence (sleep-retry-false): /Users/ccheever/sb4-ws-integ17/evidence/native/tmp/sb4-maintenance-evidence/maintenance-506245f51ae07d02/snapshot-1792368112729122000-e51581f2-failure-sleep-retry-false
+# Subtest: maintenance sleep: notification crosses sleep, producer retry=false
+ok 7 - maintenance sleep: notification crosses sleep, producer retry=false
+  ---
+  duration_ms: 1466.54575
+  type: 'test'
+  ...
+# maintenance evidence (sleep-retry-true): /Users/ccheever/sb4-ws-integ17/evidence/native/tmp/sb4-maintenance-evidence/maintenance-506245f51ae07d02/snapshot-1792368114233417000-4469d487-failure-sleep-retry-true
+# Subtest: maintenance sleep: notification crosses sleep, producer retry=true
+ok 8 - maintenance sleep: notification crosses sleep, producer retry=true
+  ---
+  duration_ms: 1490.758125
+  type: 'test'
+  ...
+# maintenance evidence (sleep-successor-start): /Users/ccheever/sb4-ws-integ17/evidence/native/tmp/sb4-maintenance-evidence/maintenance-506245f51ae07d02/snapshot-1792368115764419000-97bdc9a8-failure-sleep-successor-start
+# Subtest: maintenance sleep: successor keeps the sample accepted before launch
+ok 9 - maintenance sleep: successor keeps the sample accepted before launch
+  ---
+  duration_ms: 1584.619833
+  type: 'test'
+  ...
+# Subtest: maintenance sleep: no fresh producer stops, a post-sleep export can recover
+ok 10 - maintenance sleep: no fresh producer stops, a post-sleep export can recover
+  ---
+  duration_ms: 740.551709
+  type: 'test'
+  ...
+# Subtest: maintenance sleep: sampling drift through retry and successor start stays within the existing tolerance
+ok 11 - maintenance sleep: sampling drift through retry and successor start stays within the existing tolerance
+  ---
+  duration_ms: 1394.847583
+  type: 'test'
+  ...
+# Subtest: maintenance deadline: idle success adopts a later coalesced intent
+ok 12 - maintenance deadline: idle success adopts a later coalesced intent
+  ---
+  duration_ms: 5703.148167
+  type: 'test'
+  ...
+# Subtest: maintenance deadline: live guard adopts a later coalesced intent
+ok 13 - maintenance deadline: live guard adopts a later coalesced intent
+  ---
+  duration_ms: 5670.853709
+  type: 'test'
+  ...
+# Subtest: maintenance deadline: consumption preserves a concurrent replacement
+ok 14 - maintenance deadline: consumption preserves a concurrent replacement
+  ---
+  duration_ms: 730.593625
+  type: 'test'
+  ...
+# Subtest: maintenance deadline: a later wakeup that crossed sleep is not adopted
+ok 15 - maintenance deadline: a later wakeup that crossed sleep is not adopted
+  ---
+  duration_ms: 1309.072042
+  type: 'test'
+  ...
+# Subtest: maintenance deadline: cancellation while consuming leaves an adoptable receipt
+ok 16 - maintenance deadline: cancellation while consuming leaves an adoptable receipt
+  ---
+  duration_ms: 731.138875
+  type: 'test'
+  ...
+# Subtest: maintenance publication: stale producer resumes=false
+ok 17 - maintenance publication: stale producer resumes=false
+  ---
+  duration_ms: 1467.2935
+  type: 'test'
+  ...
+# Subtest: maintenance publication: stale producer resumes=true
+ok 18 - maintenance publication: stale producer resumes=true
+  ---
+  duration_ms: 1440.170333
+  type: 'test'
+  ...
+# Subtest: maintenance publication: older valid producer resumes=true
+ok 19 - maintenance publication: older valid producer resumes=true
+  ---
+  duration_ms: 1427.872833
+  type: 'test'
+  ...
+# Subtest: maintenance publication: writers serialize, owner killed=false
+ok 20 - maintenance publication: writers serialize, owner killed=false
+  ---
+  duration_ms: 1441.424959
+  type: 'test'
+  ...
+# Subtest: maintenance publication: writers serialize, owner killed=true
+ok 21 - maintenance publication: writers serialize, owner killed=true
+  ---
+  duration_ms: 2712.084791
+  type: 'test'
+  ...
+# Subtest: maintenance publication: a stuck writer refuses within its acquisition bound
+ok 22 - maintenance publication: a stuck writer refuses within its acquisition bound
+  ---
+  duration_ms: 6462.558458
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 41823.788334
+-- process inspection: {"snapshots":3,"unrelatedRows":16131}
+-- client file ok: packages/snapback4/test/export-maintenance-wakeup.test.mjs (42638 ms)
+-- client files: 2/2; failed 0; tests {"tests":31,"pass":31,"fail":0,"cancelled":0,"skipped":0,"todo":0}

@@ -1,0 +1,37 @@
+packed start proof-kit
+
+added 6 packages in 4s
+init: wrote 17 files in . — Vite + React todos, offline-capable — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{frontend-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+npm install
+
+added 26 packages in 9s
+day-two accounts passed: v1, hot v2, rollback, forward; business assertions at every step
+packed clock and alias controls passed
+✔ KIT4 literal first wire page runs unchanged and its trace is generated from real requests (239.024625ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 279.8645
+packed passed proof-kit
+packed start staging
+
+added 6 packages in 4s
+check: ok — 2 tables (0 synced), 4 operations, no problems, 19.6 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+N_SECURITY_INTENT: 2 tables have access rules and no security invariants: notes, roles; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+N_ARGUMENT_GRANT: provision writes argument principal straight into reader-grant column roles.principal — require the chosen principal's current role and relationship before granting access; caller authority alone does not validate the recipient
+{"backendUrl":"http://127.0.0.1:57489","credentialsFile":"staging-users.json"}
+release 1 is current as generation 1; 0 rows, 0 cells, 0 index entries dormant; 5.8 ms
+First admin provisioned; sign in with the chosen email and password
+packed staging: serve, real users/data, first admin, production refusal passed
+packed passed staging
+packed start security
+
+added 6 packages in 5s
+packed passed security

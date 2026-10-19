@@ -1,0 +1,11 @@
+{
+  "source": "c588ed5f0c",
+  "targetSource": "d9b90af4fb",
+  "files": [
+    "export-background.test.mjs",
+    "maintenance-evidence.test.mjs",
+    "test-file-runner.test.mjs",
+    "test-signals.test.mjs"
+  ],
+  "reason": "No delta in the four timing files, exporter/native custody implementations or process-test runner; fixes affect check/advice/guide/proof-account paths. Retain unchanged successful scoped evidence."
+}

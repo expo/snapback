@@ -1,0 +1,114 @@
+[
+  {
+    "label": "toolchain",
+    "args": [
+      "node",
+      "--version"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0
+  },
+  {
+    "label": "git-init",
+    "args": [
+      "git",
+      "init"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17",
+    "exit": 0
+  },
+  {
+    "label": "git-add",
+    "args": [
+      "git",
+      "add",
+      "snapback4",
+      "llp",
+      "benchmarks"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17",
+    "exit": 0
+  },
+  {
+    "label": "git-commit",
+    "args": [
+      "git",
+      "-c",
+      "user.name=Charlie Cheever",
+      "-c",
+      "user.email=ccheever@firewoodagent.com",
+      "commit",
+      "-m",
+      "Integration17 source snapshot 999598649f5323f14ff43fb577e54650352416e3"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17",
+    "exit": 0
+  },
+  {
+    "label": "install",
+    "args": [
+      "bun",
+      "install",
+      "--frozen-lockfile"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0
+  },
+  {
+    "label": "targets",
+    "args": [
+      "rustup",
+      "target",
+      "add",
+      "wasm32-unknown-unknown",
+      "aarch64-apple-ios",
+      "aarch64-apple-ios-sim"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0
+  },
+  {
+    "label": "build",
+    "args": [
+      "cargo",
+      "build",
+      "-p",
+      "snapback4"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0
+  },
+  {
+    "label": "wasm",
+    "args": [
+      "bash",
+      "scripts/build-wasm.sh"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0
+  },
+  {
+    "label": "client-build",
+    "args": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "build"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0
+  },
+  {
+    "label": "playwright",
+    "args": [
+      "bun",
+      "x",
+      "playwright",
+      "install",
+      "chromium"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0
+  }
+]

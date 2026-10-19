@@ -1,0 +1,26 @@
+[
+  {
+    "path": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/offline-ios-device.log",
+    "bytes": 4046166,
+    "sha256": "cb9d9a00abcd9f184fdbcfe54f9aaf67dd963a18245254e6629584c1e5cfcacb",
+    "reason": "video or broad simulator system stream; not needed in git"
+  },
+  {
+    "path": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/offline-ios-screen.mp4",
+    "bytes": 1003676,
+    "sha256": "7c59f4a979f2e78473abbfbe73a01b2a8ca6f2abbcfb504f046c4ccf92396528",
+    "reason": "video or broad simulator system stream; not needed in git"
+  },
+  {
+    "path": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-device.log",
+    "bytes": 7942137,
+    "sha256": "8dd6a8c331e7bbdeba3b24d1b800362ad990c28a9fc3c0f778337435b5dd9fe1",
+    "reason": "video or broad simulator system stream; not needed in git"
+  },
+  {
+    "path": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-screen.mp4",
+    "bytes": 5037135,
+    "sha256": "45a5efab070832c6c8c799e963c0df417fbc340a8d91af89ce80894bdf396aa8",
+    "reason": "video or broad simulator system stream; not needed in git"
+  }
+]

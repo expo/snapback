@@ -1,0 +1,210 @@
+{
+  "appBuild": {
+    "CFBundleExecutable": "Snapback4chat",
+    "CFBundleIdentifier": "dev.snapback4.chat",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleVersion": "1",
+    "DTSDKBuild": "24A430",
+    "DTSDKName": "iphonesimulator27.0",
+    "DTXcodeBuild": "27A266a"
+  },
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/D30B59A4-4BDF-42B4-8D6E-0726A5EC0DF6/data/Containers/Bundle/Application/9A1EFF5E-524F-4DBD-A171-5F50278CC9A5/Snapback4chat.app",
+  "artifacts": {
+    "backend-stdout.log": {
+      "bytes": 46,
+      "path": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-backend-stdout.log",
+      "sha256": "a6bc6a8976ca45e24ba0eda4dddedea010829d58c3f3c9706be07f93d4dce7cc"
+    },
+    "backend.log": {
+      "bytes": 3470,
+      "path": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-backend.log",
+      "sha256": "ebe2598a3421c34c7d5833e8b0459d266834f87093407a5e68cc5e03c0945e6a"
+    },
+    "device.log": {
+      "bytes": 7942137,
+      "path": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-device.log",
+      "sha256": "8dd6a8c331e7bbdeba3b24d1b800362ad990c28a9fc3c0f778337435b5dd9fe1"
+    },
+    "launch.log": {
+      "bytes": 78,
+      "path": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-launch.log",
+      "sha256": "60b9431114de0834e47b1e9fd75de9bb10dffc54ab29b4f64a6a4082894061cc"
+    },
+    "log-stderr.log": {
+      "bytes": 44,
+      "path": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-log-stderr.log",
+      "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523"
+    },
+    "receipts.jsonl": {
+      "bytes": 3250,
+      "path": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-receipts.jsonl",
+      "sha256": "9b09b65c94ba025e1fdae5ea18ba512d994b744eb8976f4f727d691049f56f3a"
+    },
+    "screen.mp4": {
+      "bytes": 5037135,
+      "path": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-screen.mp4",
+      "sha256": "45a5efab070832c6c8c799e963c0df417fbc340a8d91af89ce80894bdf396aa8"
+    },
+    "video.log": {
+      "bytes": 131,
+      "path": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-video.log",
+      "sha256": "e576e7d155585dc380fd7b66cf07e42bcf08951e2ff5089eb3e8b688aa3a16a5"
+    }
+  },
+  "backend": {
+    "command": [
+      "/Users/ccheever/sb4-ws-integ17/snapback4/target/debug/snapback4",
+      "dev",
+      "--port",
+      "26933",
+      "--no-watch"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/evidence/native/tmp/sb4-expo-witness-pNYpSJ",
+    "origin": "http://127.0.0.1:26933",
+    "port": 26933,
+    "store": "/Users/ccheever/sb4-ws-integ17/evidence/native/tmp/sb4-expo-witness-pNYpSJ/.snapback4/store.sqlite"
+  },
+  "bundleId": "dev.snapback4.chat",
+  "cliVersion": "0.4.33",
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/D30B59A4-4BDF-42B4-8D6E-0726A5EC0DF6/data/Containers/Data/Application/1622311E-6C8B-47C0-B13D-CA6ECF7B3687",
+  "durationMs": 16962,
+  "endedAt": 1792368483834,
+  "error": null,
+  "events": [
+    {
+      "at": 1792368469007,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1792368469550,
+      "pid": 26200,
+      "step": "prime-launched"
+    },
+    {
+      "at": 1792368469551,
+      "step": "waiting-primed"
+    },
+    {
+      "at": 1792368471268,
+      "step": "primed"
+    },
+    {
+      "at": 1792368472148,
+      "pid": 26200,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1792368472321,
+      "step": "backend-refuses-connections"
+    },
+    {
+      "at": 1792368472543,
+      "step": "recording-started"
+    },
+    {
+      "at": 1792368473093,
+      "pid": 26473,
+      "step": "restart-launched"
+    },
+    {
+      "at": 1792368473093,
+      "step": "waiting-relaunch"
+    },
+    {
+      "at": 1792368475629,
+      "step": "relaunch"
+    },
+    {
+      "at": 1792368476630,
+      "pid": 26473,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1792368477181,
+      "pid": 26718,
+      "step": "restart-launched"
+    },
+    {
+      "at": 1792368477181,
+      "step": "offline-relaunched"
+    },
+    {
+      "at": 1792368477181,
+      "step": "waiting-offline-done"
+    },
+    {
+      "at": 1792368479787,
+      "step": "offline-done"
+    },
+    {
+      "at": 1792368479901,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1792368479903,
+      "step": "reconnect-signaled"
+    },
+    {
+      "at": 1792368479904,
+      "step": "waiting-done"
+    },
+    {
+      "at": 1792368481963,
+      "step": "done"
+    },
+    {
+      "at": 1792368482134,
+      "step": "recording-stopped"
+    },
+    {
+      "at": 1792368483015,
+      "pid": 26718,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1792368483177,
+      "step": "backend-refuses-connections"
+    }
+  ],
+  "exitStatus": 0,
+  "exported": null,
+  "installed": null,
+  "invokedAt": 1792368466872,
+  "iosSdkVersion": "27.0",
+  "mode": "application",
+  "nativeCache": null,
+  "outputs": [
+    "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-run.json",
+    "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-screen.mp4",
+    "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-receipts.jsonl",
+    "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-device.log",
+    "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-video.log",
+    "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-launch.log",
+    "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-backend.log",
+    "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-backend-stdout.log",
+    "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-log-stderr.log",
+    "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-prime.png",
+    "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-offline.png",
+    "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-restart.png"
+  ],
+  "prime": true,
+  "proofKind": "installed-application",
+  "queryFacts": null,
+  "queryGeneration": null,
+  "relaunch": true,
+  "reservation": "/Users/ccheever/sb4-ws-integ17/evidence/native/witness/restart-ios-reserved",
+  "run": "1792368468573-25970",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "segment": "restart",
+  "simulator": {
+    "name": "Integration17 native witness",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "explicit",
+    "udid": "D30B59A4-4BDF-42B4-8D6E-0726A5EC0DF6"
+  },
+  "startedAt": 1792368468574,
+  "timestampUnit": "unix-ms",
+  "toolchainSource": "installed Info.plist; absent values are unknown",
+  "udid": "D30B59A4-4BDF-42B4-8D6E-0726A5EC0DF6",
+  "xcodeBuild": "27A266a"
+}

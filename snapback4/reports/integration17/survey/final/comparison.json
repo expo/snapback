@@ -1,0 +1,17 @@
+{
+  "d9SummaryUnchanged": true,
+  "allOriginal150SchemasUnchanged": true,
+  "wave15": {
+    "passed": 100,
+    "ordinaryNotes": 488,
+    "newSweepDeadline": 30,
+    "securityNotes": 968
+  },
+  "wave16": {
+    "passed": 50,
+    "ordinaryNotes": 147,
+    "newSweepDeadline": 16,
+    "securityNotes": 582
+  },
+  "allPreexistingCodesMatchIntegration16": true
+}

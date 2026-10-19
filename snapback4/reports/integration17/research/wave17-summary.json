@@ -1,0 +1,1992 @@
+{
+  "wave": "17",
+  "generatedAt": "2026-10-18T23:59:08.701Z",
+  "lanes": 100,
+  "byBackend": {
+    "snapback": {
+      "lanes": 50,
+      "finished": 50,
+      "failedFast": 0,
+      "timedOut": 1,
+      "green": {
+        "check": "50/50",
+        "acceptance": "50/50",
+        "frontendProof": "50/50",
+        "probeServe": "50/50",
+        "checkAfterReverify": "50/50",
+        "acceptanceAfterReverify": "50/50",
+        "frontendAfterReverify": "50/50",
+        "allFour": "49/50",
+        "allFourPct": 98
+      },
+      "reverify": {
+        "red": 1,
+        "flaky": 0,
+        "envRed": 0
+      },
+      "wallMinutes": {
+        "median": 11.5,
+        "mean": 20.34
+      },
+      "agentMinutes": {
+        "median": 11.5,
+        "mean": 20.34
+      },
+      "frictionMinutes": {
+        "median": 12,
+        "mean": 25.18
+      },
+      "frictionCount": {
+        "median": 5,
+        "mean": 5.4
+      },
+      "loc": {
+        "backend": {
+          "median": 377,
+          "mean": 490.22
+        },
+        "frontend": {
+          "median": 470,
+          "mean": 476.38
+        },
+        "tests": {
+          "median": 670.5,
+          "mean": 697.1
+        },
+        "total": {
+          "median": 1519,
+          "mean": 1663.7
+        }
+      },
+      "rating": {
+        "median": 8,
+        "mean": 8.06,
+        "rated": 50
+      },
+      "day2": {
+        "proof": "49/50",
+        "proofFirstRun": "49/50",
+        "proofAfterReverify": "49/50",
+        "resultFile": "50/50",
+        "rollbackOk": "49/50",
+        "dataPreserved": "49/50",
+        "v2RuleEnforced": "49/50",
+        "v1AfterV2": {
+          "works": 29,
+          "degraded": 20,
+          "broken": 1
+        },
+        "v1AfterRollback": {
+          "works": 47,
+          "degraded": 2,
+          "broken": 1
+        },
+        "locAdded": {
+          "median": 563.5,
+          "mean": 562.92
+        },
+        "locBackendAdded": {
+          "median": 33,
+          "mean": 102.08
+        },
+        "locMigrationAdded": {
+          "median": 0,
+          "mean": 7.24,
+          "lanesWithMigrationFiles": 2
+        },
+        "day1": {
+          "wallMinutes": 14,
+          "frictionMinutes": 10,
+          "frictionCount": 5,
+          "rating": 8.18,
+          "confirmedAll": 0.44
+        },
+        "ratingDelta": {
+          "median": 0,
+          "mean": -0.12
+        }
+      },
+      "probe": {
+        "probed": 50,
+        "notProbed": 0,
+        "statuses": {
+          "done": 50
+        },
+        "reported": {
+          "high": 15,
+          "medium": 27,
+          "low": 3
+        },
+        "confirmed": {
+          "high": 15,
+          "medium": 26,
+          "low": 3
+        },
+        "lanesWithConfirmedHigh": 10,
+        "confirmedPerLane": 0.88,
+        "tamperedLanes": 0
+      },
+      "frictionByArea": [
+        {
+          "area": "testing",
+          "entries": 71,
+          "minutes": 239,
+          "lanes": 39
+        },
+        {
+          "area": "migration",
+          "entries": 35,
+          "minutes": 211,
+          "lanes": 30
+        },
+        {
+          "area": "hosting-deploy",
+          "entries": 18,
+          "minutes": 137,
+          "lanes": 17
+        },
+        {
+          "area": "rollback",
+          "entries": 19,
+          "minutes": 99,
+          "lanes": 19
+        },
+        {
+          "area": "frontend",
+          "entries": 23,
+          "minutes": 91,
+          "lanes": 19
+        },
+        {
+          "area": "client",
+          "entries": 13,
+          "minutes": 80,
+          "lanes": 13
+        },
+        {
+          "area": "authorization-rules",
+          "entries": 11,
+          "minutes": 65,
+          "lanes": 11
+        },
+        {
+          "area": "functions-api",
+          "entries": 9,
+          "minutes": 64,
+          "lanes": 9
+        },
+        {
+          "area": "auth",
+          "entries": 8,
+          "minutes": 63,
+          "lanes": 8
+        },
+        {
+          "area": "schema-data",
+          "entries": 8,
+          "minutes": 40,
+          "lanes": 8
+        },
+        {
+          "area": "other",
+          "entries": 11,
+          "minutes": 34,
+          "lanes": 7
+        },
+        {
+          "area": "cli",
+          "entries": 5,
+          "minutes": 31,
+          "lanes": 5
+        },
+        {
+          "area": "dev-server",
+          "entries": 1,
+          "minutes": 25,
+          "lanes": 1
+        },
+        {
+          "area": "diagnostics",
+          "entries": 13,
+          "minutes": 22,
+          "lanes": 13
+        },
+        {
+          "area": "install",
+          "entries": 4,
+          "minutes": 15,
+          "lanes": 4
+        },
+        {
+          "area": "codegen-types",
+          "entries": 8,
+          "minutes": 15,
+          "lanes": 8
+        },
+        {
+          "area": "docs",
+          "entries": 6,
+          "minutes": 14,
+          "lanes": 6
+        },
+        {
+          "area": "upgrade",
+          "entries": 2,
+          "minutes": 6,
+          "lanes": 2
+        },
+        {
+          "area": "scheduling-time",
+          "entries": 3,
+          "minutes": 5,
+          "lanes": 2
+        },
+        {
+          "area": "uploads",
+          "entries": 2,
+          "minutes": 3,
+          "lanes": 2
+        }
+      ]
+    },
+    "convex": {
+      "lanes": 50,
+      "finished": 50,
+      "failedFast": 0,
+      "timedOut": 0,
+      "green": {
+        "check": "50/50",
+        "acceptance": "50/50",
+        "frontendProof": "50/50",
+        "probeServe": "49/50",
+        "checkAfterReverify": "50/50",
+        "acceptanceAfterReverify": "50/50",
+        "frontendAfterReverify": "50/50",
+        "allFour": "49/50",
+        "allFourPct": 98
+      },
+      "reverify": {
+        "red": 0,
+        "flaky": 1,
+        "envRed": 0
+      },
+      "wallMinutes": {
+        "median": 21.5,
+        "mean": 23.9
+      },
+      "agentMinutes": {
+        "median": 21.5,
+        "mean": 23.9
+      },
+      "frictionMinutes": {
+        "median": 16.5,
+        "mean": 30.66
+      },
+      "frictionCount": {
+        "median": 7,
+        "mean": 7.88
+      },
+      "loc": {
+        "backend": {
+          "median": 270,
+          "mean": 489.06
+        },
+        "frontend": {
+          "median": 897,
+          "mean": 1460.9
+        },
+        "tests": {
+          "median": 630,
+          "mean": 840.18
+        },
+        "total": {
+          "median": 1702.5,
+          "mean": 2790.14
+        }
+      },
+      "rating": {
+        "median": 8,
+        "mean": 7.66,
+        "rated": 50
+      },
+      "day2": {
+        "proof": "49/50",
+        "proofFirstRun": "50/50",
+        "proofAfterReverify": "50/50",
+        "resultFile": "50/50",
+        "rollbackOk": "50/50",
+        "dataPreserved": "50/50",
+        "v2RuleEnforced": "50/50",
+        "v1AfterV2": {
+          "works": 34,
+          "degraded": 16
+        },
+        "v1AfterRollback": {
+          "works": 45,
+          "degraded": 5
+        },
+        "locAdded": {
+          "median": 667.5,
+          "mean": 725.46
+        },
+        "locBackendAdded": {
+          "median": 64.5,
+          "mean": 85.88
+        },
+        "locMigrationAdded": {
+          "median": 9,
+          "mean": 18.08,
+          "lanesWithMigrationFiles": 27
+        },
+        "day1": {
+          "wallMinutes": 15,
+          "frictionMinutes": 13.5,
+          "frictionCount": 7,
+          "rating": 8.02,
+          "confirmedAll": 0.68
+        },
+        "ratingDelta": {
+          "median": 0,
+          "mean": -0.36
+        }
+      },
+      "probe": {
+        "probed": 49,
+        "notProbed": 1,
+        "statuses": {
+          "done": 49,
+          "serve-failed": 1
+        },
+        "reported": {
+          "high": 24,
+          "medium": 37,
+          "low": 5
+        },
+        "confirmed": {
+          "high": 24,
+          "medium": 37,
+          "low": 5
+        },
+        "lanesWithConfirmedHigh": 14,
+        "confirmedPerLane": 1.35,
+        "tamperedLanes": 0
+      },
+      "frictionByArea": [
+        {
+          "area": "rollback",
+          "entries": 99,
+          "minutes": 416,
+          "lanes": 44
+        },
+        {
+          "area": "hosting-deploy",
+          "entries": 33,
+          "minutes": 228,
+          "lanes": 26
+        },
+        {
+          "area": "testing",
+          "entries": 65,
+          "minutes": 184,
+          "lanes": 36
+        },
+        {
+          "area": "cli",
+          "entries": 62,
+          "minutes": 153,
+          "lanes": 38
+        },
+        {
+          "area": "migration",
+          "entries": 20,
+          "minutes": 144,
+          "lanes": 20
+        },
+        {
+          "area": "diagnostics",
+          "entries": 19,
+          "minutes": 139,
+          "lanes": 18
+        },
+        {
+          "area": "functions-api",
+          "entries": 10,
+          "minutes": 61,
+          "lanes": 10
+        },
+        {
+          "area": "schema-data",
+          "entries": 11,
+          "minutes": 43,
+          "lanes": 11
+        },
+        {
+          "area": "other",
+          "entries": 10,
+          "minutes": 35,
+          "lanes": 7
+        },
+        {
+          "area": "auth",
+          "entries": 9,
+          "minutes": 34,
+          "lanes": 9
+        },
+        {
+          "area": "client",
+          "entries": 7,
+          "minutes": 28,
+          "lanes": 7
+        },
+        {
+          "area": "frontend",
+          "entries": 13,
+          "minutes": 20,
+          "lanes": 12
+        },
+        {
+          "area": "codegen-types",
+          "entries": 7,
+          "minutes": 18,
+          "lanes": 7
+        },
+        {
+          "area": "dev-server",
+          "entries": 1,
+          "minutes": 10,
+          "lanes": 1
+        },
+        {
+          "area": "upgrade",
+          "entries": 6,
+          "minutes": 9,
+          "lanes": 6
+        },
+        {
+          "area": "install",
+          "entries": 6,
+          "minutes": 5,
+          "lanes": 6
+        },
+        {
+          "area": "docs",
+          "entries": 15,
+          "minutes": 4,
+          "lanes": 15
+        },
+        {
+          "area": "authorization-rules",
+          "entries": 1,
+          "minutes": 2,
+          "lanes": 1
+        }
+      ]
+    }
+  },
+  "paired": {
+    "all": {
+      "pairs": 50,
+      "metrics": [
+        {
+          "metric": "allGreen",
+          "label": "all five green: check, acceptance, frontend ×2, day2:proof ×2, probe:serve (after reverify)",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 1,
+          "convexWins": 1,
+          "ties": 48,
+          "signTestP": 1
+        },
+        {
+          "metric": "checkAfter",
+          "label": "check",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 0,
+          "ties": 50,
+          "signTestP": null
+        },
+        {
+          "metric": "acceptanceAfter",
+          "label": "acceptance",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 0,
+          "ties": 50,
+          "signTestP": null
+        },
+        {
+          "metric": "frontendAfter",
+          "label": "frontend proof ×2",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 0,
+          "ties": 50,
+          "signTestP": null
+        },
+        {
+          "metric": "probeServe",
+          "label": "probe:serve up with ≥2 users/role",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 1,
+          "convexWins": 0,
+          "ties": 49,
+          "signTestP": 1
+        },
+        {
+          "metric": "day2After",
+          "label": "day2:proof ×2 (after reverify)",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 1,
+          "ties": 49,
+          "signTestP": 1
+        },
+        {
+          "metric": "rollbackOk",
+          "label": "rollback + roll-forward ok (day2:proof green)",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 1,
+          "ties": 49,
+          "signTestP": 1
+        },
+        {
+          "metric": "dataPreserved",
+          "label": "data preserved through v2, rollback, forward",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 1,
+          "ties": 49,
+          "signTestP": 1
+        },
+        {
+          "metric": "v2RuleEnforced",
+          "label": "v2 privacy rule enforced (day2:proof)",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 1,
+          "ties": 49,
+          "signTestP": 1
+        },
+        {
+          "metric": "v1AfterV2Score",
+          "label": "v1 client after v2 deploy (works 2 / degraded 1 / broken 0)",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 4,
+          "convexWins": 10,
+          "ties": 36,
+          "signTestP": 0.1796
+        },
+        {
+          "metric": "v1AfterRollbackScore",
+          "label": "v1 client after rollback (2/1/0)",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 3,
+          "convexWins": 1,
+          "ties": 46,
+          "signTestP": 0.625
+        },
+        {
+          "metric": "locAdded",
+          "label": "lines added since day one (descriptive)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 34,
+          "convexWins": 16,
+          "ties": 0,
+          "signTestP": 0.0153
+        },
+        {
+          "metric": "locBackendAdded",
+          "label": "backend lines added since day one (descriptive)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 33,
+          "convexWins": 17,
+          "ties": 0,
+          "signTestP": 0.0328
+        },
+        {
+          "metric": "locMigrationAdded",
+          "label": "lines added in migration-named files (descriptive)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 25,
+          "convexWins": 2,
+          "ties": 23,
+          "signTestP": 0
+        },
+        {
+          "metric": "ratingDelta",
+          "label": "rating change vs day one",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 17,
+          "convexWins": 7,
+          "ties": 26,
+          "signTestP": 0.0639
+        },
+        {
+          "metric": "wallMinutes",
+          "label": "wall minutes (first start → agent done, all attempts)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 43,
+          "convexWins": 7,
+          "ties": 0,
+          "signTestP": 0
+        },
+        {
+          "metric": "agentMinutes",
+          "label": "agent minutes (sum of attempts)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 43,
+          "convexWins": 7,
+          "ties": 0,
+          "signTestP": 0
+        },
+        {
+          "metric": "frictionMinutes",
+          "label": "friction minutes (self-reported)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 35,
+          "convexWins": 14,
+          "ties": 1,
+          "signTestP": 0.0038
+        },
+        {
+          "metric": "frictionCount",
+          "label": "friction entries",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 38,
+          "convexWins": 10,
+          "ties": 2,
+          "signTestP": 0.0001
+        },
+        {
+          "metric": "rating",
+          "label": "rating /10",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 20,
+          "convexWins": 3,
+          "ties": 27,
+          "signTestP": 0.0005
+        },
+        {
+          "metric": "locTotal",
+          "label": "lines of code, total (descriptive)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 37,
+          "convexWins": 13,
+          "ties": 0,
+          "signTestP": 0.0009
+        },
+        {
+          "metric": "locBackend",
+          "label": "lines of backend code (descriptive)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 21,
+          "convexWins": 29,
+          "ties": 0,
+          "signTestP": 0.3222
+        },
+        {
+          "metric": "confirmedHigh",
+          "label": "confirmed high-severity probe findings",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 11,
+          "convexWins": 6,
+          "ties": 33,
+          "signTestP": 0.3323
+        },
+        {
+          "metric": "confirmedAll",
+          "label": "confirmed probe findings, all severities",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 18,
+          "convexWins": 9,
+          "ties": 23,
+          "signTestP": 0.1221
+        },
+        {
+          "metric": "confirmedWeighted",
+          "label": "confirmed findings weighted 3/2/1",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 18,
+          "convexWins": 11,
+          "ties": 21,
+          "signTestP": 0.2649
+        }
+      ]
+    },
+    "modelMatched": {
+      "pairs": 50,
+      "metrics": [
+        {
+          "metric": "allGreen",
+          "label": "all five green: check, acceptance, frontend ×2, day2:proof ×2, probe:serve (after reverify)",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 1,
+          "convexWins": 1,
+          "ties": 48,
+          "signTestP": 1
+        },
+        {
+          "metric": "checkAfter",
+          "label": "check",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 0,
+          "ties": 50,
+          "signTestP": null
+        },
+        {
+          "metric": "acceptanceAfter",
+          "label": "acceptance",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 0,
+          "ties": 50,
+          "signTestP": null
+        },
+        {
+          "metric": "frontendAfter",
+          "label": "frontend proof ×2",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 0,
+          "ties": 50,
+          "signTestP": null
+        },
+        {
+          "metric": "probeServe",
+          "label": "probe:serve up with ≥2 users/role",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 1,
+          "convexWins": 0,
+          "ties": 49,
+          "signTestP": 1
+        },
+        {
+          "metric": "day2After",
+          "label": "day2:proof ×2 (after reverify)",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 1,
+          "ties": 49,
+          "signTestP": 1
+        },
+        {
+          "metric": "rollbackOk",
+          "label": "rollback + roll-forward ok (day2:proof green)",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 1,
+          "ties": 49,
+          "signTestP": 1
+        },
+        {
+          "metric": "dataPreserved",
+          "label": "data preserved through v2, rollback, forward",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 1,
+          "ties": 49,
+          "signTestP": 1
+        },
+        {
+          "metric": "v2RuleEnforced",
+          "label": "v2 privacy rule enforced (day2:proof)",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 0,
+          "convexWins": 1,
+          "ties": 49,
+          "signTestP": 1
+        },
+        {
+          "metric": "v1AfterV2Score",
+          "label": "v1 client after v2 deploy (works 2 / degraded 1 / broken 0)",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 4,
+          "convexWins": 10,
+          "ties": 36,
+          "signTestP": 0.1796
+        },
+        {
+          "metric": "v1AfterRollbackScore",
+          "label": "v1 client after rollback (2/1/0)",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 3,
+          "convexWins": 1,
+          "ties": 46,
+          "signTestP": 0.625
+        },
+        {
+          "metric": "locAdded",
+          "label": "lines added since day one (descriptive)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 34,
+          "convexWins": 16,
+          "ties": 0,
+          "signTestP": 0.0153
+        },
+        {
+          "metric": "locBackendAdded",
+          "label": "backend lines added since day one (descriptive)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 33,
+          "convexWins": 17,
+          "ties": 0,
+          "signTestP": 0.0328
+        },
+        {
+          "metric": "locMigrationAdded",
+          "label": "lines added in migration-named files (descriptive)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 25,
+          "convexWins": 2,
+          "ties": 23,
+          "signTestP": 0
+        },
+        {
+          "metric": "ratingDelta",
+          "label": "rating change vs day one",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 17,
+          "convexWins": 7,
+          "ties": 26,
+          "signTestP": 0.0639
+        },
+        {
+          "metric": "wallMinutes",
+          "label": "wall minutes (first start → agent done, all attempts)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 43,
+          "convexWins": 7,
+          "ties": 0,
+          "signTestP": 0
+        },
+        {
+          "metric": "agentMinutes",
+          "label": "agent minutes (sum of attempts)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 43,
+          "convexWins": 7,
+          "ties": 0,
+          "signTestP": 0
+        },
+        {
+          "metric": "frictionMinutes",
+          "label": "friction minutes (self-reported)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 35,
+          "convexWins": 14,
+          "ties": 1,
+          "signTestP": 0.0038
+        },
+        {
+          "metric": "frictionCount",
+          "label": "friction entries",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 38,
+          "convexWins": 10,
+          "ties": 2,
+          "signTestP": 0.0001
+        },
+        {
+          "metric": "rating",
+          "label": "rating /10",
+          "better": "higher",
+          "pairs": 50,
+          "snapbackWins": 20,
+          "convexWins": 3,
+          "ties": 27,
+          "signTestP": 0.0005
+        },
+        {
+          "metric": "locTotal",
+          "label": "lines of code, total (descriptive)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 37,
+          "convexWins": 13,
+          "ties": 0,
+          "signTestP": 0.0009
+        },
+        {
+          "metric": "locBackend",
+          "label": "lines of backend code (descriptive)",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 21,
+          "convexWins": 29,
+          "ties": 0,
+          "signTestP": 0.3222
+        },
+        {
+          "metric": "confirmedHigh",
+          "label": "confirmed high-severity probe findings",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 11,
+          "convexWins": 6,
+          "ties": 33,
+          "signTestP": 0.3323
+        },
+        {
+          "metric": "confirmedAll",
+          "label": "confirmed probe findings, all severities",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 18,
+          "convexWins": 9,
+          "ties": 23,
+          "signTestP": 0.1221
+        },
+        {
+          "metric": "confirmedWeighted",
+          "label": "confirmed findings weighted 3/2/1",
+          "better": "lower",
+          "pairs": 50,
+          "snapbackWins": 18,
+          "convexWins": 11,
+          "ties": 21,
+          "signTestP": 0.2649
+        }
+      ]
+    }
+  },
+  "within": {
+    "snapback": {
+      "byModel": {
+        "muse": {
+          "lanes": 20,
+          "finished": 20,
+          "failedFast": 0,
+          "timedOut": 1,
+          "green": {
+            "check": "20/20",
+            "acceptance": "20/20",
+            "frontendProof": "20/20",
+            "probeServe": "20/20",
+            "checkAfterReverify": "20/20",
+            "acceptanceAfterReverify": "20/20",
+            "frontendAfterReverify": "20/20",
+            "allFour": "19/20",
+            "allFourPct": 95
+          },
+          "reverify": {
+            "red": 1,
+            "flaky": 0,
+            "envRed": 0
+          },
+          "wallMinutes": {
+            "median": 31,
+            "mean": 36.65
+          },
+          "agentMinutes": {
+            "median": 31,
+            "mean": 36.65
+          },
+          "frictionMinutes": {
+            "median": 45,
+            "mean": 47.95
+          },
+          "frictionCount": {
+            "median": 4.5,
+            "mean": 4.7
+          },
+          "loc": {
+            "backend": {
+              "median": 576.5,
+              "mean": 600.4
+            },
+            "frontend": {
+              "median": 704.5,
+              "mean": 686.4
+            },
+            "tests": {
+              "median": 850,
+              "mean": 881.85
+            },
+            "total": {
+              "median": 2224.5,
+              "mean": 2168.65
+            }
+          },
+          "rating": {
+            "median": 8,
+            "mean": 8.1,
+            "rated": 20
+          },
+          "day2": {
+            "proof": "19/20",
+            "proofFirstRun": "19/20",
+            "proofAfterReverify": "19/20",
+            "resultFile": "20/20",
+            "rollbackOk": "19/20",
+            "dataPreserved": "19/20",
+            "v2RuleEnforced": "19/20",
+            "v1AfterV2": {
+              "degraded": 9,
+              "works": 10,
+              "broken": 1
+            },
+            "v1AfterRollback": {
+              "works": 19,
+              "broken": 1
+            },
+            "locAdded": {
+              "median": 706,
+              "mean": 732.4
+            },
+            "locBackendAdded": {
+              "median": 49.5,
+              "mean": 126.1
+            },
+            "locMigrationAdded": {
+              "median": 0,
+              "mean": 0,
+              "lanesWithMigrationFiles": 0
+            },
+            "day1": {
+              "wallMinutes": 17,
+              "frictionMinutes": 21,
+              "frictionCount": 4,
+              "rating": 8.25,
+              "confirmedAll": 0.9
+            },
+            "ratingDelta": {
+              "median": 0,
+              "mean": -0.15
+            }
+          },
+          "probe": {
+            "probed": 20,
+            "notProbed": 0,
+            "statuses": {
+              "done": 20
+            },
+            "reported": {
+              "high": 14,
+              "medium": 21,
+              "low": 3
+            },
+            "confirmed": {
+              "high": 14,
+              "medium": 21,
+              "low": 3
+            },
+            "lanesWithConfirmedHigh": 9,
+            "confirmedPerLane": 1.9,
+            "tamperedLanes": 0
+          }
+        },
+        "codex": {
+          "lanes": 30,
+          "finished": 30,
+          "failedFast": 0,
+          "timedOut": 0,
+          "green": {
+            "check": "30/30",
+            "acceptance": "30/30",
+            "frontendProof": "30/30",
+            "probeServe": "30/30",
+            "checkAfterReverify": "30/30",
+            "acceptanceAfterReverify": "30/30",
+            "frontendAfterReverify": "30/30",
+            "allFour": "30/30",
+            "allFourPct": 100
+          },
+          "reverify": {
+            "red": 0,
+            "flaky": 0,
+            "envRed": 0
+          },
+          "wallMinutes": {
+            "median": 9,
+            "mean": 9.47
+          },
+          "agentMinutes": {
+            "median": 9,
+            "mean": 9.47
+          },
+          "frictionMinutes": {
+            "median": 9.5,
+            "mean": 10
+          },
+          "frictionCount": {
+            "median": 5.5,
+            "mean": 5.87
+          },
+          "loc": {
+            "backend": {
+              "median": 297,
+              "mean": 416.77
+            },
+            "frontend": {
+              "median": 236,
+              "mean": 336.37
+            },
+            "tests": {
+              "median": 580,
+              "mean": 573.93
+            },
+            "total": {
+              "median": 1182,
+              "mean": 1327.07
+            }
+          },
+          "rating": {
+            "median": 8,
+            "mean": 8.03,
+            "rated": 30
+          },
+          "day2": {
+            "proof": "30/30",
+            "proofFirstRun": "30/30",
+            "proofAfterReverify": "30/30",
+            "resultFile": "30/30",
+            "rollbackOk": "30/30",
+            "dataPreserved": "30/30",
+            "v2RuleEnforced": "30/30",
+            "v1AfterV2": {
+              "works": 19,
+              "degraded": 11
+            },
+            "v1AfterRollback": {
+              "works": 28,
+              "degraded": 2
+            },
+            "locAdded": {
+              "median": 342.5,
+              "mean": 449.93
+            },
+            "locBackendAdded": {
+              "median": 23,
+              "mean": 86.07
+            },
+            "locMigrationAdded": {
+              "median": 0,
+              "mean": 12.07,
+              "lanesWithMigrationFiles": 2
+            },
+            "day1": {
+              "wallMinutes": 12,
+              "frictionMinutes": 8,
+              "frictionCount": 6,
+              "rating": 8.13,
+              "confirmedAll": 0.13
+            },
+            "ratingDelta": {
+              "median": 0,
+              "mean": -0.1
+            }
+          },
+          "probe": {
+            "probed": 30,
+            "notProbed": 0,
+            "statuses": {
+              "done": 30
+            },
+            "reported": {
+              "high": 1,
+              "medium": 6,
+              "low": 0
+            },
+            "confirmed": {
+              "high": 1,
+              "medium": 5,
+              "low": 0
+            },
+            "lanesWithConfirmedHigh": 1,
+            "confirmedPerLane": 0.2,
+            "tamperedLanes": 0
+          }
+        }
+      },
+      "byFrontend": {
+        "react": {
+          "lanes": 23,
+          "finished": 23,
+          "failedFast": 0,
+          "timedOut": 0,
+          "green": {
+            "check": "23/23",
+            "acceptance": "23/23",
+            "frontendProof": "23/23",
+            "probeServe": "23/23",
+            "checkAfterReverify": "23/23",
+            "acceptanceAfterReverify": "23/23",
+            "frontendAfterReverify": "23/23",
+            "allFour": "22/23",
+            "allFourPct": 96
+          },
+          "reverify": {
+            "red": 1,
+            "flaky": 0,
+            "envRed": 0
+          },
+          "wallMinutes": {
+            "median": 11,
+            "mean": 17.04
+          },
+          "agentMinutes": {
+            "median": 11,
+            "mean": 17.04
+          },
+          "frictionMinutes": {
+            "median": 11,
+            "mean": 23.22
+          },
+          "frictionCount": {
+            "median": 5,
+            "mean": 5.26
+          },
+          "loc": {
+            "backend": {
+              "median": 455,
+              "mean": 548
+            },
+            "frontend": {
+              "median": 301,
+              "mean": 442.78
+            },
+            "tests": {
+              "median": 648,
+              "mean": 717.87
+            },
+            "total": {
+              "median": 1264,
+              "mean": 1708.65
+            }
+          },
+          "rating": {
+            "median": 8,
+            "mean": 8.04,
+            "rated": 23
+          },
+          "day2": {
+            "proof": "22/23",
+            "proofFirstRun": "22/23",
+            "proofAfterReverify": "22/23",
+            "resultFile": "23/23",
+            "rollbackOk": "22/23",
+            "dataPreserved": "22/23",
+            "v2RuleEnforced": "22/23",
+            "v1AfterV2": {
+              "works": 12,
+              "degraded": 10,
+              "broken": 1
+            },
+            "v1AfterRollback": {
+              "works": 22,
+              "broken": 1
+            },
+            "locAdded": {
+              "median": 453,
+              "mean": 551
+            },
+            "locBackendAdded": {
+              "median": 33,
+              "mean": 125.7
+            },
+            "locMigrationAdded": {
+              "median": 0,
+              "mean": 8.26,
+              "lanesWithMigrationFiles": 1
+            },
+            "day1": {
+              "wallMinutes": 14,
+              "frictionMinutes": 9,
+              "frictionCount": 6,
+              "rating": 8.13,
+              "confirmedAll": 0.83
+            },
+            "ratingDelta": {
+              "median": 0,
+              "mean": -0.09
+            }
+          },
+          "probe": {
+            "probed": 23,
+            "notProbed": 0,
+            "statuses": {
+              "done": 23
+            },
+            "reported": {
+              "high": 9,
+              "medium": 18,
+              "low": 1
+            },
+            "confirmed": {
+              "high": 9,
+              "medium": 18,
+              "low": 1
+            },
+            "lanesWithConfirmedHigh": 5,
+            "confirmedPerLane": 1.22,
+            "tamperedLanes": 0
+          }
+        },
+        "expo": {
+          "lanes": 27,
+          "finished": 27,
+          "failedFast": 0,
+          "timedOut": 1,
+          "green": {
+            "check": "27/27",
+            "acceptance": "27/27",
+            "frontendProof": "27/27",
+            "probeServe": "27/27",
+            "checkAfterReverify": "27/27",
+            "acceptanceAfterReverify": "27/27",
+            "frontendAfterReverify": "27/27",
+            "allFour": "27/27",
+            "allFourPct": 100
+          },
+          "reverify": {
+            "red": 0,
+            "flaky": 0,
+            "envRed": 0
+          },
+          "wallMinutes": {
+            "median": 12,
+            "mean": 23.15
+          },
+          "agentMinutes": {
+            "median": 12,
+            "mean": 23.15
+          },
+          "frictionMinutes": {
+            "median": 13,
+            "mean": 26.85
+          },
+          "frictionCount": {
+            "median": 5,
+            "mean": 5.52
+          },
+          "loc": {
+            "backend": {
+              "median": 360,
+              "mean": 441
+            },
+            "frontend": {
+              "median": 530,
+              "mean": 505
+            },
+            "tests": {
+              "median": 676,
+              "mean": 679.41
+            },
+            "total": {
+              "median": 1594,
+              "mean": 1625.41
+            }
+          },
+          "rating": {
+            "median": 8,
+            "mean": 8.07,
+            "rated": 27
+          },
+          "day2": {
+            "proof": "27/27",
+            "proofFirstRun": "27/27",
+            "proofAfterReverify": "27/27",
+            "resultFile": "27/27",
+            "rollbackOk": "27/27",
+            "dataPreserved": "27/27",
+            "v2RuleEnforced": "27/27",
+            "v1AfterV2": {
+              "degraded": 10,
+              "works": 17
+            },
+            "v1AfterRollback": {
+              "works": 25,
+              "degraded": 2
+            },
+            "locAdded": {
+              "median": 570,
+              "mean": 573.07
+            },
+            "locBackendAdded": {
+              "median": 34,
+              "mean": 81.96
+            },
+            "locMigrationAdded": {
+              "median": 0,
+              "mean": 6.37,
+              "lanesWithMigrationFiles": 1
+            },
+            "day1": {
+              "wallMinutes": 15,
+              "frictionMinutes": 11,
+              "frictionCount": 5,
+              "rating": 8.22,
+              "confirmedAll": 0.11
+            },
+            "ratingDelta": {
+              "median": 0,
+              "mean": -0.15
+            }
+          },
+          "probe": {
+            "probed": 27,
+            "notProbed": 0,
+            "statuses": {
+              "done": 27
+            },
+            "reported": {
+              "high": 6,
+              "medium": 9,
+              "low": 2
+            },
+            "confirmed": {
+              "high": 6,
+              "medium": 8,
+              "low": 2
+            },
+            "lanesWithConfirmedHigh": 5,
+            "confirmedPerLane": 0.59,
+            "tamperedLanes": 0
+          }
+        }
+      }
+    },
+    "convex": {
+      "byModel": {
+        "muse": {
+          "lanes": 20,
+          "finished": 20,
+          "failedFast": 0,
+          "timedOut": 0,
+          "green": {
+            "check": "20/20",
+            "acceptance": "20/20",
+            "frontendProof": "20/20",
+            "probeServe": "20/20",
+            "checkAfterReverify": "20/20",
+            "acceptanceAfterReverify": "20/20",
+            "frontendAfterReverify": "20/20",
+            "allFour": "20/20",
+            "allFourPct": 100
+          },
+          "reverify": {
+            "red": 0,
+            "flaky": 0,
+            "envRed": 0
+          },
+          "wallMinutes": {
+            "median": 32,
+            "mean": 31.85
+          },
+          "agentMinutes": {
+            "median": 32,
+            "mean": 31.85
+          },
+          "frictionMinutes": {
+            "median": 61.5,
+            "mean": 57.55
+          },
+          "frictionCount": {
+            "median": 5.5,
+            "mean": 5.6
+          },
+          "loc": {
+            "backend": {
+              "median": 879.5,
+              "mean": 874.3
+            },
+            "frontend": {
+              "median": 2417,
+              "mean": 2626.45
+            },
+            "tests": {
+              "median": 1271,
+              "mean": 1276.95
+            },
+            "total": {
+              "median": 4472,
+              "mean": 4777.7
+            }
+          },
+          "rating": {
+            "median": 7,
+            "mean": 7.4,
+            "rated": 20
+          },
+          "day2": {
+            "proof": "20/20",
+            "proofFirstRun": "20/20",
+            "proofAfterReverify": "20/20",
+            "resultFile": "20/20",
+            "rollbackOk": "20/20",
+            "dataPreserved": "20/20",
+            "v2RuleEnforced": "20/20",
+            "v1AfterV2": {
+              "works": 16,
+              "degraded": 4
+            },
+            "v1AfterRollback": {
+              "works": 18,
+              "degraded": 2
+            },
+            "locAdded": {
+              "median": 868.5,
+              "mean": 1063.4
+            },
+            "locBackendAdded": {
+              "median": 130,
+              "mean": 145.7
+            },
+            "locMigrationAdded": {
+              "median": 0,
+              "mean": 28.5,
+              "lanesWithMigrationFiles": 5
+            },
+            "day1": {
+              "wallMinutes": 21,
+              "frictionMinutes": 46.5,
+              "frictionCount": 5,
+              "rating": 8.05,
+              "confirmedAll": 1.15
+            },
+            "ratingDelta": {
+              "median": -1,
+              "mean": -0.65
+            }
+          },
+          "probe": {
+            "probed": 20,
+            "notProbed": 0,
+            "statuses": {
+              "done": 20
+            },
+            "reported": {
+              "high": 23,
+              "medium": 32,
+              "low": 2
+            },
+            "confirmed": {
+              "high": 23,
+              "medium": 32,
+              "low": 2
+            },
+            "lanesWithConfirmedHigh": 13,
+            "confirmedPerLane": 2.85,
+            "tamperedLanes": 0
+          }
+        },
+        "codex": {
+          "lanes": 30,
+          "finished": 30,
+          "failedFast": 0,
+          "timedOut": 0,
+          "green": {
+            "check": "30/30",
+            "acceptance": "30/30",
+            "frontendProof": "30/30",
+            "probeServe": "29/30",
+            "checkAfterReverify": "30/30",
+            "acceptanceAfterReverify": "30/30",
+            "frontendAfterReverify": "30/30",
+            "allFour": "29/30",
+            "allFourPct": 97
+          },
+          "reverify": {
+            "red": 0,
+            "flaky": 1,
+            "envRed": 0
+          },
+          "wallMinutes": {
+            "median": 19,
+            "mean": 18.6
+          },
+          "agentMinutes": {
+            "median": 19,
+            "mean": 18.6
+          },
+          "frictionMinutes": {
+            "median": 12,
+            "mean": 12.73
+          },
+          "frictionCount": {
+            "median": 9.5,
+            "mean": 9.4
+          },
+          "loc": {
+            "backend": {
+              "median": 205,
+              "mean": 232.23
+            },
+            "frontend": {
+              "median": 615,
+              "mean": 683.87
+            },
+            "tests": {
+              "median": 533.5,
+              "mean": 549
+            },
+            "total": {
+              "median": 1286,
+              "mean": 1465.1
+            }
+          },
+          "rating": {
+            "median": 8,
+            "mean": 7.83,
+            "rated": 30
+          },
+          "day2": {
+            "proof": "29/30",
+            "proofFirstRun": "30/30",
+            "proofAfterReverify": "30/30",
+            "resultFile": "30/30",
+            "rollbackOk": "30/30",
+            "dataPreserved": "30/30",
+            "v2RuleEnforced": "30/30",
+            "v1AfterV2": {
+              "works": 18,
+              "degraded": 12
+            },
+            "v1AfterRollback": {
+              "works": 27,
+              "degraded": 3
+            },
+            "locAdded": {
+              "median": 391,
+              "mean": 500.17
+            },
+            "locBackendAdded": {
+              "median": 39.5,
+              "mean": 46
+            },
+            "locMigrationAdded": {
+              "median": 11.5,
+              "mean": 11.13,
+              "lanesWithMigrationFiles": 22
+            },
+            "day1": {
+              "wallMinutes": 14,
+              "frictionMinutes": 10,
+              "frictionCount": 7,
+              "rating": 8,
+              "confirmedAll": 0.37
+            },
+            "ratingDelta": {
+              "median": 0,
+              "mean": -0.17
+            }
+          },
+          "probe": {
+            "probed": 29,
+            "notProbed": 1,
+            "statuses": {
+              "done": 29,
+              "serve-failed": 1
+            },
+            "reported": {
+              "high": 1,
+              "medium": 5,
+              "low": 3
+            },
+            "confirmed": {
+              "high": 1,
+              "medium": 5,
+              "low": 3
+            },
+            "lanesWithConfirmedHigh": 1,
+            "confirmedPerLane": 0.31,
+            "tamperedLanes": 0
+          }
+        }
+      },
+      "byFrontend": {
+        "react": {
+          "lanes": 23,
+          "finished": 23,
+          "failedFast": 0,
+          "timedOut": 0,
+          "green": {
+            "check": "23/23",
+            "acceptance": "23/23",
+            "frontendProof": "23/23",
+            "probeServe": "23/23",
+            "checkAfterReverify": "23/23",
+            "acceptanceAfterReverify": "23/23",
+            "frontendAfterReverify": "23/23",
+            "allFour": "23/23",
+            "allFourPct": 100
+          },
+          "reverify": {
+            "red": 0,
+            "flaky": 1,
+            "envRed": 0
+          },
+          "wallMinutes": {
+            "median": 21,
+            "mean": 24.26
+          },
+          "agentMinutes": {
+            "median": 21,
+            "mean": 24.26
+          },
+          "frictionMinutes": {
+            "median": 18,
+            "mean": 32.43
+          },
+          "frictionCount": {
+            "median": 9,
+            "mean": 8.78
+          },
+          "loc": {
+            "backend": {
+              "median": 224,
+              "mean": 476.52
+            },
+            "frontend": {
+              "median": 659,
+              "mean": 1291.96
+            },
+            "tests": {
+              "median": 635,
+              "mean": 874.13
+            },
+            "total": {
+              "median": 1529,
+              "mean": 2642.61
+            }
+          },
+          "rating": {
+            "median": 8,
+            "mean": 7.57,
+            "rated": 23
+          },
+          "day2": {
+            "proof": "22/23",
+            "proofFirstRun": "23/23",
+            "proofAfterReverify": "23/23",
+            "resultFile": "23/23",
+            "rollbackOk": "23/23",
+            "dataPreserved": "23/23",
+            "v2RuleEnforced": "23/23",
+            "v1AfterV2": {
+              "works": 17,
+              "degraded": 6
+            },
+            "v1AfterRollback": {
+              "works": 22,
+              "degraded": 1
+            },
+            "locAdded": {
+              "median": 487,
+              "mean": 650.43
+            },
+            "locBackendAdded": {
+              "median": 55,
+              "mean": 80.17
+            },
+            "locMigrationAdded": {
+              "median": 9,
+              "mean": 17.61,
+              "lanesWithMigrationFiles": 12
+            },
+            "day1": {
+              "wallMinutes": 17,
+              "frictionMinutes": 15,
+              "frictionCount": 6,
+              "rating": 8,
+              "confirmedAll": 1.17
+            },
+            "ratingDelta": {
+              "median": 0,
+              "mean": -0.43
+            }
+          },
+          "probe": {
+            "probed": 23,
+            "notProbed": 0,
+            "statuses": {
+              "done": 23
+            },
+            "reported": {
+              "high": 14,
+              "medium": 21,
+              "low": 2
+            },
+            "confirmed": {
+              "high": 14,
+              "medium": 21,
+              "low": 2
+            },
+            "lanesWithConfirmedHigh": 7,
+            "confirmedPerLane": 1.61,
+            "tamperedLanes": 0
+          }
+        },
+        "expo": {
+          "lanes": 27,
+          "finished": 27,
+          "failedFast": 0,
+          "timedOut": 0,
+          "green": {
+            "check": "27/27",
+            "acceptance": "27/27",
+            "frontendProof": "27/27",
+            "probeServe": "26/27",
+            "checkAfterReverify": "27/27",
+            "acceptanceAfterReverify": "27/27",
+            "frontendAfterReverify": "27/27",
+            "allFour": "26/27",
+            "allFourPct": 96
+          },
+          "reverify": {
+            "red": 0,
+            "flaky": 0,
+            "envRed": 0
+          },
+          "wallMinutes": {
+            "median": 22,
+            "mean": 23.59
+          },
+          "agentMinutes": {
+            "median": 22,
+            "mean": 23.59
+          },
+          "frictionMinutes": {
+            "median": 16,
+            "mean": 29.15
+          },
+          "frictionCount": {
+            "median": 6,
+            "mean": 7.11
+          },
+          "loc": {
+            "backend": {
+              "median": 304,
+              "mean": 499.74
+            },
+            "frontend": {
+              "median": 1067,
+              "mean": 1604.81
+            },
+            "tests": {
+              "median": 602,
+              "mean": 811.26
+            },
+            "total": {
+              "median": 2045,
+              "mean": 2915.81
+            }
+          },
+          "rating": {
+            "median": 8,
+            "mean": 7.74,
+            "rated": 27
+          },
+          "day2": {
+            "proof": "27/27",
+            "proofFirstRun": "27/27",
+            "proofAfterReverify": "27/27",
+            "resultFile": "27/27",
+            "rollbackOk": "27/27",
+            "dataPreserved": "27/27",
+            "v2RuleEnforced": "27/27",
+            "v1AfterV2": {
+              "degraded": 10,
+              "works": 17
+            },
+            "v1AfterRollback": {
+              "degraded": 4,
+              "works": 23
+            },
+            "locAdded": {
+              "median": 683,
+              "mean": 789.37
+            },
+            "locBackendAdded": {
+              "median": 75,
+              "mean": 90.74
+            },
+            "locMigrationAdded": {
+              "median": 10,
+              "mean": 18.48,
+              "lanesWithMigrationFiles": 15
+            },
+            "day1": {
+              "wallMinutes": 14,
+              "frictionMinutes": 13,
+              "frictionCount": 7,
+              "rating": 8.04,
+              "confirmedAll": 0.26
+            },
+            "ratingDelta": {
+              "median": 0,
+              "mean": -0.3
+            }
+          },
+          "probe": {
+            "probed": 26,
+            "notProbed": 1,
+            "statuses": {
+              "done": 26,
+              "serve-failed": 1
+            },
+            "reported": {
+              "high": 10,
+              "medium": 16,
+              "low": 3
+            },
+            "confirmed": {
+              "high": 10,
+              "medium": 16,
+              "low": 3
+            },
+            "lanesWithConfirmedHigh": 7,
+            "confirmedPerLane": 1.12,
+            "tamperedLanes": 0
+          }
+        }
+      }
+    }
+  }
+}

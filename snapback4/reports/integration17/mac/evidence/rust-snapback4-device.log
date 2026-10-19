@@ -1,0 +1,269 @@
+   Compiling rusqlite v0.40.2
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.33 (/Users/ccheever/sb4-ws-integ17/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.33 (/Users/ccheever/sb4-ws-integ17/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.33 (/Users/ccheever/sb4-ws-integ17/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: function `without_grouped_shape_note` is never used
+ --> crates/snapback4-device/tests/readauth/../../../snapback4-lang/tests/guide/context.rs:6:8
+  |
+6 | pub fn without_grouped_shape_note<'a>(bound: &'a snapback4_lang::Bound, query: &str) -> Vec<&'a snapback4_lang::Diagnostic> {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib test) generated 1 warning (1 duplicate)
+warning: `snapback4-device` (test "readauth") generated 1 warning
+    Finished `test` profile [optimized] target(s) in 43.69s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_device-b6c6b43d92bce1b5)
+
+running 64 tests
+test device::deferred::recording::recording_refuses_unsupported_nested_savepoints - should panic ... ok
+test call::route_tests::page_route_and_duplicate_fallback_on_memory ... ok
+test device::cap_counts_tests::receipt_overlay_groups_include_empty_ids_deletes_and_moves_memory ... ok
+test device::cap_counts_tests::predicting_cap_counts_follow_memory_changes_restore_reopen_and_reset ... ok
+test device::delivery::interval_union_matches_round_zero_for_order_gaps_bounds_and_extremes ... ok
+test device::opening_tests::explicit_open_checks_its_backend_memory ... ok
+test device::deferred::recording::failed_metadata_operation_is_not_recorded ... ok
+test device::opening_tests::first_install_checks_absence_memory ... ok
+test device::deferred::recording::tests::prefix_deletion_is_an_ordered_fold_operation ... ok
+test device::opening_tests::first_install_envelope_is_not_a_legacy_backend ... ok
+test device::opening_tests::kept_open_checks_its_backend_memory ... ok
+test device::cap_counts_tests::receipt_overlay_groups_include_empty_ids_deletes_and_moves_sqlite ... ok
+test device::cap_counts_tests::predicting_cap_counts_follow_sqlite_changes_restore_and_reset ... ok
+test call::route_tests::page_route_and_duplicate_fallback_on_sqlite ... ok
+test device::expired_births_tests::retired_birth_keeps_memory_device_caps_exact ... ok
+test device::opening_tests::explicit_open_checks_its_backend_sqlite ... ok
+test device::publication_round5::stored_capture_must_be_a_bounded_prefix ... ok
+test device::opening_tests::first_install_checks_absence_sqlite ... ok
+test device::opening_tests::kept_open_checks_its_backend_sqlite ... ok
+test device::publication_round5::absent_capture_and_echo_preserve_published_exclusion ... ok
+test device::publication_round5::live_cursor_precedes_terminal_snapshot_cut ... ok
+test device::publication_round5::terminal_gap_is_a_protocol_refusal ... ok
+test device::publication_tests::capture_orders_its_declared_prefix_and_checkpoint_recovery::memory ... ok
+test device::publication_round6::clear_rows_consumes_all_private_progress_and_keeps_incarnation ... ok
+test device::expired_births_tests::retired_birth_keeps_sqlite_device_caps_exact ... ok
+test device::publication_tests::echoed_bound_cannot_widen_the_captured_declaration::memory ... ok
+test device::publication_round7::capture_revision_checkpoint_and_optional_echo ... ok
+test device::publication_round7::only_unbound_receipts_bind_to_first_private_identity ... ok
+test device::publication_tests::leased_nonterminal_continuation_memory ... ok
+test device::publication_round7::cleanup_failure_preserves_the_original_apply_and_observe_error ... ok
+test device::publication_tests::leased_terminal_continuation_memory ... ok
+test device::publication_tests::capture_orders_its_declared_prefix_and_checkpoint_recovery::sqlite ... ok
+test device::publication_round7::recovery_discards_corrupt_capture_without_discarding_private_pages ... ok
+test device::publication_tests::apply_returns_publication_without_a_second_store_read ... ok
+test device::publication_tests::checkpoint_capture_remains_readable_without_widening ... ok
+test device::search::tests::delivery_state_preserves_a_scans_exhausted_read_counter ... ok
+test device::search::tests::pagination_epoch_excludes_progress_but_delivery_fence_keeps_it ... ok
+test device::search::tests::pagination_epoch_tracks_only_this_tables_membership_and_retention ... ok
+test device::search::tests::retained_search_excludes_current_and_rejoined_images ... ok
+test device::publication_tests::echoed_bound_cannot_widen_the_captured_declaration::sqlite ... ok
+test device::publication_tests::empty_cursor_and_reset_remove_all_publication_keys ... ok
+test device::upload::bounds::admission_and_recovery_share_exact_decoded_byte_edges ... ok
+test device::publication_tests::pending_publication_reads_the_slot_not_request_progress ... ok
+test device::recorded::tests::membership_transitions_do_not_depend_on_recording_targets_on_both_stores ... ok
+test device::publication_tests::leased_nonterminal_continuation_sqlite ... ok
+test device::publication_tests::leased_terminal_continuation_sqlite ... ok
+test ffi::engine_stamp_is_available_without_opening_any_store ... ok
+test ffi::tests::an_unwinding_entry_point_panic_becomes_a_refusal ... ok
+test device::union_hardening_tests::malformed_scope_schemas_refuse_on_both_stores ... ok
+test device::union_hardening_tests::single_column_departure_scopes_keep_their_existing_retention_policy ... ok
+test memory::compact_index::tests::bulk_pages_accept_smaller_keys_and_remove_to_empty ... ok
+test memory::compact_index::tests::pages_match_a_tree_through_splits_updates_deletes_and_ranges ... ok
+test memory::compact_key::tests::split_keys_order_exactly_like_complete_bytes ... ok
+test memory::tests::noncanonical_staged_rows_keep_canonical_metered_prices ... ok
+test memory::tests::replacement_indexes_match_scalar_puts_and_rollback_with_counts_and_savepoints ... ok
+test memory::tests::staged_sharing_accepts_only_the_exact_row_value ... ok
+test sqlite_residency::tests::interrupted_installation_is_one_transaction_and_excludes_a_competing_installer ... ok
+test ffi::tests::open_reason_reports_the_attempt_without_trying_again ... ok
+test ffi::tests::first_install_envelope_preserves_a_backend_installed_by_another_owner ... ok
+test device::upsert_reservation_tests::upsert_insert_at_preflight_ceiling_memory ... ok
+test device::upsert_reservation_tests::upsert_insert_at_preflight_ceiling_sqlite ... ok
+test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_memory ... ok
+test device::recorded::tests::membership_scans_charge_examinations_and_heap_on_both_stores ... ok
+test device::upsert_reservation_tests::upsert_insert_reserves_once_after_8190_probes_sqlite ... ok
+
+test result: ok. 64 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+
+     Running tests/readauth.rs (target/debug/deps/readauth-287ad321a10cde86)
+
+running 88 tests
+test mixed_memory ... ok
+test outcomes::app_edit_memory ... ok
+test outcomes::bridge_publish_memory ... ok
+test outcomes::bridge_repost_memory ... ok
+test mixed_sqlite ... ok
+test outcomes::chat_edit_memory ... ok
+test outcomes::app_edit_sqlite ... ok
+test outcomes::bridge_publish_sqlite ... ok
+test outcomes::create_room_memory ... ok
+test outcomes::bridge_repost_sqlite ... ok
+test outcomes::language_edit_memory ... ok
+test outcomes::chat_edit_sqlite ... ok
+test outcomes::recipe_post_memory ... ok
+test outcomes::recipe_repost_memory ... ok
+test outcomes::standalone_post_memory ... ok
+test outcomes::standalone_repost_memory ... ok
+test census::authoring_census ... ok
+test outcomes::write_forms_memory ... ok
+test outcomes::create_room_sqlite ... ok
+test outcomes::language_edit_sqlite ... ok
+test outcomes::recipe_post_sqlite ... ok
+test outcomes::recipe_repost_sqlite ... ok
+test outcomes::standalone_post_sqlite ... ok
+test outcomes::standalone_repost_sqlite ... ok
+test parent_guards::the_parent_owner_reads_a_decided_page_and_everyone_else_is_unchanged ... ok
+test readable_insert_memory ... ok
+test readable_update_memory ... ok
+test outcomes::write_forms_sqlite ... ok
+test parent_guards::rows_a_caller_cannot_read_never_change_their_answer ... ok
+test readable_upsert_memory ... ok
+test regressions::hidden_inside_prediction_memory ... ok
+test readable_insert_sqlite ... ok
+test readable_update_sqlite ... ok
+test regressions::later_grant_memory ... ok
+test regressions::offline_moderation_upgrade_memory ... ok
+test regressions::hidden_inside_prediction_sqlite ... ok
+test readable_upsert_sqlite ... ok
+test regressions::offline_upgrade_memory ... ok
+test regressions::retained_grant_memory ... ok
+test regressions::two_mutation_revocation_memory ... ok
+test regressions::later_grant_sqlite ... ok
+test regressions::offline_moderation_upgrade_sqlite ... ok
+test parent_guards::both_device_stores_leave_the_decided_page_to_the_server ... ok
+test regressions::offline_upgrade_sqlite ... ok
+test regressions::retained_grant_sqlite ... ok
+test regressions::two_mutation_revocation_sqlite ... ok
+test round2::aggregate_authority_witnesses_memory ... ok
+test round2::existential_aggregate_memory ... ok
+test round2::hidden_before_visible_memory ... ok
+test round2::expired_authority_witnesses_memory ... ok
+test round2::live_maintain_memory ... ok
+test round2::hidden_before_visible_sqlite ... ok
+test round2::existential_aggregate_sqlite ... ok
+test round2::live_maintain_sqlite ... ok
+test round2::counterfactual_branch_memory ... ok
+test round2::nested_read_ladder_memory ... ok
+test round2::service_disjunct_memory ... ok
+test round2::service_disjunct_sqlite ... ok
+test round2::nested_read_ladder_sqlite ... ok
+test round2::witness_fetch_budget_memory ... ok
+test round2::mixed_probe_boundary_memory ... ok
+test timing::grant_later_memory ... ok
+test timing::grant_once_memory ... ok
+test timing::grant_later_sqlite ... ok
+test round2::counterfactual_branch_sqlite ... ok
+test timing::grant_once_sqlite ... ok
+test timing::reading_probe_meter_memory ... ok
+test timing::revoke_later_memory ... ok
+test timing::write_then_delete_memory ... ok
+test timing::reading_probe_meter_sqlite ... ok
+test unevaluable_rule_memory ... ok
+test timing::revoke_later_sqlite ... ok
+test timing::write_then_delete_sqlite ... ok
+test unreadable_insert_memory ... ok
+test round2::mixed_probe_boundary_sqlite ... ok
+test unreadable_update_memory ... ok
+test unreadable_upsert_memory ... ok
+test unevaluable_rule_sqlite ... ok
+test unreadable_insert_sqlite ... ok
+test round2::expired_authority_witnesses_sqlite ... ok
+test where_guards::undecided_where_guards_memory ... ok
+test unreadable_update_sqlite ... ok
+test where_guards::where_guards_memory ... ok
+test unreadable_upsert_sqlite ... ok
+test round2::aggregate_authority_witnesses_sqlite ... ok
+test where_guards::where_guards_sqlite ... ok
+test where_guards::undecided_where_guards_sqlite ... ok
+test round2::witness_fetch_budget_sqlite ... ok
+
+test result: ok. 88 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.57s
+

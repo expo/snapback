@@ -1,0 +1,121 @@
+{
+  "wave15-base": {
+    "count": 100,
+    "passed": 100,
+    "notes": 458,
+    "codes": {
+      "N_CASCADE_DORMANT": 7,
+      "N_CONDITIONAL_COMPLETE": 3,
+      "N_DELETE_RESTRICTED": 3,
+      "N_IMMUTABLE_PATCH": 13,
+      "N_MAINTAINED_COLUMN_DISCLOSURE": 2,
+      "N_MAINTAIN_AUTHORIZATION": 3,
+      "N_MAINTAIN_DELTA": 14,
+      "N_MAINTAIN_SYNCED": 2,
+      "N_NEVER_COMPLETE": 16,
+      "N_NO_CURSOR": 250,
+      "N_NO_HORIZON": 14,
+      "N_NO_PRODUCTION_WRITER": 51,
+      "N_PATCH_CLEARS": 2,
+      "N_PROBE_ONLY_READ": 2,
+      "N_QUERY_FILTERED": 14,
+      "N_REFERENCE_UNCHECKED": 7,
+      "N_REQUIRE_REFUSED": 1,
+      "N_SPARSE_FILTER": 31,
+      "N_SYNC_ORDER": 7,
+      "N_UNREADABLE_PROBE": 16
+    },
+    "errors": {}
+  },
+  "wave15-merged": {
+    "count": 100,
+    "passed": 100,
+    "notes": 488,
+    "codes": {
+      "N_CASCADE_DORMANT": 7,
+      "N_CONDITIONAL_COMPLETE": 3,
+      "N_DELETE_RESTRICTED": 3,
+      "N_IMMUTABLE_PATCH": 13,
+      "N_MAINTAINED_COLUMN_DISCLOSURE": 2,
+      "N_MAINTAIN_AUTHORIZATION": 3,
+      "N_MAINTAIN_DELTA": 14,
+      "N_MAINTAIN_SYNCED": 2,
+      "N_NEVER_COMPLETE": 16,
+      "N_NO_CURSOR": 250,
+      "N_NO_HORIZON": 14,
+      "N_NO_PRODUCTION_WRITER": 51,
+      "N_PATCH_CLEARS": 2,
+      "N_PROBE_ONLY_READ": 2,
+      "N_QUERY_FILTERED": 14,
+      "N_REFERENCE_UNCHECKED": 7,
+      "N_REQUIRE_REFUSED": 1,
+      "N_SPARSE_FILTER": 31,
+      "N_SWEEP_DEADLINE": 30,
+      "N_SYNC_ORDER": 7,
+      "N_UNREADABLE_PROBE": 16
+    },
+    "errors": {},
+    "securityNotes": 968,
+    "securityCodes": {
+      "N_ARGUMENT_GRANT": 106,
+      "N_BROAD_READ": 200,
+      "N_EXISTENCE_ORACLE": 402,
+      "N_GRANT_OUTLIVES_ROLE": 134,
+      "N_OPTIONAL_EVIDENCE": 19,
+      "N_SECURITY_INTENT": 100,
+      "N_SWEEP_ONLY_DEADLINE": 7
+    },
+    "declaredInvariants": 0
+  },
+  "wave16-base": {
+    "count": 50,
+    "passed": 50,
+    "notes": 131,
+    "codes": {
+      "N_CONDITIONAL_COMPLETE": 7,
+      "N_IMMUTABLE_PATCH": 12,
+      "N_LOOKUP_HIDDEN": 7,
+      "N_MAINTAIN_DELTA": 9,
+      "N_NEVER_COMPLETE": 21,
+      "N_NO_CURSOR": 23,
+      "N_QUERY_FILTERED": 29,
+      "N_REQUIRE_HIDDEN": 1,
+      "N_SPARSE_FILTER": 5,
+      "N_UNREADABLE_PROBE": 13,
+      "N_WIDE_MERGE": 4
+    },
+    "errors": {}
+  },
+  "wave16-merged": {
+    "count": 50,
+    "passed": 50,
+    "notes": 147,
+    "codes": {
+      "N_CONDITIONAL_COMPLETE": 7,
+      "N_IMMUTABLE_PATCH": 12,
+      "N_LOOKUP_HIDDEN": 7,
+      "N_MAINTAIN_DELTA": 9,
+      "N_NEVER_COMPLETE": 21,
+      "N_NO_CURSOR": 23,
+      "N_QUERY_FILTERED": 29,
+      "N_REQUIRE_HIDDEN": 1,
+      "N_SPARSE_FILTER": 5,
+      "N_SWEEP_DEADLINE": 16,
+      "N_UNREADABLE_PROBE": 13,
+      "N_WIDE_MERGE": 4
+    },
+    "errors": {},
+    "securityNotes": 582,
+    "securityCodes": {
+      "N_ARGUMENT_GRANT": 63,
+      "N_BROAD_READ": 51,
+      "N_EXISTENCE_ORACLE": 247,
+      "N_GRANT_OUTLIVES_ROLE": 147,
+      "N_OPTIONAL_EVIDENCE": 17,
+      "N_SECURITY_INTENT": 50,
+      "N_SWEEP_ONLY_DEADLINE": 6,
+      "N_VACUOUS_RULE": 1
+    },
+    "declaredInvariants": 0
+  }
+}

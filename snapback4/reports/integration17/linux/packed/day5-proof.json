@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "directory": "/tmp/integ17/linux-final-clean/day2-compatibility",
+  "guideRecipe": "capture-release-and-bridge",
+  "starterCustody": [
+    "web",
+    "expo"
+  ]
+}

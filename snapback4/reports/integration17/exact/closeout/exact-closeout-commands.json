@@ -1,0 +1,120 @@
+[
+  {
+    "cmd": "timeout",
+    "args": [
+      "2400s",
+      "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+      "--version"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "2400s",
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "2400s",
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/exact2",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "2400s",
+      "npm",
+      "install",
+      "--ignore-scripts",
+      "--omit=optional",
+      "--no-audit",
+      "--no-fund",
+      "/tmp/integ17/prepared-qualified/snapback4-0.4.33.tgz"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/synced",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "2400s",
+      "bun",
+      "exact.mjs",
+      "snapback",
+      "--rebuild",
+      "--port",
+      "46709"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/synced/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "2400s",
+      "bun",
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:46709"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/synced/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "2400s",
+      "npm",
+      "install",
+      "--ignore-scripts",
+      "--omit=optional",
+      "--no-audit",
+      "--no-fund",
+      "/tmp/integ17/prepared-qualified/snapback4-0.4.33.tgz"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/online",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "2400s",
+      "bun",
+      "exact.mjs",
+      "snapback",
+      "--rebuild",
+      "--port",
+      "44223"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/online/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "2400s",
+      "bun",
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:44223"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave17/online/app",
+    "exit": 0
+  }
+]

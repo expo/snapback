@@ -1,0 +1,18 @@
+{
+  "status": "passed",
+  "from": "0.4.32",
+  "to": "0.4.33",
+  "method": "minimal final-runtime replay on a private SQLite backup of the fully upgraded store",
+  "clientPack": "/tmp/integ17/prepared-qualified/snapback4-0.4.33.tgz",
+  "clientSha256": "fef9ff1ce28975a3c85873ebc881d08e68795a0db130c21df3c7edb773a82683",
+  "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+  "binarySha256": "73e0a3f56daed048998beefd4299c2e8efb0c8ce255060097df224a8f73caa7b",
+  "oldRowPreserved": true,
+  "sourceUnchanged": true,
+  "aggregateMissingIntentNotes": 1,
+  "passwordDefaultDevDoorsClosed": true,
+  "forgedPersonaRefused": true,
+  "finalPackedClientSignupMutationQuery": true,
+  "unsafeDevDoorsOldPersonaWorkflow": true,
+  "originalEvidenceStoreUnchanged": true
+}

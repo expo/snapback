@@ -1,0 +1,20 @@
+{
+  "packs": [
+    {
+      "path": "/tmp/integ17/prepared/snapback4-0.4.33.tgz",
+      "sha256": "fef9ff1ce28975a3c85873ebc881d08e68795a0db130c21df3c7edb773a82683",
+      "version": "0.4.33"
+    },
+    {
+      "path": "/tmp/integ17/prepared-final/snapback4-0.4.33.tgz",
+      "sha256": "fef9ff1ce28975a3c85873ebc881d08e68795a0db130c21df3c7edb773a82683",
+      "version": "0.4.33"
+    },
+    {
+      "path": "/tmp/integ17/prepared-qualified/snapback4-0.4.33.tgz",
+      "sha256": "fef9ff1ce28975a3c85873ebc881d08e68795a0db130c21df3c7edb773a82683",
+      "version": "0.4.33"
+    }
+  ],
+  "identical": true
+}

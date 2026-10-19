@@ -1,0 +1,62 @@
+[
+  {
+    "cmd": "timeout",
+    "args": [
+      "120s",
+      "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+      "--version"
+    ],
+    "cwd": "/tmp/integ17/upgrade-closeout-smoke",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "120s",
+      "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+      "check",
+      "--json"
+    ],
+    "cwd": "/tmp/integ17/upgrade-closeout-smoke",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "120s",
+      "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+      "data",
+      "notes",
+      "--json"
+    ],
+    "cwd": "/tmp/integ17/upgrade-closeout-smoke",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "120s",
+      "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+      "dev",
+      "--port",
+      "42959",
+      "--no-watch"
+    ],
+    "cwd": "/tmp/integ17/upgrade-closeout-smoke",
+    "kind": "temporary host"
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "120s",
+      "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+      "dev",
+      "--port",
+      "34157",
+      "--no-watch",
+      "--unsafe-dev-doors"
+    ],
+    "cwd": "/tmp/integ17/upgrade-closeout-smoke",
+    "kind": "temporary host"
+  }
+]

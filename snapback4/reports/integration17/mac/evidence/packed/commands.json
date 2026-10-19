@@ -1,0 +1,44 @@
+[
+  {
+    "label": "pack-client",
+    "args": [
+      "npm",
+      "pack",
+      "--ignore-scripts",
+      "--json",
+      "--pack-destination",
+      "/Users/ccheever/sb4-ws-integ17/target/mac-verification-packs"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4/packages/snapback4",
+    "exit": 0,
+    "seconds": 0.582
+  },
+  {
+    "label": "pack-platform",
+    "args": [
+      "npm",
+      "pack",
+      "--ignore-scripts",
+      "--json",
+      "--pack-destination",
+      "/Users/ccheever/sb4-ws-integ17/target/mac-verification-packs"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/target/mac-verification-packs/darwin-stage",
+    "exit": 0,
+    "seconds": 3.016
+  },
+  {
+    "label": "proofs",
+    "args": [
+      "node",
+      "/Users/ccheever/sb4-ws-integ17/integ17-mac-packed.mjs",
+      "/Users/ccheever/sb4-ws-integ17/snapback4",
+      "/Users/ccheever/sb4-ws-integ17/target/mac-verification-packs/snapback4-0.4.33.tgz",
+      "/Users/ccheever/sb4-ws-integ17/target/mac-verification-packs/snapback4-darwin-arm64-0.4.33.tgz",
+      "/Users/ccheever/sb4-ws-integ17/evidence/packed/proofs"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0,
+    "seconds": 105.45
+  }
+]

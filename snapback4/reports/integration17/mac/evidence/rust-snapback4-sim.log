@@ -1,0 +1,132 @@
+   Compiling rusqlite v0.40.2
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-core v0.4.33 (/Users/ccheever/sb4-ws-integ17/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.33 (/Users/ccheever/sb4-ws-integ17/snapback4/crates/snapback4-lang)
+   Compiling snapback4-sim v0.4.33 (/Users/ccheever/sb4-ws-integ17/snapback4/crates/snapback4-sim)
+   Compiling snapback4-device v0.4.33 (/Users/ccheever/sb4-ws-integ17/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+error: couldn't read `crates/snapback4-sim/tests/merge_continuation/../common/../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/grouped-defect/snapback/schema.q`: No such file or directory (os error 2)
+  --> crates/snapback4-sim/tests/merge_continuation/../common/merge_continuation.rs:23:18
+   |
+23 |     let source = include_str!("../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/grouped-defect/snapback/schema.q")
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4-sim/tests/merge_continuation/../common/../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/merge-equal-suffix-skip/snapback/schema.q`: No such file or directory (os error 2)
+   --> crates/snapback4-sim/tests/merge_continuation/../common/merge_continuation.rs:361:9
+    |
+361 |         include_str!("../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/merge-equal-suffix-skip/snapback/schema.q")
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4-sim/tests/merge_continuation/../common/../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/merge-cursor-bypasses-cursor-index/snapback/schema.q`: No such file or directory (os error 2)
+   --> crates/snapback4-sim/tests/merge_continuation/../common/merge_continuation.rs:363:9
+    |
+363 | ...   include_str!("../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/merge-cursor-bypasses-cursor-index/snapback/schema.q")
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4-sim/tests/merge_continuation/../common/../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/merge-next-after-non-uniform/snapback/schema.q`: No such file or directory (os error 2)
+   --> crates/snapback4-sim/tests/merge_continuation/../common/merge_continuation.rs:393:18
+    |
+393 | ... = include_str!("../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/merge-next-after-non-uniform/snapback/schema.q")
+    |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4-sim/tests/merge_continuation/../common/../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/grouped-search-9000/snapback/schema.q`: No such file or directory (os error 2)
+   --> crates/snapback4-sim/tests/merge_continuation/../common/shape_pages.rs:103:18
+    |
+103 | ...e = include_str!("../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/grouped-search-9000/snapback/schema.q")
+    |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: couldn't read `crates/snapback4-sim/tests/row_preserving_pages/../common/../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/group-drops-next/snapback/schema.q`: No such file or directory (os error 2)
+   --> crates/snapback4-sim/tests/row_preserving_pages/../common/row_preserving_pages.rs:126:18
+    |
+126 |     let source = include_str!("../../../../../benchmarks/runs/2026-09-17-snapback4-bounds-probes/group-drops-next/snapback/schema.q")
+    |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: could not compile `snapback4-sim` (test "clique") due to 6 previous errors

@@ -1,0 +1,126 @@
+[
+  {
+    "label": "extra-platform-client-files",
+    "args": [
+      "node",
+      "scripts/run-client-tests.mjs",
+      "2",
+      "files",
+      "packages/snapback4/test/init-typecheck.test.mjs",
+      "packages/snapback4/test/export-maintenance-wakeup.test.mjs"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0,
+    "seconds": 53.724
+  },
+  {
+    "label": "late-build",
+    "args": [
+      "cargo",
+      "build",
+      "-p",
+      "snapback4"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0,
+    "seconds": 13.579
+  },
+  {
+    "label": "late-guide",
+    "args": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-lang",
+      "--test",
+      "guide",
+      "--no-fail-fast"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0,
+    "seconds": 30.334
+  },
+  {
+    "label": "late-docs-budget",
+    "args": [
+      "node",
+      "scripts/docs-budget.mjs"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0,
+    "seconds": 0.15
+  },
+  {
+    "label": "xcframework",
+    "args": [
+      "bash",
+      "scripts/build-xcframework.sh"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0,
+    "seconds": 144.037
+  },
+  {
+    "label": "chat-api",
+    "args": [
+      "/Users/ccheever/sb4-ws-integ17/snapback4/target/debug/snapback4",
+      "check"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4/apps/chat",
+    "exit": 0,
+    "seconds": 2.176
+  },
+  {
+    "label": "boot",
+    "args": [
+      "xcrun",
+      "simctl",
+      "boot",
+      "D30B59A4-4BDF-42B4-8D6E-0726A5EC0DF6"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0,
+    "seconds": 0.418
+  },
+  {
+    "label": "boot-ready",
+    "args": [
+      "xcrun",
+      "simctl",
+      "bootstatus",
+      "D30B59A4-4BDF-42B4-8D6E-0726A5EC0DF6",
+      "-b"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0,
+    "seconds": 15.608
+  },
+  {
+    "label": "expo-build",
+    "args": [
+      "bun",
+      "x",
+      "expo",
+      "run:ios",
+      "--configuration",
+      "Release",
+      "--device",
+      "D30B59A4-4BDF-42B4-8D6E-0726A5EC0DF6",
+      "--no-bundler",
+      "--no-build-cache"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4/apps/chat-expo",
+    "exit": 0,
+    "seconds": 98.86
+  },
+  {
+    "label": "expo-witness",
+    "args": [
+      "node",
+      "witness/expo.mjs"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ17/snapback4",
+    "exit": 0,
+    "seconds": 29.439
+  }
+]

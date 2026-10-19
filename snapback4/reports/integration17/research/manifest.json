@@ -1,0 +1,14 @@
+{
+  "wave17-bakeoff.md": {
+    "sha256": "fdece00b433fb587af940f4bb937b504142e8cb938e8db9ff426a65c76e48d10",
+    "bytes": 9395
+  },
+  "wave17-summary.json": {
+    "sha256": "ceb37cb3bc350577d24cff1097bc2cbbd6a02de1b430489e870d3c2e5b8fe585",
+    "bytes": 49743
+  },
+  "wave16-bakeoff.md": {
+    "sha256": "847502f32f2583b520ea446fd4d3b915fb93b4f8cc237ba3338330b5dfc5bab4",
+    "bytes": 53018
+  }
+}

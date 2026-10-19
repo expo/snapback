@@ -1,0 +1,31 @@
+{
+  "integration": 17,
+  "branch": "sb4-loop",
+  "base": "8416d092c3",
+  "release": "0.4.33",
+  "merges": [
+    "371b393ac5",
+    "c2f6ad1965",
+    "50e424577c"
+  ],
+  "bump": "999598649f",
+  "latest_product_source": "fc7a63ea0f",
+  "cargo_environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "commands": {
+    "rust": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+    "clients": "node scripts/run-client-tests.mjs 24 files <all 422 non-model test files>",
+    "models": "node scripts/run-client-tests.mjs 1 models packages/snapback4/test/app-session-model.test.mjs packages/snapback4/test/online-client-model.test.mjs",
+    "fixtures": "node scripts/run-client-tests.mjs 1 files fixtures/",
+    "linux_consumers": "node scripts/qualify-linux.mjs --consumer-only --client /tmp/integ17/prepared-qualified/snapback4-0.4.33.tgz --expo /tmp/integ17/prepared-qualified/snapback4-expo-0.4.33.tgz --out /tmp/integ17/linux-final-clean"
+  },
+  "publication": {
+    "pushed": false,
+    "published": false,
+    "target_publication_touched": false,
+    "consumer_only_reason": "User prohibits full scripts/test.sh; full requested Rust/client/root suites run separately. Consumer-only cannot mint a publication receipt."
+  }
+}

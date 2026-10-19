@@ -1,0 +1,32 @@
+[
+  {
+    "name": "survey-closeout",
+    "argv": [
+      "timeout",
+      "600s",
+      "python3",
+      "/tmp/integ17/integ17-survey-closeout.py"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "exact-closeout",
+    "argv": [
+      "timeout",
+      "4800s",
+      "node",
+      "/tmp/integ17/exact-closeout-rerun.mjs"
+    ],
+    "exit": 0
+  },
+  {
+    "name": "upgrade-closeout",
+    "argv": [
+      "timeout",
+      "600s",
+      "/home/ccheever/.bun-1.4.2/bin/bun",
+      "/tmp/integ17/upgrade-closeout-smoke.mjs"
+    ],
+    "exit": 0
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "measurement": "7728195385",
+  "finalProductSource": "fc7a63ea0f",
+  "productionWasmInputChanges": [],
+  "wasmSha256": "cb88bc19f627d3a272b17c625407c7bd8f391982a2f506bae9590a1b458139e5",
+  "reason": "core/device production dependencies, workspace lock/manifests and wasm build script unchanged; later lang changes are device dev-dependencies only"
+}

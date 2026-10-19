@@ -1,0 +1,12 @@
+{
+  "client": {
+    "path": "/Users/ccheever/sb4-ws-integ17/target/mac-verification-packs/snapback4-0.4.33.tgz",
+    "sha256": "bdde12e04a698c3312d9220bf7b371645b459dbfe1bd3a0bf763d0112ef09433"
+  },
+  "platform": {
+    "path": "/Users/ccheever/sb4-ws-integ17/target/mac-verification-packs/snapback4-darwin-arm64-0.4.33.tgz",
+    "sha256": "c1cff896d7346320a12754405be47bc85746e28b73bbb2c2ccd3c3fdce71af40"
+  },
+  "binarySha256": "48feab205db9a135c325f4d7f041b17de004993c40cc7a76f28606427776ca8a",
+  "qualification": "scratch verification only; unsigned debug binary; no publication receipt"
+}
