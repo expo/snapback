@@ -1,0 +1,8 @@
+**READY** — no material findings in the integration delta at `20cb01ee562bd9750ab26e1fea160511473c5fba`.
+
+- [Release identity](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/release_files.rs:39) excludes the generated compatibility report while retaining source/native/worker bytes. [Retained selection](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/releases.rs:394) preserves release IDs across compiler-version changes; control requests retain full-digest checks.
+- [Preview ownership and clock handling](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/release_preview.rs:170) use the same sampled activation time for forward and reverse adoption.
+- [Proof hosts](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/src/proof.ts:26) pass their explicit environment into the structurally typed binary resolver.
+- Regression source covers [backfill rollback/reactivation and staging time](/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/release-transitions-cases.mjs:131), plus [aliases/defaults/deprecated inputs under column intent](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/tests/security_histories.rs:95).
+
+Read-only source assessment; no tests executed or qualification outcomes asserted.

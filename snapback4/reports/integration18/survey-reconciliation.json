@@ -1,0 +1,22 @@
+{
+  "sec3File": "snapback4/reports/20261019-sec3/measurement-reviewed-53/survey.json",
+  "equal": true,
+  "sec3": {
+    "N_BROAD_READ": 251,
+    "N_SECURITY_INTENT": 150,
+    "N_ARGUMENT_GRANT": 169,
+    "N_OPTIONAL_EVIDENCE": 36,
+    "N_PRIVILEGE_ESCALATION": 7,
+    "N_SWEEP_ONLY_DEADLINE": 13,
+    "N_VACUOUS_RULE": 1
+  },
+  "integration150": {
+    "N_SECURITY_INTENT": 150,
+    "N_ARGUMENT_GRANT": 169,
+    "N_BROAD_READ": 251,
+    "N_OPTIONAL_EVIDENCE": 36,
+    "N_SWEEP_ONLY_DEADLINE": 13,
+    "N_PRIVILEGE_ESCALATION": 7,
+    "N_VACUOUS_RULE": 1
+  }
+}

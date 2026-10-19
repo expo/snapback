@@ -1,0 +1,27 @@
+{
+  "base": "3653cae823",
+  "fieldsEqual": {
+    "generated": true,
+    "compiled": true,
+    "binder_refused_expected": true,
+    "binder_refused_unexpected": true,
+    "executed": true,
+    "generator_errors": true,
+    "by_oracle": true,
+    "coverage": true,
+    "rewrite_coverage": true,
+    "meter_dimensions": true,
+    "pageable_reads": true,
+    "pages_with_resumable_cut": true,
+    "runtime_refusals": true,
+    "runtime_refused_unexpected": true,
+    "store_stats": true,
+    "slowest_case_seconds": false,
+    "slowest_case_seed": true,
+    "time_limited_workers": true,
+    "seed": true,
+    "cases": true
+  },
+  "baseFindings": null,
+  "mergedFindings": null
+}

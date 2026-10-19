@@ -1,0 +1,11 @@
+{
+  "status": "passed",
+  "from": "0.4.33",
+  "to": "0.4.34",
+  "declaredInvariant": true,
+  "oldUserAndRow": true,
+  "rollbackHistoryRetained": true,
+  "release2Reactivated": true,
+  "privacyPreserved": true,
+  "previewReadOnly": true
+}

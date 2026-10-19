@@ -1,0 +1,20 @@
+{
+  "status": "passed",
+  "from": "0.4.33",
+  "to": "0.4.34",
+  "storeOldRowPreserved": true,
+  "passwordDefaultDevDoorsClosed": true,
+  "passwordRealSignupMutationQuery": true,
+  "unsafeDevDoorsRestoresOldPersonaWorkflow": true,
+  "declaredInvariantCheckPasses": true,
+  "aggregateIntentNotes": 0,
+  "expoExactPins": true,
+  "expoAdapt": true,
+  "expoTypecheck": true,
+  "expoWebExport": true,
+  "packageHashes": {
+    "snapback4": "sha512-cGHlVqXQP8xo29dVg4d9s/DgIEQ63ndhiwXtbDE/QT6soAMYLbOkeOoWkCSF5L42aFhu7Y7N5kg/dE9INeB8rg==",
+    "snapback4-expo": "sha512-y4nWpkBVNzHazo2kbwxrjE4PkC0OPYqAn7oKAfzl0eU1NUtm6r//HaWNQ87E9EhmxFXpqzLyQBz2SLmZoa+QLg==",
+    "snapback4-linux-x64": "sha512-30i0HF50nFSMR+V4HLD31CnlCtt8Kb53pmymB9qHNv9TPexaWgvczcUjTwnwl6txGlqFbTVHHRQEVZDL8a0GJQ=="
+  }
+}

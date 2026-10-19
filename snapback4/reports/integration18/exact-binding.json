@@ -1,0 +1,8 @@
+{
+  "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+  "client": "/home/ccheever/sb4-loop/integ18/prepared-corrected/snapback4-0.4.34.tgz",
+  "binarySha256": "1d451406048fa6547e0c9dd5e484923b7fd96a14605391bd25f990150bdb7274",
+  "clientSha256": "5fa4e84cdc45a2446fd29ec103fe45ff103d8de30c350713cb3909fadb2c94f3",
+  "snapbackSource": "865fc1273ceb237dc8ac5050231bc865e5c6f5b6",
+  "exactSource": "860c44bfbd9f52e16c21888307a703a6bd83d43f"
+}

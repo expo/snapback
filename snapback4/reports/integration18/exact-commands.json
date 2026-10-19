@@ -1,0 +1,207 @@
+[
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+      "--version"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "git",
+      "rev-parse",
+      "HEAD"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/exact2",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "300s",
+      "npm",
+      "install",
+      "--ignore-scripts",
+      "--omit=optional",
+      "--no-audit",
+      "--no-fund",
+      "/home/ccheever/sb4-loop/integ18/prepared-corrected/snapback4-0.4.34.tgz"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/synced-qualified",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "/home/ccheever/sb4-loop/prewave18/exact2/scripts/exact.mjs",
+      "new",
+      "/home/ccheever/sb4-loop/prewave18/synced-qualified/app",
+      "--snapback",
+      "--port",
+      "41771"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/synced-qualified",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "snapback",
+      "--rebuild",
+      "--port",
+      "41771"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/synced-qualified/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "contract",
+      "migrate",
+      "app.contract"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/synced-qualified/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "contract",
+      "types",
+      "app.contract",
+      "-o",
+      "app.contract.d.ts"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/synced-qualified/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:41771"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/synced-qualified/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "300s",
+      "npm",
+      "install",
+      "--ignore-scripts",
+      "--omit=optional",
+      "--no-audit",
+      "--no-fund",
+      "/home/ccheever/sb4-loop/integ18/prepared-corrected/snapback4-0.4.34.tgz"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/online-qualified",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "/home/ccheever/sb4-loop/prewave18/exact2/scripts/exact.mjs",
+      "new",
+      "/home/ccheever/sb4-loop/prewave18/online-qualified/app",
+      "--snapback",
+      "--online",
+      "--port",
+      "35007"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/online-qualified",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "snapback",
+      "--rebuild",
+      "--port",
+      "35007"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/online-qualified/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "contract",
+      "migrate",
+      "app.contract"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/online-qualified/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "contract",
+      "types",
+      "app.contract",
+      "-o",
+      "app.contract.d.ts"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/online-qualified/app",
+    "exit": 0
+  },
+  {
+    "cmd": "timeout",
+    "args": [
+      "1800s",
+      "bun",
+      "exact.mjs",
+      "test",
+      "web",
+      "--backend",
+      "http://127.0.0.1:35007"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/prewave18/online-qualified/app",
+    "exit": 0
+  }
+]

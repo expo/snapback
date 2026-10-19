@@ -1,0 +1,7 @@
+**NOT READY** — one material integration finding at `9902b0ccd0`.
+
+- **[P2] Reverse rollback foresight uses wall time instead of the sampled staging time.** [release_preview.rs:170](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/release_preview.rs:170) calls `new_release_prepared`, which supplies `now_ms()` ([release.rs:90](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/engine/release.rs:90)). Forward preview correctly uses `activation_now`. With a negative staging offset, an expiring parent can remain live during forward adoption but expire during reverse backfill retirement; a referencing child can then produce a false “rollback refuses” warning. This violates the combined clock and exact-preview contracts. Use `new_release_prepared_at(..., activation_now)` for reverse adoption too.
+
+No additional material findings in the requested digest separation, retained-release selection, ownership arguments, proof environment selection, or cross-lane regressions. Source/native/worker bytes remain identity-bound, and control activation retains the full digest checks.
+
+Source-only review; no tests or qualification checks were run, and no files were changed.

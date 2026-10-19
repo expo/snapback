@@ -1,0 +1,98 @@
+{
+  "15": {
+    "apps": 100,
+    "refusals": [],
+    "security_codes": {
+      "N_SECURITY_INTENT": 100,
+      "N_ARGUMENT_GRANT": 106,
+      "N_BROAD_READ": 200,
+      "N_OPTIONAL_EVIDENCE": 19,
+      "N_SWEEP_ONLY_DEADLINE": 7
+    },
+    "compiler_codes": {
+      "N_NO_PRODUCTION_WRITER": 51,
+      "N_NO_CURSOR": 250,
+      "N_SPARSE_FILTER": 31,
+      "N_NEVER_COMPLETE": 16,
+      "N_PATCH_CLEARS": 2,
+      "N_NO_HORIZON": 14,
+      "N_UNREADABLE_PROBE": 16,
+      "N_IMMUTABLE_PATCH": 13,
+      "N_MAINTAIN_DELTA": 14,
+      "N_SWEEP_DEADLINE": 30,
+      "N_QUERY_FILTERED": 14,
+      "N_CASCADE_DORMANT": 7,
+      "N_REFERENCE_UNCHECKED": 7,
+      "N_DELETE_RESTRICTED": 3,
+      "N_CONDITIONAL_COMPLETE": 3,
+      "N_MAINTAIN_AUTHORIZATION": 3,
+      "N_PROBE_ONLY_READ": 2,
+      "N_MAINTAIN_SYNCED": 2,
+      "N_SYNC_ORDER": 7,
+      "N_MAINTAINED_COLUMN_DISCLOSURE": 2,
+      "N_REQUIRE_REFUSED": 1
+    },
+    "all_sources_unchanged": true
+  },
+  "16": {
+    "apps": 50,
+    "refusals": [],
+    "security_codes": {
+      "N_BROAD_READ": 51,
+      "N_SECURITY_INTENT": 50,
+      "N_ARGUMENT_GRANT": 63,
+      "N_OPTIONAL_EVIDENCE": 17,
+      "N_PRIVILEGE_ESCALATION": 7,
+      "N_SWEEP_ONLY_DEADLINE": 6,
+      "N_VACUOUS_RULE": 1
+    },
+    "compiler_codes": {
+      "N_NEVER_COMPLETE": 21,
+      "N_NO_CURSOR": 23,
+      "N_SWEEP_DEADLINE": 16,
+      "N_QUERY_FILTERED": 29,
+      "N_UNREADABLE_PROBE": 13,
+      "N_IMMUTABLE_PATCH": 12,
+      "N_CONDITIONAL_COMPLETE": 7,
+      "N_SPARSE_FILTER": 5,
+      "N_MAINTAIN_DELTA": 9,
+      "N_LOOKUP_HIDDEN": 7,
+      "N_REQUIRE_HIDDEN": 1,
+      "N_WIDE_MERGE": 4
+    },
+    "all_sources_unchanged": true
+  },
+  "18": {
+    "apps": 50,
+    "refusals": [],
+    "security_codes": {
+      "N_GRANT_OUTLIVES_ROLE": 9,
+      "N_SECURITY_INTENT": 38,
+      "N_ARGUMENT_GRANT": 65,
+      "N_BROAD_READ": 46,
+      "N_PRIVILEGE_ESCALATION": 14,
+      "N_OPTIONAL_EVIDENCE": 27,
+      "N_EXISTENCE_ORACLE": 15,
+      "N_SWEEP_ONLY_DEADLINE": 6,
+      "N_VACUOUS_RULE": 1
+    },
+    "compiler_codes": {
+      "N_NO_CURSOR": 85,
+      "N_NEVER_COMPLETE": 23,
+      "N_QUERY_FILTERED": 24,
+      "N_SPARSE_FILTER": 19,
+      "N_SWEEP_DEADLINE": 13,
+      "N_PATCH_CLEARS": 3,
+      "N_IMMUTABLE_PATCH": 6,
+      "N_UNREADABLE_PROBE": 8,
+      "N_REQUIRE_HIDDEN": 1,
+      "N_REFERENCE_UNCHECKED": 2,
+      "N_WIDE_MERGE": 6,
+      "N_MAINTAINED_COLUMN_DISCLOSURE": 1,
+      "N_CONDITIONAL_COMPLETE": 7,
+      "N_MAINTAIN_DELTA": 1,
+      "N_CASCADE_DORMANT": 1
+    },
+    "all_sources_unchanged": true
+  }
+}
