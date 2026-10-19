@@ -1,5 +1,11 @@
 # Snapback 4 behavior changes
 
+## 0.4.35
+
+- Shared previews and probe:serve now appear in guide start, cheatsheet and personas via guide staging; proof helpers echo password-only closed-door guidance to the caller. seedAccounts merges custom args over principal/role and accepts a service seat; the operator first-admin recipe replays on persistent stores. Staging clock semantics remain MIG's.
+- upgrade prints project-specific closed-door and persistent startDev warnings with matching script paths, including quiet/JSON callers. E_STORE_BUSY names the recorded PID/address and suggests dev --memory for disposable proofs. Token discovers memory dev stores and accepts --port N without opening dev doors.
+- Clock jumps and resets return explicit session recovery guidance; clock CLI and staging proofs echo it. Identity throttles explain Retry-After and scripted staging setup. Uploads is a guide alias; document refusals name the file hint, placement errors explain uploader ownership, one-hour unplaced retention and the existing home. SEC4 owns security check/test guidance; QRY owns partial-query and hidden-lookup semantics.
+
 ## 0.4.34
 
 - Deploy reactivates matching retained source under its existing release id after rollback, validates privately and removes definitively refused candidates. Deploy and rollback share `--restore-dormant`; previews report current and future rollback hazards with bridge commands. Old-client reports compare operation inputs, results and refusals. Literal query/mutation defaults, validated ignored deprecated arguments and same-module aliases preserve existing callers; required inputs remain required in generated types.

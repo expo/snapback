@@ -1,0 +1,24 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-dx4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=a1b1e6b5-1de5-4622-bcf6-caf4abe0b9d6]: Subscription quota exhausted. Your usage window resets at 2026-10-19T12:47:06Z. (rate_limit_error)
+Independent review complete. I read §8 and §12 in full, inspected the complete diff (35 tracked files) plus the three untracked DX4 files, and probed the new scanner at runtime. Prior reviews ignored.
+
+The four claimed fixes all hold in code:
+
+- Token port validation parses `u16` and rejects 0 before any host filtering or fallback, and an unmatched explicit port refuses without falling back ([verbs.rs](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4/src/verbs.rs)). `--port`/`--release` exclusivity is enforced in flags.
+- The scanner sorts entries, bounds depth/files/size, skips symlinks, marks incomplete on unreadable dirs or stat/read failures, and upgrade failure JSON still carries warnings ([upgrade-warnings.js](/home/ccheever/projects/sb4-b18-dx4/snapback4/packages/snapback4/bin/upgrade-warnings.js), [upgrade.js](/home/ccheever/projects/sb4-b18-dx4/snapback4/packages/snapback4/bin/upgrade.js)). My `/tmp` probe confirmed deterministic output and no symlink traversal.
+- Clock discovery keeps the existing `identity.matches` check and only adds the closed-door `/auth/config` advice ([adoption.rs](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4/src/verbs/adoption.rs)). The 403 no-inference rule holds in the refusal probe.
+- The packed witness reads guide cards from the installed CLI and executes their fences ([publication-dx4.mjs](/home/ccheever/projects/sb4-b18-dx4/snapback4/scripts/publication-dx4.mjs)).
+
+Security properties check out. `E_ASSET_PLACED` home detail is emitted only after the uploader-owner check in both claim paths ([assets.rs](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4-core/src/assets.rs), [asset_columns.rs](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4-core/src/engine/asset_columns.rs)), and the new test asserts foreign uploads learn nothing. Live token minting still goes through the mutual-proof exchange; registry data alone mints nothing. No read or serving authority changed.
+
+Actionable findings, all non-blocking:
+
+1. Closed-door guidance misses the legacy-only path. `closed` is set only from registry entries; a closed-door host reachable solely via the store-owner fallback returns generic `NO_HOST` instead of the new guidance. Set the flag from `/auth/config` on the legacy address too.
+2. The multiple-hosts error says to select with `--service {name} --port N`, but only `--port` disambiguates. Drop `--service` from that hint.
+3. The media-sniff refusal now suggests the file hint even when the backend has no file column, where the file upload would then refuse in turn. Gate that clause on the schema having a file column, or keep as-is and accept the extra hop.
+
+Full suites are in progress elsewhere, so this judges implementation and design only.
+
+READY
+

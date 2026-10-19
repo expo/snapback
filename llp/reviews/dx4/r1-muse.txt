@@ -1,0 +1,26 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-dx4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=7db257b5-1a00-40d6-901b-7710031c9d87]: Subscription quota exhausted. Your usage window resets at 2026-10-19T12:47:06Z. (rate_limit_error)
+READY — with six minor, non-blocking findings. No material security, host-selection, clock, provisioning, warning-correctness, or upload-privacy defect found.
+
+What I verified by reading code (not just the diff):
+
+- Mutual token proof intact: registry `storePath` only selects; `mint_live` still requires the 0600 secret, store identity, and verified server proof before sending a client proof ([serve_token.rs](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4/src/serve_token.rs)). Fresh `--memory` hosts now get the same owner + `announce()`-published authority as persistent dev ([serve_start.rs](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4/src/serve_start.rs)); `announce()` publishes from the owner's own path, so the temp store's identity lines up.
+- Mint clock matches resolution clock: live mint uses `shared.now()`, and session verify/rotate/logout all use `shared.now()` ([auth.rs](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4/src/auth.rs), [serve_identity.rs](/home/ccheever/projects/sb4-b18-dx4/snapback4/src/serve_identity.rs)). The time-travel-expired-mint fix is coherent.
+- Upload privacy ordering holds in both claim paths: owner check precedes the `E_ASSET_PLACED` home detail in `claim_asset` ([assets.rs](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4-core/src/assets.rs)) and in `asset_facts` ([asset_columns.rs](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4-core/src/engine/asset_columns.rs)). Only the uploader or system reaches the `table[row].column` detail.
+- `dev_address` fast path (registry address without `/dev/status` proof) is covered: POSTs to clock/reset/seed/latency-reset require the `x-snapback-dev-instance` match server-side (409 on mismatch, [serve.rs:889](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4/src/serve.rs)), and closed doors still refuse 403. `clock`/`seed`/`reset` take only `--port`/`--release`, so no `--url` selection can be overridden.
+- Seat validation parity confirmed three ways: server `valid_name`, `proof.ts` `operatorToken`, `proof-accounts.ts` `service` all accept exactly 1–64 `[A-Za-z0-9_-]`. Arg merge order matches the spec (custom keys win).
+- No non-dev inference from 403 in `listen_refusal.rs`; upgrade warnings print on stderr even for quiet/JSON and ride in success JSON; single-declaration identity grammar means the `passwordOnly` regex cannot false-positive on guest schemas.
+
+Checks run: `node --test --test-name-pattern="DX4 upgrade narration"` passes (1 pass, 0 fail); `./ref-check` passes (556 docs, 11945 refs, 0 errors).
+
+Minor findings (non-blocking):
+
+1. `token --port <non-numeric>` is silently ignored: `parse::<u16>().ok()` yields `None`, which disables filtering, so it can mint for the implicit unique host or fall back to the project store ([verbs.rs, `token()`](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4/src/verbs.rs)). `control_address` strictly rejects bad `--port` with `E_INPUT`; `token` should too.
+2. `upgrade --json` failure path drops `warnings`: the catch block emits `{ok:false, error}` without the warnings the success path returns ([upgrade.js](/home/ccheever/projects/sb4-b18-dx4/snapback4/packages/snapback4/bin/upgrade.js)). Warnings already went to stderr, so nothing is lost, but JSON callers lose them exactly when the upgrade failed.
+3. Stale comment above the changed live-mint clock still says wall time is sampled "independent of dev's test clock" ([serve_token.rs](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4/src/serve_token.rs)). False in security-sensitive code; invites a future regression.
+4. `upgrade-warnings.js` excluded set omits `store`/`output` though §8 names them, and the `^use identity password` anchor misses indented declarations (legal Quarry). Both only dilute candidate precision.
+5. The DX4 `reg-upgrade` test asserts `readdir` order (`acceptance.mjs` before `frontend.ts`) in the joined warning string ([reg-upgrade.test.mjs](/home/ccheever/projects/sb4-b18-dx4/snapback4/packages/snapback4/test/reg-upgrade.test.mjs)). Filesystem-dependent; consider order-insensitive assertions.
+6. Multi-host token error contains a literal `{name}` instead of the service name ([verbs.rs](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4/src/verbs.rs)). Cosmetic.
+
+No files edited. Judged on design/implementation only, per the brief; publication and full-suite evidence not required and not evaluated.

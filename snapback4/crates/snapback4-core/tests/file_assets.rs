@@ -204,3 +204,23 @@ fn shared_immutable_evidence_refs_preserve_home_authorization_and_lifetime() {
     sent(&write(&mut e,"service:scanner","removeEvidence","source",id,"remove-home",12));
     assert_eq!(e.asset_access("bob", &upload.id, 13).unwrap_err().code(), "E_ASSET_UNKNOWN", "remaining refs cannot grant bytes after home deletion");
 }
+
+
+#[test]
+fn placement_diagnostics_name_own_home_but_never_another_uploaders() {
+    let mut e = engine();
+    let asset = e.store_file("alice", PDF, Some("application/pdf"), "proof.pdf", 0).unwrap();
+    let home = sent(&mutate(&mut e, "file", vec![("scan", handle(&asset.id))], 1));
+    let failed = mutate(&mut e, "file", vec![("scan", handle(&asset.id))], 2);
+    let WriteState::Failed { why, .. } = failed else {panic!("second home admitted")};
+    assert_eq!(why.code, "E_ASSET_PLACED");
+    assert!(why.message.contains(&format!("receipts[{}].scan", home.field("id").unwrap().as_str().unwrap())), "{}",why.message);
+    let args = BTreeMap::from([("scan".into(),handle(&asset.id))]);
+    let failed = e.mutate("file",None,Context::new("bob",args).with_ids(["foreign-home".into()]).at(3)).unwrap().state;
+    let WriteState::Failed { why, .. } = failed else {panic!("foreign upload admitted")};
+    assert_eq!(why.code,"E_ASSET_UNKNOWN");assert!(why.message.contains("only the uploading principal"));
+    assert!(!why.message.contains(home.field("id").unwrap().as_str().unwrap()));
+    assert!(!why.message.contains("alice"));
+    let missing_hint = e.store_asset("alice", PDF, 4).unwrap_err().refusal();
+    assert_eq!(missing_hint.code,"E_ASSET_TYPE");assert!(missing_hint.message.contains("file:"));
+}

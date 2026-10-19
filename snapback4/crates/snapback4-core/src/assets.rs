@@ -415,7 +415,7 @@ pub fn sniff(bytes: &[u8]) -> Result<Sniffed, RuntimeError> {
 }
 
 fn sniff_header(bytes: &[u8]) -> Result<Sniffed, RuntimeError> {
-    let refuse = || RuntimeError::Asset { code: "E_ASSET_TYPE", message: "the bytes are not a JPEG, PNG, WebP or MP4".into() };
+    let refuse = || RuntimeError::Asset { code: "E_ASSET_TYPE", message: "the bytes are not a JPEG, PNG, WebP or MP4; for a document use client.upload(bytes, {file: {name: \"document.pdf\", type: \"application/pdf\"}}) or POST /assets?as=file&name=document.pdf; see guide assets".into() };
     if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
         let (width, height) = jpeg_dimensions(bytes).ok_or_else(refuse)?;
         return Ok(Sniffed { kind: AssetKind::Image, content_type: "image/jpeg", width: Some(width), height: Some(height), duration: None });
@@ -804,7 +804,7 @@ impl Tx<'_> {
     /// own assets only (the system principal may place any), and an asset
     /// another row already holds is refused.
     pub fn claim_asset(&self, id: &str, by: &str, table: &str, row_id: &str, column: &str) -> Result<Asset, RuntimeError> {
-        let unknown = || RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: format!("no upload of yours is named {id}; upload the bytes first (POST /assets) and place the id it returns") };
+        let unknown = || RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: format!("no upload of yours is named {id}; only the uploading principal may place it. Upload fresh bytes as the placing viewer; unplaced uploads are collected after one hour, including time travel") };
         let Some(asset) = self.asset(id)? else { return Err(unknown()) };
         // @ref LLP 3000#7 — release permits a move; collection reservation closes the outside-lock unlink race.
         if self.conn().query_row("SELECT EXISTS(SELECT 1 FROM _asset_gc WHERE asset = ?1)", [id], |row| row.get::<_, bool>(0))? {
@@ -817,7 +817,7 @@ impl Tx<'_> {
         // the still-present bytes until the garbage collector reserves them.
         match &asset.home {
             Some((t, r, c)) if (t.as_str(), r.as_str(), c.as_str()) == (table, row_id, column) => {}
-            Some((t, _, _)) => return Err(RuntimeError::Asset { code: "E_ASSET_PLACED", message: format!("asset {id} already belongs to a row of {t}; upload it again for a second home") }),
+            Some((t, r, c)) => return Err(RuntimeError::Asset { code: "E_ASSET_PLACED", message: format!("asset {id} already belongs to {t}[{r}].{c}; one asset, one home. Reference that row, or upload fresh bytes as the placing viewer for a second home") }),
             None => {
                 self.conn().execute("UPDATE _assets SET home_table = ?2, home_id = ?3, home_column = ?4, released_at = NULL WHERE id = ?1", params![id, table, row_id, column])?;
             }
