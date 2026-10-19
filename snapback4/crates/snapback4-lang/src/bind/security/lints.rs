@@ -123,7 +123,7 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                 if role_columns.is_empty()&&p.kind==ProgramKind::Mutation&&(matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)||*op==ast::WriteOp::Update&&reassigns){
                     let operation=super::super::operation_name(std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy().as_ref(),&p.name);
                     let requirements=catalog.tables.get(table).map(|info|super::operation::requirements(&catalog,info,&context)).unwrap_or_default();
-                    if super::privilege::membership_grant_risk(bound,table,&operation,&requirements,if *op==ast::WriteOp::Upsert&&!reassigns{ast::WriteOp::Insert}else{*op})&&seen.insert((table.clone(),"$membership".into())){
+                    if super::privilege::membership_grant_risk(bound,table,&operation,&requirements,if *op==ast::WriteOp::Upsert&&!reassigns{ast::WriteOp::Insert}else{*op},fields)&&seen.insert((table.clone(),"$membership".into())){
                         note(&mut out,site,"N_PRIVILEGE_ESCALATION",format!("{}: {table} membership grants authority, but assignment does not establish the independent provisioning intent",p.name),"restrict membership grants to the declared provisioner; use guide staging's first-admin recipe");
                     }
                 }
@@ -137,7 +137,7 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                     }
                     let requirements=catalog.tables.get(table).map(|info|super::operation::requirements(&catalog,info,&context)).unwrap_or_default();
                     let effective_op=if chosen.is_none()&&*op==ast::WriteOp::Upsert{ast::WriteOp::Insert}else{*op};
-                    if let Some(risk)=super::privilege::risk(bound,table,column,&super::super::operation_name(std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy().as_ref(),&p.name),&targets,effective_op,&requirements,dynamic)&&seen.insert((table.clone(),format!("$privilege:{column}"))) {
+                    if let Some(risk)=super::privilege::risk(bound,table,column,&super::super::operation_name(std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy().as_ref(),&p.name),&targets,effective_op,&requirements,dynamic,fields)&&seen.insert((table.clone(),format!("$privilege:{column}"))) {
                         note(&mut out,site,"N_PRIVILEGE_ESCALATION",format!("{}: {risk}; review the grant's delegation policy",p.name),"restrict role assignment to authorized delegation or an operator seat; use guide staging's first-admin recipe (intentional open enrollment may permit this)");
                     }
                 }}

@@ -21,22 +21,36 @@ pub(super) fn membership_probe(bound:&Bound,rule:&RuleExpr,roster:&str)->bool{
     let pairs=probe_pairs(bound,table,index,key,equalities);
     pairs.len()==1&&pairs[0].0==principal&&pairs[0].1==RuleTerm::Viewer
 }
-pub(super) fn membership_grant_risk(bound:&Bound,roster:&str,operation:&str,requirements:&[RuleExpr],op:ast::WriteOp)->bool{
-    if op==ast::WriteOp::Upsert{return membership_grant_risk(bound,roster,operation,requirements,ast::WriteOp::Insert)||membership_grant_risk(bound,roster,operation,requirements,ast::WriteOp::Update);}
+// @ref LLP 3000.015#1 — ownership is required for every supplied owned field;
+// only an exclusively owned patch bypasses an unnamed row update gate.
+fn write_admission(table:&snapback4_core::schema::Table,op:ast::WriteOp,fields:&[ast::ObjectField])->RuleExpr{
+    let touched=fields.iter().filter(|f|!f.spread&&f.name!="id").map(|f|f.name.as_str()).collect::<BTreeSet<_>>();
+    let owned_only=!touched.is_empty()&&!fields.iter().any(|f|f.spread)&&touched.iter().all(|f|table.written_by.contains_key(*f));
+    let gate=match op{
+        ast::WriteOp::Insert=>table.rules.insert.clone(),
+        ast::WriteOp::Update if owned_only&&!table.update_transition=>RuleExpr::Allow,
+        ast::WriteOp::Update=>table.update_rule_judged().into_owned(),
+        _=>RuleExpr::Deny,
+    };
+    let mut owners=table.written_by.iter().filter(|(field,authority)|touched.contains(field.as_str())||op==ast::WriteOp::Update&&!authority.audience&&table.rules.update.needs_field_value(field,&table.columns[*field])).map(|(_,authority)|RuleExpr::Eq(if op==ast::WriteOp::Insert{RuleTerm::Field(authority.owner.clone())}else{RuleTerm::OldField(authority.owner.clone())},RuleTerm::Viewer)).collect::<Vec<_>>();
+    owners.push(RuleExpr::Or(gate.disjuncts().iter().filter(|r|r.service_grant().is_none()).map(|r|(*r).clone()).collect()));
+    RuleExpr::And(owners)
+}
+pub(super) fn membership_grant_risk(bound:&Bound,roster:&str,operation:&str,requirements:&[RuleExpr],op:ast::WriteOp,fields:&[ast::ObjectField])->bool{
+    if op==ast::WriteOp::Upsert{return membership_grant_risk(bound,roster,operation,requirements,ast::WriteOp::Insert,fields)||membership_grant_risk(bound,roster,operation,requirements,ast::WriteOp::Update,fields);}
     fn honors(bound:&Bound,rule:&RuleExpr,roster:&str)->bool{match rule{
         RuleExpr::And(xs)|RuleExpr::Or(xs)=>xs.iter().any(|r|honors(bound,r,roster)),
         r=>membership_probe(bound,r,roster),
     }}
     if global_principal(bound,roster).is_none()||!bound.schema.tables.values().any(|t|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|honors(bound,r,roster))){return false;}
     let table=&bound.schema.tables[roster];
-    let mut branches=match op {ast::WriteOp::Insert=>table.rules.insert.disjuncts(),ast::WriteOp::Update=>table.rules.update.disjuncts(),_=>return false}.into_iter().filter(|r|r.service_grant().is_none()).cloned().collect::<Vec<_>>();
-    if op==ast::WriteOp::Update&&let Some(owner)=global_principal(bound,roster).and_then(|c|table.written_by.get(&c)){branches.push(RuleExpr::Eq(RuleTerm::Field(owner.owner.clone()),RuleTerm::Viewer));}
-    let admission=RuleExpr::And(std::iter::once(RuleExpr::Or(branches)).chain(requirements.iter().cloned()).collect());
+    let admission=RuleExpr::And(std::iter::once(write_admission(table,op,fields)).chain(requirements.iter().cloned()).collect());
+    if op==ast::WriteOp::Update&&global_principal(bound,roster).is_some_and(|column|kernel::implies(&admission,&RuleExpr::Eq(RuleTerm::OldField(column.clone()),RuleTerm::Field(column)))==Ok(true)){return false;}
     let ordinary=substitute(bound,&admission,"$no-roster","$membership",None,None);
     bound.invariants.iter().filter(|i|i.table==roster&&i.column.is_none()&&(i.operation.as_deref()==Some(operation)||i.operation.is_none()&&(i.target=="write"||i.target==if op==ast::WriteOp::Insert{"insert"}else{"update"}))).filter_map(|i|i.policy.as_ref()).any(|p|super::operation::safe(p)&&kernel::implies(&ordinary,p)==Ok(false))
 }
 fn substitute(bound:&Bound,rule:&RuleExpr,roster:&str,column:&str,role:Option<&str>,target:Option<&str>)->RuleExpr{
-    let known=|t:&RuleTerm|match t{RuleTerm::Field(c) if c==column=>target.map(|s|snapback4_core::Value::String(s.into())),RuleTerm::Literal(v)=>Some(v.clone()),_=>None};
+    let known=|t:&RuleTerm|match t{RuleTerm::Field(c)|RuleTerm::NextField(c) if c==column=>target.map(|s|snapback4_core::Value::String(s.into())),RuleTerm::Literal(v)=>Some(v.clone()),_=>None};
     match rule{
         RuleExpr::Exists{table,key,index,equalities,..} if table==roster&&key.iter().chain(equalities.iter().map(|(_,t)|t)).any(|k|matches!(k,RuleTerm::Viewer))=>{
             let pairs=probe_pairs(bound,table,index,key,equalities);
@@ -53,11 +67,10 @@ fn substitute(bound:&Bound,rule:&RuleExpr,roster:&str,column:&str,role:Option<&s
         _=>rule.clone(),
     }
 }
-pub(super) fn risk(bound:&Bound,roster:&str,column:&str,operation:&str,targets:&[String],op:ast::WriteOp,requirements:&[RuleExpr],dynamic:bool)->Option<String>{
-    if op==ast::WriteOp::Upsert{return risk(bound,roster,column,operation,targets,ast::WriteOp::Insert,requirements,dynamic).or_else(||risk(bound,roster,column,operation,targets,ast::WriteOp::Update,requirements,dynamic));}
+pub(super) fn risk(bound:&Bound,roster:&str,column:&str,operation:&str,targets:&[String],op:ast::WriteOp,requirements:&[RuleExpr],dynamic:bool,fields:&[ast::ObjectField])->Option<String>{
+    if op==ast::WriteOp::Upsert{return risk(bound,roster,column,operation,targets,ast::WriteOp::Insert,requirements,dynamic,fields).or_else(||risk(bound,roster,column,operation,targets,ast::WriteOp::Update,requirements,dynamic,fields));}
     let table=bound.schema.table(roster)?;
     if requirements.iter().any(|r|!r.disjuncts().is_empty()&&r.disjuncts().iter().all(|b|b.service_grant().is_some())){return None;}
-    let gates=match op{ast::WriteOp::Insert=>vec![&table.rules.insert],ast::WriteOp::Update=>vec![&table.rules.update],ast::WriteOp::Upsert=>vec![&table.rules.insert,&table.rules.update],ast::WriteOp::Delete=>return None};
     let roles=match table.columns.get(column)?.required(){snapback4_core::schema::ColumnType::Enum{variants}=>variants.clone(),snapback4_core::schema::ColumnType::Text{..}=>{
         let mut roles=BTreeSet::new();
         fn collect(bound:&Bound,rule:&RuleExpr,roster:&str,column:&str,roles:&mut BTreeSet<String>){match rule{
@@ -71,9 +84,8 @@ pub(super) fn risk(bound:&Bound,roster:&str,column:&str,operation:&str,targets:&
         RuleExpr::Exists{table,index,key,equalities,..} if key.iter().chain(equalities.iter().map(|(_,v)|v)).any(|k|matches!(k,RuleTerm::Viewer))&&probe_pairs(bound,table,index,key,equalities).iter().any(|(c,v)|role_columns(bound,table).contains(c)&&matches!(v,RuleTerm::Literal(snapback4_core::Value::String(_))))=>out.push(rule.clone()),
         RuleExpr::And(xs)|RuleExpr::Or(xs)=>for r in xs{role_guards(bound,r,out)},_=>{}
     }}
-    let mut all_branches=gates.iter().flat_map(|r|r.disjuncts()).filter(|b|b.service_grant().is_none()).cloned().collect::<Vec<_>>();
-    if op!=ast::WriteOp::Insert&&let Some(owner)=table.written_by.get(column){all_branches.push(RuleExpr::Eq(RuleTerm::Field(owner.owner.clone()),RuleTerm::Viewer));}
-    let admission=RuleExpr::And(std::iter::once(RuleExpr::Or(all_branches)).chain(requirements.iter().cloned()).collect());
+    let admission=RuleExpr::And(std::iter::once(write_admission(table,op,fields)).chain(requirements.iter().cloned()).collect());
+    if op==ast::WriteOp::Update&&kernel::implies(&admission,&RuleExpr::Eq(RuleTerm::OldField(column.into()),RuleTerm::Field(column.into())))==Ok(true){return None;}
     let mut guards=Vec::new();role_guards(bound,&admission,&mut guards);
     let independent=kernel::implies(&substitute(bound,&admission,"$no-roster",column,None,None),&RuleExpr::Or(guards))==Ok(true);
     for target in roles.iter().filter(|r|targets.is_empty()||targets.contains(r)){

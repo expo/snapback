@@ -116,6 +116,7 @@ fn security_notes_have_real_sites_and_self_signup_role_is_flagged(){
 fn kind_named_authority_and_owner_field_patches_receive_escalation_advice(){
     for owned in [false,true]{
         let source=format!("table seats:\n  principal: principal\n  kind: enum('member','admin') default 'member'{}\n  unique principal\n  read <- .principal = viewer\n  insert <- {}\n  online only\ntable secrets:\n  read <- exists seats[viewer, kind = 'admin']\n  online only\nmutation appoint(kind: enum('member','admin')):\n  return upsert seats[viewer] {{ principal: viewer, kind }}\n",if owned{" written by .principal readable by audience"}else{""},if owned{"viewer = 'service:ops'"}else{".principal = viewer"});
+        let source=if owned{source.replace("return upsert seats[viewer] { principal: viewer, kind }","update seats[viewer] { kind }\n  return null")}else{source};
         let b=bound(&source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source)],&b);
         assert!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),"owned={owned}: {:?}",r.notes);
     }
@@ -282,4 +283,34 @@ fn principal_only_reassignment_obeys_update_write_and_operation_intent() {
   let b=bound(&source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source)],&b);
   assert_eq!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),!operator,"{effect} {operator}: {:?}",r.notes);
  }}
+}
+
+#[test]
+fn owned_role_advice_matches_named_and_mixed_patch_runtime_authority() {
+ use snapback4_core::{Engine,Store,Context,Value,WriteState};
+ use std::collections::BTreeMap;
+ for (gate,mixed,admitted) in [("",false,true),("update (old, next) <- deny",false,false),("",true,false),("update <- allow",true,true),("update (old, next) <- next.role = old.role",false,false),("update (old, next) <- next.role != 'admin'",false,false)] {
+  let source=format!("table seats:\n  principal: principal\n  role: enum('member','admin') default 'member' written by .principal readable by audience\n  label: text <=40 default ''\n  unique principal\n  read <- allow\n  {gate}\n  online only\ntable secrets:\n  read <- exists seats[viewer, role = 'admin']\n  online only\nmutation appoint(seat: seats):\n  update seats[seat] {{ role: 'admin'{} }}\n  return null\n",if mixed{", label: 'changed'"}else{""});
+  let b=bound(&source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source)],&b);
+  assert_eq!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),admitted,"{gate} mixed={mixed}: {:?}",r.notes);
+  let now=1_800_000_000_000;let mut e=Engine::new_at(Store::memory().unwrap(),b.schema.clone(),b.programs.iter().map(|p|p.program.clone()),now).unwrap();
+  e.seed_at([("seats".into(),Value::Row(BTreeMap::from([("id".into(),Value::Id("s".into())),("principal".into(),Value::Id("dev:alice".into())),("role".into(),Value::String("member".into())),("label".into(),Value::String("original".into()))]).into()))],now).unwrap();
+  let state=e.mutate(&b.programs[0].program.name,None,Context::new("dev:alice",BTreeMap::from([("seat".into(),Value::Id("s".into()))])).at(now)).unwrap().state;
+  assert_eq!(matches!(state,WriteState::Sent{..}),admitted,"{gate} mixed={mixed}: {state:?}");
+ }
+}
+
+#[test]
+fn principal_membership_owner_advice_keeps_named_transitions() {
+ use snapback4_core::{Engine,Store,Context,Value,WriteState};
+ use std::collections::BTreeMap;
+ for named in [false,true] {
+  let source=format!("table seats:\n  owner: principal\n  principal: principal default 'service:unassigned' written by .owner readable by audience\n  unique principal\n  read <- allow\n  {}\n  online only\ntable secrets:\n  read <- exists seats[viewer]\n  online only\ninvariant seats.update only viewer = 'service:ops'\nmutation claim(seat: seats):\n  update seats[seat] {{ principal: viewer }}\n  return null\n",if named{"update (old, next) <- deny"}else{""});
+  let b=bound(&source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source)],&b);
+  assert_eq!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),!named,"{:?}",r.notes);
+  let now=1_800_000_000_000;let mut e=Engine::new_at(Store::memory().unwrap(),b.schema.clone(),b.programs.iter().map(|p|p.program.clone()),now).unwrap();
+  e.seed_at([("seats".into(),Value::Row(BTreeMap::from([("id".into(),Value::Id("s".into())),("owner".into(),Value::Id("dev:alice".into())),("principal".into(),Value::Id("dev:bob".into()))]).into()))],now).unwrap();
+  let state=e.mutate(&b.programs[0].program.name,None,Context::new("dev:alice",BTreeMap::from([("seat".into(),Value::Id("s".into()))])).at(now)).unwrap().state;
+  assert_eq!(matches!(state,WriteState::Sent{..}),!named,"{state:?}");
+ }
 }
