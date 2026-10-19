@@ -1,0 +1,10 @@
+{
+  "model": "gpt-6.1-sol",
+  "effort": "high",
+  "scope": "implementation 8b1b688190..25bea0b961; read-only; no tests/builds",
+  "verdict": "NOT READY",
+  "findings": [
+    "Following staged/replay column reauthorization",
+    "insert expression projection"
+  ]
+}

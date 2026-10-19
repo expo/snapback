@@ -1,0 +1,10 @@
+{
+  "started": "2026-10-19T14:12:45.143924+00:00",
+  "amendment_sha256": "d7d1f4f53ce916ec2578b421bb99bc817a50bcdeae49afe9bc65416d722296be",
+  "brief": "llp/reviews/3000.036-colr-r4.brief.md",
+  "models": [
+    "gpt-6.1-sol high",
+    "muse-spark-1.3-contributor high"
+  ],
+  "scope": "section22 clarification plus complete implementation, including uncommitted fixes"
+}
