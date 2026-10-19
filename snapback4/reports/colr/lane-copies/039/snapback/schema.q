@@ -128,7 +128,7 @@ query recutHistory(job: jobs):
 mutation createJob(title: text 1..120, customer: principal, templater: principal, designer: principal, installer: principal, cents: int 0..100000000):
   require isRole('manager') else NOT_MANAGER
   require exists roles[customer, role = 'homeowner'] and exists roles[templater, role = 'templater'] and exists roles[designer, role = 'designer'] and exists roles[installer, role = 'installer'] else BAD_ASSIGNMENT
-  j = insert jobs { title, customer, templater, designer, installer }
+  j = (insert jobs { title, customer, templater, designer, installer }) ! else NOT_FOUND
   insert prices { job: j.id, customer, cents }
   return j
 mutation captureTemplate(job: jobs, template: image <=10000000, sitePhoto: image <=10000000, widthMm: int 100..5000, depthMm: int 100..2000, siteNotes: text <=2000):

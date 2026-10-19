@@ -442,10 +442,10 @@
     "device-sqlite-write-upsert-prediction-declined": 2,
     "device-sqlite-write-upsert-unpredictable-unsynced-table": 8
   },
-  "slowest_case_seconds": 0.383696449,
+  "slowest_case_seconds": 0.768545546,
   "slowest_case_seed": 85,
   "time_limited_workers": 0,
-  "seconds": 7.408549655,
+  "seconds": 12.568894919,
   "seed": 0,
   "cases": 1000
 }

@@ -124,7 +124,7 @@ table witnesses:
 mutation fileReport(child: children, court: courts, summary: text 5..2000, injury: bool, photo: image <=5000000, statement: text 1..4000):
   require exists roles[viewer, role = 'monitor'] else NOT_MONITOR
   require exists children[child] and exists courts[court] else NOT_FOUND
-  r = insert reports { child, court, author: viewer, summary, injury, photo, filedAt: now }
+  r = (insert reports { child, court, author: viewer, summary, injury, photo, filedAt: now }) ! else NOT_FOUND
   insert witnesses { report: r.id, statement }
   return r
 
@@ -133,7 +133,7 @@ shape evidenceReport = { id, child, court, author, summary, injury, filedAt, are
 mutation fileEvidenceReport(child: children, court: courts, summary: text 5..2000, injury: bool, areaEvidencePhoto: image <=5000000, statement: text 1..4000):
   require exists roles[viewer, role = 'monitor'] else NOT_MONITOR
   require exists children[child] and exists courts[court] else NOT_FOUND
-  r = insert reports { child, court, author: viewer, summary, injury, photo: areaEvidencePhoto, filedAt: now }
+  r = (insert reports { child, court, author: viewer, summary, injury, photo: areaEvidencePhoto, filedAt: now }) ! else NOT_FOUND
   insert witnesses { report: r.id, statement }
   return r evidenceReport
 

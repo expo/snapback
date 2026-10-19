@@ -444,10 +444,10 @@
     "lean-supported-query": 13287,
     "lean-unsupported": 3173
   },
-  "slowest_case_seconds": 5.005841407,
+  "slowest_case_seconds": 4.14080188,
   "slowest_case_seed": 3186,
   "time_limited_workers": 0,
-  "seconds": 47.443052364,
+  "seconds": 42.20977001,
   "seed": 0,
   "cases": 20000
 }

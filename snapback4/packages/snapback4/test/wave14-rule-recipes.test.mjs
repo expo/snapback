@@ -104,7 +104,7 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
   secret: text <=80 read <- .owner = viewer
   public 'identities are shared'
   insert <- .owner = viewer
-  sync public
+  sync public last 20 by .id
  mutation putReplica():
   return insert colrReplica { owner: viewer, title: 'shared', secret: 'private' }
  query spreadReplica(id: colrReplica):

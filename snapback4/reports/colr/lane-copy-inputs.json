@@ -18,7 +18,15 @@
       "physical": 186,
       "code": 157
     },
-    "codeReduction": 28
+    "codeReduction": 28,
+    "originalModuleHashes": {
+      "schema.q": "50efbc83edf03e995f9ef1293b0be92f1d6e4cd7b164272ace05bcb94d512d4d"
+    },
+    "originalsUnchanged": true,
+    "columnModuleHashes": {
+      "schema.q": "5ef3a42d861087d75807d91fc7f7107755ff2705f58163a0fce558faeeef805a"
+    },
+    "nullableResultRefinements": 2
   },
   {
     "lane": "037",
@@ -39,7 +47,15 @@
       "physical": 202,
       "code": 171
     },
-    "codeReduction": 18
+    "codeReduction": 18,
+    "originalModuleHashes": {
+      "schema.q": "19d893b02bce24f41dd98b9fa4370f302e39312df93e2902b18230cd68983271"
+    },
+    "originalsUnchanged": true,
+    "columnModuleHashes": {
+      "schema.q": "c1bddebb1e55e492cfb044dcee317ff358c084a7ca1c2a42fd6cae9702c79acf"
+    },
+    "nullableResultRefinements": 0
   },
   {
     "lane": "039",
@@ -60,7 +76,15 @@
       "physical": 223,
       "code": 211
     },
-    "codeReduction": 14
+    "codeReduction": 14,
+    "originalModuleHashes": {
+      "schema.q": "b8860779d2135cfee15e89c727bf09f1c2ac57da578cc921e2768a6e941f403c"
+    },
+    "originalsUnchanged": true,
+    "columnModuleHashes": {
+      "schema.q": "10d02f1ff2ee67c83dc9cd88c0cc55796686118a187078ac5d2428e69b240929"
+    },
+    "nullableResultRefinements": 1
   },
   {
     "lane": "043",
@@ -81,7 +105,15 @@
       "physical": 218,
       "code": 186
     },
-    "codeReduction": 13
+    "codeReduction": 13,
+    "originalModuleHashes": {
+      "schema.q": "611c9dbd9109649ce95ede00b507cebaccbc8d1cce8b1b7be24910d4004b2075"
+    },
+    "originalsUnchanged": true,
+    "columnModuleHashes": {
+      "schema.q": "2242a34a5270e2caf1d18156b2dc1e32b56df130066060704c7257d0497e27c5"
+    },
+    "nullableResultRefinements": 0
   },
   {
     "lane": "049",
@@ -102,6 +134,16 @@
       "physical": 174,
       "code": 161
     },
-    "codeReduction": 14
+    "codeReduction": 14,
+    "originalModuleHashes": {
+      "bootstrap.q": "d249e584612fba7f364d2520ec93f7bb1b81a4f572d29e81eec6bc2ede6e0a42",
+      "schema.q": "5be30e602a9d3eddbb3d7a6344a1cfba39c230c7f888b28a91c788d8beeb9925"
+    },
+    "originalsUnchanged": true,
+    "columnModuleHashes": {
+      "bootstrap.q": "1bc29dcc37a26f0353c568bba5355672c82e4d98f0b388b71ca7d60d9dd336bc",
+      "schema.q": "f4953afc45c68a78c3abc8cb7992c29833c7ae456bb30739e9b7ed99f96e782d"
+    },
+    "nullableResultRefinements": 1
   }
 ]
