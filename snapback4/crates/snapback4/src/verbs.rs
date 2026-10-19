@@ -331,7 +331,7 @@ pub fn check(options: &Options) -> i32 {
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
     }
-    let security = security::report(&project, &bound, options);
+    let security = security::report(&project, &bound, &compiled_sources, options);
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
     match adoption::diagnostics(&project, &bound.schema, options.flags.get("store"), options.json || options.flags.contains_key("verbose")) {
         Ok((problems, notes)) => { bound.diagnostics.extend(problems); bound.notes.extend(notes); },

@@ -33,7 +33,7 @@ fn path(project:&Project)->std::path::PathBuf{project.root.join("snapback/genera
 pub(in crate::verbs) fn remember(project:&Project,options:&Options,campaign:&security::challenges::Campaign,complete:bool,consumed:&str)->Result<(),String>{
     if fingerprint(project,options)?!=consumed{return Err("source or fixtures changed during test; evidence was not saved; rerun snapback4 test".into());}
     let mut record=Record{fingerprint:consumed.into(),complete,attempted:campaign.attempted,sequences:campaign.sequences,coverage_gaps:campaign.unsupported.len(),violations:campaign.violations.iter().filter(|c|c.reachability.is_reachable()).cloned().collect()};
-    let prior=matching(project,options).map(|r|r.violations).unwrap_or_default();
+    let prior=matching_key(project,consumed).map(|r|r.violations).unwrap_or_default();
     let mut seen=std::collections::BTreeSet::new();
     record.violations=prior.into_iter().chain(record.violations).filter(|v|v.reachability.is_reachable()&&seen.insert(serde_json::to_string(&(&v.invariant_site,&v.viewer,&v.operation,&v.effect,&v.reachability)).unwrap())).collect();
     let path=path(project);std::fs::create_dir_all(path.parent().unwrap()).map_err(|e|e.to_string())?;
@@ -41,10 +41,13 @@ pub(in crate::verbs) fn remember(project:&Project,options:&Options,campaign:&sec
     let result=std::fs::write(&temp,serde_json::to_vec(&record).map_err(|e|e.to_string())?).and_then(|_|std::fs::rename(&temp,&path));
     if result.is_err(){let _=std::fs::remove_file(temp);}result.map_err(|e|e.to_string())
 }
-pub(super) fn matching(project:&Project,options:&Options)->Option<Record>{
+pub(super) fn matching(project:&Project,options:&Options,sources:&[(String,String)])->Option<Record>{
+    matching_key(project,&capture(sources,Some(&selected_fixture(project,options))).ok()?)
+}
+fn matching_key(project:&Project,key:&str)->Option<Record>{
     let path=path(project);
     let record:Record=serde_json::from_slice(&std::fs::read(path).ok()?).ok()?;
-    (record.fingerprint==fingerprint(project,options).ok()?).then_some(record)
+    (record.fingerprint==key).then_some(record)
 }
 
 #[cfg(test)]
@@ -63,7 +66,12 @@ mod tests{
   let mut c=security::challenges::Campaign::default();security::challenges::fixture_observers(&bound,&engine,&mut c);assert!(!c.violations.is_empty());
   let mut synthetic=c.violations[0].clone();synthetic.reachability=security::challenges::Reachability::SyntheticOperation;synthetic.operation="synthetic-must-not-persist".into();c.violations.push(synthetic);
   let consumed=fingerprint(&project,&options).unwrap();
-  remember(&project,&options,&c,true,&consumed).unwrap();let prior=matching(&project,&options).unwrap();assert!(prior.violations.iter().all(|v|v.reachability.is_reachable()));
-  remember(&project,&options,&Default::default(),false,&consumed).unwrap();let next=matching(&project,&options).unwrap();assert!(!next.complete);assert_eq!(next.violations.len(),prior.violations.len());
+  remember(&project,&options,&c,true,&consumed).unwrap();let prior=matching(&project,&options,&[("schema.q".into(),source.into())]).unwrap();assert!(prior.violations.iter().all(|v|v.reachability.is_reachable()));
+  remember(&project,&options,&Default::default(),false,&consumed).unwrap();let next=matching(&project,&options,&[("schema.q".into(),source.into())]).unwrap();assert!(!next.complete);assert_eq!(next.violations.len(),prior.violations.len());
+  let other=vec![("schema.q".into(),source.replace("only .owner = viewer","only allow"))];let selected=snapback4_lang::compile(&other);
+  assert!(!super::super::report(&project,&selected,&other,&options).refuted(),"evidence for current disk source must not refute an independently compiled selection");
+  remember(&project,&options,&c,true,&consumed).unwrap();
+  assert!(super::super::release_notice(&project,&selected,&other,&options).contains("run `snapback4 test"));
+  assert!(super::super::release_notice(&project,&bound,&[("schema.q".into(),source.into())],&options).contains("matching test campaign recorded"));
  }
 }
