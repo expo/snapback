@@ -1,0 +1,28 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=7a1d84d3-6c48-4c85-9a4f-19d0ad8b5b54]: Subscription quota exhausted. Your usage window resets at 2026-10-19T12:47:06Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — §13/§13.5 rev 2 is coherent and preserves the proof boundary; the authored-fixture-only supersession is sound as specified.
+
+Top finding: failing on `GeneratedFixtureTrace` does not create a false-proof path. Generated worlds are schema-valid, seed-validated, committed read-back observations of actual authored operations/reads, i.e. genuine all-snapshot refutations under §3/§4/§8.1 — and the design explicitly withholds what it must: generated initialization stays a trusted test assumption, never empty-state reachability; no generated coverage yields Proved or any zero-hole claim.
+
+What I checked:
+
+- Read §13–13.5 plus governing §§2–4, 8/8.1, 10.3, 12.2/12.5–12.8 for consistency.
+- Code (implementation in progress, as expected): [challenges.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/security/challenges.rs) already has `Reachability::{AuthoredFixtureTrace, GeneratedFixtureTrace, TrustedSeedOnly, SyntheticOperation}` with `is_reachable()` true only for the two fixture origins; seed/synthetic stay supplemental/non-failing. `Campaign::bounded(1500)` and the work-budget exhaustion message exist; implication memo is bounded process-local 4096 ([kernel.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/security/kernel.rs)); `N_INVARIANT_RESTATES_RULE`/`N_ROLE_WIDE_READ` advisories exist ([lints.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/security/lints.rs)). Worktree has expected in-progress edits plus untracked `generated.rs`, round-1/2 reviews, and `reports/20261019-sec4/`.
+
+Why the supersession holds:
+
+- Failure set change is explicit and preserves measurements: origin in every compact failure line, JSON, counterexample selection/count; `apply` prefers authored → generated → supplemental, shortest within origin; supplemental seed/synthetic labeling retained.
+- No fixture rows enter static proofs; timeout/exhaustion → unproved, never proved; already-replayed violations still fail. Mirror equivalence needs proved implication both directions on Readable, unknown/cap → silence. Column-update grammar and no-whole-table-coverage are explicit; §12.7/12.8 stability closures retained.
+- Check bound (deterministic 512 call/world reservation + 1500 ms, ordered observers, test-only matrix excluded, full caps as upper bounds) is bounded, deterministic, and consistent with the 5 s median target. Only pure `RuleExpr` implication pairs are memoized.
+- Qualification is binding: pinned before/after measurements, all 50 fixture-free outcomes with result+origin, 11 high-lane hashes with caught/partial/not-caught, 200-schema survey with false refusal defined and zero new refusals on invariant-free schemas, per-refusal analysis of every new generated-origin refusal.
+
+Material concerns considered, none blocking:
+
+- False-refusal risk (generated states unreachable via app ops, sharpest for query-only apps under §12.8) is real but disclosed by design (assumption label, `not covered: no authored business cases; generated-fixture only`, per-refusal analysis). Final judgment properly waits on the pending empirical gates.
+- Minor gaps for implementation: `no_cases` clearing if generated campaigns time out mid-run is unspecified; JSON machine-readable generated-only coverage flag should match the printed line; draft-alternative generation remains intentionally vague (acceptable — advisory only, never compiled).
+
+No files edited.
