@@ -48,7 +48,7 @@ query list():
       assert.equal(denied.denied?.code,'E_INPUT',JSON.stringify(denied));
     }
     const duplicateMutation=await post('/m/remember',{reason:'same',explanation:'same'});
-    assert.equal(duplicateMutation.denied?.code,'E_INPUT',JSON.stringify(duplicateMutation));
+    assert.equal(duplicateMutation.why?.code,'E_INPUT',JSON.stringify(duplicateMutation));
     assert.equal((await post('/q/fallback',{})).data,'default');
     assert.equal((await post('/q/fallback',{reason:null})).data,'default');
     const remembered=await post('/m/remember',{reason:'mapped without loss',obsolete:'ignored'});
