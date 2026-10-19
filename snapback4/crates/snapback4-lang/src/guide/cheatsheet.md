@@ -174,3 +174,11 @@ and `await client.mutate(api.addList, { title })`. Every export by subpath: `gui
 Maintained totals: `view total: sum expenses of .amount by .owner` beside `view n: count expenses by .owner`. `cap` groups by stored columns; store `day(startsAt)` in an immutable int dayNumber before grouping by it.
 
 Keyed counts: a hidden key reads null, an authorized missing count group reads 0; generated private keyed count results are number | null.
+
+## Serve real users
+
+Local editing uses `npx snapback4 dev`. Shared previews, acceptance with real
+password users and `probe:serve` use `npx snapback4 deploy staging --staging`
+and `npx snapback4 serve staging`. Run `npx snapback4 guide staging` for the
+complete `startServe({seedUsers})` setup and replayable first-admin recipe.
+Staging time travel: `guide time` (MIG). Security campaigns: SEC4 owns `guide security`.

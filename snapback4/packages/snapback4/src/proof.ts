@@ -33,6 +33,7 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
     }, timeout);
     const { response, body } = await fetchIdentity(`${url}/auth/config`, timeout);
     if (!response.ok || body.proof_id !== id) throw Error("proof served identity mismatch");
+    if (verb === "dev" && body.devDoors === false) process.stderr.write("snapback4: password-only development doors CLOSED (/seed, /dev/*, personas). For shared previews and probe:serve run snapback4 deploy staging --staging, then startServe(\"staging\"); see snapback4 guide staging. Local fixtures require dev --unsafe-dev-doors.\n");
     let personas: string[] = [];
     if (verb === "dev" && body.devDoors !== false) {
       const status = await fetchIdentity(`${url}/dev/status`, timeout);
@@ -87,7 +88,8 @@ export async function startServe(deployDir: string, options: ServeOptions | read
     if (!config.response.ok || config.body.environment !== "staging") throw Error("E_CLOCK_DEV_ONLY: clock controls require a deploy --staging store");
     const clockToken = served.operatorToken("clock");
     const response = await fetch(`${host.url}/dev/clock/${body ? "advance" : "status"}`, { method: body ? "POST" : "GET", headers: { Authorization: `Bearer ${await clockToken}`, "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(deadline(opts.timeoutMs, 60_000)) });
-    const result = await response.json() as { now?: number; denied?: { code?: string; message?: string } };
+    const result = await response.json() as { now?: number; sessionNotice?: string; denied?: { code?: string; message?: string } };
+    if (result.sessionNotice) process.stderr.write(`snapback4: ${result.sessionNotice}\n`);
     if (!response.ok || result.denied || !Number.isSafeInteger(result.now)) throw Error(`staging clock refused or reply unavailable; inspect clock and queued work before retrying: ${result.denied?.code ?? response.status} ${result.denied?.message ?? ""}`);
     return result.now!;
   };

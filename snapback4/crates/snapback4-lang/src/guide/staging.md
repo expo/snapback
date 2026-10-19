@@ -81,7 +81,8 @@ try {
 ```
 
 `host.seedAccounts({roles, provision, args?})` performs additional batches; an
-optional `args(account)` maps principal/role/email to your mutation's arguments.
+optional `args(account)` merges over `{principal, role}` (explicit keys win).
+Use `service: "ops"` for a provisioning mutation authorized as `service:ops`.
 Each call creates new random email/password pairs and returns role arrays of
 `{role,email,password,principal,token,expiresAt}`. Ordinary sessions last seven
 days; sign in again with `login` from snapback4/auth when needed. Setup is
@@ -143,8 +144,9 @@ const email = process.env.FIRST_ADMIN_EMAIL, password = process.env.FIRST_ADMIN_
 if (!email || !password) throw Error("Set FIRST_ADMIN_EMAIL and FIRST_ADMIN_PASSWORD privately");
 const host = await startServe("production");
 try {
-  // Set FIRST_ADMIN_EXISTING=1 only for an account you already created.
-  const account = await (process.env.FIRST_ADMIN_EXISTING === "1" ? login : signup)(host.url, email, password);
+  // Login first so rerunning this script preserves the existing account and grant.
+  let account = await login(host.url, email, password);
+  if (!account.ok) account = await signup(host.url, email, password);
   if (!account.ok) throw Error(account.why.message);
   const token = await host.operatorToken();
   const response = await fetch(host.url + "/m/provision", {
@@ -157,7 +159,8 @@ try {
 } finally { await host.stop(); }
 ```
 
-No first-user race or self-promotion mutation is needed. Subsequent grants use
+Reruns authenticate the same email/password and upsert the same roster row.
+A wrong password refuses without changing an existing grant. No first-user race or self-promotion mutation is needed. Subsequent grants use
 the same operator process or an explicitly authorized admin policy. Invite codes
 must be server-validated, single-use grants issued by an authorized operator;
 an arbitrary caller-supplied code or role is not authority.

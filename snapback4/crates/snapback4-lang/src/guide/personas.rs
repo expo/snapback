@@ -16,8 +16,16 @@ query whoAmI():
 
 ## Seed accounts headlessly
 
-Run `snapback4 check` then `snapback4 dev` with the schema above. Save as `seed.mjs` beside `snapback/`.
-Set `SEED_PASSWORD` privately and run `node seed.mjs` (Node 24). Signup returns a session; use `SEED_AUTH=login` for existing accounts (duplicate signup refuses).
+For shared previews, acceptance with real users and `probe:serve`, use
+`snapback4 guide staging`: its complete schema and `startServe({seedUsers})`
+recipe create password accounts and operator-provisioned roles on a
+`deploy --staging` store. It also includes replayable first-admin provisioning.
+The staging clock is covered by `guide time` (MIG); no public time hook is needed.
+
+For a local-only identity experiment, run `snapback4 dev` with the schema above,
+then save this as `seed.mjs` beside `snapback/`. Set `SEED_PASSWORD` privately.
+Reruns log in to the same account; a failed login tries signup, which refuses
+an already registered email without changing its password or authority.
 
 ```js
 import { signup, login } from "snapback4/auth";
@@ -26,24 +34,21 @@ import { api } from "./snapback/generated/api.ts";
 const url = process.env.SNAPBACK_URL ?? "http://127.0.0.1:4400";
 const password = process.env.SEED_PASSWORD;
 if (!password) throw Error("Set SEED_PASSWORD");
-const mode = process.env.SEED_AUTH ?? "signup";
-if (mode !== "signup" && mode !== "login") throw Error("SEED_AUTH must be signup or login");
-const authenticate = mode === "signup" ? signup : login;
-const result = await authenticate(url, "seed1@example.test", password);
+let result = await login(url, "seed1@example.test", password);
+if (!result.ok) result = await signup(url, "seed1@example.test", password);
 if (!result.ok) throw Error(result.why.message);
 const client = createClient({ url, session: result.session });
 try {
   const me = await client.query(api.whoAmI, {});
   if ("denied" in me) throw Error(me.denied.message);
-  console.log(client.viewer()); // Only the principal, never the bearer.
+  console.log(client.viewer());
 } finally { await client.signOut(); }
 ```
 
-Use `client.mutate(api.operation, args)` for writes; require `state: "sent"` or handle `"failed"` with `why`;
-`"pending"` is not success. Use one client per account. The social starter's `scripts/seed.mjs` creates N users
-and profiles; replay adapters use the same path. No browser, borrowed token, persona or `/seed` is needed.
-SDK calls POST `{email, password}` to `/auth/signup` or `/auth/login`: `{ok: true, session}` or `{ok: false, why}`
-(wire: `{session}` or `{denied}`). Use HTTPS off loopback. There is no `snapback4 auth create`; `run --as` and `/seed` do not create password credentials.
+Use one client per account; require `state: "sent"` for a successful mutation.
+Signup grants no role. Never use a caller-selected role or first-claim mutation
+for privileged onboarding. There is no `snapback4 auth create`; `/seed` and
+`run --as` do not create password credentials.
 
 Ordinary guest and password sessions last seven days. `refreshSession` atomically exchanges a live token;
 `logoutAll` revokes every session for the principal. The client refreshes near expiry and uses an in-memory

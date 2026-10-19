@@ -39,7 +39,7 @@ Every runtime and type export of `snapback4/proof` is listed below. Signatures, 
 | `LoadFixturesOptions` | `url: string; cwd?: string; persona?: string; headers?: Record<string, string>; now?: number; timeoutMs?: number` |
 | `ProofHost` | `{ url: string; pid: number; logs: { stdout: string; stderr: string; }; stop: () => Promise<void> }` |
 | `ProofOptions` | `cwd?: string; env?: NodeJS.ProcessEnv; args?: readonly string[]; timeoutMs?: number; stopTimeoutMs?: number; logsDir?: string; secret?: boolean; detached?: boolean; livenessPipe?: boolean` |
-| `SeedAccountsOptions` | `roles: Record<string, number>; provision: { readonly name: string; }; args?: (account: StagingAccount) => Record<string, unknown>; timeoutMs?: number` |
+| `SeedAccountsOptions` | `roles: Record<string, number>; provision: { readonly name: string; }; service?: string; args?: (account: StagingAccount) => Record<string, unknown>; timeoutMs?: number` |
 | `ServeHost` | `now: () => Promise<number>; advance: (duration: string, options?: { eachBoundary?: boolean; }) => Promise<number>; operatorToken: (service?: string, days?: number) => Promise<string>; seedAccounts: (options: SeedAccountsOptions) => Promise<StagingSessions>; sessions?: StagingSessions; url: string; pid: number; logs: { stdout: string; stderr: string; }; stop: () => Promise<void>` |
 | `ServeOptions` | `seedUsers?: SeedAccountsOptions; clockOffset?: string; cwd?: string; env?: NodeJS.ProcessEnv; args?: readonly string[]; timeoutMs?: number; stopTimeoutMs?: number; logsDir?: string; secret?: boolean; detached?: boolean; livenessPipe?: boolean` |
 | `StagingAccount` | `role: string; email: string; password: string; principal: string; token: string; expiresAt: number` |
