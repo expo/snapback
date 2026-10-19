@@ -2,6 +2,7 @@
 // @ref LLP 3000.036.004#121-column-read-intent — excluding a field from a projection must not produce a synthetic whole-row refutation.
 use super::*;
 fn reserve(out:&mut Campaign,cost:usize)->bool{
+    if !out.reserve(cost){return false;}
     if out.column_observer_calls+cost>16384{out.unsupported.insert("column observers capped at 16384 call/world reservations; remaining value worlds not covered".into());return false;}
     out.column_observer_calls+=cost;true
 }
@@ -46,7 +47,30 @@ fn same_base_world(bound:&Bound,inv:&Invariant,primary:&BTreeMap<String,Vec<Valu
 fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,row:&Value,fixture:Option<&Engine>,trace:Option<(&BTreeMap<String,Vec<Value>>,&[histories::Step])>,presence:bool,out:&mut Campaign){
     if discharged(bound,inv){return;}
     if !reserve(out,1){return;}
-    let Some(other)=sample_rows(bound,rows,inv,row,presence)else{out.unsupported.insert(format!("{}.{}: column pair needs a second typed non-asset value",inv.table,inv.column.as_deref().unwrap_or("")));return;};
+    let column=inv.column.as_deref().unwrap();
+    let kind=&bound.schema.tables[&inv.table].columns[column];
+    let mut other=match sample_rows(bound,rows,inv,row,presence){
+        Some(other)=>other,
+        None if kind.contains_asset()&&fixture.is_some()=>{
+            let mut other=rows.clone();
+            let Some(value)=sample(kind.required(),4)else{out.unsupported.insert(format!("{}.{}: alternate media type unsupported",inv.table,column));return;};
+            if let Some(Value::Row(fields))=other.get_mut(&inv.table).and_then(|rs|rs.iter_mut().find(|r|r.field("id").ok()==row.field("id").ok())){fields.insert(column.into(),value);}other
+        },
+        None=>{out.unsupported.insert(format!("{}.{}: column pair needs a second typed value and, for media, a coupled verified fixture ledger",inv.table,column));return;},
+    };
+    // Both worlds receive the same verified ledger, including the alternate
+    // upload. Only the protected row value changes; no fabricated media ids.
+    let ledger;
+    let fixture=if kind.contains_asset(){
+        let Some(base)=fixture else{out.unsupported.insert(format!("{}.{}: media column pair requires the fixture ledger",inv.table,column));return;};
+        let mut prepared=match fork(bound,base,Vec::new()){Ok(e)=>e,Err(why)=>{out.unsupported.insert(why);return;}};
+        let target=other.get_mut(&inv.table).unwrap().iter_mut().find(|r|r.field("id").ok()==row.field("id").ok()).unwrap();
+        if let Value::Row(fields)=target {
+            let value=match hydrate(&mut prepared,kind,&fields[column]){Ok(v)=>v,Err(why)=>{out.unsupported.insert(format!("{}.{}: alternate media upload: {why}",inv.table,column));return;}};
+            fields.insert(column.into(),value);
+        }
+        ledger=prepared;Some(&ledger)
+    }else{fixture};
     let altrow=other[&inv.table].iter().find(|r|r.field("id").ok()==row.field("id").ok()).unwrap();
     let mut actors=histories::viewers(bound);
     for (table,rs) in rows{for r in rs{for (c,k) in &bound.schema.tables[table].columns{if matches!(k.required(),C::Principal)&&let Ok(Value::Id(p))=r.field(c)&&!actors.contains(p){actors.push(p.clone());}}}}
@@ -77,7 +101,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
                 }
                 if stability::implicit(bound,p).iter().any(|t|t==&inv.table||deps.contains(t)){out.unsupported.insert(format!("{}: implicit writes can change column policy before disclosure",p.name));continue;}
             }
-            let args_list=histories::fixture_cases(&p.args,rows,&actors,out);
+            let args_list=histories::fixture_cases(p,rows,&actors,out);
             for args in args_list{
                 if !reserve(out,4){return;}
                 let execute=|alternate:bool|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>,BTreeMap<String,Value>),String>{
@@ -132,7 +156,7 @@ pub(super) fn generated(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<St
             let rows=match snapshot(bound,inv,variant){Ok(r)=>r,Err(why)=>{out.unsupported.insert(format!("{}: column snapshot: {why}",inv.table));continue;}};
             let e=match engine(bound,&rows,program("$column.seed",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))])){Ok(e)=>e,Err(why)=>{out.unsupported.insert(format!("{}: column seed: {why}",inv.table));continue;}};
             let Ok(rows)=readback(&e)else{continue;};
-            for row in rows.get(&inv.table).into_iter().flatten(){run_pair(bound,inv,&rows,row,None,None,out);}
+            for row in rows.get(&inv.table).into_iter().flatten(){if out.exhausted(){return;}run_pair(bound,inv,&rows,row,None,None,out);}
             if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()){break;}
         }
     }
@@ -140,7 +164,7 @@ pub(super) fn generated(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<St
 pub(super) fn fixture(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     let Ok(rows)=readback(fixture)else{return;};
     for inv in bound.invariants.iter().filter(|i|i.target=="read"&&i.column.as_deref().is_some_and(|c|c!="id")){
-        for row in rows.get(&inv.table).into_iter().flatten(){run_pair(bound,inv,&rows,row,Some(fixture),None,out);}
+        for row in rows.get(&inv.table).into_iter().flatten(){if out.exhausted(){return;}run_pair(bound,inv,&rows,row,Some(fixture),None,out);}
     }
 }
 
@@ -148,6 +172,6 @@ pub(super) fn after_history(bound:&Bound,fixture:&Engine,initial:&BTreeMap<Strin
     let rows=match readback(fixture){Ok(r)=>r,Err(why)=>{out.unsupported.insert(why);return;}};
     for inv in bound.invariants.iter().filter(|i|i.target=="read"&&i.column.as_deref().is_some_and(|c|c!="id")){
 
-        for row in rows.get(&inv.table).into_iter().flatten(){run_pair(bound,inv,&rows,row,Some(fixture),Some((initial,steps)),out);}
+        for row in rows.get(&inv.table).into_iter().flatten(){if out.exhausted(){return;}run_pair(bound,inv,&rows,row,Some(fixture),Some((initial,steps)),out);}
     }
 }

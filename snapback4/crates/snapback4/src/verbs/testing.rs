@@ -56,7 +56,7 @@ pub fn test(options: &Options) -> i32 {
         }
         eprintln!("test --residency --as: measuring an undeclared principal; dev would refuse it as a persona");
     }
-    let _owner = if options.flags.contains_key("fixture") || options.flags.contains_key("source") { None } else {
+    let _owner = if options.flags.contains_key("fixture") || options.flags.contains_key("source") || !options.flags.contains_key("residency") { None } else {
         match crate::store_owner::command(&project.store_path()) {
             Ok(owner) => Some(owner),
             Err(error) => { eprintln!("{error}"); return 1; }
@@ -65,6 +65,9 @@ pub fn test(options: &Options) -> i32 {
     let fixture_now = snapback4_core::now_ms();
     let opened = match &_owner {
         Some(owner) => owner.open_engine(&bound, std::time::Duration::from_secs(5), fixture_now).map_err(|e| e.to_string()),
+        None if !options.flags.contains_key("fixture")&&!options.flags.contains_key("residency") => {
+            snapback4_core::Store::memory().and_then(|store|snapback4_core::Engine::new_at(store,bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone()),fixture_now)).map_err(|e|e.to_string())
+        },
         None => test_fixture::engine_at(&project, &bound, options, fixture_now),
     };
     let mut engine = match opened {
@@ -102,12 +105,10 @@ pub fn test(options: &Options) -> i32 {
             Err(why)=>{security_campaign.unsupported.insert(format!("trusted fixture campaign unavailable: {why}"));}
         }
     }else{
-        security_campaign.unsupported.insert("no trusted fixture files for the fixed campaign clock; development store is not replayed".into());
-        if let Ok(store)=snapback4_core::Store::memory(){
-            match snapback4_core::Engine::new_at(store,bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone()),snapback4_lang::security::challenges::NOW){
-                Ok(isolated)=>snapback4_lang::security::challenges::operations(&bound,&isolated,&mut security_campaign),
-                Err(why)=>{security_campaign.unsupported.insert(format!("schema matrix unavailable: {why}"));}
-            }
+        security_campaign.generated_fixture=true;
+        match snapback4_lang::security::challenges::generated_fixture(&bound,&mut security_campaign){
+            Ok(isolated)=>snapback4_lang::security::challenges::operations(&bound,&isolated,&mut security_campaign),
+            Err(why)=>{security_campaign.unsupported.insert(format!("generated fixture campaign unavailable: {why}"));}
         }
     }
     let security_campaign=snapback4_lang::security::challenges::run_selected_after(&bound,None,security_campaign);
@@ -117,9 +118,9 @@ pub fn test(options: &Options) -> i32 {
     println!("security histories: {} ordered short operation sequences replayed",security_campaign.sequences);
     for why in &security_campaign.boundary_failures {println!("security boundary failure: {why}");}
     println!("security operation matrix: {} operations exercised; unknown authorization intent is not inferred from success",security_campaign.operations.len());
-    let reachable=security_campaign.violations.iter().filter(|c|c.reachability==snapback4_lang::security::challenges::Reachability::AuthoredFixtureTrace).count();
+    let reachable=security_campaign.violations.iter().filter(|c|c.reachability.is_reachable()).count();
     println!("security tests: {} attempted, {} refused, {reachable} reachable violations; {} seed/synthetic observations (non-failing); finite campaign, not proof",security_campaign.attempted,security_campaign.refused,security_campaign.violations.len()-reachable);
-    for c in security_campaign.violations.iter().filter(|c|options.flags.contains_key("all")||c.reachability==snapback4_lang::security::challenges::Reachability::AuthoredFixtureTrace) {println!("security violation: {}",serde_json::to_string(c).unwrap());}
+    for c in security_campaign.violations.iter().filter(|c|options.flags.contains_key("all")||c.reachability.is_reachable()) {println!("security violation: {}",serde_json::to_string(c).unwrap());}
     for reason in &security_campaign.unsupported {println!("security not covered: {reason}");}
     let (mut passed, mut failed_cases) = (0, 0);
     if let Some(fixture) = options.flags.get("fixture").filter(|_| !options.flags.contains_key("saved-fixture-fallback")) {
@@ -258,8 +259,10 @@ pub fn test(options: &Options) -> i32 {
     }
     // One line a script or an agent can read: derived refusals and unrun
     // queries are not failures, but they are not coverage either.
-    let no_cases = passed + failed_cases == 0 && !options.flags.contains_key("fixture-only");
-    let security_failed = security_campaign.violations.iter().any(|c|c.reachability==snapback4_lang::security::challenges::Reachability::AuthoredFixtureTrace) || !security_campaign.boundary_failures.is_empty() || !security_http_ok;
+    let generated_only=!options.flags.contains_key("fixture")&&!options.flags.contains_key("source");
+    if generated_only {println!("test not covered: no authored business cases; generated-fixture only");}
+    let no_cases = passed + failed_cases == 0 && !options.flags.contains_key("fixture-only") && !generated_only;
+    let security_failed = security_campaign.violations.iter().any(|c|c.reachability.is_reachable()) || !security_campaign.boundary_failures.is_empty() || !security_http_ok;
     let verdict = if failures > 0 || failed_cases > 0 || no_cases || security_failed { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 { "incomplete" } else { "pass" };
     // @ref LLP 3000.036.002#9 — derived probe refusals are expected exploration, not failed cases.
     println!("test: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} probe refusals on derived arguments (expected), {} not run, {failures} denied{} — {verdict}",

@@ -16,13 +16,31 @@ mod histories;
 mod assets;
 mod column_reads;
 mod stability;
+mod generated;
+pub use generated::fixture as generated_fixture;
 #[derive(Clone,Debug,Serialize,PartialEq,Eq)]
 #[serde(rename_all="kebab-case")]
-pub enum Reachability { AuthoredFixtureTrace, TrustedSeedOnly, SyntheticOperation }
+pub enum Reachability { AuthoredFixtureTrace, GeneratedFixtureTrace, TrustedSeedOnly, SyntheticOperation }
+impl Reachability {
+    pub fn is_reachable(&self)->bool {matches!(self,Self::AuthoredFixtureTrace|Self::GeneratedFixtureTrace)}
+}
 #[derive(Clone,Debug,Serialize)]
 pub struct Counterexample {pub reachability:Reachability,pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String, pub observations:Option<paired::Observations>,pub history:Vec<histories::Step>}
 #[derive(Clone,Debug,Default,Serialize)]
-pub struct Campaign {pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
+pub struct Campaign {#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
+impl Campaign {
+    pub fn bounded(milliseconds:u64)->Self {Self{work_remaining:Some(512),deadline:Some(std::time::Instant::now()+std::time::Duration::from_millis(milliseconds)),..Self::default()}}
+    pub(super) fn reserve(&mut self,cost:usize)->bool {
+        if self.exhausted(){return false;}
+        if let Some(remaining)=&mut self.work_remaining {
+            if *remaining<cost{*remaining=0;self.unsupported.insert("check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign".into());return false;}
+            *remaining-=cost;
+        }true
+    }
+    pub(super) fn exhausted(&mut self)->bool {
+        if self.deadline.is_some_and(|deadline|std::time::Instant::now()>=deadline){self.unsupported.insert("check concrete exploration time budget exhausted; remaining paths unproved; run snapback4 test for the full campaign".into());true}else{false}
+    }
+}
 fn id(table:&str)->Value {Value::Id(format!("security-{table}"))}
 fn sample(kind:&C,variant:usize)->Option<Value>{Some(match kind{
     C::Optional(inner)=>if variant&4!=0{sample(inner,variant).unwrap_or(Value::Null)}else{Value::Null},C::Id|C::Principal=>Value::Id(if variant&1==0{VIEWER}else{OTHER}.into()),
@@ -113,10 +131,7 @@ fn engine(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probe:Program)->Result<
 fn engine_with(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probes:Vec<Program>)->Result<Engine,String>{
     engine_on_store(bound,rows,probes,Store::memory().map_err(|e|e.to_string())?)
 }
-fn engine_on_store(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probes:Vec<Program>,store:Store)->Result<Engine,String>{
-    let mut programs=bound.programs.iter().map(|p|p.program.clone()).collect::<Vec<_>>();programs.extend(probes);
-    let mut engine=Engine::new_at(store,bound.schema.clone(),programs,NOW).map_err(|e|e.to_string())?;
-    fn hydrate(engine:&mut Engine,kind:&C,value:&Value)->Result<Value,String>{
+fn hydrate(engine:&mut Engine,kind:&C,value:&Value)->Result<Value,String>{
         match (kind,value) {
             (C::Optional(inner),v) if *v!=Value::Null=>hydrate(engine,inner,v),
             (C::List{of,..}|C::ListRange{of,..},Value::Array(xs))=>xs.iter().map(|v|hydrate(engine,of,v)).collect::<Result<Vec<_>,_>>().map(Value::Array),
@@ -125,6 +140,10 @@ fn engine_on_store(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probes:Vec<Pro
             _=>Ok(value.clone()),
         }
     }
+
+fn engine_on_store(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probes:Vec<Program>,store:Store)->Result<Engine,String>{
+    let mut programs=bound.programs.iter().map(|p|p.program.clone()).collect::<Vec<_>>();programs.extend(probes);
+    let mut engine=Engine::new_at(store,bound.schema.clone(),programs,NOW).map_err(|e|e.to_string())?;
     let mut seeded=rows.iter().filter(|(name,_)|bound.schema.maintain_for(name).is_none()).map(|(name,rs)|{
         let t=&bound.schema.tables[name];
         let clean=rs.iter().map(|r|if let Value::Row(fields)=r {Value::Row(fields.iter().filter(|(c,_)|!t.engine_field(c)&&!t.recorded.contains_key(*c)&&!t.maintained.contains_key(*c)).map(|(c,v)|(c.clone(),v.clone())).collect())}else{r.clone()}).collect();
@@ -230,7 +249,8 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
         }
     }
     for inv in &assertions{
-        if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.reachability==Reachability::AuthoredFixtureTrace){continue;}
+        if out.exhausted(){break;}
+        if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.reachability.is_reachable()){continue;}
         if inv.target=="read"&&inv.column.as_deref().is_some_and(|c|c!="id"){continue;}
         if sites.is_some_and(|sites|!sites.contains(&inv.site.to_string())){continue;}
         if inv.operation.is_none()&&discharged.contains(&inv.site.to_string()){continue;}
@@ -239,6 +259,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
         let combinations=bound.schema.tables.values().flat_map(|t|t.columns.values()).filter_map(|k|if let C::Enum{variants}=k.required(){Some(variants.len())}else{None}).fold(1usize,usize::saturating_mul).max(24);
         if combinations>512{out.unsupported.insert("schema enum Cartesian matrix exceeds 512 samples; remaining tuples are not covered".into());}
         for sample in 0..=combinations.min(512) {
+            if !out.reserve(1){break;}
             let variant=sample.saturating_sub(1);
             let mut rows=match snapshot(bound,inv,variant){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);break;}};
             // Try explicit policy field literals before the unchanged enum
@@ -319,12 +340,16 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
     out.unsupported.insert("unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts".into());
     out.unsupported.insert("offline/revoked-device access and retained history require device boundary qualification".into());out
 }
-pub fn apply(report:&mut Report,campaign:&Campaign){report.campaign_coverage.extend(campaign.unsupported.iter().cloned());for c in &campaign.violations{for v in &mut report.invariants{if v.invariant.site.to_string()==c.invariant_site{
-    if v.counterexample.as_ref().is_some_and(|old|old.reachability==Reachability::AuthoredFixtureTrace)&&c.reachability!=Reachability::AuthoredFixtureTrace{continue;}
+pub fn apply(report:&mut Report,campaign:&Campaign){
+    report.campaign_coverage.extend(campaign.unsupported.iter().cloned());
+    let rank=|c:&Counterexample|match c.reachability{Reachability::AuthoredFixtureTrace=>0,Reachability::GeneratedFixtureTrace=>1,_=>2};
     let committed=|c:&Counterexample|c.history.iter().filter(|s|s.result.get("state").and_then(serde_json::Value::as_str)==Some("sent")).count();
-    if v.counterexample.as_ref().is_some_and(|old|old.reachability==Reachability::AuthoredFixtureTrace&&c.reachability==Reachability::AuthoredFixtureTrace&&committed(old)<=committed(c)){continue;}
-    v.status=Status::Refuted;v.counterexample=Some(c.clone());v.reasons.push("concrete policy-false snapshot admitted by the actual engine; finite test evidence, not a reachability theorem".into());
-}}}}
+    for c in &campaign.violations {for v in &mut report.invariants {if v.invariant.site.to_string()!=c.invariant_site{continue;}
+        if v.counterexample.as_ref().is_some_and(|old|rank(old)<rank(c)||rank(old)==rank(c)&&committed(old)<=committed(c)){continue;}
+        v.status=Status::Refuted;v.counterexample=Some(c.clone());
+        v.reasons.push("concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem".into());
+    }}
+}
 
 fn arguments(args:&BTreeMap<String,ir::ArgType>,variant:usize)->Option<BTreeMap<String,Value>>{
     use ir::ArgType as A;
@@ -350,8 +375,13 @@ fn materialize_arguments(engine:&mut Engine,args:&BTreeMap<String,ir::ArgType>,v
 /// This is conformance exploration, not a guessed spec oracle: only declared
 /// policies and replayed violations can fail security acceptance.
 pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
+    let first=campaign.violations.len();
+    histories::initial_observers(bound,fixture,campaign);
     column_reads::fixture(bound,fixture,campaign);
     histories::run(bound,fixture,campaign);
+    if campaign.generated_fixture {for witness in &mut campaign.violations[first..] {
+        if witness.reachability==Reachability::AuthoredFixtureTrace {witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated initial fixture; fixture initialization is not claimed application-reachable".into();}
+    }}
 }
 pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
     fixture_observers(bound,fixture,campaign);
@@ -368,7 +398,7 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
         let target=bound.schema.visible_tables().find(|(t,_)|super::audit::mentions(&serde_json::to_value(&p.program).unwrap(),t)).or_else(||bound.schema.visible_tables().next()).map(|(t,_)|t.clone());
         let Some(target)=target else{campaign.unsupported.insert(format!("{}: no table population for generated arguments",p.program.name));continue;};
         let dummy=Invariant{table:target,target:"read".into(),column:None,predicate:"allow".into(),site:crate::Site::default(),policy:Some(RuleExpr::Allow),operation:Some(p.program.name.clone()),requirements:Vec::new(),syntax:None,unsupported:None};
-        let cases=histories::fixture_cases(&p.program.args,&fixtures,&viewers,campaign);
+        let cases=histories::fixture_cases(&p.program,&fixtures,&viewers,campaign);
         let mut exercised=0;
         'cases:for (variant,mut args) in cases.into_iter().enumerate(){
             let rows=if has_fixture{fixtures.clone()}else{match snapshot(bound,&dummy,variant){Ok(r)=>r,Err(e)=>{campaign.unsupported.insert(format!("{}: {e}",p.program.name));break;}}};

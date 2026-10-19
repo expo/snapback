@@ -30,5 +30,6 @@ mutation remove(todoId: todos):
   delete todos[todoId]
   return null
 
--- Independent privacy intent; guide security states unproved paths.
-invariant todos.read only .ownerId = viewer
+-- Spec: only the owner may toggle completion, regardless of how reads are implemented.
+-- Target this action instead of copying its table read rule; add app privacy intent from the spec.
+invariant todos.toggle only .ownerId = viewer

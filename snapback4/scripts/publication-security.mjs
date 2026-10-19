@@ -84,12 +84,26 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     assert.equal(refuted.ok, false);
     const readVerdicts = refuted.security.invariants.filter(verdict => verdict.invariant.target === "read");
     assert.equal(readVerdicts.length, 2, "the installed card exercises row and column read intent");
-    assert.ok(readVerdicts.every(verdict => verdict.status === "refuted" && verdict.counterexample?.reachability === "authored-fixture-trace"), "ordinary writes from the empty initial store lead to actual row/column disclosure");
+    assert.ok(readVerdicts.every(verdict => verdict.status === "refuted" && ["authored-fixture-trace", "generated-fixture-trace"].includes(verdict.counterexample?.reachability)), "actual authored row/column disclosure retains explicit fixture initialization provenance");
     const auditRefuted = JSON.parse(command(["audit", "--json"], project, 1));
     assert.ok(auditRefuted.invariants.some(verdict => verdict.status === "refuted"));
     command(["test", "--fixture-only"], project, 1);
     guideCases.push({ block: index, invariants: security.invariants.length, audit: "passed", finite, broadRead: "refuted", expectedFailureExits: [1, 1, 1] });
   }
+
+  const editsOnly = schemaProject("column-update-intent", `use identity password
+ table tickets:
+  price: int
+  read <- allow
+  insert <- allow
+  update <- viewer = 'service:operator'
+  online only
+invariant tickets.price update only viewer = 'service:operator'
+mutation create():
+  return insert tickets {price: 1}
+`.replace("\n table", "\ntable"));
+  checked(editsOnly); campaign(editsOnly, true);
+  command(["test"], editsOnly); // No personas, developer store or handwritten fixtures.
 
   const sessions = [];
   for (const method of ["guests", "password"]) {
@@ -113,11 +127,11 @@ mutation add():
 
   const starters = [];
   for (const starter of [
-    { id: "todo-online", flags: ["--online"], intent: "invariant todos.read only .ownerId = viewer" },
+    { id: "todo-online", flags: ["--online"], intent: "invariant todos.toggle only .ownerId = viewer" },
     { id: "social", flags: ["--template", "social"] },
     { id: "todo-web", flags: ["--web"] },
-    { id: "chat-web", flags: ["--template", "chat", "--web"], intent: "invariant messages.read only exists memberships[.conversationId, viewer]" },
-    { id: "chat-expo", flags: ["--template", "chat", "--expo"], intent: "invariant messages.read only exists memberships[.conversationId, viewer]" },
+    { id: "chat-web", flags: ["--template", "chat", "--web"], intent: "invariant messages.send only .authorId = viewer" },
+    { id: "chat-expo", flags: ["--template", "chat", "--expo"], intent: "invariant messages.send only .authorId = viewer" },
   ]) {
     const project = join(cwd, starter.id); command(["init", project, ...starter.flags]);
     const source = readFileSync(join(project, "snapback/schema.q"), "utf8");

@@ -174,3 +174,9 @@ and `await client.mutate(api.addList, { title })`. Every export by subpath: `gui
 Maintained totals: `view total: sum expenses of .amount by .owner` beside `view n: count expenses by .owner`. `cap` groups by stored columns; store `day(startsAt)` in an immutable int dayNumber before grouping by it.
 
 Keyed counts: a hidden key reads null, an authorized missing count group reads 0; generated private keyed count results are number | null.
+
+Default verification loop: `npx snapback4 check` → `npx snapback4 test` →
+`npx snapback4 audit`. State invariants from the spec's roles, resource relationships
+and private columns; copying a rule cannot catch its mistake. Test needs no hand-written
+fixtures and works with password-only apps. Check keeps full reasons behind `--verbose`.
+Staging discovery and provisioning are covered by DX4; see `guide staging`.

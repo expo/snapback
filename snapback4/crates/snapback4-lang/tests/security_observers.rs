@@ -56,7 +56,8 @@ fn project_note_draft_and_uncovered_effects_are_independent(){
     assert_eq!(r.notes.iter().filter(|n|n.code=="N_SECURITY_INTENT").count(),1);
     assert!(r.notes.iter().any(|n|n.message.contains("2 tables have access rules")));
     let draft=security::draft(&b);assert!(draft.contains("DRAFT: NOT ACCEPTED"));
-    assert!(draft.contains("invariant notes.read only .owner = viewer"));
+    assert!(!draft.contains("invariant notes.read only .owner = viewer"));
+    assert!(draft.contains("notes.owner")&&draft.contains("APP SPECIFICATION"));
     let b=bound(&format!("{}\ninvariant notes.read only .owner = viewer\n", "table notes:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\n"));
     let r=security::analyze(&b);
     assert!(r.uncovered.iter().any(|e|e.table=="notes"&&e.effect=="insert"));

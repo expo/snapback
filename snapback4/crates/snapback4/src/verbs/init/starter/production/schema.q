@@ -47,6 +47,7 @@ mutation invite(teamId: teams, principal: principal, role: enum('member', 'admin
   team = teams[teamId] ! else NOT_FOUND
   return insert members { teamId, principal, role } if absent
 
--- Independent privacy intent; guide security states unproved paths.
-invariant teams.read only exists members[teamId = .id, principal = viewer]
-invariant members.read only exists members[teamId = .teamId, principal = viewer]
+-- Spec: current ordinary members and administrators may see team data.
+-- Enumerate the intended audiences independently of the roster-wide implementation.
+invariant teams.read only exists members[teamId = .id, principal = viewer, role = 'member'] or exists members[teamId = .id, principal = viewer, role = 'admin']
+invariant members.read only exists members[teamId = .teamId, principal = viewer, role = 'member'] or exists members[teamId = .teamId, principal = viewer, role = 'admin']

@@ -25,10 +25,23 @@ fn actors(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>)->Vec<String>{
     }}}
     out
 }
-pub(super) fn fixture_cases(args:&BTreeMap<String,ir::ArgType>,rows:&BTreeMap<String,Vec<Value>>,actors:&[String],out:&mut Campaign)->Vec<BTreeMap<String,Value>>{
+pub(super) fn fixture_cases(p:&Program,rows:&BTreeMap<String,Vec<Value>>,actors:&[String],out:&mut Campaign)->Vec<BTreeMap<String,Value>>{
+    let args=&p.args;
+    let mut literals=BTreeMap::<String,Vec<Value>>::new();
+    fn collect(value:&serde_json::Value,out:&mut BTreeMap<String,Vec<Value>>){
+        if let Some(binary)=value.get("Binary") {for (a,b) in [("left","right"),("right","left")] {
+            if let (Some(name),Some(literal))=(binary.get(a).and_then(|v|v.get("Variable")).and_then(serde_json::Value::as_str),binary.get(b).and_then(|v|v.get("Literal"))) {
+                if let Ok(value)=serde_json::from_value::<Value>(literal.clone()){out.entry(name.into()).or_default().push(value);}
+            }
+        }}
+        match value{serde_json::Value::Object(xs)=>for v in xs.values(){collect(v,out)},serde_json::Value::Array(xs)=>for v in xs{collect(v,out)},_=>{}}
+    }
+    collect(&serde_json::to_value(p).unwrap(),&mut literals);
     fn values(name:&str,k:&ir::ArgType,rows:&BTreeMap<String,Vec<Value>>,actors:&[String])->Option<Vec<Value>>{
         Some(match k{
             ir::ArgType::Enum{variants}=>variants.iter().map(|s|Value::String(s.clone())).collect(),
+            ir::ArgType::Int=>vec![Value::Int(0),Value::Int(1),Value::Int(2)],
+            ir::ArgType::IntRange{min,max}=>{let mut xs=vec![*min,1i64.clamp(*min,*max),*max];xs.sort();xs.dedup();xs.into_iter().map(Value::Int).collect()},
             ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],
             ir::ArgType::Time=>vec![Value::Int(NOW-86_400_000),Value::Int(NOW),Value::Int(NOW+86_400_000)],
             ir::ArgType::Principal=>actors.iter().map(|s|Value::Id(s.clone())).collect(),
@@ -39,12 +52,21 @@ pub(super) fn fixture_cases(args:&BTreeMap<String,ir::ArgType>,rows:&BTreeMap<St
     }
     let mut cases=vec![BTreeMap::new()];
     for (name,k) in args{
-        let Some(vals)=values(name,k,rows,actors)else{out.unsupported.insert(format!("{name}: history needs a typed asset argument"));return Vec::new();};
+        let Some(mut vals)=values(name,k,rows,actors)else{out.unsupported.insert(format!("{name}: history needs a typed asset argument"));return Vec::new();};
+        for literal in literals.get(name).into_iter().flatten() {
+            let valid=match (k,literal){
+                (ir::ArgType::Text{min,max,..},Value::String(s))=>s.chars().filter(|c|!c.is_whitespace()).count()>=*min as usize&&s.chars().count()<=*max as usize,
+                (ir::ArgType::Int,Value::Int(_))=>true,
+                (ir::ArgType::IntRange{min,max},Value::Int(n))=>(*min..=*max).contains(n),_=>false,
+            };
+            if valid&&!vals.contains(literal){vals.insert(0,literal.clone());}
+        }
         let mut next=Vec::new();
-        for n in 0..vals.len() {for c in &cases{
-            let mut case=c.clone();case.insert(name.clone(),vals[n%vals.len()].clone());
-            if !next.contains(&case){next.push(case);}if next.len()==LIMIT{break;}
-        }if next.len()==LIMIT{out.unsupported.insert("history arguments capped at 512 combinations".into());break;}}
+        'product:for offset in 0..vals.len(){for n in 0..cases.len().max(vals.len()){
+            if out.exhausted(){return next;}
+            let mut case=cases[n%cases.len()].clone();case.insert(name.clone(),vals[(n+offset)%vals.len()].clone());
+            if !next.contains(&case){next.push(case);}if next.len()==LIMIT{out.unsupported.insert("history arguments capped at 512 combinations".into());break 'product;}
+        }}
         cases=next;
     }cases
 }
@@ -78,6 +100,7 @@ fn observer_tables(bound:&Bound,table:&str)->BTreeSet<String>{
     }
 }
 fn reserve_observers(out:&mut Campaign,calls:usize)->bool{
+    if !out.reserve(calls){return false;}
     if out.history_observer_calls+calls>32768{out.unsupported.insert("history read observers capped at 32768 calls; remaining disclosure combinations not covered".into());false}else{out.history_observer_calls+=calls;true}
 }
 fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,actors:&[String],steps:&[Step],out:&mut Campaign){
@@ -95,6 +118,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
 
         let observing=observer_tables(bound,&inv.table);
         for row in rows.get(&inv.table).into_iter().flatten(){'actors:for viewer in actors{
+            if out.exhausted(){return;}
             let committed=steps.iter().filter(|s|s.result.get("state").and_then(serde_json::Value::as_str)==Some("sent")).count();
             if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.viewer==*viewer&&v.reachability==Reachability::AuthoredFixtureTrace&&v.history.iter().filter(|s|s.result.get("state").and_then(serde_json::Value::as_str)==Some("sent")).count()==committed){continue;}
             match policy_in(bound,inv,rows,viewer,None,row,e){Ok(false)=>{},Ok(true)=>continue,Err(why)=>{out.unsupported.insert(format!("{}: {why}",inv.target_label()));continue;}}
@@ -104,7 +128,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
             // A typed authored row return is already a payload witness. It does
             // not require an invalid absent world that deletes referenced data.
             for bp in queries.iter().copied().filter(|p|typed_source(&p.result,&inv.table)){
-                let cases=fixture_cases(&bp.program.args,rows,actors,out);
+                let cases=fixture_cases(&bp.program,rows,actors,out);
                 if cases.len()>32{out.unsupported.insert(format!("{}: typed read-observer arguments capped at 32",bp.program.name));}
                 for args in cases.into_iter().take(32){
                     if !reserve_observers(out,2){return;}
@@ -130,7 +154,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
             if policy_in(bound,inv,&absent_rows,viewer,None,row,&mut absent)!=Ok(false){continue;}
             for bp in queries.iter().copied().filter(|p|observing.iter().any(|t|super::super::audit::mentions(&serde_json::to_value(&p.program).unwrap(),t))){
                 let p=&bp.program;
-                let cases=fixture_cases(&p.args,rows,actors,out);
+                let cases=fixture_cases(p,rows,actors,out);
                 if cases.len()>32{out.unsupported.insert(format!("{}: read-observer arguments capped at 32; remaining combinations not covered",p.name));}
                 for args in cases.into_iter().take(32){
                     if !reserve_observers(out,4){return;}
@@ -241,25 +265,38 @@ fn role_candidates<'a>(bound:&Bound,p:&'a Program,initial:&BTreeMap<String,Vec<V
     for n in 0..groups.iter().map(Vec::len).max().unwrap_or(0){for g in &groups{if let Some(case)=g.get(n){out.push(case.clone());}}}
     out
 }
+pub(super) fn initial_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign){
+    if bound.invariants.is_empty()||out.exhausted(){return;}
+    let Ok(initial)=readback(fixture)else{return;};
+    let actors=actors(bound,&initial);
+    let Ok(mut engine)=fork(bound,fixture,Vec::new())else{return;};
+    observe(bound,&mut engine,&initial,&initial,&actors,&[],out);
+}
+fn all_witnessed(bound:&Bound,out:&Campaign)->bool{
+    !bound.invariants.is_empty()&&bound.invariants.iter().all(|inv|out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.reachability.is_reachable()))
+}
 pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
-    if bound.invariants.is_empty(){return;}
+    if bound.invariants.is_empty()||out.exhausted(){return;}
     let initial=match readback(fixture){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);return;}};
     if initial.values().map(Vec::len).sum::<usize>()>1000{out.unsupported.insert("history fixture exceeds 1000 rows".into());return;}
     let actors=actors(bound,&initial);
     let probes=Vec::new();
     let mut groups=Vec::new();
     for bp in bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native){
-        let cases=fixture_cases(&bp.program.args,&initial,&actors,out);
+        let cases=fixture_cases(&bp.program,&initial,&actors,out);
         let mut group=role_candidates(bound,&bp.program,&initial,&actors,&cases,fixture);
         // Diagonal order gives both actors and argument values an early turn.
-        for shift in 0..actors.len(){for n in 0..cases.len().max(actors.len()){
-            if cases.is_empty(){break;}
-            group.push((&bp.program,actors[(n+shift)%actors.len()].clone(),cases[n%cases.len()].clone()));
+        let mut seen=group.iter().map(|(_,viewer,args)|serde_json::to_string(&(viewer,args)).unwrap()).collect::<BTreeSet<_>>();
+        'diagonal:for shift in 0..actors.len(){for n in 0..cases.len().max(actors.len()){
+            if cases.is_empty()||out.exhausted(){break 'diagonal;}
+            if group.len()>=LIMIT{out.unsupported.insert(format!("{}: history candidate actors/arguments capped at 512",bp.program.name));break 'diagonal;}
+            let actor=&actors[(n+shift)%actors.len()];let args=&cases[n%cases.len()];
+            if seen.insert(serde_json::to_string(&(actor,args)).unwrap()){group.push((&bp.program,actor.clone(),args.clone()));}
         }}
         if !group.is_empty(){groups.push(group);}
     }
     let mut candidates=Vec::new();
-    for n in 0..groups.iter().map(Vec::len).max().unwrap_or(0){for g in &groups{if let Some(c)=g.get(n){candidates.push(c.clone());}}}
+    'candidates:for n in 0..groups.iter().map(Vec::len).max().unwrap_or(0){for g in &groups{if let Some(c)=g.get(n){candidates.push(c.clone());if candidates.len()==LIMIT{break 'candidates;}}}}
     let mut base=match fork(bound,fixture,probes.clone()){Ok(e)=>e,Err(e)=>{out.unsupported.insert(e);return;}};
     for inv in bound.invariants.iter().filter(|i|i.target=="always"){
         for row in initial.get(&inv.table).into_iter().flatten(){for viewer in &actors{
@@ -299,6 +336,8 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     let mut setups=Vec::new();let mut role_changes=Vec::new();
     let mut setup_seen=BTreeSet::new();let mut role_seen=BTreeSet::new();let mut pair_plan=Vec::new();
     for n in 0..singles+LIMIT {
+        if all_witnessed(bound,out){out.unsupported.insert("remaining history prefixes not explored after every declared invariant has a fixture witness; finite campaign, not proof".into());break;}
+        if !out.reserve(1){break;}
         if n==singles&&!candidates.is_empty(){
             let mut seen=BTreeSet::new();
             'setup:for &second in &role_changes{for &first in &setups{if seen.insert((first,second)){pair_plan.push((first,second));if pair_plan.len()==LIMIT/2{break 'setup;}}}}

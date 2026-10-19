@@ -11,6 +11,8 @@ pub const CODES: &[(&str, &str)] = &[
     ("N_ARGUMENT_GRANT", "a mutation argument is written into a reader-grant column; validate the recipient role and relationship; guide security."),
     ("N_OPTIONAL_EVIDENCE", "optional media permits missing evidence; declare required image or a list minimum if the spec requires it; guide security."),
     ("N_SWEEP_ONLY_DEADLINE", "a sweep is eventual; also enforce exact deadlines against server now in affected mutations; guide security."),
+    ("N_INVARIANT_RESTATES_RULE", "an invariant restates its effective rule and cannot catch the same mistake in both. State the spec's roles, resource relationships, lifecycle conditions and private columns independently. Advisory only; simple legitimate policies may coincide. guide security."),
+    ("N_ROLE_WIDE_READ", "a role-wide branch gated by a row value returns private or media columns on every matching row. Publish a projection/board table and declare independent column read intent. guide security."),
     ("N_PRIVILEGE_ESCALATION", "caller role assignment can confer trusted authority; restrict delegation and use guide staging for the first admin."),
     ("N_EXISTENCE_ORACLE", "distinct lookup-absence and later-denial codes may disclose existence to a reader; unify code and message or tighten read authority; guide security."),
 

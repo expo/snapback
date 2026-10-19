@@ -96886,3 +96886,13 @@ The focused unit regression distinguishes identity from integrity and preserves
 source/native/worker byte changes as new executable content. Proof hosts also
 honor their explicit binary environment so qualification cannot accidentally
 select a stale checkout release binary.
+
+## 2026-10-19 — SEC4 independent intent and default verification
+
+LLP 3000.036.004 §13/13.5 has Muse and fresh Codex READY design reviews.
+SEC4 replaces taught rule copies with spec action/role intent, advises equivalent
+invariants, synthesizes typed per-role initial fixtures, labels generated origins,
+and adds update-only column intent. Check has a compact note block and bounded
+concrete work; test/audit retain full campaigns. Source evidence is read-only;
+per-lane measurements and qualification are in reports/20261019-sec4.
+DX4 owns staging/upload/dev papercuts; QRY owns read return and hidden lookups.

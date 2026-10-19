@@ -12,6 +12,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
         let probe=program(name,ProgramKind::Query,vec![Stmt::Return(Expr::Get(Read{site:"temporal security".into(),table:inv.table.clone(),index:"byId".into(),
             key:vec![Expr::Literal(id(&inv.table))],provenance:KeyProvenance::Computed}))]);
         for variant in [0,4] {
+            if !out.reserve(1){return;}
             let rows=match snapshot_mode(bound,inv,variant,true){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);continue;}};
             for now in [NOW,NOW+999,NOW+1000,NOW+1001,NOW+1999,NOW+2000,NOW+2001] {
                 // Recreate the store for each boundary; never sweep before the

@@ -1,5 +1,12 @@
 # Snapback 4 behavior changes
 
+## 0.4.35
+
+- State security intent from the product spec: starter action intent and team role alternatives replace rule copies. `N_INVARIANT_RESTATES_RULE` flags equivalent enforcement/intent as advice; the unaccepted draft asks per-role/per-column questions. Column `update` intent checks edits without restricting inserts; `write` continues to cover both.
+- Default `test` synthesizes isolated per-role fixtures, memberships, ownership and verified media, including password-only apps. Failures distinguish authored and generated initial fixtures; generated initialization is a test assumption, not proof that app operations create that state. Fixture-free campaigns name missing business-case coverage; saved-source/explicit-fixture business-case requirements stay in force. Deployment auth and dev doors keep their existing authority.
+- `check` summarizes proved/refuted/unproved invariants and five ranked actionable notes, points to `test` and `audit`, and keeps full evidence behind `--verbose`/JSON. Concrete exploration has a shared 512 call/world budget and 1500 ms safety bound; exhaustion stays unproved. Exact static implications reuse a bounded process-local cache. Role-wide private/media board branches and argument-restricted escalation advice name the risky audience.
+- DX4 owns staging discovery/provisioning, upgrade narration, clock/token and upload changes; QRY owns partial-return and hidden-lookup semantics.
+
 ## 0.4.34
 
 - Deploy reactivates matching retained source under its existing release id after rollback, validates privately and removes definitively refused candidates. Deploy and rollback share `--restore-dormant`; previews report current and future rollback hazards with bridge commands. Old-client reports compare operation inputs, results and refusals. Literal query/mutation defaults, validated ignored deprecated arguments and same-module aliases preserve existing callers; required inputs remain required in generated types.

@@ -137,3 +137,17 @@ failures; ordinary SSH with lower suite concurrency and a signing-only relay
 passed without relaxing test deadlines or changing product code. The evidence
 does not separate scheduling from the concurrent change in host load. Actual
 Clique native evidence remains a separate follow-up after independent grading.
+
+### 2026-10-19 — SEC4 intent authoring
+
+Reviewing the production/team and chat examples exposed a teaching problem:
+copying the read rule into an invariant feels easy but can certify the same
+policy mistake twice. The team recipe now enumerates intended member/admin
+audiences, while todo/chat examples state who may perform a named action.
+The draft asks column/role questions rather than supplying enforcement copies.
+This is a documentation/intent change, with no application data-plane change.
+Compared with hand-written Convex tests, synthesized related role fixtures
+remove setup work; their generated initial-state assumption stays explicit.
+Packed-guide and starter qualification is recorded in SEC4's workstream report.
+Affected LLP audit: LLP 3000.036.004 §13 governs intent and generated fixture
+origins; the existing proof-kit and production starter contracts still apply.
