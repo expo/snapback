@@ -149,6 +149,8 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "clock") => " — reset the development clock with --clock reset",
             (_, "seed") => " — reseed from a fixture directory or rows.json in the reset transaction",
             (_, "release") => " — release directory (check --store instead selects N or latest)",
+            ("sql", "dormant") => " — inspect retained dormant rows and cells; requires --release",
+            ("sql", "all-releases") => " — inspect active and retained records together; requires --release",
             (_, "store") => " — select the store path for inspection or adoption checking",
             (_, "fixture") => " — fixture directory containing table.jsonl rows and test.cases.jsonl",
             (_, "source") => " — saved complete Quarry source outside snapback/",

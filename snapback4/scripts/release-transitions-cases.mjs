@@ -211,7 +211,9 @@ table liveParents:
   online only
 table liveChildren:
   parent: liveParents
-  body: text <=40
+  body: enum('live','captured','other')
+  note: text ?
+  unused: text ?
   immutable parent
   cap 5 by parent
   read through live .parent
@@ -225,14 +227,14 @@ table capturedParents:
   online only
 table capturedChildren:
   parent: capturedParents
-  body: text <=40
+  body: enum('live','captured','other')
   immutable parent
   read through .parent
   insert <- allow
   online only
 mutation setup():
   liveParent = insert liveParents {owner:viewer}
-  insert liveChildren {parent:liveParent.id, body:'live'}
+  insert liveChildren {parent:liveParent.id, body:'live', note:null}
   capturedParent = insert capturedParents {owner:viewer}
   return insert capturedChildren {parent:capturedParent.id, body:'captured'}
 query liveRows():
@@ -240,17 +242,20 @@ query liveRows():
 query capturedRows():
   return capturedChildren first 10 by .id
 `;
-    const empty=`use identity guests
-table markers:
-  body: text <=40
-  public 'preview marker'
-  online only
-`;
+    const narrowed=refs.replaceAll("body: enum('live','captured','other')","body: enum('other')\n  later: text ?").replace("body:'live'","body:'other'").replace("body:'captured'","body:'other'");
     p.source(refs);await p.run(['deploy',p.deployment]);
     const refHost=await p.serve();assert.equal((await refHost.post('/m/setup',{},'dorm-preview-refs')).state,'sent');
     assert.equal((await refHost.post('/q/liveRows')).data[0].body,'live');
     assert.equal((await refHost.post('/q/capturedRows')).data[0].body,'captured');
-    p.source(empty);await p.run(['deploy',p.deployment]);
+    p.source(narrowed);await p.run(['deploy',p.deployment]);
+    const dormantRows=JSON.parse((await p.run(['sql','SELECT id, body, note, later, _snapback_state, _snapback_source, _snapback_columns FROM liveChildren','--release',p.deployment,'--dormant','--json-objects'])).stdout);
+    assert.equal(dormantRows.rows.length,1,JSON.stringify(dormantRows));
+    assert.equal(dormantRows.rows[0].body,'live');assert.equal(dormantRows.rows[0]._snapback_state,'dormant-row');assert.equal(dormantRows.rows[0]._snapback_source,'narrowed');
+    assert.equal(dormantRows.rows[0].note,null);assert.equal(dormantRows.rows[0].later,null);
+    const provided=JSON.parse(dormantRows.rows[0]._snapback_columns);assert.ok(provided.includes('note'),JSON.stringify(provided));assert.ok(!provided.includes('later'),JSON.stringify(provided));
+    const retainedRows=JSON.parse((await p.run(['sql','SELECT id, body, _snapback_state, _snapback_source FROM capturedChildren','--release',p.deployment,'--all-releases','--json-objects'])).stdout);
+    assert.equal(retainedRows.rows.length,1,JSON.stringify(retainedRows));assert.equal(retainedRows.rows[0]._snapback_source,'narrowed');
+    const internal=await p.invoke(['sql','SELECT * FROM _dormant_rows','--release',p.deployment,'--dormant']);assert.equal(internal.code,1);assert.match(internal.stderr,/E_SQL_INTERNAL/);
     const beforeRefPreview=await p.status();
     const checked=await p.run(['rollback',p.deployment,'--to','1','--check','--json']);
     assert.equal(JSON.parse(checked.stdout).plan.release,1);assert.deepEqual(await p.status(),beforeRefPreview);
@@ -258,6 +263,8 @@ table markers:
     assert.equal((await p.status()).release,1);
     assert.equal((await refHost.post('/q/liveRows')).data[0].body,'live');
     assert.equal((await refHost.post('/q/capturedRows')).data[0].body,'captured');
+    const activeAndRetained=JSON.parse((await p.run(['sql','SELECT body, _snapback_state, _snapback_source, _snapback_columns FROM liveChildren','--release',p.deployment,'--all-releases','--json-objects'])).stdout);
+    assert.equal(activeAndRetained.rows.length,1);assert.equal(activeAndRetained.rows[0].body,'live');assert.equal(activeAndRetained.rows[0]._snapback_state,'active');assert.equal(activeAndRetained.rows[0]._snapback_source,null);
     assert.deepEqual(p.releases(),['1','2']);
     await refHost.host.stop();active.delete(refHost.host);
     return {status:'passed',reactivation:['cold','hot','same-id','dormant-values','unchanged','backfill-receipts','live-and-captured-ref-preview'],refusals:['adoption','post-validation-pointer','no-candidate-left'],rollbackForesight:'dropped-required-column-and-later-writes',oldClients:'installed-guide-signature-diff-baseline-projected-domains'};
