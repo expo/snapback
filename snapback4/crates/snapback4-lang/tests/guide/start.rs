@@ -60,3 +60,15 @@ fn every_card_introduces_the_feature_before_examples_and_reference_details() {
         }
     }
 }
+
+#[test]
+fn staging_is_visible_in_the_default_builder_cards() {
+    for name in ["start", "cheatsheet", "personas"] {
+        let text = snapback4_lang::guide::piped(name, card(name).unwrap());
+        assert!(text.contains("guide staging"), "default {name}: {text}");
+        if name == "cheatsheet" {
+            assert!(text.contains("deploy staging --staging"), "{text}");
+            assert!(text.contains("serve staging"), "{text}");
+        }
+    }
+}

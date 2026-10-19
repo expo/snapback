@@ -71,12 +71,12 @@ mutation removeItem(item: items):
   delete items[item]
 ```
 
+## Quarry
+
 Local editing uses `npx snapback4 dev`. Shared previews and `probe:serve` use
 `npx snapback4 deploy staging --staging`, then `npx snapback4 serve staging`.
 Run `npx snapback4 guide staging` for real password users, operator-provisioned
 roles and replayable first-admin setup. Staging clock: `guide time` (MIG).
-
-## Quarry
 
 - Comments start with `--` (never `//`); blocks indent two spaces; `snapback/*.q` share one namespace.
 - Types: `text <=N`, `text M..N` (a length), `int`, `int 1..5` / `int 0..` / `int ..100` (a value range, checked on every write), `bool`, `time` (Unix ms), `money USD`, `decimal 2`, `enum('a', 'b')`,
