@@ -115,9 +115,9 @@ fn aliases_defaults_and_deprecated_inputs_preserve_column_challenges_and_audit()
   for name in ["inspect", "legacyInspect"] {assert!(campaign.operations.contains_key(name),"{campaign:?}");}
   assert_eq!(campaign.violations.is_empty(),fixed,"{campaign:?}");
   let args=std::collections::BTreeMap::from([("report".into(),Value::Id("report".into())),("old".into(),Value::String("old caller".into()))]);
-  let mut context=snapback4_core::Context::new("dev:fixture-only",args);context.now=now;
+  let mut context=snapback4_core::Context::new("dev:fixture-only",args);context.now=Some(now);
   let demote=std::collections::BTreeMap::from([("who".into(),Value::Id("dev:fixture-only".into()))]);
-  let mut operator=snapback4_core::Context::new("service:ops",demote);operator.now=now;
+  let mut operator=snapback4_core::Context::new("service:ops",demote);operator.now=Some(now);
   fixture.mutate("demote",None,operator).unwrap();
   for name in ["inspect", "legacyInspect"] {
    let observed=fixture.query(name,context.clone()).unwrap();
