@@ -1,0 +1,43 @@
+//! Coordinator wave-19 acceptance at the real CLI boundary.
+use std::{fs,path::PathBuf,process::{Command,Output},sync::atomic::{AtomicUsize,Ordering}};
+const BIN:&str=env!("CARGO_BIN_EXE_snapback4");
+struct App(PathBuf);
+impl App{
+ fn new()->Self{static NEXT:AtomicUsize=AtomicUsize::new(0);let p=std::env::temp_dir().join(format!("sb4-wave19-{}-{}",std::process::id(),NEXT.fetch_add(1,Ordering::Relaxed)));fs::create_dir_all(p.join("snapback")).unwrap();Self(p)}
+ fn write(&self,name:&str,text:&str){let path=self.0.join(name);fs::create_dir_all(path.parent().unwrap()).unwrap();fs::write(path,text).unwrap();}
+ fn run(&self,args:&[&str])->Output{Command::new(BIN).args(args).current_dir(&self.0).env_remove("PORT_LO").env_remove("PORT_HI").output().unwrap()}
+}
+impl Drop for App{fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
+fn text(o:&Output)->String{format!("{}\n{}",String::from_utf8_lossy(&o.stdout),String::from_utf8_lossy(&o.stderr))}
+#[test]
+fn empty_and_absent_fixture_directories_both_generate_and_record_test_refutations(){
+ let app=App::new();app.write("snapback/schema.q","use identity password\ntable roles:\n  principal: principal\n  role: enum('doctor','volunteer')\n  unique principal\n  read <- allow\n  insert <- viewer = 'service:operator'\n  online only\ntable docs:\n  scan: image <=5000\n  read <- exists roles[viewer]\n  insert <- exists roles[viewer,role = 'doctor']\n  online only\nmutation add(scan: image <=5000):\n  return insert docs {scan}\nquery board():\n  return docs first 50 by .id\ninvariant docs.scan read only exists roles[viewer,role = 'doctor']\n");
+ for empty in [false,true]{
+  if empty{fs::create_dir_all(app.0.join("fixtures")).unwrap();}
+  let test=app.run(&["test"]);assert_eq!(test.status.code(),Some(1),"{}",text(&test));assert!(text(&test).contains("generated-fixture-trace"),"{}",text(&test));
+  let record:serde_json::Value=serde_json::from_slice(&fs::read(app.0.join("snapback/generated/security-test.json")).unwrap()).unwrap();assert!(!record["violations"].as_array().unwrap().is_empty());
+  let check=app.run(&["check"]);assert_eq!(check.status.code(),Some(1),"{}",text(&check));assert!(text(&check).contains("FAIL docs.scan read"),"{}",text(&check));
+ }
+}
+#[test]
+fn check_invalidates_positive_test_evidence_when_source_or_fixture_changes(){
+ let app=App::new();let source="table docs:\n  status: enum('safe','unsafe')\n  read <- allow\n  online only\ninvariant docs.read only .status = 'safe'\n";app.write("snapback/schema.q",source);app.write("fixtures/docs.jsonl","{\"id\":\"doc\",\"status\":\"unsafe\"}\n");
+ let test=app.run(&["test","--fixture-only"]);assert_eq!(test.status.code(),Some(1),"{}",text(&test));assert_eq!(app.run(&["check"]).status.code(),Some(1));
+ app.write("fixtures/docs.jsonl","{\"id\":\"doc\",\"status\":\"safe\"}\n");let check=app.run(&["check"]);assert!(check.status.success(),"{}",text(&check));
+ app.write("fixtures/docs.jsonl","{\"id\":\"doc\",\"status\":\"unsafe\"}\n");app.write("snapback/schema.q",&source.replace("read <- allow","read <- deny"));let check=app.run(&["check"]);assert!(check.status.success(),"{}",text(&check));
+}
+#[test]
+fn rule_changing_deploy_preview_demands_a_campaign_and_prints_exposure(){
+ let app=App::new();let source="table docs:\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery alive():\n  return true\n";app.write("snapback/schema.q",source);let out=app.run(&["deploy","deployment"]);assert!(out.status.success(),"{}",text(&out));
+ app.write("snapback/schema.q",&source.replace("read <- .owner = viewer","read <- allow"));let preview=app.run(&["deploy","deployment","--check"]);assert!(preview.status.success(),"{}",text(&preview));let body=text(&preview);assert!(body.contains("security rules changed: run `snapback4 test`"),"{body}");assert!(body.contains("security exposure:"),"{body}");
+ let test=app.run(&["test"]);assert!(test.status.success(),"{}",text(&test));let preview=app.run(&["deploy","deployment","--check"]);assert!(text(&preview).contains("matching test campaign recorded"),"{}",text(&preview));
+ // A second source change invalidates the record, including a newly added table.
+ app.write("snapback/schema.q",&format!("{source}table extra:\n  read <- allow\n  online only\n"));let preview=app.run(&["deploy","deployment","--check"]);assert!(text(&preview).contains("security rules changed: run `snapback4 test`"),"{}",text(&preview));
+}
+
+#[test]
+fn all_escalation_locations_survive_the_default_five_note_cap(){
+ let app=App::new();let mut source=String::new();
+ for n in 0..7{source.push_str(&format!("table roles{n}:\n  principal: principal\n  role: enum('manager','guard')\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  online only\ntable secrets{n}:\n  read <- exists roles{n}[viewer,role = 'manager']\n  online only\nmutation register{n}(role: enum('manager','guard')):\n  return insert roles{n} {{principal: viewer,role}}\n"));}
+ app.write("snapback/schema.q",&source);let check=app.run(&["check"]);let body=text(&check);assert!(check.status.success(),"{body}");for n in 0..7{assert!(body.contains(&format!("register{n}: roles{n}")),"{body}");}assert!(body.contains("'manager'"),"{body}");
+}

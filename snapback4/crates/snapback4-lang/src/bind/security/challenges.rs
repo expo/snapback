@@ -18,13 +18,13 @@ mod column_reads;
 mod stability;
 mod generated;
 pub use generated::fixture as generated_fixture;
-#[derive(Clone,Debug,Serialize,PartialEq,Eq)]
+#[derive(Clone,Debug,Serialize,serde::Deserialize,PartialEq,Eq)]
 #[serde(rename_all="kebab-case")]
 pub enum Reachability { AuthoredFixtureTrace, GeneratedFixtureTrace, TrustedSeedOnly, SyntheticOperation }
 impl Reachability {
     pub fn is_reachable(&self)->bool {matches!(self,Self::AuthoredFixtureTrace|Self::GeneratedFixtureTrace)}
 }
-#[derive(Clone,Debug,Serialize)]
+#[derive(Clone,Debug,Serialize,serde::Deserialize)]
 pub struct Counterexample {pub reachability:Reachability,pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String, pub observations:Option<paired::Observations>,pub history:Vec<histories::Step>}
 #[derive(Clone,Debug,Default,Serialize)]
 pub struct Campaign {#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
@@ -365,7 +365,7 @@ fn arguments(args:&BTreeMap<String,ir::ArgType>,variant:usize)->Option<BTreeMap<
     use ir::ArgType as A;
     fn one(k:&A,v:usize)->Option<Value>{Some(match k{
         A::Ref{table}=>id(table),A::Principal=>Value::Id(if v&1==0{OTHER}else{VIEWER}.into()),A::Id=>Value::Id("security-argument".into()),A::Cursor|A::Optional(_)=>Value::Null,
-        A::Text{min,max,..}=>Value::String("z".repeat((*min).max(1).min(*max) as usize)),A::Enum{variants}=>Value::String(variants.get(v%variants.len())?.clone()),A::Int|A::Decimal{..}|A::Money{..}=>Value::Int(1),A::IntRange{min,max}=>Value::Int(1i64.clamp(*min,*max)),A::Time=>Value::Int(NOW+86_400_000),A::Bool=>Value::Bool(v&2==0),A::List{..}=>Value::Array(Vec::new()),A::Json{..}=>Value::Null,A::Bytes{..}=>Value::Bytes(Vec::new()),A::Image{..}=>Value::String("$security:image".into()),A::File{..}=>Value::String("$security:file".into()),_=>return None,
+        A::Text{min,max,..}=>Value::String("z".repeat((*min).max(1).min(*max) as usize)),A::Enum{variants}=>Value::String(variants.get(v%variants.len())?.clone()),A::Int|A::Decimal{..}|A::Money{..}=>Value::Int(1),A::IntRange{min,max}=>Value::Int(1i64.clamp(*min,*max)),A::Time=>Value::Int(NOW+86_400_000),A::Bool=>Value::Bool(v&2==0),A::List{of:Some(inner),..}=>Value::Array(vec![one(inner,v)?]),A::ListRange{of:Some(inner),min,..}=>Value::Array((0..*min).map(|_|one(inner,v)).collect::<Option<_>>()?),A::List{..}=>Value::Array(Vec::new()),A::Json{..}=>Value::Null,A::Bytes{..}=>Value::Bytes(Vec::new()),A::Image{..}=>Value::String("$security:image".into()),A::File{..}=>Value::String("$security:file".into()),_=>return None,
     })}
     args.iter().map(|(n,k)|one(k,variant).map(|v|(n.clone(),v))).collect()
 }
@@ -404,6 +404,7 @@ pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
     let first=campaign.violations.len();
     histories::initial_observers(bound,fixture,campaign);
     column_reads::fixture(bound,fixture,campaign);
+    if !campaign.generated_fixture {trusted_reads(bound,fixture,campaign);}
     histories::run(bound,fixture,campaign);
     if campaign.generated_fixture {for witness in &mut campaign.violations[first..] {
         if witness.reachability==Reachability::AuthoredFixtureTrace {witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated initial fixture; fixture initialization is not claimed application-reachable".into();}
@@ -448,4 +449,21 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
 fn fork(_bound:&Bound,fixture:&Engine,probes:Vec<Program>)->Result<Engine,String>{
     if !probes.is_empty(){return Err("fixture probes must be authored operations".into());}
     fixture.fork_fixture().map_err(|e|e.to_string())
+}
+
+// Authored seed/fixture data is an explicit trusted initial assumption. A raw
+// row-read admission witness is failing; column privacy still needs an actual
+// authored observer and synthetic mutations remain supplemental.
+fn trusted_reads(bound:&Bound,fixture:&Engine,out:&mut Campaign){
+    let Ok(rows)=readback(fixture)else{return;};
+    let Ok(mut judge)=fixture.fork_fixture()else{return;};
+    let actors=histories::actors(bound,&rows);
+    for inv in bound.invariants.iter().filter(|i|i.target=="read"&&i.column.is_none()){
+        for row in rows.get(&inv.table).into_iter().flatten(){for viewer in &actors{
+            if !out.reserve(1){return;}
+            if !live(&bound.schema.tables[&inv.table],row)||!matches!(judge.fixture_policy(&bound.schema.tables[&inv.table].rules.read,viewer,None,row,NOW),Ok(rules::Verdict::Readable))||policy_in(bound,inv,&rows,viewer,None,row,&mut judge)!=Ok(false){continue;}
+            out.violations.push(Counterexample{reachability:Reachability::AuthoredFixtureTrace,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.clone(),operation:"$fixture.read-admission".into(),effect:"read".into(),row:row.clone(),old:None,supporting_rows:rows.clone(),rule_path:"ordinary row-read gate admits authored fixture data contrary to declared intent".into(),scope:"authored fixture initialization is trusted; raw row admission, no initialization history claimed".into(),observations:None,history:Vec::new()});
+            break;
+        }}
+    }
 }

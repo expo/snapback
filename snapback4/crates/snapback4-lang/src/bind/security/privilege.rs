@@ -81,7 +81,10 @@ pub(super) fn risk(bound:&Bound,roster:&str,column:&str,operation:&str,targets:&
     if op==ast::WriteOp::Update&&kernel::implies(&admission,&RuleExpr::Eq(RuleTerm::OldField(column.into()),RuleTerm::Field(column.into())))==Ok(true){return None;}
     let mut guards=Vec::new();role_guards(bound,&admission,&mut guards);
     let independent=kernel::implies(&substitute(bound,&admission,"$no-roster",column,None,None),&RuleExpr::Or(guards))==Ok(true);
-    for target in roles.iter().filter(|r|targets.is_empty()||targets.contains(r)){
+    let mut ranked=roles.iter().filter(|r|targets.is_empty()||targets.contains(r)).collect::<Vec<_>>();
+    let score=|role:&&String|bound.schema.visible_tables().flat_map(|(_,t)|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete]).filter(|rule|kernel::implies(&RuleExpr::Allow,&substitute(bound,rule,roster,column,Some(role.as_str()),None))==Ok(true)).count();
+    ranked.sort_by_key(|role|(std::cmp::Reverse(score(role)),role.as_str()));
+    for target in ranked{
         for caller in std::iter::once(None).chain(roles.iter().map(|s|Some(s.as_str()))){
             if caller==Some(target.as_str()){continue;}
             let admitted=substitute(bound,&admission,roster,column,caller,Some(target));

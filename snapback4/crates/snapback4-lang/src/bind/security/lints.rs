@@ -48,10 +48,9 @@ fn mutable_role(bound:&Bound,name:&str)->bool {
 }
 fn recipient_role(bound:&Bound,name:&str,branch:&RuleExpr,grant:Option<&str>,roster:&str,effect:&str)->bool{
     if bound.invariants.iter().any(|i|i.table==*name&&(i.target==effect||i.target=="write"&&matches!(effect,"insert"|"update"))&&i.policy.as_ref().is_some_and(|p|kernel::dependencies(p).contains(roster)&&role_test(bound,p)&&kernel::implies(branch,p)!=Ok(true))){return true;}
-    let _=(branch,grant,roster);
-    // Field names cannot establish a current-role contract. Without independent
-    // intent, retained access may be deliberate, so lifetime advice stays silent.
-    false
+    // This is conditional lifetime advice, not an inferred current-role
+    // contract: the retained grant does not itself consult this mutable roster.
+    grant.is_some()&&!kernel::dependencies(branch).contains(roster)
 }
 pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
     let mut notes=Vec::new();
@@ -105,7 +104,7 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
             for dep in kernel::dependencies(branch){if let Some(g)=bound.schema.table(&dep) {
                 let rosters=[&g.rules.insert,&g.rules.update].into_iter().flat_map(kernel::dependencies).filter(|r|r!=&dep&&mutable_role(bound,r)).collect::<BTreeSet<_>>();
                 if rosters.iter().any(|r|recipient_role(bound,name,branch,Some(&dep),r,effect))&&(role_test(bound,&g.rules.insert)||role_test(bound,&g.rules.update)){
-                    note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{effect}: `{}` trusts retained {dep} grants while current role in {} can change",branch.quarry(),rosters.into_iter().collect::<Vec<_>>().join(", ")),"recheck the current role in this branch or revoke every derived grant transactionally on role changes; guide security");
+                    note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{effect}: `{}` trusts retained {dep} grants that can survive role changes in {}; confirm whether current-role intent is required",branch.quarry(),rosters.into_iter().collect::<Vec<_>>().join(", ")),"recheck the current role in this branch or revoke every derived grant transactionally on role changes; guide security");
                 }
             }}
             let declared=bound.invariants.iter().filter(|i|i.table==*name&&(i.target==effect||i.target=="write"&&matches!(effect,"insert"|"update"))).filter_map(|i|i.policy.as_ref()).flat_map(kernel::dependencies).filter(|r|mutable_role(bound,r)).collect::<BTreeSet<_>>();

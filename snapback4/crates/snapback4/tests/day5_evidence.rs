@@ -24,10 +24,11 @@ fn generated_campaigns_cover_default_test_but_saved_fixtures_require_business_ca
     app.write("versions/v1/schema.q",&app.read("snapback/schema.q"));app.write("versions/v1/fixtures/.gitkeep","");
     let generated=app.ok(&["test"]);
     assert!(generated.contains("no authored business cases") && generated.contains("generated-fixture only"), "{generated}");
-    for args in [vec!["test","--source","versions/v1"],vec!["test","--fixture","versions/v1/fixtures"]] {
+    for args in [vec!["test","--source","versions/v1"]] {
         let out=app.run(&args);assert!(!out.status.success());assert!(String::from_utf8_lossy(&out.stderr).contains("no business cases executed"),"{out:?}");
         let mut allowed=args;allowed.push("--fixture-only");app.ok(&allowed);
     }
+    app.ok(&["test","--fixture","versions/v1/fixtures"]);
     app.write("fixtures/test.cases.jsonl", "{\"op\":\"alive\",\"as\":\"alice\",\"data\":true}\n");
     app.ok(&["test","--fixture","fixtures"]);
 }

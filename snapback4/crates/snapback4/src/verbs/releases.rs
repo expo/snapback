@@ -350,6 +350,10 @@ pub fn deploy(options: &Options) -> i32 {
             } else {
                 held["release"].as_u64()
             };
+            {
+                let prior=previous.map(|n|bound_at(dir.join("releases").join(n.to_string()))).transpose()?;
+                super::security::release_loop(&project,&bound,prior.as_ref(),options);
+            }
             let revision = held["revision"].as_u64().unwrap_or(0);
             check_change(&dir, previous, &bound, options, None)?;
             let releases = dir.join("releases").canonicalize().map_err(|e| e.to_string())?;

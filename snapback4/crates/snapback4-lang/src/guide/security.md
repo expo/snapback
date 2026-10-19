@@ -222,3 +222,19 @@ N_ROLE_WIDE_READ means a role-wide branch gated by a row value exposes every col
 on matching rows.
 Use a board/projection table for a public rating; declare intent for the private
 notes, principals, images and files separately.
+
+`test` uses generation when fixtures are absent or contain no rows, including
+an empty starter fixtures directory. Populated authored fixtures stay selected;
+seeded read and integrity violations fail under that explicit starting-state
+assumption. Generated payloads run authored creation mutations, preserving
+requires, immutable copies and recipient-role checks; declined populations are
+coverage gaps. A recorded role change or relationship transfer is shown in the
+counterexample history; a stale starting snapshot is not such a history.
+
+A completed `test` records concrete refutations under
+`snapback/generated/security-test.json`. The next `check` reports matching
+failures even when its short campaign cannot rediscover them. Exact source,
+fixture bytes and CLI identity bind the record; edits invalidate it. No cached
+passing result proves security. Every escalation note stays visible in short
+output. Rule-changing deploy previews print exposure counts and demand a test
+for the selected source/fixtures when a matching full finite campaign is absent.

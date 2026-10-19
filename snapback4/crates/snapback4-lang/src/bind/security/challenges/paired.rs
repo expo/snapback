@@ -2,7 +2,7 @@
 // @ref LLP 3000.036.004#101-separate-observer-obligations — two valid worlds and repeatable observations are required.
 use super::*;
 
-#[derive(Clone,Debug,Serialize)]
+#[derive(Clone,Debug,Serialize,serde::Deserialize)]
 pub struct Observations {
     pub present: serde_json::Value,
     pub absent: serde_json::Value,

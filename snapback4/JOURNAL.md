@@ -96896,3 +96896,16 @@ and adds update-only column intent. Check has a compact note block and bounded
 concrete work; test/audit retain full campaigns. Source evidence is read-only;
 per-lane measurements and qualification are in reports/20261019-sec4.
 DX4 owns staging/upload/dev papercuts; QRY owns read return and hidden lookups.
+
+## 2026-10-19 — SEC4 wave-19 correction
+
+Merged origin/main before changes. Coordinator wave-19 addendum supersedes the
+seed-only demotion: authored fixture read/integrity violations fail. Empty
+fixtures generate; payload initialization executes authored creators, preserving
+requires, principal-role checks and copied values. Exact-source/fixture/CLI
+positive evidence carries test refutations into bounded check without cached
+proof. Escalation notes bypass the summary cap, exposure counts are separate,
+and rule-changing deployment prints a matching-campaign demand. Real role and
+relationship transitions retain their committed history. LLP 3000.036.004 §13.7
+and wave-19 evidence/report record reviews, qualification and remaining gaps.
+Column read rules remain outside SEC4; release visibility belongs to its owner.

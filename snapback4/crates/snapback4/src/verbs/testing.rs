@@ -99,7 +99,8 @@ pub fn test(options: &Options) -> i32 {
         }
     }
     let mut security_campaign = snapback4_lang::security::challenges::Campaign::default();
-    if options.flags.contains_key("fixture"){
+    let populated_fixture=bound.schema.tables.keys().any(|table|engine.store().rows(table).is_ok_and(|rows|!rows.is_empty()));
+    if options.flags.contains_key("fixture")&&populated_fixture{
         match test_fixture::engine_at(&project,&bound,options,snapback4_lang::security::challenges::NOW){
             Ok(security_fixture)=>snapback4_lang::security::challenges::operations(&bound,&security_fixture,&mut security_campaign),
             Err(why)=>{security_campaign.unsupported.insert(format!("trusted fixture campaign unavailable: {why}"));}
@@ -110,6 +111,7 @@ pub fn test(options: &Options) -> i32 {
     let security_campaign=snapback4_lang::security::challenges::run_selected_after(&bound,None,security_campaign);
     let mut security_campaign=security_campaign;
     let security_http_ok=security::unauthenticated(&bound,&sources);
+    if !options.flags.contains_key("residency") {if let Err(why)=security::remember(&project,options,&security_campaign,security_http_ok){eprintln!("security: campaign record unavailable: {why}; check cannot reuse these refutations");}}
     if security_http_ok{security_campaign.unsupported.retain(|s|!s.starts_with("unauthenticated HTTP attempts require"));}
     println!("security histories: {} ordered short operation sequences replayed",security_campaign.sequences);
     for why in &security_campaign.boundary_failures {println!("security boundary failure: {why}");}
@@ -255,7 +257,7 @@ pub fn test(options: &Options) -> i32 {
     }
     // One line a script or an agent can read: derived refusals and unrun
     // queries are not failures, but they are not coverage either.
-    let generated_only=!options.flags.contains_key("fixture")&&!options.flags.contains_key("source");
+    let generated_only=!populated_fixture&&!options.flags.contains_key("source");
     if generated_only {println!("test not covered: no authored business cases; generated-fixture only");}
     let no_cases = passed + failed_cases == 0 && !options.flags.contains_key("fixture-only") && !generated_only;
     let security_failed = security_campaign.violations.iter().any(|c|c.reachability.is_reachable()) || !security_campaign.boundary_failures.is_empty() || !security_http_ok;

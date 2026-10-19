@@ -76,8 +76,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
     let mut actors=histories::viewers(bound);
     for (table,rs) in rows{for r in rs{for (c,k) in &bound.schema.tables[table].columns{if matches!(k.required(),C::Principal)&&let Ok(Value::Id(p))=r.field(c)&&!actors.contains(p){actors.push(p.clone());}}}}
     'actors: for viewer in &actors{
-        let committed=trace.map(|(_,steps)|steps.iter().filter(|s|s.result.get("state").and_then(serde_json::Value::as_str)==Some("sent")).count()).unwrap_or(0);
-        if fixture.is_some()&&out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.viewer==*viewer&&v.reachability==Reachability::AuthoredFixtureTrace&&v.history.iter().filter(|s|s.result.get("state").and_then(serde_json::Value::as_str)==Some("sent")).count()<=committed){continue;}
+        if fixture.is_some()&&out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.viewer==*viewer&&v.reachability==Reachability::AuthoredFixtureTrace&&histories::trace_key(&v.history)==histories::trace_key(trace.map(|(_,s)|s).unwrap_or(&[]))){continue;}
 
         {
             if !reserve(out,2){return;}

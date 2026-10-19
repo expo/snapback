@@ -70,3 +70,26 @@ Generated fixture origins intentionally supersede the earlier authored-fixture-o
 DX4 owns staging/provisioning, clocks/tokens, upgrade narration and uploads; QRY owns partial-return and hidden-lookup language semantics. SEC4 observes actual typed payloads without changing those return semantics. Ownership pointers are in the governing docs/JOURNAL. The affected LLP context, templates, guide mirrors, diary0121 and 0.4.35 changelog were reconciled in the code commits.
 
 No push, release, version bump or change to frozen apps. Large build and qualification scratch are removed after retaining compact evidence, fresh package tarballs and verified binaries. The report/evidence commit completes the workstream; finite reachability and pre-existing Lean classifications are the explicit remaining limits.
+
+
+## Wave-19 coordinator addendum — implementation checkpoint
+
+Merged origin/main first (`4be5ffa59e`). Wave19 analysis tested the earlier
+`db64cba964` SEC4 build; the later wave18 fixes are retained and regression-tested.
+The new amendment is LLP3000.036.004 §13.7; required Muse and fresh Codex are
+both READY for its clarified design. Implementation/renewed qualification are
+in progress, not covered by the wave18 receipts above.
+
+Changes: authored fixture read/assertion failures restored; row-empty fixtures
+generate; generated payloads execute authored creators; full finite test records
+eligible refutations by exact source/fixtures/CLI and bounded check reloads them;
+all escalation locations remain visible; rule-changing deploy prints exposure
+and a selected-source campaign demand; distinct equal-length operation paths
+retain attribution. Conditional retained-grant advice no longer needs an
+independent role declaration. Wave19 regression controls cover invalid insert,
+recipient role, copied owner/cold approval, negative existence, unchanged optional
+columns, empty directories, cache invalidation/preservation, deployment and
+registerStaff literal sampling. Twenty original SEC4 tests pass after making
+previous generated test populations explicitly insert-admissible; new controls
+are being run alongside the complete Rust workspace. Renewed packed, Mac,
+client/differential and corpus evidence follows in the final addendum.

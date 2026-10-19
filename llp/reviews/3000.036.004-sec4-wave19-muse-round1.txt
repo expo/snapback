@@ -1,0 +1,37 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=5d60e482-2874-433d-944c-c46d533753ff]: Subscription quota exhausted. Your usage window resets at 2026-10-19T12:47:06Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+**Verdict: NOT READY.**
+
+This is a proposal verdict only. It says nothing about implementation qualification. The direction in [§13.7](llp/3000.036.004-security-invariants-and-exposure.rfc.md) is right. The text leaves security-critical choices to implementer guesswork.
+
+Scope assessment against [wave-19 §3](file:///home/ccheever/sb4-loop/wave19/analysis/bakeoff-day2.md) (lines 263–369):
+
+- Authored seed refutations: direction right. Failing without an init trace matches the 0.4.34 regression. Stale-grant admissibility is left open.
+- Empty fixture fallback: direction right. Empty directory is not an authored population. Partial fixtures are undefined.
+- Admissible generated init: direction right. Creator execution plus no independent coupled-value randomization targets bug 4. Creator discovery and coupling have no decision procedure.
+- Bounded-check evidence: direction right. Only refutations persist. No passing verdict proves. Key omits campaign parameters.
+- Escalation visibility: direction right. All escalation notes stay visible. Surface metric is undefined.
+- Deploy preview demand: direction right. Demand fires even with no invariants. Trigger and coverage are undefined.
+- Real role/relationship histories: direction right. No silent repair of historical grants. Committed transfer-step requirement is implicit only.
+
+Material blockers:
+
+- Stale grants need an explicit history rule. §13.7 lets authored assertions fail with no init trace. It does not say a stale-landlord or stale-role witness needs committed transfer steps. Without that, the 019 F2 pattern (seeded stale state, no `linkUnit` history) can count as reachable. Seeded stale without history must stay supplemental.
+- Campaign key must include bounds. Key is source bytes, fixture bytes, exact executable. Caps, options, clock, and completion detail are missing. A trivially bounded run could then satisfy the deploy demand. Include parameters or require full-campaign completion.
+- Deploy trigger must be precise. “Rule-changing” is undefined. New-table v2 rules must count. Plain `deploy` must surface the same demand as `deploy --check`, since builders rarely run `--check`, `test`, or `audit`.
+- Creator and coupling need a procedure. “Authored creator” and “values a creator couples” have no discovery rule. Bug 4 false positives turn on this. Name the analysis, plus require-literal sampling for text role arguments such as 047 `registerStaff`.
+- Escalation naming needs a metric. “Largest established surface” replaces the least-privilege misnaming. It gives no measure. Point at the existing structural comparison or define the count. Confirm location, gate, and recipe fields are retained.
+
+Needed clarification:
+
+- Row-empty versus partial fixtures: supplement or replace, and the retained `not covered` label.
+- Record location, canonicalization, completion metadata contents, and persistence-failure rendering.
+- Retained origin labels and the 200-schema false-refusal bar from §13.5.
+- Short exposure-line content and why it cannot be grepped away.
+
+What is sound: empty-dir fallback, no proof from finite campaigns, unknown never refutes, column whole-row guard, no runtime authority change, and no cached passing verdict.
+
