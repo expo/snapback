@@ -225,3 +225,42 @@ fn removal_of_last_opening_boundary_keeps_the_durable_retirement_floor() {
   assert_eq!(e.store().count("items").unwrap(),0,"source deadline before persisted floor, requested={requested}");
  }
 }
+
+#[test]
+fn a_new_named_declaration_transforms_existing_historical_inputs() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+ let twice=old.replace("  n: int","  doubled: int\n  n: int")+"backfill items twice(n: int):\n  {doubled:n * 2}\n";
+ let triple=twice.replace("twice(n:","triple(n:").replace("n * 2","n * 3");
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&twice,2).unwrap();adopt(&mut e,old,1).unwrap();adopt(&mut e,&triple,3).unwrap();assert_eq!(field(&mut e,"items","a","doubled"),Value::Int(9));
+}
+#[test]
+fn dropped_required_and_optional_inputs_survive_active_table_reentry() {
+ for kind in ["int","int ?"] {
+  let old=format!("table items:\n  n: {kind}\n  public 'fixture'\n  online only\n");
+  let next=old.replace(&format!("  n: {kind}"),"  doubled: int")+&format!("backfill items twice(n: {kind}):\n  {{doubled:(n ?? 0) * 2}}\n");
+  let mut e=engine(&old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&next,2).unwrap();adopt(&mut e,"query empty():\n  return true\n",3).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","doubled"),Value::Int(6));
+ }
+}
+#[test]
+fn reentry_restores_shared_snapshots_for_arguments_and_point_reads() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+ let twice=old.to_owned()+"backfill items twice(n: int):\n  {n:n * 2}\n";
+ for later in [false,true] {
+  let copied=twice.replace("  n: int","  copied: int\n  lookedUp: int\n  n: int")+"backfill items copy(n: int, id: items):\n  {copied:n, lookedUp:(items[id] ! else NOT_FOUND).n}\n";
+  let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));
+  if later {adopt(&mut e,&twice,2).unwrap();}
+  adopt(&mut e,&copied,3).unwrap();let expected=if later {6}else{3};
+  assert_eq!(field(&mut e,"items","a","copied"),Value::Int(expected));
+  adopt(&mut e,"query empty():\n  return true\n",4).unwrap();adopt(&mut e,&copied,3).unwrap();
+  assert_eq!(field(&mut e,"items","a","n"),Value::Int(6));assert_eq!(field(&mut e,"items","a","copied"),Value::Int(expected));assert_eq!(field(&mut e,"items","a","lookedUp"),Value::Int(expected));
+ }
+}
+
+#[test]
+fn a_retained_transform_output_cannot_prove_native_origin() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+ let twice=old.replace("  n: int","  doubled: int\n  n: int")+"backfill items twice(n: int):\n  {doubled:n * 2}\n";
+ let broken=twice.replace("twice(n: int)","other(missing: int)").replace("doubled:n * 2","doubled:missing");
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&twice,2).unwrap();adopt(&mut e,old,1).unwrap();
+ let error=adopt(&mut e,&broken,3).unwrap_err().to_string();assert!(error.contains("historical input items.missing"),"{error}");
+}

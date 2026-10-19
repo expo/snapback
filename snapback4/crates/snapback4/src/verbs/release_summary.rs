@@ -61,13 +61,17 @@ pub(super) fn print(current: Option<&Schema>, target: &Schema, programs: &BTreeM
         if !group.notes.contains(&detail) {group.notes.push(detail);}
     }
     let mut storage=BTreeMap::<String,[u64;3]>::new();
-    for item in items.iter().filter(|item|item.rows>0) {
+    for item in items.iter().filter(|item|item.rows>0 && item.kind!="backfill") {
         let name=table_prefix(&item.path,&tables).unwrap_or_else(||item.path.clone());
         let slot=match item.kind.as_str() {"column"=>1,"index"=>2,_=>0};
         storage.entry(name).or_default()[slot]+=item.rows;
     }
     for (name,[rows,cells,indexes]) in storage {
         groups.entry(name).or_default().notes.push(format!("retained: {rows} dormant rows, {cells} cells, {indexes} index entries"));
+    }
+    for item in items.iter().filter(|item|item.kind=="backfill" && item.rows>0) {
+        let name=table_prefix(&item.path,&tables).unwrap_or_else(||item.path.clone());
+        groups.entry(name).or_default().notes.push(format!("retained: {} private backfill preimages ({} bytes)",item.rows,item.bytes));
     }
     let mut groups=groups.into_iter().collect::<Vec<_>>();
     groups.sort_by_key(|(name,g)|(g.priority,name.clone()));
