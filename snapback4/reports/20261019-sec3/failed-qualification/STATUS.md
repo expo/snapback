@@ -1,0 +1,1 @@
+The earlier consumer qualification failed at the stale security-summary parser. No receipt or qualification claim. The final source shares the full packed-security proof and fixes the summary parser. This directory retains intermediate proof metadata, not complete artifact custody; use the final successful consumer receipt for qualified artifact hashes.

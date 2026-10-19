@@ -80,3 +80,14 @@ patch reductions remain unproved. Finite reachable failures catch bad examples;
 passing finite campaigns, advisory silence and direct-rule implications do not
 close the zero-hole acceptance condition. The final SEC3 measurement/report is
 under snapback4/reports/20261019-sec3 and WORKSTREAM-REPORT.md.
+
+
+SEC3 final-source checkpoint bb512f19f4: full source 16, nullable delta 17 and
+empty-start/coverage delta 19 have independent Muse/fresh Codex READY. The final
+static production binary catches8/8 calibrated real highs,0partial,0notcaught;
+all ten lanes execute1024 histories with no timeout. Original inputs remain
+unchanged;150 earlier schemas have zero refusals. Final receipts, compatibility
+noise counts, explicit unsupported coverage and exact test evidence are in
+`snapback4/reports/20261019-sec3/`. This ticket remains Open for the general
+whole-proof/device/wire/opaque/inductive obligations above; finite campaign
+results do not establish zero holes in arbitrary applications.

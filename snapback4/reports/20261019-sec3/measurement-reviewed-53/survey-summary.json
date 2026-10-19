@@ -1,0 +1,16 @@
+{
+  "apps": 150,
+  "zero_refusals": true,
+  "failures": [],
+  "security_notes": {
+    "N_BROAD_READ": 251,
+    "N_SECURITY_INTENT": 150,
+    "N_ARGUMENT_GRANT": 169,
+    "N_OPTIONAL_EVIDENCE": 36,
+    "N_PRIVILEGE_ESCALATION": 7,
+    "N_SWEEP_ONLY_DEADLINE": 13,
+    "N_VACUOUS_RULE": 1
+  },
+  "all_sites_located": true,
+  "all_sources_unchanged": true
+}

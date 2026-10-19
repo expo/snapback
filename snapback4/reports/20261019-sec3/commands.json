@@ -1,0 +1,85 @@
+{
+  "cwd": "/home/ccheever/projects/sb4-b17-sec3/snapback4",
+  "cargo_environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "commands": {
+    "workspace": [
+      "cargo",
+      "test",
+      "--workspace",
+      "--no-fail-fast"
+    ],
+    "final_affected": [
+      "cargo",
+      "test",
+      "-j12",
+      "-p",
+      "snapback4",
+      "-p",
+      "snapback4-lang",
+      "--no-fail-fast"
+    ],
+    "client_pool": [
+      "node",
+      "scripts/run-client-tests.mjs",
+      "24",
+      "files",
+      "<all417 non-model test files>"
+    ],
+    "full_models": [
+      "node",
+      "scripts/run-client-tests.mjs",
+      "1",
+      "models",
+      "packages/snapback4/test/app-session-model.test.mjs",
+      "packages/snapback4/test/online-client-model.test.mjs"
+    ],
+    "differential": [
+      "run --seed 0 --cases 20000",
+      "run-devices --seed 0 --cases 1000",
+      "run-lean --seed 0 --cases 20000"
+    ],
+    "lean": [
+      "lake build",
+      "./check.sh"
+    ],
+    "prepare": [
+      "node",
+      "scripts/publish.mjs",
+      "--prepare-client",
+      "--prepare-directory",
+      "<fresh owned directory>"
+    ],
+    "linux": [
+      "node",
+      "scripts/qualify-linux.mjs",
+      "--consumer-only",
+      "--client",
+      "<fresh client.tgz>",
+      "--expo",
+      "<fresh expo.tgz>",
+      "--out",
+      "<fresh owned directory>"
+    ],
+    "root": [
+      "bun install --frozen-lockfile",
+      "node scripts/ensure-workspace-hoist.mjs",
+      "scripts/check-generated-artifacts",
+      "node scripts/check-inventories.mjs",
+      "node scripts/check-guide.mjs",
+      "./ref-check"
+    ],
+    "docs": [
+      "node",
+      "scripts/docs-budget.mjs"
+    ],
+    "wasm": [
+      "bash",
+      "scripts/build-wasm.sh"
+    ]
+  },
+  "limits": "Every shell command bounded by timeout; full models use default unmodified counts; no test.sh, publish, push, version bump or new Lean axiom."
+}

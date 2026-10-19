@@ -1,0 +1,3236 @@
+[
+  {
+    "lane": "006-snapback-dive-boat-buddy-log",
+    "binary_sha256": "28ecd5c41b791f16a9e643cf6e4d0639588f96bd621095eed1def71c538a6cc1",
+    "source_sha256": {
+      "/home/ccheever/sb4-loop/wave17/apps/006-snapback-dive-boat-buddy-log/snapback/schema.q": "cba3816ec80f0c8065498b1fcaf24c5f58b38004059c5c4b7b6b272319adfeb3",
+      "/home/ccheever/sb4-loop/wave17-repro/sec/006-snapback-dive-boat-buddy-log/snapback/security.q": "d8a666fbaf1ff4c950622763b6fea9e9f6ec37d2c468f093ef02343878faf253"
+    },
+    "fixture_source": "/home/ccheever/sb4-loop/wave17-repro/sec/006-snapback-dive-boat-buddy-log/fixtures-focused",
+    "fixture_sha256": {
+      "people.jsonl": "ae4b31ae49a39b3e8e8765e56544f7b7ebe6b4d2b700827a88c33980667e7537",
+      "trips.jsonl": "9b8aeab7d16d66d03893eff93d4e443edc09d814e77f71dbff2d3ddbac0cab72",
+      "waterWindows.jsonl": "28cb0dad1f36587d6396d1047cb18d7f11d719e164d5642050484802c31ed2d5",
+      "pairs.jsonl": "e348e1c2824e3614cf3bd75c59652c7fbf221a7c082ae4a2639e49490b369147",
+      "logs.jsonl": "d893d0a7d4202ef473f77d7f12e136133d208bc399bc298811383f83199b267b",
+      "roles.jsonl": "7fc8b64a077cce0fb41a0f836cd6006f98de634076521f1f67d8b02ed7cd2028"
+    },
+    "invariants": [
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 4
+        },
+        "target": "pairs. insert",
+        "predicate": "exists roles[viewer, role = 'divemaster']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 5
+        },
+        "target": "logs. insert",
+        "predicate": "exists roles[viewer, role = 'divemaster']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 6
+        },
+        "target": "pairs.enteredAt write",
+        "predicate": "exists roles[viewer, role = 'divemaster']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 7
+        },
+        "target": "pairs.plannedMinutes write",
+        "predicate": "exists roles[viewer, role = 'divemaster']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 8
+        },
+        "target": "cards. insert",
+        "predicate": "exists roles[viewer, role = 'divemaster']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 9
+        },
+        "target": "cards.photo write",
+        "predicate": "exists roles[viewer, role = 'divemaster']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 11
+        },
+        "target": "pairs. always",
+        "predicate": "(.overdueAt = .surfaceAt + 600000)",
+        "status": "refuted",
+        "reachability": "trusted-seed-only",
+        "operation": "$security.seed_at"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 13
+        },
+        "target": "logs. read",
+        "predicate": "(.diver = viewer or ((exists roles[viewer, role = 'crew']) or (exists roles[viewer, role = 'divemaster']) or (exists roles[viewer, role = 'captain'])) and (exists trips[id = .trip, state = 'open']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "logById"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 15
+        },
+        "target": "pairs. read",
+        "predicate": "(((exists roles[viewer, role = 'crew']) or (exists roles[viewer, role = 'divemaster']) or (exists roles[viewer, role = 'captain'])) and (exists trips[id = .trip, state = 'open']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.pairs.read"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 16
+        },
+        "target": "waterWindows. read",
+        "predicate": "(.diverA = viewer or .diverB = viewer or (exists roles[viewer, role = 'crew']) or (exists roles[viewer, role = 'divemaster']) or (exists roles[viewer, role = 'captain']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 18
+        },
+        "target": "trips. endTrip",
+        "predicate": "((exists roles[viewer, role = 'captain']) or not (exists pairs[trip = .id, state = 'water']) and not (exists pairs[trip = .id, state = 'overdue']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 19
+        },
+        "target": "trips. always",
+        "predicate": "(.state = 'open' or .reason != null or not (exists pairs[trip = .id, state = 'water']) and not (exists pairs[trip = .id, state = 'overdue']))",
+        "status": "refuted",
+        "reachability": "trusted-seed-only",
+        "operation": "$security.seed_at"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 21
+        },
+        "target": "cards. read",
+        "predicate": "((exists roles[viewer, role = 'divemaster']) or (exists roles[viewer, role = 'owner']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 23
+        },
+        "target": "people. read",
+        "predicate": "(.principal = viewer or (exists roles[viewer, role = 'crew']) or (exists roles[viewer, role = 'divemaster']) or (exists roles[viewer, role = 'captain']) or (exists roles[viewer, role = 'owner']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 24
+        },
+        "target": "people.lastName write",
+        "predicate": "(.principal = viewer or viewer = 'service:ops')",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      }
+    ],
+    "notes": [
+      {
+        "code": "N_BROAD_READ",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 52
+        },
+        "message": "trips is readable by any signed-in user with a matching roles row; no particular role or row ownership is required"
+      },
+      {
+        "code": "N_SECURITY_INTENT",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 1
+        },
+        "message": "1 tables have access rules and no security invariants: roles; declare the spec's privacy rules as invariants (`guide security`)"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 138
+        },
+        "message": "enroll writes argument principal straight into reader-grant column roles.principal"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 139
+        },
+        "message": "enroll writes argument principal straight into reader-grant column people.principal"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 188
+        },
+        "message": "enterPair writes argument diverA straight into reader-grant column waterWindows.diverA"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 188
+        },
+        "message": "enterPair writes argument diverB straight into reader-grant column waterWindows.diverB"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 189
+        },
+        "message": "enterPair writes argument diverA straight into reader-grant column logs.diver"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 186
+        },
+        "message": "enterPair: lookup absence DIVER_NOT_FOUND, later denial ALREADY_IN_WATER; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 195
+        },
+        "message": "exitPair: lookup absence NOT_FOUND, later denial ALREADY_OUT; row readership is broader than declared private-existence intent"
+      }
+    ]
+  },
+  {
+    "lane": "011-snapback-freezer-rack-ledger",
+    "binary_sha256": "28ecd5c41b791f16a9e643cf6e4d0639588f96bd621095eed1def71c538a6cc1",
+    "source_sha256": {
+      "/home/ccheever/sb4-loop/wave17/apps/011-snapback-freezer-rack-ledger/snapback/schema.q": "7ead9589a9662430b2262d8aec2fcee57b0f1b272a8cdd6d8d6ac25c792c72d5",
+      "/home/ccheever/sb4-loop/wave17-repro/sec/011-snapback-freezer-rack-ledger/snapback/security.q": "a42aa4880e871d26e2a6ca8b9f028e8f09b9da1c3ec32318872e3e80ea04144f"
+    },
+    "fixture_source": "/home/ccheever/sb4-loop/wave17-repro/sec/011-snapback-freezer-rack-ledger/fixtures-focused",
+    "fixture_sha256": {
+      "freezers.jsonl": "339eecf242be0032574dabca18c740f8ab345639cdf52bae99092ba0e3694dce",
+      "boxes.jsonl": "9f242f5058747020c39933d8480aed825459cab0d3e787b8e070f7818394108f",
+      "contents.jsonl": "096978005fdf7c8c63e7be29508a65d5eaba2bc74909577836eb99a3d8352d36",
+      "users.jsonl": "bd668a4ed676569529f3f942f0d29b1f70d92fdcd42393d8603515ea479da3a6"
+    },
+    "invariants": [
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 3
+        },
+        "target": "contents. always",
+        "predicate": "(.labelPhoto != null)",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "addBox"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 4
+        },
+        "target": "boxes.checkedOutAt write",
+        "predicate": "((exists users[viewer, role = 'researcher']) or (exists users[viewer, role = 'manager']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 6
+        },
+        "target": "boxes. read",
+        "predicate": "((exists users[viewer, role = 'researcher']) or (exists users[viewer, role = 'manager']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 7
+        },
+        "target": "contents. read",
+        "predicate": "((exists users[viewer, role = 'manager']) or (exists users[viewer, role = 'researcher', groupName = .groupName]))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 8
+        },
+        "target": "contents. always",
+        "predicate": "exists boxes[id = .box, groupName = .groupName]",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 10
+        },
+        "target": "boxes.groupName write",
+        "predicate": "((exists users[viewer, role = 'manager']) or (exists users[viewer, role = 'researcher', groupName = .groupName]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.boxes.insert"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 11
+        },
+        "target": "contents.groupName write",
+        "predicate": "((exists users[viewer, role = 'manager']) or (exists users[viewer, role = 'researcher', groupName = .groupName]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.contents.insert"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 12
+        },
+        "target": "freezers.failed write",
+        "predicate": "exists users[viewer, role = 'manager']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 13
+        },
+        "target": "freezers. update",
+        "predicate": "exists users[viewer, role = 'manager']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 15
+        },
+        "target": "users.role write",
+        "predicate": "(.role != 'manager' or (exists users[viewer, role = 'manager']) or viewer = 'service:ops')",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.users.insert"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 18
+        },
+        "target": "boxes. always",
+        "predicate": "(.hazard = 'BSL-1' or .hazard = 'BSL-2')",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 20
+        },
+        "target": "boxes.hazard write",
+        "predicate": "exists users[viewer, role = 'manager']",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.boxes.insert"
+      }
+    ],
+    "notes": [
+      {
+        "code": "N_BROAD_READ",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 35
+        },
+        "message": "boxes is readable by any signed-in user with a matching users row; no particular role or row ownership is required"
+      },
+      {
+        "code": "N_OPTIONAL_EVIDENCE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 56
+        },
+        "message": "contents.labelPhoto permits omitted or empty media evidence"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 59
+        },
+        "message": "contents.insert: `exists users[viewer] and exists boxes[.box, groupName = .groupName]` trusts retained boxes grants while current role in users can change"
+      },
+      {
+        "code": "N_BROAD_READ",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 25
+        },
+        "message": "freezers is readable by any signed-in user with a matching users row; no particular role or row ownership is required"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 18
+        },
+        "message": "users.insert: principal branch `.principal = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 5,
+          "file": "schema.q",
+          "line": 117
+        },
+        "message": "grantManager writes argument who straight into reader-grant column users.principal"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 155
+        },
+        "message": "checkout: lookup absence NOT_FOUND, later denial ALREADY_OUT; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 166
+        },
+        "message": "checkin: lookup absence NOT_FOUND, later denial NOT_OUT; row readership is broader than declared private-existence intent"
+      }
+    ]
+  },
+  {
+    "lane": "013-snapback-hackathon-rubric-judging",
+    "binary_sha256": "28ecd5c41b791f16a9e643cf6e4d0639588f96bd621095eed1def71c538a6cc1",
+    "source_sha256": {
+      "/home/ccheever/sb4-loop/wave17/apps/013-snapback-hackathon-rubric-judging/snapback/schema.q": "e5e5749eefa740c8b3a3f20f732dfd2a5cc370c37fab679011d001ee25b6b74f",
+      "/home/ccheever/sb4-loop/wave17-repro/sec/013-snapback-hackathon-rubric-judging/snapback/security.q": "61e73849f55d83d59eab0f8fc410ed8631b29110421146008bc191fe2f0803c0"
+    },
+    "fixture_source": "/home/ccheever/sb4-loop/wave17-repro/sec/013-snapback-hackathon-rubric-judging/fixtures-focused",
+    "fixture_sha256": {
+      "assignments.jsonl": "d16ce06bfcd15c9a1c319a5ab4f29d6a94c97ffa9271616c70be5637bcb88a0f",
+      "publishedScores.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "contests.jsonl": "52420572d3bd2c7e5c8424e7ad644d057c760d471a74c5577e750886cdf7253d",
+      "roles.jsonl": "32ce4ccfeb4ee32204a7e3095d84c3690b052e4c9dbbea35efbcb8c885f38bb8",
+      "scores.jsonl": "e28935ad8156658c5bf6cf0e0c24a855cace8be8a1c9a68a8b97b4aa660449f1",
+      "submissions.jsonl": "1e6bb6a030324f680dd346e57499a1b03560d6d35149500515c82a84b4ba46d3"
+    },
+    "invariants": [
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 3
+        },
+        "target": "assignments. insert",
+        "predicate": "((exists roles[viewer, role = 'organizer']) or (exists roles[viewer, role = 'head']))",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 4
+        },
+        "target": "assignments. always",
+        "predicate": "exists roles[principal = .judge, role = 'judge']",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "assignRole"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 5
+        },
+        "target": "scores. insert",
+        "predicate": "(.judge = viewer and (exists roles[viewer, role = 'judge']) and (exists assignments[submission = .submission, judge = viewer]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.scores.insert"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 6
+        },
+        "target": "scores. update",
+        "predicate": "(.judge = viewer and (exists roles[viewer, role = 'judge']) and (exists assignments[submission = .submission, judge = viewer]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.scores.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 8
+        },
+        "target": "submissions. insert",
+        "predicate": "(.owner = viewer and (exists roles[viewer, role = 'team']) and (exists contests[submissionDeadline >= now]))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 9
+        },
+        "target": "submissions.videoUrl write",
+        "predicate": "(.owner = viewer and (exists roles[viewer, role = 'team']) and (exists contests[submissionDeadline >= now]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.submissions.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 10
+        },
+        "target": "submissions.repoUrl write",
+        "predicate": "(.owner = viewer and (exists roles[viewer, role = 'team']) and (exists contests[submissionDeadline >= now]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.submissions.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 11
+        },
+        "target": "submissions.description write",
+        "predicate": "(.owner = viewer and (exists roles[viewer, role = 'team']) and (exists contests[submissionDeadline >= now]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.submissions.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 12
+        },
+        "target": "submissions.title write",
+        "predicate": "(.owner = viewer and (exists roles[viewer, role = 'team']) and (exists contests[submissionDeadline >= now]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.submissions.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 14
+        },
+        "target": "submissions. read",
+        "predicate": "(.owner = viewer and (exists roles[viewer, role = 'team']) or (exists roles[viewer, role = 'judge']) and (exists assignments[submission = .id, judge = viewer]) or (exists roles[viewer, role = 'organizer']) or (exists roles[viewer, role = 'head']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "visibleSubmissions"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 15
+        },
+        "target": "assignments. read",
+        "predicate": "(.judge = viewer and (exists roles[viewer, role = 'judge']) or (exists roles[viewer, role = 'organizer']) or (exists roles[viewer, role = 'head']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "visibleSubmissions"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 17
+        },
+        "target": "scores. read",
+        "predicate": "(.judge = viewer and (exists roles[viewer, role = 'judge']) or (exists roles[viewer, role = 'organizer']) or (exists roles[viewer, role = 'head']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "myScore"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 18
+        },
+        "target": "publishedScores. read",
+        "predicate": "(.owner = viewer and (exists roles[viewer, role = 'team']) or .judge = viewer and (exists roles[viewer, role = 'judge']) or (exists roles[viewer, role = 'organizer']) or (exists roles[viewer, role = 'head']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.publishedScores.read"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 20
+        },
+        "target": "scoreCount. read",
+        "predicate": "((exists roles[viewer, role = 'organizer']) or (exists roles[viewer, role = 'head']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 21
+        },
+        "target": "scoreTotal. read",
+        "predicate": "((exists roles[viewer, role = 'organizer']) or (exists roles[viewer, role = 'head']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 23
+        },
+        "target": "assignments. delete",
+        "predicate": "exists roles[viewer, role = 'head']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 24
+        },
+        "target": "submissions.disqualified write",
+        "predicate": "exists roles[viewer, role = 'head']",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "createSubmission"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 25
+        },
+        "target": "submissions.dqReason write",
+        "predicate": "exists roles[viewer, role = 'head']",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "setTrack"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 26
+        },
+        "target": "submissions. always",
+        "predicate": "(not .disqualified or .dqReason != null)",
+        "status": "refuted",
+        "reachability": "trusted-seed-only",
+        "operation": "$security.seed_at"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 28
+        },
+        "target": "submissions. always",
+        "predicate": "(.track != null)",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 30
+        },
+        "target": "submissions.track write",
+        "predicate": "(.owner = viewer and (exists roles[viewer, role = 'team']) and (exists contests[submissionDeadline >= now]) or (exists roles[viewer, role = 'organizer']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      }
+    ],
+    "notes": [
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 49
+        },
+        "message": "assignments.read: principal branch `.judge = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_BROAD_READ",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 17
+        },
+        "message": "contests is readable by any signed-in user with a matching roles row; no particular role or row ownership is required"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 82
+        },
+        "message": "publishedScores.read: principal branch `.owner = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 66
+        },
+        "message": "scores.read: principal branch `.judge = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 67
+        },
+        "message": "scores.insert: principal branch `.judge = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 68
+        },
+        "message": "scores.update: principal branch `.judge = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 39
+        },
+        "message": "submissions.read: principal branch `.owner = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 40
+        },
+        "message": "submissions.insert: principal branch `.owner = viewer and exists roles[viewer, role = 'team']` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 41
+        },
+        "message": "submissions.update: principal branch `.owner = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_SECURITY_INTENT",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 1
+        },
+        "message": "2 tables have access rules and no security invariants: contests, roles; declare the spec's privacy rules as invariants (`guide security`)"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 160
+        },
+        "message": "updateSubmission: lookup absence NOT_FOUND, later denial NOT_OWNER; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 177
+        },
+        "message": "assignJudge: lookup absence NOT_FOUND, later denial DISQUALIFIED; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 192
+        },
+        "message": "submitScore: lookup absence NOT_FOUND, later denial DISQUALIFIED; row readership is broader than declared private-existence intent"
+      }
+    ]
+  },
+  {
+    "lane": "015-snapback-foster-pet-handoffs",
+    "binary_sha256": "28ecd5c41b791f16a9e643cf6e4d0639588f96bd621095eed1def71c538a6cc1",
+    "source_sha256": {
+      "/home/ccheever/sb4-loop/wave17/apps/015-snapback-foster-pet-handoffs/snapback/schema.q": "1cc44fa5262a56c39c7b087b7a3296d816a60d1e5914f895b499dc26b1e660b2",
+      "/home/ccheever/sb4-loop/wave17-repro/sec/015-snapback-foster-pet-handoffs/snapback/security.q": "2cf449bad4262a1dfbd8f3b86cef0041be8c3033c61ba59bcd42778417e47d2b",
+      "SEC3-added-column-intent": "48b223c635f4f91027753463c4e8b396bc0f1024ccaef1fb446f1a7abcdef886"
+    },
+    "fixture_source": "/home/ccheever/sb4-loop/wave17-repro/sec/015-snapback-foster-pet-handoffs/fixtures",
+    "fixture_sha256": {
+      "petCards.jsonl": "04b015ab32b8a75a0c132e7a908be37264687308525fc120a5ba7f496f630f6f",
+      "pets.jsonl": "0d1020c1d9204710f819c7a521a3e4f9b7b0ad296bc02527ccc4fb48163f12dc",
+      "test.cases.jsonl": "a3e0059cf33f996ca9f159ac1aabb8680df26623607eafc91e14ec70e310b74e",
+      "vaccinations.jsonl": "beef9a25b3340704c95d66b7606b1f4e76859287b112f420dfaa5569f5d62b0b",
+      "profiles.jsonl": "0543fd1403db462d9919a141b0f6fe7f8f85fea92d464707dce4b4b3062d1411"
+    },
+    "invariants": [
+      {
+        "site": {
+          "col": 1,
+          "file": "sec3-column-intent.q",
+          "line": 2
+        },
+        "target": "handoffs.fromParty read",
+        "predicate": "((exists profiles[viewer, role = 'coordinator']) or (exists profiles[viewer, role = 'foster']) and (exists pets[.pet, currentFoster = viewer]))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 3
+        },
+        "target": "handoffs. always",
+        "predicate": "(.photo != null)",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 4
+        },
+        "target": "handoffs. always",
+        "predicate": "(.fromParty != .toParty)",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "recordHandoff"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 5
+        },
+        "target": "handoffs. always",
+        "predicate": "(((exists profiles[principal = .fromParty, role = 'coordinator']) or (exists profiles[principal = .fromParty, role = 'foster'])) and ((exists profiles[principal = .toParty, role = 'coordinator']) or (exists profiles[principal = .toParty, role = 'foster']) or (exists profiles[principal = .toParty, role = 'adopter'])))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "recordHandoff"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 6
+        },
+        "target": "handoffs.fromConfirmed write",
+        "predicate": "(.fromParty = viewer or .fromConfirmed = false)",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.handoffs.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 7
+        },
+        "target": "handoffs.toConfirmed write",
+        "predicate": "(.toParty = viewer or .toConfirmed = false)",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.handoffs.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 9
+        },
+        "target": "pets. always",
+        "predicate": "(.currentFoster = null or (exists handoffs[pet = .id, toParty = .currentFoster, fromConfirmed = true, toConfirmed = true]))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "setPetPhoto"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 10
+        },
+        "target": "pets. always",
+        "predicate": "(.status != 'adopted' or (exists handoffs[pet = .id, kind = 'adoption', fromConfirmed = true, toConfirmed = true]))",
+        "status": "refuted",
+        "reachability": "trusted-seed-only",
+        "operation": "$security.seed_at"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 12
+        },
+        "target": "pets. read",
+        "predicate": "(.currentFoster = viewer and (exists profiles[viewer, role = 'foster']) or (exists profiles[viewer, role = 'coordinator']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.pets.read"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 14
+        },
+        "target": "petCards. read",
+        "predicate": "((exists profiles[viewer, role = 'coordinator']) or (exists profiles[viewer, role = 'foster']) and (exists pets[.pet, currentFoster = viewer]) or (exists profiles[viewer, role = 'adopter']) and (exists applications[pet = .pet, applicant = viewer]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.petCards.read"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 15
+        },
+        "target": "applications. read",
+        "predicate": "(.applicant = viewer and (exists profiles[viewer, role = 'adopter']) or (exists profiles[viewer, role = 'coordinator']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.applications.read"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 17
+        },
+        "target": "vaccinations. read",
+        "predicate": "((exists profiles[viewer, role = 'coordinator']) or (exists profiles[viewer, role = 'vet']) or (exists profiles[viewer, role = 'foster']) and (exists pets[.pet, currentFoster = viewer]))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 19
+        },
+        "target": "applications.status write",
+        "predicate": "((exists profiles[viewer, role = 'coordinator']) or .status = 'applied')",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.applications.insert"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 20
+        },
+        "target": "applications. update",
+        "predicate": "exists profiles[viewer, role = 'coordinator']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 21
+        },
+        "target": "pets.status write",
+        "predicate": "exists profiles[viewer, role = 'coordinator']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 22
+        },
+        "target": "pets.currentFoster write",
+        "predicate": "exists profiles[viewer, role = 'coordinator']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 24
+        },
+        "target": "handoffs. always",
+        "predicate": "(.kind != null)",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 26
+        },
+        "target": "handoffs. always",
+        "predicate": "(.kind != 'adoption' or (exists profiles[principal = .toParty, role = 'adopter']))",
+        "status": "refuted",
+        "reachability": "trusted-seed-only",
+        "operation": "$security.seed_at"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 27
+        },
+        "target": "handoffs. always",
+        "predicate": "(.kind != 'foster-placement' or (exists profiles[principal = .fromParty, role = 'coordinator']) and (exists profiles[principal = .toParty, role = 'foster']))",
+        "status": "refuted",
+        "reachability": "trusted-seed-only",
+        "operation": "$security.seed_at"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 28
+        },
+        "target": "handoffs. always",
+        "predicate": "(.kind != 'return-to-shelter' or (exists profiles[principal = .fromParty, role = 'foster']) and (exists profiles[principal = .toParty, role = 'coordinator']))",
+        "status": "refuted",
+        "reachability": "trusted-seed-only",
+        "operation": "$security.seed_at"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 29
+        },
+        "target": "handoffs.kind write",
+        "predicate": "exists profiles[viewer, role = 'coordinator']",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.handoffs.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 31
+        },
+        "target": "handoffs. read",
+        "predicate": "((exists profiles[viewer, role = 'coordinator']) or (exists profiles[viewer, role = 'foster']) and (exists pets[.pet, currentFoster = viewer]) or (exists profiles[viewer, role = 'adopter']) and .kind = 'adoption' and (exists applications[pet = .pet, applicant = viewer]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.handoffs.read"
+      }
+    ],
+    "notes": [
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 58
+        },
+        "message": "applications.read: principal branch `.applicant = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 59
+        },
+        "message": "applications.insert: `.applicant = viewer and exists pets[.pet]` trusts retained pets grants while current role in profiles can change"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 80
+        },
+        "message": "handoffs.read: `exists profiles[viewer, role = 'adopter'] and .kind = 'adoption' and exists applications[.pet, viewer]` trusts retained applications grants while current role in profiles can change"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 85
+        },
+        "message": "handoffs.update: principal branch `.fromParty = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 44
+        },
+        "message": "petCards.read: `exists pets[.pet, currentFoster = viewer]` trusts retained pets grants while current role in profiles can change"
+      },
+      {
+        "code": "N_OPTIONAL_EVIDENCE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 27
+        },
+        "message": "pets.photo permits omitted or empty media evidence"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 30
+        },
+        "message": "pets.read: principal branch `.currentFoster = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 107
+        },
+        "message": "vaccinations.read: `exists pets[.pet, currentFoster = viewer]` trusts retained pets grants while current role in profiles can change"
+      },
+      {
+        "code": "N_SECURITY_INTENT",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 1
+        },
+        "message": "1 tables have access rules and no security invariants: profiles; declare the spec's privacy rules as invariants (`guide security`)"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 171
+        },
+        "message": "grantCoordinator writes argument who straight into reader-grant column profiles.principal"
+      },
+      {
+        "code": "N_PRIVILEGE_ESCALATION",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 175
+        },
+        "message": "registerProfile: profiles can confer 'vet', which adds vaccinations.read authority not held by a caller without a role; review the grant's delegation policy"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 195
+        },
+        "message": "placeWithFoster: lookup absence NOT_FOUND, later denial NOT_FOSTER; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 213
+        },
+        "message": "recordVaccination: lookup absence NOT_FOUND, later denial ALREADY_DONE; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 230
+        },
+        "message": "recordHandoff writes argument fromParty straight into reader-grant column handoffs.fromParty"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 230
+        },
+        "message": "recordHandoff writes argument toParty straight into reader-grant column handoffs.toParty"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 244
+        },
+        "message": "confirmHandoff: lookup absence NOT_FOUND, later denial NOT_PARTY; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 258
+        },
+        "message": "approveAdoption: lookup absence NOT_FOUND, later denial ALREADY_DECIDED; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 268
+        },
+        "message": "rejectApplication: lookup absence NOT_FOUND, later denial ALREADY_DECIDED; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 274
+        },
+        "message": "withdrawApplication: lookup absence NOT_FOUND, later denial NOT_APPLICANT; row readership is broader than declared private-existence intent"
+      }
+    ]
+  },
+  {
+    "lane": "019-snapback-apiary-hive-inspections",
+    "binary_sha256": "28ecd5c41b791f16a9e643cf6e4d0639588f96bd621095eed1def71c538a6cc1",
+    "source_sha256": {
+      "/home/ccheever/sb4-loop/wave17/apps/019-snapback-apiary-hive-inspections/snapback/schema.q": "23a5b4580c731da0373279f354538b1db31c5f96b260c290a768762228d3131c",
+      "/home/ccheever/sb4-loop/wave17-repro/sec/019-snapback-apiary-hive-inspections/snapback/security.q": "0d1878b56c6c610d8d7e7c2ef5359af7c9c5071404600c0597da82cdd3029324"
+    },
+    "fixture_source": "/home/ccheever/sb4-loop/wave17-repro/sec/019-snapback-apiary-hive-inspections/fixtures-focused",
+    "fixture_sha256": {
+      "hives.jsonl": "36e0361e807f186089d619c2b187384b57ed1b23c477f54811667e8c0096c76e",
+      "alerts.jsonl": "fdbf5b63d387307f514ccb120c88a383759dbb0901ba784862592d1278fae754",
+      "inspections.jsonl": "cb8f3c702ec4b7ca7b3d3e0179974d3db8d69f80a4767cf5261fd313773f5a0a",
+      "listings.jsonl": "0a80a4eb61310455551128fb3d977707cc19aa71d40cee0652b8e27ec1340eb3",
+      "roles.jsonl": "bedbb75c9ec6398e5e6ebcef26df2025c5be558179da0643c3abdacc88f99057",
+      "routes.jsonl": "d5bdce2488c95453868c23bf2c91f853e8688f881c8c2b6e05e74a49955dc30c"
+    },
+    "invariants": [
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 7
+        },
+        "target": "inspections. insert",
+        "predicate": "(.inspector = viewer and (exists roles[viewer, role = 'inspector']) and (exists routes[inspector = viewer, route = .hive.route]))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "recordInspection"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 8
+        },
+        "target": "inspections. always",
+        "predicate": "(.photo != null)",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "recordInspection"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 12
+        },
+        "target": "alerts. read",
+        "predicate": "(.owner = viewer or (exists roles[viewer, role = 'lead']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 13
+        },
+        "target": "alerts. always",
+        "predicate": "exists hives[.hive, landOwner = .owner]",
+        "status": "refuted",
+        "reachability": "trusted-seed-only",
+        "operation": "$security.seed_at"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 17
+        },
+        "target": "hives. read",
+        "predicate": "((exists roles[viewer, role = 'landowner']) and .landOwner = viewer or (exists roles[viewer, role = 'inspector']) and (exists routes[inspector = viewer, route = .route]) or (exists roles[viewer, role = 'lead']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "hive"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 21
+        },
+        "target": "hives.status write",
+        "predicate": "exists roles[viewer, role = 'lead']",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.hives.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 22
+        },
+        "target": "listings. always",
+        "predicate": "exists hives[.hive, status = 'healthy']",
+        "status": "refuted",
+        "reachability": "trusted-seed-only",
+        "operation": "$security.seed_at"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 29
+        },
+        "target": "inspections. read",
+        "predicate": "((exists roles[viewer, role = 'lead']) or (exists roles[viewer, role = 'inspector']) and (exists routes[inspector = viewer, route = .hive.route]) or (exists roles[viewer, role = 'landowner']) and .hive.landOwner = viewer)",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "inspectionsOf"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 34
+        },
+        "target": "inspections. update",
+        "predicate": "exists roles[viewer, role = 'lead']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      }
+    ],
+    "notes": [
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 45
+        },
+        "message": "hives.read: principal branch `.landOwner = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 47
+        },
+        "message": "hives.update: `exists routes[viewer, .route]` trusts retained routes grants while current role in roles can change"
+      },
+      {
+        "code": "N_OPTIONAL_EVIDENCE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 60
+        },
+        "message": "inspections.photo permits omitted or empty media evidence"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 62
+        },
+        "message": "inspections.read: principal branch `.$hive.landOwner = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 63
+        },
+        "message": "inspections.insert: principal branch `.inspector = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_BROAD_READ",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 85
+        },
+        "message": "listings is readable by every signed-in user: public"
+      },
+      {
+        "code": "N_SECURITY_INTENT",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 1
+        },
+        "message": "2 tables have access rules and no security invariants: roles, routes; declare the spec's privacy rules as invariants (`guide security`)"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 162
+        },
+        "message": "recordInspection: lookup absence NOT_FOUND, later denial NOT_ROUTE; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 195
+        },
+        "message": "addListing: lookup absence NOT_FOUND, later denial NOT_OWNER; row readership is broader than declared private-existence intent"
+      }
+    ]
+  },
+  {
+    "lane": "021-snapback-moot-court-scoring",
+    "binary_sha256": "28ecd5c41b791f16a9e643cf6e4d0639588f96bd621095eed1def71c538a6cc1",
+    "source_sha256": {
+      "/home/ccheever/sb4-loop/wave17/apps/021-snapback-moot-court-scoring/snapback/schema.q": "ce1b052d25bae70bfa6107b4fc45dd1628f4d9dc962f6e92b5cc3820c73a8d6d",
+      "/home/ccheever/sb4-loop/wave17-repro/sec/021-snapback-moot-court-scoring/snapback/security.q": "f8aee0f4e26b1ddc456c9721ffd77030f031a6fb407bcd3cc85f0e23d4c741aa"
+    },
+    "fixture_source": "/home/ccheever/sb4-loop/wave17-repro/sec/021-snapback-moot-court-scoring/fixtures-focused",
+    "fixture_sha256": {
+      "tournaments.jsonl": "9791c1e46217d11cc522650402388a3d6312089412c76d065e917167ec19a069",
+      "coaches.jsonl": "72deb1cd281782477e0481283709e1b7d46fe402590f0dab11f41801c540ac59",
+      "judges.jsonl": "1ea034288412dcb0aa40594353ec754b893bdf659d1e2bf8307e0d9a832518d9",
+      "rounds.jsonl": "5eff1d5f83c69f93fb1d07dc7334944b419b19f7c21e57dec892f3418448f67c",
+      "teams.jsonl": "c91548bd8fbdc20eab4790126663bfa037d60f1f0ede8acf3803fcd2ccfbce41",
+      "roundTeams.jsonl": "372585aba15bbb6b2adf299d19d1d357c5ac62fb800268d9e57d9455011de2c6",
+      "briefs.jsonl": "8083911f341e53e6d58f37e575fd0ba7ab7de64b21b69dd13f5f7fefa92c1272",
+      "members.jsonl": "324b0e4fb2c97593dd932f68411025cb8b886060f669426113e51be30766d5ec",
+      "profiles.jsonl": "cea64ddb4f4d8b4e65a8a45d9e7006df4efee7dbc455c4f43ea6cc48754787c2",
+      "scores.jsonl": "d5a0f00439c34638209122c655dcfdbcfa1e428a1c0f9a973476c444ca385bcf",
+      "directors.jsonl": "1a08cac1b52f93bbf1511dcd700c323551f358fc83377e78b21db09ba9fb4cad"
+    },
+    "invariants": [
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 9
+        },
+        "target": "briefs. insert",
+        "predicate": "((exists members[.team, viewer]) and not (exists tournaments[briefDeadline <= now]))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 10
+        },
+        "target": "briefs. update",
+        "predicate": "((exists directors[viewer]) or (exists members[.team, viewer]) and not (exists tournaments[briefDeadline <= now]))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 14
+        },
+        "target": "scores. insert",
+        "predicate": "(.judge = viewer and (exists judges[viewer]) and (exists rounds[.round, status = 'open']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.scores.insert"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 15
+        },
+        "target": "scores. update",
+        "predicate": "(.judge = viewer and (exists judges[viewer]) and (exists rounds[.round, status = 'open']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.scores.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 21
+        },
+        "target": "scores. read",
+        "predicate": "(.judge = viewer and (exists judges[viewer]) or (exists directors[viewer]) or (exists rounds[.round, status = 'closed']) and ((exists judges[viewer]) or (exists members[.team, viewer])) or (exists coaches[viewer]) and (exists teams[.team, coach = viewer]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.scores.read"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 26
+        },
+        "target": "teams.bracket write",
+        "predicate": "exists directors[viewer]",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 27
+        },
+        "target": "teams.disqualified write",
+        "predicate": "exists directors[viewer]",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 28
+        },
+        "target": "rounds.bracket write",
+        "predicate": "exists directors[viewer]",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 29
+        },
+        "target": "roundTeams. insert",
+        "predicate": "exists directors[viewer]",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 30
+        },
+        "target": "roundTeams. delete",
+        "predicate": "exists directors[viewer]",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 31
+        },
+        "target": "directors. insert",
+        "predicate": "exists directors[viewer]",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "createTournament"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 40
+        },
+        "target": "briefs. read",
+        "predicate": "((exists members[.team, viewer]) or (exists coaches[viewer]) and (exists teams[.team, coach = viewer]) or (exists judges[viewer]) or (exists directors[viewer]))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "opponentBrief"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 44
+        },
+        "target": "briefs.side write",
+        "predicate": "((exists directors[viewer]) or (exists members[.team, viewer]) and not (exists tournaments[briefDeadline <= now]))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      }
+    ],
+    "notes": [
+      {
+        "code": "N_VACUOUS_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 24
+        },
+        "message": "directors: `created tournaments` can bootstrap authority trusted globally by a viewer-only probe; a caller may create their own global administrator grant"
+      },
+      {
+        "code": "N_SECURITY_INTENT",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 1
+        },
+        "message": "5 tables have access rules and no security invariants: coaches, judges, members, profiles, tournaments; declare the spec's privacy rules as invariants (`guide security`)"
+      },
+      {
+        "code": "N_PRIVILEGE_ESCALATION",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 239
+        },
+        "message": "createTournament: directors membership grants authority, but assignment does not establish the independent provisioning intent"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 246
+        },
+        "message": "grantDirector writes argument who straight into reader-grant column directors.principal"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 250
+        },
+        "message": "grantJudge writes argument who straight into reader-grant column judges.principal"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 254
+        },
+        "message": "grantCoach writes argument who straight into reader-grant column coaches.principal"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 260
+        },
+        "message": "addMember writes argument who straight into reader-grant column members.student"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 336
+        },
+        "message": "updateScore: lookup absence NOT_FOUND, later denial NOT_YOUR_SCORE; row readership is broader than declared private-existence intent"
+      }
+    ]
+  },
+  {
+    "lane": "027-snapback-podcast-guest-releases",
+    "binary_sha256": "28ecd5c41b791f16a9e643cf6e4d0639588f96bd621095eed1def71c538a6cc1",
+    "source_sha256": {
+      "/home/ccheever/sb4-loop/wave17/apps/027-snapback-podcast-guest-releases/snapback/schema.q": "358dac471432281f320e9593ac6d4257049ba388c1423662031666747e45e660",
+      "/home/ccheever/sb4-loop/wave17-repro/sec/027-snapback-podcast-guest-releases/snapback/security.q": "3bbfcef89f0472d8b75b1db28fdb1b909248404061bb733684ebe87db2d16696",
+      "SEC3-added-column-intent": "7a91fa1c5964c37698ffaeeb477a1a199ea2a9764c632d2b5a52b37da72aa26b"
+    },
+    "fixture_source": "/home/ccheever/sb4-loop/wave17-repro/sec/027-snapback-podcast-guest-releases/fixtures-focused",
+    "fixture_sha256": {
+      "shows.jsonl": "5a50674733ebabcac299592bd4c365408e302e9bf3b4b136b2d229c92e55a0d3",
+      "bookings.jsonl": "2f6cadaa277e99fab84f2b4304b6ed866cd397f1684c656958e42fb50d7799f9",
+      "episodes.jsonl": "2affb81296adf2ca3663421b2e46e91c7e055bbed12215dd1a659417696a54bf",
+      "roles.jsonl": "f6ddf156457bfc3f7e24d34b658cf3e9dcce204fb2a5887d9cd9c0669cca9938",
+      "releases.jsonl": "bebcb5b4291b5dff8e2fb64066bda8c7546b6b8e07ffbefd689bce089ab0fd3b",
+      "profiles.jsonl": "19d49b9ad245d9de07ad2e8617f6d3477aafd75bfcde54db00d5247838c47238"
+    },
+    "invariants": [
+      {
+        "site": {
+          "col": 1,
+          "file": "sec3-column-intent.q",
+          "line": 2
+        },
+        "target": "releases.document read",
+        "predicate": "((exists roles[viewer, role = 'guest']) and .guest = viewer or (exists roles[viewer, role = 'producer']) or (exists roles[viewer, role = 'legal']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "releasesOf"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "sec3-column-intent.q",
+          "line": 3
+        },
+        "target": "releases.note read",
+        "predicate": "((exists roles[viewer, role = 'guest']) and .guest = viewer or (exists roles[viewer, role = 'producer']) or (exists roles[viewer, role = 'legal']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "releasesOf"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 6
+        },
+        "target": "releases. always",
+        "predicate": "(.status != 'signed' or .document != null)",
+        "status": "refuted",
+        "reachability": "trusted-seed-only",
+        "operation": "$security.seed_at"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 7
+        },
+        "target": "releases. signRelease",
+        "predicate": "(.guest = viewer and (exists roles[viewer, role = 'guest']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 8
+        },
+        "target": "releases.document write",
+        "predicate": "(.guest = viewer and (exists roles[viewer, role = 'guest']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.releases.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 11
+        },
+        "target": "episodes. always",
+        "predicate": "(.publishAt = null or not (exists releases[episode = .id, status = 'pending']))",
+        "status": "refuted",
+        "reachability": "trusted-seed-only",
+        "operation": "$security.seed_at"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 12
+        },
+        "target": "episodes. always",
+        "predicate": "(.publishAt = null or not (exists releases[episode = .id, status = 'void']))",
+        "status": "refuted",
+        "reachability": "trusted-seed-only",
+        "operation": "$security.seed_at"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 17
+        },
+        "target": "episodes. read",
+        "predicate": "((exists roles[viewer, role = 'guest']) and (exists bookings[episode = .id, guest = viewer]) or (exists roles[viewer, role = 'host']) and (exists shows[.show, host = viewer]) or (exists roles[viewer, role = 'producer']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "episodesOfShow"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 18
+        },
+        "target": "shows. read",
+        "predicate": "((exists roles[viewer, role = 'host']) and .host = viewer or (exists roles[viewer, role = 'producer']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "showsList"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 19
+        },
+        "target": "bookings. read",
+        "predicate": "((exists roles[viewer, role = 'guest']) and .guest = viewer or (exists roles[viewer, role = 'host']) and (exists shows[id = .episode.show, host = viewer]) or (exists roles[viewer, role = 'producer']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "bookingsOf"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 26
+        },
+        "target": "releases. read",
+        "predicate": "((exists roles[viewer, role = 'guest']) and .guest = viewer or (exists roles[viewer, role = 'host']) and (exists shows[.show, host = viewer]) or (exists roles[viewer, role = 'producer']) or (exists roles[viewer, role = 'legal']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "releasesOf"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 30
+        },
+        "target": "releases. voidRelease",
+        "predicate": "exists roles[viewer, role = 'legal']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 31
+        },
+        "target": "releases.status write",
+        "predicate": "(.status != 'void' or (exists roles[viewer, role = 'legal']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.releases.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 35
+        },
+        "target": "releases. always",
+        "predicate": "(.scope != null)",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 39
+        },
+        "target": "releases. setReleaseScope",
+        "predicate": "exists roles[viewer, role = 'legal']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 40
+        },
+        "target": "releases.scope write",
+        "predicate": "((exists roles[viewer, role = 'legal']) or .guest = viewer and (exists roles[viewer, role = 'guest']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.releases.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 41
+        },
+        "target": "releases.scope write",
+        "predicate": "(.signedAt = null or (exists roles[viewer, role = 'legal']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.releases.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 46
+        },
+        "target": "roles.role write",
+        "predicate": "(.role != 'legal' or (exists roles[viewer, role = 'legal']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "grantRole"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 47
+        },
+        "target": "roles.role write",
+        "predicate": "exists roles[viewer, role = 'producer']",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.roles.insert"
+      }
+    ],
+    "notes": [
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 62
+        },
+        "message": "bookings.read: principal branch `.guest = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 48
+        },
+        "message": "episodes.read: `exists shows[.show, host = viewer]` trusts retained shows grants while current role in roles can change"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 90
+        },
+        "message": "releases.read: principal branch `.guest = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 91
+        },
+        "message": "releases.insert: `exists roles[viewer, role = 'producer'] and exists episodes[.episode, show = .show]` trusts retained episodes grants while current role in roles can change"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 92
+        },
+        "message": "releases.update: principal branch `.guest = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_BROAD_READ",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 1
+        },
+        "message": "roleCount is readable by every signed-in user: allow"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 36
+        },
+        "message": "shows.read: principal branch `.host = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_SECURITY_INTENT",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 1
+        },
+        "message": "4 tables have access rules and no security invariants: guestCount, profiles, roleCount, signedCount; declare the spec's privacy rules as invariants (`guide security`)"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 165
+        },
+        "message": "releasesOf: lookup absence NOT_FOUND, later denial NOT_PRODUCER; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_PRIVILEGE_ESCALATION",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 186
+        },
+        "message": "bootstrapProducer: roles.role assignment to 'producer' is not established by the independent delegation intent for a caller without a role; review the grant's delegation policy"
+      },
+      {
+        "code": "N_PRIVILEGE_ESCALATION",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 190
+        },
+        "message": "grantRole: roles.role assignment to 'legal' is not established by the independent delegation intent for producer; review the grant's delegation policy"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 190
+        },
+        "message": "grantRole writes argument who straight into reader-grant column roles.principal"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 210
+        },
+        "message": "bookGuest: lookup absence NOT_FOUND, later denial ALREADY_SCHEDULED; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 224
+        },
+        "message": "signRelease: lookup absence NOT_FOUND, later denial NOT_YOUR_RELEASE; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 234
+        },
+        "message": "schedulePublish: lookup absence NOT_FOUND, later denial IN_PAST; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 252
+        },
+        "message": "setReleaseScope: lookup absence NOT_FOUND, later denial NOT_SIGNED; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 262
+        },
+        "message": "backfillReleaseShow: lookup absence NOT_FOUND, later denial ALREADY_BACKFILLED; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 272
+        },
+        "message": "voidRelease: lookup absence NOT_FOUND, later denial ALREADY_VOID; row readership is broader than declared private-existence intent"
+      }
+    ]
+  },
+  {
+    "lane": "040-snapback-route-setting-rotation",
+    "binary_sha256": "28ecd5c41b791f16a9e643cf6e4d0639588f96bd621095eed1def71c538a6cc1",
+    "source_sha256": {
+      "/home/ccheever/sb4-loop/wave17/apps/040-snapback-route-setting-rotation/snapback/schema.q": "692e9efeb8b7b13e4d20bfdeed68a5f8a3cc55ac6ae16e768508f897d6ab1c69",
+      "/home/ccheever/sb4-loop/wave17-repro/sec/040-snapback-route-setting-rotation/snapback/security.q": "510d23a32fbcca583ff94fa65ab740239482d7aa5e4e38ef80380933446ca0bd"
+    },
+    "fixture_source": "/home/ccheever/sb4-loop/wave17-repro/sec/040-snapback-route-setting-rotation/fixtures-focused",
+    "fixture_sha256": {
+      "suggestions.jsonl": "430079580fe5a6ead625a50598b0cb49c4de7758c2c53dbe716f49b9f281e3a4",
+      "gymRoles.jsonl": "6769a7d2cf34624a6761e15a4e51372000e418f24d3e5c9e385928af3c36b7e7",
+      "headClaim.jsonl": "5e66608e60d8ac12b11e343a6c42e387d43d2fbc571073d1d4ac9b34a9868e58",
+      "ascents.jsonl": "26917e413274802970339089b03f0a05aae42c8b8a68d976995f7dff77d7e801",
+      "routes.jsonl": "3febafdf7ced8b8e803b851cd66474e4cc0b9caea5e30409950cc5d0eb0d8493",
+      "sections.jsonl": "2ade1e57a2cf15f6ae5d9be8734a89addfc820d904e629b306a95204f350c0aa"
+    },
+    "invariants": [
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 7
+        },
+        "target": "sections. insert",
+        "predicate": "exists gymRoles[viewer, role = 'head_setter']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 8
+        },
+        "target": "sections. update",
+        "predicate": "exists gymRoles[viewer, role = 'head_setter']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 9
+        },
+        "target": "sections. delete",
+        "predicate": "exists gymRoles[viewer, role = 'head_setter']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 12
+        },
+        "target": "routes. insert",
+        "predicate": "(.setter = viewer and ((exists gymRoles[viewer, role = 'setter']) or (exists gymRoles[viewer, role = 'head_setter'])))",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 13
+        },
+        "target": "routes. always",
+        "predicate": "(.photo != null)",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 16
+        },
+        "target": "ascents. insert",
+        "predicate": "(.climber = viewer and (exists gymRoles[viewer, role = 'climber']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "logAscent"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 17
+        },
+        "target": "suggestions. insert",
+        "predicate": "(.author = viewer and (exists gymRoles[viewer, role = 'climber']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "suggestGrade"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 21
+        },
+        "target": "routes. extendRoute",
+        "predicate": "exists gymRoles[viewer, role = 'head_setter']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 22
+        },
+        "target": "routes.expiresAt write",
+        "predicate": "((exists gymRoles[viewer, role = 'head_setter']) or .setter = viewer and .expiresAt <= .setAt + 3628800000)",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 25
+        },
+        "target": "routes. read",
+        "predicate": "(.expiresAt > now)",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 26
+        },
+        "target": "ascents. read",
+        "predicate": "(.climber = viewer)",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 31
+        },
+        "target": "suggestions. read",
+        "predicate": "(.author = viewer and (exists gymRoles[viewer, role = 'climber']) or ((exists gymRoles[viewer, role = 'setter']) or (exists gymRoles[viewer, role = 'head_setter'])) and (exists routes[.route, setter = viewer]))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "routeSuggestions"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 35
+        },
+        "target": "routes. update",
+        "predicate": "exists gymRoles[viewer, role = 'head_setter']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 36
+        },
+        "target": "routes. regrade",
+        "predicate": "exists gymRoles[viewer, role = 'head_setter']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 37
+        },
+        "target": "routes. changeDiscipline",
+        "predicate": "exists gymRoles[viewer, role = 'head_setter']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 38
+        },
+        "target": "sections.closed write",
+        "predicate": "exists gymRoles[viewer, role = 'head_setter']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 39
+        },
+        "target": "sections. closeSection",
+        "predicate": "exists gymRoles[viewer, role = 'head_setter']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 42
+        },
+        "target": "routes. always",
+        "predicate": "(.discipline != null)",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 46
+        },
+        "target": "gymRoles.role write",
+        "predicate": "((exists gymRoles[viewer, role = 'head_setter']) or .principal = viewer and .role = 'climber')",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.gymRoles.insert"
+      }
+    ],
+    "notes": [
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 67
+        },
+        "message": "ascents.insert: principal branch `.climber = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_BROAD_READ",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 11
+        },
+        "message": "gymRoles is readable by every signed-in user: allow"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 16
+        },
+        "message": "gymRoles.insert: principal branch `.principal = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 17
+        },
+        "message": "gymRoles.update: principal branch `.principal = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_BROAD_READ",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 24
+        },
+        "message": "headClaim is readable by every signed-in user: allow"
+      },
+      {
+        "code": "N_BROAD_READ",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 41
+        },
+        "message": "routes is readable by every signed-in user: public"
+      },
+      {
+        "code": "N_BROAD_READ",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 31
+        },
+        "message": "sections is readable by every signed-in user: public"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 82
+        },
+        "message": "suggestions.read: principal branch `.author = viewer` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 83
+        },
+        "message": "suggestions.insert: `.author = viewer and .routeSetter = routes[.route].setter` trusts retained routes grants while current role in gymRoles can change"
+      },
+      {
+        "code": "N_SECURITY_INTENT",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 1
+        },
+        "message": "1 tables have access rules and no security invariants: headClaim; declare the spec's privacy rules as invariants (`guide security`)"
+      },
+      {
+        "code": "N_PRIVILEGE_ESCALATION",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 123
+        },
+        "message": "bootstrapHead: gymRoles.role assignment to 'head_setter' is not established by the independent delegation intent for a caller without a role; review the grant's delegation policy"
+      }
+    ]
+  },
+  {
+    "lane": "045-snapback-instrument-loan-bank",
+    "binary_sha256": "28ecd5c41b791f16a9e643cf6e4d0639588f96bd621095eed1def71c538a6cc1",
+    "source_sha256": {
+      "/home/ccheever/sb4-loop/wave17/apps/045-snapback-instrument-loan-bank/snapback/schema.q": "3056e628999a552e197538978054ff04b4588e75d36ea4e11f93953e8b5ee23e",
+      "/home/ccheever/sb4-loop/wave17-repro/sec/045-snapback-instrument-loan-bank/snapback/security.q": "573bd5f4a6fe3d358b127191f8b6395e78d599b52e2c6c20ab165d406dc46bc3"
+    },
+    "fixture_source": "/home/ccheever/sb4-loop/wave17-repro/sec/045-snapback-instrument-loan-bank/fixtures-focused",
+    "fixture_sha256": {
+      "repairNotes.jsonl": "747f62993fce4e4746c9032ba34e0c11e120b24aa628134d5736e4d512af10fa",
+      "loans.jsonl": "4bb3d4e88c7802850ffa03c076c410214ddff7b373a87e153595e4a5a2747710",
+      "seasons.jsonl": "d98948f3e47b4fe7307a6d32dd739a63e436ffb9ea8104d33e6a2c863eee0089",
+      "deposits.jsonl": "deb79769b415287b018de1bbdbf16ee8d1bc9c6f7eb4cb6a2444b4408431a237",
+      "test.cases.jsonl": "82e51669e5603a929641582ef3c42502ac67a96c31c9c7ae9af097ee8898e237",
+      "roles.jsonl": "dfe5dc21bc597a85bd2e47257ccc3b0c0d498324527065ee054e1d9c576a566b",
+      "instruments.jsonl": "969e6f4ff9f2cae816550285de8484b73339b742227c71941b39c655fedfe264"
+    },
+    "invariants": [
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 3
+        },
+        "target": "loans. always",
+        "predicate": "(.checkoutPhoto != null)",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "checkout"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 4
+        },
+        "target": "loans. always",
+        "predicate": "(.status != 'returned' or .returnPhoto != null)",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "checkin"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 7
+        },
+        "target": "loans. read",
+        "predicate": "(.borrower = viewer or (exists roles[viewer, role = 'librarian']) or (exists roles[viewer, role = 'manager']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 9
+        },
+        "target": "loans. insert",
+        "predicate": "exists roles[viewer, role = 'librarian']",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.loans.insert"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 10
+        },
+        "target": "loans. checkout",
+        "predicate": "exists roles[viewer, role = 'librarian']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 11
+        },
+        "target": "loans. checkin",
+        "predicate": "((exists roles[viewer, role = 'librarian']) or (exists roles[viewer, role = 'manager']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 12
+        },
+        "target": "loans. update",
+        "predicate": "((exists roles[viewer, role = 'librarian']) or (exists roles[viewer, role = 'manager']))",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 14
+        },
+        "target": "loans.conditionGrade write",
+        "predicate": "((exists roles[viewer, role = 'librarian']) or (exists roles[viewer, role = 'manager']))",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 15
+        },
+        "target": "loans. setConditionGrade",
+        "predicate": "exists roles[viewer, role = 'manager']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 17
+        },
+        "target": "loans. always",
+        "predicate": "(.conditionGrade != null)",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 19
+        },
+        "target": "instruments.status write",
+        "predicate": "(.status != 'written_off' or (exists roles[viewer, role = 'manager']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.instruments.insert"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 20
+        },
+        "target": "instruments. writeOff",
+        "predicate": "exists roles[viewer, role = 'manager']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 22
+        },
+        "target": "deposits. read",
+        "predicate": "exists roles[viewer, role = 'manager']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 23
+        },
+        "target": "deposits. insert",
+        "predicate": "exists roles[viewer, role = 'manager']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 24
+        },
+        "target": "deposits. update",
+        "predicate": "exists roles[viewer, role = 'manager']",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 26
+        },
+        "target": "repairNotes. read",
+        "predicate": "((exists roles[viewer, role = 'librarian']) or (exists roles[viewer, role = 'manager']))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "notesFor"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 27
+        },
+        "target": "repairNotes. insert",
+        "predicate": "(.author = viewer and (exists roles[viewer, role = 'luthier']))",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 29
+        },
+        "target": "roles.role write",
+        "predicate": "exists roles[viewer, role = 'manager']",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "bootstrapRole"
+      }
+    ],
+    "notes": [
+      {
+        "code": "N_BROAD_READ",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 17
+        },
+        "message": "instruments is readable by every signed-in user: public"
+      },
+      {
+        "code": "N_OPTIONAL_EVIDENCE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 43
+        },
+        "message": "loans.checkoutPhoto permits omitted or empty media evidence"
+      },
+      {
+        "code": "N_OPTIONAL_EVIDENCE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 46
+        },
+        "message": "loans.returnPhoto permits omitted or empty media evidence"
+      },
+      {
+        "code": "N_BROAD_READ",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 28
+        },
+        "message": "seasons is readable by every signed-in user: public"
+      },
+      {
+        "code": "N_SECURITY_INTENT",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 1
+        },
+        "message": "1 tables have access rules and no security invariants: seasons; declare the spec's privacy rules as invariants (`guide security`)"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 135
+        },
+        "message": "checkout writes argument borrower straight into reader-grant column loans.borrower"
+      }
+    ]
+  },
+  {
+    "lane": "048-snapback-boiler-room-rounds",
+    "binary_sha256": "28ecd5c41b791f16a9e643cf6e4d0639588f96bd621095eed1def71c538a6cc1",
+    "source_sha256": {
+      "/home/ccheever/sb4-loop/wave17/apps/048-snapback-boiler-room-rounds/snapback/schema.q": "81b32274c0cb656656e5431d10aa1831359a10b44d94d9db28d45a12ecabb73a",
+      "/home/ccheever/sb4-loop/wave17-repro/sec/048-snapback-boiler-room-rounds/snapback/security.q": "dabafe52dd3af85557cf5fe9fafca51b69395b35a723ae31c93e1c6d7398d913"
+    },
+    "fixture_source": "/home/ccheever/sb4-loop/wave17-repro/sec/048-snapback-boiler-room-rounds/fixtures-focused",
+    "fixture_sha256": {
+      "assignments.jsonl": "18d5e5e7ebd8724c11640d40427155f714c7de2b262e36d2362f00835122b62a",
+      "gauges.jsonl": "7945c99acd1eb5690beb0064808cd6b8791ada0ed38acccced2d9f4ff1bac7df",
+      "rounds.jsonl": "608110fd15721d7f32777a29c6e7d21515bc8070b1669c0970bb15ec68601258",
+      "shiftMembers.jsonl": "76d67a76c13d97f106e58daa04630f12dada08868ca817103f7c69f3159976da",
+      "test.cases.jsonl": "bd204e8de5b86232d3248143cdfe0edc78cff68262fce26e53930053442a55c3",
+      "shifts.jsonl": "d009879bf9e708217d50407193ed9b58d3255100478def097e7d3dbd3e3d32d8",
+      "roles.jsonl": "cfab869259fdf22d77d428e52f87d61fda30aa49d54ec935392d3307159c0e5e"
+    },
+    "invariants": [
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 3
+        },
+        "target": "readings. always",
+        "predicate": "(.photo != null)",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 4
+        },
+        "target": "readings. insert",
+        "predicate": "(.engineer = viewer and (exists roles[viewer, role = 'engineer']) and (exists shiftMembers[shift = .shift, engineer = viewer]))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 5
+        },
+        "target": "readings. logReading",
+        "predicate": "exists roles[viewer, role = 'engineer']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 7
+        },
+        "target": "rounds. always",
+        "predicate": "(.status != 'completed' or not (exists gauges[not (exists readings[round = .id, gauge = .id])]))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 9
+        },
+        "target": "alerts. read",
+        "predicate": "exists roles[viewer, role = 'chief']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 11
+        },
+        "target": "rounds. read",
+        "predicate": "((exists roles[viewer, role = 'chief']) or (exists roles[viewer, role = 'engineer']) and (exists shiftMembers[shift = .shift, engineer = viewer]) or (exists roles[viewer, role = 'manager']) and .status = 'completed')",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.rounds.read"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 12
+        },
+        "target": "rounds. update",
+        "predicate": "((exists roles[viewer, role = 'chief']) or (exists roles[viewer, role = 'engineer']) and (exists shiftMembers[shift = .shift, engineer = viewer]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.rounds.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 13
+        },
+        "target": "rounds. completeRound",
+        "predicate": "exists roles[viewer, role = 'engineer']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 16
+        },
+        "target": "readings. read",
+        "predicate": "((exists roles[viewer, role = 'chief']) or (exists roles[viewer, role = 'engineer']) or (exists roles[viewer, role = 'contractor']) and (exists assignments[gauge = .gauge, contractor = viewer]))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "gaugeHistory"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 17
+        },
+        "target": "readingsCount. read",
+        "predicate": "((exists roles[viewer, role = 'chief']) or (exists roles[viewer, role = 'engineer']))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 19
+        },
+        "target": "gauges. read",
+        "predicate": "((exists roles[viewer, role = 'chief']) or (exists roles[viewer, role = 'engineer']) or (exists roles[viewer, role = 'contractor']) and (exists assignments[gauge = .id, contractor = viewer]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.gauges.read"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 21
+        },
+        "target": "gauges.lowPressure write",
+        "predicate": "exists roles[viewer, role = 'chief']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 22
+        },
+        "target": "gauges.maxPressure write",
+        "predicate": "exists roles[viewer, role = 'chief']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 23
+        },
+        "target": "gauges.lowTemp write",
+        "predicate": "exists roles[viewer, role = 'chief']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 24
+        },
+        "target": "gauges.maxTemp write",
+        "predicate": "exists roles[viewer, role = 'chief']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 25
+        },
+        "target": "gauges. setLimits",
+        "predicate": "exists roles[viewer, role = 'chief']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 26
+        },
+        "target": "gauges. addGauge",
+        "predicate": "exists roles[viewer, role = 'chief']",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 28
+        },
+        "target": "roles.role write",
+        "predicate": "exists roles[viewer, role = 'chief']",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "joinAs"
+      }
+    ],
+    "notes": [
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 50
+        },
+        "message": "gauges.read: `exists assignments[.id, viewer]` trusts retained assignments grants while current role in roles can change"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 92
+        },
+        "message": "readings.read: `exists assignments[.gauge, viewer]` trusts retained assignments grants while current role in roles can change"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 93
+        },
+        "message": "readings.insert: `.engineer = viewer and exists shiftMembers[.shift, viewer]` trusts retained shiftMembers grants while current role in roles can change"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 13
+        },
+        "message": "roles.insert: principal branch `.principal = viewer and .role != 'chief'` does not recheck the declared mutable current role"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 75
+        },
+        "message": "rounds.read: `exists shiftMembers[.shift, viewer]` trusts retained shiftMembers grants while current role in roles can change"
+      },
+      {
+        "code": "N_GRANT_OUTLIVES_ROLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 77
+        },
+        "message": "rounds.update: `exists shiftMembers[.shift, viewer]` trusts retained shiftMembers grants while current role in roles can change"
+      },
+      {
+        "code": "N_SECURITY_INTENT",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 1
+        },
+        "message": "3 tables have access rules and no security invariants: assignments, shiftMembers, shifts; declare the spec's privacy rules as invariants (`guide security`)"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 137
+        },
+        "message": "roundReadings: lookup absence NOT_FOUND, later denial NOT_SHIFT_MEMBER; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_PRIVILEGE_ESCALATION",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 174
+        },
+        "message": "joinAs: roles.role assignment to 'engineer' is not established by the independent delegation intent for a caller without a role; review the grant's delegation policy"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 189
+        },
+        "message": "setLimits: lookup absence NOT_FOUND, later denial BAD_LIMITS; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 198
+        },
+        "message": "assignContractor: lookup absence NOT_FOUND, later denial NOT_CONTRACTOR; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 231
+        },
+        "message": "logReading: lookup absence NOT_FOUND, later denial NOT_SHIFT_MEMBER; row readership is broader than declared private-existence intent"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 241
+        },
+        "message": "completeRound: lookup absence NOT_FOUND, later denial NOT_SHIFT_MEMBER; row readership is broader than declared private-existence intent"
+      }
+    ]
+  }
+]

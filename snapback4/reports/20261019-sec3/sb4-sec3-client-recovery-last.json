@@ -1,0 +1,28 @@
+{
+  "files": [
+    "packages/snapback4/test/answers-stay-react.test.mjs",
+    "packages/snapback4/test/asset-lists.test.mjs",
+    "packages/snapback4/test/delivery.test.mjs",
+    "packages/snapback4/test/dev-reset.test.mjs",
+    "packages/snapback4/test/device-residency.test.mjs",
+    "packages/snapback4/test/device-version.test.mjs",
+    "packages/snapback4/test/effectful-cancellation.test.mjs",
+    "packages/snapback4/test/ephemeral-capability.test.mjs",
+    "packages/snapback4/test/ephemeral-fencing.test.mjs",
+    "packages/snapback4/test/ephemeral-keep.test.mjs",
+    "packages/snapback4/test/ephemeral-lanes.test.mjs",
+    "packages/snapback4/test/ephemeral-mock.test.mjs",
+    "packages/snapback4/test/ephemeral-reclamation.test.mjs",
+    "packages/snapback4/test/ephemeral-routing.test.mjs",
+    "packages/snapback4/test/ephemeral-sender.test.mjs",
+    "packages/snapback4/test/ephemeral-types.test.mjs",
+    "packages/snapback4/test/event-slots.test.mjs",
+    "packages/snapback4/test/expired-server-watch.test.mjs",
+    "packages/snapback4/test/expiry-reference-actions.test.mjs",
+    "packages/snapback4/test/expiry-retry-watch.test.mjs"
+  ],
+  "exit": 0,
+  "dist_before": "fd3159a0bc64fd45020887aba8ace8ef3e578b43403af817523650ae05ec56cc",
+  "dist_after": "fd3159a0bc64fd45020887aba8ace8ef3e578b43403af817523650ae05ec56cc",
+  "binary_sha256": "88a0a03245fa75454216c526a8e100267af914c5e94a2a396bb4bd1fd6989b3e"
+}

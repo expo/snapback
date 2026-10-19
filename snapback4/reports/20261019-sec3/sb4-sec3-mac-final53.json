@@ -1,0 +1,49 @@
+{
+  "archive_sha256": "d2196120a694f42501298ca67db67b3133dfbe41d19b615d1a2e487dd3b2fda1",
+  "results": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-j4",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "security",
+        "--test",
+        "security_histories",
+        "--test",
+        "security_observers"
+      ],
+      "exit": 0,
+      "seconds": 297.8698651790619
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-j4",
+        "-p",
+        "snapback4",
+        "--test",
+        "check_notes"
+      ],
+      "exit": 0,
+      "seconds": 59.575422048568726
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-j4",
+        "-p",
+        "snapback4",
+        "--bin",
+        "snapback4",
+        "session_diagnostics_tests"
+      ],
+      "exit": 0,
+      "seconds": 26.419431924819946
+    }
+  ]
+}
