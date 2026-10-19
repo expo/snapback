@@ -32,7 +32,7 @@ Repeated `where` clauses combine with `and` in order.
 
 ## Details
 
-Unreadable query references act absent: null points or complete empty pages. Mutation references refuse; ids grant no authority.
+Optional query/mutation points return null for hidden/missing/expired rows; `! else CODE` refuses.
 
 Reads select authorized rows by id, predicate or search text.
 Add an order, page size and cursor to browse a population.
@@ -46,10 +46,12 @@ State the rows, then the order and page. `messages where .roomId = roomId
 last 20 by .at after c` means the newest matching messages. The compiler
 chooses the index. Positional keys select identity for `id`/same-table references,
 otherwise the declared unique key accepting types in order; ambiguous types need named columns.
-The rules run before any projection, count or order reaches the caller.
+Authorization precedes projection, counting and ordering.
 Declare `c: cursor ?`, read `after c`, pass each answer's `next` as `c`; `usePage` does that.
 
 ### Completeness
+
+N_QUERY_RESERVATION: reduce caps or split reads.
 
 Pinned-parent guards are caller-dependent (`N_CONDITIONAL_COMPLETE`; `guide recipes`).
 `T[]` requests a complete fitting group: `return children[] where .parent = parent`.

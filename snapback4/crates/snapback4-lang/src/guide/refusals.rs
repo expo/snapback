@@ -17,8 +17,8 @@ names a card, `rule` is the program's own code on a `require` or named unique re
 input, schema, auth, rule (your `require` codes), constraint, bound, op,
 asset, action, route, prediction, generation, store; HTTP admission adds limit.
 The client adds link (a transport or HTTP response failure) and client (the client itself refused, as after `close()`).
-Reads never raise a rule refusal: a
-hidden row is null, and a page omits it.
+Optional reads do not raise a rule refusal: a hidden row is null, and a page
+omits it. An asserted read (`! else CODE`) can refuse in a query as well as a mutation.
 
 ## Client-visible refusal ladder
 
