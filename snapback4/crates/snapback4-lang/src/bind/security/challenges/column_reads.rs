@@ -103,7 +103,7 @@ fn coupled(bound:&Bound,inv:&Invariant)->bool{
         }
         match value{serde_json::Value::Object(xs)=>xs.values().any(|v|related_write(v,arg,table,column,args,bindings)),serde_json::Value::Array(xs)=>xs.iter().any(|v|related_write(v,arg,table,column,args,bindings)),_=>false}
     }
-    fn writes(value:&serde_json::Value,table:&str,column:&str,args:&BTreeMap<String,ir::ArgType>,program:&str,bindings:&BTreeMap<String,serde_json::Value>,guards:&BTreeSet<String>,defaulted:bool,found:&mut bool,coupled:&mut bool){
+    fn writes(value:&serde_json::Value,table:&str,column:&str,args:&BTreeMap<String,ir::ArgType>,program:&str,bindings:&BTreeMap<String,serde_json::Value>,guards:&BTreeSet<String>,found:&mut bool,coupled:&mut bool){
         if let Some(object)=value.as_object(){
             for tag in ["Insert","InsertIfAbsent","Upsert","Update","WriteTarget"]{
                 let Some(write)=object.get(tag)else{continue;};
@@ -117,13 +117,21 @@ fn coupled(bound:&Bound,inv:&Invariant)->bool{
                         let occurrence=serde_json::to_string(&Expr::Variable(name.into())).unwrap();
                         if program.matches(&occurrence).count()!=1||guards.contains(name){*coupled=true;}
                     }else{*coupled=true;}
-                }else if tag=="Upsert"||defaulted&&matches!(tag,"Insert"|"InsertIfAbsent"){*found=true;*coupled=true;}
+                }else if matches!(tag,"Insert"|"InsertIfAbsent"|"Upsert")||tag=="WriteTarget"&&write.get("upsert").and_then(serde_json::Value::as_bool)==Some(true){*found=true;*coupled=true;}
             }
-            for child in object.values(){writes(child,table,column,args,program,bindings,guards,defaulted,found,coupled);}
-        }else if let Some(xs)=value.as_array(){for child in xs{writes(child,table,column,args,program,bindings,guards,defaulted,found,coupled);}}
+            for child in object.values(){writes(child,table,column,args,program,bindings,guards,found,coupled);}
+        }else if let Some(xs)=value.as_array(){for child in xs{writes(child,table,column,args,program,bindings,guards,found,coupled);}}
     }
     let(mut found,mut unsafe_writer)=(false,false);
-    for p in &bound.programs{let json=serde_json::to_value(&p.program).unwrap();let text=serde_json::to_string(&p.program).unwrap();let mut bindings=BTreeMap::new();definitions(&json,&mut bindings);let guards=p.program.args.keys().filter(|arg|guarded(&json,arg,&inv.table,&p.program.args,&bindings)||related_write(&json,arg,&inv.table,column,&p.program.args,&bindings)).cloned().collect();writes(&json,&inv.table,column,&p.program.args,&text,&bindings,&guards,table.defaults.contains_key(column),&mut found,&mut unsafe_writer);}
+    for p in &bound.programs{
+        let json=serde_json::to_value(&p.program).unwrap();let text=serde_json::to_string(&p.program).unwrap();let mut bindings=BTreeMap::new();definitions(&json,&mut bindings);
+        let guards=p.program.args.keys().filter(|arg|guarded(&json,arg,&inv.table,&p.program.args,&bindings)||related_write(&json,arg,&inv.table,column,&p.program.args,&bindings)).cloned().collect();
+        let mut source_found=false;writes(&json,&inv.table,column,&p.program.args,&text,&bindings,&guards,&mut source_found,&mut unsafe_writer);
+        // A new compiler insertion form cannot silently become an independent
+        // source merely because this reduction did not recognize its payload.
+        if !source_found&&ir::write_tables(&p.program).iter().any(|(t,k)|t==&inv.table&&matches!(*k,"insert"|"upsert")){source_found=true;unsafe_writer=true;}
+        found|=source_found;
+    }
     found&&unsafe_writer
 }
 fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,row:&Value,fixture:Option<&Engine>,trace:Option<(&BTreeMap<String,Vec<Value>>,&[histories::Step])>,presence:bool,out:&mut Campaign){

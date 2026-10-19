@@ -181,3 +181,13 @@ fn bootstrap_admission_includes_owned_field_authority(){
  let b=bind(&source.replace("viewer = 'service:operator' and .owner != viewer",".owner = viewer"));let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
  assert!(c.violations.iter().any(|v|v.reachability==Reachability::GeneratedFixtureTrace&&v.row.field("mark").ok()==Some(&Value::Int(1))),"{c:?}");
 }
+
+#[test]
+fn implicit_insert_and_lowered_upsert_values_cannot_invent_column_alternates(){
+ for (kind,write,predicate) in [("int default 0","upsert docs[viewer] {}",".body = 0"),("int ?","insert docs {principal: viewer}",".body = null")]{
+  let b=bind(&format!("table docs:\n  principal: principal\n  body: {kind}\n  unique principal\n  immutable body\n  read <- allow\n  insert <- allow\n  online only\nmutation create():\n  {write}\n  return null\nquery publicIds():\n  return docs where {predicate} first 50 by .id {{id}}\ninvariant docs.body read only deny\n"));
+  let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);assert!(c.violations.is_empty(),"{c:?}");assert!(c.unsupported.iter().any(|s|s.contains("creator/guard coupling")),"{c:?}");
+ }
+ let b=bind("table docs:\n  principal: principal\n  body: int default 0\n  unique principal\n  immutable body\n  read <- allow\n  insert <- allow\n  online only\nmutation create(body: int):\n  upsert docs[viewer] {body}\n  return null\nquery publicIds():\n  return docs where .body = 0 first 50 by .id {id}\ninvariant docs.body read only deny\n");
+ let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);assert!(c.violations.iter().any(|v|v.operation=="publicIds"&&v.reachability==Reachability::GeneratedFixtureTrace),"{c:?}");
+}
