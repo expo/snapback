@@ -41,3 +41,23 @@ fn all_escalation_locations_survive_the_default_five_note_cap(){
  for n in 0..7{source.push_str(&format!("table roles{n}:\n  principal: principal\n  role: enum('manager','guard')\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  online only\ntable secrets{n}:\n  read <- exists roles{n}[viewer,role = 'manager']\n  online only\nmutation register{n}(role: enum('manager','guard')):\n  return insert roles{n} {{principal: viewer,role}}\n"));}
  app.write("snapback/schema.q",&source);let check=app.run(&["check"]);let body=text(&check);assert!(check.status.success(),"{body}");for n in 0..7{assert!(body.contains(&format!("register{n}: roles{n}")),"{body}");}assert!(body.contains("'manager'"),"{body}");
 }
+
+#[cfg(unix)]
+#[test]
+fn followed_fixture_symlink_target_changes_invalidate_refutations(){
+ let app=App::new();app.write("snapback/schema.q","table docs:\n  status: enum('safe','unsafe')\n  read <- allow\n  online only\ninvariant docs.read only .status = 'safe'\n");
+ app.write("rows.jsonl","{\"id\":\"doc\",\"status\":\"unsafe\"}\n");fs::create_dir_all(app.0.join("fixtures")).unwrap();std::os::unix::fs::symlink(app.0.join("rows.jsonl"),app.0.join("fixtures/docs.jsonl")).unwrap();
+ let test=app.run(&["test","--fixture-only"]);assert_eq!(test.status.code(),Some(1),"{}",text(&test));assert_eq!(app.run(&["check"]).status.code(),Some(1));
+ app.write("rows.jsonl","{\"id\":\"doc\",\"status\":\"safe\"}\n");let check=app.run(&["check"]);assert!(check.status.success(),"{}",text(&check));
+}
+#[test]
+fn a_source_edit_after_fixture_loading_cannot_publish_refutations_for_the_new_source(){
+ use std::io::{BufRead,Read};use std::process::Stdio;
+ struct Owned(std::process::Child);impl Drop for Owned{fn drop(&mut self){let _=self.0.kill();let _=self.0.wait();}}
+ let app=App::new();let source="table docs:\n  status: enum('safe','unsafe')\n  read <- allow\n  online only\ninvariant docs.read only .status = 'safe'\n";app.write("snapback/schema.q",source);app.write("fixtures/docs.jsonl","{\"id\":\"doc\",\"status\":\"unsafe\"}\n");
+ let mut child=Owned(Command::new(BIN).args(["test","--fixture-only"]).current_dir(&app.0).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap());
+ let mut stdout=std::io::BufReader::new(child.0.stdout.take().unwrap());let mut line=String::new();let mut changed=false;
+ while stdout.read_line(&mut line).unwrap()!=0{if line.contains("test: loaded 1 rows"){app.write("snapback/schema.q",&source.replace("only .status = 'safe'","only allow"));changed=true;break;}line.clear();}
+ assert!(changed,"test must actually reach the captured fixture");let mut remaining=String::new();stdout.read_to_string(&mut remaining).unwrap();let status=child.0.wait().unwrap();let mut stderr=String::new();child.0.stderr.take().unwrap().read_to_string(&mut stderr).unwrap();
+ assert_eq!(status.code(),Some(1),"{remaining} {stderr}");assert!(stderr.contains("source or fixtures changed during test"),"{stderr}");assert!(!app.0.join("snapback/generated/security-test.json").exists());let check=app.run(&["check"]);assert!(check.status.success(),"{}",text(&check));
+}

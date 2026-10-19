@@ -93,3 +93,13 @@ registerStaff literal sampling. Twenty original SEC4 tests pass after making
 previous generated test populations explicitly insert-admissible; new controls
 are being run alongside the complete Rust workspace. Renewed packed, Mac,
 client/differential and corpus evidence follows in the final addendum.
+
+
+Wave19 implementation review3: Codex reproduced a source-edit race and omitted
+fixture symlink-target bytes in evidence binding. Both are corrected by captured
+source/private fixture inputs plus current-input validation before persistence;
+CLI regressions for both pass. Role/transfer attribution now has actual 019
+traces (`grantRole` → `myJobs`, `linkUnit` → `unitReports`); registerStaff itself
+has an operator trace. A further regression prevents alternate column worlds
+from breaking copied immutable ownership. Final source review and renewed
+qualification remain pending; diagnostic runs are not final receipts.

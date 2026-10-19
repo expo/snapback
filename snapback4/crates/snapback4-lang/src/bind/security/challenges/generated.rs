@@ -37,7 +37,7 @@ fn proposals(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             let mut principal=0;
             for (column,kind) in &t.columns {
                 if column=="id"||t.engine_field(column)||t.recorded.contains_key(column)||t.maintained.contains_key(column){continue;}
-                let mut value=if kind.is_optional()&&n%2==0{Value::Null}else{match sample(kind.required(),4+n){Some(value)=>value,None=>{out.unsupported.insert(format!("generated fixture {table}.{column}: unsupported typed sample"));continue;}}};
+                let mut value=if kind.is_optional()&&n%2==0&&!(person.0==*table&&person.1==*column){Value::Null}else{match sample(kind.required(),4+n){Some(value)=>value,None=>{out.unsupported.insert(format!("generated fixture {table}.{column}: unsupported typed sample"));continue;}}};
                 if value==Value::Null&&kind.is_optional(){fields.insert(column.clone(),value);continue;}
                 match kind.required(){
                     C::Principal=>{

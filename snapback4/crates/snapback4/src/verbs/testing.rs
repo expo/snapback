@@ -46,6 +46,12 @@ pub fn test(options: &Options) -> i32 {
             eprintln!("test: no saved or working fixtures; query sweep only; pass --fixture <dir> for business cases");
         }
     }
+    let evidence_options=defaults.clone();
+    let fixture_inputs=match defaults.flags.get("fixture").filter(|_|!options.flags.contains_key("residency")){
+        Some(path)=>match test_fixture::snapshot(std::path::Path::new(path)){Ok(snapshot)=>Some(snapshot),Err(why)=>{eprintln!("test fixture snapshot: {why}");return 1;}},None=>None,
+    };
+    if let Some(snapshot)=&fixture_inputs {defaults.flags.insert("fixture-input-label".into(),defaults.flags["fixture"].clone());defaults.flags.insert("fixture".into(),snapshot.0.to_string_lossy().into_owned());}
+    let consumed=if options.flags.contains_key("residency"){String::new()}else{match security::capture(&sources,fixture_inputs.as_ref().map(|s|s.0.as_path())){Ok(key)=>key,Err(why)=>{eprintln!("test input fingerprint: {why}");return 1;}}};
     let options = &defaults;
     // test applies dev's cast: a persona dev would refuse is not run as an ordinary viewer.
     // Residency measures any principal in the data (scale fixtures name thousands), so it notes instead.
@@ -111,7 +117,7 @@ pub fn test(options: &Options) -> i32 {
     let security_campaign=snapback4_lang::security::challenges::run_selected_after(&bound,None,security_campaign);
     let mut security_campaign=security_campaign;
     let security_http_ok=security::unauthenticated(&bound,&sources);
-    if !options.flags.contains_key("residency") {if let Err(why)=security::remember(&project,options,&security_campaign,security_http_ok){eprintln!("security: campaign record unavailable: {why}; check cannot reuse these refutations");}}
+    if !options.flags.contains_key("residency") {if let Err(why)=security::remember(&project,&evidence_options,&security_campaign,security_http_ok,&consumed){eprintln!("security: campaign record unavailable: {why}; check cannot reuse these refutations");}}
     if security_http_ok{security_campaign.unsupported.retain(|s|!s.starts_with("unauthenticated HTTP attempts require"));}
     println!("security histories: {} ordered short operation sequences replayed",security_campaign.sequences);
     for why in &security_campaign.boundary_failures {println!("security boundary failure: {why}");}
@@ -257,7 +263,7 @@ pub fn test(options: &Options) -> i32 {
     }
     // One line a script or an agent can read: derived refusals and unrun
     // queries are not failures, but they are not coverage either.
-    let generated_only=!populated_fixture&&!options.flags.contains_key("source");
+    let generated_only=!populated_fixture&&!options.flags.contains_key("source")&&passed+failed_cases==0;
     if generated_only {println!("test not covered: no authored business cases; generated-fixture only");}
     let no_cases = passed + failed_cases == 0 && !options.flags.contains_key("fixture-only") && !generated_only;
     let security_failed = security_campaign.violations.iter().any(|c|c.reachability.is_reachable()) || !security_campaign.boundary_failures.is_empty() || !security_http_ok;

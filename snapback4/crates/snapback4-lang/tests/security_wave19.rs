@@ -66,3 +66,16 @@ fn retained_assignment_advice_survives_absent_independent_role_intent(){
  let b=bind(&format!("{ROLES}table jobs:\n  body: text <=40\n  read <- exists assignments[job = .id, worker = viewer]\n  online only\ntable assignments:\n  job: jobs\n  worker: principal\n  unique job,worker\n  read <- allow\n  insert <- exists roles[viewer,role = 'doctor']\n  online only\nmutation role(who: principal, role: enum('doctor','volunteer')):\n  update roles[who] {{role}}\n  return null\n"));
  assert!(security::analyze(&b).notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"&&n.message.contains("jobs.read")&&n.message.contains("assignments")));
 }
+
+#[test]
+fn an_alternate_copied_immutable_owner_cannot_invent_a_disclosure(){
+ let b=bind("table homes:\n  owner: principal\n  read <- allow\n  insert <- allow\n  online only\ntable reports:\n  home: homes\n  homeowner: principal\n  immutable home,homeowner\n  read <- .homeowner = viewer\n  insert <- allow\n  online only\nmutation file(home: homes):\n  h = homes[home] ! else MISSING\n  return insert reports {home,homeowner: h.owner}\nquery mine():\n  return reports where .homeowner = viewer first 50 by .id\ninvariant reports.homeowner read only .home.owner = viewer\n");
+ let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);assert!(c.violations.is_empty(),"{c:?}");assert!(c.unsupported.iter().any(|s|s.contains("creator/guard coupling")),"{c:?}");
+}
+
+#[test]
+fn optional_role_columns_still_get_two_active_principals_per_role(){
+ let b=bind("table roles:\n  principal: principal\n  role: enum('doctor','volunteer') ?\n  unique principal\n  read <- allow\n  insert <- viewer = 'service:operator'\n  online only\n");
+ let mut c=Campaign::default();let fixture=challenges::generated_fixture(&b,&mut c).unwrap();let roles=fixture.store().rows("roles").unwrap();
+ for role in ["doctor","volunteer"]{assert_eq!(roles.iter().filter(|r|r.field("role").ok()==Some(&Value::String(role.into()))).count(),2,"{c:?}");}
+}

@@ -16,6 +16,7 @@ pub(super) fn engine_at(project: &Project, bound: &Bound, options: &Options, now
         }
         return project.open_engine(bound).map_err(|error| format!("cannot open the store: {error}"));
     };
+    let label=options.flags.get("fixture-input-label").unwrap_or(fixture);
     let started = std::time::Instant::now();
     let mut schema = bound.schema.clone();
     // Residency defers ordinary maintains until after bulk loading and builds
@@ -25,8 +26,8 @@ pub(super) fn engine_at(project: &Project, bound: &Bound, options: &Options, now
     let store = snapback4_core::Store::memory().map_err(|error| format!("cannot open a store: {error}"))?;
     let mut engine = Engine::new_at(store, schema, bound.programs.iter().map(|p| p.program.clone()), now).map_err(|error| format!("cannot open a store: {error}"))?;
     let mut names = Vec::new();
-    for entry in std::fs::read_dir(fixture).map_err(|error| format!("cannot read fixture directory {fixture}: {error}"))? {
-        let entry = entry.map_err(|error| format!("cannot read fixture directory {fixture}: {error}"))?;
+    for entry in std::fs::read_dir(fixture).map_err(|error| format!("cannot read fixture directory {label}: {error}"))? {
+        let entry = entry.map_err(|error| format!("cannot read fixture directory {label}: {error}"))?;
         names.push(entry.file_name().to_string_lossy().to_string());
     }
     names.sort();
@@ -39,20 +40,21 @@ pub(super) fn engine_at(project: &Project, bound: &Bound, options: &Options, now
         let Some(table) = name.strip_suffix(".jsonl") else { continue };
         if name == super::test_cases::FILE { continue; }
         let path = std::path::Path::new(fixture).join(&name);
+        let shown_path=std::path::Path::new(label).join(&name);
         let Some(definition) = bound.schema.tables.get(table) else {
             if options.flags.contains_key("saved-fixture-fallback") {
-                eprintln!("test: skipped {} — saved source declares no table {table}; pass --fixture <dir> to select contemporary fixtures explicitly", path.display());
+                eprintln!("test: skipped {} — saved source declares no table {table}; pass --fixture <dir> to select contemporary fixtures explicitly", shown_path.display());
                 continue;
             }
             // @ref LLP 3000.011.003.000#7.4 — the starter's own unmodified sample is skipped loudly; a project's file for a missing table still refuses.
             if !options.flags.contains_key("source") && super::init::starter_fixture(&name).is_some_and(|starter| std::fs::read_to_string(&path).is_ok_and(|text| text == starter)) {
-                eprintln!("test: WARNING: skipped {} — the todo starter's unmodified sample rows for a `{table}` table your snapback/*.q does not declare; `snapback4 init --adapt` removes it and the starter's other leftovers", path.display());
+                eprintln!("test: WARNING: skipped {} — the todo starter's unmodified sample rows for a `{table}` table your snapback/*.q does not declare; `snapback4 init --adapt` removes it and the starter's other leftovers", shown_path.display());
                 continue;
             }
             unknown.push(name);
             continue;
         };
-        let text = std::fs::read_to_string(&path).map_err(|error| format!("cannot read fixture file {}: {error}", path.display()))?;
+        let text = std::fs::read_to_string(&path).map_err(|error| format!("cannot read fixture file {}: {error}", shown_path.display()))?;
         for (line_number, line) in text.lines().enumerate().filter(|(_, line)| !line.trim().is_empty()) {
             let at = format!("{name}:{}", line_number + 1);
             let mut json: serde_json::Value = serde_json::from_str(line).map_err(|error| format!("{at}: {error}"))?;
@@ -73,19 +75,19 @@ pub(super) fn engine_at(project: &Project, bound: &Bound, options: &Options, now
         let starter = unknown.iter().any(|name| name == "todos.jsonl")
             && std::fs::read_to_string(std::path::Path::new(fixture).join("todos.jsonl")).is_ok_and(|text| text.contains("\"id\":\"todo-milk\""));
         let starter = if starter { format!("\n  hint: todos.jsonl is the todo starter's sample that `snapback4 init` wrote; `snapback4 init --adapt` removes it and the starter's {} while they are unmodified (or delete them, and the starter's list/add/toggle/remove lines, yourself)", super::test_cases::FILE) } else { String::new() };
-        return Err(format!("{fixture}: {} name{} no table in snapback/*.q; nothing was run{starter}\n  hint: a fixture file is <table>.jsonl for a declared table ({}), plus {}; see snapback4 guide testing",
+        return Err(format!("{label}: {} name{} no table in snapback/*.q; nothing was run{starter}\n  hint: a fixture file is <table>.jsonl for a declared table ({}), plus {}; see snapback4 guide testing",
             unknown.join(", "), if unknown.len() == 1 { "s" } else { "" }, tables.join(", "), super::test_cases::FILE));
     }
     // Fixture rows take `/seed`'s insert path (defaults, sequences, unique with the author's codes, caps, maintained views), not the trusted bulk import.
     let loaded = engine.seed_at(rows, now).map_err(|error| {
         let text = error.to_string();
         let hint = if text.contains("NOT_FOUND") { "\n  hint: every fixture file loads as one batch, parents first; NOT_FOUND means a referenced or read-through parent row is in no fixture file (check the id)" } else { "" };
-        format!("{fixture}: {text}{hint}")
+        format!("{label}: {text}{hint}")
     })?;
     if residency {
         engine.adopt_at(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), now).map_err(|error| format!("cannot build fixture maintains: {error}"))?;
     }
-    if !options.json { println!("test: loaded {loaded} rows from {fixture} in {:.1} s", started.elapsed().as_secs_f64()); }
+    if !options.json { println!("test: loaded {loaded} rows from {label} in {:.1} s", started.elapsed().as_secs_f64()); }
     Ok(engine)
 }
 
@@ -235,4 +237,22 @@ mod relative_tests {
         assert_eq!(gone, snapback4_core::Value::Null);
         std::fs::remove_dir_all(root).unwrap();
     }
+}
+
+// @ref LLP 3000.036.004#137-wave-19-correction-admissible-starts-and-persistent-refutations — campaign inputs are copied once, including followed fixture symlinks.
+pub(super) struct InputSnapshot(pub std::path::PathBuf);
+impl Drop for InputSnapshot{fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
+pub(super) fn snapshot(path:&std::path::Path)->Result<InputSnapshot,String>{
+    use std::sync::atomic::{AtomicUsize,Ordering};
+    static NEXT:AtomicUsize=AtomicUsize::new(0);
+    let root=std::env::temp_dir().join(format!("snapback4-test-inputs-{}-{}",std::process::id(),NEXT.fetch_add(1,Ordering::Relaxed)));
+    std::fs::create_dir(&root).map_err(|e|e.to_string())?;
+    let snapshot=InputSnapshot(root);snapback4_core::private_fs::directory(&snapshot.0).map_err(|e|e.to_string())?;
+    for entry in std::fs::read_dir(path).map_err(|e|e.to_string())?{
+        let entry=entry.map_err(|e|e.to_string())?;let target=snapshot.0.join(entry.file_name());
+        let metadata=std::fs::metadata(entry.path()).map_err(|e|e.to_string())?;
+        if metadata.is_file(){let bytes=std::fs::read(entry.path()).map_err(|e|e.to_string())?;std::fs::write(target,bytes).map_err(|e|e.to_string())?;}
+        else if metadata.is_dir(){std::fs::create_dir(target).map_err(|e|e.to_string())?;}
+        else{return Err(format!("unsupported fixture input {}",entry.path().display()));}
+    }Ok(snapshot)
 }

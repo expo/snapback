@@ -30,7 +30,7 @@ fn generated_campaigns_cover_default_test_but_saved_fixtures_require_business_ca
     }
     app.ok(&["test","--fixture","versions/v1/fixtures"]);
     app.write("fixtures/test.cases.jsonl", "{\"op\":\"alive\",\"as\":\"alice\",\"data\":true}\n");
-    app.ok(&["test","--fixture","fixtures"]);
+    assert!(!app.ok(&["test","--fixture","fixtures"]).contains("no authored business cases"));
 }
 #[test]
 fn save_version_captures_selected_modules_fixtures_and_the_actual_release_label() {

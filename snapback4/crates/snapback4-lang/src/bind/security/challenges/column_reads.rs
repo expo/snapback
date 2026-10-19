@@ -44,8 +44,37 @@ fn same_base_world(bound:&Bound,inv:&Invariant,primary:&BTreeMap<String,Vec<Valu
         }))
     })
 }
+// Counterfactual field mutation must not break an authored creator's copies
+// or recipient guards. Direct typed payload observations run independently.
+fn coupled(bound:&Bound,inv:&Invariant)->bool{
+    let column=inv.column.as_deref().unwrap();
+    let table=&bound.schema.tables[&inv.table];
+    if table.rules.insert.needs_field_value(column,&table.columns[column])||table.update_rule_judged().needs_field_value(column,&table.columns[column]){return true;}
+    fn writes(value:&serde_json::Value,table:&str,column:&str,args:&BTreeMap<String,ir::ArgType>,program:&str,found:&mut bool,coupled:&mut bool){
+        if let Some(object)=value.as_object(){
+            for tag in ["Insert","InsertIfAbsent","Upsert","Update","WriteTarget"]{
+                let Some(write)=object.get(tag)else{continue;};
+                let name=write.get("table").or_else(||write.get("target").and_then(|t|t.get("table"))).and_then(serde_json::Value::as_str);
+                if name!=Some(table){continue;}
+                let fields=write.get("row").or_else(||write.get("patch")).and_then(|e|e.get("Object")).and_then(serde_json::Value::as_object);
+                if let Some(expression)=fields.and_then(|fields|fields.get(column)){
+                    *found=true;
+                    if let Some(name)=expression.get("Variable").and_then(serde_json::Value::as_str)&&args.contains_key(name){
+                        let occurrence=serde_json::to_string(&Expr::Variable(name.into())).unwrap();
+                        if program.matches(&occurrence).count()!=1{*coupled=true;}
+                    }else{*coupled=true;}
+                }
+            }
+            for child in object.values(){writes(child,table,column,args,program,found,coupled);}
+        }else if let Some(xs)=value.as_array(){for child in xs{writes(child,table,column,args,program,found,coupled);}}
+    }
+    let(mut found,mut unsafe_writer)=(false,false);
+    for p in &bound.programs{let json=serde_json::to_value(&p.program).unwrap();let text=serde_json::to_string(&p.program).unwrap();writes(&json,&inv.table,column,&p.program.args,&text,&mut found,&mut unsafe_writer);}
+    found&&unsafe_writer
+}
 fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,row:&Value,fixture:Option<&Engine>,trace:Option<(&BTreeMap<String,Vec<Value>>,&[histories::Step])>,presence:bool,out:&mut Campaign){
     if discharged(bound,inv){return;}
+    if coupled(bound,inv){out.unsupported.insert(format!("{}: alternate value may break authored creator/guard coupling; only actual typed payloads and committed histories count",inv.target_label()));return;}
     if !reserve(out,1){return;}
     let column=inv.column.as_deref().unwrap();
     let kind=&bound.schema.tables[&inv.table].columns[column];

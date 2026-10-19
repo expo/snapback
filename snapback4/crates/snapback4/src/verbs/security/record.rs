@@ -4,22 +4,35 @@ use super::*;
 use sha2::{Digest,Sha256};
 #[derive(serde::Serialize,serde::Deserialize)]
 pub(super) struct Record{pub fingerprint:String,pub complete:bool,pub attempted:usize,pub sequences:usize,pub coverage_gaps:usize,pub violations:Vec<security::challenges::Counterexample>}
-fn fingerprint(project:&Project,options:&Options)->Result<String,String>{
-    let mut hash=Sha256::new();hash.update(b"SEC4-test-record-v1/full-default/NOW=1800000000000");
+fn selected_fixture(project:&Project,options:&Options)->std::path::PathBuf{
     let flag=if options.flags.contains_key("source"){"source"}else{"schema"};
-    for (name,text) in super::super::proof_source::sources(project,options,flag)?{hash.update((name.len()as u64).to_le_bytes());hash.update(name);hash.update((text.len()as u64).to_le_bytes());hash.update(text);}
-    let binary=std::env::current_exe().and_then(std::fs::read).map_err(|e|e.to_string())?;hash.update(Sha256::digest(binary));
-    let path=options.flags.get("fixture").map(std::path::PathBuf::from).unwrap_or_else(||{
+    options.flags.get("fixture").map(std::path::PathBuf::from).unwrap_or_else(||{
         let saved=options.flags.get(flag).map(std::path::Path::new).map(|p|if p.is_dir(){p.join("fixtures")}else if p.file_name().is_some_and(|n|n=="schema.q"){p.parent().unwrap().join("fixtures")}else{p.with_file_name(format!("{}-fixtures",p.file_stem().unwrap_or_default().to_string_lossy()))});
         saved.filter(|p|p.is_dir()).unwrap_or_else(||project.root.join("fixtures"))
-    });
-    if path.is_dir(){let mut files=std::fs::read_dir(path).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;files.sort_by_key(|e|e.file_name());
-        for f in files{if !f.file_type().map_err(|e|e.to_string())?.is_file(){continue;}let name=f.file_name().to_string_lossy().into_owned();let bytes=std::fs::read(f.path()).map_err(|e|e.to_string())?;hash.update((name.len()as u64).to_le_bytes());hash.update(name);hash.update((bytes.len()as u64).to_le_bytes());hash.update(bytes);}
+    })
+}
+pub(in crate::verbs) fn capture(sources:&[(String,String)],fixture:Option<&std::path::Path>)->Result<String,String>{
+    let mut hash=Sha256::new();hash.update(b"SEC4-test-record-v2/full-default/NOW=1800000000000");
+    for (name,text) in sources{hash.update((name.len()as u64).to_le_bytes());hash.update(name);hash.update((text.len()as u64).to_le_bytes());hash.update(text);}
+    let binary=std::env::current_exe().and_then(std::fs::read).map_err(|e|e.to_string())?;hash.update(Sha256::digest(binary));
+    if let Some(path)=fixture.filter(|p|p.is_dir()){
+        let mut files=std::fs::read_dir(path).map_err(|e|e.to_string())?.collect::<Result<Vec<_>,_>>().map_err(|e|e.to_string())?;files.sort_by_key(|e|e.file_name());
+        for f in files{
+            // Follow the same regular-file symlinks as the fixture loader.
+            if !std::fs::metadata(f.path()).map_err(|e|e.to_string())?.is_file(){continue;}
+            let name=f.file_name().to_string_lossy().into_owned();let bytes=std::fs::read(f.path()).map_err(|e|e.to_string())?;
+            hash.update((name.len()as u64).to_le_bytes());hash.update(name);hash.update((bytes.len()as u64).to_le_bytes());hash.update(bytes);
+        }
     }Ok(format!("{:x}",hash.finalize()))
 }
+fn fingerprint(project:&Project,options:&Options)->Result<String,String>{
+    let flag=if options.flags.contains_key("source"){"source"}else{"schema"};
+    capture(&super::super::proof_source::sources(project,options,flag)?,Some(&selected_fixture(project,options)))
+}
 fn path(project:&Project)->std::path::PathBuf{project.root.join("snapback/generated/security-test.json")}
-pub(in crate::verbs) fn remember(project:&Project,options:&Options,campaign:&security::challenges::Campaign,complete:bool)->Result<(),String>{
-    let mut record=Record{fingerprint:fingerprint(project,options)?,complete,attempted:campaign.attempted,sequences:campaign.sequences,coverage_gaps:campaign.unsupported.len(),violations:campaign.violations.iter().filter(|c|c.reachability.is_reachable()).cloned().collect()};
+pub(in crate::verbs) fn remember(project:&Project,options:&Options,campaign:&security::challenges::Campaign,complete:bool,consumed:&str)->Result<(),String>{
+    if fingerprint(project,options)?!=consumed{return Err("source or fixtures changed during test; evidence was not saved; rerun snapback4 test".into());}
+    let mut record=Record{fingerprint:consumed.into(),complete,attempted:campaign.attempted,sequences:campaign.sequences,coverage_gaps:campaign.unsupported.len(),violations:campaign.violations.iter().filter(|c|c.reachability.is_reachable()).cloned().collect()};
     if let Some(prior)=matching(project,options){
         let mut seen=std::collections::BTreeSet::new();
         record.violations=prior.violations.into_iter().chain(record.violations).filter(|v|v.reachability.is_reachable()&&seen.insert(serde_json::to_string(&(&v.invariant_site,&v.viewer,&v.operation,&v.effect,&v.reachability)).unwrap())).collect();
@@ -50,7 +63,8 @@ mod tests{
   engine.seed_at([("docs".into(),snapback4_core::Value::Row([("id".into(),snapback4_core::Value::Id("doc".into())),("owner".into(),snapback4_core::Value::Id("dev:owner".into()))].into_iter().collect()))],security::challenges::NOW).unwrap();
   let mut c=security::challenges::Campaign::default();security::challenges::fixture_observers(&bound,&engine,&mut c);assert!(!c.violations.is_empty());
   let mut synthetic=c.violations[0].clone();synthetic.reachability=security::challenges::Reachability::SyntheticOperation;synthetic.operation="synthetic-must-not-persist".into();c.violations.push(synthetic);
-  remember(&project,&options,&c,true).unwrap();let prior=matching(&project,&options).unwrap();assert!(prior.violations.iter().all(|v|v.reachability.is_reachable()));
-  remember(&project,&options,&Default::default(),false).unwrap();let next=matching(&project,&options).unwrap();assert!(!next.complete);assert_eq!(next.violations.len(),prior.violations.len());
+  let consumed=fingerprint(&project,&options).unwrap();
+  remember(&project,&options,&c,true,&consumed).unwrap();let prior=matching(&project,&options).unwrap();assert!(prior.violations.iter().all(|v|v.reachability.is_reachable()));
+  remember(&project,&options,&Default::default(),false,&consumed).unwrap();let next=matching(&project,&options).unwrap();assert!(!next.complete);assert_eq!(next.violations.len(),prior.violations.len());
  }
 }

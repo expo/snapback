@@ -96909,3 +96909,11 @@ and rule-changing deployment prints a matching-campaign demand. Real role and
 relationship transitions retain their committed history. LLP 3000.036.004 §13.7
 and wave-19 evidence/report record reviews, qualification and remaining gaps.
 Column read rules remain outside SEC4; release visibility belongs to its owner.
+
+Wave-19 follow-up: distinct equal-length histories exposed both real linkUnit
+and grantRole → read paths. Counterfactual column mutation must not break an
+immutable creator copy; actual typed payloads remain observable. Independent
+review reproduced source-change-during-test and followed-symlink fingerprint
+bugs. Tests now consume captured source strings and private fixture snapshots,
+including symlink target bytes; changed originals prevent persistence. Those
+exact regressions pass. Optional role columns retain two active actors per role.

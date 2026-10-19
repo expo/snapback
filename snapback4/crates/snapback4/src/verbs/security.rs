@@ -4,15 +4,18 @@ use super::*;
 use snapback4_lang::security::{self,Report};
 mod http;
 mod record;
-pub(super) use record::remember;
+pub(super) use record::{remember,capture};
 pub(super) fn unauthenticated(bound:&Bound,sources:&[(String,String)])->bool {
     match http::run(bound,sources){Ok(_)=>true,Err(why)=>{eprintln!("security HTTP failure: {why}");false}}
 }
 pub(super) fn report(project:&Project,bound:&Bound,options:&Options)->Report{
     let mut report=security::analyze(bound);
     if let Ok(sources)=project.sources(){security::add_source_notes(&mut report,&sources,bound);}
+    let cached=record::matching(project,options);
+    let known_failure=cached.as_ref().is_some_and(|r|!r.violations.is_empty())&&!options.flags.contains_key("security-full");
     let mut campaign=if options.flags.contains_key("security-full"){security::challenges::Campaign::default()}else{security::challenges::Campaign::bounded(1500)};
-    if !bound.invariants.is_empty(){
+    if known_failure {campaign.work_remaining=Some(0);campaign.unsupported.insert("matching full-test refutations retained; bounded resampling skipped; repair and rerun snapback4 test".into());}
+    if !bound.invariants.is_empty()&&!known_failure{
         let mut selection=options.clone();
         if !selection.flags.contains_key("fixture")&&project.root.join("fixtures").is_dir(){selection.flags.insert("fixture".into(),project.root.join("fixtures").to_string_lossy().into_owned());}
         if selection.flags.contains_key("fixture"){
@@ -25,7 +28,7 @@ pub(super) fn report(project:&Project,bound:&Bound,options:&Options)->Report{
     let sites=report.invariants.iter().filter(|v|v.status==security::Status::Unproved&&!campaign.violations.iter().any(|c|c.invariant_site==v.invariant.site.to_string()&&c.reachability.is_reachable())).map(|v|v.invariant.site.to_string()).collect();
     let campaign=security::challenges::run_selected_after(bound,Some(&sites),campaign);
     security::challenges::apply(&mut report,&campaign);
-    if let Some(record)=record::matching(project,options) {security::challenges::apply(&mut report,&security::challenges::Campaign{violations:record.violations,..Default::default()});}
+    if let Some(record)=cached {security::challenges::apply(&mut report,&security::challenges::Campaign{violations:record.violations,..Default::default()});}
     report
 }
 pub fn audit(options:&Options)->i32{
