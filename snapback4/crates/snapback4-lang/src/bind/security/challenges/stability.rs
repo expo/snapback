@@ -5,7 +5,7 @@ pub(super) fn implicit(bound:&Bound,p:&Program)->BTreeSet<String>{
     let mut affected=ir::write_tables(p).into_iter().map(|(t,_)|t).collect::<BTreeSet<_>>();
     // A plain update cannot trigger an on-delete cascade. Maintains, live
     // read-through retirement and expiring tables can still remove rows.
-    let mut removed=ir::write_tables(p).into_iter().filter(|(t,e)|*e=="delete"||bound.schema.tables.get(t).is_some_and(|t|t.expire.is_some())).map(|(t,_)|t).collect::<BTreeSet<_>>();
+    let mut removed=ir::write_tables(p).into_iter().filter(|(t,e)|*e=="delete"||bound.schema.tables.get(t).is_some_and(|t|t.is_expiring())).map(|(t,_)|t).collect::<BTreeSet<_>>();
     let mut implicit=BTreeSet::new();
     loop{
         let before=(affected.len(),removed.len());
@@ -16,7 +16,7 @@ pub(super) fn implicit(bound:&Bound,p:&Program)->BTreeSet<String>{
         for (name,t) in &bound.schema.tables{
             if t.through.as_ref().is_some_and(|edge|edge.live.is_some()&&affected.contains(&edge.parent)){implicit.insert(name.clone());affected.insert(name.clone());removed.insert(name.clone());}
             for (column,action) in &t.on_delete{
-            if action.writes()&&let Some(C::Ref{table})=t.columns.get(column).map(C::required)&&removed.contains(table){implicit.insert(name.clone());affected.insert(name.clone());if matches!(action,snapback4_core::schema::references::OnDelete::Cascade)||t.expire.is_some(){removed.insert(name.clone());}}
+            if action.writes()&&let Some(C::Ref{table})=t.columns.get(column).map(C::required)&&removed.contains(table){implicit.insert(name.clone());affected.insert(name.clone());if matches!(action,snapback4_core::schema::references::OnDelete::Cascade)||t.is_expiring(){removed.insert(name.clone());}}
         }}
         if before==(affected.len(),removed.len()){break;}
     }implicit

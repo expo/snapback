@@ -183,3 +183,29 @@ fn an_update_keeps_appeal_intent_stable_despite_declared_delete_cascades(){
     let b=bound(&source);let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
     assert!(c.violations.iter().any(|v|v.reachability==Reachability::GeneratedFixtureTrace&&v.history.iter().any(|s|s.operation=="correct")),"{c:?}");
 }
+
+#[test]
+fn inherited_expiry_replacement_cannot_refute_a_guarded_post_retirement_write(){
+    use snapback4_core::{Engine,Store,Value,Context};
+    use std::collections::BTreeMap;
+    fn row(fields:impl IntoIterator<Item=(&'static str,Value)>)->Value{Value::Row(fields.into_iter().map(|(k,v)|(k.into(),v)).collect())}
+    fn id(s:&str)->Value{Value::Id(s.into())}
+    let b=bound("table roots:\n  until: time\n  immutable until\n  expire at .until\n  read <- allow\n  online only\ntable slots:\n  root: roots\n  immutable root\n  read through .root\n  insert <- allow\n  online only\ntable docs:\n  score: int\n  read <- allow\n  update <- allow\n  online only\ntable approvals:\n  slot: slots on delete cascade\n  doc: docs\n  unique doc\n  cap 1 by slot\n  read <- allow\n  online only\nmutation replace(slot: slots, root: roots, doc: docs):\n  insert slots {id: slot, root}\n  require not exists approvals[doc = doc] else HELD\n  update docs[doc] {score: 2}\n  return null\ninvariant docs.score update only not exists approvals[doc = .id]\n");
+    let now=challenges::NOW;
+    let mut fixture=Engine::new_at(Store::memory().unwrap(),b.schema.clone(),b.programs.iter().map(|p|p.program.clone()),now-1000).unwrap();
+    fixture.seed_at(vec![
+        ("roots".into(),row([("id",id("old")),("until",Value::Int(now-1))])),
+        ("roots".into(),row([("id",id("new")),("until",Value::Int(now+10000))])),
+        ("slots".into(),row([("id",id("slot")),("root",id("old"))])),
+        ("docs".into(),row([("id",id("doc")),("score",Value::Int(1))])),
+        ("approvals".into(),row([("id",id("approval")),("slot",id("slot")),("doc",id("doc"))])),
+    ],now-1000).unwrap();
+    assert!(b.schema.tables["slots"].expire.is_none()&&b.schema.tables["slots"].is_expiring());
+    let mut actual=fixture.fork_fixture().unwrap();
+    let result=actual.mutate("replace",None,Context::new("dev:security-a",BTreeMap::from([("slot".into(),id("slot")),("root".into(),id("new")),("doc".into(),id("doc"))])).at(now)).unwrap();
+    assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));
+    assert!(actual.store().rows("approvals").unwrap().is_empty());
+    let mut c=Campaign::default();challenges::fixture_observers(&b,&fixture,&mut c);
+    assert!(c.operations.get("replace").copied().unwrap_or(0)>0);
+    assert!(c.violations.is_empty(),"the guard sees approvals after inherited retirement: {c:?}");
+}
