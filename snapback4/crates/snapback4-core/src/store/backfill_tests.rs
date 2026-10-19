@@ -202,7 +202,7 @@ fn expired_unswept_source_cannot_extend_its_dropped_expiry() {
   let mut e=engine(old);let r=wire::row_from_json(&e.schema().tables["items"],&json!({"id":"a","until":50})).unwrap();e.seed_at([("items".into(),r)],0).unwrap();
   if dormant {let(s,p)=compile("query empty():\n  return true\n");e.adopt_release_at(s,p,&ReleaseActivation::new(2,Some(1)),false,1).unwrap();}
   let next=old.replace("  expire at .until\n","")+"backfill items prolong(until: time):\n  {until:until + 1d}\n";
-  adopt(&mut e,&next,3).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+  let error=adopt(&mut e,&next,3).unwrap_err().to_string();assert!(error.contains("historical lifetime"),"{error}");
  }
 }
 
@@ -216,7 +216,7 @@ fn absent_optional_output_is_not_a_native_image_with_missing_historical_inputs()
 #[test]
 fn removal_of_last_opening_boundary_keeps_the_durable_retirement_floor() {
  let old="table items:\n  opens: time\n  until: time\n  n: int\n  not before .opens\n  expire at .until\n  public 'fixture'\n  online only\n";
- let next=old.replace("  not before .opens\n","").replace("  expire at .until\n","")+"backfill items prolong(until: time):\n  {until:until + 1d}\n";
+ let next=old.replace("  not before .opens\n","").replace("  expire at .until\n","")+"backfill items twice(n: int):\n  {n:n * 2}\n";
  for requested in [1,100] {
   let(s,p)=compile(old);let mut e=Engine::new_release_prepared_at(Store::memory().unwrap(),s,p,&ReleaseActivation::new(1,None),false,0).unwrap();
   let r=wire::row_from_json(&e.schema().tables["items"],&json!({"id":"a","opens":0,"until":50,"n":3})).unwrap();e.seed_at([("items".into(),r)],0).unwrap();
@@ -494,4 +494,35 @@ fn set_null_expiry_updates_a_column_archived_during_that_release() {
  let(s,p)=compile(&next);e.adopt_release_at(s,p,&ReleaseActivation::new(2,Some(1)),false,100).unwrap();assert_eq!(e.store().count("parents").unwrap(),0);
  let fresh=wire::row_from_json(&e.schema().tables["parents"],&json!({"id":"p","until":500})).unwrap();e.seed_at([("parents".into(),fresh)],100).unwrap();
  let(s,p)=compile(&old);e.adopt_release_at(s,p,&ReleaseActivation::new(1,Some(2)),false,101).unwrap();assert_eq!(field(&mut e,"children","c","parent"),Value::Null);
+}
+
+#[test]
+fn inactive_generic_id_receipts_refuse_a_reused_parent_before_any_lookup() {
+ let parents="table parents:\n  n: int\n  public 'fixture'\n  online only\n";
+ let old=parents.to_owned()+"table children:\n  parent: parents on delete keep\n  public 'fixture'\n  online only\n";
+ let fill="backfill children copy(parent: id):\n  {copied:(parents[parent] ! else NOT_FOUND).n}\n";
+ let next=old.replace("  parent:","  copied: int\n  parent:")+fill;let erased=next.replace("parent: parents on delete keep","parent: id");
+ let without=erased.replace(fill,"").replace("  copied: int\n","");
+ let mut e=engine(&old);seed(&mut e,"parents",json!({"id":"p","n":3}));seed(&mut e,"children",json!({"id":"c","parent":"p"}));adopt(&mut e,&next,2).unwrap();adopt(&mut e,&erased,3).unwrap();adopt(&mut e,&without,4).unwrap();
+ let table=e.schema().tables["parents"].clone();{let tx=e.store_mut().transaction().unwrap();let r=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&r).unwrap();tx.commit().unwrap();}seed(&mut e,"parents",json!({"id":"p","n":77}));
+ let generation=e.generation();let error=adopt(&mut e,&erased,3).unwrap_err().to_string();assert!(error.contains("parent lifetime"),"{error}");assert_eq!(e.generation(),generation);
+}
+#[test]
+fn historical_lifetime_outputs_refuse_before_transforming_or_retiring_children() {
+ for action in ["cascade","set null","restrict"] {
+  let optional=if action=="set null" {" ?"}else{""};
+  let old=format!("table parents:\n  until: time\n  expire at .until\n  public 'fixture'\n  online only\ntable children:\n  parent: parents{optional} on delete {action}\n  cap 4 by parent\n  public 'fixture'\n  online only\n");
+  let next=old.replace("  expire at .until\n","")+"backfill parents shorten(until: time):\n  {until:until - 1d}\n";
+  let(s,p)=compile(&old);let mut e=Engine::new_release_prepared_at(Store::memory().unwrap(),s,p,&ReleaseActivation::new(1,None),false,0).unwrap();
+  let rows=[("parents",json!({"id":"p","until":500})),("children",json!({"id":"c","parent":"p"}))];let rows=rows.into_iter().map(|(t,r)|(t.to_owned(),wire::row_from_json(&e.schema().tables[t],&r).unwrap())).collect::<Vec<_>>();e.seed_at(rows,0).unwrap();
+  let generation=e.generation();let(s,p)=compile(&next);let error=e.adopt_release_at(s,p,&ReleaseActivation::new(2,Some(1)),false,100).unwrap_err().to_string();assert!(error.contains("historical lifetime"),"{error}");assert_eq!(e.generation(),generation);assert_eq!(field(&mut e,"parents","p","until"),Value::Int(500));assert_eq!(e.store().count("children").unwrap(),1);
+ }
+}
+#[test]
+fn computed_text_minimum_and_format_failures_refuse_the_whole_adoption() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+ for (kind,value,reason) in [("text 2..30","' '","non-whitespace"),("text 2..30 format handle","'Not A Handle'","handle"),("text <=80 format email","'bad@@example.test'","email")] {
+  let next=old.replace("  n:",&format!("  label: {kind}\n  n:"))+&format!("backfill items label():\n  {{label:{value}}}\n");
+  let mut e=engine(old);for id in ["a","b"]{seed(&mut e,"items",json!({"id":id,"n":3}));}let generation=e.generation();let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains(reason)&&error.contains("2 affected rows"),"{error}");assert_eq!(e.generation(),generation);assert_eq!(e.store().count("items").unwrap(),2);assert!(row(&mut e,"items","a").field("label").is_err());
+ }
 }

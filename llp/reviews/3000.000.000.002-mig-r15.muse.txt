@@ -1,0 +1,29 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-mig (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=90ce7877-3178-4b6b-a079-ae2722f20b7c]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+NOT READY. Two re-entry gaps contradict the RFC's conflict law. Lifetime security and preview/clock parity match the RFC; details below.
+
+## Finding 1 — Same-name redefinition after a gap escapes refusal
+
+RFC §2 requires that changing a declaration under the same name refuses with a bridge/new-name repair, and that a new name denotes a new transformation.
+
+The store check in [backfills.rs](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs:64) compares only the immediately previous schema. A declaration removed for one or more releases, then re-added under the same name with a different body, is treated as fresh entering input. No refusal fires.
+
+History to consult is already durable. Every known digest is retained in `_backfill_evidence`, `_backfill_pruned`, and `_backfill_definitions`. The fix is to refuse when any retained definition shares the table and name with a different digest, not just the immediate predecessor.
+
+## Finding 2 — Re-entry silently overwrites same-column edits made while absent
+
+RFC §3 step 4 requires recompute only when current outputs equal the saved result or the reversed preimage, and refusal otherwise.
+
+In [backfills.rs](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs:196) the conflict branch fires only when dependencies changed. When arguments and recomputed outputs are unchanged but the current same-column value equals neither the saved result nor the preimage (edited while the declaration was absent, prior inactive), the code falls through and stages the recomputed patch. The manual edit is overwritten without refusal.
+
+Added columns are safe. That branch preserves current cells when the preimage is absent. The hole is specific to overwritten (same-column) outputs with an inactive prior. The fix is to refuse in the unchanged-dependency branch when current equals neither saved result nor preimage, for columns with a recorded preimage.
+
+## Checked and matching
+
+- Lifetime security. Reads run as the trusted activation system principal against the assembled snapshot ([backfills.rs](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs:184)). Meter cuts refuse rather than reporting absence ([backfills.rs](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs:187)). Duplicate historical lookup keys refuse with bounded samples before any patch runs. Reference/asset overwrite refusal, `id` output refusal, and non-scalar output refusal are all present at the schema boundary.
+- Snapshot semantics. Patches stage in temp storage before any application, cohort overlays restore originals before evaluation, and per-epoch snapshots rebuild read indexes from the overlaid view.
+- Preview/clock parity. Live preview probes the owner lock, holds the stopped-store guard through inspection, refuses on missing sidecar or revision mismatch, and samples the owner's clock without minting a session ([release_preview.rs](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4/src/verbs/release_preview.rs:32)). Staging-only clock doors require a full service session, recheck classification under the engine writer, and production offsets refuse before listener startup.
+- Versioning. Explicit allowlists accept all four store formats in this binary, so legacy stores open unchanged, while older binaries (whose allowlists lack `snapback4-release-store-4`) refuse the new format. Failed installs roll back with the previous format intact.
+
+No files changed, no tests run, all shell reads under explicit timeouts.

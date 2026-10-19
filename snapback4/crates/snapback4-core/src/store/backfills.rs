@@ -58,7 +58,14 @@ fn protected(kind:&crate::schema::ColumnType)->bool {
 pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,sources:&BTreeMap<String,Table>,now:i64,report:&mut super::adoption_report::AdoptionReport)->Result<(),RuntimeError>{
     if next.backfills.is_empty() && previous.is_none_or(|s|s.backfills.is_empty()) && !present(tx)? { return Ok(()); }
     enable(tx)?;
-    for fill in &next.backfills { fill.admit(next).map_err(refusal)?; }
+    for fill in &next.backfills {
+        fill.admit(next).map_err(refusal)?;
+        if let Some(old)=sources.get(&fill.table) {for c in &fill.outputs {
+            if old.expire.as_ref()==Some(c) || old.not_before.as_ref()==Some(c) || old.engine_field(c) || old.maintained.contains_key(c) {
+                return Err(refusal(format!("backfill {} {}: output {c} is a historical lifetime or engine field; preserve its source meaning in a bridge",fill.table,fill.name)));
+            }
+        }}
+    }
     // A name is immutable within a continuous lineage. Replacing a transform
     // deliberately goes through an old-source/bridge transition first.
     if let Some(old)=previous {for f in &next.backfills {if old.backfills.iter().any(|p|p.table==f.table && p.name==f.name && p.key()!=f.key()) {return Err(refusal(format!("backfill {} {} changed; use a new name in a bridge release rather than replacing historical meaning",f.table,f.name)));}}}
@@ -160,7 +167,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 if conflict {
                     bad.add(id,"native output also has a different transformation's history; resolve its intended view in a bridge");return Ok(())
                 }
-                let complete=fill.outputs.iter().all(|c|current.field(c).is_ok() && crate::engine::validate::validate_column(&fill.table,c,&table.columns[c],current.field(c).ok()).is_ok());
+                let complete=fill.outputs.iter().all(|c|current.field(c).is_ok() && validate_output(&fill.table,table,c,current.field(c).unwrap()).is_ok());
                 let fingerprint=crate::value::digest(&native_inputs);
                 if !complete {bad.add(id,"native backfill output image is missing or was explicitly pruned; use a bridge or restore a backup");return Ok(())}
                 if !native.contains(&fingerprint) {bad.add(id,"native backfill inputs changed after row creation; preserve the authored output in a bridge before re-entry");return Ok(())}
@@ -178,6 +185,10 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 if crate::engine::validate::validate_column(&fill.table,c,kind,value.as_ref()).is_err() {
                     bad.add(id,&format!("historical input {}.{c} is absent or does not fit {kind}; use a typed bridge to repair it",fill.table));return Ok(())
                 }
+                if let Some(prior)=&prior {if prior.inputs.field(c).ok()==value.as_ref() {
+                    let invalid:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3 AND invalid=1)",params![t,id,input_ref(&key,c)],|r|r.get(0))?;
+                    if invalid {bad.add(id,&format!("historical backfill reference {c} lost its parent lifetime"));return Ok(())}
+                }}
                 args.insert(c.clone(),value.unwrap_or(Value::Null));
             }
             let inputs=Value::Row(args.clone().into());
@@ -188,7 +199,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
             if patch.keys().cloned().collect::<BTreeSet<_>>()!=fill.outputs {return Err(refusal("backfill returned undeclared output fields"))}
             let fields=current.as_object()?;let mut before=prior.as_ref().filter(|e|e.active).map_or_else(BTreeMap::new,|e|e.before.clone());let mut desired=patch.clone();
             for (c,value) in &patch {
-                if let Err(e)=crate::engine::validate::validate_column(&fill.table,c,&table.columns[c],Some(value)) {bad.add(id,&e.to_string());return Ok(())}
+                if let Err(e)=validate_output(&fill.table,table,c,value) {bad.add(id,&e.to_string());return Ok(())}
                 if let Some(kind)=sources.get(&fill.table).and_then(|t|t.columns.get(c)) {if protected(kind) && prior.as_ref().is_none_or(|e|e.before.contains_key(c)) {bad.add(id,&format!("cannot overwrite historical reference or asset {}.{c}; derive into a new column",fill.table));return Ok(())}}
                 if !prior.as_ref().is_some_and(|e|e.active) && (previous.and_then(|s|s.table(&fill.table)).is_some_and(|t|t.columns.contains_key(c)) || (previous.and_then(|s|s.table(&fill.table)).is_none() && sources.get(&fill.table).is_some_and(|t|t.columns.contains_key(c)))) {
                     if let Some(v)=historical.field(c).ok(){before.insert(c.clone(),v.clone());}
@@ -205,6 +216,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     }
                 }
             }
+            for(c,value)in &desired {if let Err(e)=validate_output(&fill.table,table,c,value){bad.add(id,&e.to_string());return Ok(())}}
             let e=Evidence{absent:original_absence,epoch:epoch.unwrap_or(fresh_epoch),active:true,inputs,before,after:patch};
             tx.conn().execute("INSERT INTO temp._backfill_pending VALUES(?1,?2,?3,?4,?5)",params![t,id,key,canonical_json(&desired),canonical_json(&e)])?;count+=1;
             Ok(())
@@ -331,6 +343,14 @@ fn rebuild_reads(tx:&Tx<'_>,source:&Schema,reads:&BTreeSet<(String,String)>)->Re
         })?;
         if old.unique {validate_lookup(tx,ti,old.components.len(),name,index)?;}
     } Ok(())
+}
+
+// @ref LLP 3000.036.004#6-bakeoff-repairs — computed values obey the ordinary text minimum/format law before narrowing.
+fn validate_output(name:&str,table:&Table,column:&str,value:&Value)->Result<(),RuntimeError>{
+    crate::engine::validate::validate_column(name,column,&table.columns[column],Some(value))?;
+    for constraint in &table.constraints {if let crate::schema::Constraint::Text{field,min,format}=constraint {
+        if field==column {if let Value::String(text)=value {crate::engine::validate::validate_text(&format!("{name}.{column}"),text,*min,*format)?;}}
+    }}Ok(())
 }
 
 fn input_ref(key:&str,column:&str)->String {format!("$backfill:{key}:{column}")}

@@ -61,7 +61,9 @@ pub(super) fn transition(
     source_definitions: &BTreeMap<String, Table>,
     authority_sources: &BTreeMap<String, Table>,
 ) -> Result<(), RuntimeError> {
-    retire_sources(tx,next,previous,now)?;
+    // Backfill sources already retired through the ordinary action closure,
+    // before patching. Never re-test predecessor deadlines on transformed rows.
+    if next.backfills.is_empty() && !super::backfills::has_evidence(tx)? {retire_sources(tx,next,previous,now)?;}
     let have_dormant: bool = tx.conn().query_row(
         "SELECT EXISTS(SELECT 1 FROM _dormant_narrow_rows)",
         [],
@@ -245,14 +247,13 @@ pub(super) fn check_write(
 }
 
 pub(super) fn retire_sources(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,now:i64)->Result<(),RuntimeError>{
-    let backfilling=!next.backfills.is_empty() || super::backfills::has_evidence(tx)?;
     // An expired predecessor must not be archived and later revived without its lifetime.
     if let Some(previous) = previous {
         let retirement = crate::engine::through_activation::Retirement::new(next, previous, now);
         for (name, old) in &previous.tables {
-            if next.tables.contains_key(name) && (retirement.affects(name) || backfilling) {
+            if next.tables.contains_key(name) && retirement.affects(name) {
                 super::activation::walk(tx, tx.num(name)?, |_, row| {
-                    if retirement.retires(name, &row) || backfilling && old.expired(&row,now) {
+                    if retirement.retires(name, &row) {
                         tx.delete(name, old, &row)?;
                     }
                     Ok(())
