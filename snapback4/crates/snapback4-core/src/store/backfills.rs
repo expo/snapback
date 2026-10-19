@@ -109,7 +109,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     let fresh_epoch=tx.meta("generation")?.and_then(|s|s.parse::<i64>().ok()).unwrap_or(0).saturating_add(1);
     for epoch in epochs {
         restore_snapshot(tx)?;
-        if let Some(epoch)=epoch { historical_snapshot(tx,epoch,&next_keys)?; }
+        if let Some(epoch)=epoch { historical_snapshot(tx,epoch,&next_keys)?; } else { inactive_snapshot(tx,previous,&entering_keys)?; }
         rebuild_reads(tx,&source,&reads)?;
     for fill in &entering {
 
@@ -288,3 +288,23 @@ fn rebuild_reads(tx:&Tx<'_>,source:&Schema,reads:&BTreeSet<(String,String)>)->Re
 }
 
 fn input_ref(key:&str,column:&str)->String {format!("$backfill:{key}:{column}")}
+
+// A prior transformation's retained added output is not its own old argument
+// on forward selection after rollback. Other declarations still see the new
+// predecessor snapshot rather than an old cohort's overwritten columns.
+fn inactive_snapshot(tx:&Tx<'_>,previous:Option<&Schema>,keys:&BTreeSet<String>)->Result<(),RuntimeError>{
+    let mut q=tx.conn().prepare("SELECT t,id,definition FROM _backfill_evidence WHERE active=0 ORDER BY t,id,definition")?;
+    let mut rows=q.query([])?;
+    while let Some(r)=rows.next()? {
+        let t:i64=r.get(0)?;let id:String=r.get(1)?;let key:String=r.get(2)?;if !keys.contains(&key){continue;}
+        let name:String=tx.conn().query_row("SELECT name FROM _catalog WHERE num=?1",[t],|r|r.get(0))?;
+        let old=previous.and_then(|s|s.table(&name));
+        let e=evidence(tx,t,&id,&key)?.unwrap();
+        let absent:Vec<_>=e.after.keys().filter(|c|!e.before.contains_key(*c) && old.is_none_or(|t|!t.columns.contains_key(*c))).cloned().collect();
+        if absent.is_empty(){continue;}
+        let data:Option<String>=tx.conn().query_row("SELECT data FROM r WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0)).optional()?;let Some(data)=data else{continue};
+        tx.conn().execute("INSERT OR IGNORE INTO temp._backfill_originals SELECT t,id,data FROM r WHERE t=?1 AND id=?2",params![t,id])?;
+        let mut row:Value=decode(&data)?;if let Value::Row(fields)|Value::Map(fields)=&mut row {for c in absent {fields.insert(c,Value::Null);}}
+        tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;
+    }Ok(())
+}

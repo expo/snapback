@@ -134,6 +134,21 @@ pub(super) fn transition(
                     params![t, id],
                     |r| r.get(0),
                 )?;
+                let outputs:std::collections::BTreeSet<_>=next.backfills.iter().filter(|f|f.table==*name).flat_map(|f|f.outputs.iter().cloned()).collect();
+                if retained && !outputs.is_empty() {
+                    // Preserve the original source/provenance, updating only
+                    // authoritative cells this release explicitly transformed.
+                    let data:String=tx.conn().query_row("SELECT data FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0))?;
+                    let mut archived:Value=serde_json::from_str(&data).map_err(|e|RuntimeError::Store(e.to_string()))?;
+                    if let Value::Row(fields)|Value::Map(fields)=&mut archived {for c in &outputs {if let Ok(v)=row.field(c){fields.insert(c.clone(),v.clone());}}}
+                    tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&archived),t,id])?;
+                }
+                for c in &outputs {
+                    // Candidate-typed new references are absent from the old
+                    // definition. Never erase an already-invalid binding.
+                    let invalid:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3 AND invalid=1)",params![t,id,c],|r|r.get(0))?;
+                    if !invalid {if let Ok(value)=row.field(c) {super::dormant::capture_refs(tx,t,id,c,&table.columns[c],value)?;}}
+                }
                 if !retained {
                     newly_retained += 1;
                     let old = authority_sources.get(name).unwrap_or(table);

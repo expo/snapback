@@ -1,0 +1,3 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-mig (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=95cb1794-fb9b-4cc8-92e2-62f8375b3260]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)

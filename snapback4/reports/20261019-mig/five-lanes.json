@@ -7,11 +7,11 @@
     "newBackendLines": 186,
     "newBackfillLines": 2,
     "replacedSourceLines": 0,
-    "legacyMs": 1218,
-    "declarativeMs": 679,
-    "savedMs": 539,
     "oldMigrationAndSplitLines": 4,
-    "migrationLinesSaved": 2
+    "migrationLinesSaved": 2,
+    "legacyMs": 940,
+    "declarativeMs": 470,
+    "savedMs": 470
   },
   {
     "lane": 5,
@@ -21,11 +21,11 @@
     "newBackendLines": 168,
     "newBackfillLines": 4,
     "replacedSourceLines": 0,
-    "legacyMs": 1351,
-    "declarativeMs": 550,
-    "savedMs": 801,
     "oldMigrationAndSplitLines": 10,
-    "migrationLinesSaved": 6
+    "migrationLinesSaved": 6,
+    "legacyMs": 1144,
+    "declarativeMs": 433,
+    "savedMs": 711
   },
   {
     "lane": 6,
@@ -35,11 +35,11 @@
     "newBackendLines": 212,
     "newBackfillLines": 8,
     "replacedSourceLines": 19,
-    "legacyMs": 2048,
-    "declarativeMs": 570,
-    "savedMs": 1478,
     "oldMigrationAndSplitLines": 19,
-    "migrationLinesSaved": 11
+    "migrationLinesSaved": 11,
+    "legacyMs": 1363,
+    "declarativeMs": 545,
+    "savedMs": 818
   },
   {
     "lane": 12,
@@ -49,11 +49,11 @@
     "newBackendLines": 155,
     "newBackfillLines": 2,
     "replacedSourceLines": 9,
-    "legacyMs": 822,
-    "declarativeMs": 397,
-    "savedMs": 425,
     "oldMigrationAndSplitLines": 9,
-    "migrationLinesSaved": 7
+    "migrationLinesSaved": 7,
+    "legacyMs": 749,
+    "declarativeMs": 346,
+    "savedMs": 403
   },
   {
     "lane": 36,
@@ -63,10 +63,10 @@
     "newBackendLines": 197,
     "newBackfillLines": 2,
     "replacedSourceLines": 5,
-    "legacyMs": 622,
-    "declarativeMs": 349,
-    "savedMs": 273,
     "oldMigrationAndSplitLines": 5,
-    "migrationLinesSaved": 3
+    "migrationLinesSaved": 3,
+    "legacyMs": 548,
+    "declarativeMs": 344,
+    "savedMs": 204
   }
 ]

@@ -294,6 +294,7 @@ fn reentry_keeps_absence_distinct_from_a_later_default() {
  let next=old.replace("  public","  n: int default 100\n  public")+"backfill items one(n: int ?):\n  {n:(n ?? 0) + 1}\n";
  let mut e=engine(old);seed(&mut e,"items",json!({"id":"a"}));adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","n"),Value::Int(1));
  adopt(&mut e,"query empty():\n  return true\n",3).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","n"),Value::Int(1));
+ adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","n"),Value::Int(1));
 }
 #[test]
 fn saved_reference_inputs_keep_their_own_lifetime_after_live_retargeting() {
@@ -306,4 +307,21 @@ fn saved_reference_inputs_keep_their_own_lifetime_after_live_retargeting() {
  let mut e=engine(&old);for(id,n)in[("p",3),("q",9)]{seed(&mut e,"parents",json!({"id":id,"n":n}));}seed(&mut e,"children",json!({"id":"c","parent":"p"}));adopt(&mut e,&next,2).unwrap();write(&mut e,"retarget");adopt(&mut e,&dropped,3).unwrap();
  let table=e.schema().tables["parents"].clone();{let tx=e.store_mut().transaction().unwrap();let r=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&r).unwrap();tx.commit().unwrap();}seed(&mut e,"parents",json!({"id":"p","n":77}));
  adopt(&mut e,parents,4).unwrap();let error=adopt(&mut e,&dropped,3).unwrap_err().to_string();assert!(error.contains("parent lifetime"),"{error}");
+}
+
+#[test]
+fn a_new_reference_output_keeps_its_parent_lifetime_when_the_row_narrows() {
+ let old="table parents:\n  name: text <=10\n  unique name\n  public 'fixture'\n  online only\ntable children:\n  n: int 0..10\n  public 'fixture'\n  online only\n";
+ let next=old.replace("  n: int 0..10","  link: parents\n  n: int 0..5")+"backfill children link():\n  {link:(parents[name = 'p'] ! else NOT_FOUND).id}\n";
+ let mut e=engine(old);seed(&mut e,"parents",json!({"id":"p","name":"p"}));seed(&mut e,"children",json!({"id":"c","n":9}));adopt(&mut e,&next,2).unwrap();assert_eq!(e.store().count("children").unwrap(),0);
+ let table=e.schema().tables["parents"].clone();{let tx=e.store_mut().transaction().unwrap();let r=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&r).unwrap();tx.commit().unwrap();}seed(&mut e,"parents",json!({"id":"p","name":"p"}));
+ adopt(&mut e,&next.replace("int 0..5","int 0..10"),3).unwrap();assert_eq!(e.store().count("children").unwrap(),0,"a retained output reference cannot recapture a reused parent");
+}
+#[test]
+fn a_transformed_restored_row_keeps_its_new_cells_when_it_becomes_dormant_again() {
+ let old="table parents:\n  n: int 0..10\n  public 'fixture'\n  online only\ntable children:\n  label: enum('a','b')\n  n: int\n  public 'fixture'\n  online only\n";
+ let narrow=old.replace("enum('a','b')","enum('a')");
+ let next=old.replace("  n: int 0..10","  n: int 0..5").replace("  label:","  link: parents\n  label:")+"backfill children migration(n: int):\n  {n:n * 2, link:(parents['p'] ! else NOT_FOUND).id}\n";
+ let mut e=engine(old);seed(&mut e,"parents",json!({"id":"p","n":9}));seed(&mut e,"children",json!({"id":"c","label":"b","n":3}));adopt(&mut e,&narrow,2).unwrap();adopt(&mut e,&next,3).unwrap();assert_eq!(e.store().count("children").unwrap(),0);
+ adopt(&mut e,&next.replace("int 0..5","int 0..10"),4).unwrap();assert_eq!(field(&mut e,"children","c","n"),Value::Int(6));
 }
