@@ -27,7 +27,7 @@ pub(super) fn risks(candidate: &Schema, old: &Schema, release: u64, dir: &Path) 
                 risks.push(format!("rollback foresight: release {release}, unique index {name}.{index}: future writes may introduce duplicate keys and refuse restoration; keep the old uniqueness in a bridge; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
             }
         }
-        if target.constraints.iter().any(|c|!from.constraints.contains(c) && !matches!(c,snapback4_core::schema::Constraint::Unique{..})) {
+        if target.constraints.iter().any(|c|!from.constraints.contains(c) && matches!(c,snapback4_core::schema::Constraint::Text{..}|snapback4_core::schema::Constraint::Cap{..}|snapback4_core::schema::Constraint::FinalExistsOnInsert{..})) {
             risks.push(format!("rollback foresight: release {release}, table {name}: changed constraints may let future writes refuse rollback; preserve old bounds/quotas in a bridge; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
         }
     }

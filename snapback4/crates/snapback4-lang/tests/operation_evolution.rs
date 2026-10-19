@@ -68,3 +68,15 @@ fn defaults_and_aliases_have_device_parity_after_backend_json_roundtrip() {
         assert!(device.query(op,"user:a",&serde_json::json!({"n":"bad"}),0).is_err());
     }
 }
+
+#[test]
+fn projected_results_keep_declared_integer_and_text_domains() {
+    let source="table items:\n  n: int 0..10\n  label: text 1..20\n  unused: int 0..10\n  public\nquery q(id: items):\n  row = items[id]! else NOT_FOUND\n  return {n: row.n, label: row.label}\n";
+    let old=checked(source);
+    for (from,to,field) in [("int 0..10","int 0..20","items.n"),("text 1..20","text 0..40","items.label")] {
+        let new=checked(&source.replacen(from,to,1));
+        assert!(compare(&old,&new,"release 1").iter().any(|line|line.contains("RESULT REVIEW")&&line.contains(field)),"{:?}",compare(&old,&new,"release 1"));
+    }
+    let unused=checked(&source.replace("unused: int 0..10","unused: int 0..100"));
+    assert!(compare(&old,&unused,"release 1").is_empty(),"{:?}",compare(&old,&unused,"release 1"));
+}

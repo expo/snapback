@@ -251,6 +251,7 @@ fn activate(
     restore_dormant: bool,
     allow_feed_adoption: bool,
     options: &Options,
+    mut candidate: Option<&mut crate::release_files::Candidate>,
 ) -> Result<(), String> {
     let root = dir.join("releases").join(release.to_string());
     let digest = crate::release_files::digest(&root)?;
@@ -284,7 +285,7 @@ fn activate(
         receipt(release,engine.generation(),&engine.store().adoption_report,options);
 
     } else {
-        let result = crate::release_control::request(
+        let result = crate::release_control::request_observed(
             dir,
             crate::release_control::Command::Activate {
                 release,
@@ -295,6 +296,7 @@ fn activate(
                 restore_dormant,
                 allow_feed_adoption,
             },
+            |pending| { if let Some(candidate)=candidate.as_deref_mut() {candidate.pending=pending;} },
         )?;
         if options.json {println!("{}",result);} else {
             println!("release {release} is current as generation {}; {}; running serve adopted the release",result["generation"],result["adoption"].as_str().unwrap_or("adopted"));
@@ -414,7 +416,7 @@ pub fn deploy(options: &Options) -> i32 {
                 super::release_preview::preview(&dir.join("store.sqlite"),releases.join(n.to_string()),n,&preview_options)?;
                 if checking { return Ok(()); }
                 let selected = bound_at(releases.join(n.to_string()))?;
-                activate(&dir,_deployment.as_ref(),n,previous,revision,selected,false,true,options.flags.contains_key("allow-feed-adoption"),options)?;
+                activate(&dir,_deployment.as_ref(),n,previous,revision,selected,false,true,options.flags.contains_key("allow-feed-adoption"),options,None)?;
                 if let Some(saved)=&mut saved_version {saved.finish(n,&source_hash)?;}
                 return Ok(());
             }
@@ -459,6 +461,7 @@ pub fn deploy(options: &Options) -> i32 {
                 options.flags.contains_key("restore-dormant"),
                 options.flags.contains_key("allow-feed-adoption"),
                 options,
+                Some(&mut candidate),
             );
             match result {
                 Ok(()) => {
@@ -537,6 +540,7 @@ pub fn rollback(options: &Options) -> i32 {
                 true,
                 options.flags.contains_key("allow-feed-adoption"),
                 options,
+                None,
             )?;
 
             Ok(())

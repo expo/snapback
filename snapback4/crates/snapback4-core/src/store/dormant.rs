@@ -387,6 +387,8 @@ pub(super) fn transition(
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
         .collect::<Result<_, _>>()?;
     for (name, index) in &indexes {
+        // @ref LLP 3000.000.000#16-release-reactivation-and-rollback-foresight-rel5 — compiler-owned plans are not authored name-reuse intent; constraints still rebuild and validate below.
+        if index.starts_with("$intent:") { continue; }
         if next
             .table(name)
             .is_some_and(|t| t.indexes.contains_key(index))

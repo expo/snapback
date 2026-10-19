@@ -17,6 +17,7 @@ mod repair;
 pub mod types;
 pub mod release_changes;
 pub mod client_contracts;
+mod result_domains;
 
 pub use bind::{Bound, BoundProgram, bind};
 pub use bind::security;

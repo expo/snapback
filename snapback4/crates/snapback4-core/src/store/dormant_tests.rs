@@ -1377,3 +1377,19 @@ fn restoration_conflict_samples_keep_distinct_duplicate_keys_separate() {
     assert!(!error.contains("active rows [a1") && !error.contains("active rows [a2"),"{error}");
     assert_eq!(e.store().count("rows").unwrap(),2);
 }
+
+#[test]
+fn compiler_intent_indexes_do_not_require_authored_restoration_but_authored_indexes_do() {
+    let indexed=V1.replace("  n: int","  by byNumber: n, id\n  n: int");
+    for (name,expected) in [("byNumber",false),("$intent:rel5",true)] {
+        let (mut s,p)=compile(&indexed);
+        let table=s.tables.get_mut("rows").unwrap();
+        let index=table.indexes.remove("byNumber").unwrap();table.indexes.insert(name.into(),index);
+        let mut e=Engine::new_release(Store::memory().unwrap(),s.clone(),p.clone(),1,None).unwrap();
+        activate(&mut e,V1,2).unwrap();
+        let options=ReleaseActivation{restore_dormant:false,..ReleaseActivation::new(3,Some(2))};
+        let result=e.adopt_release(s,p,&options,false);
+        assert_eq!(result.is_ok(),expected,"{name}: {result:?}");
+        if !expected {assert!(result.unwrap_err().to_string().contains("restoration intent"));}
+    }
+}

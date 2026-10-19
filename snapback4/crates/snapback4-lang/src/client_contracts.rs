@@ -39,8 +39,7 @@ fn result(ty: &Ty, bound: &Bound) -> String {
         Ty::Optional(t)=>format!("optional {}",result(t,bound)),
         Ty::List(t,_)|Ty::Collection(t,_)=>format!("list {}",result(t,bound)),
         Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>format!("object {:?}",fields.iter().map(|(n,t)|(n,result(t,bound))).collect::<BTreeMap<_,_>>()),
-        // Runtime string/number bounds do not change their TypeScript representation.
-        Ty::Text(_)=>"string".into(),
+        Ty::Text(max)=>format!("text<={max}"),
         _=>format!("{ty:?}"),
     }
 }
@@ -82,6 +81,10 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
             }
         }
         if result(&before.result,old)!=result(&after.result,new) {lines.push(format!("{prefix}: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients"));}
+        let old_domains=crate::result_domains::signature(before,old);
+        let new_domains=crate::result_domains::signature(after,new);
+        let changed:Vec<_>=old_domains.keys().chain(new_domains.keys()).collect::<std::collections::BTreeSet<_>>().into_iter().filter(|key|old_domains.get(*key)!=new_domains.get(*key)).cloned().collect();
+        if !changed.is_empty() {lines.push(format!("{prefix}: RESULT REVIEW: declared source domains used by returned values changed: {}; projected values may change even when their TypeScript type stays number/string; preserve the old domains or verify old-client handling",changed.join(", ")));}
         if refusals(before)!=refusals(after) {lines.push(format!("{prefix}: BEHAVIOR REVIEW: refusal codes/messages changed ({:?} → {:?}); verify intended denials separately from input breaks",refusals(before),refusals(after)));}
     }
     lines

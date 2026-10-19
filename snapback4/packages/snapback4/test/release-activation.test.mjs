@@ -818,7 +818,7 @@ test('hot release replaces, adds and retires named workers without restarting se
     rmSync(join(workers,'alpha.mjs'));writeFileSync(join(workers,'beta.mjs'),worker('ROLL_BETA_V3'));
     run('deploy',deployment);
     await waitFor(()=>logs().includes('ROLL_BETA_V3')&&statuses()['worker:status:alpha']?.state==='stopped','removed worker retires and remaining worker restarts',{diagnostics:()=>logs()+JSON.stringify(statuses())});
-    const history=JSON.parse(run('releases',deployment));assert.equal(history.release,4);
+    const history=JSON.parse(run('releases',deployment));assert.equal(history.release,3);
     assert.equal(history.workers.find(([key])=>key==='worker:status:beta')[1].includes('running'),true);
   });
 });
@@ -852,7 +852,7 @@ test('owned serve death before hot commit and after commit recovers database aut
     const before=await(await fetch(url+'/q/q',{method:'POST',headers,body:'{"args":{}}'})).json();assert.equal(before.data,1);
     assert.equal(invoke('rollback',deployment,'--to','2').status,1,'precommit killed candidate cannot be selected');
     run('deploy',deployment);
-    assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'2');
+    assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'3');
     const exit=once(child,'exit');child.kill('SIGKILL');await exit;
     writeFileSync(join(deployment,'current'),'1\n');
   });
@@ -1188,7 +1188,7 @@ test('NARR populated widening describes future risk without miscounting compatib
   await serve(deployment,async(url,headers)=>{
     await releasePost(url,headers,'/m/add',{},'rel2-warning-row');
     writeFileSync(schema,source);
-    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.doesNotMatch(r.stderr,/WARNING|existing rows/);assert.match(r.stderr,/note: items.body admits values outside release 1's column declaration/);
+    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.doesNotMatch(r.stderr,/WARNING rollback compatibility|existing rows/);assert.match(r.stderr,/WARNING rollback foresight/);assert.match(r.stderr,/note: items.body admits values outside release 1's column declaration/);
   });
 });
 

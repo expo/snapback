@@ -1770,7 +1770,9 @@ fn compatibility_baselines_preserve_module_identities_for_directories_and_single
         fs::write(p.0.join("snapback/client-compatibility.json"),serde_json::to_vec(&json!({"baseline":baseline,"since_release":2})).unwrap()).unwrap();
         let output=p.run(&["check"]); assert!(output.status.success(),"{baseline}: {output:?}");
         let api=fs::read_to_string(p.0.join("snapback/generated/api.ts")).unwrap();
-        assert!(api.contains("name?: string"),"{baseline}: {api}");
+        assert!(api.contains("name: string"),"{baseline}: {api}");
+        assert!(!api.contains("name?: string"),"{api}");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("new required argument name"));
         assert!(api.contains("added?: boolean"),"{baseline}: {api}");
         assert!(api.contains("name: \"messages.greet\""),"{api}");
     }
