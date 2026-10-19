@@ -84,7 +84,10 @@ pub(crate) fn signature(program:&BoundProgram,bound:&Bound)->BTreeMap<String,Str
     consumed(&body,&mut tables,&mut fields);
     let mut defs=Definitions::new();definitions(&body,&mut defs);writes(&body,&defs,bound,&mut fields);
     for read in snapback4_core::ir::read_sites(&program.program) {
-        if let Some(index)=bound.schema.table(&read.table).and_then(|t|t.index(&read.index)) {fields.extend(index.columns());}
+        if let Some(table)=bound.schema.table(&read.table) && let Some(index)=table.index(&read.index) {
+            // Physical key labels omit word/calendar/contribution source columns.
+            fields.extend(table.columns.keys().filter(|column|index.uses_column(column)).cloned());
+        }
     }
     row_fields(&program.result,bound,&mut fields);
     let mut out=BTreeMap::new();

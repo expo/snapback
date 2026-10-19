@@ -142,3 +142,12 @@ fn scalar_returning_writes_keep_their_payload_and_lookup_domains() {
         assert!(compare(&old,&unused,"release 1").is_empty(),"{body}: {:?}",compare(&old,&unused,"release 1"));
     }
 }
+
+#[test]
+fn word_search_indexes_include_their_actual_source_domains() {
+    let source="table items:\n  label: enum('old')\n  unused: int 0..10\n  search label\n  public\nquery q(s: text <=20):\n  return items matching s first 10 by .id {id}\n";
+    let old=checked(source);let new=checked(&source.replace("enum('old')","enum('old','new')"));
+    assert!(compare(&old,&new,"release 1").iter().any(|line|line.contains("RESULT REVIEW")&&line.contains("items.label")));
+    let unused=checked(&source.replace("unused: int 0..10","unused: int 0..100"));
+    assert!(compare(&old,&unused,"release 1").is_empty());
+}
