@@ -1,0 +1,7 @@
+I found no material blocker in this semantic revision. Saved-preimage precedence, exact native restoration, strict edit conflicts, and explicit refusal after evidence pruning prevent silent round-trip data loss. Lifetime and authority boundaries remain intact, including predicate-only rollback without recapturing grants.
+
+The preview categories distinguish hidden rows, changed surviving cells, and newer-only tables. Atomic projection and release selection cover partial-failure cases. Compiler identity and alias changes also have explicit boundaries.
+
+This verdict concerns the supplied design snapshot only; implementation and release qualification remain separate.
+
+Verdict: READY

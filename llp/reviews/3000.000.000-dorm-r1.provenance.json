@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-19T12:43:38.638068+00:00",
+  "scope": "design only, immutable embedded snapshot",
+  "sha256": "8c2aec1f8373e3c892277b6707629cf1714eafb2074b0eee51cf4620d09e4a8e",
+  "models": {
+    "muse": "muse-spark-1.3-contributor high via muse-exec.sh",
+    "codex": "gpt-6.1-sol high fresh codex exec"
+  },
+  "redacted": false,
+  "mutuallyBlind": true
+}

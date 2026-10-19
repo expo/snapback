@@ -1,0 +1,13 @@
+No material counterexample found in the embedded snapshot; no correction requested.
+
+The amendment preserves the authorized operator model while specifying the necessary safeguards:
+
+- Explicit synthesis, native/preimage precedence, and receipt ownership prevent synthesized values from silently becoming native truth.
+- Field-scoped restoration and dependency conflict checks preserve unrelated edits and refuse conflicting restoration atomically.
+- Lifetime invalidation, prune markers, and immutable typed-IR checks prevent stale evidence from being reused.
+- Missing lookups, invalid authority, and meter cuts refuse explicitly; unrepresentable values retain narrowed dormancy.
+- Preview categories distinguish hidden rows, emptied cells, restored empty cells, and absent tables without claiming viewer-specific visibility.
+
+This verdict covers design readiness of the supplied immutable amendment, not implementation correctness or qualification evidence.
+
+Verdict: READY

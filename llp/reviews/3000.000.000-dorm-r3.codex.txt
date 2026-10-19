@@ -1,0 +1,13 @@
+No material blockers found in the immutable amendment. I found no concrete counterexample requiring a correction under the supplied baseline.
+
+The key safety conditions are explicit:
+
+- Forward restoration checks every actually projected field before restoring only those fields. Conflicts abort atomically; unrelated older-source edits survive.
+- Saved preimages and retained native values take precedence. Missing asserted lookups, corrupt evidence, pruned required values, and meter cuts cannot silently fabricate data.
+- Reference lifetime and captured authority remain bound. Broader target rules and explicitly authored privileged synthesis fit the preserved operator authorization model.
+- Compiler-independent source identity does not bypass immutable typed-IR migration checks.
+- Preview categories distinguish hidden rows, absent tables, newly empty cells, and restored empty cells without inventing provenance.
+
+These provisions are sufficiently concrete to implement and qualify against the specified conflict, lifetime, and round-trip cases.
+
+Verdict: READY

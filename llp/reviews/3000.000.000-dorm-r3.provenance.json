@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-19T13:21:23.226471+00:00",
+  "snapshotSha256": "be6398d15e057af4380c1bc30c4859ce049b41a3abf749ed0779bf5337cb7898",
+  "mode": "mutually blind design review",
+  "muse": "muse-spark-1.3-contributor high via ~/sb4-loop/muse-exec.sh",
+  "codex": "fresh codex exec gpt-6.1-sol high",
+  "source": "llp/3000.000.000-retained-storage-and-hot-release.rfc.md \u00a719",
+  "museOutputSha256": "8c7fab6f9947da6d1802ec7ba0379752c9f41e0f40691ddde0fe7f7f67161329",
+  "museVerdict": "Verdict: NOT READY",
+  "codexOutputSha256": "8b5cc2a701e57a8e52757aa73f229a276be91102b9ac9ab27df097d559c0a4e4",
+  "codexVerdict": "Verdict: READY"
+}

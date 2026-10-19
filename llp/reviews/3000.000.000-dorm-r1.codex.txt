@@ -1,0 +1,9 @@
+One material ambiguity remains in §19.1: simultaneous reverse projections have snapshot semantics, but no rule governs overlapping outputs.
+
+For example, newer source C contains two named `down extensions` declarations, each returning `{reason: ...}` from a different lookup. Both produce valid text. An extension born under C has no predecessor preimage. Selecting older source T leaves both declarations, and T accepts `reason`. Both projections therefore qualify, but the amendment does not specify which result becomes authoritative or which reverse result restoration evidence records. Atomic activation alone cannot resolve this; choosing by execution order could silently select the wrong value.
+
+The smallest correction is to require **at most one applicable reverse-projection writer per target cell**, after applying the stated predecessor-preimage precedence. Reject overlapping writers atomically before adoption, with a diagnostic identifying the declarations and affected target fields. If declarations support different older views, specify their target applicability explicitly; matching output types cannot establish that applicability.
+
+The supplied amendment otherwise addresses the principal restoration and authority boundaries: exact retained values, lifetime-bound evidence, strict conflicts, current-data rollback, and authorization on actual reads. This finding concerns the proposed semantics only; no implementation was inspected.
+
+Verdict: NOT READY

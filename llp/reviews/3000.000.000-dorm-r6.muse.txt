@@ -1,0 +1,22 @@
+muse: workspace root: /home/ccheever/projects/sb4-b19-dorm (cwd default)
+muse: workspace trust: trusted source=run-flag
+Reviewed proposal §19 against the authorized baseline.
+
+Data loss: receipt model holds. `P` is exactly the down-computed fields after forward-preimage and non-null-native precedence. It retains native preimages and computed results even when the old value fails the old domain and the row narrows. Re-entry must assemble the retained projected row, verify the same receipt, and must not discard `P` because it is not visible. Forward verifies exact physical presence and value per field in `P`, with absent, present-null, and present-default distinct, then restores only `P`. Outside-`P` edits survive. Any conflicting `P` field aborts.
+
+Probed counterexample: newer-born row projects `reason`, then the old operator edits an unrelated field. Forward keeps the disjoint edit and restores only `P`. Probed: old operator edits a projected cell. Verification mismatches and the whole activation aborts. No silent overwrite.
+
+Probed: earlier down-synthesized image versus later rollback. Prior image never wins by precedence. It must still match its receipt before recomputation from current newer inputs with a fresh receipt. A conflicting edit aborts. No stale image becomes truth.
+
+Null semantics: explicitly authorized. Standalone `down` may replace missing or null old-view cells, including intentional null. Every physical pre-projection value including null is retained with a distinct absence marker. Forward restores that exact null or absence. Asserted missing lookup refuses. Nullable form must be explicitly authored with `if exists ... else null`. No provenance is invented between intentional null and manufactured null. Preview reports the factual view change without inferring business intent. This satisfies the commission. No null-synthesis prohibition is required.
+
+Authorization: preserved. Reverse runs on the assembled newer source under activation system authority and job meters, before narrowing can hide inputs. Outputs are scalar old-view cells only. No reference, asset, identity, capture, or lifetime output is admitted. Rename moves lifetime evidence unchanged within one table and row, never creates a binding, never converts. Predicate-only capture rule is narrow: same reference and capture structure, bound parent lifetime and provenance, only the parent predicate differs. Broader old rules remain selectable with a preview warning and separate reverse-cell accounting. No second acknowledgment is added. That matches the commission. The operator remains the same-UID filesystem owner.
+
+Rollback and forward: disjoint outcomes hold. Saved forward preimage wins, then non-null native, then `down`. Meter cuts, missing lookups, and invalid authority evidence refuse, never become false absence. Simultaneous projections share one snapshot and cannot consume each other. Deletion and expiry clear evidence. Id reuse never inherits. Prune leaves explicit reversal-unavailable identities. Source identity is source bytes, not compiler version, while backfill and reverse identity still includes normalized typed IR. Incompatible recompilation refuses old receipts and requires a new-name bridge.
+
+Ambiguity and implementability: one tight point. The nullable example nests an asserted inner lookup inside an `if exists ... else null`. The text says the probe is on the same snapshot, but does not state branch laziness explicitly. The safe reading is the probe guards the inner assert. Smallest correction if the implementer does not already inherit lazy conditionals: state that the false branch is taken without evaluating the asserted point read, and both use the same snapshot. Eager evaluation would turn every absent case into refusal instead of the authored null. That is a refusal, not silent loss, and existing conditional semantics likely already cover it.
+
+No material data loss, authorization widening, or irreversible path found.
+
+Verdict: READY
+
