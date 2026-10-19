@@ -361,8 +361,23 @@ fn completed_drain(work: Work, stopping: bool) -> Result<Work, snapback4_core::R
     Ok(work)
 }
 
+// @ref LLP 3000.000.000.002#4-staging-clock — staging grants clock control, never fixture or persona authority.
+pub(super) fn staging(shared: &Shared) -> bool {
+    lock(&shared.engine).store().meta("deployment_environment").ok().flatten().as_deref() == Some("staging")
+}
+fn clock_service(request: &Request, shared: &Shared) -> Result<Option<String>, snapback4_core::Refusal> {
+    if shared.personas { return Ok(None); }
+    if !staging(shared) { return Err(crate::dev_clock::release()); }
+    match super::session_identity::principal_of(request,shared) {
+        Ok((principal,kind,snapback4_core::identity::SessionScope::Full)) if kind == "service" && principal.starts_with("service:") => Ok(Some(principal)),
+        _ => Err(snapback4_core::Refusal::new("E_AUTH", "auth", "staging clock control requires a full service token").guide("clock")),
+    }
+}
 pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
-    if !shared.personas { return respond(request, 403, json!({"denied":refusal_json(&crate::dev_clock::release())})); }
+    let service = match clock_service(&request, shared) {
+        Ok(service) => service,
+        Err(why) => return respond(request,403,json!({"denied":refusal_json(&why)})),
+    };
     let payload = match serde_json::from_str::<serde_json::Value>(body) {
         Ok(payload) => payload,
         Err(_) => return respond(request, 400, json!({"denied":refusal_json(&crate::dev_clock::input("clock advance takes {\"duration\":\"+2m\"}"))})),
@@ -389,7 +404,10 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         // between shifting its lease and publishing the advanced clock.
         let mut engine = lock(&shared.engine);
         let before = crate::dev_clock_store::saved_boundaries(&engine);
-        shared.dev_authority(&engine)?;
+        if let Some(principal) = &service {
+            if engine.store().meta("deployment_environment").map_err(|e|e.refusal())?.as_deref() != Some("staging") { return Err(crate::dev_clock::release()); }
+            super::session_identity::mutation_authority(&request,shared,&engine,principal)?;
+        } else { shared.dev_authority(&engine)?; }
         let mut clock = lock(&shared.clock);
         let mut next = clock.clone();
         let now = next.advance(milliseconds)?.max(shared.time_audience_clock.load(std::sync::atomic::Ordering::Acquire));
@@ -509,7 +527,7 @@ pub(super) fn run_job(request: Request, shared: &Shared, name: &str, body: &str)
 }
 
 pub(super) fn clock_status(request: Request, shared: &Shared) {
-    if !shared.personas { return respond(request, 403, json!({"denied":refusal_json(&crate::dev_clock::release())})); }
+    if let Err(why) = clock_service(&request, shared) { return respond(request,403,json!({"denied":refusal_json(&why)})); }
     let result = (|| {
         let (epoch, reader) = shared.reader()?;
         let note = crate::dev_clock_store::ahead(&reader, shared.now());

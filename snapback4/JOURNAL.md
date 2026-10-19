@@ -96711,3 +96711,18 @@ campaigns and the repaired 015 custody workflow remain explicit gaps in
 `../issues/20261018-sb4-security-proof-and-adversarial-qualification-gaps.md`.
 This is a conservative verification foundation, not a zero-holes capability
 claim. No version bump, push or publication.
+
+
+## 2026-10-19 — MIG staging clock control
+
+Classified staging stores admit serve --clock-offset and the existing clock
+advance/status wire under a full service token. Production refuses offsets
+before listener startup and all HTTP clock control even with operator authority.
+The writer rechecks classification/session before advancing. startServe exposes
+clockOffset, now and advance; it mints a current staging-clock operator session
+for each control rather than caching a token across arbitrarily large jumps.
+Fixture/reset/persona/job dev doors remain closed. The native-backed client
+regression passed, including CLI advancement and restart dropping the offset.
+The installed-package staging qualifier now exercises the same clock helpers.
+LLP 3000.000.000.002 records the combined MIG language/adoption amendment;
+independent review continues before final acceptance.

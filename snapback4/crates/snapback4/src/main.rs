@@ -76,7 +76,7 @@ fn main() -> ExitCode {
         eprintln!("{}", dev_replay::dev_only());
         return ExitCode::from(1);
     }
-    if (verb == "serve" || options.flags.contains_key("release")) && (verb == "clock" || options.flags.contains_key("clock-offset") || options.flags.contains_key("now")) {
+    if (verb == "serve" || options.flags.contains_key("release")) && options.flags.contains_key("now") {
         eprintln!("{}", dev_clock::release());
         return ExitCode::from(1);
     }

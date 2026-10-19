@@ -143,7 +143,7 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "long-waits") => " — held viewer request capacity (default 1024, max 4096)",
             (_, "long-waits-per-principal") => " — held viewer requests per principal (default 16)",
             (_, "claim-waits") => " — held worker claim capacity (default 32, max 1024)",
-            (_, "clock-offset") => " — start the development clock ahead, for example +25h",
+            (_, "clock-offset") => " — start dev or a classified staging clock at an offset, for example +25h",
             (_, "resume-clock") => " — resume the persisted development store's clock",
             (_, "now") => " — pin a local run's clock (milliseconds or +duration)",
             (_, "clock") => " — reset the development clock with --clock reset",
@@ -302,7 +302,7 @@ mod surface_tests {
     }
     #[test]
     fn ignored_flags_refuse_before_any_work() {
-        for args in [vec!["check","--url","notaurl"],vec!["check","--release","1"],vec!["types","--json"],vec!["test","--json"],vec!["test","--verbose"],vec!["doctor","--instance","x"],vec!["run","x","--token-env","SECRET"],vec!["why","E_INPUT","--json"],vec!["why","E_INPUT","--instance","x"],vec!["reset","--release","x"],vec!["serve","x","--resume-clock"],vec!["serve","x","--now","1"],vec!["serve","x","--clock-offset","1"],vec!["serve","x","--replay"]] {
+        for args in [vec!["check","--url","notaurl"],vec!["check","--release","1"],vec!["types","--json"],vec!["test","--json"],vec!["test","--verbose"],vec!["doctor","--instance","x"],vec!["run","x","--token-env","SECRET"],vec!["why","E_INPUT","--json"],vec!["why","E_INPUT","--instance","x"],vec!["reset","--release","x"],vec!["serve","x","--resume-clock"],vec!["serve","x","--now","1"],vec!["serve","x","--replay"]] {
             assert!(validate(&args.iter().map(|s|s.to_string()).collect::<Vec<_>>()).unwrap_err().starts_with("E_INPUT:"), "{args:?}");
         }
         assert!(validate(&["why","--instance","x","recent"].map(String::from)).is_ok());

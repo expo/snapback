@@ -42,7 +42,7 @@ import {login} from "snapback4/auth";
 const plan = {roles:{admin:2,member:2},provision:{name:"provision"}};
 const sessions=JSON.parse(readFileSync("staging-users.json","utf8"));
 assert.equal(statSync("staging-users.json").mode & 0o777,0o600);
-let host=await startServe("staging");
+let host=await startServe("staging", {clockOffset:"+25h"});
 const post=async(path,token,args={})=>(await fetch(host.url+path,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+token},body:JSON.stringify({args}),signal:AbortSignal.timeout(10000)})).json();
 try {
  const config=await fetch(host.url+"/auth/config").then(r=>r.json());
@@ -56,6 +56,10 @@ try {
    assert.equal((await post("/m/provision",signed.session.token,{principal:user.principal,role:"admin"})).why.code,"NOT_OPERATOR");
   }
  }
+ const now=await host.now(); assert.ok(Math.abs(now-Date.now()-25*3600000)<5000);
+ const advanced=await host.advance("+2h"); assert.ok(advanced-now>=2*3600000);
+ const clock=await cli(["clock","advance","+1h","--release","staging"]);assert.equal(clock.code,0,clock.stderr);
+ assert.ok(await host.now()-advanced>=3600000);
  for(const path of ["/seed","/dev/reset","/dev/clock/advance","/dev/jobs/foo","/dev/token"])
   assert.equal((await fetch(host.url+path,{method:"POST",body:"[]"})).status,403,path);
 } finally {await host.stop();}

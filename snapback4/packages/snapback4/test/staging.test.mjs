@@ -127,3 +127,33 @@ test("adopting password-only identity closes existing dev doors and declared per
     assert.equal((await fetch(host.url + "/q/myRole", { method: "POST", headers: { "x-snapback-persona": "alice" }, body: '{"args":{}}' })).status, 401);
   } finally { await host.stop(); }
 });
+
+
+test("MIG staging clock is operator-only and production never accepts an offset", { timeout: 90000 }, async t => {
+  const cwd = fixture(t);
+  await deploy("production", "snapback", { cwd });
+  await assert.rejects(startServe("production", { cwd, clockOffset: "+4h" }), /E_CLOCK_DEV_ONLY/);
+  let host = await startServe("production", { cwd });
+  try {
+    await assert.rejects(host.now(), /E_CLOCK_DEV_ONLY/);
+    const token = await host.operatorToken();
+    const refused = await fetch(host.url + "/dev/clock/advance", { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: '{"duration":"+1h"}' });
+    assert.equal(refused.status, 403); assert.equal((await refused.json()).denied.code, "E_CLOCK_DEV_ONLY");
+  } finally { await host.stop(); }
+  await deploy("staging", "snapback", { cwd, args: ["--staging"] });
+  host = await startServe("staging", { cwd, clockOffset: "+4h", seedUsers: { roles: { member: 1 }, provision: { name: "provision" } } });
+  try {
+    const before = await host.now(); assert.ok(Math.abs(before - Date.now() - 4 * 3600000) < 5000);
+    for (const token of [undefined, host.sessions.member[0].token]) {
+      const response = await fetch(host.url + "/dev/clock/advance", { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: '{"duration":"+1h"}' });
+      assert.equal(response.status, 403); assert.equal((await response.json()).denied.code, "E_AUTH");
+    }
+    const advanced = await host.advance("+2h"); assert.ok(Math.abs(advanced - before - 7200000) < 5000);
+    const result = await cli(["clock", "advance", "+1h", "--release", "staging"], { cwd });
+    assert.equal(result.code, 0, result.stderr); assert.ok((await host.now()) - advanced >= 3600000);
+    const token = await host.operatorToken();
+    for (const path of ["/seed", "/dev/reset", "/dev/jobs/foo"]) assert.equal((await fetch(host.url + path, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: "[]" })).status, 403, path);
+  } finally { await host.stop(); }
+  host = await startServe("staging", { cwd });
+  try { assert.ok(Math.abs((await host.now()) - Date.now()) < 5000, "restart drops process offset"); } finally { await host.stop(); }
+});

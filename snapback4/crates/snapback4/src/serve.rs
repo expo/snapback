@@ -318,7 +318,7 @@ pub(crate) fn test_work(hook: &WorkHook) {
 /// release (`serve`): a compiled generation over a store, tokens only.
 pub enum Mode {
     Dev { unsafe_dev_doors: bool, trace_empty: bool, verbose: bool, watch: bool, fresh: bool, replay: bool, hold_effects: bool, hold_schedules: bool, clock_offset: i64 },
-    Release { expected: u64, worker: Option<std::path::PathBuf>, owner: Arc<crate::store_owner::Owner> },
+    Release { clock_offset: i64, expected: u64, worker: Option<std::path::PathBuf>, owner: Arc<crate::store_owner::Owner> },
 }
 
 #[path = "serve_start.rs"]
@@ -880,7 +880,7 @@ fn handle(mut request: Request, shared: &Shared) {
     if shared.personas && (path.starts_with("/dev/") || path == "/seed") && !shared.dev_doors() {
         return respond_timed(request, shared, 403, json!({"denied":refusal_json(&dev_doors::closed())}));
     }
-    if path.starts_with("/dev/clock") && !shared.personas {
+    if path.starts_with("/dev/clock") && !shared.personas && !maintenance::staging(shared) {
         return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&crate::dev_clock::release()) }));
     }
     // Discovered control requests bind to the inspected serving instance.

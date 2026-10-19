@@ -48,11 +48,14 @@ pub fn serve(
                 ..
             }
         );
+    // @ref LLP 3000.000.000.002#4-staging-clock — only immutable store classification admits a release test clock.
+    let staging = if let Mode::Release { owner, .. } = &mode {
+        owner.open_store(Duration::from_secs(5)).map_err(|e|e.to_string())?.meta("deployment_environment").map_err(|e|e.to_string())?.as_deref() == Some("staging")
+    } else { false };
     let clock = crate::dev_clock::Clock::new(
-        dev,
+        dev || staging,
         match mode {
-            Mode::Dev { clock_offset, .. } => clock_offset,
-            _ => 0,
+            Mode::Dev { clock_offset, .. } | Mode::Release { clock_offset, .. } => clock_offset,
         },
     )
     .map_err(|e| e.to_string())?;

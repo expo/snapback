@@ -621,6 +621,11 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     crate::host_limits::initialize();
     let owner = crate::store_owner::host(&dir.join("store.sqlite"))?;
     owner.report_reclaim(options.flags.contains_key("verbose"));
+    let clock_offset = options.flags.get("clock-offset").map(|text| crate::dev_clock::offset(text).map_err(|e| e.to_string())).transpose()?.unwrap_or(0);
+    if options.flags.contains_key("clock-offset") {
+        let store = owner.open_store(std::time::Duration::from_secs(5)).map_err(|e| e.to_string())?;
+        if store.meta("deployment_environment").map_err(|e|e.to_string())?.as_deref() != Some("staging") { return Err(crate::dev_clock::release().to_string()); }
+    }
     let current = current(&dir, &owner)?.ok_or("no current release; deploy first")?;
     let release = Project {
         root: dir.join("releases").join(current.to_string())
@@ -641,6 +646,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
         release,
         port,
         crate::serve::Mode::Release {
+            clock_offset,
             expected: current,
             worker,
             owner: std::sync::Arc::new(owner),

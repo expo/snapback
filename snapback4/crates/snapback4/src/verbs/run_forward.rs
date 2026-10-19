@@ -143,7 +143,7 @@ const REPLY_LIMIT: u64 = 64 << 20;
 pub(crate) fn exchange(address: SocketAddr, method: &str, route: &str, persona: Option<&str>, body: &str, wait: Duration) -> std::io::Result<(u16, Json)> {
     exchange_authorized(address,method,route,persona,None,body,wait)
 }
-fn exchange_authorized(address:SocketAddr,method:&str,route:&str,persona:Option<&str>,bearer:Option<&str>,body:&str,wait:Duration)->std::io::Result<(u16,Json)> {
+pub(crate) fn exchange_authorized(address:SocketAddr,method:&str,route:&str,persona:Option<&str>,bearer:Option<&str>,body:&str,wait:Duration)->std::io::Result<(u16,Json)> {
     exchange_inner(address,method,route,persona,bearer,None,body,wait)
 }
 pub(crate) fn exchange_dev(address:SocketAddr,route:&str,instance:Option<&str>,body:&str,wait:Duration)->std::io::Result<(u16,Json)> {
