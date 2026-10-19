@@ -13,6 +13,9 @@ struct Wire {
     #[cfg(feature = "sqlite")]
     backfills: Vec<backfill::Backfill>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg(feature = "sqlite")]
+    downfills: Vec<backfill::Backfill>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     receipts: Vec<ReceiptFamily>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     receipt_dependencies: BTreeMap<String, BTreeSet<String>>,
@@ -62,6 +65,8 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     (crate::device_protocol::ARGUMENT_ALIAS, |s| !s.tables.is_empty() && s.operations.values().any(|operation| operation.argument_aliases)),
     #[cfg(feature = "sqlite")]
     ("release-backfills-v3", |s| !s.backfills.is_empty()),
+    #[cfg(feature = "sqlite")]
+    ("release-backfills-v4", |s| !s.downfills.is_empty()),
     ("live-parent-copy-v1", |s| s.tables.values().any(|t| t.through.as_ref().is_some_and(|t| t.live.is_some()))),
     ("source-write-reservations-v2", |s| s.source_reservations.values().any(|p| p.birth.is_some())),
     ("source-write-reservations-v1", |s| !s.source_reservations.is_empty()),

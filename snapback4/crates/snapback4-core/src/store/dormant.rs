@@ -33,7 +33,7 @@ pub(crate) fn enable(conn: &Connection) -> Result<(), RuntimeError> {
         // particular retained cell ever had live authority.
         conn.execute_batch("ALTER TABLE _dormant_values ADD COLUMN live_source INTEGER NOT NULL DEFAULT 0;")?;
     }
-    conn.execute("UPDATE _meta SET value=?1 WHERE key='version' AND value!='snapback4-release-store-6'", [VERSION])?;
+    conn.execute("UPDATE _meta SET value=?1 WHERE key='version' AND value NOT IN ('snapback4-release-store-6','snapback4-release-store-7')", [VERSION])?;
     Ok(())
 }
 
@@ -42,7 +42,7 @@ pub(super) fn live_cells_column(conn:&Connection)->Result<bool,RuntimeError> {
 }
 
 pub(super) fn enabled(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
-    Ok(matches!(tx.meta("version")?.as_deref(),Some(VERSION|"snapback4-release-store-2"|super::backfills::VERSION)))
+    Ok(matches!(tx.meta("version")?.as_deref(),Some(VERSION|"snapback4-release-store-2"|"snapback4-release-store-6"|super::backfills::VERSION)))
 }
 
 fn authoritative(table: &Table, column: &str) -> bool {
@@ -407,7 +407,8 @@ pub(super) fn transition(
             inventory.iter().map(|i|format!("{}: {} rows; sample ids [{}]",i.key,i.rows,i.sample_ids.join(", "))).collect::<Vec<_>>().join("; ")
         )));
     }
-    let backfilling=!next.backfills.is_empty() || super::backfills::has_evidence(tx)?;
+    let backfilling=!next.backfills.is_empty() || !next.downfills.is_empty()
+        || previous.is_some_and(|s|!s.downfills.is_empty()) || super::backfills::has_evidence(tx)?;
     if let Some(previous) = previous {
         for (name, old) in previous
             .tables
@@ -579,8 +580,11 @@ pub(super) fn transition(
         super::narrowed::restore_images(tx,next,now,&source_definitions,&authority_sources,true)?;
         super::backfills::retire_snapshot(tx,&source_definitions,previous,now)?;
     }else{super::narrowed::retire_sources(tx,next,previous,now)?;}
-    // Archive removed tables only after source expiry has closed over every
-    // predecessor child. Capture the surviving post-cascade/set-null image.
+    // Reverse projections still read the complete predecessor snapshot,
+    // including tables absent from the rollback target.
+    super::backfills::transition(tx,next,previous,&source_definitions,now,report)?;
+    // Archive removed tables only after source expiry and every migration
+    // projection have closed over the predecessor image.
     if backfilling {if let Some(previous)=previous {for (name,old) in &previous.tables {
         if next.tables.contains_key(name) || old.ephemeral.is_some() || previous.maintain_for(name).is_some(){continue;}
         let t=tx.num(name)?;
@@ -596,7 +600,6 @@ pub(super) fn transition(
         tx.conn().execute("DELETE FROM r WHERE t=?1",[t])?;
         for index in old.indexes.keys(){tx.conn().execute("DELETE FROM i WHERE ti=?1",[tx.num(&format!("{name}.{index}"))?])?;}
     }}}
-    super::backfills::transition(tx,next,previous,&source_definitions,now,report)?;
     super::narrowed::transition(tx,next,previous,now,restored_images,&source_definitions,&authority_sources)?;
     crate::engine::through_activation::reconcile_manual(tx,next,&authority_sources,now)?;
     check_references(tx, next,&authority_sources)?;

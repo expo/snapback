@@ -679,3 +679,112 @@ fn activation_admits_complete_reversal_evidence_before_committing_the_migration(
   else {let error=result.unwrap_err().to_string();assert!(error.contains("evidence")&&error.contains("budget"),"{error}");assert_eq!(e.generation(),generation);assert!(row(&mut e,"items","a").field("first").is_err());assert_ne!(e.store().meta("version").unwrap().as_deref(),Some(super::backfills::VERSION));}
  }
 }
+
+#[test]
+fn declared_down_projection_restores_only_native_cells_and_refuses_older_edits() {
+ let old="table items:\n  reason: text <=40\n  note: int\n  public 'fixture'\n  update <- allow\n  online only\nmutation note():\n  update items['a'] {note:2}\nmutation reason():\n  update items['a'] {reason:'changed'}\n";
+ let current="table items:\n  label: text <=40\n  note: int\n  public 'fixture'\n  update <- allow\n  online only\nmutation label():\n  update items['a'] {label:'updated'}\ndown items legacyReason(label: text <=40):\n  {reason:label}\n";
+ let mut e=engine(current);seed(&mut e,"items",json!({"id":"a","label":"native","note":1}));
+ adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","reason"),Value::String("native".into()));
+ write(&mut e,"note");adopt(&mut e,current,2).unwrap();
+ assert_eq!(field(&mut e,"items","a","label"),Value::String("native".into()));assert_eq!(field(&mut e,"items","a","note"),Value::Int(2));assert!(row(&mut e,"items","a").field("reason").is_err());
+ write(&mut e,"label");adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","reason"),Value::String("updated".into()));
+ write(&mut e,"reason");let generation=e.generation();
+ let error=adopt(&mut e,current,2).unwrap_err().to_string();assert!(error.contains("changed while the older release"),"{error}");assert_eq!(generation,e.generation());
+}
+
+#[test]
+fn declared_down_projection_replaces_retained_null_but_preserves_retained_text() {
+ let old="table items:\n  label: text <=40\n  reason: text <=40 ?\n  public 'fixture'\n  online only\n";
+ let current="table items:\n  label: text <=40\n  public 'fixture'\n  online only\ndown items legacyReason(label: text <=40):\n  {reason:label}\n";
+ let mut e=engine(old);
+ seed(&mut e,"items",json!({"id":"null","label":"projected","reason":null}));
+ seed(&mut e,"items",json!({"id":"text","label":"ignored","reason":"retained"}));
+ adopt(&mut e,current,2).unwrap();adopt(&mut e,old,1).unwrap();
+ assert_eq!(field(&mut e,"items","null","reason"),Value::String("projected".into()));
+ assert_eq!(field(&mut e,"items","text","reason"),Value::String("retained".into()));
+ adopt(&mut e,current,2).unwrap();
+ let tx=e.store_mut().transaction().unwrap();let t=tx.num("items").unwrap();
+ let retained_null:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id='null' AND column_name='reason' AND data=?2)",rusqlite::params![t,crate::value::canonical_json(&Value::Null)],|r|r.get(0)).unwrap();
+ assert!(retained_null,"forward restores the physical null preimage before archiving it again");tx.rollback().unwrap();
+}
+
+#[test]
+fn an_incompatible_down_result_becomes_narrowed_and_forward_restores_its_exact_native_value() {
+ let current="table items:\n  count: int 0..1000\n  public 'fixture'\n  online only\ndown items legacyCount(count: int 0..1000):\n  {count:-1}\n";
+ let old="table items:\n  count: int 1..1000\n  public 'fixture'\n  online only\n";
+ let mut e=engine(current);seed(&mut e,"items",json!({"id":"a","count":10}));
+ adopt(&mut e,old,1).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+ adopt(&mut e,current,2).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(10));
+}
+
+#[test]
+fn declared_down_projection_does_not_introduce_an_output_absent_from_the_selected_schema() {
+ let current="table items:\n  label: text <=40\n  public 'fixture'\n  online only\ndown items legacyReason(label: text <=40):\n  {reason:label}\n";
+ let target="table items:\n  label: text <=40\n  public 'fixture'\n  online only\n";
+ let mut e=engine(current);seed(&mut e,"items",json!({"id":"a","label":"native"}));
+ adopt(&mut e,target,2).unwrap();
+ assert_eq!(field(&mut e,"items","a","label"),Value::String("native".into()));
+ assert!(row(&mut e,"items","a").field("reason").is_err());
+}
+
+#[test]
+fn a_multi_output_down_projection_applies_only_the_selected_targets_subset() {
+ let current="table items:\n  label: text <=40\n  public 'fixture'\n  online only\ndown items legacy(label: text <=40):\n  {reason:label, legacyNote:label}\n";
+ let target="table items:\n  label: text <=40\n  reason: text <=40 ?\n  public 'fixture'\n  online only\n";
+ let mut e=engine(current);seed(&mut e,"items",json!({"id":"a","label":"native"}));
+ adopt(&mut e,target,2).unwrap();
+ assert_eq!(field(&mut e,"items","a","reason"),Value::String("native".into()));
+ assert!(row(&mut e,"items","a").field("legacyNote").is_err());
+}
+
+#[test]
+fn unrelated_forward_receipts_do_not_suppress_a_disjoint_down_projection() {
+ let old="table items:\n  label: text <=40\n  n: int\n  reason: text <=40 ?\n  public 'fixture'\n  online only\n";
+ let current="table items:\n  label: text <=40\n  n: int\n  score: int\n  public 'fixture'\n  online only\nbackfill items score(n: int):\n  {score:n * 2}\ndown items legacyReason(label: text <=40):\n  {reason:label}\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","label":"projected","n":3,"reason":null}));
+ adopt(&mut e,current,2).unwrap();adopt(&mut e,old,1).unwrap();
+ assert_eq!(field(&mut e,"items","a","reason"),Value::String("projected".into()));
+}
+
+#[test]
+fn overlapping_down_outputs_are_rejected() {
+ let source="table items:\n  label: text <=40\n  public 'fixture'\n  online only\ndown items one(label: text <=40):\n  {reason:label}\ndown items two(label: text <=40):\n  {reason:label}\n";
+ let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+ assert!(b.diagnostics.iter().any(|d|d.message.contains("overlap")),"{:?}",b.diagnostics);
+}
+
+#[test]
+fn identical_type_column_rename_carries_historical_and_native_rows_both_ways() {
+ let old="table items:\n  title: text <=40\n  public 'fixture'\n  online only\n";
+ let current="table items:\n  name: text <=40 renamed from title\n  public 'fixture'\n  online only\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"old","title":"historical"}));adopt(&mut e,current,2).unwrap();
+ assert_eq!(field(&mut e,"items","old","name"),Value::String("historical".into()));
+ seed(&mut e,"items",json!({"id":"new","name":"native"}));adopt(&mut e,old,1).unwrap();
+ assert_eq!(field(&mut e,"items","old","title"),Value::String("historical".into()));assert_eq!(field(&mut e,"items","new","title"),Value::String("native".into()));
+ adopt(&mut e,current,2).unwrap();
+ assert_eq!(field(&mut e,"items","old","name"),Value::String("historical".into()));assert_eq!(field(&mut e,"items","new","name"),Value::String("native".into()));
+}
+
+#[test]
+fn column_rename_refuses_different_declared_types_even_when_present_values_fit_both() {
+ let old="table items:\n  title: text <=40\n  public 'fixture'\n  online only\n";
+ let current="table items:\n  name: text <=80 renamed from title\n  public 'fixture'\n  online only\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","title":"fits"}));
+ let error=adopt(&mut e,current,2).unwrap_err().to_string();assert!(error.contains("identical old and new cell types"),"{error}");
+ let mut e=engine(current);seed(&mut e,"items",json!({"id":"a","name":"fits"}));
+ let error=adopt(&mut e,old,1).unwrap_err().to_string();assert!(error.contains("identical old and new cell types"),"{error}");
+}
+
+#[test]
+fn column_rename_rejects_protected_reference_asset_and_collection_types_before_adoption() {
+ for declaration in [
+  "table parents:\n  name: text <=40\n  public 'fixture'\n  online only\ntable items:\n  owner: parents renamed from legacyOwner\n  public 'fixture'\n  online only\n",
+  "table items:\n  photo: image <=1024 renamed from legacyPhoto\n  public 'fixture'\n  online only\n",
+  "table items:\n  tags: [text <=20] <=5 renamed from legacyTags\n  public 'fixture'\n  online only\n",
+ ] {
+  let bound=snapback4_lang::compile(&[("schema.q".into(),declaration.into())]);
+  assert!(bound.diagnostics.iter().any(|d|d.message.contains("authoritative scalar")),"{:?}",bound.diagnostics);
+  assert!(bound.schema.downfills.is_empty());assert!(bound.schema.backfills.is_empty());
+ }
+}

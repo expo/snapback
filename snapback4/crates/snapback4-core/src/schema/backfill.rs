@@ -12,6 +12,7 @@ pub struct Backfill {
 }
 impl Backfill {
     pub fn key(&self) -> String { digest(&self.normalized()) }
+    pub fn down_key(&self) -> String { digest(&("down", self.normalized())) }
     pub fn normalized(&self) -> Self {
         // Locations are diagnostic metadata, never transformation identity.
         let mut normalized = self.clone();
@@ -57,6 +58,14 @@ impl Backfill {
             }
         }
         if !body(&self.program.body,schema) { return Err("backfill expressions allow deterministic scalar transforms, unique point lookups and bounded existence; no viewer, clock, ids, row collections, loops or writes".into()); }
+        Ok(())
+    }
+    pub fn admit_down(&self, schema: &Schema) -> Result<(), String> {
+        let table = schema.table(&self.table).ok_or("down projection names an absent current table")?;
+        if table.ephemeral.is_some() || schema.maintain_for(&self.table).is_some() { return Err("down projection requires an authoritative durable table".into()); }
+        if self.program.kind != ProgramKind::Query || self.program.native || self.outputs.is_empty() { return Err("down projection must produce a nonempty object patch".into()); }
+        if self.outputs.contains("id") { return Err("down projection cannot replace row identity".into()); }
+        if !body(&self.program.body,schema) { return Err("down expressions allow deterministic scalar transforms, unique point lookups and bounded existence; no viewer, clock, ids, row collections, loops or writes".into()); }
         Ok(())
     }
 }

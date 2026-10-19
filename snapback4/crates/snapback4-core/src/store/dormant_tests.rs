@@ -1298,6 +1298,27 @@ fn historical_through_captures_restore_after_public_rule_widening() {
 }
 
 #[test]
+fn predicate_only_read_through_narrowing_preserves_the_captured_parent_image() {
+    let broad="table parents:\n  owner: principal\n  access: enum('open','pending','closed')\n  immutable owner, access\n  read <- .owner = viewer and .access != 'closed'\n  insert <- allow\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n";
+    let narrow=broad.replace(".access != 'closed'",".access = 'open'");
+    let (broad_schema,_)=compile(broad);let (narrow_schema,_)=compile(&narrow);
+    assert!(crate::engine::through_activation::predicate_only_capture_change(&broad_schema,&narrow_schema,"children"));
+    let mut e=engine(broad);
+    seed(&mut e,"parents",serde_json::json!({"id":"p","owner":"alice","access":"open"}));
+    seed(&mut e,"children",serde_json::json!({"id":"c","parent":"p"}));
+    let captured=e.store().rows("children").unwrap().remove(0);
+    {
+        let tx=e.store_mut().transaction().unwrap();let t=tx.num("parents").unwrap();let mut parent=tx.get("parents","p").unwrap().unwrap();
+        if let Value::Row(fields)|Value::Map(fields)=&mut parent {fields.insert("access".into(),Value::String("pending".into()));}
+        tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id='p'",rusqlite::params![crate::value::canonical_json(&parent),t]).unwrap();tx.commit().unwrap();
+    }
+    activate(&mut e,&narrow,2).unwrap();
+    assert_eq!(e.store().rows("children").unwrap(),vec![captured.clone()]);
+    activate(&mut e,broad,1).unwrap();
+    assert_eq!(e.store().rows("children").unwrap(),vec![captured]);
+}
+
+#[test]
 fn narr_counts_column_values_not_population_and_word_entries_not_rows() {
     let source = "table docs:\n  title: text <=100\n  status: enum('draft') default 'draft'\n  public\n  insert <- allow\n  update <- allow\n  online only\n";
     let wide = source.replace("enum('draft')", "enum('draft', 'archived')").replace("  title: text", "  by search: words(title), id\n  title: text");

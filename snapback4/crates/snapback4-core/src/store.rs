@@ -130,7 +130,7 @@ impl Store {
         let version: String = tx.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| {
                 row.get(0)
             })?;
-        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" && version != backfills::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
+        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" && version != "snapback4-release-store-6" && version != backfills::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
         let catalog = tx.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
         let identity = activation::identity(&tx)?;
         tx.rollback()?;
@@ -273,7 +273,7 @@ impl Store {
         let version: String = opened.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| {
                 row.get(0)
             })?;
-        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" && version != backfills::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
+        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" && version != "snapback4-release-store-6" && version != backfills::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
         let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
             })?.collect::<Result<BTreeMap<_, _>, _>>()?;

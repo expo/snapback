@@ -10,6 +10,21 @@ use std::collections::BTreeMap;
 
 const EXPIRY_TABLE_CURSOR: &str = "$expiry-table";
 
+/// Whether a bare read-through changed only because its parent's read rule
+/// changed.  The compiler's through identity includes that predicate, so raw
+/// identity equality is deliberately too strong here; every field, lifetime,
+/// type, default and provenance-bearing table fact must otherwise be equal.
+pub(crate) fn predicate_only_capture_change(previous:&Schema,next:&Schema,name:&str)->bool {
+    let (Some(mut old_child),Some(new_child))=(previous.table(name).cloned(),next.table(name).cloned()) else{return false};
+    let (Some(old_edge),Some(new_edge))=(old_child.through.as_ref(),new_child.through.as_ref()) else{return false};
+    if old_edge==new_edge || old_edge.live.is_some() || new_edge.live.is_some() || old_edge.parent!=new_edge.parent {return false}
+    let (Some(mut old_parent),Some(new_parent))=(previous.table(&old_edge.parent).cloned(),next.table(&new_edge.parent).cloned()) else{return false};
+    old_parent.rules.read=new_parent.rules.read.clone();
+    old_child.rules.read=new_child.rules.read.clone();
+    if let (Some(old),Some(new))=(old_child.through.as_mut(),new_child.through.as_ref()) {old.identity=new.identity.clone();}
+    old_child==new_child && old_parent==new_parent
+}
+
 /// Rotate a sweep's table order after the last table that consumed a bounded
 /// visit. Per-table row cursors alone can starve every later table when an
 /// earlier table contains a permanently restricted due row.
@@ -300,7 +315,12 @@ pub(crate) fn activate_retained(
         };
         let parent = &next.tables[&t.parent];
         let bounded=live_work(tx,&name,previous.table(&name),next)?;
-        let recapture = previous.table(&name).and_then(|t| t.through.as_ref()) != Some(t);
+        let old_through=previous.table(&name).and_then(|t|t.through.as_ref());
+        // Bare captures are lifetime evidence, not a cache. A narrower parent
+        // rule with the same immutable edge preserves already captured fields;
+        // the SQLite adoption prepass keeps rows missing new fields dormant.
+        let preserved_bare=predicate_only_capture_change(previous,next,&name);
+        let recapture = old_through != Some(t) && !preserved_bare;
         let mut invalid = 0;
         let mut samples = Vec::new();
         rows(tx, &name, previous.table(&name).unwrap_or(table), parent_bytes(Some(parent),previous.table(&t.parent)), bounded, Some(table), |old| {

@@ -63,7 +63,7 @@ pub(super) fn transition(
 ) -> Result<(), RuntimeError> {
     // Backfill sources already retired through the ordinary action closure,
     // before patching. Never re-test predecessor deadlines on transformed rows.
-    if next.backfills.is_empty() && !super::backfills::has_evidence(tx)? {retire_sources(tx,next,previous,now)?;}
+    if next.backfills.is_empty() && next.downfills.is_empty() && !super::backfills::has_evidence(tx)? {retire_sources(tx,next,previous,now)?;}
     let have_dormant: bool = tx.conn().query_row(
         "SELECT EXISTS(SELECT 1 FROM _dormant_narrow_rows)",
         [],
@@ -325,7 +325,7 @@ pub(super) fn restore_images(tx:&Tx<'_>,next:&Schema,now:i64,source_definitions:
             .collect::<Result<Vec<_>, _>>()?;
         let mut invalid=false;
         for c in &invalid_columns {
-            if for_backfills && next.backfills.iter().any(|f| f.table==name && f.inputs.contains_key(c)) {
+            if for_backfills && next.backfills.iter().chain(&next.downfills).any(|f| f.table==name && f.inputs.contains_key(c)) {
                 return Err(RuntimeError::Structural{code:"E_ADOPT",message:format!("backfill historical reference {name}.{c} on {id} lost its parent lifetime")});
             }
             if table.columns.contains_key(c) && !super::authority_origin::obsolete_ref(tx,t,&id,c,table,Some(&old))? {invalid=true;}

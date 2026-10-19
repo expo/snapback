@@ -44,6 +44,9 @@ pub use routes::RouteSpec;
 pub struct Schema {
     #[cfg(feature = "sqlite")]
     pub backfills: Vec<backfill::Backfill>,
+    /// Candidate-owned projections used only while selecting an older schema.
+    #[cfg(feature = "sqlite")]
+    pub downfills: Vec<backfill::Backfill>,
     pub receipts: Vec<ReceiptFamily>,
     /// Schema-time closure; retained on device projections without private derivations.
     pub receipt_dependencies: BTreeMap<String, BTreeSet<String>>,

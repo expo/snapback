@@ -292,6 +292,8 @@ pub struct RuleDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColumnDecl {
+    /// `renamed from old`: an identical-type reversible authoritative move.
+    pub renamed_from: Option<String>,
     /// `on delete restrict | cascade | set null` on a reference (LLP 3000.039).
     pub on_delete: Option<(OnDelete, Site)>,
     pub sequence: Option<String>,
@@ -560,6 +562,7 @@ pub struct BackfillDecl {
 pub struct Document {
     pub aliases: Vec<(String, String, Site)>,
     pub backfills: Vec<BackfillDecl>,
+    pub downfills: Vec<BackfillDecl>,
     pub invariants: Vec<InvariantDecl>,
     pub source: crate::source::SourceMap,
     pub file: String,
