@@ -437,5 +437,11 @@ fn empty_start_reachability_uses_memory_without_opening_a_project_store() {
  assert_eq!(output.status.code(),Some(1),"{output:?}");
  let data:serde_json::Value=serde_json::from_slice(&output.stdout).unwrap();
  assert!(data["security"]["invariants"].as_array().unwrap().iter().any(|v|v["counterexample"]["reachability"]=="authored-fixture-trace"),"{data}");
+ for args in [vec!["check"],vec!["check","--all"]]{
+  let output=Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
+  assert_eq!(output.status.code(),Some(1));
+  let text=String::from_utf8(output.stderr).unwrap();
+  assert_eq!(text.matches("populated production states remain uncovered").count(),1,"{text}");
+ }
  assert!(!dir.join(".snapback4/store.sqlite").exists(),"security check must not adopt or create a dev store");
 }

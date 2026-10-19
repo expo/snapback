@@ -37,6 +37,7 @@ pub fn audit(options:&Options)->i32{
     if report.refuted(){1}else{0}
 }
 pub(super) fn summary(report:&Report,all:bool){
+    if let Some(coverage)=report.campaign_coverage.iter().find(|coverage|coverage.starts_with("no supplied fixture:")){eprintln!("security not covered: {coverage}");}
     for v in &report.invariants {if !all&&v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability!=security::challenges::Reachability::AuthoredFixtureTrace){eprintln!("security: {} refuted by seed/synthetic witness only (non-failing; --all for detail)",v.invariant.target_label());continue;}eprintln!("security {:?}: {} {}",v.status,v.invariant.target_label(),v.invariant.predicate);for why in &v.reasons{eprintln!("  {why}");}if let Some(c)=&v.counterexample{eprintln!("  counterexample {}",serde_json::to_string(c).unwrap());}}
     for note in &report.notes{eprintln!("{} {}: {} — {}",note.site,note.code,note.message,note.rewrite);}
     if !report.invariants.is_empty(){eprintln!("security: audit --json lists paths, exclusions and grant writers; guide security explains proof scope");}
