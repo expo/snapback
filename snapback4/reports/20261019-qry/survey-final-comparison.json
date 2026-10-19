@@ -1,0 +1,211 @@
+{
+  "before_binary_sha256": "ca0a6658c80b59c306aa25fc5302a61c9ede8be12a01de21569080d60aa37d33",
+  "after_binary_sha256": "3e635f537eec04de496cc060a248f53eb898e86238a4816693c21057f3aecd73",
+  "apps": 200,
+  "source_hashes_unchanged": true,
+  "failed": 0,
+  "changed_apps": 5,
+  "added_codes": {
+    "N_LOOKUP_FILTERED": 11
+  },
+  "removed_codes": {},
+  "changes": [
+    {
+      "wave": 15,
+      "lane": "010-day2-propane-tank-readings",
+      "exit_before": 0,
+      "exit_after": 0,
+      "changes": {
+        "compiler_notes": {
+          "added": [
+            {
+              "code": "N_LOOKUP_FILTERED",
+              "guide": "rules",
+              "mechanical": false,
+              "message": "mutation confirmFill: optional lookup of routes uses `read <- .driver = viewer or exists staff[viewer, role = 'dispatcher']` (schema.q:46:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null, so a later field/default or require may report a different business condition",
+              "rewrite": "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field",
+              "site": {
+                "col": 7,
+                "file": "schema.q",
+                "line": 121
+              }
+            }
+          ],
+          "removed": []
+        }
+      }
+    },
+    {
+      "wave": 15,
+      "lane": "036-day2-jersey-number-requests",
+      "exit_before": 0,
+      "exit_after": 0,
+      "changes": {
+        "compiler_notes": {
+          "added": [
+            {
+              "code": "N_LOOKUP_FILTERED",
+              "guide": "rules",
+              "mechanical": false,
+              "message": "mutation assignNow: optional lookup of requests uses `read <- .owner = viewer or exists staff[viewer, role = 'manager'] or viewer = 'service:ops'` (schema.q:47:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null, so a later field/default or require may report a different business condition",
+              "rewrite": "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field",
+              "site": {
+                "col": 11,
+                "file": "schema.q",
+                "line": 104
+              }
+            }
+          ],
+          "removed": []
+        }
+      }
+    },
+    {
+      "wave": 18,
+      "lane": "018-snapback-asbestos-air-clearances",
+      "exit_before": 0,
+      "exit_after": 0,
+      "changes": {
+        "compiler_notes": {
+          "added": [
+            {
+              "code": "N_LOOKUP_FILTERED",
+              "guide": "rules",
+              "mechanical": false,
+              "message": "mutation changeBoundary: optional lookup of jobs uses `read <- .contractor = viewer or .monitor = viewer or .owner = viewer or .supervisor = viewer or .designer = viewer or .workerA = viewer or .workerB = viewer` (schema.q:36:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null, so a later field/default or require may report a different business condition",
+              "rewrite": "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field",
+              "site": {
+                "col": 16,
+                "file": "schema.q",
+                "line": 90
+              }
+            },
+            {
+              "code": "N_LOOKUP_FILTERED",
+              "guide": "rules",
+              "mechanical": false,
+              "message": "mutation collectSample: optional lookup of jobs uses `read <- .contractor = viewer or .monitor = viewer or .owner = viewer or .supervisor = viewer or .designer = viewer or .workerA = viewer or .workerB = viewer` (schema.q:36:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null, so a later field/default or require may report a different business condition",
+              "rewrite": "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field",
+              "site": {
+                "col": 16,
+                "file": "schema.q",
+                "line": 121
+              }
+            },
+            {
+              "code": "N_LOOKUP_FILTERED",
+              "guide": "rules",
+              "mechanical": false,
+              "message": "mutation uploadLabResult: optional lookup of jobs uses `read <- .contractor = viewer or .monitor = viewer or .owner = viewer or .supervisor = viewer or .designer = viewer or .workerA = viewer or .workerB = viewer` (schema.q:36:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null, so a later field/default or require may report a different business condition",
+              "rewrite": "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field",
+              "site": {
+                "col": 16,
+                "file": "schema.q",
+                "line": 130
+              }
+            },
+            {
+              "code": "N_LOOKUP_FILTERED",
+              "guide": "rules",
+              "mechanical": false,
+              "message": "mutation uploadLabResult: optional lookup of containments uses `read through .job` (schema.q:63:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null, so a later field/default or require may report a different business condition",
+              "rewrite": "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field",
+              "site": {
+                "col": 17,
+                "file": "schema.q",
+                "line": 133
+              }
+            },
+            {
+              "code": "N_LOOKUP_FILTERED",
+              "guide": "rules",
+              "mechanical": false,
+              "message": "mutation uploadLabResult: optional lookup of containments uses `read through .job` (schema.q:63:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null, so a later field/default or require may report a different business condition",
+              "rewrite": "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field",
+              "site": {
+                "col": 30,
+                "file": "schema.q",
+                "line": 134
+              }
+            },
+            {
+              "code": "N_LOOKUP_FILTERED",
+              "guide": "rules",
+              "mechanical": false,
+              "message": "mutation signClearance: optional lookup of jobs uses `read <- .contractor = viewer or .monitor = viewer or .owner = viewer or .supervisor = viewer or .designer = viewer or .workerA = viewer or .workerB = viewer` (schema.q:36:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null, so a later field/default or require may report a different business condition",
+              "rewrite": "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field",
+              "site": {
+                "col": 16,
+                "file": "schema.q",
+                "line": 140
+              }
+            },
+            {
+              "code": "N_LOOKUP_FILTERED",
+              "guide": "rules",
+              "mechanical": false,
+              "message": "mutation dismantle: optional lookup of jobs uses `read <- .contractor = viewer or .monitor = viewer or .owner = viewer or .supervisor = viewer or .designer = viewer or .workerA = viewer or .workerB = viewer` (schema.q:36:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null, so a later field/default or require may report a different business condition",
+              "rewrite": "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field",
+              "site": {
+                "col": 16,
+                "file": "schema.q",
+                "line": 156
+              }
+            }
+          ],
+          "removed": []
+        }
+      }
+    },
+    {
+      "wave": 18,
+      "lane": "019-snapback-chimney-sweep-reports",
+      "exit_before": 0,
+      "exit_after": 0,
+      "changes": {
+        "compiler_notes": {
+          "added": [
+            {
+              "code": "N_LOOKUP_FILTERED",
+              "guide": "rules",
+              "mechanical": false,
+              "message": "mutation fileReport: optional lookup of rentalUnits uses `read <- .landlord = viewer or exists roles[viewer, role = 'master'] or exists assignments[.chimney, viewer]` (schema.q:72:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null, so a later field/default or require may report a different business condition",
+              "rewrite": "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field",
+              "site": {
+                "col": 7,
+                "file": "schema.q",
+                "line": 245
+              }
+            }
+          ],
+          "removed": []
+        }
+      }
+    },
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "exit_before": 0,
+      "exit_after": 0,
+      "changes": {
+        "compiler_notes": {
+          "added": [
+            {
+              "code": "N_LOOKUP_FILTERED",
+              "guide": "rules",
+              "mechanical": false,
+              "message": "mutation setStatus: optional lookup of limits uses `read <- .client = viewer or viewer = 'service:operator' or exists roles[viewer, role = 'technician'] or exists roles[viewer, role = 'coordinator'] or exists roles[viewer, role = 'manager']` (schema.q:57:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null, so a later field/default or require may report a different business condition",
+              "rewrite": "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field",
+              "site": {
+                "col": 9,
+                "file": "schema.q",
+                "line": 240
+              }
+            }
+          ],
+          "removed": []
+        }
+      }
+    }
+  ]
+}

@@ -1,169 +1,170 @@
-# Integration 18 — day-two bakeoff fixes and 0.4.34
+# QRY — wave-18 read semantics, target 0.4.35
 
-Date: 2026-10-19. Branch: `sb4-loop`. Delivery: local commits only; **not pushed**.
-Product candidate: `865fc1273c`; semantic corrections reviewed at `20cb01ee56`.
-Evidence/report commits after that candidate do not change the product.
+Complete on `sb4-b18-qry`, local commits only. No push or version bump.
+Package version remains 0.4.34; user-visible changes are in its **0.4.35 guide
+changes** entry. The inherited Integration 18 report is preserved under
+`snapback4/reports/20261019-qry/INHERITED-INTEGRATION18-REPORT.md`.
 
-## Integration and version
+## Per-item changes
 
-Started with status/log inspection, `git fetch origin` and
-`git merge --ff-only origin/main` at `3653cae823`. Read all three lane reports
-and governing release, backfill, compatibility and security LLPs before merging.
-Ordered `--no-ff` merges:
+### 1. Returning branches and silent empty results
 
-1. `7a4fe8b6f9` — REL5: retained release reactivation, clean refused deploys,
-   rollback foresight, signature diff, defaults, deprecation and aliases.
-2. `915b74d328` — MIG: declared transactional deploy backfills, day-two recipe,
-   staging clock and its client operator proof.
-3. `a32100a3ee` — SEC3: column invariants/audit, generated replay campaigns,
-   privilege escalation lint and precise security notes.
-4. `e0fbf667a9` — concurrent publication record `50ff0372eb` (0.4.31 superseded).
+The original 009/032/048 bodies already had fallback returns. Reconstructing
+009 with its full frozen schema reproduced the real defect: the engine summed
+two mutually exclusive 5,005-read reservations to 10,010, exceeding its fixed
+8,192 allowance before opening either cask page. The query returned empty and
+partial after reading only staffRoles. It now reserves max(5,005, 5,005), before
+any private probe, and returns the seeded cask for staff and owner.
 
-Kept integration's root report in conflicts. Preserved all additive parser/AST
-forms, old changelog history, guides and tests. Generated files were regenerated.
-No publication worktree or `target/publication/` was used or changed.
+`6f2e003bd7` introduces path-sensitive reservation accounting. Sequential and
+condition work add, alternative returning paths take their maximum, loops and
+expression blocks conservatively sum static occurrences, and once-per-occurrence
+credit consumption remains. No physical/logical ceiling, authority, protocol,
+or store migration changes. `2e9a10bc3b` adds advisory N_QUERY_FALLTHROUGH with a
+concrete uncovered branch/zero-iteration/entry path and explicit []/null repair;
+compatibility fallthrough remains null. N_QUERY_RESERVATION names oversized
+static paths. The user-authorized warning option avoids breaking old schemas.
 
-Version-only commit **`77dd50092f`**, `snapback4 0.4.34: reversible backfills,
-release reactivation and column security`, changes exactly the ten paths of
-`999598649f`'s previous bump. A single coherent 0.4.34 `guide changes` entry
-covers every lane and old app/store behavior, including old-binary refusal after
-release-store format upgrade and using 0.4.34 for source rollback.
+Detecting query-path tests cover max versus sum, sequential paths, condition
+work, loops, one-use credit, indexed time order, role alternatives, hidden
+populations and real meter cuts. Packed-client tests execute the same read
+semantics and verify the ordinary console fallthrough warning.
 
-## Cross-lane fixes and regressions
+### 2. Hidden lookups and refusal precedence
 
-- `8c7db77e65`, `3c16415a84`: real release transitions apply a non-idempotent
-  backfill once, then repeatedly rollback/reactivate retained release 2 with
-  unchanged values and receipts. `deploy --check` carries backfill preview and
-  old-client diff. Aliases/default/deprecated argument forms are exercised by
-  invariant audit, generated histories and actual calls after demotion.
-- `5d9fbe1a55`: a real deployed 0.4.33 store exposed compiler-report drift in
-  retained release identity. Executable identity excludes only generated
-  compatibility metadata; the full control-integrity digest still covers it.
-  Old source reactivates its retained release rather than allocating a new one.
-- `20cb01ee56`: reverse foresight shares forward activation's sampled staging
-  clock. A negative-clock expiry/restrict/backfill packed regression fails the
-  old binary and passes the fixed build. `Context.now` fixtures use `Some`.
-- `28037ee28e`, `20cb01ee56`: proof hosts honor the explicit binary in their
-  merged environment; portable declarations use `Record`, avoiding a browser
-  dependency on NodeJS types. Final runs pin the merged debug binary.
-- `78e36428d7`, `865fc1273c`: qualification harness imports all new modules,
-  has negative success-evidence tests, and packed-rule cases do not copy an
-  unavailable checkout binary when supplied a platform tarball.
-- `b93b159d92`: warning/help assertions preserve all new flags and explanations;
-  delivery await census includes four operator staging-proof awaits with reasons.
-- `4ab274e289`, `9902b0ccd0`, `20cb01ee56`: extend LLP 3000.037 §20 with calibrated
-  wave17 day-two results and `aggregate-bakeoff.mjs 18` on 0.4.33, explain .34's
-  changes, clarify downgrade custody, repair guide paragraph boundary.
+Optional points already return null for hidden, absent or expired rows. The
+observed refusal comes from an authored `! else CODE` assertion (or a later
+require/default), which retains CODE and statement precedence. Keeping that
+ladder avoids revealing stored hidden existence. No runtime hiding clause is
+exposed and no new lookup operator or read bypass is introduced.
 
-Both independent fresh round2 reviews are **READY**: Muse contributor-high
-(wrapper Meta fallback after plan quota) and Codex gpt-6.1-sol-high. Verbatim
-reviews, briefs, failed quota attempts and hashes are in
-`llp/reviews/integration18/`. The first Codex review found the reverse-clock bug;
-it was fixed and re-reviewed. Only packed fixture preparation changed afterward.
+`2e9a10bc3b` corrects guide rules/reads/programs/refusals and adds
+N_LOOKUP_FILTERED for optional private side-table reads in mutations without
+proved read authority. `f1546d5080` covers read-through rules and nested helpers,
+transfers bounded diagnostic-only viewer/exact-point facts, invalidates them on
+writes/rebinding, and seals caller/target namespaces so constants or outer focal
+fields cannot silence advice. These facts never authorize, narrow types or
+change prediction. Written tables, assertions, public and proved reads stay
+quiet; existing N_LOOKUP_HIDDEN and specialized ephemeral/maintained advice stay.
 
-## Verification
+Optional-lookup tests cover all these distinctions, missing/hidden/readable
+expiry, helper guards, write/rebind invalidation, false constants and focal/key
+capture. Guide excerpts and recovery definitions are pinned; retained guide
+Quarry blocks compile and the rules ladder executes through packed packages.
 
-Every shell invocation was bounded by `timeout`; Cargo inherited
-`CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
-No `scripts/test.sh` run. Raw logs and scripts: `~/sb4-loop/integ18/`.
-Committed summaries and source/package bindings: `snapback4/reports/integration18/`.
+### 3. Other read/query friction clusters
 
-- **Rust PASS (exit0):6,798 passed / 45 ignored / zero failed. All 412 primary executables and 4 doctest groups covered; exact Cargo metadata census matches.** Full requested five-package `cargo test --no-fail-fast`
-  rerun after the last fix, with eight test threads and sixteen build jobs.
-  The ticketed cleanup flake passes alone and in this second complete run. The earlier failing and interrupted runs are retained as such.
-- **Clients PASS (exit0).** All 419 files, 7,723 passed / 56 platform skips / zero failures (7,779 total). One full file pool (concurrency 16, serial timing
-  cohort) then full-count models (concurrency 1): all 81 tests pass with zero skips/failures; explicit merged binary. No seed
-  or timing bounds reduced. An earlier unchanged Following wasm timing timeout
-  passed alone and is tracked in `issues/20261019-snapback4-following-unfollow-wasm-timeout.md`.
-  Earlier failed/interrupted cohorts are retained and are not called passes.
-- **Difftest PASS:** native 20k, 1,220,035 executions, zero signatures; devices
-  0–999, 27,922 executions, zero; Lean 20k, 56,917 executions, 130 findings.
-  A separately built fresh `3653cae823` reproduces exactly all four signature
-  classes/counts (3/35/67/25), with identical pass/unsupported totals. No new signature.
-- **Packed Linux PASS (exit0).** Fresh `publish.mjs --prepare-client` from a
-  clean owned clone at `865fc1273c`; `qualify-linux.mjs --consumer-only` uses its
-  client/Expo tarballs and a fresh platform build. Consumer-only avoids the
-  explicitly forbidden full `scripts/test.sh`; complete Rust/client runs are
-  separate above. All new REL5 transition/compatibility, MIG backfill/staging and SEC3 packed security cases pass, including rootless musl consumers and all frontend starters. This is consumer evidence, not publication qualification.
-- **Root checks PASS.** Root frozen Bun install, workspace hoist and
-  generated-artifact setup completed. Regenerated diagnostics, guide manifest,
-  await census and RULES4 authoring census (870 entries, unchanged). Inventory,
-  reference and guide checks pass without skips: inventories 365 package tests / 35 script tests / 31 demos / 487 publication leaves; ref-check 556 LLPs /12096 refs, zero errors or unchecked; guide 22 passed, zero failed/skipped/preconditions (121 existing warnings). Docs budget passes (README 319/320
-  and the self-contained first-account guide case).
-- **Survey PASS:** final merged binary checks 100 wave15 +50 wave16 +50 wave18
-  schemas, zero refusals, all input hashes unchanged. Counts by every code are
-  in `survey-summary.json`. Prior 150 security counts exactly reconcile with
-  SEC3 final19: broad 251, intent 150, argument-grant 169, optional 36, escalation 7,
-  sweep-only 13, vacuous 1. Wave18 has separately reported counts, including
-  escalation 14, existence-oracle 15 and grant-outlives-role 9.
+Read the complete wave-18 bakeoff and relevant friction/transcripts; skimmed
+wave-17 day-two. The 032 issuedAt/id symptom shares the alternative-reservation
+failure, rather than requiring another index. 015/019/027/037/045 assertion
+precedence, 025's caller-hidden funding default, 029's caller-filtered program
+exists and 032's hidden upsert collision are explained in
+`snapback4/reports/20261019-qry/FROZEN-REPRO.md`. Only original 009 was executed
+with its complete recovered schema; 032/048 reservation figures are explicitly
+source-level analysis. Equivalent runtime detecting witnesses are committed.
 
-## Wasm
+SEC4 owns invariant/escalation/security-note tooling. DX4 owns staging,
+provisioning, uploads, clocks/sessions and setup/proof ergonomics. Their code and
+worktrees were not changed. Frozen wave apps were read-only throughout.
 
-Clean locked build and strict family/absence audits pass:
-**2,385,842 raw / 727,013 gzip / 548,685 Brotli bytes**.
-Budget **727,513 = measured gzip +500 bytes**. Growth versus Integration 17
-is 1,011 bytes gzip, including shared deterministic text builtins and merged
-release/security representation. The reason is recorded in the budget,
-JOURNAL and research record. Brotli uses Node zlib quality 11 because the Brotli
-executable is absent. The final clean measurement is source-bound at865fc1273c
-in `snapback4/metrics/wasm.jsonl`; failed zero-Brotli measurement is not evidence.
+## Design and commits
 
-## Actual 0.4.33 upgrades
+LLP 3000.036.002 **§15** amends §10 and documents all semantic choices;
+§10 explicitly points to the refinement. Status is Implemented. Four rounds
+used fresh independent Muse and Codex sessions per the common rules. Both
+round-4 reviews mark the same semantic amendment revision READY. Eight verbatim
+reviews and provenance are under `llp/reviews/3000.036.002-qry-r*`. Muse's wrapper
+used its authorized fallback after plan quota errors; no key was read or printed.
 
-Installed `snapback4@0.4.33 snapback4-expo@0.4.33 --save-exact` from
-`http://127.0.0.1:4873/` into a fresh Expo app and store. Upgraded with merged .34
-and corrected pack via an ephemeral local registry overlay: exact pins, adapt,
-check, invariant acceptance, preserved row, closed default password-dev doors,
-real signup/write/read, explicit legacy unsafe-dev-door behavior, Expo typecheck
-and Expo web export all **PASS**. No registry publication.
+- `6f2e003bd7` — fix mutually exclusive bounded query reservations.
+- `2e9a10bc3b` — return-path/lookup advice, guide ladder and detecting tests.
+- `f1546d5080` — helper/through proof precision, invalidation and namespace sealing.
+- `2a3876cfda` — READY reviews and initial corpus/differential evidence.
+- Final evidence commit — this report, final corpus/census/Linux receipts and
+  documentation reconciliation; no product semantic changes after qualification.
 
-A separate real 0.4.33 *deployed* release store has an invariant, user/data,
-releases 1/2 and rollback history. .34 preview is read-only, reactivates retained
-release 2, preserves data/users/privacy and survives repeated rollback/reactivation:
-**PASS**. `upgrade-history-commands.json` records exact commands.
+The same budget-increase commit records its reason in JOURNAL.md and the budget
+metadata. Locked Linux wasm is **2,387,388 raw / 727,580 gzip**, +1,546/+567 versus
+Integration 18; artifact allowance **728,080** is measurement + exactly 500 B.
+Strict serde-family and server/Unicode absence audits pass. This is whole-artifact
+measurement, with no independent per-feature size or Mac-size claim.
 
-## Exact
+## Verification results
 
-Fresh clean clone of Exact2 origin/main at
-`860c44bfbd9f52e16c21888307a703a6bd83d43f` in `~/sb4-loop/prewave18/exact2`.
-Only private checkout dependency paths/lock were bound to the merged Snapback
-core/device/lang; frozen Bun install and Contract CLI build passed. Fresh
-`synced-qualified/app` and `online-qualified/app` use the corrected prepared
-client (all 304 installed dist files in each exactly match the tarball).
+All shell launches were bounded. Every Cargo invocation used
+CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=0 and CARGO_PROFILE_TEST_DEBUG=0.
+No full scripts/test.sh invocation was made.
 
-For each mode: `bun <clone>/scripts/exact.mjs new <app> --snapback [--online]`,
-`bun exact.mjs snapback --rebuild --port <port>`,
-`bun exact.mjs contract migrate app.contract`,
-`bun exact.mjs contract types app.contract -o app.contract.d.ts`, and
-`bun exact.mjs test web --backend http://127.0.0.1:<port>` all **PASS**
-(two web tests per mode). Synced port41771, online35007. Exact argv/cwd/exit
-records are committed in `exact-commands.json`; clone, source and package
-bindings are adjacent. The binary reports 0.4.34; no published older fallback.
+| Crate | Default unit/integration targets completed | Tests passed | Existing ignored |
+| --- | ---: | ---: | ---: |
+| snapback4 | 54/54 | 860 | 10 |
+| snapback4-core | 43/43 | 381 | 2 |
+| snapback4-lang | 171/171 | 2,304 | 14 |
+| snapback4-device | 102/102 | 1,570 | 4 |
+| snapback4-difftest | 11/11 | 96 | 0 |
+| snapback4-native | 1/1 | 0 | 0 |
+| snapback4-sim | 44/44 | 749 | 7 |
+| **Total** | **426/426** | **5,960** | **37** |
 
-## Mac Studio
+Six crate doctest targets also pass, including **17 core doctests**. The
+one-hour workspace command timed out in a language target already covered by
+the separate full language run; that 15-minute language command also needed
+three remaining-target batches (19/18/18). All default targets are accounted
+for by the retained Cargo inventory and completed result summaries; incomplete
+segments do not count. The final simulator/difftest and native runs completed.
+Final diagnostic refinements are covered by the full 170-target language
+integration inventory; final max implementation also has the focused witnesses.
+These timeouts are not represented as successful single-command runs.
 
-Only `ccheever@macstudio-charlie-apt101-a:~/sb4-ws-integ18` used. Actual toolchain
-is macOS27.0.1 / Xcode27.1 (27A9275), despite requested host note saying27.0.
-No black M5 or publication scratch was touched.
+The initial broad attempt caught a missing registered recovery excerpt, fixed
+before final checks, plus a shutdown-console timing failure; the complete CLI
+rerun passed. No failed test remains in the final census. The retained audit is
+replayable with `timeout 15 python3 snapback4/reports/20261019-qry/test-census.py`.
 
-Affected core/device/sim targets pass. Corrected lang and CLI target sets pass
-(including new security histories, evolution, notes, clocks and previews).
-The initial scratch copy omitted two read-only fixtures; copied those exact
-tracked fixtures and reran affected tests. Browser-portable package declarations
-and upgrade-history checks pass. An extra target audit also passes list_lower_bounds and the bin module session diagnostics (the initial standalone serve_identity target spelling was invalid; corrected invocation passes). **Final Mac client pool PASS:** all 70 files in one pass,1,650 passed / 15 platform skips / zero failures (1,665 total).
-Fresh iOS XCFramework build passes; chat schema check passes.
-**Expo prebuild and CocoaPods PASS. Generic Expo Release build blocked:** Interface Builder stalls with no output for over 10 minutes while Xcode first-launch status is 69. Terminated only the double-verified owned build/child; this is not a successful build.
+- Linux focused: **139 pass** (guide 126, optional lookup 7, query paths 6).
+- Mac Studio, only `/Users/ccheever/sb4-ws-qry`: same **139 pass**. An initial
+  source-only copy lacked an LLP/generated-client prerequisite; copied those
+  prerequisites and reran. No black M5 publication host used.
+- Affected packed rule/client file: **23 pass**, normal console warning included.
+- Difftest run: **20,000 cases / 1,220,035 comparisons / zero findings**.
+- Devices seeds 0–999: **1,000 cases / 27,922 comparisons / zero findings**.
+- Lean: **20,000 cases / 56,917 comparisons**, unchanged 130 findings in four
+  known signatures: code E_RULE~NOT_FOUND (3), continuation-next (35), next (67),
+  prelude-code E_RULE~NOT_FOUND (25). **No new signature**.
+- 200-schema before/final survey: waves 15/16/18 = 100/50/50; **200/200 compile
+  before and after**, all source hashes unchanged. Only **11 N_LOOKUP_FILTERED
+  additions in five apps**; no removed notes, changed security notes/errors,
+  new fallthrough notes or new reservation notes. Every added site is explained
+  in SURVEY.md. Finished apps already contain the old branch workarounds.
+- Fresh-pack `qualify-linux --consumer-only`: **PASS** at exact source
+  `2a3876cfdaf32bbcf3b01575592b7855ff03587a`. Ubuntu 24.04 and Alpine round trips,
+  web/Expo/adapted/template starters, release transitions, day2/day4/day5,
+  production, proof kit, client/rule recipes, frontend, security, migrations and
+  staging proofs pass. Exact client/Expo/Linux tarballs and consumer.json remain
+  in `/home/ccheever/sb4-qry-packed`; hashes and receipts are committed.
+- Root frozen Bun 1.4.2 install, hoist and generated-artifact preconditions pass.
+  Inventories: **365 package tests / 35 script tests / 31 demos / 487 leaves**.
+  The final inventory delivery recheck also passes after expanding an initial
+  three-minute timeout to a 900-second bound. Root guide: **22 pass**,
+  162 pages / 1,937 snippets, no skipped checks or
+  missing preconditions; 121 inherited warnings.
+- Final `./ref-check --verbose`: **0 errors, 0 unchecked**, 556 LLPs / 12,099 refs.
+  README **319/320**, executable first-screen and full guide compression budget
+  pass. Strict wasm family/absence checks pass. git diff --check passes.
 
-**Native witness blocked:** `xcrun simctl list runtimes -j` triggers “Install
-Failed: Authorization is required to install the packages”; direct simctl also
-hangs and noninteractive sudo requires a password. No alternative Xcode is
-installed. No simulator was booted and no Expo native witness is claimed.
-Complete the Studio's administrator-authorized Xcode component setup, then rerun
-`mac-native.py`'s Release simulator build and `node witness/expo.mjs` against .34. Follow-up: `issues/20261019-snapback4-studio-xcode-component-setup-blocks-native-witness.md`.
+## Delivery limits and cleanup
 
-## Delivery and remaining work
+No QRY implementation is deferred. Consumer-only Linux qualification was the
+necessary scope adjustment because the user forbade full scripts/test.sh; it
+records publicationQualified=false and supplies **no publication receipt**.
+Default ignored/opt-in tests remain explicit; no Postgres or release/publication
+claim is made. Corpus advice is not a claim that every caller is denied or a
+complete application-security proof. Root checks retain their inherited warnings.
 
-All requested product changes and local version bump are committed. The final full Linux and affected Mac product checks pass. The sole requested qualification deferred is the Expo Release/native witness blocked by the Studio's Xcode component setup; the generic Release attempt is interrupted infrastructure evidence, not a pass.
-
-Final fetch found no additional origin/main commits beyond the publication record already merged. Test/review bindings stay on the content candidate 865fc1273c; later commits contain evidence, tickets and this report. Full publication qualification/promotions were not run: the packed consumer-only receipt explicitly records that limitation, and the complete requested Rust/client suites were run separately.
-No push, npm publish, publication claim, or publication-directory mutation.
+Owned Linux and Mac target directories, Lean build output, expanded consumer
+projects and survey scratch were removed after retaining exact packs and compact
+receipts. No sibling/shared build directory or foreign /tmp path was removed.
+Shared Linux free space recovered to about 55 GB. Package/wasm built leaves and
+installed dependencies remain available. `cleanup.json` records removed paths.
+The evidence directory contains compressed logs, final per-target census,
+independent reviews, complete survey deltas and original-source analysis.

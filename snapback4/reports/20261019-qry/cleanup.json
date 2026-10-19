@@ -1,0 +1,12 @@
+{
+  "removed": [
+    "/home/ccheever/projects/sb4-b18-qry/snapback4/target",
+    "/home/ccheever/projects/sb4-b18-qry/snapback4/lean/.lake/build",
+    "/home/ccheever/sb4-qry-survey-final",
+    "/home/ccheever/sb4-qry-survey-reviewed",
+    "/home/ccheever/sb4-qry-baseline"
+  ],
+  "mac_removed": "/Users/ccheever/sb4-ws-qry/snapback4/target",
+  "retained_exact_artifacts": "/home/ccheever/sb4-qry-packed",
+  "note": "Earlier completed-test executable cleanup preserved active runs. No sibling/shared build directory or foreign temporary path was removed."
+}
