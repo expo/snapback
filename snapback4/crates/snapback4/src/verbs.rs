@@ -1319,6 +1319,7 @@ fn arg_word(kind: &ir::ArgType) -> String {
 mod releases;
 mod release_safeguards;
 mod release_preview;
+mod rollback_foresight;
 mod release_bridge;
 mod release_summary;
 mod release_narration;

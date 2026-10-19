@@ -1,0 +1,173 @@
+[
+  {
+    "lane": "013-snapback-hackathon-rubric-judging",
+    "originalUnchanged": true,
+    "changes": "release-selection workaround removed; original schemas and business assertions unchanged",
+    "runs": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "proof": {
+          "ok": true,
+          "recordsBeforeV2": 2,
+          "recordsCheckedAfterV2": 2,
+          "dataPreservedAfterV2": true,
+          "migratedValuesCorrect": true,
+          "v2FeatureWorks": true,
+          "v2RuleEnforced": true,
+          "rollback": "ok",
+          "dataPreservedAfterRollback": true,
+          "rollforward": "ok",
+          "dataPreservedAfterRollforward": true,
+          "v1ClientAfterV2": "works",
+          "v1ClientAfterRollback": "works",
+          "v1ClientNotes": "after-v2: 7/7 v1 calls sent \u2014 visibleSubmissions: ok; mySubmissions(team1): ok; totalsFor: ok; allScores: ok; updateSubmission-no-track: ok; createSubmission-no-track: ok; submitScore: ok | after-rollback: 7/7 v1 calls sent \u2014 visibleSubmissions: ok; mySubmissions(team1): ok; totalsFor: ok; allScores: ok; updateSubmission-no-track: ok; createSubmission-no-track: ok; submitScore: ok",
+          "notes": "run=mvemhp6tae9055 contest=01M58Z3WXC08A5GKTJQE2Z4X8Y v1release=1 v2release=2; team1 submission left on social track; deadlines left open; setTrack allowed for organizer+head (head is staff); v1 create/update without track default to/keep general via Since-release-2 optional params."
+        },
+        "releaseDirectories": [
+          "1",
+          "2"
+        ]
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "proof": {
+          "ok": true,
+          "recordsBeforeV2": 4,
+          "recordsCheckedAfterV2": 4,
+          "dataPreservedAfterV2": true,
+          "migratedValuesCorrect": true,
+          "v2FeatureWorks": true,
+          "v2RuleEnforced": true,
+          "rollback": "ok",
+          "dataPreservedAfterRollback": true,
+          "rollforward": "ok",
+          "dataPreservedAfterRollforward": true,
+          "v1ClientAfterV2": "works",
+          "v1ClientAfterRollback": "works",
+          "v1ClientNotes": "after-v2: 7/7 v1 calls sent \u2014 visibleSubmissions: ok; mySubmissions(team1): ok; totalsFor: ok; allScores: ok; updateSubmission-no-track: ok; createSubmission-no-track: ok; submitScore: ok | after-rollback: 7/7 v1 calls sent \u2014 visibleSubmissions: ok; mySubmissions(team1): ok; totalsFor: ok; allScores: ok; updateSubmission-no-track: ok; createSubmission-no-track: ok; submitScore: ok",
+          "notes": "run=mvemhxjw08698e contest=01M58Z3WXC08A5GKTJQE2Z4X8Y v1release=1 v2release=2; team1 submission left on social track; deadlines left open; setTrack allowed for organizer+head (head is staff); v1 create/update without track default to/keep general via Since-release-2 optional params."
+        },
+        "releaseDirectories": [
+          "1",
+          "2"
+        ]
+      }
+    ]
+  },
+  {
+    "lane": "030-snapback-harvest-bin-tickets",
+    "originalUnchanged": true,
+    "changes": "release-selection workaround removed; original schemas and business assertions unchanged",
+    "runs": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "proof": {
+          "ok": true,
+          "recordsBeforeV2": 2,
+          "recordsCheckedAfterV2": 2,
+          "dataPreservedAfterV2": true,
+          "migratedValuesCorrect": true,
+          "v2FeatureWorks": true,
+          "v2RuleEnforced": true,
+          "rollback": "ok",
+          "dataPreservedAfterRollback": true,
+          "rollforward": "ok",
+          "dataPreservedAfterRollforward": true,
+          "v1ClientAfterV2": "works",
+          "v1ClientAfterRollback": "works",
+          "v1ClientNotes": "v2-live: tickets: ok (3 rows, weightKg present: true); issueTicket(weightKg): sent net=321; correctTicket(weightKg): sent | v1-live: tickets: ok (4 rows, weightKg present: true); issueTicket(weightKg): sent net=321; correctTicket(weightKg): sent",
+          "notes": "run mvemi7ku848: v1 data on block 01M58Z4J9MR14CPTMNZNYWZ7PA (D2 Block mvemi7ku848); releases v1=1 v2=2; v1->v2 move via deploy."
+        },
+        "releaseDirectories": [
+          "1",
+          "2"
+        ]
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "proof": {
+          "ok": true,
+          "recordsBeforeV2": 10,
+          "recordsCheckedAfterV2": 10,
+          "dataPreservedAfterV2": true,
+          "migratedValuesCorrect": true,
+          "v2FeatureWorks": true,
+          "v2RuleEnforced": true,
+          "rollback": "ok",
+          "dataPreservedAfterRollback": true,
+          "rollforward": "ok",
+          "dataPreservedAfterRollforward": true,
+          "v1ClientAfterV2": "works",
+          "v1ClientAfterRollback": "works",
+          "v1ClientNotes": "v2-live: tickets: ok (3 rows, weightKg present: true); issueTicket(weightKg): sent net=321; correctTicket(weightKg): sent | v1-live: tickets: ok (4 rows, weightKg present: true); issueTicket(weightKg): sent net=321; correctTicket(weightKg): sent",
+          "notes": "run mvemiejs896: v1 data on block 01M58Z4TP7VK348P6Q7TDR64RC (D2 Block mvemiejs896); releases v1=1 v2=2; v1->v2 move via deploy."
+        },
+        "releaseDirectories": [
+          "1",
+          "2"
+        ]
+      }
+    ]
+  },
+  {
+    "lane": "042-snapback-sterile-tray-tracking",
+    "originalUnchanged": true,
+    "changes": "release-selection workaround removed; original schemas and business assertions unchanged",
+    "runs": [
+      {
+        "attempt": 1,
+        "exit": 0,
+        "proof": {
+          "ok": true,
+          "recordsBeforeV2": 4,
+          "recordsCheckedAfterV2": 4,
+          "dataPreservedAfterV2": true,
+          "migratedValuesCorrect": true,
+          "v2FeatureWorks": true,
+          "v2RuleEnforced": true,
+          "rollback": "ok",
+          "dataPreservedAfterRollback": true,
+          "rollforward": "ok",
+          "dataPreservedAfterRollforward": true,
+          "v1ClientAfterV2": "degraded",
+          "v1ClientAfterRollback": "works",
+          "v1ClientNotes": "after v2: stationTrays:works, recallLoad-no-reason:works, readyTrays:works, createTray:works, loadsList-as-OR:refused NOT_AUTHORIZED | after rollback: stationTrays:works, loadsList-as-OR:works, recallLoad:works",
+          "notes": "run 254b0ea3: v1 recall without reason keeps working after v2 (reason optional); OR loadsList/recallInfo refuse NOT_AUTHORIZED after v2 (loads flag + reason hidden from OR by design); v2-only expired rows go dormant under v1 and restore on forward."
+        },
+        "releaseDirectories": [
+          "1",
+          "2"
+        ]
+      },
+      {
+        "attempt": 2,
+        "exit": 0,
+        "proof": {
+          "ok": true,
+          "recordsBeforeV2": 11,
+          "recordsCheckedAfterV2": 11,
+          "dataPreservedAfterV2": true,
+          "migratedValuesCorrect": true,
+          "v2FeatureWorks": true,
+          "v2RuleEnforced": true,
+          "rollback": "ok",
+          "dataPreservedAfterRollback": true,
+          "rollforward": "ok",
+          "dataPreservedAfterRollforward": true,
+          "v1ClientAfterV2": "degraded",
+          "v1ClientAfterRollback": "works",
+          "v1ClientNotes": "after v2: stationTrays:works, recallLoad-no-reason:works, readyTrays:works, createTray:works, loadsList-as-OR:refused NOT_AUTHORIZED | after rollback: stationTrays:works, loadsList-as-OR:works, recallLoad:works",
+          "notes": "run fe0e8a01: v1 recall without reason keeps working after v2 (reason optional); OR loadsList/recallInfo refuse NOT_AUTHORIZED after v2 (loads flag + reason hidden from OR by design); v2-only expired rows go dormant under v1 and restore on forward."
+        },
+        "releaseDirectories": [
+          "1",
+          "2"
+        ]
+      }
+    ]
+  }
+]

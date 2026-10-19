@@ -185,6 +185,9 @@ fn check_change(
         for line in lines {
             eprintln!("{line}");
         }
+        if target_release.is_some() {
+            for warning in snapback4_lang::client_contracts::compare(&old,bound,&format!("release {n}")) {eprintln!("WARNING {warning}");}
+        }
     }
     if options.flags.contains_key("allow-destructive") {
         eprintln!(
@@ -251,6 +254,7 @@ fn activate(
     restore_dormant: bool,
     allow_feed_adoption: bool,
     options: &Options,
+    mut candidate: Option<&mut crate::release_files::Candidate>,
 ) -> Result<(), String> {
     let root = dir.join("releases").join(release.to_string());
     let digest = crate::release_files::digest(&root)?;
@@ -284,7 +288,7 @@ fn activate(
         receipt(release,engine.generation(),&engine.store().adoption_report,options);
 
     } else {
-        let result = crate::release_control::request(
+        let result = crate::release_control::request_observed(
             dir,
             crate::release_control::Command::Activate {
                 release,
@@ -295,6 +299,7 @@ fn activate(
                 restore_dormant,
                 allow_feed_adoption,
             },
+            |pending| { if let Some(candidate)=candidate.as_deref_mut() {candidate.pending=pending;} },
         )?;
         if options.json {println!("{}",result);} else {
             println!("release {release} is current as generation {}; {}; running serve adopted the release",result["generation"],result["adoption"].as_str().unwrap_or("adopted"));
@@ -395,6 +400,29 @@ pub fn deploy(options: &Options) -> i32 {
                     return Ok(());
                 }
             }
+            // @ref LLP 3000.000.000#16-release-reactivation-and-rollback-foresight-rel5 — equal retained executable bytes select their existing identity.
+            let staged_digest = crate::release_files::digest(&stage)?;
+            let mut matching = std::fs::read_dir(&releases).map_err(|e|e.to_string())?
+                .filter_map(Result::ok).filter_map(|e| e.file_name().to_str()?.parse::<u64>().ok())
+                .filter(|n| selectable(&dir, *n).is_ok())
+                .collect::<Vec<_>>();
+            matching.sort_unstable_by(|a,b| b.cmp(a));
+            let mut matched = None;
+            for n in matching {
+                if crate::release_files::digest(&releases.join(n.to_string()))? == staged_digest { matched=Some(n); break; }
+            }
+            if let Some(n) = matched {
+                let mut preview_options=options.clone();
+                preview_options.flags.insert("deploy-direction".into(),String::new());
+                preview_options.flags.insert("restore-dormant".into(),String::new());
+                if !checking { preview_options.flags.insert("validation-only".into(),String::new()); }
+                super::release_preview::preview(&dir.join("store.sqlite"),releases.join(n.to_string()),n,&preview_options)?;
+                if checking { return Ok(()); }
+                let selected = bound_at(releases.join(n.to_string()))?;
+                activate(&dir,_deployment.as_ref(),n,previous,revision,selected,false,true,options.flags.contains_key("allow-feed-adoption"),options,None)?;
+                if let Some(saved)=&mut saved_version {saved.finish(n,&source_hash)?;}
+                return Ok(());
+            }
             let mut n=std::fs::read_dir(&releases).map_err(|e|e.to_string())?.filter_map(Result::ok).filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok()).max().unwrap_or(0);
             let staged_bound = bound_at(stage.clone())?;
             if options.flags.contains_key("check") {
@@ -403,11 +431,13 @@ pub fn deploy(options: &Options) -> i32 {
                 let _=std::fs::remove_dir_all(&stage);
                 return result;
             }
-            let final_dir=loop {
-                n=n.checked_add(1).ok_or("release identity exhausted")?;
-                let path=releases.join(n.to_string());
-                match std::fs::create_dir(&path) {Ok(())=>break path,Err(e) if e.kind()==std::io::ErrorKind::AlreadyExists=>continue,Err(e)=>return Err(e.to_string())}
-            };
+            let mut validation=options.clone();
+            validation.flags.insert("deploy-direction".into(),String::new());
+            validation.flags.insert("validation-only".into(),String::new());
+            super::release_preview::preview(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&validation)?;
+            if staged_bound.schema != bound.schema { return Err("staged source does not match the compiled schema".into()); }
+            n=n.checked_add(1).ok_or("release identity exhausted")?;
+            let final_dir=releases.join(n.to_string());
             // @ref LLP 3000.000.000#10-wave-10-release-lifecycle-amendment — only committed adoption makes a candidate selectable.
             std::fs::write(stage.join(".pending-adoption"), b"pending\n").map_err(|e|e.to_string())?;
             if staged_bound.schema != bound.schema {
@@ -419,6 +449,7 @@ pub fn deploy(options: &Options) -> i32 {
             }))).map_err(|e|e.to_string())?;
             crate::release_files::durable(&stage)?;
             std::fs::rename(&stage, &final_dir).map_err(|e| e.to_string())?;
+            let mut candidate=crate::release_files::Candidate::new(&dir,n);
             std::fs::File::open(&releases)
                 .and_then(|f| f.sync_all())
                 .map_err(|e| e.to_string())?;
@@ -433,18 +464,15 @@ pub fn deploy(options: &Options) -> i32 {
                 options.flags.contains_key("restore-dormant"),
                 options.flags.contains_key("allow-feed-adoption"),
                 options,
+                Some(&mut candidate),
             );
             match result {
                 Ok(()) => {
+                    candidate.committed=true;
                     if let Err(error)=std::fs::remove_file(final_dir.join(".pending-adoption")) {eprintln!("release {n} committed; pending-marker cleanup failed: {error}; history proves adoption");}
                     if let Some(saved) = &mut saved_version {saved.finish(n,&source_hash).map_err(|e|format!("release {n} committed, but saving its snapshot failed: {e}; retry unchanged deploy with --save-version"))?;}
                 }
                 Err(error) => {
-                    // Keep the source reserved even after a lost reply; committed history is authoritative.
-                    let matching_latest=latest(&dir).ok().filter(|id|crate::release_files::digest(&final_dir).ok()==crate::release_files::digest(&releases.join(id.to_string())).ok());
-                    let error=if error.contains("dormant names") && matching_latest.is_some() {
-                        format!("E_ADOPT: source matches latest; use `snapback4 rollback {} --to latest` to reactivate it; alternatively `snapback4 deploy {} --restore-dormant`. {error}",dir.display(),dir.display())
-                    } else {error};
                     if options.json && error.contains("dormant names") {
                         let mut inventory=Vec::new();let mut cursor=None;
                         loop {
@@ -515,6 +543,7 @@ pub fn rollback(options: &Options) -> i32 {
                 true,
                 options.flags.contains_key("allow-feed-adoption"),
                 options,
+                None,
             )?;
 
             Ok(())

@@ -28,6 +28,9 @@ pub(crate) fn typescript(project: &Project, bound: &Bound) -> io::Result<String>
     let sources = sources(&path).map_err(|e| baseline_error(e.to_string()))?;
     let baseline = snapback4_lang::compile(&sources);
     if !baseline.diagnostics.is_empty() { return Err(baseline_error(format!("saved baseline does not compile: {:?}", baseline.diagnostics))); }
+    for warning in snapback4_lang::client_contracts::compare(&baseline,bound,&format!("baseline {}",absolute.display())) {
+        eprintln!("WARNING {warning}");
+    }
     Ok(snapback4_lang::emit::typescript_spanning(bound, &baseline, config.since_release))
 }
 

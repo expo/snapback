@@ -1,11 +1,11 @@
-//! @ref LLP 3000.000.000.000#3-generated-compatibility — opt-in types span a saved baseline and current source.
+//! @ref LLP 3000.000.000.000#11-old-client-operation-contracts-rel5 — opt-in types span a saved baseline and current source.
 use super::*;
 
 pub(super) fn args(current: &[(String, Ty)], old: Option<&[(String, Ty)]>, since: Option<u64>) -> String {
     if current.is_empty() { return "Record<string, never>".into(); }
     format!("{{ {} }}", current.iter().map(|(name, ty)| {
         let added = old.is_some_and(|old| !old.iter().any(|(n, _)| n == name));
-        let optional = ty.is_optional() || added;
+        let optional = ty.is_optional();
         format!("{}{}{}: {}", if added { format!("/** Since release {}. */ ", since.unwrap()) } else { String::new() }, property(name), if optional { "?" } else { "" }, ty_ts(ty))
     }).collect::<Vec<_>>().join("; "))
 }

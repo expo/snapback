@@ -52,6 +52,11 @@ pub(super) fn preview(
         .adoption_estimate(&bound.schema)
         .map_err(|e| e.to_string())?
         .map(|e| e.summary());
+    let mut client_compatibility=Vec::new();
+    if let Some(current)=held["release"].as_u64() {
+        let prior=super::releases::bound_at(store_path.parent().ok_or("no deployment directory")?.join("releases").join(current.to_string()))?;
+        client_compatibility=snapback4_lang::client_contracts::compare(&prior,&bound,&format!("release {current}"));
+    }
     let candidate_schema=bound.schema.clone();
     let candidate_programs:std::collections::BTreeMap<_,_>=bound.programs.iter().map(|p|(p.program.name.clone(),p.program.clone())).collect();
     let mut hazards=Vec::new();
@@ -125,6 +130,30 @@ pub(super) fn preview(
         };
         step.message=step.message.replace("its rows are lost", &retained).replace("its values are lost", &retained);
     }
+    if options.flags.contains_key("deploy-direction") {
+        if let Some(current) = held["release"].as_u64() {
+            let old_root=store_path.parent().ok_or("no deployment directory")?.join("releases").join(current.to_string());
+            let old=super::releases::bound_at(old_root.clone())?;
+            hazards.extend(super::rollback_foresight::risks(&candidate_schema,&old.schema,current,store_path.parent().unwrap()));
+            // Exact reverse adoption tests today's post-deploy image, separately from future-write risks.
+            let reverse_path=snapshot.0.join("reverse.sqlite");
+            engine.store().conn().execute("VACUUM INTO ?1",[reverse_path.to_string_lossy().as_ref()]).map_err(|e|e.to_string())?;
+            let reverse_store=snapback4_core::Store::open(&reverse_path).map_err(|e|e.to_string())?;
+            let native=crate::native::prepare(&Project {root:old_root},&old).map_err(|e|e.to_string())?;
+            let mut reverse=snapback4_core::engine::release::ReleaseActivation::new(current,Some(release));
+            reverse.restore_dormant=true;
+            reverse.native_digest=native.installed.map(|m|m.digest);
+            reverse.operation="preview".into();
+            if let Err(error)=snapback4_core::Engine::new_release_prepared(reverse_store,old.schema,old.programs.into_iter().map(|p|p.program),&reverse,options.flags.contains_key("allow-feed-adoption")) {
+                hazards.push(format!("rollback to release {current} refuses on the post-deploy snapshot: {error}; run `snapback4 rollback {} --to {current} --check --bridge <new-dir>` and preserve the required fields/domains in a bridge",store_path.parent().unwrap().display()));
+            }
+        }
+    }
+    hazards.extend(client_compatibility.iter().cloned());
+    if options.flags.contains_key("validation-only") {
+        for hazard in &hazards { eprintln!("WARNING {hazard}"); }
+        return Ok(());
+    }
     let checklist = super::release_bridge::checklist(held["release"].as_u64().unwrap_or(0),release,&hazards);
     if let Some(path) = options.flags.get("bridge") {
         let current = held["release"].as_u64().ok_or("a bridge needs a current deployed release")?;
@@ -132,7 +161,7 @@ pub(super) fn preview(
         eprintln!("bridge starter written to {path}; edit its current source and follow ROLLBACK-CHECKLIST.md before activation");
     }
     if options.json {
-        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary(),"backfills":engine.store().adoption_report.backfills})).unwrap());
+        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary(),"backfills":engine.store().adoption_report.backfills})).unwrap());
     } else {
         println!("preview: release {release} would be current as generation {}; live release unchanged", engine.generation());
         super::release_summary::print(prior_schema.as_ref(), &candidate_schema, &candidate_programs, &hazards, &notes, &steps, &items);

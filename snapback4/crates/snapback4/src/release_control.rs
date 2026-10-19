@@ -305,6 +305,13 @@ impl Drop for Listener {
 
 #[cfg(unix)]
 pub(crate) fn request(dir: &Path, command: Command) -> Result<Value, String> {
+    request_observed(dir,command, |_|{})
+}
+
+/// Submission remains in flight after a lost reply, even before history shows a commit.
+// @ref LLP 3000.000.000#16-release-reactivation-and-rollback-foresight-rel5 — source cleanup needs either no submission or a definitive completed reply.
+#[cfg(unix)]
+pub(crate) fn request_observed(dir: &Path, command: Command, mut pending: impl FnMut(bool)) -> Result<Value, String> {
     let store = dir.join("store.sqlite");
     let unavailable = |reason: String| {
         let owner_path = store.canonicalize().unwrap_or_else(|_| store.clone());
@@ -350,6 +357,7 @@ pub(crate) fn request(dir: &Path, command: Command) -> Result<Value, String> {
             dir.display()
         )
     };
+    pending(true);
     stream.write_all(&bytes).map_err(ambiguous)?;
     stream
         .shutdown(std::net::Shutdown::Write)
@@ -368,17 +376,20 @@ pub(crate) fn request(dir: &Path, command: Command) -> Result<Value, String> {
             dir.display()
         )
     })?;
-    match value.get("ok") {
-        Some(value) => Ok(value.clone()),
-        None => Err(value["error"]
-            .as_str()
-            .unwrap_or("release control refused command; inspect releases")
-            .into()),
+    match (value.get("ok"),value.get("error").and_then(Value::as_str)) {
+        (Some(value),_)=>{pending(false);Ok(value.clone())},
+        (_,Some(error))=>{pending(false);Err(error.into())},
+        _=>Err("release result is unknown (invalid reply); inspect releases before retrying".into()),
     }
 }
 
 #[cfg(not(unix))]
 pub(crate) fn request(_: &Path, _: Command) -> Result<Value, String> {
+    Err("local release control requires Unix".into())
+}
+
+#[cfg(not(unix))]
+pub(crate) fn request_observed(_: &Path, _: Command, _: impl FnMut(bool)) -> Result<Value,String> {
     Err("local release control requires Unix".into())
 }
 
@@ -412,6 +423,61 @@ mod tests {
         fn drop(&mut self) {
             let _ = fs::remove_dir_all(&self.0);
         }
+    }
+    #[test]
+    fn candidate_observer_distinguishes_a_refusal_from_a_lost_reply() {
+        for dropped in [false,true] {
+            let dir=Directory::new(false);
+            let listener=Listener::bind(&dir.0,&dir.0.join("store.sqlite")).unwrap();
+            let task=std::thread::spawn(move || {
+                let deadline=std::time::Instant::now()+Duration::from_secs(5);
+                let mut stream=loop {
+                    match listener.accept() {
+                        Ok(stream)=>break stream,
+                        Err(e) if e.kind()==io::ErrorKind::WouldBlock && std::time::Instant::now()<deadline=>std::thread::sleep(Duration::from_millis(5)),
+                        Err(e)=>panic!("{e}"),
+                    }
+                };
+                if dropped {input(&mut stream,Duration::from_secs(5)).unwrap();}
+                else {listener.handle(&mut stream,|_|Err("E_ADOPT: definite refusal".into()));}
+            });
+            let mut pending=false;
+            let result=request_observed(&dir.0,Command::Status{after:0,items_after:None,event:None},|state|pending=state);
+            assert!(result.is_err());assert_eq!(pending,dropped);
+            task.join().unwrap();
+        }
+    }
+    #[test]
+    fn candidate_survives_lost_reply_then_later_commit_and_restart() {
+        let dir=Directory::new(false);
+        let source=|n|format!("query q():\n  return {n}\n");
+        let compile=|n|snapback4_lang::compile(&[("schema.q".into(),source(n))]);
+        let first=compile(1);
+        let first=snapback4_core::Engine::new_release(snapback4_core::Store::open(&dir.0.join("store.sqlite")).unwrap(),first.schema,first.programs.into_iter().map(|p|p.program),1,None).unwrap();
+        drop(first);
+        let root=dir.0.join("releases/2");fs::create_dir_all(root.join("snapback")).unwrap();fs::write(root.join("snapback/schema.q"),source(2)).unwrap();
+        let listener=Listener::bind(&dir.0,&dir.0.join("store.sqlite")).unwrap();
+        let database=dir.0.join("store.sqlite");let second=compile(2);
+        let (resume,blocked)=mpsc::channel();
+        let task=std::thread::spawn(move || {
+            let deadline=std::time::Instant::now()+Duration::from_secs(5);
+            let mut stream=loop {match listener.accept(){Ok(stream)=>break stream,Err(e) if e.kind()==io::ErrorKind::WouldBlock && std::time::Instant::now()<deadline=>std::thread::sleep(Duration::from_millis(5)),Err(e)=>panic!("{e}")}};
+            input(&mut stream,Duration::from_secs(5)).unwrap();
+            drop(stream); // Client loses its reply while the admitted work is still able to commit.
+            blocked.recv_timeout(Duration::from_secs(5)).unwrap();
+            let mut options=snapback4_core::engine::release::ReleaseActivation::new(2,Some(1));options.operation="deploy".into();
+            snapback4_core::Engine::new_release_prepared(snapback4_core::Store::open(&database).unwrap(),second.schema,second.programs.into_iter().map(|p|p.program),&options,false).unwrap().generation()
+        });
+        let mut candidate=crate::release_files::Candidate::new(&dir.0,2);
+        let result=request_observed(&dir.0,Command::Activate{release:2,expected_release:Some(1),expected_revision:1,digest:"test".into(),rollback:false,restore_dormant:false,allow_feed_adoption:false},|pending|candidate.pending=pending);
+        assert!(result.is_err());assert!(candidate.pending);
+        let before=snapback4_core::Store::open_read_only(&dir.0.join("store.sqlite")).unwrap();assert_eq!(before.meta("release").unwrap().as_deref(),Some("1"));drop(before);
+        drop(candidate);assert!(root.join("snapback/schema.q").is_file());
+        resume.send(()).unwrap();assert_eq!(task.join().unwrap(),2);
+        let recovered=crate::project::Project{root}.compile().unwrap();assert!(recovered.diagnostics.is_empty());
+        let mut restarted=snapback4_core::Engine::attach_release(snapback4_core::Store::open(&dir.0.join("store.sqlite")).unwrap(),2).unwrap();
+        assert_eq!(&recovered.schema,restarted.schema());
+        assert_eq!(restarted.query("q",snapback4_core::Context::new("user:a",Default::default())).unwrap().data,snapback4_core::Value::Int(2));
     }
     #[test]
     fn socket_permissions_and_entry_types_are_enforced() {

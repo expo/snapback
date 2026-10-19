@@ -175,3 +175,50 @@ impl Drop for Pointer {
         }
     }
 }
+
+// @ref LLP 3000.000.000#16-release-reactivation-and-rollback-foresight-rel5 — deletion requires a definitive non-commit, never a lost reply.
+pub(crate) struct Candidate { dir: PathBuf, release: u64, pub committed: bool, pub pending: bool }
+impl Candidate {
+    pub(crate) fn new(dir: &Path, release: u64) -> Self { Self {dir:dir.into(),release,committed:false,pending:false} }
+}
+impl Drop for Candidate {
+    fn drop(&mut self) {
+        if self.committed { return; }
+        if self.pending {eprintln!("release {} result remains unknown; retained source while the server may still commit; inspect releases",self.release);return;}
+        let probe=(|| -> Result<bool,String> {
+            let store=snapback4_core::Store::open_read_only(&self.dir.join("store.sqlite")).map_err(|e|e.to_string())?;
+            let history:bool=store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='_release_events')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+            if !history {return Ok(false);}
+            store.conn().query_row("SELECT EXISTS(SELECT 1 FROM _release_events WHERE release=?1 OR previous=?1)",[self.release as i64],|r|r.get(0)).map_err(|e|e.to_string())
+        })();
+        match probe {
+            Ok(false)=>if let Err(e)=fs::remove_dir_all(self.dir.join("releases").join(self.release.to_string())) {eprintln!("uncommitted release {} cleanup failed: {e}",self.release);},
+            Ok(true)=>{},
+            Err(e)=>eprintln!("release {} outcome unknown; retained source for recovery; inspect releases: {e}",self.release),
+        }
+    }
+}
+
+#[cfg(test)]
+mod candidate_tests {
+    use super::*;
+    #[test]
+    fn cleanup_removes_only_definitively_uncommitted_candidates() {
+        let root=std::env::temp_dir().join(format!("sb4-candidate-custody-{}-{}",std::process::id(),snapback4_core::now_ms()));
+        fs::create_dir_all(root.join("releases")).unwrap();
+        struct Cleanup(PathBuf);
+        impl Drop for Cleanup {fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
+        let _cleanup=Cleanup(root.clone());
+        let store=snapback4_core::Store::open(&root.join("store.sqlite")).unwrap();
+        store.conn().execute_batch("CREATE TABLE _release_events(release INTEGER,previous INTEGER)").unwrap();
+        for n in 1..=3 {fs::create_dir(root.join("releases").join(n.to_string())).unwrap();}
+        drop(Candidate::new(&root,1));
+        assert!(!root.join("releases/1").exists());
+        // A server may commit after this history read. No observed row is not a completed refusal.
+        let mut flight=Candidate::new(&root,2);flight.pending=true;drop(flight);
+        assert!(root.join("releases/2").is_dir());
+        store.conn().execute("INSERT INTO _release_events VALUES(3,NULL)",[]).unwrap();
+        drop(Candidate::new(&root,3));
+        assert!(root.join("releases/3").is_dir());
+    }
+}

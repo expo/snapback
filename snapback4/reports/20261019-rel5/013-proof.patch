@@ -1,0 +1,38 @@
+--- original/scripts/day2-proof.mjs
++++ copy/scripts/day2-proof.mjs
+@@ -74,7 +74,7 @@
+   if (serve && v2numLive !== null) {
+     try {
+       const info = JSON.parse((await cli(["releases", DEPLOY_DIR, "--json"])).stdout);
+-      if (info.release !== v2numLive) await cli(["rollback", DEPLOY_DIR, "--to", String(v2numLive), "--json"]);
++      if (info.release !== v2numLive) await cli(["deploy", DEPLOY_DIR, "--json"]);
+     } catch {}
+   }
+   await cleanup(() => serve?.stop());
+@@ -140,7 +140,7 @@
+   {
+     const info = JSON.parse((await cli(["releases", DEPLOY_DIR, "--json"])).stdout);
+     if (info.release !== v2num) {
+-      const r = await cli(["rollback", DEPLOY_DIR, "--to", String(v2num), "--json"]);
++      const r = await cli(["deploy", DEPLOY_DIR, "--json"]);
+       if (r.code !== 0) throw new Error(`activate v2 for capture failed: ${r.stderr.slice(0, 400)}`);
+     }
+     const subs = await client.head1.query(apiV2.visibleSubmissions, {});
+@@ -226,7 +226,7 @@
+     } else {
+       const again = await releaseNums();
+       if (again.some((r) => r.isV2)) {
+-        const r = await cli(["rollback", DEPLOY_DIR, "--to", String(v2num), "--json"]);
++        const r = await cli(["deploy", DEPLOY_DIR, "--json"]);
+         if (r.code !== 0) throw new Error(`activate v2 failed: ${r.stderr.slice(0, 400)}`);
+         log(`v2 activated (release ${v2num})`);
+       } else {
+@@ -384,7 +384,7 @@
+   }
+   // 11. Forward to v2 again; data + tracks restored.
+   {
+-    const r = await cli(["rollback", DEPLOY_DIR, "--to", String(v2num), "--json"]);
++    const r = await cli(["deploy", DEPLOY_DIR, "--json"]);
+     ok(r.code === 0, `rollforward to v2 (release ${v2num})`);
+     report.rollforward = r.code === 0 ? "ok" : "failed";
+     const subs = await client.head1.query(apiV2.visibleSubmissions, {});

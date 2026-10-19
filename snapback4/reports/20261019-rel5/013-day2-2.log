@@ -1,0 +1,36 @@
+releases: v1=1 v2=2
+backend: http://127.0.0.1:26800 run=mvemhxjw08698e
+roles ensured
+captured 4 expected tracks
+v1 live (release 1)
+contest 01M58Z3WXC08A5GKTJQE2Z4X8Y
+ok: team1 v1 update
+ok: team2 v1 update
+v1 writes done
+ok: snapshot holds 4 submissions
+v2 activated (release 2)
+ok: all 4 records present after v2
+ok: all tracks match expectations (new rows general, kept rows retained)
+ok: v2 feature: team sets track, staff moves it, filtered leaderboard shows it
+ok: v2 rule: deadline lock, staff-only moves, judge/team track isolation
+v1 client after-v2: works (7/7)
+  visibleSubmissions: ok
+  mySubmissions(team1): ok
+  totalsFor: ok
+  allScores: ok
+  updateSubmission-no-track: ok
+  createSubmission-no-track: ok
+  submitScore: ok
+ok: rollback to v1 (release 1)
+ok: all 5 rows readable under v1 after rollback
+v1 client after-rollback: works (7/7)
+  visibleSubmissions: ok
+  mySubmissions(team1): ok
+  totalsFor: ok
+  allScores: ok
+  updateSubmission-no-track: ok
+  createSubmission-no-track: ok
+  submitScore: ok
+ok: rollforward to v2 (release 2)
+ok: all 5 rows with tracks restored after rollforward
+DAY2-PROOF PASSED

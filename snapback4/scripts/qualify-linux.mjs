@@ -12,6 +12,7 @@ import { proveStarters } from "./publication-starters.mjs";
 import { proveExpoUpgrades } from "./publication-regressions.mjs";
 import { proveDay2 } from "./publication-day2.mjs";
 import { proveDay4 } from "./publication-day4.mjs";
+import { proveReleaseTransitions } from "./publication-release-transitions.mjs";
 import { proveDay5 } from "./publication-day5.mjs";
 import { proveProduction } from "./publication-production.mjs";
 import { proveProofKit } from "./publication-proof-kit.mjs";
@@ -108,6 +109,7 @@ export async function qualify(args = process.argv.slice(2)) {
     save(join(out, "regressions.json"), regressions);
     const day4Proof = await proveDay4(day2Proof.directory);
     save(join(out, "day4-proof.json"), day4Proof);
+    save(join(out, "release-transitions.json"), await proveReleaseTransitions(day2Proof.directory));
     const day5Proof = await proveDay5(day2Proof.directory);
     save(join(out, "day5-proof.json"), day5Proof);
     const productionProofs = await proveProduction(client, tarball, expo, out);

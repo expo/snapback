@@ -1,0 +1,17 @@
+v1 release 1 is current as generation 1; 0 rows, 0 cells, 0 index entries dormant; 15.2 ms
+production http://127.0.0.1:26800 (v1 live)
+six production users ready
+roles granted
+v1 data written, load recalled without reason
+records before v2: 2 trays + 2 loads
+v2 release 2 is current as generation 2; 0 rows, 0 cells, 0 index entries dormant, loads changed, trays.status changed, loadRecalls changed; 29.4 ms; running serve adopted the release
+v2 migration asserted over 4 records
+v2 feature + rule asserted
+v1 client after v2: degraded
+rollback: release 1 is current as generation 3; 2 rows, 0 cells, 4 index entries dormant; samples: entries loadRecalls [01M58Z51WFDW0S2MFEQF14SYW0, 01M58Z51YWA517F97XGPPAWE22]; rows loadRecalls [01M58Z51WFDW0S2MFEQF14SYW0, 01M58Z51YWA517F97XGPPAWE22], loadRecalls changed, loads changed, trays.status changed; 41.9 ms; running serve adopted the release
+rollback preservation asserted (v2-only rows dormant by design)
+v1 client after rollback: works
+rollforward: release 2 is current as generation 4; 0 rows, 0 cells, 0 index entries dormant, loads changed, trays.status changed, loadRecalls changed; 33.6 ms; running serve adopted the release
+rollforward preservation asserted
+day2-proof passed: {"ok":true,"recordsBeforeV2":4,"recordsCheckedAfterV2":4,"dataPreservedAfterV2":true,"migratedValuesCorrect":true,"v2FeatureWorks":true,"v2RuleEnforced":true,"rollback":"ok","dataPreservedAfterRollback":true,"rollforward":"ok","dataPreservedAfterRollforward":true,"v1ClientAfterV2":"degraded","v1ClientAfterRollback":"works","v1ClientNotes":"after v2: stationTrays:works, recallLoad-no-reason:works, readyTrays:works, createTray:works, loadsList-as-OR:refused NOT_AUTHORIZED | after rollback: stationTrays:works, loadsList-as-OR:works, recallLoad:works","notes":"run 254b0ea3: v1 recall without reason keeps working after v2 (reason optional); OR loadsList/recallInfo refuse NOT_AUTHORIZED after v2 (loads flag + reason hidden from OR by design); v2-only expired rows go dormant under v1 and restore on forward."}
+day2-proof passed

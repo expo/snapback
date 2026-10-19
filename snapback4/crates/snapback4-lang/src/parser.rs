@@ -61,7 +61,7 @@ struct Parser {
     repair_args: Option<(Site, Vec<ArgDecl>)>,
 }
 
-const TOP_LEVEL: [&str; 20] = ["invariant", "view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
+const TOP_LEVEL: [&str; 21] = ["alias", "invariant", "view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
 
 impl Parser {
     fn document(&mut self) {
@@ -93,6 +93,7 @@ impl Parser {
         self.repair_args = None;
         let token = self.peek().clone();
         match token.value.as_str() {
+            "alias" => self.parse_alias(),
             "invariant" => self.parse_invariant(),
             "action" => self.parse_action(),
             "route" => self.parse_route(),

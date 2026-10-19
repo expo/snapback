@@ -1,0 +1,37 @@
+--- original/scripts/day2-proof.mjs
++++ copy/scripts/day2-proof.mjs
+@@ -81,24 +81,7 @@
+   return { status: res.status, json, text: text.slice(0, 300) };
+ }
+ 
+-async function deployRelease(schema, label) {
+-  // Re-selecting v2 after a rollback reuses dormant names (loadRecalls);
+-  // the backend requires explicit restoration intent for that direction.
+-  try {
+-    const d = await deploy(DIR, schema, { ...options, timeoutMs: 180_000 });
+-    log(`${label} deploy: ${d.stdout.trim().split("\n").at(-1)}`);
+-    return d;
+-  } catch (error) {
+-    const text = String(error?.stack ?? error);
+-    if (/dormant names|restoration intent/.test(text)) {
+-      log(`${label} needs --restore-dormant, retrying`);
+-      const d = await deploy(DIR, schema, { ...options, timeoutMs: 180_000, args: ["--restore-dormant"] });
+-      log(`${label} deploy: ${d.stdout.trim().split("\n").at(-1)}`);
+-      return d;
+-    }
+-    throw error;
+-  }
+-}
++async function deployRelease(schema,label) { const d=await deploy(DIR,schema,{...options,timeoutMs:180_000}); log(label+' '+d.stdout.trim()); return d; }
+ function releaseNum(d, label) {
+   const n = Number(/(?:release (\d+) is current|release (\d+) stays current)/.exec(d.stdout)?.slice(1).find(Boolean));
+   assert.ok(Number.isSafeInteger(n) && n >= 1, `${label} release number`);
+@@ -335,7 +318,7 @@
+   }
+ 
+   // ---- 9. forward to v2 again; data once more.
+-  const fw = await rollback(DIR, v2num, { ...options, timeoutMs: 180_000 });
++  const fw = await deploy(DIR, "versions/v2/schema.q", { ...options, timeoutMs: 180_000 });
+   log(`rollforward: ${fw.stdout.trim().split("\n").at(-1)}`);
+   result.rollforward = "ok";
+   {

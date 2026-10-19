@@ -184,7 +184,7 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "hold-schedules") => " — admit no scheduled runs",
             (_, "trace-empty") => " — record unknown empty reads in why recent",
             (_, "check") => " — preview adoption without activating the release",
-            (_, "restore-dormant") => " — explicitly restore dormant names during deploy",
+            (_, "restore-dormant") => " — explicitly restore dormant names during deploy or rollback",
             (_, "allow-feed-adoption") => " — explicitly admit changed feed definitions",
             (_, "allow-destructive") => " — explicitly authorize prune; never bypass adoption",
             (_, "to") => " — select a target release (or exact package version for upgrade)",

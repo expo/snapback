@@ -217,7 +217,7 @@ test("legacy pointer deployments upgrade through deploy, never implicit serving"
   assert.deepEqual(state(database), before);
   run("deploy", deployment);
   const upgraded = state(database);
-  assert.equal(upgraded.metadata.release, "2");
+  assert.equal(upgraded.metadata.release, "1");
   assert.equal(upgraded.metadata.generation, "2");
   await serve(deployment, async (url, headers) => {
     const backend = await (await fetch(url + "/schema", { headers, signal: AbortSignal.timeout(hangBudget()) })).json();
@@ -741,9 +741,9 @@ query extras():
       assert.equal((await releasePost(url, headers, '/m/edit', { item: id, body: 'old write' }, 'v1-edit')).state, 'sent');
       assert.equal((await releasePost(url, headers, '/m/remove', { item: gone }, 'v1-delete')).state, 'sent');
       const newRow = await releasePost(url, headers, '/m/add', {}, 'v1-new'); assert.equal(newRow.state, 'sent');
-      // A new-source deployment must explicitly select retained name reuse.
-      const unselected = invoke('deploy', deployment); assert.equal(unselected.status, 1); assert.match(unselected.stderr, /--restore-dormant/);
-      run('rollback', deployment, '--to', '2');
+      // Matching retained source selects its immutable identity and restoration intent.
+      run('deploy', deployment);
+      assert.equal(JSON.parse(run('releases', deployment)).release,2);
       await client.sync(); local = await client.query({ kind: 'query', name: 'all' }, {});
       assert.equal(local.data.find(row => row.id === id).extra, 42); assert.equal(local.data.find(row => row.id === id).body, 'old write');
       assert.equal(local.data.find(row => row.id === newRow.result.id).extra, 7); assert.ok(local.data.every(row => row.id !== gone));
@@ -818,7 +818,7 @@ test('hot release replaces, adds and retires named workers without restarting se
     rmSync(join(workers,'alpha.mjs'));writeFileSync(join(workers,'beta.mjs'),worker('ROLL_BETA_V3'));
     run('deploy',deployment);
     await waitFor(()=>logs().includes('ROLL_BETA_V3')&&statuses()['worker:status:alpha']?.state==='stopped','removed worker retires and remaining worker restarts',{diagnostics:()=>logs()+JSON.stringify(statuses())});
-    const history=JSON.parse(run('releases',deployment));assert.equal(history.release,4);
+    const history=JSON.parse(run('releases',deployment));assert.equal(history.release,3);
     assert.equal(history.workers.find(([key])=>key==='worker:status:beta')[1].includes('running'),true);
   });
 });
@@ -1028,26 +1028,22 @@ test('REL minimum-text widening warns in both deploy and rollback directions', {
   const assetRollback=invoke('rollback',deployment,'--to','5');assert.equal(assetRollback.status,0);assert.doesNotMatch(assetRollback.stderr,/WARNING rollback compatibility/);
 });
 
-test('REL2 refused deploy is unselectable and latest restores the adopted source', {timeout:hangBudget(3)}, async t=>{
-  const {deployment,schema,run,invoke}=fixture(t);
+test('matching retained deploy reactivates without a refused candidate', {timeout:hangBudget(3)}, async t=>{
+  const {deployment,schema,run}=fixture(t);
   run('deploy',deployment);
   const v2=source.replace('  body: text','  extra: int default 9\n  body: text');
   writeFileSync(schema,v2);run('deploy',deployment);run('rollback',deployment,'--to','1');
-  const refused=invoke('deploy',deployment);assert.equal(refused.status,1);
-  assert.match(refused.stderr,/E_ADOPT: source matches latest; use `snapback4 rollback .* --to latest`/);
-  assert.doesNotMatch(refused.stderr,/"sample_ids"/);
-  const structured=invoke('deploy',deployment,'--json');assert.equal(structured.status,1);assert.equal(JSON.parse(structured.stdout).dormant[0].key,'column:items.extra');
-  rmSync(join(deployment,'releases/3/.pending-adoption'));
-  assert.equal(JSON.parse(run('releases',deployment)).latest,2);
-  for(const args of [['rollback',deployment,'--to','3'],['rollback',deployment,'--to','3','--check'],['releases',deployment,'3'],['check','--store',join(deployment,'store.sqlite'),'--release','3']]) {
-    const r=invoke(...args);assert.equal(r.status,1,r.stdout);assert.match(r.stderr,/did not complete adoption/);
-  }
+  const before=state(join(deployment,'store.sqlite'));
+  const preview=JSON.parse(run('deploy',deployment,'--check','--json'));
+  assert.equal(preview.plan.release,2);
+  assert.deepEqual(state(join(deployment,'store.sqlite')),before);
+  assert.equal(JSON.parse(run('deploy',deployment,'--json')).release,2);
+  assert.equal(existsSync(join(deployment,'releases/3')),false);
+  run('rollback',deployment,'--to','1');
   await serve(deployment,async()=>{
-    run('rollback',deployment,'--to','latest');assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'2');
-    run('rollback',deployment,'--to','1');
-    assert.equal(invoke('deploy',deployment).status,1);
+    run('deploy',deployment);assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'2');
     assert.equal(JSON.parse(run('releases',deployment)).latest,2);
-    run('rollback',deployment,'--to','latest');
+    assert.equal(existsSync(join(deployment,'releases/3')),false);
   });
 });
 
@@ -1105,7 +1101,7 @@ schedule sweepEvery every 1d: sweep
     assert.deepEqual(state(join(deployment,'store.sqlite')),before);
     assert.equal(JSON.parse(run('releases',deployment)).latest,1);
     run('deploy',deployment);
-    writeFileSync(schema,v1);
+    writeFileSync(schema,v1+'query fresh():\n  return true\n');
     assert.equal(invoke('deploy',deployment,'--check').status,1);
     assert.match(run('deploy',deployment,'--check','--restore-dormant'),/preview/);
   });
@@ -1192,7 +1188,7 @@ test('NARR populated widening describes future risk without miscounting compatib
   await serve(deployment,async(url,headers)=>{
     await releasePost(url,headers,'/m/add',{},'rel2-warning-row');
     writeFileSync(schema,source);
-    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.doesNotMatch(r.stderr,/WARNING|existing rows/);assert.match(r.stderr,/note: items.body admits values outside release 1's column declaration/);
+    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.doesNotMatch(r.stderr,/WARNING rollback compatibility|existing rows/);assert.match(r.stderr,/WARNING rollback foresight/);assert.match(r.stderr,/note: items.body admits values outside release 1's column declaration/);
   });
 });
 

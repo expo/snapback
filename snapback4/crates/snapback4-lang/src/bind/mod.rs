@@ -6,6 +6,7 @@ mod sweep_deadline;
 mod columns;
 mod ephemeral;
 mod defaults;
+mod operation_evolution;
 mod first_paste;
 mod maintains;
 mod own_keys;
@@ -102,6 +103,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
 // verifying the diagnostics from a rejected candidate.
 pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
+    operation_evolution::expand(&mut documents, &mut diagnostics);
     let mut first_identity = None;
     for document in &documents {
         if let (Some(methods), Some(site)) = (document.identity, document.identity_site.as_ref()) {
