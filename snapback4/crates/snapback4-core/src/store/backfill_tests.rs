@@ -654,3 +654,10 @@ fn partial_output_suspension_keeps_original_absence_distinct_from_rollback_defau
  let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";let plain=old.replace("  n:","  score: int default 10\n  n:");let next=plain.clone()+"backfill items increment(score: int ?):\n  {score:(score ?? 0) + 1}\n";
  let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(1));adopt(&mut e,&plain,3).unwrap();adopt(&mut e,&next,2).unwrap();adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(1));adopt(&mut e,&plain,3).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(10));
 }
+
+#[test]
+fn pruned_disjoint_history_does_not_block_an_unchanged_native_output() {
+ let plain="table items:\n  n: int\n  a: int\n  b: int\n  public 'fixture'\n  online only\n";
+ let g="backfill items g(n: int):\n  {b:n * 2}\n";let f="backfill items f(n: int):\n  {a:n * 3}\n";let mut e=engine(&(plain.to_owned()+g));seed(&mut e,"items",json!({"id":"a","n":3,"a":0,"b":42}));
+ adopt(&mut e,&(plain.to_owned()+g+f),2).unwrap();e.store_mut().prune_dormant(true,None).unwrap();adopt(&mut e,&(plain.to_owned()+f),3).unwrap();adopt(&mut e,&(plain.to_owned()+f+g),4).unwrap();assert_eq!(field(&mut e,"items","a","b"),Value::Int(42));assert_eq!(field(&mut e,"items","a","a"),Value::Int(9));
+}

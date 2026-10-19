@@ -1,0 +1,10 @@
+{
+  "reviewer": "OpenAI Codex",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "fresh_session": true,
+  "base_commit": "9413058054",
+  "candidate": "final 63-case working tree later committed in 5816f5453f",
+  "verdict": "NOT READY",
+  "date": "2026-10-19"
+}

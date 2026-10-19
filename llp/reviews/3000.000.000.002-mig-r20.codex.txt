@@ -1,0 +1,7 @@
+NOT READY
+
+- **[P2] Unrelated pruned history blocks valid native re-entry.** [backfills.rs:219](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs:219) treats **any** pruned receipt on the row as conflicting, without checking output overlap.
+
+  Reproduction: insert a native row while declaration G owns `b`; later introduce F transforming only `a`; prune F’s evidence; remove G while retaining `b`; then re-enter G. Despite G’s unchanged fingerprint and complete valid `b`, activation refuses because F’s tombstone exists.
+
+  This contradicts §3’s native-image preservation and overlapping-history rules. Check pruned definitions for overlapping outputs, preserving refusal for actual conflicts, and add this regression.

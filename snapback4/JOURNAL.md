@@ -96753,6 +96753,9 @@ Inverse absence is shared by arguments, lookup rows and indexes. Explicit prune
 retains suspended reversal-unavailable field identities. Historical declaration
 names remain immutable across gaps; re-entry refuses edits to reversed values.
 Inactive snapshots apply original input omissions after retained output preimages.
-The 63 regression cases include all fifty wave-17 shapes. Packed production recipe,
+The 64 regression cases include all fifty wave-17 shapes. Packed production recipe,
 Linux/Mac clocks, copied-lane measurements and final qualification results are
 recorded in WORKSTREAM-REPORT.md; this entry does not pre-claim pending checks.
+
+Native re-entry checks pruned definitions by overlapping output identity; an
+unrelated pruned field cannot invalidate an unchanged authored native value.

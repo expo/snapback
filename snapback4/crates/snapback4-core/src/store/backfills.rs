@@ -216,7 +216,14 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 if fill.inputs.iter().any(|(c,kind)|!fill.outputs.contains(c) && !physically_absent.contains(c) && crate::engine::validate::validate_column(&fill.table,c,kind,native_inputs.get(c)).is_err()) {
                     bad.add(id,"native image has an invalid present historical input; use a typed bridge");return Ok(())
                 }
-                let mut conflict=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _backfill_pruned WHERE t=?1 AND id=?2)",params![t,id],|r|r.get::<_,bool>(0))?;
+                let mut conflict=false;
+                let mut q=tx.conn().prepare("SELECT octet_length(definition),definition FROM _backfill_definitions WHERE digest IN (SELECT definition FROM _backfill_pruned WHERE t=?1 AND id=?2)")?;
+                let mut pruned=q.query(params![t,id])?;
+                while let Some(row)=pruned.next()? {
+                    let mut meter=Meter::new(Ceilings::job(),Cut::Abort);meter.heap((row.get::<_,i64>(0)?.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
+                    let definition:Backfill=decode(&row.get::<_,String>(1)?)?;
+                    if !definition.outputs.is_disjoint(&fill.outputs) {conflict=true;break;}
+                }
                 let others:Vec<String>=tx.conn().prepare("SELECT definition FROM _backfill_evidence WHERE t=?1 AND id=?2")?.query_map(params![t,id],|r|r.get(0))?.collect::<Result<_,_>>()?;
                 for other in others {if let Some(e)=evidence(tx,t,id,&other)? {
                     for c in fill.outputs.intersection(&e.after.keys().cloned().collect()) {
