@@ -106,10 +106,14 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
                 let cases=fixture_cases(&bp.program.args,rows,actors,out);
                 if cases.len()>32{out.unsupported.insert(format!("{}: typed read-observer arguments capped at 32",bp.program.name));}
                 for args in cases.into_iter().take(32){
-                    if !reserve_observers(out,1){return;}out.attempted+=1;
+                    if !reserve_observers(out,2){return;}out.attempted+=1;
                     if let Ok(q)=e.query(&bp.program.name,Context::new(viewer,args.clone()).at(NOW))&&q.complete&&!q.unavailable&&typed_disclosure(&bp.result,&q.data,&inv.table,key,inv.column.as_deref(),row){
+                        out.attempted+=1;
+                        if !matches!(e.query(&bp.program.name,Context::new(viewer,args.clone()).at(NOW)),Ok(again) if again.complete&&!again.unavailable&&again.data==q.data){
+                            out.unsupported.insert(format!("{}: typed read payload is not repeatable on the committed image",bp.program.name));continue;
+                        }
                         violation(out,inv,steps,viewer,row,None,initial,if inv.column.is_some(){"column read observation"}else{"read"});
-                        if let Some(v)=out.violations.last_mut(){v.operation=bp.program.name.clone();v.args=args;v.rule_path="authored query returned a compiler-typed row/column payload of the protected table while current policy is false".into();}
+                        if let Some(v)=out.violations.last_mut(){v.operation=bp.program.name.clone();v.args=args;v.rule_path="authored query repeatably returned a compiler-typed row/column payload of the protected table while current policy is false".into();}
                         continue 'actors;
                     }
                 }
@@ -255,10 +259,35 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
         }}
     }
     observe(bound,&mut base,&initial,&initial,&actors,&[],out);
-    // Breadth first, then diagonal pairs: no first step monopolizes the cap.
+    // Spend half the pair budget on grant changes followed by an operation
+    // as the affected principal; interleave first steps and successor names.
+    let mut role_groups=Vec::new();
+    for (i,(p,_,args)) in candidates.iter().enumerate().take(LIMIT){
+        let json=serde_json::to_string(p).unwrap();
+        let rosters=ir::write_tables(p).into_iter().filter_map(|(t,_)|{
+            let roles=super::super::privilege::role_columns(bound,&t);
+            roles.iter().any(|c|json.contains(&format!("\"{c}\":"))).then_some(t)
+        }).collect::<BTreeSet<_>>();
+        if rosters.is_empty(){continue;}
+        let mut recipients=BTreeSet::new();
+        for (name,kind) in &p.args {if let Some(value)=args.get(name){match kind {
+            ir::ArgType::Principal=>{if let Value::Id(actor)=value{recipients.insert(actor.clone());}},
+            ir::ArgType::Ref{table} if rosters.contains(table)=>{
+                if let Some(row)=initial.get(table).into_iter().flatten().find(|r|r.field("id").ok()==Some(value)){
+                    for (column,kind) in &bound.schema.tables[table].columns{if matches!(kind.required(),C::Principal)&&let Ok(Value::Id(actor))=row.field(column){recipients.insert(actor.clone());}}
+                }
+            },_=>{}
+        }}}
+        let mut seen=BTreeSet::new();
+        let successors=candidates.iter().enumerate().filter_map(|(j,(next,actor,_))|(next.name!=p.name&&recipients.contains(actor)&&seen.insert((next.name.clone(),actor.clone()))).then_some((i,j))).collect::<Vec<_>>();
+        if !successors.is_empty(){role_groups.push(successors);}
+    }
+    let mut role_pairs=Vec::new();
+    'pairs:for n in 0..role_groups.iter().map(Vec::len).max().unwrap_or(0){for group in &role_groups{if let Some(pair)=group.get(n){role_pairs.push(*pair);if role_pairs.len()==LIMIT/2{break 'pairs;}}}}
+    // Breadth first, then targeted and diagonal pairs: no first step owns the cap.
     let singles=candidates.len().min(LIMIT);
     for n in 0..singles+LIMIT {
-        let indices=if n<singles{vec![n]}else if candidates.is_empty(){break;}else{let k=n-singles;vec![k%candidates.len(),(k/candidates.len()+k+1)%candidates.len()]};
+        let indices=if n<singles{vec![n]}else if candidates.is_empty(){break;}else if let Some((first,second))=role_pairs.get(n-singles){vec![*first,*second]}else{let k=n-singles-role_pairs.len();vec![k%candidates.len(),(k/candidates.len()+k+1)%candidates.len()]};
         let mut engine=match fork(bound,fixture,probes.clone()){Ok(e)=>e,Err(e)=>{out.unsupported.insert(e);break;}};
         out.sequences+=1;let mut steps=Vec::new();
         for i in indices{

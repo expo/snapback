@@ -1,6 +1,10 @@
 //! Column worlds execute authored observers, including derived/count/refusal paths.
 // @ref LLP 3000.036.004#121-column-read-intent — excluding a field from a projection must not produce a synthetic whole-row refutation.
 use super::*;
+fn reserve(out:&mut Campaign,cost:usize)->bool{
+    if out.column_observer_calls+cost>16384{out.unsupported.insert("column observers capped at 16384 call/world reservations; remaining value worlds not covered".into());return false;}
+    out.column_observer_calls+=cost;true
+}
 fn discharged(bound:&Bound,inv:&Invariant)->bool{
     inv.policy.as_ref().is_some_and(|p|kernel::implies(&super::super::columns::admission(&bound.schema.tables[&inv.table],inv.column.as_deref()),p)==Ok(true))
         &&!bound.schema.maintains.iter().any(|m|m.source==inv.table)
@@ -27,8 +31,8 @@ fn sample_rows(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,inv:&Invariant,row
     Some(out)
 }
 fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,row:&Value,fixture:Option<&Engine>,trace:Option<(&BTreeMap<String,Vec<Value>>,&[histories::Step])>,presence:bool,out:&mut Campaign){
-    if out.column_observer_calls>=16384{out.unsupported.insert("column observers capped at 16384 calls; remaining value worlds not covered".into());return;}
     if discharged(bound,inv){return;}
+    if !reserve(out,1){return;}
     let Some(other)=sample_rows(bound,rows,inv,row,presence)else{out.unsupported.insert(format!("{}.{}: column pair needs a second typed non-asset value",inv.table,inv.column.as_deref().unwrap_or("")));return;};
     let altrow=other[&inv.table].iter().find(|r|r.field("id").ok()==row.field("id").ok()).unwrap();
     let mut actors=histories::viewers(bound);
@@ -38,6 +42,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
         if fixture.is_some()&&out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.viewer==*viewer&&v.reachability==Reachability::AuthoredFixtureTrace&&v.history.iter().filter(|s|s.result.get("state").and_then(serde_json::Value::as_str)==Some("sent")).count()<=committed){continue;}
 
         {
+            if !reserve(out,1){return;}
             let judge=if let Some(fixture)=fixture{fork(bound,fixture,Vec::new())}else{engine(bound,rows,program("$column.intent",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))]))};
             let Ok(mut judge)=judge else{out.unsupported.insert(format!("{}: primary column intent world unavailable",inv.target_label()));continue;};
             let actual=match readback(&judge){Ok(rows)=>rows,Err(why)=>{out.unsupported.insert(why);continue;}};
@@ -45,6 +50,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
             if policy_in(bound,inv,&actual,viewer,None,primary,&mut judge)!=Ok(false){continue;}
         }
         for bp in &bound.programs{
+            if !reserve(out,1){return;}
             let p=&bp.program;
             if !matches!(p.kind,ProgramKind::Query|ProgramKind::Mutation)||p.native{continue;}
             let json=serde_json::to_string(p).unwrap();
@@ -60,8 +66,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
             }
             let args_list=histories::fixture_cases(&p.args,rows,&actors,out);
             for args in args_list{
-                if out.column_observer_calls+4>16384{out.unsupported.insert("column observers capped at 16384 calls; remaining value worlds not covered".into());return;}
-                out.column_observer_calls+=4;
+                if !reserve(out,4){return;}
                 let execute=|alternate:bool|->Result<serde_json::Value,String>{
                     let seeds=if alternate{&other}else{rows};
                     let mut e=if let Some(fixture)=fixture{
@@ -114,6 +119,7 @@ pub(super) fn generated(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<St
     for inv in bound.invariants.iter().filter(|i|i.target=="read"&&i.column.as_deref().is_some_and(|c|c!="id")&&sites.is_none_or(|s|s.contains(&i.site.to_string()))){
         if inv.policy.as_ref().is_some_and(super::super::temporal::has_clock){out.unsupported.insert(format!("{}.{}: column clock pairs use the campaign clock only; other temporal ticks not covered",inv.table,inv.column.as_deref().unwrap()));}
         for variant in 0..16{
+            if !reserve(out,1){return;}
             let rows=match snapshot(bound,inv,variant){Ok(r)=>r,Err(why)=>{out.unsupported.insert(format!("{}: column snapshot: {why}",inv.table));continue;}};
             let e=match engine(bound,&rows,program("$column.seed",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))])){Ok(e)=>e,Err(why)=>{out.unsupported.insert(format!("{}: column seed: {why}",inv.table));continue;}};
             let Ok(rows)=readback(&e)else{continue;};

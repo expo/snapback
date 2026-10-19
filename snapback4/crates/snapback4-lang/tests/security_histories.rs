@@ -182,3 +182,10 @@ fn authored_query_refusal_is_a_column_value_observation() {
  let observations=serde_json::to_string(&v.observations).unwrap();
  assert!(observations.contains("DIFFERENT")&&observations.contains("protected value differs"),"{observations}");
 }
+
+#[test]
+fn demotion_is_followed_by_writes_as_the_affected_principal() {
+ let source="table roles:\n  principal: principal\n  role: enum('inspector','landowner')\n  unique principal\n  read <- allow\n  update <- viewer = 'service:ops'\n  online only\ntable reports:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation changeRole(who: principal, role: enum('inspector','landowner')):\n  update roles[who] { role }\n  return null\nmutation record():\n  return insert reports { owner: viewer }\ninvariant reports.insert only exists roles[viewer, role = 'inspector']\n";
+ let c=fixture_campaign(source,vec![("roles".into(),row(&[("id",Value::Id("r".into())),("principal",Value::Id("dev:inspector".into())),("role",Value::String("inspector".into()))]))]);
+ assert!(c.violations.iter().any(|v|v.viewer=="dev:inspector"&&v.effect=="insert"&&v.history.len()==2&&v.history[0].operation=="changeRole"&&v.history[1].operation=="record"),"{c:?}");
+}
