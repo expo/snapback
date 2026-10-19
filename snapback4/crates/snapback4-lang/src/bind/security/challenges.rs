@@ -459,11 +459,13 @@ fn trusted_reads(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     let Ok(mut judge)=fixture.fork_fixture()else{return;};
     let actors=histories::actors(bound,&rows);
     for inv in bound.invariants.iter().filter(|i|i.target=="read"&&i.column.is_none()){
-        for row in rows.get(&inv.table).into_iter().flatten(){for viewer in &actors{
+        if inv.policy.as_ref().is_some_and(|policy|kernel::implies(&bound.schema.tables[&inv.table].rules.read,policy)==Ok(true)){continue;}
+        if rows.get(&inv.table).is_some_and(|rs|rs.len()>1000){out.unsupported.insert(format!("{}: raw authored fixture admission samples the first 1000 rows; remaining rows uncovered",inv.target_label()));}
+        'rows:for row in rows.get(&inv.table).into_iter().flatten().take(1000){for viewer in &actors{
             if !out.reserve(1){return;}
             if !live(&bound.schema.tables[&inv.table],row)||!matches!(judge.fixture_policy(&bound.schema.tables[&inv.table].rules.read,viewer,None,row,NOW),Ok(rules::Verdict::Readable))||policy_in(bound,inv,&rows,viewer,None,row,&mut judge)!=Ok(false){continue;}
             out.violations.push(Counterexample{reachability:Reachability::AuthoredFixtureTrace,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.clone(),operation:"$fixture.read-admission".into(),effect:"read".into(),row:row.clone(),old:None,supporting_rows:rows.clone(),rule_path:"ordinary row-read gate admits authored fixture data contrary to declared intent".into(),scope:"authored fixture initialization is trusted; raw row admission, no initialization history claimed".into(),observations:None,history:Vec::new()});
-            break;
+            break 'rows;
         }}
     }
 }

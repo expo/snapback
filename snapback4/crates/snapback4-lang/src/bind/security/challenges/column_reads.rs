@@ -50,26 +50,41 @@ fn coupled(bound:&Bound,inv:&Invariant)->bool{
     let column=inv.column.as_deref().unwrap();
     let table=&bound.schema.tables[&inv.table];
     if table.rules.insert.needs_field_value(column,&table.columns[column])||table.update_rule_judged().needs_field_value(column,&table.columns[column]){return true;}
-    fn writes(value:&serde_json::Value,table:&str,column:&str,args:&BTreeMap<String,ir::ArgType>,program:&str,found:&mut bool,coupled:&mut bool){
+    fn definitions(value:&serde_json::Value,out:&mut BTreeMap<String,serde_json::Value>){
+        if let Some(object)=value.as_object(){
+            for tag in ["Const","Let","Assign"]{if let Some(binding)=object.get(tag)&&let (Some(name),Some(value))=(binding.get("name").and_then(serde_json::Value::as_str),binding.get("value")){
+                if tag=="Assign"||out.contains_key(name){out.insert(name.into(),serde_json::Value::Null);}else{out.insert(name.into(),value.clone());}
+            }}
+            for child in object.values(){definitions(child,out);}
+        }else if let Some(xs)=value.as_array(){for child in xs{definitions(child,out);}}
+    }
+    fn fields<'a>(expression:&'a serde_json::Value,bindings:&'a BTreeMap<String,serde_json::Value>,depth:usize)->Option<&'a serde_json::Map<String,serde_json::Value>>{
+        if depth>32{return None;}
+        if let Some(map)=expression.get("Object").and_then(serde_json::Value::as_object){return Some(map);}
+        if let Some(name)=expression.get("Variable").and_then(serde_json::Value::as_str){return fields(bindings.get(name)?,bindings,depth+1);}
+        None
+    }
+    fn writes(value:&serde_json::Value,table:&str,column:&str,args:&BTreeMap<String,ir::ArgType>,program:&str,bindings:&BTreeMap<String,serde_json::Value>,defaulted:bool,found:&mut bool,coupled:&mut bool){
         if let Some(object)=value.as_object(){
             for tag in ["Insert","InsertIfAbsent","Upsert","Update","WriteTarget"]{
                 let Some(write)=object.get(tag)else{continue;};
                 let name=write.get("table").or_else(||write.get("target").and_then(|t|t.get("table"))).and_then(serde_json::Value::as_str);
                 if name!=Some(table){continue;}
-                let fields=write.get("row").or_else(||write.get("patch")).and_then(|e|e.get("Object")).and_then(serde_json::Value::as_object);
-                if let Some(expression)=fields.and_then(|fields|fields.get(column)){
+                let map=write.get("row").or_else(||write.get("patch")).and_then(|e|fields(e,bindings,0));
+                let Some(map)=map else{*found=true;*coupled=true;continue;};
+                if let Some(expression)=map.get(column){
                     *found=true;
                     if let Some(name)=expression.get("Variable").and_then(serde_json::Value::as_str)&&args.contains_key(name){
                         let occurrence=serde_json::to_string(&Expr::Variable(name.into())).unwrap();
                         if program.matches(&occurrence).count()!=1{*coupled=true;}
                     }else{*coupled=true;}
-                }
+                }else if defaulted&&matches!(tag,"Insert"|"InsertIfAbsent"|"Upsert"){*found=true;*coupled=true;}
             }
-            for child in object.values(){writes(child,table,column,args,program,found,coupled);}
-        }else if let Some(xs)=value.as_array(){for child in xs{writes(child,table,column,args,program,found,coupled);}}
+            for child in object.values(){writes(child,table,column,args,program,bindings,defaulted,found,coupled);}
+        }else if let Some(xs)=value.as_array(){for child in xs{writes(child,table,column,args,program,bindings,defaulted,found,coupled);}}
     }
     let(mut found,mut unsafe_writer)=(false,false);
-    for p in &bound.programs{let json=serde_json::to_value(&p.program).unwrap();let text=serde_json::to_string(&p.program).unwrap();writes(&json,&inv.table,column,&p.program.args,&text,&mut found,&mut unsafe_writer);}
+    for p in &bound.programs{let json=serde_json::to_value(&p.program).unwrap();let text=serde_json::to_string(&p.program).unwrap();let mut bindings=BTreeMap::new();definitions(&json,&mut bindings);writes(&json,&inv.table,column,&p.program.args,&text,&bindings,table.defaults.contains_key(column),&mut found,&mut unsafe_writer);}
     found&&unsafe_writer
 }
 fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,row:&Value,fixture:Option<&Engine>,trace:Option<(&BTreeMap<String,Vec<Value>>,&[histories::Step])>,presence:bool,out:&mut Campaign){

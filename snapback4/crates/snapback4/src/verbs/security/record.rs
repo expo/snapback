@@ -33,17 +33,16 @@ fn path(project:&Project)->std::path::PathBuf{project.root.join("snapback/genera
 pub(in crate::verbs) fn remember(project:&Project,options:&Options,campaign:&security::challenges::Campaign,complete:bool,consumed:&str)->Result<(),String>{
     if fingerprint(project,options)?!=consumed{return Err("source or fixtures changed during test; evidence was not saved; rerun snapback4 test".into());}
     let mut record=Record{fingerprint:consumed.into(),complete,attempted:campaign.attempted,sequences:campaign.sequences,coverage_gaps:campaign.unsupported.len(),violations:campaign.violations.iter().filter(|c|c.reachability.is_reachable()).cloned().collect()};
-    if let Some(prior)=matching(project,options){
-        let mut seen=std::collections::BTreeSet::new();
-        record.violations=prior.violations.into_iter().chain(record.violations).filter(|v|v.reachability.is_reachable()&&seen.insert(serde_json::to_string(&(&v.invariant_site,&v.viewer,&v.operation,&v.effect,&v.reachability)).unwrap())).collect();
-    }
+    let prior=matching(project,options).map(|r|r.violations).unwrap_or_default();
+    let mut seen=std::collections::BTreeSet::new();
+    record.violations=prior.into_iter().chain(record.violations).filter(|v|v.reachability.is_reachable()&&seen.insert(serde_json::to_string(&(&v.invariant_site,&v.viewer,&v.operation,&v.effect,&v.reachability)).unwrap())).collect();
     let path=path(project);std::fs::create_dir_all(path.parent().unwrap()).map_err(|e|e.to_string())?;
     let temp=path.with_extension(format!("{}.tmp",std::process::id()));
     let result=std::fs::write(&temp,serde_json::to_vec(&record).map_err(|e|e.to_string())?).and_then(|_|std::fs::rename(&temp,&path));
     if result.is_err(){let _=std::fs::remove_file(temp);}result.map_err(|e|e.to_string())
 }
 pub(super) fn matching(project:&Project,options:&Options)->Option<Record>{
-    let path=path(project);if std::fs::metadata(&path).ok()?.len()>64*1024*1024{return None;}
+    let path=path(project);
     let record:Record=serde_json::from_slice(&std::fs::read(path).ok()?).ok()?;
     (record.fingerprint==fingerprint(project,options).ok()?).then_some(record)
 }

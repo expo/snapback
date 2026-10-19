@@ -1,0 +1,30 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+**Verdict: NOT READY** on source commit `b7685e4d03`. One material blocker, reproduced against the commit.
+
+## Material blocker: dead `coupled()` guard fabricates the exact forbidden refutation
+
+[colum_reads guard](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/security/challenges/column_reads.rs) — committed `coupled()`, lines 49–74:
+
+- The write-site scan requires the row object inline under the write node: `write.get("row").or_else(||write.get("patch")).and_then(|e|e.get("Object"))`.
+- But the binder always indirects table-write rows through a temp binding: `Stmt::Insert { table, row: Variable($insertedN) }` ([program.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/program.rs):1148-1156). I dumped the bound `file` program for the regression schema and confirmed: `{"Insert":{"table":"reports","row":{"Variable":"$inserted4"}}}`, with the `{"Object":...}` (containing `homeowner: {Field h.owner}`) sitting in a sibling `Const`.
+- So `found` never sets for ordinary creator writes, the guard returns false, and `run_pair_variant` perturbs immutable `reports.homeowner` while `homes.owner` stays fixed, reporting it as reachable (`GeneratedFixtureTrace`, "column read observation") — precisely what §13.7 forbides ("changing immutable reports.homeowner while leaving its source chimney.owner fixed cannot make a safe self-filtered query appear to leak").
+
+Repro (clean checkout of `b7685e4d03`):
+
+`cargo test -p snapback4-lang --test security_wave19 an_alternate_copied_immutable_owner_cannot_invent_a_disclosure`
+
+Observed on the clean tree: `10 passed; 1 failed`, the failure producing 12 such violations where the test demands zero. This reintroduces the 019-F2-class false reds, and via record merging those false witnesses would persist into `check` output and `security-test.json`. Secondary note for the fix: `found && unsafe_writer` suppresses when *any* site is coupled, while §13.7's "unless a bound writer supplies it…" reads existential — mixed-writer columns would stay uncovered (explicit, non-failing).
+
+## Contamination warning (affects what I can claim)
+
+The tree was clean at session start; mid-review a concurrent session dirtied 7 tracked files (13:24–13:32 UTC): the LLP doc, `challenges.rs`, `column_reads.rs`, `histories.rs`, `security_sec4.rs`, `record.rs`, CLI `security_wave19.rs`, `publication-day5.mjs`. I touched none of them and read no prior reviews or `WORKSTREAM-REPORT.md`.
+
+- The run-1 failure **is** committed-code evidence (that failure mode is only producible by the committed guard).
+- Later greens — serial lang 11/11, `security_sec4` 20/20, CLI boundary 6/6 — ran on a tree containing an in-progress fix to this same guard, so they **cannot** be claimed as commit qualification (the uncommitted edit resolves `Const`/`Let` bindings fail-closed, matching the needed direction, but it is unreviewed and not part of this commit).
+
+## Rest of the delta (read from commit-range diffs; no holes found by inspection)
+
+Trusted seed/integrity failures, synthetic-supplemental, empty-fixture generation, creator-executed generated starts with require-literal coverage (047 `operator`), record source/fixture/executable binding with snapshot-copy consumption, stale-input and symlink-target invalidation, display-label preservation, escalation-cap visibility (rank-0 prefix holds), most-privileged scoring, deploy demand on rule changes with selected-source naming, `trace_key` dedup without mutating prior witnesses, nullable-role two-actor populations — all match §13.7 as written. Test confirmation of these on the pure commit is still owed once the tree is clean.
+
+Source is NOT READY regardless of the separately-running full/cross-platform qualification, which I did not touch and do not claim: the blocker fails deterministically at unit level.

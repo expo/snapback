@@ -61,3 +61,13 @@ fn a_source_edit_after_fixture_loading_cannot_publish_refutations_for_the_new_so
  assert!(changed,"test must actually reach the captured fixture");let mut remaining=String::new();stdout.read_to_string(&mut remaining).unwrap();let status=child.0.wait().unwrap();let mut stderr=String::new();child.0.stderr.take().unwrap().read_to_string(&mut stderr).unwrap();
  assert_eq!(status.code(),Some(1),"{remaining} {stderr}");assert!(stderr.contains("source or fixtures changed during test"),"{stderr}");assert!(!app.0.join("snapback/generated/security-test.json").exists());let check=app.run(&["check"]);assert!(check.status.success(),"{}",text(&check));
 }
+
+#[test]
+fn populated_seed_failures_persist_without_quadratic_snapshot_duplication(){
+ let app=App::new();app.write("snapback/schema.q","table docs:\n  owner: principal\n  body: text <=400\n  read <- allow\n  online only\ninvariant docs.read only .owner = viewer\n");
+ let rows=(0..600).map(|n|serde_json::json!({"id":format!("doc-{n}"),"owner":"dev:owner","body":"x".repeat(300)}).to_string()+"\n").collect::<String>();app.write("fixtures/docs.jsonl",&rows);
+ let test=app.run(&["test","--fixture-only"]);assert_eq!(test.status.code(),Some(1),"{}",text(&test));
+ let bytes=fs::read(app.0.join("snapback/generated/security-test.json")).unwrap();assert!(bytes.len()<1_000_000,"duplicate initial worlds must not turn 200KB inputs into a 137MB record: {}",bytes.len());
+ let record:serde_json::Value=serde_json::from_slice(&bytes).unwrap();assert_eq!(record["violations"].as_array().unwrap().len(),1);assert_eq!(record["violations"][0]["supporting_rows"]["docs"].as_array().unwrap().len(),600);
+ let check=app.run(&["check"]);assert_eq!(check.status.code(),Some(1),"{}",text(&check));assert!(text(&check).contains("1 refuted"),"{}",text(&check));
+}

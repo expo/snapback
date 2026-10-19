@@ -112,6 +112,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
             out.unsupported.insert(format!("{}: generated-id/opaque history observer needs disclosure provenance",bp.program.name));false
         }else{true}
     }).collect::<Vec<_>>();
+    if queries.is_empty(){return;}
     for inv in bound.invariants.iter().filter(|i|i.target=="read"){
         let direct=inv.policy.as_ref().is_some_and(|p|kernel::implies(&super::super::columns::admission(&bound.schema.tables[&inv.table],inv.column.as_deref()),p)==Ok(true));
         let indirect=bound.schema.maintains.iter().any(|m|m.source==inv.table)||bound.schema.tables.values().any(|t|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|kernel::dependencies(r).contains(&inv.table)));

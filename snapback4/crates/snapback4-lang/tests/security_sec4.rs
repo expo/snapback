@@ -158,13 +158,13 @@ fn a_column_alternate_must_preserve_final_exists_before_observation(){
 }
 
 #[test]
-fn absence_worlds_without_observers_still_pay_the_shared_budget(){
+fn no_authored_observer_does_not_fork_useless_absence_worlds(){
     let b=bound("table docs:\n  marker: enum('a','b','c','d','e','f','g','h')\n  read <- allow\n  insert <- allow\n  online only\ninvariant docs.read only deny\n");
     let mut setup=Campaign::default();let fixture=challenges::generated_fixture(&b,&mut setup).unwrap();
     let mut c=Campaign::bounded(10000);c.work_remaining=Some(10);
     challenges::fixture_observers(&b,&fixture,&mut c);
-    assert!(c.work_remaining.unwrap()<3,"absence forks must be reserved even with no authored queries: {c:?}");
-    assert!(c.unsupported.iter().any(|s|s.contains("work budget exhausted")),"{c:?}");
+    assert!(c.work_remaining.unwrap()>0,"no authored query can distinguish an absent world: {c:?}");
+    assert_eq!(c.history_observer_calls,0);assert!(c.violations.is_empty());
 }
 
 #[test]
