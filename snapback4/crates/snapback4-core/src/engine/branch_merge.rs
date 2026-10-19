@@ -111,9 +111,7 @@ impl Runner<'_> {
         if self.context.is_system() { return Ok(()); }
         let plans: Vec<_> = crate::ir::body_merges(&program.body).into_iter()
             .filter(|merge| merge.lanes.iter().any(MergeLane::bounded)).collect();
-        let draw = plans.iter().try_fold(0u64, |sum, merge| merge.lanes.iter()
-            .filter(|lane| lane.bounded()).try_fold(sum, |sum, lane|
-                super::rules::bounded_walk_price(self.schema, lane).map(|price| sum.saturating_add(price))));
+        let draw = super::super::bounded_plans::price(self.schema, &program.body);
         if let Some(draw) = draw.filter(|draw| *draw > 0 && *draw < self.tx.remaining() as u64) {
             self.tx.draw("bounded query plans", draw)?;
             self.bounded_plans.extend(plans.iter().map(|merge| *merge as *const Merge as usize));
