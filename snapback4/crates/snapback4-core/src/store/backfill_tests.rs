@@ -526,3 +526,34 @@ fn computed_text_minimum_and_format_failures_refuse_the_whole_adoption() {
   let mut e=engine(old);for id in ["a","b"]{seed(&mut e,"items",json!({"id":id,"n":3}));}let generation=e.generation();let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains(reason)&&error.contains("2 affected rows"),"{error}");assert_eq!(e.generation(),generation);assert_eq!(e.store().count("items").unwrap(),2);assert!(row(&mut e,"items","a").field("label").is_err());
  }
 }
+
+#[test]
+fn widened_narrowed_rows_capture_their_original_reference_argument_types() {
+ let parents="table parents:\n  n: int\n  public 'fixture'\n  online only\n";
+ let old=parents.to_owned()+"table children:\n  parent: parents on delete keep\n  n: int 0..10\n  public 'fixture'\n  online only\n";
+ let narrow=old.replace("parent: parents on delete keep","parent: id").replace("int 0..10","int 0..5");
+ let wide=narrow.replace("int 0..5","int 0..10").replace("  parent: id","  copied: int\n  parent: id")+"backfill children copy(parent: id):\n  {copied:(parents[parent] ! else NOT_FOUND).n}\n";
+ let mut e=engine(&old);seed(&mut e,"parents",json!({"id":"p","n":3}));seed(&mut e,"children",json!({"id":"c","parent":"p","n":9}));adopt(&mut e,&narrow,2).unwrap();assert_eq!(e.store().count("children").unwrap(),0);adopt(&mut e,&wide,3).unwrap();assert_eq!(field(&mut e,"children","c","copied"),Value::Int(3));
+ adopt(&mut e,parents,4).unwrap();let table=e.schema().tables["parents"].clone();{let tx=e.store_mut().transaction().unwrap();let r=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&r).unwrap();tx.commit().unwrap();}seed(&mut e,"parents",json!({"id":"p","n":77}));
+ let error=adopt(&mut e,&wide,3).unwrap_err().to_string();assert!(error.contains("parent lifetime"),"{error}");
+}
+#[test]
+fn widened_narrowed_rows_cannot_rewrite_their_original_lifetime_fields() {
+ for (clause,field,value) in [("expire at .until","until",500),("not before .opens","opens",0)] {
+  let old=format!("table items:\n  n: int 0..10\n  {field}: time\n  {clause}\n  public 'fixture'\n  online only\n");
+  let narrow=old.replace("int 0..10","int 0..5").replace(&format!("  {clause}\n"),"");
+  let next=narrow.replace("int 0..5","int 0..10")+&format!("backfill items move({field}: time):\n  {{{field}:{field} + 1d}}\n");
+  let(s,p)=compile(&old);let mut e=Engine::new_release_prepared_at(Store::memory().unwrap(),s,p,&ReleaseActivation::new(1,None),false,0).unwrap();
+  let input=wire::row_from_json(&e.schema().tables["items"],&json!({"id":"a","n":9,field:value})).unwrap();e.seed_at([("items".into(),input)],0).unwrap();
+  let(s,p)=compile(&narrow);e.adopt_release_at(s,p,&ReleaseActivation::new(2,Some(1)),false,1).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+  let(s,p)=compile(&next);let error=e.adopt_release_at(s,p,&ReleaseActivation::new(3,Some(2)),false,2).unwrap_err().to_string();assert!(error.contains("historical lifetime"),"{error}");assert_eq!(e.store().count("items").unwrap(),0);
+ }
+}
+
+#[test]
+fn returning_narrowed_rows_interpret_columns_added_by_later_predecessors() {
+ let old="table items:\n  rank: int 0..10\n  public 'fixture'\n  online only\n";
+ let narrow=old.replace("int 0..10","int 0..5");let defaulted=narrow.replace("  rank:","  n: int default 3\n  rank:");
+ let next=defaulted.replace("int 0..5","int 0..10").replace("  n:","  doubled: int\n  n:")+"backfill items twice(n: int):\n  {doubled:n * 2}\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","rank":9}));adopt(&mut e,&narrow,2).unwrap();adopt(&mut e,&defaulted,3).unwrap();adopt(&mut e,&next,4).unwrap();assert_eq!(field(&mut e,"items","a","doubled"),Value::Int(6));
+}

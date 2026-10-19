@@ -51,6 +51,28 @@ pub(super) fn delete(tx:&Tx<'_>,t:i64,id:&str)->Result<(),RuntimeError>{
 }
 // Never archive reference/asset preimages without lifetime evidence. New reference
 // fields are safe: subsequent retirement is owned by the ordinary dormant ledger.
+fn source_owned(table:&Table,column:&str)->bool {
+    table.expire.as_deref()==Some(column) || table.not_before.as_deref()==Some(column) || table.engine_field(column) || table.maintained.contains_key(column)
+}
+// A restored narrowed row owns its archived definition, independently of the
+// table-wide schema currently selected for other rows.
+fn row_source<'a>(tx:&Tx<'_>,t:i64,id:&str,fallback:Option<&'a Table>)->Result<Option<std::borrow::Cow<'a,Table>>,RuntimeError>{
+    let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(definition) FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0)).optional()?;
+    let Some(bytes)=bytes else{return Ok(fallback.map(std::borrow::Cow::Borrowed))};
+    let mut admission=Meter::new(Ceilings::job(),Cut::Abort);admission.heap((bytes.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
+    let definition:String=tx.conn().query_row("SELECT definition FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0))?;
+    let mut historical:Table=decode(&definition)?;
+    // Later predecessor additions also apply to returning rows. Preserve each
+    // original column's own type/default/ownership; import only absent columns.
+    if let Some(current)=fallback {for (column,kind) in &current.columns {
+        if historical.columns.contains_key(column){continue;}
+        historical.columns.insert(column.clone(),kind.clone());
+        if let Some(default)=current.defaults.get(column){historical.defaults.insert(column.clone(),default.clone());}
+        if let Some(owner)=current.maintained.get(column){historical.maintained.insert(column.clone(),owner.clone());}
+        if let Some(owner)=current.recorded.get(column){historical.recorded.insert(column.clone(),owner.clone());}
+    }}
+    Ok(Some(std::borrow::Cow::Owned(historical)))
+}
 fn protected(kind:&crate::schema::ColumnType)->bool {
     use crate::schema::ColumnType::*;
     match kind {Optional(k)=>protected(k),Ref{..}|Image{..}|Video{..}|File{..}|List{..}|ListRange{..}=>true,_=>false}
@@ -61,7 +83,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     for fill in &next.backfills {
         fill.admit(next).map_err(refusal)?;
         if let Some(old)=sources.get(&fill.table) {for c in &fill.outputs {
-            if old.expire.as_ref()==Some(c) || old.not_before.as_ref()==Some(c) || old.engine_field(c) || old.maintained.contains_key(c) {
+            if source_owned(old,c) {
                 return Err(refusal(format!("backfill {} {}: output {c} is a historical lifetime or engine field; preserve its source meaning in a bridge",fill.table,fill.name)));
             }
         }}
@@ -138,6 +160,10 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         let t=tx.num(&fill.table)?;let key=fill.key();let table=&next.tables[&fill.table];let mut bad=super::adopt_refusals::Samples::default();let mut count=0;
         super::activation::walk(tx,t,|id,mut row|{
             if old_keys.contains(&key) && !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?1 AND id=?2)",params![t,id],|r|r.get::<_,bool>(0))? {return Ok(())}
+            let row_source=row_source(tx,t,id,sources.get(&fill.table))?;
+            if let Some(old)=row_source.as_deref() {if let Some(c)=fill.outputs.iter().find(|c|source_owned(old,c)) {
+                bad.add(id,&format!("output {c} is a historical lifetime or engine field; preserve its source meaning in a bridge"));return Ok(())
+            }}
             let prior=evidence(tx,t,id,&key)?;
             if prior.as_ref().map(|e|e.epoch)!=epoch {return Ok(())}
             let original:Option<String>=tx.conn().query_row("SELECT data FROM temp._backfill_originals WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0)).optional()?;
@@ -153,7 +179,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
             let physically_absent=absence(tx,t,id,"")?;
             let native=absence(tx,t,id,&format!("$native:{key}"))?;
             if prior.is_none() && !native.is_empty() {
-                let native_inputs=native_inputs(tx,t,id,&current,fill.inputs.keys().filter(|c|!fill.outputs.contains(*c)).map(String::as_str),sources.get(&fill.table))?;
+                let native_inputs=native_inputs(tx,t,id,&current,fill.inputs.keys().filter(|c|!fill.outputs.contains(*c)).map(String::as_str),row_source.as_deref())?;
                 if fill.inputs.iter().any(|(c,kind)|!fill.outputs.contains(c) && !physically_absent.contains(c) && crate::engine::validate::validate_column(&fill.table,c,kind,native_inputs.get(c)).is_err()) {
                     bad.add(id,"native image has an invalid present historical input; use a typed bridge");return Ok(())
                 }
@@ -176,8 +202,8 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
             let original_absence=prior.as_ref().filter(|e|e.active).map_or_else(||physically_absent.intersection(&fill.inputs.keys().cloned().collect()).cloned().collect(),|e|e.absent.clone());
             // Resolve retained inputs before source defaults can synthesize null
             // for a hidden optional column with a provided archived cell.
-            let retained=native_inputs(tx,t,id,&row,fill.inputs.keys().map(String::as_str),sources.get(&fill.table))?;
-            if let Some(table)=sources.get(&fill.table){materialize_optional_fields(&mut row,table);}
+            let retained=native_inputs(tx,t,id,&row,fill.inputs.keys().map(String::as_str),row_source.as_deref())?;
+            if let Some(table)=row_source.as_deref(){materialize_optional_fields(&mut row,table);}
             let historical=row.clone();
             let mut args=BTreeMap::new();
             for (c,kind) in &fill.inputs {
@@ -200,7 +226,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
             let fields=current.as_object()?;let mut before=prior.as_ref().filter(|e|e.active).map_or_else(BTreeMap::new,|e|e.before.clone());let mut desired=patch.clone();
             for (c,value) in &patch {
                 if let Err(e)=validate_output(&fill.table,table,c,value) {bad.add(id,&e.to_string());return Ok(())}
-                if let Some(kind)=sources.get(&fill.table).and_then(|t|t.columns.get(c)) {if protected(kind) && prior.as_ref().is_none_or(|e|e.before.contains_key(c)) {bad.add(id,&format!("cannot overwrite historical reference or asset {}.{c}; derive into a new column",fill.table));return Ok(())}}
+                if let Some(kind)=row_source.as_deref().and_then(|t|t.columns.get(c)) {if protected(kind) && prior.as_ref().is_none_or(|e|e.before.contains_key(c)) {bad.add(id,&format!("cannot overwrite historical reference or asset {}.{c}; derive into a new column",fill.table));return Ok(())}}
                 if !prior.as_ref().is_some_and(|e|e.active) && (previous.and_then(|s|s.table(&fill.table)).is_some_and(|t|t.columns.contains_key(c)) || (previous.and_then(|s|s.table(&fill.table)).is_none() && sources.get(&fill.table).is_some_and(|t|t.columns.contains_key(c)))) {
                     if let Some(v)=historical.field(c).ok(){before.insert(c.clone(),v.clone());}
                 }
@@ -239,9 +265,10 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         save(tx,t,&id,&key,&e,true)?;
         for c in e.after.keys() {tx.conn().execute("DELETE FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition='' AND column_name=?3",params![t,id,c])?;}
         let fill=next.backfills.iter().find(|f|f.key()==key).ok_or_else(||refusal("missing historical declaration"))?;
+        let row_source=row_source(tx,t,&id,sources.get(&fill.table))?;
         for(c,kind)in &fill.inputs {
             // A generic id argument cannot erase the source column's lifetime.
-            let kind=sources.get(&fill.table).and_then(|t|t.columns.get(c)).filter(|k|protected(k)).unwrap_or(kind);
+            let kind=row_source.as_deref().and_then(|t|t.columns.get(c)).filter(|k|protected(k)).unwrap_or(kind);
             if let Ok(value)=e.inputs.field(c) {
                 let binding=input_ref(&key,c);
                 let saved=prior.as_ref().is_some_and(|p|p.inputs.field(c).ok()==Some(value)) && tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3)",params![t,id,binding],|r|r.get::<_,bool>(0))?;
@@ -447,7 +474,7 @@ fn native_inputs<'a>(tx:&Tx<'_>,t:i64,id:&str,row:&Value,names:impl Iterator<Ite
             let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,c],|r|r.get(0)).optional()?;
             meter.heap(bytes.unwrap_or(0).max(0) as u64 * 64 + 8192)?;
             let text:Option<String>=tx.conn().query_row("SELECT data FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,c],|r|r.get(0)).optional()?;
-            text.map(|s|decode(&s)).transpose()?.or_else(||table.and_then(|t|t.defaults.get(c)).and_then(|d|if let crate::schema::ColumnDefault::Literal(v)=d {Some(v.clone())}else{None})).unwrap_or(Value::Null)
+            text.map(|s|decode(&s)).transpose()?.or_else(||table.and_then(|t|if t.maintained.contains_key(c){Some(Value::Int(0))}else{t.defaults.get(c).and_then(|d|if let crate::schema::ColumnDefault::Literal(v)=d {Some(v.clone())}else{None})})).unwrap_or(Value::Null)
         };out.insert(c.to_owned(),value);
     }Ok(out)
 }
