@@ -10,11 +10,14 @@ fn present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
 }
 fn enable(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     tx.conn().execute_batch("CREATE TABLE IF NOT EXISTS _backfill_evidence(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,inputs TEXT NOT NULL,before_image TEXT NOT NULL,after_image TEXT NOT NULL,active INTEGER NOT NULL,epoch INTEGER NOT NULL DEFAULT 0,retained_outputs TEXT NOT NULL DEFAULT '[]',PRIMARY KEY(t,id,definition)) WITHOUT ROWID;
-    CREATE TABLE IF NOT EXISTS _backfill_pruned(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,active INTEGER NOT NULL,PRIMARY KEY(t,id,definition)) WITHOUT ROWID;
+    CREATE TABLE IF NOT EXISTS _backfill_pruned(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,active INTEGER NOT NULL,retained_outputs TEXT NOT NULL DEFAULT '[]',PRIMARY KEY(t,id,definition)) WITHOUT ROWID;
     CREATE TABLE IF NOT EXISTS _backfill_definitions(digest TEXT PRIMARY KEY,definition TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS _backfill_absence(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,column_name TEXT NOT NULL,PRIMARY KEY(t,id,definition,column_name)) WITHOUT ROWID;
     CREATE TABLE IF NOT EXISTS _backfill_inputs(t INTEGER NOT NULL,column_name TEXT NOT NULL,PRIMARY KEY(t,column_name)) WITHOUT ROWID;
     CREATE TABLE IF NOT EXISTS _backfill_active(t INTEGER NOT NULL,definition TEXT NOT NULL,input_names TEXT NOT NULL,PRIMARY KEY(t,definition)) WITHOUT ROWID;")?;
+    if !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_backfill_pruned') WHERE name='retained_outputs')",[],|r|r.get::<_,bool>(0))? {
+        tx.conn().execute_batch("ALTER TABLE _backfill_pruned ADD COLUMN retained_outputs TEXT NOT NULL DEFAULT '[]';")?;
+    }
     if !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_backfill_evidence') WHERE name='epoch')",[],|r|r.get::<_,bool>(0))? {
         tx.conn().execute_batch("ALTER TABLE _backfill_evidence ADD COLUMN epoch INTEGER NOT NULL DEFAULT 0;")?;
     }
@@ -104,14 +107,15 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         tx.conn().execute("INSERT OR IGNORE INTO _backfill_definitions VALUES(?1,?2)",params![fill.key(),canonical_json(fill)])?;
     }
     let next_keys:BTreeSet<_>=next.backfills.iter().map(Backfill::key).collect();
-    let definitions:Vec<Backfill>=tx.conn().prepare("SELECT definition FROM _backfill_definitions WHERE digest IN (SELECT definition FROM _backfill_evidence WHERE active=1 OR retained_outputs!='[]' UNION SELECT definition FROM _backfill_pruned WHERE active=1) ORDER BY digest")?.query_map([],|r|r.get::<_,String>(0))?.map(|s|decode(&s?)).collect::<Result<_,RuntimeError>>()?;
+    let definitions:Vec<Backfill>=tx.conn().prepare("SELECT definition FROM _backfill_definitions WHERE digest IN (SELECT definition FROM _backfill_evidence WHERE active=1 OR retained_outputs!='[]' UNION SELECT definition FROM _backfill_pruned WHERE active=1 OR retained_outputs!='[]') ORDER BY digest")?.query_map([],|r|r.get::<_,String>(0))?.map(|s|decode(&s?)).collect::<Result<_,RuntimeError>>()?;
     for fill in definitions.iter().rev().filter(|f|!next_keys.contains(&f.key())) {
         let Some(table)=next.table(&fill.table) else {continue};
         let t=tx.num(&fill.table)?;let key=fill.key();let mut bad=super::adopt_refusals::Samples::default();let mut count=0;
         super::activation::walk(tx,t,|id,mut row|{
             let Some(mut e)=evidence(tx,t,id,&key)? else {
-                let pruned:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _backfill_pruned WHERE t=?1 AND id=?2 AND definition=?3 AND active=1)",params![t,id,key],|r|r.get(0))?;
-                if pruned && fill.outputs.iter().any(|c|table.columns.contains_key(c)) {bad.add(id,"rollback preimage was explicitly pruned; select a bridge preserving current data or restore a backup");}
+                let pruned:Option<(bool,String)>=tx.conn().query_row("SELECT active,retained_outputs FROM _backfill_pruned WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+                let unavailable=if let Some((active,retained))=pruned {if active {fill.outputs.clone()}else{decode::<BTreeSet<String>>(&retained)?}}else{BTreeSet::new()};
+                if unavailable.iter().any(|c|table.columns.contains_key(c)) {bad.add(id,"rollback preimage was explicitly pruned; select a bridge preserving current data or restore a backup");}
                 return Ok(())
             };
             if !e.active && e.retained.is_empty() {return Ok(())}
@@ -166,6 +170,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     let fresh_epoch=tx.meta("generation")?.and_then(|s|s.parse::<i64>().ok()).unwrap_or(0).saturating_add(1);
     for epoch in epochs {
         restore_snapshot(tx)?;
+        mask_unprovided(tx)?;
         if let Some(epoch)=epoch {
             replay_earlier_cohorts(tx,epoch)?;
             historical_snapshot(tx,epoch,&next_keys)?;
@@ -217,7 +222,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 return Ok(())
             }
             let mut original_absence=prior.as_ref().map_or_else(||physically_absent.intersection(&fill.inputs.keys().cloned().collect()).cloned().collect(),|e|e.absent.clone());
-            for c in fill.inputs.keys() {if row.field(c).is_err() && tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._backfill_unprovided WHERE t=?1 AND id=?2 AND column_name=?3)",params![t,id,c],|r|r.get::<_,bool>(0))? {original_absence.insert(c.clone());}}
+            for c in fill.inputs.keys() {if (row.field(c).is_err() || row.field(c)==Ok(&Value::Null)) && tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._backfill_unprovided WHERE t=?1 AND id=?2 AND column_name=?3)",params![t,id,c],|r|r.get::<_,bool>(0))? {original_absence.insert(c.clone());}}
             // Resolve retained inputs before source defaults can synthesize null
             // for a hidden optional column with a provided archived cell.
             let retained=native_inputs(tx,t,id,&row,fill.inputs.keys().map(String::as_str),row_source.as_deref())?;
@@ -319,7 +324,7 @@ fn collect_reads(body:&[crate::ir::Stmt],out:&mut BTreeSet<(String,String)>){
 // Prune forgets historical values, retaining only the fact that exact reversal
 // is no longer available. No tombstone can be queried by an app.
 pub(super) fn prune(tx:&Tx<'_>)->Result<(),RuntimeError>{
-    if present(tx)? {tx.conn().execute_batch("DELETE FROM _backfill_evidence WHERE NOT EXISTS(SELECT 1 FROM r WHERE r.t=_backfill_evidence.t AND r.id=_backfill_evidence.id); DELETE FROM _backfill_pruned WHERE NOT EXISTS(SELECT 1 FROM r WHERE r.t=_backfill_pruned.t AND r.id=_backfill_pruned.id); INSERT OR IGNORE INTO _backfill_pruned SELECT t,id,definition,active FROM _backfill_evidence; DELETE FROM _backfill_evidence; DELETE FROM _backfill_absence WHERE (definition!='' AND definition NOT LIKE '$native:%') OR NOT EXISTS(SELECT 1 FROM r WHERE r.t=_backfill_absence.t AND r.id=_backfill_absence.id);")?;}
+    if present(tx)? {tx.conn().execute_batch("DELETE FROM _backfill_evidence WHERE NOT EXISTS(SELECT 1 FROM r WHERE r.t=_backfill_evidence.t AND r.id=_backfill_evidence.id); DELETE FROM _backfill_pruned WHERE NOT EXISTS(SELECT 1 FROM r WHERE r.t=_backfill_pruned.t AND r.id=_backfill_pruned.id); INSERT OR IGNORE INTO _backfill_pruned(t,id,definition,active,retained_outputs) SELECT t,id,definition,active,retained_outputs FROM _backfill_evidence; DELETE FROM _backfill_evidence; DELETE FROM _backfill_absence WHERE (definition!='' AND definition NOT LIKE '$native:%') OR NOT EXISTS(SELECT 1 FROM r WHERE r.t=_backfill_absence.t AND r.id=_backfill_absence.id);")?;}
     Ok(())
 }
 pub(super) fn inventory_sql(conn:&Connection)->Result<&'static str,RuntimeError>{
@@ -332,7 +337,7 @@ pub(super) fn columns(tx:&Tx<'_>,next:&Schema)->Result<BTreeMap<String,BTreeSet<
     let mut out:BTreeMap<String,BTreeSet<String>>=BTreeMap::new();
     for f in &next.backfills {out.entry(f.table.clone()).or_default().extend(f.outputs.iter().cloned());}
     if present(tx)? {
-        let mut statement=tx.conn().prepare("SELECT definition FROM _backfill_definitions WHERE digest IN (SELECT definition FROM _backfill_evidence WHERE active=1 OR retained_outputs!='[]' UNION SELECT definition FROM _backfill_pruned WHERE active=1)")?;
+        let mut statement=tx.conn().prepare("SELECT definition FROM _backfill_definitions WHERE digest IN (SELECT definition FROM _backfill_evidence WHERE active=1 OR retained_outputs!='[]' UNION SELECT definition FROM _backfill_pruned WHERE active=1 OR retained_outputs!='[]')")?;
         for text in statement.query_map([],|r|r.get::<_,String>(0))? {
             let f:Backfill=decode(&text?)?;out.entry(f.table).or_default().extend(f.outputs);
         }
@@ -358,6 +363,24 @@ fn validate_lookup(tx:&Tx<'_>,ti:i64,prefix:usize,table:&str,index:&str)->Result
 // view across all its declarations; later cohorts read earlier cohorts' outputs.
 fn restore_snapshot(tx:&Tx<'_>)->Result<(),RuntimeError>{
     tx.conn().execute("UPDATE r SET data=(SELECT o.data FROM temp._backfill_originals o WHERE o.t=r.t AND o.id=r.id) WHERE EXISTS(SELECT 1 FROM temp._backfill_originals o WHERE o.t=r.t AND o.id=r.id)",[])?;Ok(())
+}
+// A reversed, originally absent cell must have the same meaning in explicit
+// arguments, point lookups and lookup indexes. Null is a temporary source-view
+// marker; the saved physical image is restored before committing any patch.
+fn mask_unprovided(tx:&Tx<'_>)->Result<(),RuntimeError>{
+    let mut q=tx.conn().prepare("SELECT DISTINCT r.t,r.id,octet_length(r.data) FROM r JOIN temp._backfill_unprovided m ON m.t=r.t AND m.id=r.id ORDER BY r.t,r.id")?;
+    let mut rows=q.query([])?;
+    while let Some(r)=rows.next()? {
+        let t:i64=r.get(0)?;let id:String=r.get(1)?;
+        let mut meter=Meter::new(Ceilings::job(),Cut::Abort);meter.heap((r.get::<_,i64>(2)?.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
+        let data:String=tx.conn().query_row("SELECT data FROM r WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0))?;let mut row:Value=decode(&data)?;
+        tx.conn().execute("INSERT OR IGNORE INTO temp._backfill_originals SELECT t,id,data FROM r WHERE t=?1 AND id=?2",params![t,id])?;
+        if let Value::Row(fields)|Value::Map(fields)=&mut row {
+            let mut columns=tx.conn().prepare("SELECT column_name FROM temp._backfill_unprovided WHERE t=?1 AND id=?2")?;
+            for c in columns.query_map(params![t,id],|r|r.get::<_,String>(0))? {fields.entry(c?).or_insert(Value::Null);}
+        }
+        tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;
+    }Ok(())
 }
 // Recorded later cohorts originally saw earlier releases' completed patches.
 // Replaying those older cohorts virtually preserves that ordering; fresh

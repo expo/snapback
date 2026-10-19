@@ -620,3 +620,19 @@ fn existing_later_cohorts_see_replayed_earlier_values_after_old_release_writes()
  let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&first,2).unwrap();adopt(&mut e,&second,3).unwrap();assert_eq!(field(&mut e,"items","a","copied"),Value::Int(6));
  adopt(&mut e,old,1).unwrap();write(&mut e,"edit");adopt(&mut e,&second,3).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(8));assert_eq!(field(&mut e,"items","a","copied"),Value::Int(8));
 }
+
+#[test]
+fn replacement_lookups_share_the_inverse_absence_view_of_direct_arguments() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+ let first=old.replace("  n:","  score: int default 10\n  n:")+"backfill items first(n: int):\n  {score:n * 2}\n";
+ let second=old.replace("  n:","  score: int default 10\n  direct: int\n  copied: int\n  n:")+"backfill items second(score: int ?):\n  {score:1,direct:score ?? 0,copied:(items['a'] ! else NOT_FOUND).score ?? 0}\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&first,2).unwrap();adopt(&mut e,&second,3).unwrap();
+ assert_eq!(field(&mut e,"items","a","direct"),Value::Int(0));assert_eq!(field(&mut e,"items","a","copied"),Value::Int(0));
+}
+#[test]
+fn pruned_suspended_output_preimages_refuse_plain_reexposure() {
+ let old="table items:\n  n: int\n  score: int ?\n  public 'fixture'\n  online only\n";
+ let next=old.to_owned()+"backfill items twice(n: int):\n  {score:n * 2}\n";
+ let hidden=old.replace("  score: int ?\n","");let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3,"score":7}));adopt(&mut e,&next,2).unwrap();adopt(&mut e,&hidden,3).unwrap();
+ e.store_mut().prune_dormant(true,None).unwrap();let generation=e.generation();let error=adopt(&mut e,old,1).unwrap_err().to_string();assert!(error.contains("explicitly pruned"),"{error}");assert_eq!(e.generation(),generation);assert_eq!(e.store().count("items").unwrap(),1);
+}
