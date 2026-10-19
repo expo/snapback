@@ -23,8 +23,12 @@ fn alternative(kind:&C,old:&Value)->Option<Value>{Some(match (kind.required(),ol
 })}
 fn sample_rows(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,inv:&Invariant,row:&Value,presence:bool)->Option<BTreeMap<String,Vec<Value>>>{
     let column=inv.column.as_ref()?;let kind=bound.schema.tables[&inv.table].columns.get(column)?;
-    let old=row.field(column).ok()?;
-    let alt=if presence&&kind.is_optional(){if *old==Value::Null{sample(kind.required(),0)?}else{Value::Null}}else{alternative(kind,old)?};
+    let old=match row.field(column){
+        Ok(value)=>value.clone(),
+        Err(_) if kind.is_optional()&&bound.schema.tables[&inv.table].defaults.get(column).is_none_or(|d|matches!(d,snapback4_core::schema::ColumnDefault::Literal(Value::Null)))=>Value::Null,
+        Err(_)=>return None,
+    };
+    let alt=if presence&&kind.is_optional(){if old==Value::Null{sample(kind.required(),0)?}else{Value::Null}}else{alternative(kind,&old)?};
     let mut out=rows.clone();
     let selected=out.get_mut(&inv.table)?.iter_mut().find(|r|r.field("id").ok()==row.field("id").ok())?;
     if let Value::Row(fields)=selected{fields.insert(column.clone(),alt);}else{return None;}

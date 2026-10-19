@@ -208,9 +208,9 @@ fn column_pairs_do_not_change_materialized_asset_inputs() {
 
 #[test]
 fn time_arguments_expose_a_deadline_checked_on_the_wrong_reference() {
- let source="table gates:\n  deadline: time\n  read <- allow\n  insert <- allow\n  online only\ntable briefs:\n  home: gates\n  owner: principal\n  body: text <=40\n  read <- allow\n  online only\nmutation create(deadline: time):\n  return insert gates { deadline }\nquery inspect(brief: briefs, gate: gates):\n  b = briefs[brief] ! else MISSING\n  g = gates[gate] ! else MISSING\n  require g.deadline <= now else EARLY\n  return b\ninvariant briefs.read only .owner = viewer\n";
+ let source="table gates:\n  deadline: time\n  read <- allow\n  insert <- viewer = 'service:ops'\n  online only\ntable briefs:\n  home: gates\n  owner: principal\n  body: text <=40\n  read <- allow\n  online only\nmutation create(deadline: time):\n  return insert gates { deadline }\nquery inspect(brief: briefs, gate: gates):\n  b = briefs[brief] ! else MISSING\n  g = gates[gate] ! else MISSING\n  require g.deadline <= now else EARLY\n  return b\ninvariant briefs.read only .owner = viewer\n";
  let c=fixture_campaign(source,vec![("gates".into(),row(&[("id",Value::Id("future".into())),("deadline",Value::Int(1_800_604_800_000))])),("briefs".into(),row(&[("id",Value::Id("b".into())),("home",Value::Id("future".into())),("owner",Value::Id("dev:owner".into())),("body",Value::String("secret".into()))]))]);
- assert!(c.violations.iter().any(|v|v.operation=="inspect"&&v.history.len()==1&&v.history[0].operation=="create"&&matches!(v.history[0].args.get("deadline"),Some(Value::Int(n)) if *n<1_800_000_000_000)&&v.args.get("gate")!=Some(&Value::Id("future".into()))),"{c:?}");
+ assert!(c.violations.iter().any(|v|v.operation=="inspect"&&v.history.len()==1&&v.history[0].operation=="create"&&v.history[0].viewer=="service:ops"&&v.observations.is_none()&&matches!(v.history[0].args.get("deadline"),Some(Value::Int(n)) if *n<1_800_000_000_000)&&v.args.get("gate")!=Some(&Value::Id("future".into()))),"{c:?}");
 }
 
 #[test]
@@ -227,4 +227,11 @@ fn history_observers_materialize_owned_media_inputs_for_payloads_and_pairs() {
   let c=fixture_campaign(&source,vec![("notes".into(),row(&[("id",Value::Id("n".into())),("owner",Value::Id("dev:owner".into())),("body",Value::String("secret".into()))]))]);
   assert!(c.violations.iter().any(|v|v.operation=="inspect"&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace&&v.args.get("input").is_some_and(|v|v.field("id").is_ok())&&(!direct||v.observations.is_none())&&(direct||v.observations.is_some())),"{kind} {direct}: {c:?}");
  }}
+}
+
+#[test]
+fn omitted_nullable_values_have_presence_observers() {
+ let source="table notes:\n  owner: principal\n  body: text <=40 ?\n  read <- allow\n  online only\nquery present(note: notes):\n  return notes[note].body != null\ninvariant notes.body read only .owner = viewer\n";
+ let c=fixture_campaign(source,vec![("notes".into(),row(&[("id",Value::Id("n".into())),("owner",Value::Id("dev:owner".into()))]))]);
+ assert!(c.violations.iter().any(|v|v.operation=="present"&&v.history.is_empty()&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace),"{c:?}");
 }
