@@ -77,16 +77,42 @@ pub fn from_json(kind: &ArgType, json: &Json) -> Result<Value, String> {
 /// Decode one operation's wire object, resolving legacy argument aliases to
 /// canonical bindings before the interpreter sees them.
 pub fn arguments_from_json(program: &crate::ir::Program, json: &Json) -> Result<BTreeMap<String, Value>, crate::RuntimeError> {
-    let fields = json.as_object().ok_or_else(|| crate::RuntimeError::Input("args must be an object".into()))?;
+    decode_arguments(program, json, |_, message| crate::RuntimeError::Input(message))
+}
+
+#[cfg(feature = "sqlite")]
+pub fn arguments_from_json_with_refusal(program: &crate::ir::Program, json: &Json) -> Result<BTreeMap<String, Value>, crate::error::Refusal> {
+    decode_arguments(program, json, |kind, message| {
+        crate::error::Refusal::new("E_INPUT", "input", message).guide(kind.guide())
+    })
+}
+
+#[derive(Clone, Copy)]
+enum ArgumentErrorKind {
+    Program,
+    Type,
+}
+
+impl ArgumentErrorKind {
+    fn guide(self) -> &'static str {
+        match self {
+            Self::Program => "programs",
+            Self::Type => "types",
+        }
+    }
+}
+
+fn decode_arguments<E>(program: &crate::ir::Program, json: &Json, error: impl Fn(ArgumentErrorKind, String) -> E) -> Result<BTreeMap<String, Value>, E> {
+    let fields = json.as_object().ok_or_else(|| error(ArgumentErrorKind::Program, "args must be an object".into()))?;
     for (alias, canonical) in &program.arg_aliases {
         if fields.contains_key(alias) && fields.contains_key(canonical) {
-            return Err(crate::RuntimeError::Input(format!("{} received both argument {canonical} and its alias {alias}; send exactly one", program.name)));
+            return Err(error(ArgumentErrorKind::Program, format!("{} received both argument {canonical} and its alias {alias}; send exactly one", program.name)));
         }
     }
     let mut typed = BTreeMap::new();
     for (wire_name, value) in fields {
-        let (canonical, kind) = program.argument(wire_name).ok_or_else(|| crate::RuntimeError::Input(format!("{} takes no argument {wire_name}", program.name)))?;
-        let decoded = from_json(kind, value).map_err(|why| crate::RuntimeError::Input(format!("argument {wire_name}: {why}")))?;
+        let (canonical, kind) = program.argument(wire_name).ok_or_else(|| error(ArgumentErrorKind::Program, format!("{} takes no argument {wire_name}", program.name)))?;
+        let decoded = from_json(kind, value).map_err(|why| error(ArgumentErrorKind::Type, format!("argument {wire_name}: {why}")))?;
         typed.insert(canonical.to_owned(), decoded);
     }
     Ok(typed)

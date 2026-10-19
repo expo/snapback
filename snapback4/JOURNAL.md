@@ -96915,3 +96915,10 @@ The guide's changed production recipe and alias fence are inputs to fresh
 packed qualification. WORKSTREAM-REPORT.md records final test/replay results
 and distinguishes schema populations from actual old-user HTTP views. No
 version bump, publication or push is part of this workstream.
+
+Packed qualification caught a diagnostic compatibility regression in shared
+alias decoding: malformed typed values linked to programs instead of the
+existing types card. The decoder now keeps structured error categories; the
+server preserves types for conversions and programs for signature mistakes,
+without changing the expected wire trace. Latest device measurement after
+that refactor is 2,387,155 B raw / 727,383 B gzip, still below 727,513.

@@ -1208,9 +1208,13 @@ fn handle(mut request: Request, shared: &Shared) {
                 return;
             };
             if let Some(why) = dev_doors::persona_argument(shared, &program.args, &args_json) { argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), why); return; }
-            let args = match wire::arguments_from_json(&program, &args_json) {
+            let args = match wire::arguments_from_json_with_refusal(&program, &args_json) {
                 Ok(args) => args,
-                Err(error) => { argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), dev_doors::stale(shared, error.refusal().guide("programs"))); return; }
+                Err(refusal) => {
+                    let refusal = if refusal.guide.as_deref() == Some("programs") { dev_doors::stale(shared, refusal) } else { refusal };
+                    argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), refusal);
+                    return;
+                }
             };
             let kind = program.kind;
             let viewer = principal.clone();
