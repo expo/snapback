@@ -11,30 +11,42 @@ fn present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
 fn enable(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     tx.conn().execute_batch("CREATE TABLE IF NOT EXISTS _backfill_evidence(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,inputs TEXT NOT NULL,before_image TEXT NOT NULL,after_image TEXT NOT NULL,active INTEGER NOT NULL,epoch INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(t,id,definition)) WITHOUT ROWID;
     CREATE TABLE IF NOT EXISTS _backfill_pruned(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,active INTEGER NOT NULL,PRIMARY KEY(t,id,definition)) WITHOUT ROWID;
-    CREATE TABLE IF NOT EXISTS _backfill_definitions(digest TEXT PRIMARY KEY,definition TEXT NOT NULL);")?;
+    CREATE TABLE IF NOT EXISTS _backfill_definitions(digest TEXT PRIMARY KEY,definition TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS _backfill_absence(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,column_name TEXT NOT NULL,PRIMARY KEY(t,id,definition,column_name)) WITHOUT ROWID;
+    CREATE TABLE IF NOT EXISTS _backfill_inputs(t INTEGER NOT NULL,column_name TEXT NOT NULL,PRIMARY KEY(t,column_name)) WITHOUT ROWID;
+    CREATE TABLE IF NOT EXISTS _backfill_active(t INTEGER NOT NULL,definition TEXT NOT NULL,input_names TEXT NOT NULL,PRIMARY KEY(t,definition)) WITHOUT ROWID;")?;
     if !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_backfill_evidence') WHERE name='epoch')",[],|r|r.get::<_,bool>(0))? {
         tx.conn().execute_batch("ALTER TABLE _backfill_evidence ADD COLUMN epoch INTEGER NOT NULL DEFAULT 0;")?;
+    }
+    if !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_backfill_active') WHERE name='input_names')",[],|r|r.get::<_,bool>(0))? {
+        tx.conn().execute_batch("ALTER TABLE _backfill_active ADD COLUMN input_names TEXT NOT NULL DEFAULT '[]';")?;
     }
     tx.set_meta("version", VERSION)
 }
 #[derive(serde::Serialize, serde::Deserialize)]
-struct Evidence { #[serde(default)] epoch:i64, active:bool, inputs: Value, before: BTreeMap<String,Value>, after: BTreeMap<String,Value> }
+struct Evidence { #[serde(default)] absent:BTreeSet<String>, #[serde(default)] epoch:i64, active:bool, inputs: Value, before: BTreeMap<String,Value>, after: BTreeMap<String,Value> }
 fn evidence(tx: &Tx<'_>, t:i64,id:&str,key:&str) -> Result<Option<Evidence>,RuntimeError> {
     let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(inputs)+octet_length(before_image)+octet_length(after_image) FROM _backfill_evidence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key],|r|r.get(0)).optional()?;
     let mut admission=Meter::new(Ceilings::job(),Cut::Abort);admission.heap(bytes.unwrap_or(0).max(0) as u64 * 64 + 8192)?;
     let value:Option<(String,String,String,bool,i64)>=tx.conn().query_row("SELECT inputs,before_image,after_image,active,epoch FROM _backfill_evidence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?))).optional()?;
-    value.map(|(inputs,before,after,active,epoch)|Ok(Evidence {epoch,active,inputs:decode(&inputs)?,before:decode(&before)?,after:decode(&after)?})).transpose()
+    value.map(|(inputs,before,after,active,epoch)|Ok(Evidence {absent:absence(tx,t,id,key)?,epoch,active,inputs:decode(&inputs)?,before:decode(&before)?,after:decode(&after)?})).transpose()
 }
 fn decode<T:serde::de::DeserializeOwned>(s:&str)->Result<T,RuntimeError>{serde_json::from_str(s).map_err(|e|RuntimeError::Store(e.to_string()))}
+fn absence(tx:&Tx<'_>,t:i64,id:&str,key:&str)->Result<BTreeSet<String>,RuntimeError>{
+    Ok(tx.conn().prepare("SELECT column_name FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition=?3")?.query_map(params![t,id,key],|r|r.get(0))?.collect::<Result<_,_>>()?)
+}
 fn save(tx:&Tx<'_>,t:i64,id:&str,key:&str,e:&Evidence,active:bool)->Result<(),RuntimeError>{
     tx.conn().execute("INSERT INTO _backfill_evidence(t,id,definition,inputs,before_image,after_image,active,epoch) VALUES(?1,?2,?3,?4,?5,?6,?7,?8) ON CONFLICT(t,id,definition) DO UPDATE SET inputs=excluded.inputs,before_image=excluded.before_image,after_image=excluded.after_image,active=excluded.active,epoch=excluded.epoch",params![t,id,key,canonical_json(&e.inputs),canonical_json(&e.before),canonical_json(&e.after),active,e.epoch])?;
     tx.conn().execute("DELETE FROM _backfill_pruned WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key])?;
+    tx.conn().execute("DELETE FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key])?;
+    for c in &e.absent {tx.conn().execute("INSERT INTO _backfill_absence VALUES(?1,?2,?3,?4)",params![t,id,key,c])?;}
     Ok(())
 }
 pub(super) fn delete(tx:&Tx<'_>,t:i64,id:&str)->Result<(),RuntimeError>{
     if present(tx)? {
         tx.conn().execute("DELETE FROM _backfill_evidence WHERE t=?1 AND id=?2",params![t,id])?;
         tx.conn().execute("DELETE FROM _backfill_pruned WHERE t=?1 AND id=?2",params![t,id])?;
+        tx.conn().execute("DELETE FROM _backfill_absence WHERE t=?1 AND id=?2",params![t,id])?;
     } Ok(())
 }
 // Never archive reference/asset preimages without lifetime evidence. New reference
@@ -128,16 +140,29 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     bad.add(id,&format!("historical reference {}.{c} lost its parent lifetime",fill.table));return Ok(())
                 }
             }
+            let physically_absent=absence(tx,t,id,"")?;
+            let native=absence(tx,t,id,&format!("$native:{key}"))?;
+            if prior.is_none() && !native.is_empty() {
+                let native_inputs=native_inputs(tx,t,id,&current,fill.inputs.keys().map(String::as_str),&physically_absent)?;
+                if fill.inputs.iter().any(|(c,kind)|!physically_absent.contains(c) && crate::engine::validate::validate_column(&fill.table,c,kind,native_inputs.get(c)).is_err()) {
+                    bad.add(id,"native image has an invalid present historical input; use a typed bridge");return Ok(())
+                }
+                if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _backfill_evidence WHERE t=?1 AND id=?2 UNION ALL SELECT 1 FROM _backfill_pruned WHERE t=?1 AND id=?2)",params![t,id],|r|r.get::<_,bool>(0))? {
+                    bad.add(id,"native output also has a different transformation's history; resolve its intended view in a bridge");return Ok(())
+                }
+                let complete=fill.outputs.iter().all(|c|current.field(c).is_ok() && crate::engine::validate::validate_column(&fill.table,c,&table.columns[c],current.field(c).ok()).is_ok());
+                let fingerprint=crate::value::digest(&native_inputs);
+                if !complete {bad.add(id,"native backfill output image is missing or was explicitly pruned; use a bridge or restore a backup");return Ok(())}
+                if !native.contains(&fingerprint) {bad.add(id,"native backfill inputs changed after row creation; preserve the authored output in a bridge before re-entry");return Ok(())}
+                return Ok(())
+            }
+            let original_absence=prior.as_ref().filter(|e|e.active).map_or_else(||physically_absent.intersection(&fill.inputs.keys().cloned().collect()).cloned().collect(),|e|e.absent.clone());
             if let Some(table)=sources.get(&fill.table){materialize_optional_fields(&mut row,table);}
             let historical=row.clone();
             let mut args=BTreeMap::new();
             for (c,kind) in &fill.inputs {
                 let value=historical.field(c).cloned().ok();
                 if crate::engine::validate::validate_column(&fill.table,c,kind,value.as_ref()).is_err() {
-                    // Native rows can survive a return through an older source;
-                    // they have no historical input, but retain a valid v2 image.
-                    if prior.is_none() && previous.and_then(|s|s.table(&fill.table)).is_some_and(|old|fill.outputs.iter().all(|c|!old.columns.contains_key(c))) && fill.outputs.iter().all(|c|current.field(c).is_ok() && crate::engine::validate::validate_column(&fill.table,c,&table.columns[c],current.field(c).ok()).is_ok())
-                        && tx.conn().query_row("SELECT NOT EXISTS(SELECT 1 FROM _backfill_evidence WHERE t=?1 AND id=?2 UNION ALL SELECT 1 FROM _backfill_pruned WHERE t=?1 AND id=?2)",params![t,id],|r|r.get::<_,bool>(0))? {return Ok(())}
                     bad.add(id,&format!("historical input {}.{c} is absent or does not fit {kind}; use a typed bridge to repair it",fill.table));return Ok(())
                 }
                 args.insert(c.clone(),value.unwrap_or(Value::Null));
@@ -167,7 +192,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     }
                 }
             }
-            let e=Evidence{epoch:epoch.unwrap_or(fresh_epoch),active:true,inputs,before,after:patch};
+            let e=Evidence{absent:original_absence,epoch:epoch.unwrap_or(fresh_epoch),active:true,inputs,before,after:patch};
             tx.conn().execute("INSERT INTO temp._backfill_pending VALUES(?1,?2,?3,?4,?5)",params![t,id,key,canonical_json(&desired),canonical_json(&e)])?;count+=1;
             Ok(())
         })?;
@@ -186,6 +211,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         if let Value::Row(f)|Value::Map(f)=&mut row {f.extend(patch);}
         tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;
         save(tx,t,&id,&key,&e,true)?;
+        for c in e.after.keys() {tx.conn().execute("DELETE FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition='' AND column_name=?3",params![t,id,c])?;}
         let fill=next.backfills.iter().find(|f|f.key()==key).ok_or_else(||refusal("missing historical declaration"))?;
         for(c,kind)in &fill.inputs {
             if let Ok(value)=e.inputs.field(c) {super::dormant::capture_refs(tx,t,&id,&input_ref(&key,c),kind,value)?;}
@@ -213,7 +239,7 @@ fn collect_reads(body:&[crate::ir::Stmt],out:&mut BTreeSet<(String,String)>){
 // Prune forgets historical values, retaining only the fact that exact reversal
 // is no longer available. No tombstone can be queried by an app.
 pub(super) fn prune(tx:&Tx<'_>)->Result<(),RuntimeError>{
-    if present(tx)? {tx.conn().execute_batch("DELETE FROM _backfill_evidence WHERE NOT EXISTS(SELECT 1 FROM r WHERE r.t=_backfill_evidence.t AND r.id=_backfill_evidence.id); DELETE FROM _backfill_pruned WHERE NOT EXISTS(SELECT 1 FROM r WHERE r.t=_backfill_pruned.t AND r.id=_backfill_pruned.id); INSERT OR IGNORE INTO _backfill_pruned SELECT t,id,definition,active FROM _backfill_evidence; DELETE FROM _backfill_evidence;")?;}
+    if present(tx)? {tx.conn().execute_batch("DELETE FROM _backfill_evidence WHERE NOT EXISTS(SELECT 1 FROM r WHERE r.t=_backfill_evidence.t AND r.id=_backfill_evidence.id); DELETE FROM _backfill_pruned WHERE NOT EXISTS(SELECT 1 FROM r WHERE r.t=_backfill_pruned.t AND r.id=_backfill_pruned.id); INSERT OR IGNORE INTO _backfill_pruned SELECT t,id,definition,active FROM _backfill_evidence; DELETE FROM _backfill_evidence; DELETE FROM _backfill_absence WHERE (definition!='' AND definition NOT LIKE '$native:%') OR NOT EXISTS(SELECT 1 FROM r WHERE r.t=_backfill_absence.t AND r.id=_backfill_absence.id);")?;}
     Ok(())
 }
 pub(super) fn inventory_sql(conn:&Connection)->Result<&'static str,RuntimeError>{
@@ -264,10 +290,10 @@ fn historical_snapshot(tx:&Tx<'_>,epoch:i64,keys:&BTreeSet<String>)->Result<(),R
         let mut row:Value=decode(&data)?;let e=evidence(tx,t,&id,&key)?.unwrap();
         let fields=match &mut row {Value::Row(f)|Value::Map(f)=>f,_=>return Err(refusal("invalid historical row"))};
         if let Value::Row(inputs)|Value::Map(inputs)=e.inputs {for(c,value)in inputs {
-            if !fields.contains_key(&c) || fields.get(&c)==Some(&value) {
+            if e.absent.contains(&c) || !fields.contains_key(&c) || fields.get(&c)==Some(&value) {
                 let invalid:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3 AND invalid=1)",params![t,id,input_ref(&key,&c)],|r|r.get(0))?;
                 if invalid {return Err(refusal(format!("historical backfill reference {c} on {id} lost its parent lifetime")));}
-                fields.entry(c).or_insert(value);
+                if e.absent.contains(&c) {fields.insert(c,value);}else{fields.entry(c).or_insert(value);}
             }
         }}
         for c in e.after.keys() {if !e.before.contains_key(c) {fields.insert(c.clone(),Value::Null);}}
@@ -307,4 +333,74 @@ fn inactive_snapshot(tx:&Tx<'_>,previous:Option<&Schema>,keys:&BTreeSet<String>)
         let mut row:Value=decode(&data)?;if let Value::Row(fields)|Value::Map(fields)=&mut row {for c in absent {fields.insert(c,Value::Null);}}
         tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;
     }Ok(())
+}
+
+// Empty definition denotes currently omitted physical input cells; a definition
+// digest denotes absence at that receipt's adoption. Defaults may materialize
+// during retention without turning omitted inputs into authored values.
+pub(super) fn prepare_inputs(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>)->Result<(),RuntimeError>{
+    if next.backfills.is_empty() && previous.is_none_or(|s|s.backfills.is_empty()) && !present(tx)? {return Ok(());}
+    enable(tx)?;
+    tx.conn().execute("DELETE FROM _backfill_active",[])?;
+    for fill in &next.backfills {tx.conn().execute("INSERT INTO _backfill_active VALUES(?1,?2,?3)",params![tx.num(&fill.table)?,fill.key(),canonical_json(&fill.inputs.keys().collect::<Vec<_>>())])?;}
+    for fill in next.backfills.iter().chain(previous.into_iter().flat_map(|s|s.backfills.iter())) {
+        tx.conn().execute("INSERT OR IGNORE INTO _backfill_definitions VALUES(?1,?2)",params![fill.key(),canonical_json(fill)])?;
+        for c in fill.inputs.keys() {tx.conn().execute("INSERT OR IGNORE INTO _backfill_inputs VALUES(?1,?2)",params![tx.num(&fill.table)?,c])?;}
+    }
+    let tables:Vec<i64>=tx.conn().prepare("SELECT DISTINCT t FROM _backfill_inputs")?.query_map([],|r|r.get(0))?.collect::<Result<_,_>>()?;
+    for t in tables {
+        let columns:Vec<String>=tx.conn().prepare("SELECT column_name FROM _backfill_inputs WHERE t=?1")?.query_map([t],|r|r.get(0))?.collect::<Result<_,_>>()?;
+        super::activation::walk(tx,t,|id,row|{
+            for c in &columns {if row.field(c).is_err(){note_omission(tx,t,id,c)?;}}
+            Ok(())
+        })?;
+    } Ok(())
+}
+pub(super) fn observe_write(tx:&Tx<'_>,t:i64,id:&str,table:&Table,row:&Value,old:Option<&Value>)->Result<(),RuntimeError>{
+    if !present(tx)? {return Ok(());}
+    if old.is_none() {
+        let active:Vec<(String,String)>=tx.conn().prepare("SELECT definition,input_names FROM _backfill_active WHERE t=?1")?.query_map([t],|r|Ok((r.get(0)?,r.get(1)?)))?.collect::<Result<_,_>>()?;
+        for (key,names) in active {
+            let names:Vec<String>=decode(&names)?;let absent=names.iter().filter(|c|row.field(c).is_err()).cloned().collect();
+            let fingerprint=input_fingerprint(row,names.iter().map(String::as_str),&absent);
+            tx.conn().execute("INSERT OR IGNORE INTO _backfill_absence VALUES(?1,?2,?3,?4)",params![t,id,format!("$native:{key}"),fingerprint])?;
+        }
+    }
+    let columns:Vec<String>=tx.conn().prepare("SELECT column_name FROM _backfill_inputs WHERE t=?1")?.query_map([t],|r|r.get(0))?.collect::<Result<_,_>>()?;
+    if columns.is_empty(){return Ok(());}
+    let interpreted_old=old.map(|r|crate::schema::row_image(r,table));
+    let interpreted_new=crate::schema::row_image(row,table);
+    for c in columns {
+        let changed=interpreted_old.as_ref().is_none_or(|before|before.field(&c).ok()!=interpreted_new.field(&c).ok());
+        if changed {tx.conn().execute("DELETE FROM _backfill_absence WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,c])?;}
+        if row.field(&c).is_err() {note_omission(tx,t,id,&c)?;}
+    } Ok(())
+}
+
+pub(super) fn record_omissions(tx:&Tx<'_>,t:i64,id:&str,row:&Value)->Result<(),RuntimeError>{
+    if !present(tx)? {return Ok(());}
+    let columns:Vec<String>=tx.conn().prepare("SELECT column_name FROM _backfill_inputs WHERE t=?1")?.query_map([t],|r|r.get(0))?.collect::<Result<_,_>>()?;
+    for c in columns {if row.field(&c).is_err(){note_omission(tx,t,id,&c)?;}}Ok(())
+}
+
+fn input_fingerprint<'a>(row:&Value,names:impl Iterator<Item=&'a str>,absent:&BTreeSet<String>)->String {
+    let fields:BTreeMap<String,Value>=names.map(|c|(c.to_owned(),if absent.contains(c){Value::Null}else{row.field(c).cloned().unwrap_or(Value::Null)})).collect();
+    crate::value::digest(&fields)
+}
+
+fn note_omission(tx:&Tx<'_>,t:i64,id:&str,c:&str)->Result<(),RuntimeError>{
+    // A provided historical cell stays provided when merely moved out of the
+    // active projection. Already-recorded omission survives default freezing.
+    tx.conn().execute("INSERT OR IGNORE INTO _backfill_absence SELECT ?1,?2,'',?3 WHERE NOT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3)",params![t,id,c])?;Ok(())
+}
+fn native_inputs<'a>(tx:&Tx<'_>,t:i64,id:&str,row:&Value,names:impl Iterator<Item=&'a str>,absent:&BTreeSet<String>)->Result<BTreeMap<String,Value>,RuntimeError>{
+    let mut out=BTreeMap::new();let mut meter=Meter::new(Ceilings::job(),Cut::Abort);
+    for c in names {
+        let value=if absent.contains(c){Value::Null}else if let Ok(value)=row.field(c){meter.heap(value.retained_heap_bytes().saturating_mul(64).saturating_add(8192))?;value.clone()}else{
+            let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,c],|r|r.get(0)).optional()?;
+            meter.heap(bytes.unwrap_or(0).max(0) as u64 * 64 + 8192)?;
+            let text:Option<String>=tx.conn().query_row("SELECT data FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,c],|r|r.get(0)).optional()?;
+            text.map(|s|decode(&s)).transpose()?.unwrap_or(Value::Null)
+        };out.insert(c.to_owned(),value);
+    }Ok(out)
 }

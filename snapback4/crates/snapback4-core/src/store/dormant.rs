@@ -328,6 +328,7 @@ pub(super) fn transition(
         return Ok(BTreeSet::new());
     }
     if !super::narrowed::present(tx.conn())? || !live_cells_column(tx.conn())? {enable(tx.conn())?;}
+    super::backfills::prepare_inputs(tx,next,previous)?;
     let whole: Vec<(String, String)> = tx
         .conn()
         .prepare("SELECT table_name,definition FROM _dormant_tables ORDER BY table_name")?
@@ -528,6 +529,7 @@ pub(super) fn transition(
         };
         super::activation_walk::walk_metered_checked(tx,t,crate::rows::adoption::Work::DECODE,if parent_scratch>0 {Some(&scratch)} else {None},|id,mut row,meter| {
             let old=authority_sources.get(name);
+            super::backfills::record_omissions(tx,t,id,&row)?;
             if let Some(old)=old {
                 materialize_optional_fields(&mut row,old);
                 super::authority_origin::validate(tx,next,&authority_sources,name,old,&row,now,false)?;

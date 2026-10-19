@@ -666,6 +666,7 @@ impl<'a> Tx<'a> {
         let t = self.num(table_name)?;
         let id = row.field("id")?.as_str()?;
         narrowed::check_write(self,table_name,table,row,old)?;
+        backfills::observe_write(self,t,id,table,row,old)?;
         let keys = crate::rows::index_write(table_name, table, row, old, id)?;
         self.changes.borrow_mut().record(table_name, table, old, Some(row));
         let data = canonical_json(row);

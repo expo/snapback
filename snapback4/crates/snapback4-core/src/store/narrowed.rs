@@ -296,6 +296,7 @@ pub(super) fn restore_images(tx:&Tx<'_>,next:&Schema,now:i64,source_definitions:
         super::dormant::check_owner(tx, &name, &old, next)?;
         let mut row: Value =
             serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        super::backfills::record_omissions(tx,t,&id,&row)?;
         crate::schema::materialize_optional_fields(&mut row,&old);
         let mut authority=crate::engine::through_activation::manual_authority_fields(next,&name,&old);
         if for_backfills { authority.extend(rewritten.get(&name).into_iter().flatten().cloned()); }

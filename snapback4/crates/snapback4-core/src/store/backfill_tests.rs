@@ -325,3 +325,49 @@ fn a_transformed_restored_row_keeps_its_new_cells_when_it_becomes_dormant_again(
  let mut e=engine(old);seed(&mut e,"parents",json!({"id":"p","n":9}));seed(&mut e,"children",json!({"id":"c","label":"b","n":3}));adopt(&mut e,&narrow,2).unwrap();adopt(&mut e,&next,3).unwrap();assert_eq!(e.store().count("children").unwrap(),0);
  adopt(&mut e,&next.replace("int 0..5","int 0..10"),4).unwrap();assert_eq!(field(&mut e,"children","c","n"),Value::Int(6));
 }
+
+#[test]
+fn native_images_survive_optional_missing_inputs_and_constant_backfills() {
+ for optional in [false,true] {
+  let old="table items:\n  n: int ?\n  public 'fixture'\n  online only\n";
+  let next=old.replace("  n: int ?","  derived: int")+if optional {"backfill items derive(n: int ?):\n  {derived:(n ?? 0) * 2}\n"}else{"backfill items derive():\n  {derived:0}\n"};
+  let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&next,2).unwrap();seed(&mut e,"items",json!({"id":"native","derived":9}));
+  adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","native","derived"),Value::Int(9));
+  adopt(&mut e,"query empty():\n  return true\n",3).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","native","derived"),Value::Int(9));
+ }
+}
+#[test]
+fn invalid_present_inputs_never_qualify_as_native_missing_inputs() {
+ let v2="table items:\n  n: bool\n  derived: int\n  public 'fixture'\n  online only\n";
+ let old=v2.replace("  derived: int\n","");
+ let next=v2.to_owned()+"backfill items derive(n: int, missing: int ?):\n  {derived:n + (missing ?? 0)}\n";
+ let mut e=engine(v2);seed(&mut e,"items",json!({"id":"a","n":true,"derived":9}));adopt(&mut e,&old,1).unwrap();
+ let error=adopt(&mut e,&next,3).unwrap_err().to_string();assert!(error.contains("historical input items.n"),"{error}");
+}
+#[test]
+fn original_absence_survives_later_defaults_until_a_meaningful_input_edit() {
+ let old="table items:\n  label: text <=10\n  public 'fixture'\n  update <- allow\n  online only\n";
+ let fill="backfill items derive(n: int ?):\n  {derived:n ?? 0}\n";
+ let next=old.replace("  label:","  derived: int\n  label:")+fill;
+ let later=next.replace("  label:","  n: int default 100\n  label:")+"mutation edit(n: int):\n  update items['a'] {n}\nmutation label():\n  update items['a'] {label:'changed'}\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","label":"old"}));adopt(&mut e,&next,2).unwrap();adopt(&mut e,&later,3).unwrap();write(&mut e,"label");
+ adopt(&mut e,"query empty():\n  return true\n",4).unwrap();adopt(&mut e,&later,3).unwrap();assert_eq!(field(&mut e,"items","a","derived"),Value::Int(0));
+ for n in [200,100] {let r=e.mutate("edit",None,Context::new("alice",std::collections::BTreeMap::from([("n".into(),Value::Int(n))]))).unwrap();assert!(matches!(r.state,WriteState::Sent{..}),"{r:?}");}
+ adopt(&mut e,"query empty():\n  return true\n",4).unwrap();adopt(&mut e,&later,3).unwrap();assert_eq!(field(&mut e,"items","a","derived"),Value::Int(100));
+}
+
+#[test]
+fn a_new_declaration_name_does_not_inherit_another_native_definition() {
+ let old="table items:\n  public 'fixture'\n  online only\n";
+ let next=old.replace("  public","  derived: int\n  public")+"backfill items zero():\n  {derived:0}\n";
+ let newer=next.replace("items zero()","items one()").replace("derived:0","derived:1");
+ let mut e=engine(old);adopt(&mut e,&next,2).unwrap();seed(&mut e,"items",json!({"id":"native","derived":9}));adopt(&mut e,old,1).unwrap();adopt(&mut e,&newer,3).unwrap();assert_eq!(field(&mut e,"items","native","derived"),Value::Int(1));
+}
+
+#[test]
+fn native_authored_outputs_survive_matching_inputs_and_refuse_changed_inputs() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  update <- allow\n  online only\nmutation edit():\n  update items['native'] {n:4}\n";
+ let next=old.replace("  n: int","  derived: int\n  n: int")+"backfill items twice(n: int):\n  {derived:n * 2}\n";
+ let mut e=engine(old);adopt(&mut e,&next,2).unwrap();seed(&mut e,"items",json!({"id":"native","n":3,"derived":9}));adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","native","derived"),Value::Int(9));
+ adopt(&mut e,old,1).unwrap();write(&mut e,"edit");let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains("native backfill inputs changed"),"{error}");
+}
