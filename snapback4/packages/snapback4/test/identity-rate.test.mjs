@@ -70,3 +70,14 @@ test("an active signup deadline names partial staging setup and never replays",a
  });
  for(let n=0;n<20;n++) await assert.rejects(seedAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},timeoutMs:10}),/E_STAGING_TIMEOUT.*partial accounts/);assert.equal(calls,20);
 });
+
+test("early timer delivery preserves staging timeout classification with budget remaining",async t=>{
+ const original=setTimeout;let early=0,calls=0;
+ t.mock.method(globalThis,"setTimeout",(callback,ms,...args)=>{if(ms>=900&&ms<=1000){early++;return original(callback,0,...args);}return original(callback,ms,...args);});
+ t.mock.method(globalThis,"fetch",async(url,init)=>{
+  if(url.endsWith("/auth/config"))return response({environment:"staging",development:false,password:true});calls++;
+  return new Promise((_,reject)=>init.signal.addEventListener("abort",()=>reject(init.signal.reason),{once:true}));
+ });
+ await assert.rejects(seedAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},timeoutMs:1000}),/E_STAGING_TIMEOUT.*partial accounts/);
+ assert.equal(early,1);assert.equal(calls,1);
+});
