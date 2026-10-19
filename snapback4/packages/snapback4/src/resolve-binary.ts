@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-export function resolveBinary(env: NodeJS.ProcessEnv = process.env): string {
+export function resolveBinary(env: Record<string, string | undefined> = process.env): string {
   const here = dirname(fileURLToPath(import.meta.url));
   const require = createRequire(import.meta.url);
   // @ref LLP 3000.021#3.3 — the installed platform package precedes checkout fallbacks

@@ -167,7 +167,7 @@ pub(super) fn preview(
             reverse.restore_dormant=true;
             reverse.native_digest=native.installed.map(|m|m.digest);
             reverse.operation="preview".into();
-            if let Err(error)=snapback4_core::Engine::new_release_prepared(reverse_store,old.schema,old.programs.into_iter().map(|p|p.program),&reverse,options.flags.contains_key("allow-feed-adoption")) {
+            if let Err(error)=snapback4_core::Engine::new_release_prepared_at(reverse_store,old.schema,old.programs.into_iter().map(|p|p.program),&reverse,options.flags.contains_key("allow-feed-adoption"),activation_now) {
                 hazards.push(format!("rollback to release {current} refuses on the post-deploy snapshot: {error}; run `snapback4 rollback {} --to {current} --check --bridge <new-dir>` and preserve the required fields/domains in a bridge",store_path.parent().unwrap().display()));
             }
         }

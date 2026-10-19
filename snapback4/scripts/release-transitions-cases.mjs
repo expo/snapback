@@ -15,8 +15,8 @@ export async function releaseTransitions({ cli, startServe }, parent) {
       const status=async()=>JSON.parse((await run(['releases',deployment,'--json'])).stdout);
       const releases=()=>readdirSync(join(deployment,'releases')).sort();
       const source=text=>writeFileSync(schema,text);
-      const serve=async()=> {
-        const host=await startServe(deployment,{cwd,timeoutMs:60_000});active.add(host);
+      const serve=async(options={})=> {
+        const host=await startServe(deployment,{cwd,timeoutMs:60_000,...options});active.add(host);
         const signed=await (await fetch(host.url+'/auth/guest',{method:'POST',body:'{}'})).json();
         assert.ok(signed.session?.token,JSON.stringify(signed));
         const headers={'content-type':'application/json',authorization:'Bearer '+signed.session.token};
@@ -167,6 +167,37 @@ backfill counters increment(value: int): {value: value + 1}
     await b.run(['deploy',b.deployment]);
     assert.deepEqual((await backfillHost.post('/q/list')).data.map(row=>row.value).sort((a,b)=>a-b),[5,10,20],'native outputs survive reactivation');
     await backfillHost.host.stop();active.delete(backfillHost.host);
+    const timed=fixture('reverse-preview-staging-clock');
+    const timedV1=`use identity guests
+table parents:
+  until: time
+  expire at .until
+  public 'staging preview'
+  insert <- allow
+  online only
+table children:
+  parent: parents on delete restrict
+  public 'staging preview'
+  insert <- allow
+  online only
+table items:
+  n: int
+  public 'staging preview'
+  insert <- allow
+  online only
+mutation setup():
+  p = insert parents {until:now + 3600000}
+  insert children {parent:p.id}
+  return insert items {n:1}
+`;
+    timed.source(timedV1);await timed.run(['deploy',timed.deployment,'--staging']);
+    const clockHost=await timed.serve({clockOffset:'-2h'});
+    assert.equal((await clockHost.post('/m/setup',{},'integ18-clock')).state,'sent');
+    timed.source(timedV1+'backfill items double(n: int): {n:n * 2}\n');
+    const timedPreview=JSON.parse((await timed.run(['deploy',timed.deployment,'--check','--json'])).stdout);
+    assert.ok(timedPreview.backfills.length);
+    assert.ok(!timedPreview.hazards.some(line=>line.includes('refuses on the post-deploy snapshot')),JSON.stringify(timedPreview));
+    await clockHost.host.stop();active.delete(clockHost.host);
     return {status:'passed',reactivation:['cold','hot','same-id','dormant-values','unchanged','backfill-receipts'],refusals:['adoption','post-validation-pointer','no-candidate-left'],rollbackForesight:'dropped-required-column-and-later-writes',oldClients:'installed-guide-signature-diff-baseline-projected-domains'};
   } finally {
     try {for(const host of active)await host.stop();} finally {rmSync(root,{recursive:true,force:true});}

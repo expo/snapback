@@ -78,8 +78,11 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   assert.match(zero, /note: notes: notes.status: no stored values are incompatible with release 1; no value repair is needed for this switch/);
   writeFileSync(schema, v3);
   const preview = run('deploy', deployment, '--check');
-  assert.match(preview.stdout, /note: release behavior: job remind compiles differently because notes changed \(added color\); schedule remindDaily remains; verify the scheduled result if these dependencies matter/);
-  assert.doesNotMatch(preview.stdout, /WARNING.*job remind|lacks.*schedule/);
+  assert.match(preview.stdout, /job remind compiles differently because notes changed \(added color\); schedule remindDaily remains; verify the scheduled result if these dependencies matter/);
+  const previewFacts=JSON.parse(run('deploy',deployment,'--check','--json').stdout);
+  assert.ok(previewFacts.notes.some(line=>line.includes('job remind compiles differently')),JSON.stringify(previewFacts));
+  assert.ok(!previewFacts.hazards.some(line=>line.includes('job remind')),JSON.stringify(previewFacts));
+  assert.doesNotMatch(preview.stdout, /lacks.*schedule/);
   run('deploy', deployment);
   assert.equal((await host.post('/m/archive', { note: ids[0] })).state, 'sent');
   await host.stop();

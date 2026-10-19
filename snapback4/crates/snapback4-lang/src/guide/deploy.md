@@ -148,6 +148,7 @@ alias greet = greeting
 A literal default handles omitted or null arguments and must fit the declared scalar type; explicit non-null input still validates. `deprecated` accepts a validated optional argument but forbids referring to it in the body. Unknown arguments still refuse. These modifiers apply to non-native Quarry queries and mutations; helpers, actions and jobs keep their distinct invocation contracts. Aliases target an authored query/mutation in the same module, carry the same rules/guards/results, and cannot chain. Retain the old endpoint until its callers have retired; preserve the old result projection and handle intended denials.
 
 Deploy also warns when later rollback can refuse or hide rows: dropping a required old column or widening a value domain can strand newly written rows. The preflight separately attempts exact reverse adoption on its post-deploy snapshot, naming present-data failures. Keep old fields and compatible domains in an expand/contract bridge; after writes run the named `rollback <deployment> --to N --check --bridge <new-dir>` before selecting N. A green snapshot never freezes later writes.
+
 ## Persistent production: v1 → v2 → rollback → forward
 
 Replacement transforms read reversible preimages; input types must cover original and native rows. Re-entry preserves native outputs with unchanged inputs; otherwise use a bridge.
