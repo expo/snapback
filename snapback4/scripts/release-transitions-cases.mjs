@@ -108,7 +108,20 @@ mutation add():
     writeFileSync(join(c.cwd,'snapback/client-compatibility.json'),JSON.stringify({baseline:'versions/v1',since_release:2}));
     const baseline=await c.run(['check']);assert.match(baseline.stderr,/old-client compatibility \(baseline .*new required argument suffix/);
     const generated=readFileSync(join(c.cwd,'snapback/generated/api.ts'),'utf8');assert.match(generated,/suffix: string/);assert.doesNotMatch(generated,/suffix\?:/);
-    return {status:'passed',reactivation:['cold','hot','same-id','dormant-values','unchanged'],refusals:['adoption','post-validation-pointer','no-candidate-left'],rollbackForesight:'dropped-required-column-and-later-writes',oldClients:'installed-guide-and-signature-diff-and-baseline'};
+    const d=fixture('projected-domains');
+    const rows=`use identity guests
+table items:
+  n: int 0..10
+  label: text 1..20
+  public 'result domain proof'
+query list():
+  return items first 10 by .id {n, label}
+`;
+    d.source(rows);await d.run(['deploy',d.deployment]);
+    d.source(rows.replace('int 0..10','int 0..20').replace('text 1..20','text 0..20'));
+    const domains=JSON.parse((await d.run(['deploy',d.deployment,'--check','--json'])).stdout).clientCompatibility.join('\n');
+    assert.match(domains,/RESULT REVIEW.*items.label/);assert.match(domains,/RESULT REVIEW.*items.n/);
+    return {status:'passed',reactivation:['cold','hot','same-id','dormant-values','unchanged'],refusals:['adoption','post-validation-pointer','no-candidate-left'],rollbackForesight:'dropped-required-column-and-later-writes',oldClients:'installed-guide-signature-diff-baseline-projected-domains'};
   } finally {
     try {for(const host of active)await host.stop();} finally {rmSync(root,{recursive:true,force:true});}
   }

@@ -80,3 +80,17 @@ fn projected_results_keep_declared_integer_and_text_domains() {
     let unused=checked(&source.replace("unused: int 0..10","unused: int 0..100"));
     assert!(compare(&old,&unused,"release 1").is_empty(),"{:?}",compare(&old,&unused,"release 1"));
 }
+
+#[test]
+fn projected_pages_and_accumulated_lists_keep_declared_result_domains() {
+    let table="table items:\n  n: int 0..10\n  label: text 1..20\n  unused: int 0..10\n  public\n";
+    for body in ["query q():\n  return items first 10 by .id {n, label}\n", "query q():\n  out = []\n  for row in items first 10 by .id:\n    out = out + [{n: row.n, label: row.label}]\n  return out\n"] {
+        let source=format!("{table}{body}");let old=checked(&source);
+        for (from,to,field) in [("n: int 0..10","n: int 0..20","items.n"),("text 1..20","text 0..20","items.label")] {
+            let new=checked(&source.replace(from,to));let report=compare(&old,&new,"release 1");
+            assert!(report.iter().any(|line|line.contains("RESULT REVIEW")&&line.contains(field)),"{body}: {report:?}");
+        }
+        let unused=checked(&source.replace("unused: int 0..10","unused: int 0..100"));
+        assert!(compare(&old,&unused,"release 1").is_empty(),"{body}");
+    }
+}

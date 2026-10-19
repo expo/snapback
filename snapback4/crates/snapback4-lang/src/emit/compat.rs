@@ -1,4 +1,4 @@
-//! @ref LLP 3000.000.000.000#3-generated-compatibility — opt-in types span a saved baseline and current source.
+//! @ref LLP 3000.000.000.000#11-old-client-operation-contracts-rel5 — opt-in types span a saved baseline and current source.
 use super::*;
 
 pub(super) fn args(current: &[(String, Ty)], old: Option<&[(String, Ty)]>, since: Option<u64>) -> String {

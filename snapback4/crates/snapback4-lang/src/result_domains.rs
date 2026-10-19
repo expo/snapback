@@ -8,8 +8,8 @@ type Definitions=BTreeMap<String,Vec<Value>>;
 fn definitions(value:&Value, defs:&mut Definitions, returns:&mut Vec<Value>) {
     match value {
         Value::Object(object)=> {
-            for kind in ["Let","Const","Assign","Push"] {
-                if let Some(binding)=object.get(kind) && let Some(name)=binding["name"].as_str() {
+            for (kind,key) in [("Let","name"),("Const","name"),("Assign","name"),("Push","target")] {
+                if let Some(binding)=object.get(kind) && let Some(name)=binding[key].as_str() {
                     defs.entry(name.into()).or_default().push(binding["value"].clone());
                 }
             }
