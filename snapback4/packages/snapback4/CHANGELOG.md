@@ -2,7 +2,7 @@
 
 ## 0.4.34
 
-- Guide changes: `guide deploy` explains retained-source reactivation with the same release id, atomic refused-candidate cleanup, the shared `--restore-dormant` intent and deploy-time rollback foresight with bridge commands. Old-client compatibility reports compare operation inputs, results and refusals; required new inputs remain required in generated types. The executable v1/v2 recipe uses literal query/mutation defaults, ignored deprecated inputs and same-module operation aliases. Availability accepts extra optional served arguments. Migration recipes and staging clock changes are owned by the data lifecycle workstream; security invariants/audit by the security workstream.
+- Guide changes: `guide deploy` explains retained-source reactivation with the same release id, atomic refused-candidate cleanup, the shared `--restore-dormant` intent and deploy-time rollback foresight with bridge commands. Old-client compatibility reports compare operation inputs, results and refusals; required new inputs remain required in generated types. The executable v1/v2 recipe uses literal query/mutation defaults, ignored deprecated inputs and same-module operation aliases. Availability accepts extra optional served arguments.
 
 ## 0.4.33
 
