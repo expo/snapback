@@ -94,3 +94,38 @@ fn projected_pages_and_accumulated_lists_keep_declared_result_domains() {
         assert!(compare(&old,&unused,"release 1").is_empty(),"{body}");
     }
 }
+
+#[test]
+fn writes_walks_and_aggregate_selectors_keep_result_domains() {
+    let table="table items:\n  n: int 0..10\n  label: text 1..20\n  unused: int 0..10\n  parent: items ?\n  public\n  insert <- allow\n  update <- allow\n";
+    for body in [
+        "mutation q(id: items):\n  row = update items[id] {label: 'x'}\n  return {n: row.n, label: row.label}\n",
+        "query q(id: items):\n  chain = walk items[id] up .parent depth 8\n  return chain {n, label}\n",
+        "query q():\n  page = items first 10 by .id\n  return {n: min(page, .n), label: min(page, .label)}\n",
+    ] {
+        let source=format!("{table}{body}");let old=checked(&source);
+        for (from,to,field) in [("n: int 0..10","n: int 0..20","items.n"),("text 1..20","text 0..20","items.label")] {
+            let new=checked(&source.replace(from,to));let report=compare(&old,&new,"release 1");
+            assert!(report.iter().any(|line|line.contains("RESULT REVIEW")&&line.contains(field)),"{body}: {report:?}");
+        }
+        let unused=checked(&source.replace("unused: int 0..10","unused: int 0..100"));
+        assert!(compare(&old,&unused,"release 1").is_empty(),"{body}: {:?}",compare(&old,&unused,"release 1"));
+    }
+}
+#[test]
+fn declared_action_results_keep_bounds_that_typescript_erases() {
+    let source="use server\naction fetch() returns {n: int 0..10, label: text 1..20}\n";
+    let old=checked(source);
+    for changed in [source.replace("int 0..10","int 0..20"),source.replace("text 1..20","text 0..20")] {
+        assert!(compare(&old,&checked(&changed),"release 1").iter().any(|line|line.contains("RESULT REVIEW")));
+    }
+}
+
+#[test]
+fn whole_rows_and_write_images_keep_declared_text_minima() {
+    let table="table items:\n  n: int 0..10\n  label: text 1..20\n  public\n  update <- allow\n";
+    for body in ["query q(id: items):\n  return items[id]\n", "query q():\n  return items first 10 by .id\n", "mutation q(id: items):\n  return update items[id] {n: 1}\n"] {
+        let source=format!("{table}{body}");let old=checked(&source);let new=checked(&source.replace("text 1..20","text 0..20"));
+        assert!(compare(&old,&new,"release 1").iter().any(|line|line.contains("RESULT REVIEW")),"{body}");
+    }
+}

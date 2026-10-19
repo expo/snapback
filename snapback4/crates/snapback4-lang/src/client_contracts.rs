@@ -32,7 +32,7 @@ fn result(ty: &Ty, bound: &Bound) -> String {
         Ty::Row(name)|Ty::WriteRow(name)|Ty::Page(name,_)=> {
             let schema=bound.schema.public_projection();
             if let Some(table)=schema.tables.get(name) {
-                let fields: BTreeMap<_,_>=table.columns.iter().filter(|(n,_)|!table.engine_field(n)).map(|(n,t)|(n,format!("{t:?};private={}",table.private_field(n)))).collect();
+                let fields: BTreeMap<_,_>=table.columns.iter().filter(|(n,_)|!table.engine_field(n)).map(|(n,t)|(n,format!("{t:?};private={};constraints={:?}",table.private_field(n),table.constraints.iter().filter(|c|matches!(c,snapback4_core::schema::Constraint::Text{field,..} if field==n)).collect::<Vec<_>>()))).collect();
                 format!("{}:{name}:{fields:?}",if matches!(ty,Ty::Page(..)){"page"}else{"row"})
             } else {format!("{ty:?}")}
         }
@@ -80,11 +80,12 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
                 _=>{}
             }
         }
-        if result(&before.result,old)!=result(&after.result,new) {lines.push(format!("{prefix}: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients"));}
+        let action_result_changed=old.schema.action_specs.get(name).map(|s|&s.returns)!=new.schema.action_specs.get(name).map(|s|&s.returns);
+        if action_result_changed || result(&before.result,old)!=result(&after.result,new) {lines.push(format!("{prefix}: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients"));}
         let old_domains=crate::result_domains::signature(before,old);
         let new_domains=crate::result_domains::signature(after,new);
         let changed:Vec<_>=old_domains.keys().chain(new_domains.keys()).collect::<std::collections::BTreeSet<_>>().into_iter().filter(|key|old_domains.get(*key)!=new_domains.get(*key)).cloned().collect();
-        if !changed.is_empty() {lines.push(format!("{prefix}: RESULT REVIEW: declared source domains used by returned values changed: {}; projected values may change even when their TypeScript type stays number/string; preserve the old domains or verify old-client handling",changed.join(", ")));}
+        if !changed.is_empty() {lines.push(format!("{prefix}: RESULT REVIEW: declared source domains consumed by this operation changed: {}; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling",changed.join(", ")));}
         if refusals(before)!=refusals(after) {lines.push(format!("{prefix}: BEHAVIOR REVIEW: refusal codes/messages changed ({:?} → {:?}); verify intended denials separately from input breaks",refusals(before),refusals(after)));}
     }
     lines
