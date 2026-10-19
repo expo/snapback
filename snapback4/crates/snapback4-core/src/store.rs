@@ -19,6 +19,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+mod fork;
 mod activation;
 mod activation_cache;
 mod activation_index;
