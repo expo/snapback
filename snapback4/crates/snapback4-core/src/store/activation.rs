@@ -216,7 +216,7 @@ impl Store {
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')", [], |r|r.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
             let restore=tx.meta("activation_restore")?.as_deref()!=Some("false");
-            retained_through=super::dormant::transition(&tx,schema,previous.as_ref(),restore,now)?;
+            retained_through=super::dormant::transition(&tx,schema,previous.as_ref(),restore,now,&mut report)?;
         }
         let population_changed=tx.meta("activation_population")?.as_deref()==Some("true");
         changed |= population_changed;

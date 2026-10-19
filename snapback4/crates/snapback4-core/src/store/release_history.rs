@@ -29,7 +29,7 @@ pub struct DormantItem {
 
 impl DormantItem {
     pub fn unit(&self) -> &'static str {
-        match (self.kind.as_str(), self.rows) { ("column", 1) => "cell", ("column", _) => "cells", ("index", 1) => "entry", ("index", _) => "entries", (_, 1) => "row", _ => "rows" }
+        match (self.kind.as_str(), self.rows) { ("backfill", 1) => "preimage", ("backfill", _) => "preimages", ("column", 1) => "cell", ("column", _) => "cells", ("index", 1) => "entry", ("index", _) => "entries", (_, 1) => "row", _ => "rows" }
     }
 }
 
@@ -83,10 +83,11 @@ pub(crate) fn inventory(
     let narrowed = if super::narrowed::present(conn)? {
         " UNION ALL SELECT c.name,'rows',c.name,NULL FROM _dormant_narrow_rows n JOIN _catalog c ON c.num=n.t GROUP BY n.t "
     } else {""};
+    let backfills=super::backfills::inventory_sql(conn)?;
     let query=format!("SELECT path,kind,table_name,column_name FROM (
         SELECT table_name AS path,'table' AS kind,table_name,NULL AS column_name FROM _dormant_tables
         UNION ALL SELECT table_name||'.'||column_name,'column',table_name,column_name FROM _dormant_columns c WHERE table_name NOT IN (SELECT table_name FROM _dormant_tables) OR EXISTS(SELECT 1 FROM _dormant_values v JOIN _catalog t ON t.num=v.t WHERE t.name=c.table_name AND v.column_name=c.column_name)
-        UNION ALL SELECT table_name||'.'||index_name,'index',table_name,index_name FROM _dormant_indexes {narrowed})
+        UNION ALL SELECT table_name||'.'||index_name,'index',table_name,index_name FROM _dormant_indexes {narrowed} {backfills})
         WHERE (?1 IS NULL OR kind||':'||path>?1) ORDER BY kind||':'||path LIMIT ?2");
     let mut statement=conn.prepare(&query)?;
     let items: Vec<(String, String, String, Option<String>)> = statement
@@ -105,6 +106,7 @@ pub(crate) fn inventory(
         let Some(t) = t else { continue };
         // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — dormant row images cover their retained cells; standalone cells have active owners.
         let (mut count,mut bytes):(u64,u64)=match kind.as_str(){
+            "backfill"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(inputs)+octet_length(before_image)+octet_length(after_image)),0) FROM _backfill_evidence WHERE t=?1 AND definition=?2",params![t,column],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
             "table"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_rows WHERE t=?1",[t],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
             "rows"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_narrow_rows WHERE t=?1",[t],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
             "column"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_values v WHERE t=?1 AND column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id)",params![t,column],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
@@ -115,6 +117,7 @@ pub(crate) fn inventory(
             bytes += conn.query_row(&format!("SELECT COALESCE(SUM(octet_length(v.id)+octet_length(v.data)),0) FROM _dormant_values v WHERE v.t=?1 AND EXISTS(SELECT 1 FROM {images} d WHERE d.t=v.t AND d.id=v.id)"), [t], |r| r.get::<_, i64>(0))? as u64;
         }
         let query = match kind.as_str() {
+            "backfill" => "SELECT id FROM _backfill_evidence WHERE t=?1 AND definition=?2 ORDER BY id LIMIT 5",
             "rows" => "SELECT id FROM _dormant_narrow_rows WHERE t=?1 AND ?2 IS NULL ORDER BY id LIMIT 5",
             "table" => "SELECT id FROM _dormant_rows WHERE t=?1 AND ?2 IS NULL ORDER BY id LIMIT 5",
             "column" => {
@@ -134,7 +137,7 @@ pub(crate) fn inventory(
         if kind == "index" {
             (count, ids) = index_entries(conn, t, &name, column.as_deref().unwrap())?;
         }
-        let asset_bytes = if kind == "index" {
+        let asset_bytes = if kind == "index" || kind == "backfill" {
             0
         } else {
             let selector=match kind.as_str(){
@@ -331,6 +334,7 @@ impl Store {
             &items,
         )?;
         let event_id = tx.conn().last_insert_rowid();
+        super::backfills::prune(&tx)?;
         tx.conn().execute_batch("DELETE FROM _dormant_values;DELETE FROM _dormant_rows;DELETE FROM _dormant_refs;DELETE FROM _dormant_columns;DELETE FROM _dormant_indexes;DELETE FROM _dormant_tables;")?;
         tx.commit()?;
         Ok(serde_json::json!({"pruned":true,"items":items,"revision":revision,"event":event_id}))

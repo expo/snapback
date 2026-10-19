@@ -6,6 +6,7 @@ mod sweep_deadline;
 mod columns;
 mod ephemeral;
 mod defaults;
+mod backfills;
 mod first_paste;
 mod maintains;
 mod own_keys;
@@ -154,6 +155,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
     schema.authored_indexes = snapback4_core::schema::inspection::AuthoredIndexes(Some(authored_indexes));
     timeline::admit(&catalog, &mut schema, &mut diagnostics);
+    backfills::bind(&catalog, &mut schema, &mut diagnostics);
     delivery::bind(&catalog, &mut schema, &mut diagnostics);
     receipts::bind(&catalog, &mut schema, &mut diagnostics);
     schema.prepare_receipt_dependencies();

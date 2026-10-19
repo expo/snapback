@@ -1,0 +1,20 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-mig (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=56b54722-92c5-4902-9355-92c91ecde86d]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+NOT READY. Two material findings. Staging-clock authority matches the RFC on every point I checked.
+
+Finding 1 (material, admission boundary): [bind/backfills.rs](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-lang/src/bind/backfills.rs:22) pushes the backfill into `schema.backfills` even when `fill.admit(schema)` fails. The `if let Err` arm records a diagnostic but falls through to `schema.backfills.push(fill.normalized())`.
+
+That taints schema identity with transforms the compiler claims to refuse (viewer, clock, id-minting, scans, writes, overlapping outputs, non-scalar outputs). Normal deploy is saved only because diagnostics block it and [store/backfills.rs](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs:44) re-admits at activation. Any consumer that uses the schema without gating on empty diagnostics inherits a privileged fragment. Action: `continue` after the admit-error diagnostic so a refused declaration never enters the schema.
+
+Finding 2 (material, reversal identity across table suspension): the same-name-changed-definition refusal in [store/backfills.rs](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs:47) consults only the immediately previous schema's backfills. After a table-absent interval, the previous schema carries no backfills, so a re-added declaration with the same `(table, name)` but a different body is treated as new. Prior evidence is keyed by definition digest ([store/backfills.rs](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs:114), so the original-input reconstruction misses and the changed-under-same-name case escapes the mandated bridge/new-name refusal (RFC §3.2). Action: on entering, detect live evidence or definitions with the same `(table, name)` under a different digest and refuse, or reconstruct inputs from the old preimage.
+
+What checked out clean:
+
+- Text builtins are exactly the RFC set (`before`, `after`, `beforeLast`, `afterLast`, `startsWith`, `allDigits`), with whole-text/empty-after and empty-delimiter-refuses semantics in the core text module.
+- Point lookups require unique plain indexes with full key arity; existence scans stay metered with cut-as-refusal; historical cardinality is validated before evaluation; candidate indexes are refused unless their components exist in the predecessor.
+- System-principal evaluation against the assembled snapshot, dormant namespaces unnameable via the source schema, and added-column vs overwritten-reference handling all match.
+- Row lifetime handling matches: evidence deleted with authoritative deletion (no id-reuse inheritance), prune keeps reversal-unavailable identities, rollback restores preimages with conflict refusal.
+- Staging clock: fresh-store-only classification, no production relabelling, `E_CLOCK_DEV_ONLY` before listener startup, process-local offset, floors via `shared.now()` max, full-service-token gating with under-writer recheck, per-call operator mint, preview via the owner status protocol with revision-mismatch refusal and no clock mutation.
+
+I ran no tests and edited nothing (read-only inspection plus scoped greps). I did not need the journal tail.

@@ -19,6 +19,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+mod backfills;
 mod activation;
 mod activation_cache;
 mod activation_index;
@@ -128,7 +129,7 @@ impl Store {
         let version: String = tx.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| {
                 row.get(0)
             })?;
-        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
+        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" && version != backfills::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
         let catalog = tx.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
         let identity = activation::identity(&tx)?;
         tx.rollback()?;
@@ -271,7 +272,7 @@ impl Store {
         let version: String = opened.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| {
                 row.get(0)
             })?;
-        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
+        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" && version != backfills::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
         let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
             })?.collect::<Result<BTreeMap<_, _>, _>>()?;
@@ -1307,3 +1308,7 @@ pub(crate) fn replay_bound(conn: &Connection, principal: &str, id: &str, name: &
 
 // Server-only volatile history reads; no persisted catalog or device change.
 mod following_history;
+
+#[cfg(test)]
+#[path = "store/backfill_tests.rs"]
+mod backfill_tests;

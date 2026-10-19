@@ -61,7 +61,7 @@ struct Parser {
     repair_args: Option<(Site, Vec<ArgDecl>)>,
 }
 
-const TOP_LEVEL: [&str; 20] = ["invariant", "view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
+const TOP_LEVEL: [&str; 21] = ["backfill", "invariant", "view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
 
 impl Parser {
     fn document(&mut self) {
@@ -93,6 +93,20 @@ impl Parser {
         self.repair_args = None;
         let token = self.peek().clone();
         match token.value.as_str() {
+            "backfill" => {
+                let site = self.take("backfill")?.site;
+                let table = self.word()?.value;
+                let name = self.binding_name()?;
+                let args = self.parse_args()?;
+                self.take(":")?;
+                let indented = self.at_kind(Kind::Newline);
+                if indented { self.newline()?; self.take_kind(Kind::Indent)?; }
+                let value = self.expression(0, &["<newline>"])?;
+                self.newline()?;
+                if indented { self.take_kind(Kind::Dedent)?; }
+                self.document.backfills.push(BackfillDecl { table, name, args, value, site });
+                Ok(())
+            }
             "invariant" => self.parse_invariant(),
             "action" => self.parse_action(),
             "route" => self.parse_route(),

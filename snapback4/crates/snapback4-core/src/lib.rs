@@ -74,3 +74,5 @@ pub mod private_fs;
 pub mod diagnostics;
 
 pub mod device_protocol;
+
+pub mod text;

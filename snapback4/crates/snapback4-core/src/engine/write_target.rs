@@ -342,7 +342,7 @@ fn pure_builtin(builtin: &Builtin) -> bool {
         #[cfg(feature = "sqlite")]
         Builtin::JobAs | Builtin::JobQuery { .. } => false,
         Builtin::Divmod { .. } | Builtin::Divide { .. } | Builtin::Sha256 | Builtin::Connected => false,
-        Builtin::ReceiptSettled { .. } | Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Civil(_) | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Join | Builtin::Group { .. }
+        Builtin::ReceiptSettled { .. } | Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Civil(_) | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Text(_) | Builtin::Join | Builtin::Group { .. }
         | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Sort { .. } | Builtin::MentionTokens
         | Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } | Builtin::SearchPresent | Builtin::DeterministicShare | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
     }

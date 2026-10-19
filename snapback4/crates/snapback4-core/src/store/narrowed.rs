@@ -61,20 +61,7 @@ pub(super) fn transition(
     source_definitions: &BTreeMap<String, Table>,
     authority_sources: &BTreeMap<String, Table>,
 ) -> Result<(), RuntimeError> {
-    // An expired predecessor must not be archived and later revived without its lifetime.
-    if let Some(previous) = previous {
-        let retirement = crate::engine::through_activation::Retirement::new(next, previous, now);
-        for (name, old) in &previous.tables {
-            if next.tables.contains_key(name) && retirement.affects(name) {
-                super::activation::walk(tx, tx.num(name)?, |_, row| {
-                    if retirement.retires(name, &row) {
-                        tx.delete(name, old, &row)?;
-                    }
-                    Ok(())
-                })?;
-            }
-        }
-    }
+    retire_sources(tx,next,previous,now)?;
     let have_dormant: bool = tx.conn().query_row(
         "SELECT EXISTS(SELECT 1 FROM _dormant_narrow_rows)",
         [],
@@ -102,91 +89,7 @@ pub(super) fn transition(
     }
     let mut newly_retained = 0u64;
     // Stream on the primary key. Do not retain a store-sized list of images.
-    let mut cursor = (0i64, String::new());
-    loop {
-        let item: Option<(i64,String,i64,i64)> = tx.conn().query_row(
-            "SELECT t,id,octet_length(data),octet_length(definition) FROM _dormant_narrow_rows WHERE (t,id)>(?1,?2) ORDER BY t,id LIMIT 1",
-            params![cursor.0,cursor.1],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional()?;
-        let Some((t,id,data_bytes,definition_bytes))=item else {break};
-        // Retain one admitted provenance/image unit through decode, overlays,
-        // reconciliation and encoding. Never own its blobs before this bound.
-        let mut admission=crate::meter::Meter::new(crate::meter::Ceilings::job(),crate::meter::Cut::Abort);
-        if super::live_activation::active(tx)? {
-            admission.heap((data_bytes as u64).saturating_add(definition_bytes as u64).saturating_mul(64).saturating_add(8192))?;
-        }
-        let (data,definition):(String,String)=tx.conn().query_row("SELECT data,definition FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|Ok((r.get(0)?,r.get(1)?)))?;
-        cursor = (t, id.clone());
-        let name: String =
-            tx.conn()
-                .query_row("SELECT name FROM _catalog WHERE num=?1", [t], |r| r.get(0))?;
-        let Some(table) = next
-            .table(&name)
-            .filter(|t| t.ephemeral.is_none() && next.maintain_for(&name).is_none())
-        else {
-            continue;
-        };
-        let old: Table =
-            serde_json::from_str(&definition).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        super::dormant::check_owner(tx, &name, &old, next)?;
-        let mut row: Value =
-            serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        crate::schema::materialize_optional_fields(&mut row,&old);
-        let authority=crate::engine::through_activation::manual_authority_fields(next,&name,&old);
-        if incompatible_except(tx,next,&name,&row,&authority)? {
-            continue;
-        }
-        // Retained source deadlines precede projection, including removal of read-through itself.
-        if crate::engine::through_activation::Retirement::retires_image(table,&old,&row,now) {
-            tx.delete(&name,&old,&row)?;
-            continue;
-        }
-        // Actual deletion/reuse never recaptures a different parent lifetime.
-        let invalid_columns = tx
-            .conn()
-            .prepare_cached(
-                "SELECT column_name FROM _dormant_refs WHERE t=?1 AND id=?2 AND invalid=1",
-            )?
-            .query_map(params![t, id], |r| r.get::<_, String>(0))?
-            .collect::<Result<Vec<_>, _>>()?;
-        let mut invalid=false;
-        for c in &invalid_columns {
-            if table.columns.contains_key(c) && !super::authority_origin::obsolete_ref(tx,t,&id,c,table,Some(&old))? {invalid=true;}
-        }
-        if invalid {
-            continue;
-        }
-        if super::authority_origin::live_row(tx,t,&id,&old,table)? {
-            admission.heap(crate::engine::through_activation::restored_parent_scratch(next,source_definitions,&name,&old).saturating_add(crate::rows::disclosed::decode_reservation(table).saturating_mul(4)))?;
-        }
-        super::authority_origin::record(tx,t,&id,&old)?;
-        super::authority_origin::validate(tx,next,authority_sources,&name,&old,&row,now,true)?;
-        crate::engine::through_activation::forward_image(tx,next,authority_sources,&name,&old,&row,now)?;
-        if old.through.as_ref().is_some_and(|e|e.live.is_some()) {tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored(kind,t,col,id) VALUES('live-authority',?1,'',?2)",params![t,id])?;}
-        for column in old.columns.keys() {
-            if !table.columns.contains_key(column) {
-                super::dormant::definition(tx, &name, &old, column)?;
-                if let Ok(value) = row.field(column) {
-                    super::dormant::save_cell(tx, &name, &old, &id, column, value, false)?;
-                }
-            }
-        }
-        if let Value::Row(fields) | Value::Map(fields) = &mut row {
-            fields.retain(|c, _| table.columns.contains_key(c));
-        }
-        let values=super::dormant::restored_values(tx,t,&id,table,&mut admission)?;
-        super::authority_origin::overlay(tx,t,&id,Some(&old),table,&mut row,values)?;
-        if old.through.as_ref().is_none_or(|e|e.live.is_some()) {
-            for column in table.columns.keys() {super::dormant::mark_live_column(tx,t,&id,column)?;}
-        }
-        crate::engine::through_activation::manual_image(tx,next,&name,&old,&mut row,now)?;
-        if incompatible(tx,next,&name,&row)? {continue;}
-        crate::schema::materialize_optional_fields(&mut row, table);
-        // Missing required new fields are a genuine backfill refusal, not dormancy.
-        tx.conn().execute(
-            "INSERT INTO r(t,id,data) VALUES(?1,?2,?3)",
-            params![t, id, canonical_json(&row)],
-        )?;
-    }
+    restore_images(tx,next,now,source_definitions,authority_sources,false)?;
     tx.clear_activation_scan();
     // References to a hidden row hide their dependents, including memberships.
     loop {
@@ -323,5 +226,121 @@ pub(super) fn check_write(
             },
         });
     }
+    Ok(())
+}
+
+pub(super) fn retire_sources(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,now:i64)->Result<(),RuntimeError>{
+    // An expired predecessor must not be archived and later revived without its lifetime.
+    if let Some(previous) = previous {
+        let retirement = crate::engine::through_activation::Retirement::new(next, previous, now);
+        for (name, old) in &previous.tables {
+            if next.tables.contains_key(name) && (retirement.affects(name) || !next.backfills.is_empty()) {
+                super::activation::walk(tx, tx.num(name)?, |_, row| {
+                    if retirement.retires(name, &row) || !next.backfills.is_empty() && old.expired(&row,now) {
+                        tx.delete(name, old, &row)?;
+                    }
+                    Ok(())
+                })?;
+            }
+        }
+    }
+    Ok(())
+}
+
+// Restore retained source images before backfill evaluation. Candidate-owned
+// output cells are checked after transformation, so a same-column enum rename
+// does not preclude its own source image from entering the snapshot.
+pub(super) fn restore_images(tx:&Tx<'_>,next:&Schema,now:i64,source_definitions:&BTreeMap<String,Table>,authority_sources:&BTreeMap<String,Table>,for_backfills:bool)->Result<(),RuntimeError>{
+    let rewritten=if for_backfills {super::backfills::columns(tx,next)?}else{Default::default()};
+    let mut cursor = (0i64, String::new());
+    loop {
+        let item: Option<(i64,String,i64,i64)> = tx.conn().query_row(
+            "SELECT t,id,octet_length(data),octet_length(definition) FROM _dormant_narrow_rows WHERE (t,id)>(?1,?2) AND NOT EXISTS(SELECT 1 FROM r WHERE r.t=_dormant_narrow_rows.t AND r.id=_dormant_narrow_rows.id) ORDER BY t,id LIMIT 1",
+            params![cursor.0,cursor.1],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional()?;
+        let Some((t,id,data_bytes,definition_bytes))=item else {break};
+        // Retain one admitted provenance/image unit through decode, overlays,
+        // reconciliation and encoding. Never own its blobs before this bound.
+        let mut admission=crate::meter::Meter::new(crate::meter::Ceilings::job(),crate::meter::Cut::Abort);
+        if super::live_activation::active(tx)? {
+            admission.heap((data_bytes as u64).saturating_add(definition_bytes as u64).saturating_mul(64).saturating_add(8192))?;
+        }
+        let (data,definition):(String,String)=tx.conn().query_row("SELECT data,definition FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|Ok((r.get(0)?,r.get(1)?)))?;
+        cursor = (t, id.clone());
+        let name: String =
+            tx.conn()
+                .query_row("SELECT name FROM _catalog WHERE num=?1", [t], |r| r.get(0))?;
+        let Some(table) = next
+            .table(&name)
+            .filter(|t| t.ephemeral.is_none() && next.maintain_for(&name).is_none())
+        else {
+            continue;
+        };
+        let old: Table =
+            serde_json::from_str(&definition).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        super::dormant::check_owner(tx, &name, &old, next)?;
+        let mut row: Value =
+            serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        crate::schema::materialize_optional_fields(&mut row,&old);
+        let mut authority=crate::engine::through_activation::manual_authority_fields(next,&name,&old);
+        if for_backfills { authority.extend(rewritten.get(&name).into_iter().flatten().cloned()); }
+        if incompatible_except(tx,next,&name,&row,&authority)? {
+            continue;
+        }
+        // Retained source deadlines precede projection, including removal of read-through itself.
+        if crate::engine::through_activation::Retirement::retires_image(table,&old,&row,now) || for_backfills && old.expired(&row,now) {
+            tx.delete(&name,&old,&row)?;
+            continue;
+        }
+        // Actual deletion/reuse never recaptures a different parent lifetime.
+        let invalid_columns = tx
+            .conn()
+            .prepare_cached(
+                "SELECT column_name FROM _dormant_refs WHERE t=?1 AND id=?2 AND invalid=1",
+            )?
+            .query_map(params![t, id], |r| r.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut invalid=false;
+        for c in &invalid_columns {
+            if for_backfills && next.backfills.iter().any(|f| f.table==name && f.inputs.contains_key(c)) {
+                return Err(RuntimeError::Structural{code:"E_ADOPT",message:format!("backfill historical reference {name}.{c} on {id} lost its parent lifetime")});
+            }
+            if table.columns.contains_key(c) && !super::authority_origin::obsolete_ref(tx,t,&id,c,table,Some(&old))? {invalid=true;}
+        }
+        if invalid {
+            continue;
+        }
+        if super::authority_origin::live_row(tx,t,&id,&old,table)? {
+            admission.heap(crate::engine::through_activation::restored_parent_scratch(next,source_definitions,&name,&old).saturating_add(crate::rows::disclosed::decode_reservation(table).saturating_mul(4)))?;
+        }
+        super::authority_origin::record(tx,t,&id,&old)?;
+        super::authority_origin::validate(tx,next,authority_sources,&name,&old,&row,now,true)?;
+        crate::engine::through_activation::forward_image(tx,next,authority_sources,&name,&old,&row,now)?;
+        if old.through.as_ref().is_some_and(|e|e.live.is_some()) {tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored(kind,t,col,id) VALUES('live-authority',?1,'',?2)",params![t,id])?;}
+        for column in old.columns.keys() {
+            if !table.columns.contains_key(column) {
+                super::dormant::definition(tx, &name, &old, column)?;
+                if let Ok(value) = row.field(column) {
+                    super::dormant::save_cell(tx, &name, &old, &id, column, value, false)?;
+                }
+            }
+        }
+        if !for_backfills { if let Value::Row(fields) | Value::Map(fields) = &mut row {
+            fields.retain(|c, _| table.columns.contains_key(c));
+        }}
+        let values=super::dormant::restored_values(tx,t,&id,table,&mut admission)?;
+        super::authority_origin::overlay(tx,t,&id,Some(&old),table,&mut row,values)?;
+        if old.through.as_ref().is_none_or(|e|e.live.is_some()) {
+            for column in table.columns.keys() {super::dormant::mark_live_column(tx,t,&id,column)?;}
+        }
+        crate::engine::through_activation::manual_image(tx,next,&name,&old,&mut row,now)?;
+        if if for_backfills {incompatible_except(tx,next,&name,&row,&authority)?}else{incompatible(tx,next,&name,&row)?} {continue;}
+        if !for_backfills {crate::schema::materialize_optional_fields(&mut row, table);}
+        // Missing required new fields are a genuine backfill refusal, not dormancy.
+        tx.conn().execute(
+            "INSERT INTO r(t,id,data) VALUES(?1,?2,?3)",
+            params![t, id, canonical_json(&row)],
+        )?;
+    }
+    tx.clear_activation_scan();
     Ok(())
 }

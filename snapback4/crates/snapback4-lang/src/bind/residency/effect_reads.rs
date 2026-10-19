@@ -196,7 +196,7 @@ fn total(expr: &Expr) -> bool {
         Expr::Unary { op: UnaryOp::Neg, .. } => integer(expr).is_some(),
         Expr::Builtin { builtin, args } => args.iter().all(total) && match builtin {
             Builtin::Connected | Builtin::Slice | Builtin::Len | Builtin::Count | Builtin::Min | Builtin::Max |
-            Builtin::First | Builtin::Last | Builtin::At | Builtin::Lower | Builtin::Trim | Builtin::Concat |
+            Builtin::First | Builtin::Last | Builtin::At | Builtin::Lower | Builtin::Trim | Builtin::Text(_) | Builtin::Concat |
             Builtin::Sha256 | Builtin::Join => true,
             // Typed ints are bounded to the safe integer range. Dividing by a
             // known nonzero integer cannot overflow that range (including -1).

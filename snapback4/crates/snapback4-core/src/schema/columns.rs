@@ -32,6 +32,8 @@ impl Schema {
     // @ref LLP 3000.007.001#3.2 — identity remains on Table, which image-retention compares.
     pub fn public_projection(&self) -> Self {
         let mut schema = self.clone();
+        #[cfg(feature = "sqlite")]
+        schema.backfills.clear();
         // Inspection provenance is catalog side metadata, never device input.
         #[cfg(feature = "sqlite")]
         { schema.authored_indexes = Default::default(); }

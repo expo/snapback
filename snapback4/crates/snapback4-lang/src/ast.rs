@@ -544,8 +544,18 @@ pub struct EffectDecl {
     pub site: Site,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BackfillDecl {
+    pub table: String,
+    pub name: String,
+    pub args: Vec<ArgDecl>,
+    pub value: Expr,
+    pub site: Site,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Document {
+    pub backfills: Vec<BackfillDecl>,
     pub invariants: Vec<InvariantDecl>,
     pub source: crate::source::SourceMap,
     pub file: String,

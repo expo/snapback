@@ -1,0 +1,13 @@
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-mig (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 3/10)
+muse: retrying meta model stream in 60000ms (attempt 4/10)
+muse: retrying meta model stream in 60000ms (attempt 5/10)
+muse: retrying meta model stream in 60000ms (attempt 6/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+received SIGTERM; flushed session logs

@@ -10,6 +10,9 @@ use std::collections::BTreeSet;
 #[serde(remote = "Schema")]
 struct Wire {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg(feature = "sqlite")]
+    backfills: Vec<backfill::Backfill>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     receipts: Vec<ReceiptFamily>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     receipt_dependencies: BTreeMap<String, BTreeSet<String>>,
@@ -53,6 +56,8 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    #[cfg(feature = "sqlite")]
+    ("release-backfills-v1", |s| !s.backfills.is_empty()),
     ("live-parent-copy-v1", |s| s.tables.values().any(|t| t.through.as_ref().is_some_and(|t| t.live.is_some()))),
     ("source-write-reservations-v2", |s| s.source_reservations.values().any(|p| p.birth.is_some())),
     ("source-write-reservations-v1", |s| !s.source_reservations.is_empty()),

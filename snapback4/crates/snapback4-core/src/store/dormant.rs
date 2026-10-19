@@ -33,7 +33,7 @@ pub(crate) fn enable(conn: &Connection) -> Result<(), RuntimeError> {
         // particular retained cell ever had live authority.
         conn.execute_batch("ALTER TABLE _dormant_values ADD COLUMN live_source INTEGER NOT NULL DEFAULT 0;")?;
     }
-    conn.execute("UPDATE _meta SET value=?1 WHERE key='version'", [VERSION])?;
+    conn.execute("UPDATE _meta SET value=?1 WHERE key='version' AND value!='snapback4-release-store-4'", [VERSION])?;
     Ok(())
 }
 
@@ -42,7 +42,7 @@ pub(super) fn live_cells_column(conn:&Connection)->Result<bool,RuntimeError> {
 }
 
 pub(super) fn enabled(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
-    Ok(matches!(tx.meta("version")?.as_deref(),Some(VERSION|"snapback4-release-store-2")))
+    Ok(matches!(tx.meta("version")?.as_deref(),Some(VERSION|"snapback4-release-store-2"|super::backfills::VERSION)))
 }
 
 fn authoritative(table: &Table, column: &str) -> bool {
@@ -322,6 +322,7 @@ pub(super) fn transition(
     previous: Option<&Schema>,
     restore: bool,
     now:i64,
+    report: &mut super::adoption_report::AdoptionReport,
 ) -> Result<BTreeSet<String>, RuntimeError> {
     if !enabled(tx)? {
         return Ok(BTreeSet::new());
@@ -488,6 +489,7 @@ pub(super) fn transition(
                     save_cell(tx, name, old, id, &column, &value, false)?;
                 }
             }
+            if !next.backfills.is_empty() && old.expired(&row,now) {tx.delete(name,old,&row)?;}
             // Full source image/deadlines stay intact until lifetime retirement and narrowed classification.
             Ok(())
         })?;
@@ -572,6 +574,11 @@ pub(super) fn transition(
     // current parent value fits it. Newly restored narrowed rows reconcile
     // individually inside transition as well.
     crate::engine::through_activation::reconcile_manual(tx,next,&authority_sources,now)?;
+    super::narrowed::retire_sources(tx,next,previous,now)?;
+    if !next.backfills.is_empty() || super::backfills::has_evidence(tx)? {
+        super::narrowed::restore_images(tx,next,now,&source_definitions,&authority_sources,true)?;
+    }
+    super::backfills::transition(tx,next,previous,&source_definitions,now,report)?;
     super::narrowed::transition(tx,next,previous,now,restored_images,&source_definitions,&authority_sources)?;
     crate::engine::through_activation::reconcile_manual(tx,next,&authority_sources,now)?;
     check_references(tx, next,&authority_sources)?;
@@ -732,6 +739,7 @@ fn check_references(tx: &Tx<'_>, next: &Schema,sources:&BTreeMap<String,Table>) 
 }
 
 pub(super) fn delete(tx: &Tx<'_>, t: i64, id: &str, name: &str) -> Result<(), RuntimeError> {
+    super::backfills::delete(tx,t,id)?;
     if !enabled(tx)? {
         return Ok(());
     }
