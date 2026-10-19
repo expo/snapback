@@ -22,6 +22,8 @@ function qualify(t, scenario = {}) {
     return { status: "passed", savedSourceCompatibility: "passed", expoPrintedWrittenPorts: "passed", previewNoise: "passed", helperContracts: "passed", fixtureAgreement: "passed" };
   }`);
   writeFileSync(join(root, "scripts/publication-day4.mjs"), `export async function proveDay4() { return { status: "passed" }; }`);
+  writeFileSync(join(root, "scripts/publication-release-transitions.mjs"), `export async function proveReleaseTransitions(){if (${JSON.stringify(scenario.releaseTransitionsFail ?? false)}) throw Error('deliberately failing packed release transitions');return {status:'passed'};}`);
+  writeFileSync(join(root, "scripts/publication-migrations.mjs"), `export async function proveMigrations(){if (${JSON.stringify(scenario.migrationsFail ?? false)}) throw Error('deliberately failing packed migrations');return {status:'passed'};}`);
   writeFileSync(join(root, "scripts/publication-proof-kit.mjs"), `export async function proveProofKit(){if (${JSON.stringify(scenario.proofKitFail ?? false)}) throw Error('deliberately failing packed proof kit');return {status:'passed'};}`);
   writeFileSync(join(root, "scripts/publication-staging.mjs"), `export async function proveStaging(){return {status:"passed"};}`);
   writeFileSync(join(root, "scripts/publication-security.mjs"), `export async function proveSecurity(){return {status:"passed"};}`);
@@ -249,6 +251,17 @@ for (const consumerOnly of [false, true]) for (const [refusal, message] of [
   assert.equal(existsSync(join(r.root, "out/consumer.json")), false);
   assert.equal(existsSync(join(r.root, "out/client-recipes.json")), false);
   assert.equal(existsSync(join(r.root, "out/production-proofs.json")), refusal === "clientRecipesFail");
+  assert.ok(!r.commands.some(c => c.cmd === "npm" && c.args[0] === "publish"));
+});
+
+for (const consumerOnly of [false, true]) for (const [refusal, message] of [
+  ["releaseTransitionsFail", "deliberately failing packed release transitions"],
+  ["migrationsFail", "deliberately failing packed migrations"],
+]) test(`${consumerOnly ? "consumer-only" : "full"} qualification refuses ${refusal} before recording success`, t => {
+  const r = qualify(t, { consumerOnly, [refusal]: true });
+  assert.notEqual(r.status, 0); assert.equal(r.receipt, null);
+  assert.match(r.stderr, new RegExp(message));
+  assert.equal(existsSync(join(r.root, "out/consumer.json")), false);
   assert.ok(!r.commands.some(c => c.cmd === "npm" && c.args[0] === "publish"));
 });
 
