@@ -1,0 +1,880 @@
+[   0.004] server: PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+[   0.004] === W1 same-role termination without superuser
+[   0.247] sb_core -> sb_core: ok=true (victim gone: true)
+[   0.247] sb_core -> sb_other: DENIED(42501 permission denied to terminate process)
+[   0.247] sb_core -> superuser: DENIED(42501 permission denied to terminate process)
+[   0.247] sb_core -> sb_core_member (a role that is a member OF sb_core): DENIED(42501 permission denied to terminate process)
+[   0.247] sb_signal (pg_signal_backend) -> sb_other: ok=true
+[   0.247] sb_signal (pg_signal_backend) -> superuser: DENIED(42501 permission denied to terminate process)
+[   0.247] sb_signal (pg_signal_backend) -> sb_core: ok=true
+[   0.247] sb_core_member (member of sb_core) -> sb_core: ok=true
+[   0.248] sb_core sees superuser backend: application_name=w1-victim-super state=<null> query=<insufficient privilege> backend_xid=<null> client_port=<null>
+[   0.248] sb_core has EXECUTE on pg_terminate_backend(int, bigint): true
+[   0.249] sb_inspect (SELECT only) SELECT ... FOR KEY SHARE on _owner: DENIED(42501 permission denied for table _owner)
+RESULT W1 same-role-termination PASS :: core->core ok=true; core->other DENIED(42501 permission denied to terminate process); core->super DENIED(42501 permission denied to terminate process); signal->other ok=true; signal->super DENIED(42501 permission denied to terminate process); signal->core ok=true; member->core ok=true; core->member DENIED(42501 permission denied to terminate process)
+RESULT W1 row-lock-privilege NOTE :: FOR SHARE/KEY SHARE needs UPDATE privilege: sb_inspect got DENIED(42501 permission denied for table _owner)
+[   0.250] === W2 SIGSTOP takeover, owner paused inside a fenced head transaction, lock=share
+[   0.259] spawned owner pid=1856326 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500 --lock share --pause head:30:3000 --after-loss probe
+[   0.263]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397459 db_unix=1792397459 host_minus_db_s=0
+[   0.263]   owner    STANDBY_WAITING holder=A pid=1856329 strategy=pidlist advisory_wait=false
+[   0.263]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:10:59.397186+02 backends=[]
+[   0.264]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:10:59.398222+02 attempts=1
+[   0.264]   owner    ACQUIRED holder=A token=1 lease_pid=1856329 advisory=true lock=Share
+[   0.271]   owner    REGISTERED token=1 backends=[1856329, 1856330, 1856331] ok=true
+[   0.272] spawned standby pid=1856333 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --lock share --strategy pidlist
+[   0.275]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397459 db_unix=1792397459 host_minus_db_s=0
+[   0.275]   standby  STANDBY_WAITING holder=B pid=1856338 strategy=pidlist advisory_wait=false
+[   0.585]   owner    PAUSING kind=head n=30 seq=30 token=1 pid=1856330 holds=_owner:Share,_head:FOR_UPDATE sleep_ms=3000
+[   0.585] SIGSTOP -> owner (pid 1856326)
+[   0.885] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1856329 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             616  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1856330 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      327480  {}             303  UPDATE _head SET seq = $1 WHERE singleton AND owner_token = $2
+     1856331 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             308  COMMIT
+     1856338 sb_core   sb-standby:B               idle                 Client:ClientRead              {}               9  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1856329,1856330,1856331} lease_until=2026-10-19 10:11:02.39762+02 expired=false
+[   3.290]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:11:02.39762+02 db_now=2026-10-19T10:11:02.424149+02 backends=[1856329, 1856330, 1856331]
+[   3.391]   standby  TERMINATE pid=1856329 why=listed ok=true ms=100
+[   3.491]   standby  TERMINATE pid=1856330 why=listed ok=true ms=100
+[   3.592]   standby  TERMINATE pid=1856331 why=listed ok=true ms=100
+[   3.593]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=1 db_at=2026-10-19T10:11:02.72723+02 attempts=1
+[   3.593] standby took over 3008 ms after SIGSTOP
+[   4.593] SIGCONT -> owner (pid 1856326)
+[   4.593]   owner    RESUMED kind=head n=30 seq=30
+[   4.593]   owner    LOST token=1 renewal_failed err=error communicating with the server
+[   4.593]   owner    COMMIT_FAILED kind=session n=14 pid=1856331 DB_ERROR 57P01 terminating connection due to administrator command
+[   4.593]   owner    COMMIT_FAILED kind=head n=30 pid=1856330 DB_ERROR error communicating with the server
+[   4.604]   owner    EXIT_SERVING head_commits=29 session_commits=13 reason=renewal_failed err=error communicating with the server
+[   4.608]   owner    PROBE_START token=1 pid=1857954
+[   4.608]   owner    PROBE kind=head fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[   4.608]   owner    PROBE kind=session fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[   4.664] old owner exit code Some(3)
+[   3.594]   standby  ACQUIRED holder=B token=2 lease_pid=1856338 advisory=true lock=Share
+[   3.602]   standby  REGISTERED token=2 backends=[1856338, 1857440, 1857441] ok=true
+[   5.164] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1856338 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              63  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1857440 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               1  COMMIT
+     1857441 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              20  COMMIT
+    _owner: token=2 holder=B backends={1856338,1857440,1857441} lease_until=2026-10-19 10:11:07.236362+02 expired=false
+[   5.168] commit-order check: takeover_commit=2026-10-19 10:11:02.727017+02 | _log: old-token rows=29 committed-after-takeover=0 last-old-commit=2026-10-19 10:10:59.708429+02 new-token rows=143 | _sessions: old-token rows=13 committed-after-takeover=0 last-old-commit=2026-10-19 10:10:59.713968+02 new-token rows=61 | head seq=172 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W2 pause-in-head-tx/share PASS :: took_over_after_stop=3008 ms (bound 4000 ms) | takeover_commit=2026-10-19 10:11:02.727017+02 | _log: old-token rows=29 committed-after-takeover=0 last-old-commit=2026-10-19 10:10:59.708429+02 new-token rows=143 | _sessions: old-token rows=13 committed-after-takeover=0 last-old-commit=2026-10-19 10:10:59.713968+02 new-token rows=61 | head seq=172 owner_token=2 | paused-tx rows present: sessions=0 log=0
+[   5.169] === W2 SIGSTOP takeover, owner paused inside a fenced session transaction, lock=share
+[   5.184] spawned owner pid=1858331 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500 --lock share --pause session:12:3000 --after-loss probe
+[   5.188]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397464 db_unix=1792397464 host_minus_db_s=0
+[   5.188]   owner    STANDBY_WAITING holder=A pid=1858335 strategy=pidlist advisory_wait=false
+[   5.189]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:11:04.322721+02 backends=[]
+[   5.190]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=0 db_at=2026-10-19T10:11:04.323709+02 attempts=1
+[   5.190]   owner    ACQUIRED holder=A token=1 lease_pid=1858335 advisory=true lock=Share
+[   5.196]   owner    REGISTERED token=1 backends=[1858335, 1858336, 1858342] ok=true
+[   5.196] spawned standby pid=1858348 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --lock share --strategy pidlist
+[   5.200]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397464 db_unix=1792397464 host_minus_db_s=0
+[   5.200]   standby  STANDBY_WAITING holder=B pid=1858353 strategy=pidlist advisory_wait=false
+[   5.480]   owner    PAUSING kind=session n=12 id=A-1-s0-12 token=1 pid=1858342 holds=_owner:Share sleep_ms=3000
+[   5.480] SIGSTOP -> owner (pid 1858331)
+[   5.780] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1858335 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             587  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1858336 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             303  COMMIT
+     1858342 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      327733  {}             303  INSERT INTO _sessions (id, minted_by_token, writer) VALUES ($1, 
+     1858353 sb_core   sb-standby:B               idle                 Client:ClientRead              {}              80  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1858335,1858336,1858342} lease_until=2026-10-19 10:11:07.323131+02 expired=false
+[   8.215]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:11:07.323131+02 db_now=2026-10-19T10:11:07.349025+02 backends=[1858335, 1858336, 1858342]
+[   8.316]   standby  TERMINATE pid=1858335 why=listed ok=true ms=100
+[   8.416]   standby  TERMINATE pid=1858336 why=listed ok=true ms=100
+[   8.516]   standby  TERMINATE pid=1858342 why=listed ok=true ms=100
+[   8.519]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=2 db_at=2026-10-19T10:11:07.652477+02 attempts=1
+[   8.519] standby took over 3038 ms after SIGSTOP
+[   9.519] SIGCONT -> owner (pid 1858331)
+[   9.519]   owner    RESUMED kind=session n=12 id=A-1-s0-12
+[   9.519]   owner    LOST token=1 renewal_failed err=error communicating with the server
+[   9.519]   owner    COMMIT_FAILED kind=session n=12 pid=1858342 DB_ERROR error communicating with the server
+[   9.519]   owner    COMMIT_FAILED kind=head n=28 pid=1858336 DB_ERROR 57P01 terminating connection due to administrator command
+[   9.529]   owner    EXIT_SERVING head_commits=27 session_commits=11 reason=renewal_failed err=error communicating with the server
+[   9.532]   owner    PROBE_START token=1 pid=1861208
+[   9.533]   owner    PROBE kind=head fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[   9.533]   owner    PROBE kind=session fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[   9.589] old owner exit code Some(3)
+[   8.519]   standby  ACQUIRED holder=B token=2 lease_pid=1858353 advisory=true lock=Share
+[   8.526]   standby  REGISTERED token=2 backends=[1858353, 1860437, 1860439] ok=true
+[  10.089] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1858353 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              63  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1860437 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               2  COMMIT
+     1860439 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              23  COMMIT
+    _owner: token=2 holder=B backends={1858353,1860437,1860439} lease_until=2026-10-19 10:11:12.161269+02 expired=false
+[  10.092] commit-order check: takeover_commit=2026-10-19 10:11:07.652209+02 | _log: old-token rows=27 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:04.613047+02 new-token rows=146 | _sessions: old-token rows=11 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:04.587722+02 new-token rows=61 | head seq=173 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W2 pause-in-session-tx/share PASS :: took_over_after_stop=3038 ms (bound 4000 ms) | takeover_commit=2026-10-19 10:11:07.652209+02 | _log: old-token rows=27 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:04.613047+02 new-token rows=146 | _sessions: old-token rows=11 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:04.587722+02 new-token rows=61 | head seq=173 owner_token=2 | paused-tx rows present: sessions=0 log=0
+[  10.093] === W3 unlisted backend paused holding _owner FOR SHARE; standby strategy=pidlist
+[  10.110] spawned owner pid=1861645 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500 --late-conn --pause late:12:8000 --after-loss probe
+[  10.114]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397469 db_unix=1792397469 host_minus_db_s=0
+[  10.114]   owner    STANDBY_WAITING holder=A pid=1861648 strategy=pidlist advisory_wait=false
+[  10.115]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:11:09.2486+02 backends=[]
+[  10.116]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=0 db_at=2026-10-19T10:11:09.249556+02 attempts=1
+[  10.116]   owner    ACQUIRED holder=A token=1 lease_pid=1861648 advisory=true lock=Share
+[  10.122]   owner    REGISTERED token=1 backends=[1861648, 1861654, 1861657] ok=true
+[  10.122] spawned standby pid=1861660 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --strategy pidlist
+[  10.126]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397469 db_unix=1792397469 host_minus_db_s=0
+[  10.126]   standby  STANDBY_WAITING holder=B pid=1861665 strategy=pidlist advisory_wait=false
+[  10.125]   owner    LATE_CONN pid=1861664 listed=false
+[  10.408]   owner    PAUSING kind=late n=12 id=A-1-late-12 token=1 pid=1861664 holds=_owner:Share sleep_ms=8000
+[  10.408] SIGSTOP -> owner (pid 1861645)
+[  10.709] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1861648 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             588  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1861654 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             307  COMMIT
+     1861657 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             305  COMMIT
+     1861664 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      328001  {}             301  INSERT INTO _sessions (id, minted_by_token, writer) VALUES ($1, 
+     1861665 sb_core   sb-standby:B               idle                 Client:ClientRead              {}              81  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1861648,1861654,1861657} lease_until=2026-10-19 10:11:12.248993+02 expired=false
+[  13.142]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:11:12.248993+02 db_now=2026-10-19T10:11:12.275451+02 backends=[1861648, 1861654, 1861657]
+[  13.242]   standby  TERMINATE pid=1861648 why=listed ok=true ms=100
+[  13.343]   standby  TERMINATE pid=1861654 why=listed ok=true ms=100
+[  13.443]   standby  TERMINATE pid=1861657 why=listed ok=true ms=100
+[  15.444]   standby  LOCK_TIMEOUT attempt=1 waited_ms=2000 total_ms=5317
+[  15.444]   standby  LEASE_EXPIRED attempt=2 token=1 holder=A lease_until=2026-10-19T10:11:12.248993+02 db_now=2026-10-19T10:11:14.577825+02 backends=[1861648, 1861654, 1861657]
+[  15.444]   standby  TERMINATE pid=1861648 why=listed ok=false ms=0
+[  15.444]   standby  TERMINATE pid=1861654 why=listed ok=false ms=0
+[  15.444]   standby  TERMINATE pid=1861657 why=listed ok=false ms=0
+[  17.445]   standby  LOCK_TIMEOUT attempt=2 waited_ms=2000 total_ms=7318
+[  17.445]   standby  LEASE_EXPIRED attempt=3 token=1 holder=A lease_until=2026-10-19T10:11:12.248993+02 db_now=2026-10-19T10:11:16.579086+02 backends=[1861648, 1861654, 1861657]
+[  17.445]   standby  TERMINATE pid=1861648 why=listed ok=false ms=0
+[  17.445]   standby  TERMINATE pid=1861654 why=listed ok=false ms=0
+[  17.446]   standby  TERMINATE pid=1861657 why=listed ok=false ms=0
+[  19.446]   standby  LOCK_TIMEOUT attempt=3 waited_ms=2000 total_ms=9319
+[  19.446]   standby  LEASE_EXPIRED attempt=4 token=1 holder=A lease_until=2026-10-19T10:11:12.248993+02 db_now=2026-10-19T10:11:18.580109+02 backends=[1861648, 1861654, 1861657]
+[  19.446]   standby  TERMINATE pid=1861648 why=listed ok=false ms=0
+[  19.446]   standby  TERMINATE pid=1861654 why=listed ok=false ms=0
+[  19.447]   standby  TERMINATE pid=1861657 why=listed ok=false ms=0
+[  21.447]   standby  LOCK_TIMEOUT attempt=4 waited_ms=2000 total_ms=11320
+[  21.447]   standby  LEASE_EXPIRED attempt=5 token=1 holder=A lease_until=2026-10-19T10:11:12.248993+02 db_now=2026-10-19T10:11:20.581064+02 backends=[1861648, 1861654, 1861657]
+[  21.447]   standby  TERMINATE pid=1861648 why=listed ok=false ms=0
+[  21.447]   standby  TERMINATE pid=1861654 why=listed ok=false ms=0
+[  21.447]   standby  TERMINATE pid=1861657 why=listed ok=false ms=0
+[  23.448]   standby  LOCK_TIMEOUT attempt=5 waited_ms=2000 total_ms=13321
+[  23.448]   standby  LEASE_EXPIRED attempt=6 token=1 holder=A lease_until=2026-10-19T10:11:12.248993+02 db_now=2026-10-19T10:11:22.582128+02 backends=[1861648, 1861654, 1861657]
+[  23.448]   standby  TERMINATE pid=1861648 why=listed ok=false ms=0
+[  23.449]   standby  TERMINATE pid=1861654 why=listed ok=false ms=0
+[  23.449]   standby  TERMINATE pid=1861657 why=listed ok=false ms=0
+[  25.449]   standby  LOCK_TIMEOUT attempt=6 waited_ms=2000 total_ms=15323
+[  25.449]   standby  LEASE_EXPIRED attempt=7 token=1 holder=A lease_until=2026-10-19T10:11:12.248993+02 db_now=2026-10-19T10:11:24.583326+02 backends=[1861648, 1861654, 1861657]
+[  25.450]   standby  TERMINATE pid=1861648 why=listed ok=false ms=0
+[  25.450]   standby  TERMINATE pid=1861654 why=listed ok=false ms=0
+[  25.450]   standby  TERMINATE pid=1861657 why=listed ok=false ms=0
+[  27.450]   standby  LOCK_TIMEOUT attempt=7 waited_ms=2000 total_ms=17324
+[  27.450]   standby  LEASE_EXPIRED attempt=8 token=1 holder=A lease_until=2026-10-19T10:11:12.248993+02 db_now=2026-10-19T10:11:26.5843+02 backends=[1861648, 1861654, 1861657]
+[  27.451]   standby  TERMINATE pid=1861648 why=listed ok=false ms=0
+[  27.451]   standby  TERMINATE pid=1861654 why=listed ok=false ms=0
+[  27.451]   standby  TERMINATE pid=1861657 why=listed ok=false ms=0
+[  29.451]   standby  LOCK_TIMEOUT attempt=8 waited_ms=2000 total_ms=19325
+[  29.452]   standby  LEASE_EXPIRED attempt=9 token=1 holder=A lease_until=2026-10-19T10:11:12.248993+02 db_now=2026-10-19T10:11:28.585483+02 backends=[1861648, 1861654, 1861657]
+[  29.452]   standby  TERMINATE pid=1861648 why=listed ok=false ms=0
+[  29.452]   standby  TERMINATE pid=1861654 why=listed ok=false ms=0
+[  29.452]   standby  TERMINATE pid=1861657 why=listed ok=false ms=0
+[  30.710] standby did NOT take over within 20000 ms
+[  30.710] pg_stat_activity snapshot: standby blocked
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1861664 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      328001  {}           20302  INSERT INTO _sessions (id, minted_by_token, writer) VALUES ($1, 
+     1861665 sb_core   sb-standby:B               active               Lock:transactionid             {1861664}     1258  SELECT token, lease_until < clock_timestamp() FROM _owner WHERE 
+    _owner: token=1 holder=A backends={1861648,1861654,1861657} lease_until=2026-10-19 10:11:12.248993+02 expired=true
+RESULT W3 unlisted-backend/pidlist FAIL :: took_over_after_stop=NEVER | BLOCKED: no takeover in 20000 ms | standby lock timeouts=8, terminations=["TERMINATE pid=1861648 why=listed ok=true ms=100", "TERMINATE pid=1861654 why=listed ok=true ms=100", "TERMINATE pid=1861657 why=listed ok=true ms=100", "TERMINATE pid=1861648 why=listed ok=false ms=0", "TERMINATE pid=1861654 why=listed ok=false ms=0", "TERMINATE pid=1861657 why=listed ok=false ms=0", "TERMINATE pid=1861648 why=listed ok=false ms=0", "TERMINATE pid=1861654 why=listed ok=false ms=0", "TERMINATE pid=1861657 why=listed ok=false ms=0", "TERMINATE pid=1861648 why=listed ok=false ms=0", "TERMINATE pid=1861654 why=listed ok=false ms=0", "TERMINATE pid=1861657 why=listed ok=false ms=0", "TERMINATE pid=1861648 why=listed ok=false ms=0", "TERMINATE pid=1861654 why=listed ok=false ms=0", "TERMINATE pid=1861657 why=listed ok=false ms=0", "TERMINATE pid=1861648 why=listed ok=false ms=0", "TERMINATE pid=1861654 why=listed ok=false ms=0", "TERMINATE pid=1861657 why=listed ok=false ms=0", "TERMINATE pid=1861648 why=listed ok=false ms=0", "TERMINATE pid=1861654 why=listed ok=false ms=0", "TERMINATE pid=1861657 why=listed ok=false ms=0", "TERMINATE pid=1861648 why=listed ok=false ms=0", "TERMINATE pid=1861654 why=listed ok=false ms=0", "TERMINATE pid=1861657 why=listed ok=false ms=0", "TERMINATE pid=1861648 why=listed ok=false ms=0", "TERMINATE pid=1861654 why=listed ok=false ms=0", "TERMINATE pid=1861657 why=listed ok=false ms=0"] | -
+[  30.712] === W3 unlisted backend paused holding _owner FOR SHARE; standby strategy=appname
+[  30.720] spawned owner pid=1868607 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500 --late-conn --pause late:12:8000 --after-loss probe
+[  30.726]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397489 db_unix=1792397489 host_minus_db_s=0
+[  30.726]   owner    STANDBY_WAITING holder=A pid=1868610 strategy=pidlist advisory_wait=false
+[  30.726]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:11:29.86022+02 backends=[]
+[  30.728]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:11:29.86143+02 attempts=1
+[  30.728]   owner    ACQUIRED holder=A token=1 lease_pid=1868610 advisory=true lock=Share
+[  30.734]   owner    REGISTERED token=1 backends=[1868610, 1868618, 1868629] ok=true
+[  30.735] spawned standby pid=1868632 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --strategy appname
+[  30.739]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397489 db_unix=1792397489 host_minus_db_s=0
+[  30.739]   standby  STANDBY_WAITING holder=B pid=1868637 strategy=appname advisory_wait=false
+[  30.737]   owner    LATE_CONN pid=1868636 listed=false
+[  31.020]   owner    PAUSING kind=late n=12 id=A-1-late-12 token=1 pid=1868636 holds=_owner:Share sleep_ms=8000
+[  31.020] SIGSTOP -> owner (pid 1868607)
+[  31.320] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1868610 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             588  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1868618 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             312  COMMIT
+     1868629 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             303  COMMIT
+     1868636 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      328065  {}             303  INSERT INTO _sessions (id, minted_by_token, writer) VALUES ($1, 
+     1868637 sb_core   sb-standby:B               idle                 Client:ClientRead              {}              81  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1868610,1868618,1868629} lease_until=2026-10-19 10:11:32.860719+02 expired=false
+[  33.752]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:11:32.860719+02 db_now=2026-10-19T10:11:32.885953+02 backends=[1868610, 1868618, 1868629]
+[  33.854]   standby  TERMINATE pid=1868610 why=tag:sb-owner:A:1:idle ok=true ms=100
+[  33.954]   standby  TERMINATE pid=1868618 why=tag:sb-owner:A:1:idle ok=true ms=100
+[  34.055]   standby  TERMINATE pid=1868629 why=tag:sb-owner:A:1:idle ok=true ms=100
+[  34.155]   standby  TERMINATE pid=1868636 why=tag:sb-owner:A:1:idle_in_transaction ok=true ms=100
+[  34.157]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=1 db_at=2026-10-19T10:11:33.290747+02 attempts=1
+[  34.157] standby took over 3137 ms after SIGSTOP
+[  35.157] SIGCONT -> owner (pid 1868607)
+[  35.157]   owner    LOST token=1 renewal_failed err=error communicating with the server
+[  35.157]   owner    COMMIT_FAILED kind=session n=13 pid=1868629 DB_ERROR 57P01 terminating connection due to administrator command
+[  35.157]   owner    COMMIT_FAILED kind=head n=27 pid=1868618 DB_ERROR 57P01 terminating connection due to administrator command
+[  39.020]   owner    RESUMED kind=late n=12 id=A-1-late-12
+[  39.020]   owner    COMMIT_FAILED kind=late n=12 pid=1868636 DB_ERROR error communicating with the server
+[  39.020]   owner    EXIT_SERVING head_commits=26 session_commits=23 reason=renewal_failed err=error communicating with the server
+[  39.023]   owner    PROBE_START token=1 pid=1874688
+[  39.024]   owner    PROBE kind=head fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[  39.024]   owner    PROBE kind=session fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[  39.081] old owner exit code Some(3)
+[  34.157]   standby  ACQUIRED holder=B token=2 lease_pid=1868637 advisory=true lock=Share
+[  34.165]   standby  REGISTERED token=2 backends=[1868637, 1871647, 1871652] ok=true
+[  39.581] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1868637 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}             417  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1871647 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              10  COMMIT
+     1871652 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              19  COMMIT
+    _owner: token=2 holder=B backends={1868637,1871647,1871652} lease_until=2026-10-19 10:11:41.299138+02 expired=false
+[  39.585] commit-order check: takeover_commit=2026-10-19 10:11:33.290562+02 | _log: old-token rows=26 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:30.144027+02 new-token rows=500 | _sessions: old-token rows=23 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:30.153346+02 new-token rows=211 | head seq=526 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W3 unlisted-backend/appname PASS :: took_over_after_stop=3137 ms | standby lock timeouts=0, terminations=["TERMINATE pid=1868610 why=tag:sb-owner:A:1:idle ok=true ms=100", "TERMINATE pid=1868618 why=tag:sb-owner:A:1:idle ok=true ms=100", "TERMINATE pid=1868629 why=tag:sb-owner:A:1:idle ok=true ms=100", "TERMINATE pid=1868636 why=tag:sb-owner:A:1:idle_in_transaction ok=true ms=100"] | takeover_commit=2026-10-19 10:11:33.290562+02 | _log: old-token rows=26 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:30.144027+02 new-token rows=500 | _sessions: old-token rows=23 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:30.153346+02 new-token rows=211 | head seq=526 owner_token=2 | paused-tx rows present: sessions=0 log=0
+[  39.585] === W3 unlisted backend paused holding _owner FOR SHARE; standby strategy=blockers
+[  39.603] spawned owner pid=1874975 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500 --late-conn --pause late:12:8000 --after-loss probe
+[  39.607]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397498 db_unix=1792397498 host_minus_db_s=0
+[  39.607]   owner    STANDBY_WAITING holder=A pid=1874980 strategy=pidlist advisory_wait=false
+[  39.608]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:11:38.741489+02 backends=[]
+[  39.609]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:11:38.742605+02 attempts=1
+[  39.609]   owner    ACQUIRED holder=A token=1 lease_pid=1874980 advisory=true lock=Share
+[  39.615]   owner    REGISTERED token=1 backends=[1874980, 1874981, 1874982] ok=true
+[  39.615] spawned standby pid=1874985 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --strategy blockers
+[  39.619]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397498 db_unix=1792397498 host_minus_db_s=0
+[  39.620]   standby  STANDBY_WAITING holder=B pid=1874989 strategy=blockers advisory_wait=false
+[  39.618]   owner    LATE_CONN pid=1874988 listed=false
+[  39.901]   owner    PAUSING kind=late n=12 id=A-1-late-12 token=1 pid=1874988 holds=_owner:Share sleep_ms=8000
+[  39.901] SIGSTOP -> owner (pid 1874975)
+[  40.201] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1874980 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             587  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1874981 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             309  COMMIT
+     1874982 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             306  COMMIT
+     1874988 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      328844  {}             302  INSERT INTO _sessions (id, minted_by_token, writer) VALUES ($1, 
+     1874989 sb_core   sb-standby:B               idle                 Client:ClientRead              {}              80  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1874980,1874981,1874982} lease_until=2026-10-19 10:11:41.741895+02 expired=false
+[  42.635]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:11:41.741895+02 db_now=2026-10-19T10:11:41.768796+02 backends=[1874980, 1874981, 1874982]
+[  42.740]   standby  TERMINATE pid=1874988 why=blocker:sb-owner:A:1 ok=true ms=100
+[  42.791]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=153 db_at=2026-10-19T10:11:41.924942+02 attempts=1
+[  42.791] standby took over 2890 ms after SIGSTOP
+[  43.791] SIGCONT -> owner (pid 1874975)
+[  43.792]   owner    COMMIT_FAILED kind=head n=28 pid=1874981 REFUSED owner_token_is_2_process_holds_1
+[  43.792]   owner    LOST token=1 head_write_failed n=28
+[  43.792]   owner    COMMIT_FAILED kind=session n=13 pid=1874982 REFUSED owner_token_is_2_process_holds_1
+[  47.901]   owner    RESUMED kind=late n=12 id=A-1-late-12
+[  47.901]   owner    COMMIT_FAILED kind=late n=12 pid=1874988 DB_ERROR error communicating with the server
+[  47.901]   owner    EXIT_SERVING head_commits=27 session_commits=23 reason=head_write_failed n=28
+[  47.904]   owner    PROBE_START token=1 pid=1877757
+[  47.905]   owner    PROBE kind=head fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[  47.905]   owner    PROBE kind=session fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[  47.957] old owner exit code Some(3)
+[  42.792]   standby  ACQUIRED holder=B token=2 lease_pid=1874989 advisory=false lock=Share
+[  42.799]   standby  REGISTERED token=2 backends=[1874989, 1876182, 1876185] ok=true
+[  48.457] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1874989 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}             159  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1876182 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               5  COMMIT
+     1876185 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              13  COMMIT
+    _owner: token=2 holder=B backends={1874989,1876182,1876185} lease_until=2026-10-19 10:11:50.433495+02 expired=false
+[  48.460] commit-order check: takeover_commit=2026-10-19 10:11:41.775502+02 | _log: old-token rows=27 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:39.026946+02 new-token rows=520 | _sessions: old-token rows=23 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:39.030231+02 new-token rows=221 | head seq=547 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W3 unlisted-backend/blockers PASS :: took_over_after_stop=2890 ms | standby lock timeouts=0, terminations=["TERMINATE pid=1874988 why=blocker:sb-owner:A:1 ok=true ms=100"] | takeover_commit=2026-10-19 10:11:41.775502+02 | _log: old-token rows=27 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:39.026946+02 new-token rows=520 | _sessions: old-token rows=23 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:39.030231+02 new-token rows=221 | head seq=547 owner_token=2 | paused-tx rows present: sessions=0 log=0
+[  48.461] === W4 the old owner reconnects with a stale token
+[  48.474] spawned owner pid=1877975 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500 --pause session:12:3000 --after-loss probe-controls
+[  48.479]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397507 db_unix=1792397507 host_minus_db_s=0
+[  48.479]   owner    STANDBY_WAITING holder=A pid=1877979 strategy=pidlist advisory_wait=false
+[  48.479]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:11:47.613259+02 backends=[]
+[  48.480]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=0 db_at=2026-10-19T10:11:47.614268+02 attempts=1
+[  48.480]   owner    ACQUIRED holder=A token=1 lease_pid=1877979 advisory=true lock=Share
+[  48.486]   owner    REGISTERED token=1 backends=[1877979, 1877981, 1877987] ok=true
+[  48.486] spawned standby pid=1877991 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --strategy pidlist
+[  48.491]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397507 db_unix=1792397507 host_minus_db_s=0
+[  48.491]   standby  STANDBY_WAITING holder=B pid=1877995 strategy=pidlist advisory_wait=false
+[  48.770]   owner    PAUSING kind=session n=12 id=A-1-s0-12 token=1 pid=1877987 holds=_owner:Share sleep_ms=3000
+[  48.770] SIGSTOP -> owner (pid 1877975)
+[  49.070] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1877979 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             585  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1877981 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             304  COMMIT
+     1877987 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      329644  {}             301  INSERT INTO _sessions (id, minted_by_token, writer) VALUES ($1, 
+     1877995 sb_core   sb-standby:B               idle                 Client:ClientRead              {}              77  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1877979,1877981,1877987} lease_until=2026-10-19 10:11:50.613689+02 expired=false
+[  51.505]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:11:50.613689+02 db_now=2026-10-19T10:11:50.639318+02 backends=[1877979, 1877981, 1877987]
+[  51.606]   standby  TERMINATE pid=1877979 why=listed ok=true ms=100
+[  51.706]   standby  TERMINATE pid=1877981 why=listed ok=true ms=100
+[  51.807]   standby  TERMINATE pid=1877987 why=listed ok=true ms=100
+[  51.809]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=2 db_at=2026-10-19T10:11:50.943237+02 attempts=1
+[  51.809] standby took over 3039 ms after SIGSTOP
+[  52.809] SIGCONT -> owner (pid 1877975)
+[  52.810]   owner    RESUMED kind=session n=12 id=A-1-s0-12
+[  52.810]   owner    COMMIT_FAILED kind=head n=28 pid=1877981 DB_ERROR 57P01 terminating connection due to administrator command
+[  52.810]   owner    LOST token=1 renewal_failed err=error communicating with the server
+[  52.810]   owner    COMMIT_FAILED kind=session n=12 pid=1877987 DB_ERROR error communicating with the server
+[  52.820]   owner    EXIT_SERVING head_commits=27 session_commits=11 reason=renewal_failed err=error communicating with the server
+[  52.823]   owner    PROBE_START token=1 pid=1879573
+[  52.824]   owner    PROBE kind=head fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[  52.824]   owner    PROBE kind=session fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[  52.824]   owner    PROBE kind=head fenced=false(control) result=REFUSED head_owner_token_predicate
+[  52.825]   owner    PROBE kind=session fenced=false(control) result=COMMITTED value="control-A-1"
+[  52.880] old owner exit code Some(3)
+[  51.810]   standby  ACQUIRED holder=B token=2 lease_pid=1877995 advisory=true lock=Share
+[  51.817]   standby  REGISTERED token=2 backends=[1877995, 1879117, 1879118] ok=true
+[  53.380] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1877995 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              62  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1879117 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               6  COMMIT
+     1879118 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              21  COMMIT
+    _owner: token=2 holder=B backends={1877995,1879117,1879118} lease_until=2026-10-19 10:11:55.452149+02 expired=false
+[  53.381] commit-order check: takeover_commit=2026-10-19 10:11:50.942941+02 | _log: old-token rows=27 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:47.900845+02 new-token rows=143 | _sessions: old-token rows=11 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:47.877865+02 new-token rows=61 | head seq=170 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W4 stale-token-reconnect PASS :: fenced probes: ["PROBE kind=head fenced=true result=REFUSED owner_token_is_2_process_holds_1", "PROBE kind=session fenced=true result=REFUSED owner_token_is_2_process_holds_1"] | db: takeover_commit=2026-10-19 10:11:50.942941+02 | _log: old-token rows=27 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:47.900845+02 new-token rows=143 | _sessions: old-token rows=11 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:47.877865+02 new-token rows=61 | head seq=170 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W4 controls-without-fence NOTE :: ["PROBE kind=head fenced=false(control) result=REFUSED head_owner_token_predicate", "PROBE kind=session fenced=false(control) result=COMMITTED value=\"control-A-1\""]
+RESULT W4 isolation/READ_COMMITTED NOTE :: fence read token=1 (stale token 0 would be refused)
+RESULT W4 isolation/REPEATABLE_READ NOTE :: error 40001 could not serialize access due to concurrent update
+[  53.409] === W5 lease clock: baseline
+[  53.418] spawned owner pid=1879782 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500
+[  53.423]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397512 db_unix=1792397512 host_minus_db_s=0
+[  53.423]   owner    STANDBY_WAITING holder=A pid=1879785 strategy=pidlist advisory_wait=false
+[  53.424]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:11:52.557847+02 backends=[]
+[  53.425]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:11:52.558869+02 attempts=1
+[  53.425]   owner    ACQUIRED holder=A token=1 lease_pid=1879785 advisory=true lock=Share
+[  53.433]   owner    REGISTERED token=1 backends=[1879785, 1879786, 1879787] ok=true
+[  53.433] spawned standby pid=1879791 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --strategy pidlist
+[  53.437]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397512 db_unix=1792397512 host_minus_db_s=0
+[  53.437]   standby  STANDBY_WAITING holder=B pid=1879795 strategy=pidlist advisory_wait=false
+[  54.437] SIGSTOP -> owner (pid 1879782)
+[  54.737] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1879785 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             306  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1879786 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             302  COMMIT
+     1879787 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             304  COMMIT
+     1879795 sb_core   sb-standby:B               idle                 Client:ClientRead              {}              96  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1879785,1879786,1879787} lease_until=2026-10-19 10:11:56.567631+02 expired=false
+[  57.457]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:11:56.567631+02 db_now=2026-10-19T10:11:56.59104+02 backends=[1879785, 1879786, 1879787]
+[  57.558]   standby  TERMINATE pid=1879785 why=listed ok=true ms=100
+[  57.658]   standby  TERMINATE pid=1879786 why=listed ok=true ms=100
+[  57.759]   standby  TERMINATE pid=1879787 why=listed ok=true ms=100
+[  57.761]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=1 db_at=2026-10-19T10:11:56.894645+02 attempts=1
+[  57.761] standby took over 3323 ms after SIGSTOP
+[  58.761] SIGCONT -> owner (pid 1879782)
+[  58.761]   owner    LOST token=1 renewal_failed err=error communicating with the server
+[  58.761]   owner    COMMIT_FAILED kind=head n=93 pid=1879786 DB_ERROR 57P01 terminating connection due to administrator command
+[  58.771]   owner    EXIT_SERVING head_commits=92 session_commits=40 reason=renewal_failed err=error communicating with the server
+[  58.774]   owner    PROBE_START token=1 pid=1881560
+[  58.775]   owner    PROBE kind=head fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[  58.775]   owner    PROBE kind=session fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[  58.831] old owner exit code Some(3)
+[  57.761]   standby  ACQUIRED holder=B token=2 lease_pid=1879795 advisory=true lock=Share
+[  57.769]   standby  REGISTERED token=2 backends=[1879795, 1881233, 1881238] ok=true
+[  59.331] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1879795 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              62  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1881233 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               6  COMMIT
+     1881238 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              20  COMMIT
+    _owner: token=2 holder=B backends={1879795,1881233,1881238} lease_until=2026-10-19 10:12:01.403518+02 expired=false
+[  59.335] commit-order check: takeover_commit=2026-10-19 10:11:56.894404+02 | _log: old-token rows=93 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:53.571148+02 new-token rows=144 | _sessions: old-token rows=40 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:53.569263+02 new-token rows=61 | head seq=237 owner_token=2 | paused-tx rows present: sessions=0 log=0
+[  59.335] baseline: takeover committed 327 ms after lease_until (DB clock); host clocks ["HOST_CLOCK role=owner holder=A host_unix=1792397512 db_unix=1792397512 host_minus_db_s=0", "HOST_CLOCK role=standby holder=B host_unix=1792397512 db_unix=1792397512 host_minus_db_s=0"]
+RESULT W5 baseline PASS :: took_over_after_stop=3323 ms (bound 4000 ms) | takeover_commit=2026-10-19 10:11:56.894404+02 | _log: old-token rows=93 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:53.571148+02 new-token rows=144 | _sessions: old-token rows=40 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:53.569263+02 new-token rows=61 | head seq=237 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W5 baseline/lag NOTE :: takeover_commit - lease_until = 327 ms (DB clock); ["HOST_CLOCK role=owner holder=A host_unix=1792397512 db_unix=1792397512 host_minus_db_s=0", "HOST_CLOCK role=standby holder=B host_unix=1792397512 db_unix=1792397512 host_minus_db_s=0"]
+[  59.336] === W5 lease clock: realtime-skew(owner+1d,standby-1d)
+[  59.352] spawned owner pid=1881649 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500
+[  59.357]   owner    HOST_CLOCK role=owner holder=A host_unix=1792483918 db_unix=1792397518 host_minus_db_s=86400
+[  59.357]   owner    STANDBY_WAITING holder=A pid=1881652 strategy=pidlist advisory_wait=false
+[  59.358]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:11:58.491587+02 backends=[]
+[  59.359]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=0 db_at=2026-10-19T10:11:58.492543+02 attempts=1
+[  59.359]   owner    ACQUIRED holder=A token=1 lease_pid=1881652 advisory=true lock=Share
+[  59.365]   owner    REGISTERED token=1 backends=[1881652, 1881657, 1881658] ok=true
+[  59.366] spawned standby pid=1881663 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --strategy pidlist
+[  59.370]   standby  HOST_CLOCK role=standby holder=B host_unix=1792311118 db_unix=1792397518 host_minus_db_s=-86400
+[  59.370]   standby  STANDBY_WAITING holder=B pid=1881668 strategy=pidlist advisory_wait=false
+[  60.370] SIGSTOP -> owner (pid 1881649)
+[  60.670] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1881652 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             306  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1881657 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             309  COMMIT
+     1881658 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             305  COMMIT
+     1881668 sb_core   sb-standby:B               idle                 Client:ClientRead              {}              97  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1881652,1881657,1881658} lease_until=2026-10-19 10:12:02.499851+02 expired=false
+[  63.387]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:12:02.499851+02 db_now=2026-10-19T10:12:02.520507+02 backends=[1881652, 1881657, 1881658]
+[  63.487]   standby  TERMINATE pid=1881652 why=listed ok=true ms=100
+[  63.588]   standby  TERMINATE pid=1881657 why=listed ok=true ms=100
+[  63.688]   standby  TERMINATE pid=1881658 why=listed ok=true ms=100
+[  63.690]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=2 db_at=2026-10-19T10:12:02.824007+02 attempts=1
+[  63.690] standby took over 3319 ms after SIGSTOP
+[  64.690] SIGCONT -> owner (pid 1881649)
+[  64.690]   owner    COMMIT_FAILED kind=session n=41 pid=1881658 DB_ERROR 57P01 terminating connection due to administrator command
+[  64.690]   owner    LOST token=1 renewal_failed err=error communicating with the server
+[  64.690]   owner    COMMIT_FAILED kind=head n=94 pid=1881657 DB_ERROR 57P01 terminating connection due to administrator command
+[  64.700]   owner    EXIT_SERVING head_commits=93 session_commits=40 reason=renewal_failed err=error communicating with the server
+[  64.704]   owner    PROBE_START token=1 pid=1883104
+[  64.705]   owner    PROBE kind=head fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[  64.705]   owner    PROBE kind=session fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[  64.760] old owner exit code Some(3)
+[  63.690]   standby  ACQUIRED holder=B token=2 lease_pid=1881668 advisory=true lock=Share
+[  63.698]   standby  REGISTERED token=2 backends=[1881668, 1882821, 1882827] ok=true
+[  65.261] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1881668 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              63  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1882821 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               0  COMMIT
+     1882827 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              19  COMMIT
+    _owner: token=2 holder=B backends={1881668,1882821,1882827} lease_until=2026-10-19 10:12:07.332878+02 expired=false
+[  65.263] commit-order check: takeover_commit=2026-10-19 10:12:02.823761+02 | _log: old-token rows=93 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:59.497032+02 new-token rows=144 | _sessions: old-token rows=40 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:59.500383+02 new-token rows=61 | head seq=237 owner_token=2 | paused-tx rows present: sessions=0 log=0
+[  65.263] realtime-skew(owner+1d,standby-1d): takeover committed 324 ms after lease_until (DB clock); host clocks ["HOST_CLOCK role=owner holder=A host_unix=1792483918 db_unix=1792397518 host_minus_db_s=86400", "HOST_CLOCK role=standby holder=B host_unix=1792311118 db_unix=1792397518 host_minus_db_s=-86400"]
+RESULT W5 realtime-skew(owner+1d,standby-1d) PASS :: took_over_after_stop=3319 ms (bound 4000 ms) | takeover_commit=2026-10-19 10:12:02.823761+02 | _log: old-token rows=93 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:59.497032+02 new-token rows=144 | _sessions: old-token rows=40 committed-after-takeover=0 last-old-commit=2026-10-19 10:11:59.500383+02 new-token rows=61 | head seq=237 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W5 realtime-skew(owner+1d,standby-1d)/lag NOTE :: takeover_commit - lease_until = 324 ms (DB clock); ["HOST_CLOCK role=owner holder=A host_unix=1792483918 db_unix=1792397518 host_minus_db_s=86400", "HOST_CLOCK role=standby holder=B host_unix=1792311118 db_unix=1792397518 host_minus_db_s=-86400"]
+[  65.264] === W5 lease clock: owner monotonic clock at 0.1x (renewals late), no SIGSTOP
+[  65.277] spawned owner pid=1883183 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500
+[  65.282]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397524 db_unix=1792397524 host_minus_db_s=0
+[  65.282]   owner    STANDBY_WAITING holder=A pid=1883186 strategy=pidlist advisory_wait=false
+[  65.283]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:12:04.416811+02 backends=[]
+[  65.284]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=0 db_at=2026-10-19T10:12:04.41778+02 attempts=1
+[  65.284]   owner    ACQUIRED holder=A token=1 lease_pid=1883186 advisory=true lock=Share
+[  65.292]   owner    REGISTERED token=1 backends=[1883186, 1883187, 1883192] ok=true
+[  65.293] spawned standby pid=1883195 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --strategy pidlist
+[  65.298]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397524 db_unix=1792397524 host_minus_db_s=0
+[  65.298]   standby  STANDBY_WAITING holder=B pid=1883203 strategy=pidlist advisory_wait=false
+[  65.598] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1883186 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             308  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1883187 sb_core   sb-owner:A:1               active               IO:WALSync             330605  {}               0  COMMIT
+     1883192 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}              24  COMMIT
+     1883203 sb_core   sb-standby:B               idle                 Client:ClientRead              {}               0  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1883186,1883187,1883192} lease_until=2026-10-19 10:12:07.417209+02 expired=false
+[  68.311]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:12:07.417209+02 db_now=2026-10-19T10:12:07.444937+02 backends=[1883186, 1883187, 1883192]
+[  68.411]   standby  TERMINATE pid=1883186 why=listed ok=true ms=100
+[  68.512]   standby  TERMINATE pid=1883187 why=listed ok=true ms=100
+[  68.512]   standby  TERMINATE pid=1883192 why=listed ok=false ms=0
+[  68.514]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=1 db_at=2026-10-19T10:12:07.647703+02 attempts=1
+[  68.514] standby took over 3215 ms after SIGSTOP
+[  68.414]   owner    COMMIT_FAILED kind=head n=286 pid=1883187 DB_ERROR 57P01 terminating connection due to administrator command
+[  68.414]   owner    LOST token=1 head_write_failed n=286
+[  68.433]   owner    EXIT_SERVING head_commits=285 session_commits=122 reason=head_write_failed n=286
+[  68.436]   owner    PROBE_START token=1 pid=1884113
+[  68.437]   owner    PROBE kind=head fenced=true result=COMMITTED value=286
+[  68.438]   owner    PROBE kind=session fenced=true result=COMMITTED value="A-1-probe-1"
+[  69.564] old owner exit code Some(3)
+[  68.514]   standby  ACQUIRED holder=B token=2 lease_pid=1883203 advisory=true lock=Share
+[  68.521]   standby  REGISTERED token=2 backends=[1883203, 1884135, 1884137] ok=true
+[  70.064] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1883203 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              43  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1884135 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               5  COMMIT
+     1884137 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               3  COMMIT
+    _owner: token=2 holder=B backends={1883203,1884135,1884137} lease_until=2026-10-19 10:12:12.155995+02 expired=false
+[  70.066] commit-order check: takeover_commit=2026-10-19 10:12:07.647503+02 | _log: old-token rows=286 committed-after-takeover=0 last-old-commit=2026-10-19 10:12:07.571278+02 new-token rows=142 | _sessions: old-token rows=123 committed-after-takeover=0 last-old-commit=2026-10-19 10:12:07.571675+02 new-token rows=61 | head seq=428 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W5 slow-monotonic-owner PASS :: takeover of a live owner after 3215 ms from start | takeover_commit=2026-10-19 10:12:07.647503+02 | _log: old-token rows=286 committed-after-takeover=0 last-old-commit=2026-10-19 10:12:07.571278+02 new-token rows=142 | _sessions: old-token rows=123 committed-after-takeover=0 last-old-commit=2026-10-19 10:12:07.571675+02 new-token rows=61 | head seq=428 owner_token=2 | paused-tx rows present: sessions=0 log=0
+[  70.066] === W6a clean shutdown: advisory-lock fast path
+[  70.074] spawned owner pid=1884866 args=--role owner --holder A --stop-after-ms 2500 --quiet-renewals
+[  70.079]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397529 db_unix=1792397529 host_minus_db_s=0
+[  70.079]   owner    STANDBY_WAITING holder=A pid=1884870 strategy=pidlist advisory_wait=false
+[  70.079]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:12:09.213207+02 backends=[]
+[  70.080]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:12:09.214365+02 attempts=1
+[  70.081]   owner    ACQUIRED holder=A token=1 lease_pid=1884870 advisory=true lock=Share
+[  70.087]   owner    REGISTERED token=1 backends=[1884870, 1884871, 1884872] ok=true
+[  70.088] spawned standby pid=1884874 args=--role standby --holder B --poll-ms 1000 --quiet-renewals --advisory-wait
+[  72.609]   owner    RELEASED lease_rows=1 unlock_at=true@2026-10-19T10:12:11.743029+02
+[  70.091]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397529 db_unix=1792397529 host_minus_db_s=0
+[  70.092]   standby  STANDBY_WAITING holder=B pid=1884879 strategy=pidlist advisory_wait=true
+[  72.609]   standby  ADVISORY_ACQUIRED waited_ms=2517
+[  72.609]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=-infinity db_now=2026-10-19T10:12:11.743291+02 backends=[]
+[  72.610]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=0 db_at=2026-10-19T10:12:11.744294+02 attempts=1
+[  72.609]   owner    EXIT clean=true head_commits=231 session_commits=97
+[  72.662] advisory-wait/poll-1000ms: RELEASED -> TOOK_OVER 1 ms (host); last old commit -> takeover commit 18 ms (DB)
+RESULT W6 clean-shutdown-fast-path PASS :: release->takeover 1 ms with --advisory-wait (lease poll 1000 ms, lease 3000 ms); last-old-commit->takeover 18 ms
+[  72.611]   standby  ACQUIRED holder=B token=2 lease_pid=1884879 advisory=true lock=Share
+[  72.618]   standby  REGISTERED token=2 backends=[1884879, 1886390, 1886391] ok=true
+[  72.670] spawned owner pid=1886411 args=--role owner --holder A --stop-after-ms 2500 --quiet-renewals
+[  72.675]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397531 db_unix=1792397531 host_minus_db_s=0
+[  72.675]   owner    STANDBY_WAITING holder=A pid=1886415 strategy=pidlist advisory_wait=false
+[  72.676]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:12:11.809606+02 backends=[]
+[  72.677]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:12:11.810747+02 attempts=1
+[  72.677]   owner    ACQUIRED holder=A token=1 lease_pid=1886415 advisory=true lock=Share
+[  72.683]   owner    REGISTERED token=1 backends=[1886415, 1886422, 1886430] ok=true
+[  72.684] spawned standby pid=1886433 args=--role standby --holder B --poll-ms 1000 --quiet-renewals
+[  75.206]   owner    RELEASED lease_rows=1 unlock_at=true@2026-10-19T10:12:14.339559+02
+[  72.688]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397531 db_unix=1792397531 host_minus_db_s=0
+[  72.688]   standby  STANDBY_WAITING holder=B pid=1886439 strategy=pidlist advisory_wait=false
+[  75.689]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=-infinity db_now=2026-10-19T10:12:14.823248+02 backends=[]
+[  75.691]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=1 db_at=2026-10-19T10:12:14.824909+02 attempts=1
+[  75.206]   owner    EXIT clean=true head_commits=229 session_commits=98
+[  75.743] lease-poll-only/poll-1000ms: RELEASED -> TOOK_OVER 485 ms (host); last old commit -> takeover commit 509 ms (DB)
+RESULT W6 clean-shutdown-poll-only NOTE :: release->takeover 485 ms without the advisory wait (bounded by the 1000 ms poll)
+[  75.691]   standby  ACQUIRED holder=B token=2 lease_pid=1886439 advisory=true lock=Share
+[  75.698]   standby  REGISTERED token=2 backends=[1886439, 1887783, 1887784] ok=true
+[  75.743] === W6b the first draft: standby gates on pg_advisory_lock while the owner is SIGSTOPped
+[  75.756] spawned owner pid=1887822 args=--role owner --holder A --pause head:30:60000 --quiet-renewals
+[  75.761]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397534 db_unix=1792397534 host_minus_db_s=0
+[  75.761]   owner    STANDBY_WAITING holder=A pid=1887825 strategy=pidlist advisory_wait=false
+[  75.762]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:12:14.89551+02 backends=[]
+[  75.763]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=0 db_at=2026-10-19T10:12:14.896517+02 attempts=1
+[  75.763]   owner    ACQUIRED holder=A token=1 lease_pid=1887825 advisory=true lock=Share
+[  75.769]   owner    REGISTERED token=1 backends=[1887825, 1887826, 1887832] ok=true
+[  76.084]   owner    PAUSING kind=head n=30 seq=30 token=1 pid=1887826 holds=_owner:Share,_head:FOR_UPDATE sleep_ms=60000
+[  76.084] SIGSTOP -> owner (pid 1887822)
+[  91.088] old-design pg_advisory_lock: 57014 canceling statement due to statement timeout after 15000 ms
+[  91.088] pg_stat_activity snapshot: old design: advisory waiter vs stopped owner
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1887825 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}           15321  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1887826 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      331918  {}           15006  UPDATE _head SET seq = $1 WHERE singleton AND owner_token = $2
+     1887832 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}           15013  COMMIT
+     1887939 sb_core   w6-old-design-standby      idle                 Client:ClientRead              {}               2  SELECT pg_advisory_lock($1)
+    _owner: token=1 holder=A backends={1887825,1887826,1887832} lease_until=2026-10-19 10:12:17.895917+02 expired=true
+[  91.091] after sb_core terminated lease backend 1887825 (ok=true): pg_advisory_lock ACQUIRED in 0 ms
+RESULT W6 old-design-advisory-gate FAIL(expected) :: standby blocked on pg_advisory_lock for 15000 ms until statement_timeout; after terminating the lease backend: ACQUIRED in 0 ms
+[  91.092] === W7a idle_in_transaction_session_timeout as a net under the pid-list design (unlisted paused backend)
+[  91.106] spawned owner pid=1894904 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500 --late-conn --pause late:12:8000 --pg-options -c idle_in_transaction_session_timeout=2000
+[  91.111]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397550 db_unix=1792397550 host_minus_db_s=0
+[  91.111]   owner    STANDBY_WAITING holder=A pid=1894907 strategy=pidlist advisory_wait=false
+[  91.112]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:12:30.245828+02 backends=[]
+[  91.113]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=0 db_at=2026-10-19T10:12:30.24684+02 attempts=1
+[  91.113]   owner    ACQUIRED holder=A token=1 lease_pid=1894907 advisory=true lock=Share
+[  91.120]   owner    REGISTERED token=1 backends=[1894907, 1894908, 1894909] ok=true
+[  91.120] spawned standby pid=1894915 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --strategy pidlist
+[  91.125]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397550 db_unix=1792397550 host_minus_db_s=0
+[  91.125]   standby  STANDBY_WAITING holder=B pid=1894929 strategy=pidlist advisory_wait=false
+[  91.123]   owner    LATE_CONN pid=1894926 listed=false
+[  91.408]   owner    PAUSING kind=late n=12 id=A-1-late-12 token=1 pid=1894926 holds=_owner:Share sleep_ms=8000
+[  91.408] SIGSTOP -> owner (pid 1894904)
+[  91.708] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1894907 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             590  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1894908 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             305  COMMIT
+     1894909 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             305  COMMIT
+     1894926 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      331972  {}             302  INSERT INTO _sessions (id, minted_by_token, writer) VALUES ($1, 
+     1894929 sb_core   sb-standby:B               idle                 Client:ClientRead              {}              81  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1894907,1894908,1894909} lease_until=2026-10-19 10:12:33.246226+02 expired=false
+[  94.140]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:12:33.246226+02 db_now=2026-10-19T10:12:33.274085+02 backends=[1894907, 1894908, 1894909]
+[  94.241]   standby  TERMINATE pid=1894907 why=listed ok=true ms=100
+[  94.341]   standby  TERMINATE pid=1894908 why=listed ok=true ms=100
+[  94.442]   standby  TERMINATE pid=1894909 why=listed ok=true ms=100
+[  94.443]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=1 db_at=2026-10-19T10:12:33.57726+02 attempts=1
+[  94.443] standby took over 3035 ms after SIGSTOP
+[  95.443] SIGCONT -> owner (pid 1894904)
+[  95.444]   owner    COMMIT_FAILED kind=head n=28 pid=1894908 DB_ERROR 57P01 terminating connection due to administrator command
+[  95.444]   owner    LOST token=1 head_write_failed n=28
+[  95.444]   owner    COMMIT_FAILED kind=session n=13 pid=1894909 DB_ERROR 57P01 terminating connection due to administrator command
+[  99.408]   owner    RESUMED kind=late n=12 id=A-1-late-12
+[  99.408]   owner    COMMIT_FAILED kind=late n=12 pid=1894926 DB_ERROR error communicating with the server
+[  99.408]   owner    EXIT_SERVING head_commits=27 session_commits=23 reason=head_write_failed n=28
+[  99.412]   owner    PROBE_START token=1 pid=1897897
+[  99.413]   owner    PROBE kind=head fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[  99.413]   owner    PROBE kind=session fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[  99.469] old owner exit code Some(3)
+[  94.444]   standby  ACQUIRED holder=B token=2 lease_pid=1894929 advisory=true lock=Share
+[  94.450]   standby  REGISTERED token=2 backends=[1894929, 1895824, 1895826] ok=true
+[  99.969] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1894929 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              20  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1895824 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               3  COMMIT
+     1895826 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               3  COMMIT
+    _owner: token=2 holder=B backends={1894929,1895824,1895826} lease_until=2026-10-19 10:12:42.084696+02 expired=false
+[  99.973] commit-order check: takeover_commit=2026-10-19 10:12:33.577052+02 | _log: old-token rows=27 committed-after-takeover=0 last-old-commit=2026-10-19 10:12:30.538619+02 new-token rows=503 | _sessions: old-token rows=23 committed-after-takeover=0 last-old-commit=2026-10-19 10:12:30.538001+02 new-token rows=214 | head seq=530 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W7 idle-in-tx-timeout-2s/pidlist PASS :: took_over_after_stop=3035 ms (bound 4000 ms) | takeover_commit=2026-10-19 10:12:33.577052+02 | _log: old-token rows=27 committed-after-takeover=0 last-old-commit=2026-10-19 10:12:30.538619+02 new-token rows=503 | _sessions: old-token rows=23 committed-after-takeover=0 last-old-commit=2026-10-19 10:12:30.538001+02 new-token rows=214 | head seq=530 owner_token=2 | paused-tx rows present: sessions=0 log=0
+[  99.973] === W7b paused owner while its backend is blocked in ClientWrite (large result, client stopped)
+[  99.984] spawned owner pid=1897980 args=--role owner --holder A --pause bigread:12 --quiet-renewals --pg-options -c idle_in_transaction_session_timeout=2000 -c statement_timeout=2000
+[  99.988]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397559 db_unix=1792397559 host_minus_db_s=0
+[  99.989]   owner    STANDBY_WAITING holder=A pid=1897983 strategy=pidlist advisory_wait=false
+[  99.989]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:12:39.123004+02 backends=[]
+[  99.990]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:12:39.124029+02 attempts=1
+[  99.990]   owner    ACQUIRED holder=A token=1 lease_pid=1897983 advisory=true lock=Share
+[  99.996]   owner    REGISTERED token=1 backends=[1897983, 1897984, 1897985] ok=true
+[ 100.317]   owner    PAUSING kind=bigread n=12 id=A-1-s0-12 token=1 pid=1897985
+[ 100.317] SIGSTOP -> owner (pid 1897980)
+[ 106.318] pg_stat_activity snapshot: 6 s after SIGSTOP; statement_timeout=2s and idle_in_transaction_session_timeout=2s on the owner's sessions
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1897983 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}            6324  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1897984 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}            6009  COMMIT
+     1897985 sb_core   sb-owner:A:1               active               Client:ClientWrite     332746  {}            6039  SELECT repeat('x', 1000) FROM generate_series(1, 400000)
+    _owner: token=1 holder=A backends={1897983,1897984,1897985} lease_until=2026-10-19 10:12:42.123402+02 expired=true
+RESULT W7 clientwrite-timeouts NOTE :: 6 s after SIGSTOP the backend is active/ClientWrite (timeouts 2 s did not fire); sb_core pg_terminate_backend(pid,5000)=true in 100 ms, gone=true
+[ 106.627] === W7c TCP keepalives vs a stopped (not dead) client
+[ 106.740] spawned owner pid=1900322 args=--role owner --holder A --pause session:12:600000 --quiet-renewals --pg-options -c tcp_keepalives_idle=1 -c tcp_keepalives_interval=1 -c tcp_keepalives_count=2 -c tcp_user_timeout=3000
+[ 106.744]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397565 db_unix=1792397565 host_minus_db_s=0
+[ 106.744]   owner    STANDBY_WAITING holder=A pid=1900327 strategy=pidlist advisory_wait=false
+[ 106.745]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:12:45.878442+02 backends=[]
+[ 106.746]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:12:45.879673+02 attempts=1
+[ 106.746]   owner    ACQUIRED holder=A token=1 lease_pid=1900327 advisory=true lock=Share
+[ 106.753]   owner    REGISTERED token=1 backends=[1900327, 1900329, 1900330] ok=true
+[ 107.041]   owner    PAUSING kind=session n=12 id=A-1-s0-12 token=1 pid=1900330 holds=_owner:Share sleep_ms=600000
+[ 107.041] SIGSTOP -> owner (pid 1900322)
+[ 117.041] pg_stat_activity snapshot: 10 s after SIGSTOP over TCP with keepalives idle=1 interval=1 count=2, tcp_user_timeout=3s
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1900327 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}           10289  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1900329 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      332791  {}           10001  INSERT INTO _log (seq, owner_token, writer) VALUES ($1, $2, $3)
+     1900330 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      332790  {}           10001  INSERT INTO _sessions (id, minted_by_token, writer) VALUES ($1, 
+    _owner: token=1 holder=A backends={1900327,1900329,1900330} lease_until=2026-10-19 10:12:48.87893+02 expired=true
+RESULT W7 tcp-keepalive-stopped-client NOTE :: 3 owner TCP backends still alive 10 s after SIGSTOP (keepalive window ~3 s): the stopped process's kernel answers probes
+[ 117.043] SIGKILL -> owner (pid 1900322)
+RESULT W7 tcp-killed-client NOTE :: after SIGKILL all owner backends gone in Some(21) ms (the kernel closes the sockets)
+[ 117.064] === W8a lock matrix: fence lock vs renewal UPDATE vs takeover FOR UPDATE
+[ 119.086] Share: renewal while a fenced tx is open: blocked: 55P03 canceling statement due to lock timeout after 1000 ms; takeover FOR UPDATE: blocked: 55P03 canceling statement due to lock timeout after 1001 ms
+RESULT W8 lock-matrix/Share PASS :: renewal: blocked: 55P03 canceling statement due to lock timeout after 1000 ms; takeover FOR UPDATE (after the renewal): blocked: 55P03 canceling statement due to lock timeout after 1001 ms
+[ 120.105] KeyShare: renewal while a fenced tx is open: renewed(1) in 0 ms; takeover FOR UPDATE: blocked: 55P03 canceling statement due to lock timeout after 1000 ms
+RESULT W8 lock-matrix/KeyShare PASS :: renewal: renewed(1) in 0 ms; takeover FOR UPDATE (after the renewal): blocked: 55P03 canceling statement due to lock timeout after 1000 ms
+[ 120.105] === W8b renewal latency under continuous fenced writes (8 session threads, no sleep)
+[ 120.150] spawned owner pid=1907998 args=--role owner --holder A --lock share --session-threads 8 --session-every-ms 0 --head-every-ms 0 --stop-after-ms 6000
+[ 120.154]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397579 db_unix=1792397579 host_minus_db_s=0
+[ 120.154]   owner    STANDBY_WAITING holder=A pid=1908001 strategy=pidlist advisory_wait=false
+[ 120.155]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:12:59.288775+02 backends=[]
+[ 120.157]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=2 db_at=2026-10-19T10:12:59.291108+02 attempts=1
+[ 120.157]   owner    ACQUIRED holder=A token=1 lease_pid=1908001 advisory=true lock=Share
+[ 120.188]   owner    REGISTERED token=1 backends=[1908001, 1908010, 1908012, 1908014, 1908022, 1908024, 1908025, 1908028, 1908030, 1908031] ok=true
+[ 120.723]   owner    RENEWED n=1 took_ms=34 lease_until=2026-10-19T10:13:02.822488+02
+[ 121.255]   owner    RENEWED n=2 took_ms=66 lease_until=2026-10-19T10:13:03.322506+02
+[ 121.898]   owner    RENEWED n=3 took_ms=209 lease_until=2026-10-19T10:13:03.822363+02
+[ 122.568]   owner    RENEWED n=4 took_ms=379 lease_until=2026-10-19T10:13:04.322431+02
+[ 126.190]   owner    RELEASED lease_rows=1 unlock_at=true@2026-10-19T10:13:05.323685+02
+[ 126.190]   owner    EXIT clean=true head_commits=11582 session_commits=150312
+RESULT W8 renewal-latency/share NOTE :: 12 renewals, mean 137.2 ms, max 379 ms over 6 s; EXIT clean=true head_commits=11582 session_commits=150312
+[ 126.279] spawned owner pid=1910504 args=--role owner --holder A --lock keyshare --session-threads 8 --session-every-ms 0 --head-every-ms 0 --stop-after-ms 6000
+[ 126.284]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397585 db_unix=1792397585 host_minus_db_s=0
+[ 126.284]   owner    STANDBY_WAITING holder=A pid=1910508 strategy=pidlist advisory_wait=false
+[ 126.285]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:13:05.418734+02 backends=[]
+[ 126.286]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:13:05.41977+02 attempts=1
+[ 126.286]   owner    ACQUIRED holder=A token=1 lease_pid=1910508 advisory=true lock=KeyShare
+[ 126.316]   owner    REGISTERED token=1 backends=[1910508, 1910509, 1910510, 1910511, 1910512, 1910514, 1910515, 1910516, 1910517, 1910519] ok=true
+[ 126.817]   owner    RENEWED n=1 took_ms=0 lease_until=2026-10-19T10:13:08.951006+02
+[ 127.317]   owner    RENEWED n=2 took_ms=0 lease_until=2026-10-19T10:13:09.45093+02
+[ 127.817]   owner    RENEWED n=3 took_ms=0 lease_until=2026-10-19T10:13:09.951002+02
+[ 128.317]   owner    RENEWED n=4 took_ms=0 lease_until=2026-10-19T10:13:10.451028+02
+[ 132.339]   owner    RELEASED lease_rows=1 unlock_at=true@2026-10-19T10:13:11.472854+02
+[ 132.339]   owner    EXIT clean=true head_commits=10412 session_commits=130802
+RESULT W8 renewal-latency/keyshare NOTE :: 12 renewals, mean 0.0 ms, max 0 ms over 6 s; EXIT clean=true head_commits=10412 session_commits=130802
+[ 132.391] === W8c slow-but-alive owner: one fenced transaction lasts 7 s (> lease), no SIGSTOP
+[ 132.416] spawned owner pid=1912677 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500 --lock share --pause session:12:7000 --after-loss exit
+[ 132.420]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397591 db_unix=1792397591 host_minus_db_s=0
+[ 132.420]   owner    STANDBY_WAITING holder=A pid=1912680 strategy=pidlist advisory_wait=false
+[ 132.421]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:13:11.555149+02 backends=[]
+[ 132.422]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:13:11.556221+02 attempts=1
+[ 132.422]   owner    ACQUIRED holder=A token=1 lease_pid=1912680 advisory=true lock=Share
+[ 132.430]   owner    REGISTERED token=1 backends=[1912680, 1912681, 1912683] ok=true
+[ 132.430] spawned standby pid=1912686 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --lock share --strategy pidlist
+[ 132.434]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397591 db_unix=1792397591 host_minus_db_s=0
+[ 132.434]   standby  STANDBY_WAITING holder=B pid=1912690 strategy=pidlist advisory_wait=false
+[ 132.734] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1912680 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             307  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1912681 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}               4  COMMIT
+     1912683 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      635978  {}              22  INSERT INTO _sessions (id, minted_by_token, writer) VALUES ($1, 
+     1912690 sb_core   sb-standby:B               idle                 Client:ClientRead              {}               1  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1912680,1912681,1912683} lease_until=2026-10-19 10:13:14.555593+02 expired=false
+[ 135.447]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:13:14.555593+02 db_now=2026-10-19T10:13:14.580571+02 backends=[1912680, 1912681, 1912683]
+[ 135.547]   standby  TERMINATE pid=1912680 why=listed ok=true ms=100
+[ 135.548]   standby  TERMINATE pid=1912681 why=listed ok=false ms=0
+[ 135.648]   standby  TERMINATE pid=1912683 why=listed ok=true ms=100
+[ 135.649]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=1 db_at=2026-10-19T10:13:14.78304+02 attempts=1
+[ 135.649] standby took over 3215 ms after SIGSTOP
+[ 132.715]   owner    PAUSING kind=session n=12 id=A-1-s0-12 token=1 pid=1912683 holds=_owner:Share sleep_ms=7000
+[ 135.447]   owner    LOST token=1 renewal_failed err=57P01 terminating connection due to administrator command
+[ 139.715]   owner    RESUMED kind=session n=12 id=A-1-s0-12
+[ 139.715]   owner    COMMIT_FAILED kind=session n=12 pid=1912683 DB_ERROR error communicating with the server
+[ 139.715]   owner    EXIT_SERVING head_commits=278 session_commits=11 reason=renewal_failed err=57P01 terminating connection due to administrator command
+[ 139.771] old owner exit code Some(3)
+[ 135.649]   standby  ACQUIRED holder=B token=2 lease_pid=1912690 advisory=true lock=Share
+[ 135.656]   standby  REGISTERED token=2 backends=[1912690, 1914027, 1914029] ok=true
+[ 140.271] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1912690 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}             115  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1914027 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               8  COMMIT
+     1914029 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              11  COMMIT
+    _owner: token=2 holder=B backends={1912690,1914027,1914029} lease_until=2026-10-19 10:13:22.290903+02 expired=false
+[ 140.275] commit-order check: takeover_commit=2026-10-19 10:13:14.782891+02 | _log: old-token rows=278 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:14.574059+02 new-token rows=408 | _sessions: old-token rows=11 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:11.822613+02 new-token rows=175 | head seq=686 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W8 slow-owner/share SPURIOUS-TAKEOVER :: takeover=after 3215 ms owner_resumed_and_still_serving=false | _owner.token=2 slow-tx row committed=0 token-1 session rows=11 | renewals>100ms: [] | takeover_commit=2026-10-19 10:13:14.782891+02 | _log: old-token rows=278 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:14.574059+02 new-token rows=408 | _sessions: old-token rows=11 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:11.822613+02 new-token rows=175 | head seq=686 owner_token=2 | paused-tx rows present: sessions=0 log=0
+[ 140.292] spawned owner pid=1915501 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500 --lock keyshare --pause session:12:7000 --after-loss exit
+[ 140.296]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397599 db_unix=1792397599 host_minus_db_s=0
+[ 140.297]   owner    STANDBY_WAITING holder=A pid=1915504 strategy=pidlist advisory_wait=false
+[ 140.297]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:13:19.431113+02 backends=[]
+[ 140.298]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:13:19.432145+02 attempts=1
+[ 140.298]   owner    ACQUIRED holder=A token=1 lease_pid=1915504 advisory=true lock=KeyShare
+[ 140.306]   owner    REGISTERED token=1 backends=[1915504, 1915505, 1915506] ok=true
+[ 140.306] spawned standby pid=1915509 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --lock keyshare --strategy pidlist
+[ 140.310]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397599 db_unix=1792397599 host_minus_db_s=0
+[ 140.310]   standby  STANDBY_WAITING holder=B pid=1915513 strategy=pidlist advisory_wait=false
+[ 140.610] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1915504 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             306  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1915505 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}               3  COMMIT
+     1915506 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      636867  {}              22  INSERT INTO _sessions (id, minted_by_token, writer) VALUES ($1, 
+     1915513 sb_core   sb-standby:B               idle                 Client:ClientRead              {}             100  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1915504,1915505,1915506} lease_until=2026-10-19 10:13:22.431543+02 expired=false
+[ 150.612] standby did NOT take over within 10000 ms
+[ 150.612] pg_stat_activity snapshot: standby blocked
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1915504 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             307  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1915505 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}              10  COMMIT
+     1915506 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}              24  COMMIT
+     1915513 sb_core   sb-standby:B               idle                 Client:ClientRead              {}              55  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1915504,1915505,1915506} lease_until=2026-10-19 10:13:32.440256+02 expired=false
+[ 140.590]   owner    PAUSING kind=session n=12 id=A-1-s0-12 token=1 pid=1915506 holds=_owner:KeyShare sleep_ms=7000
+[ 147.590]   owner    RESUMED kind=session n=12 id=A-1-s0-12
+RESULT W8 slow-owner/keyshare PASS :: takeover=none in 10 s owner_resumed_and_still_serving=true | _owner.token=1 slow-tx row committed=0 token-1 session rows=187 | renewals>100ms: [] | -
+[ 152.115] === W8 SIGSTOP takeover, owner paused inside a fenced head transaction, lock=keyshare
+[ 152.123] spawned owner pid=1919926 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500 --lock keyshare --pause head:30:3000 --after-loss probe
+[ 152.127]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397611 db_unix=1792397611 host_minus_db_s=0
+[ 152.127]   owner    STANDBY_WAITING holder=A pid=1919929 strategy=pidlist advisory_wait=false
+[ 152.128]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:13:31.261971+02 backends=[]
+[ 152.129]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:13:31.263084+02 attempts=1
+[ 152.129]   owner    ACQUIRED holder=A token=1 lease_pid=1919929 advisory=true lock=KeyShare
+[ 152.136]   owner    REGISTERED token=1 backends=[1919929, 1919931, 1919932] ok=true
+[ 152.136] spawned standby pid=1919935 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --lock keyshare --strategy pidlist
+[ 152.140]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397611 db_unix=1792397611 host_minus_db_s=0
+[ 152.140]   standby  STANDBY_WAITING holder=B pid=1919939 strategy=pidlist advisory_wait=false
+[ 152.451]   owner    PAUSING kind=head n=30 seq=30 token=1 pid=1919931 holds=_owner:KeyShare,_head:FOR_UPDATE sleep_ms=3000
+[ 152.451] SIGSTOP -> owner (pid 1919926)
+[ 152.751] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1919929 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             617  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1919931 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      638160  {}             302  UPDATE _head SET seq = $1 WHERE singleton AND owner_token = $2
+     1919932 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             307  COMMIT
+     1919939 sb_core   sb-standby:B               idle                 Client:ClientRead              {}              10  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1919929,1919931,1919932} lease_until=2026-10-19 10:13:34.262487+02 expired=false
+[ 155.154]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:13:34.262487+02 db_now=2026-10-19T10:13:34.287586+02 backends=[1919929, 1919931, 1919932]
+[ 155.254]   standby  TERMINATE pid=1919929 why=listed ok=true ms=100
+[ 155.354]   standby  TERMINATE pid=1919931 why=listed ok=true ms=100
+[ 155.455]   standby  TERMINATE pid=1919932 why=listed ok=true ms=100
+[ 155.456]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=1 db_at=2026-10-19T10:13:34.590377+02 attempts=1
+[ 155.457] standby took over 3005 ms after SIGSTOP
+[ 156.457] SIGCONT -> owner (pid 1919926)
+[ 156.457]   owner    RESUMED kind=head n=30 seq=30
+[ 156.457]   owner    LOST token=1 renewal_failed err=error communicating with the server
+[ 156.457]   owner    COMMIT_FAILED kind=head n=30 pid=1919931 DB_ERROR error communicating with the server
+[ 156.457]   owner    COMMIT_FAILED kind=session n=14 pid=1919932 DB_ERROR 57P01 terminating connection due to administrator command
+[ 156.467]   owner    EXIT_SERVING head_commits=29 session_commits=13 reason=renewal_failed err=error communicating with the server
+[ 156.471]   owner    PROBE_START token=1 pid=1923707
+[ 156.471]   owner    PROBE kind=head fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[ 156.472]   owner    PROBE kind=session fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[ 156.527] old owner exit code Some(3)
+[ 155.457]   standby  ACQUIRED holder=B token=2 lease_pid=1919939 advisory=true lock=KeyShare
+[ 155.464]   standby  REGISTERED token=2 backends=[1919939, 1922416, 1922423] ok=true
+[ 157.027] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1919939 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              63  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1922416 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               5  COMMIT
+     1922423 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              22  COMMIT
+    _owner: token=2 holder=B backends={1919939,1922416,1922423} lease_until=2026-10-19 10:13:39.098563+02 expired=false
+[ 157.029] commit-order check: takeover_commit=2026-10-19 10:13:34.590174+02 | _log: old-token rows=29 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:31.573676+02 new-token rows=144 | _sessions: old-token rows=13 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:31.579114+02 new-token rows=61 | head seq=173 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W8 pause-in-head-tx/keyshare PASS :: took_over_after_stop=3005 ms (bound 4000 ms) | takeover_commit=2026-10-19 10:13:34.590174+02 | _log: old-token rows=29 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:31.573676+02 new-token rows=144 | _sessions: old-token rows=13 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:31.579114+02 new-token rows=61 | head seq=173 owner_token=2 | paused-tx rows present: sessions=0 log=0
+[ 157.030] === W8 SIGSTOP takeover, owner paused inside a fenced session transaction, lock=keyshare
+[ 157.041] spawned owner pid=1924366 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500 --lock keyshare --pause session:12:3000 --after-loss probe
+[ 157.045]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397616 db_unix=1792397616 host_minus_db_s=0
+[ 157.045]   owner    STANDBY_WAITING holder=A pid=1924369 strategy=pidlist advisory_wait=false
+[ 157.046]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:13:36.179444+02 backends=[]
+[ 157.047]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:13:36.180503+02 attempts=1
+[ 157.047]   owner    ACQUIRED holder=A token=1 lease_pid=1924369 advisory=true lock=KeyShare
+[ 157.054]   owner    REGISTERED token=1 backends=[1924369, 1924371, 1924373] ok=true
+[ 157.054] spawned standby pid=1924384 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --lock keyshare --strategy pidlist
+[ 157.058]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397616 db_unix=1792397616 host_minus_db_s=0
+[ 157.058]   standby  STANDBY_WAITING holder=B pid=1924388 strategy=pidlist advisory_wait=false
+[ 157.338]   owner    PAUSING kind=session n=12 id=A-1-s0-12 token=1 pid=1924373 holds=_owner:KeyShare sleep_ms=3000
+[ 157.338] SIGSTOP -> owner (pid 1924366)
+[ 157.639] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1924369 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             586  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1924371 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             303  COMMIT
+     1924373 sb_core   sb-owner:A:1               idle in transaction  Client:ClientRead      638414  {}             301  INSERT INTO _sessions (id, minted_by_token, writer) VALUES ($1, 
+     1924388 sb_core   sb-standby:B               idle                 Client:ClientRead              {}              79  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1924369,1924371,1924373} lease_until=2026-10-19 10:13:39.179866+02 expired=false
+[ 160.071]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:13:39.179866+02 db_now=2026-10-19T10:13:39.205326+02 backends=[1924369, 1924371, 1924373]
+[ 160.172]   standby  TERMINATE pid=1924369 why=listed ok=true ms=100
+[ 160.272]   standby  TERMINATE pid=1924371 why=listed ok=true ms=100
+[ 160.373]   standby  TERMINATE pid=1924373 why=listed ok=true ms=100
+[ 160.374]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=1 db_at=2026-10-19T10:13:39.508149+02 attempts=1
+[ 160.374] standby took over 3035 ms after SIGSTOP
+[ 161.374] SIGCONT -> owner (pid 1924366)
+[ 161.374]   owner    RESUMED kind=session n=12 id=A-1-s0-12
+[ 161.374]   owner    LOST token=1 renewal_failed err=error communicating with the server
+[ 161.374]   owner    COMMIT_FAILED kind=head n=28 pid=1924371 DB_ERROR 57P01 terminating connection due to administrator command
+[ 161.374]   owner    COMMIT_FAILED kind=session n=12 pid=1924373 DB_ERROR error communicating with the server
+[ 161.384]   owner    EXIT_SERVING head_commits=27 session_commits=11 reason=renewal_failed err=error communicating with the server
+[ 161.388]   owner    PROBE_START token=1 pid=1929018
+[ 161.388]   owner    PROBE kind=head fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[ 161.389]   owner    PROBE kind=session fenced=true result=REFUSED owner_token_is_2_process_holds_1
+[ 161.445] old owner exit code Some(3)
+[ 160.374]   standby  ACQUIRED holder=B token=2 lease_pid=1924388 advisory=true lock=KeyShare
+[ 160.381]   standby  REGISTERED token=2 backends=[1924388, 1928318, 1928319] ok=true
+[ 161.945] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1924388 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              63  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1928318 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               7  COMMIT
+     1928319 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               4  COMMIT
+    _owner: token=2 holder=B backends={1924388,1928318,1928319} lease_until=2026-10-19 10:13:44.015954+02 expired=false
+[ 161.946] commit-order check: takeover_commit=2026-10-19 10:13:39.507966+02 | _log: old-token rows=27 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:36.470588+02 new-token rows=145 | _sessions: old-token rows=11 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:36.446572+02 new-token rows=62 | head seq=172 owner_token=2 | paused-tx rows present: sessions=0 log=0
+RESULT W8 pause-in-session-tx/keyshare PASS :: took_over_after_stop=3035 ms (bound 4000 ms) | takeover_commit=2026-10-19 10:13:39.507966+02 | _log: old-token rows=27 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:36.470588+02 new-token rows=145 | _sessions: old-token rows=11 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:36.446572+02 new-token rows=62 | head seq=172 owner_token=2 | paused-tx rows present: sessions=0 log=0
+[ 161.947] === W9 in-flight COMMIT racing termination (commit waiting for a synchronous standby that never answers)
+[ 161.960] spawned owner pid=1929881 args=--role owner --holder A --quiet-renewals --lease-ms 3000 --renew-ms 500 --pause synccommit:12 --after-loss exit --pg-options -c synchronous_commit=local
+[ 161.963]   owner    HOST_CLOCK role=owner holder=A host_unix=1792397621 db_unix=1792397621 host_minus_db_s=0
+[ 161.964]   owner    STANDBY_WAITING holder=A pid=1929885 strategy=pidlist advisory_wait=false
+[ 161.964]   owner    LEASE_EXPIRED attempt=1 token=0 holder= lease_until=-infinity db_now=2026-10-19T10:13:41.09809+02 backends=[]
+[ 161.965]   owner    TOOK_OVER holder=A token=1 from_token=0 from_holder= tx_ms=1 db_at=2026-10-19T10:13:41.099363+02 attempts=1
+[ 161.966]   owner    ACQUIRED holder=A token=1 lease_pid=1929885 advisory=true lock=Share
+[ 161.972]   owner    REGISTERED token=1 backends=[1929885, 1929887, 1929890] ok=true
+[ 161.973] spawned standby pid=1929895 args=--role standby --holder B --after-loss exit --quiet-renewals --lease-ms 3000 --renew-ms 500 --strategy pidlist --pg-options -c synchronous_commit=local
+[ 161.977]   standby  HOST_CLOCK role=standby holder=B host_unix=1792397621 db_unix=1792397621 host_minus_db_s=0
+[ 161.977]   standby  STANDBY_WAITING holder=B pid=1929901 strategy=pidlist advisory_wait=false
+[ 162.256]   owner    PAUSING kind=synccommit n=12 id=A-1-s0-12 token=1 pid=1929890
+[ 162.256] SIGSTOP -> owner (pid 1929881)
+[ 162.556] pg_stat_activity snapshot: owner stopped (or paused), standby waiting
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1929885 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             587  UPDATE _owner SET backends = $1 WHERE singleton AND token = $2
+     1929887 sb_core   sb-owner:A:1               idle                 Client:ClientRead              {}             313  COMMIT
+     1929890 sb_core   sb-owner:A:1               active               IPC:SyncRep            638669  {}             303  COMMIT
+     1929901 sb_core   sb-standby:B               idle                 Client:ClientRead              {}              79  SELECT token, holder, backends, lease_until::text, lease_until <
+    _owner: token=1 holder=A backends={1929885,1929887,1929890} lease_until=2026-10-19 10:13:44.098649+02 expired=false
+[ 165.001]   standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=2026-10-19T10:13:44.098649+02 db_now=2026-10-19T10:13:44.134553+02 backends=[1929885, 1929887, 1929890]
+[ 165.101]   standby  TERMINATE pid=1929885 why=listed ok=true ms=100
+[ 165.202]   standby  TERMINATE pid=1929887 why=listed ok=true ms=100
+[ 165.302]   standby  TERMINATE pid=1929890 why=listed ok=true ms=100
+[ 165.304]   standby  TOOK_OVER holder=B token=2 from_token=1 from_holder=A tx_ms=1 db_at=2026-10-19T10:13:44.437445+02 attempts=1
+[ 165.304] standby took over 3047 ms after SIGSTOP
+[ 166.304] SIGCONT -> owner (pid 1929881)
+[ 166.304]   owner    COMMIT_FAILED kind=head n=27 pid=1929887 DB_ERROR 57P01 terminating connection due to administrator command
+[ 166.304]   owner    COMMIT_FAILED kind=session n=12 pid=1929890 DB_ERROR connection closed
+[ 166.304]   owner    LOST token=1 renewal_failed err=error communicating with the server
+[ 166.314]   owner    EXIT_SERVING head_commits=26 session_commits=11 reason=renewal_failed err=error communicating with the server
+[ 166.374] old owner exit code Some(3)
+[ 165.304]   standby  ACQUIRED holder=B token=2 lease_pid=1929901 advisory=true lock=Share
+[ 165.311]   standby  REGISTERED token=2 backends=[1929901, 1933702, 1933707] ok=true
+[ 166.874] pg_stat_activity snapshot: after old owner resumed and exited
+         pid role      application_name           state                wait                   xid     blockedby  inst_ms  query
+     1929901 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              63  UPDATE _owner SET lease_until = clock_timestamp() + make_interva
+     1933702 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}               7  COMMIT
+     1933707 sb_core   sb-owner:B:2               idle                 Client:ClientRead              {}              20  COMMIT
+    _owner: token=2 holder=B backends={1929901,1933702,1933707} lease_until=2026-10-19 10:13:48.945888+02 expired=false
+[ 166.876] commit-order check: takeover_commit=2026-10-19 10:13:44.437256+02 | _log: old-token rows=26 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:41.380138+02 new-token rows=143 | _sessions: old-token rows=12 committed-after-takeover=0 last-old-commit=2026-10-19 10:13:41.390136+02 new-token rows=61 | head seq=169 owner_token=2 | paused-tx rows present: sessions=1 log=0
+RESULT W9 commit-in-flight-at-termination PASS :: took_over_after_stop=Some(3047) ms; old-owner commits after takeover=0; the in-flight row A-1-s0-12: PRESENT, committed at 2026-10-19 10:13:41.390136+02 before-takeover=true; old owner saw: COMMIT_FAILED kind=session n=12 pid=1929890 DB_ERROR connection closed
+[ 166.877] === W10 lock order: the adapter takes _head FOR UPDATE first today; what if the fence comes second?
+[ 167.192] fence-first: owner tx: fence already held after 0 ms; takeover tx: committed after 300 ms
+RESULT W10 fence-first NO-DEADLOCK :: owner tx: fence already held after 0 ms; takeover tx: committed after 300 ms
+[ 168.212] head-first: owner tx: fence read token=0 after 702 ms; takeover tx: 40P01 deadlock detected after 1002 ms
+RESULT W10 head-first DEADLOCK :: owner tx: fence read token=0 after 702 ms; takeover tx: 40P01 deadlock detected after 1002 ms
+
+==================== SUMMARY ====================
+W1   same-role-termination                        PASS
+W1   row-lock-privilege                           NOTE
+W2   pause-in-head-tx/share                       PASS
+W2   pause-in-session-tx/share                    PASS
+W3   unlisted-backend/pidlist                     FAIL
+W3   unlisted-backend/appname                     PASS
+W3   unlisted-backend/blockers                    PASS
+W4   stale-token-reconnect                        PASS
+W4   controls-without-fence                       NOTE
+W4   isolation/READ_COMMITTED                     NOTE
+W4   isolation/REPEATABLE_READ                    NOTE
+W5   baseline                                     PASS
+W5   baseline/lag                                 NOTE
+W5   realtime-skew(owner+1d,standby-1d)           PASS
+W5   realtime-skew(owner+1d,standby-1d)/lag       NOTE
+W5   slow-monotonic-owner                         PASS
+W6   clean-shutdown-fast-path                     PASS
+W6   clean-shutdown-poll-only                     NOTE
+W6   old-design-advisory-gate                     FAIL(expected)
+W7   idle-in-tx-timeout-2s/pidlist                PASS
+W7   clientwrite-timeouts                         NOTE
+W7   tcp-keepalive-stopped-client                 NOTE
+W7   tcp-killed-client                            NOTE
+W8   lock-matrix/Share                            PASS
+W8   lock-matrix/KeyShare                         PASS
+W8   renewal-latency/share                        NOTE
+W8   renewal-latency/keyshare                     NOTE
+W8   slow-owner/share                             SPURIOUS-TAKEOVER
+W8   slow-owner/keyshare                          PASS
+W8   pause-in-head-tx/keyshare                    PASS
+W8   pause-in-session-tx/keyshare                 PASS
+W9   commit-in-flight-at-termination              PASS
+W10  fence-first                                  NO-DEADLOCK
+W10  head-first                                   DEADLOCK
