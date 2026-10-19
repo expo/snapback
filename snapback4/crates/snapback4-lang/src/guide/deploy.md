@@ -199,7 +199,8 @@ const v2 = v1
   .replace("{owner:viewer, body, weight, length}", "{owner:viewer, body, weight, length, vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}")
   + `backfill tickets vehicleClass(weight: int, length: int):
   {vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}
-invariant tickets.read only .owner = viewer
+-- Spec: only the ticket owner may revise its weight.
+invariant tickets.revise only .owner = viewer
 `;
 for (const [version, source] of [["v1", v1], ["v2", v2]]) {
   mkdirSync(`versions/${version}`, { recursive: true });

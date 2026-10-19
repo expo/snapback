@@ -30,6 +30,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
     for (table,t) in bound.schema.visible_tables(){
         if !counts.contains_key(table){continue;}
         let own=people.iter().filter(|(roster,_,_,_)|roster==table).collect::<Vec<_>>();
+        if t.columns.values().filter(|k|matches!(k.required(),C::Principal)).count()>3 {out.unsupported.insert(format!("generated fixture {table}: full Cartesian combinations above three principal columns remain uncovered"));}
         let mut population=Vec::new();
         for n in 0..counts[table]{
             let person=if own.is_empty(){&people[n%people.len()]}else{own[n]};

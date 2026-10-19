@@ -166,3 +166,20 @@ fn absence_worlds_without_observers_still_pay_the_shared_budget(){
     assert!(c.work_remaining.unwrap()<3,"absence forks must be reserved even with no authored queries: {c:?}");
     assert!(c.unsupported.iter().any(|s|s.contains("work budget exhausted")),"{c:?}");
 }
+
+#[test]
+fn history_absence_world_preserves_final_exists_in_other_tables(){
+    let b=bound("table codes:\n  code: text <=20\n  unique code\n  read <- allow\n  online only\ntable records:\n  value: text <=20\n  read <- allow\n  after insert <- exists codes[code = .value]\n  online only\ninvariant codes.read only deny\nquery probe():\n  return exists codes[code = 'sample0']\n");
+    let mut c=Campaign::default();c.generated_fixture=true;
+    let fixture=challenges::generated_fixture(&b,&mut c).unwrap();
+    challenges::fixture_observers(&b,&fixture,&mut c);
+    assert!(c.violations.is_empty(),"{c:?}");
+    assert!(c.unsupported.iter().any(|s|s.contains("absent world invalid")&&s.contains("final-exists")),"{c:?}");
+}
+
+#[test]
+fn an_update_keeps_appeal_intent_stable_despite_declared_delete_cascades(){
+    let source=format!("{ROLES}table bouts:\n  status: enum('recorded','overturned')\n  score: int 0..15\n  read <- allow\n  update <- exists roles[viewer, role = 'doctor']\n  online only\ntable appeals:\n  bout: bouts on delete cascade\n  decision: enum('upheld','pending')\n  unique bout else ALREADY_APPEALED\n  read <- allow\n  online only\nmutation correct(bout: bouts, score: int 0..15):\n  require exists roles[viewer, role = 'doctor'] else NO_ROLE\n  b = bouts[bout] ! else MISSING\n  require b.status = 'recorded' else CLOSED\n  update bouts[bout] {{score}}\n  return null\ninvariant bouts.score update only not exists appeals[bout = .id, decision = 'upheld']\n");
+    let b=bound(&source);let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
+    assert!(c.violations.iter().any(|v|v.reachability==Reachability::GeneratedFixtureTrace&&v.history.iter().any(|s|s.operation=="correct")),"{c:?}");
+}

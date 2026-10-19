@@ -119,7 +119,7 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
     let first_seen = |code: &str, unique: &[(Note, usize)]| unique.iter().position(|(n, _)| n.code == code).unwrap();
     let mut order: Vec<usize> = (0..unique.len()).collect();
     order.sort_by_key(|&i| (tier(&unique[i].0.code), first_seen(&unique[i].0.code, &unique), i));
-    let mut lines = vec![format!("{total} advisory note{} — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):",
+    let mut lines = vec![format!("{total} advisory note{} — notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):",
         if total == 1 { "" } else { "s" })];
     let mut current = None;
     let mut shown_codes = Vec::new();
@@ -294,7 +294,7 @@ mod tests {
             note("schema.q:104:1", "N_WRITE_DENIED", "mutation rangers inserts rows no caller may insert"),
             note("schema.q:104:1", "N_WRITE_DENIED", "mutation rangers inserts rows no caller may insert"),
         ]);
-        assert!(lines[0].starts_with("5 advisory notes — check passed; notes never block"), "{lines:?}");
+        assert!(lines[0].starts_with("5 advisory notes — notes never block"), "{lines:?}");
         let body: Vec<&str> = lines[1..].iter().map(String::as_str).collect();
         assert_eq!(body, [
             "review — can cost correctness or completeness:",

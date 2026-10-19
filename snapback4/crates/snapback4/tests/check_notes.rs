@@ -443,6 +443,7 @@ fn empty_start_reachability_uses_memory_without_opening_a_project_store() {
   let args_verbose=args.contains(&"--all");
   let output=Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
   assert_eq!(output.status.code(),Some(1));
+  assert!(!String::from_utf8_lossy(&output.stdout).contains("check passed"));
   let text=String::from_utf8(output.stderr).unwrap();
   assert!(text.contains("run snapback4 test") && text.contains("run snapback4 audit"),"{text}");
   if args_verbose { assert!(text.contains("campaign not covered:"),"{text}"); }

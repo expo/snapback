@@ -127,6 +127,7 @@ mutation add():
 
   const starters = [];
   for (const starter of [
+    { id: "todo-backend", flags: [], intent: "invariant todos.toggle only .ownerId = viewer" },
     { id: "todo-online", flags: ["--online"], intent: "invariant todos.toggle only .ownerId = viewer" },
     { id: "social", flags: ["--template", "social"] },
     { id: "todo-web", flags: ["--web"] },
@@ -143,7 +144,7 @@ mutation add():
   copyFileSync(join(cwd, "node_modules/snapback4/dist/recipes/production/web/schema.q"), join(production, "snapback/schema.q"));
   const productionSecurity = checked(production);
   starters.push({ id: "production-recipe", status: "passed", source: "installed dist/recipes/production/web/schema.q", invariants: productionSecurity.invariants.length, ...campaign(production) });
-  assert.equal(starters.length, 6);
+  assert.equal(starters.length, 7);
 
   assert.equal(sha256(native), binarySha256, "installed CLI binary is unchanged");
   assert.equal(sha256(client), artifacts.clientSha256, "supplied client tarball is unchanged");

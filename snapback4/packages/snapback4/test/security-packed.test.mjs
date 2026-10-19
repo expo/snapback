@@ -27,7 +27,7 @@ test('packed security card and starter run as written; broad reads refute', {tim
  const result=await proveSecurity(client,platform,dir);
  assert.equal(result.status,'passed');
  assert.ok(result.guideCases.every(c=>c.broadRead==='refuted'));
- assert.equal(result.starters.length,6);
+ assert.equal(result.starters.length,7);
  if(process.env.SNAPBACK4_SECURITY_PACK_EVIDENCE)
   writeFileSync(join(process.env.SNAPBACK4_SECURITY_PACK_EVIDENCE,'security-evidence.json'),JSON.stringify(result,null,2)+'\n');
 });
