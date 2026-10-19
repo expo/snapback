@@ -61,7 +61,23 @@ pub(super) fn risk(bound:&Bound,roster:&str,column:&str,operation:&str,targets:&
             for (name,t) in bound.schema.visible_tables(){for (effect,rule) in [("read",&t.rules.read),("insert",&t.rules.insert),("update",&t.rules.update),("delete",&t.rules.delete)]{
                 let granted=substitute(bound,rule,roster,column,Some(target),None);let previous=substitute(bound,rule,roster,column,caller,None);
                 if !dynamic {
-                    let named=columns.clone();let mut observed=BTreeSet::new();
+                    let global=kernel::implies(&RuleExpr::Allow,&granted)==Ok(true);
+                    if !global||!(matches!(effect,"read"|"delete")||!role_columns(bound,name).is_empty()){continue;}
+                }
+                if kernel::implies(&granted,&previous)==Ok(false){return Some(format!("{} can confer '{target}', which adds {name}.{effect} authority not held by {}",roster,caller.unwrap_or("a caller without a role")));}
+            }}
+        }
+    }None
+}
+
+pub(super) fn role_columns(bound:&Bound,table:&str)->BTreeSet<String>{
+    let mut columns=BTreeSet::new();
+    if let Some(t)=bound.schema.table(table){for c in ["role","kind"]{if t.columns.contains_key(c){columns.insert(c.into());}}}
+    fn collect(bound:&Bound,rule:&RuleExpr,table:&str,columns:&mut BTreeSet<String>){match rule{
+        RuleExpr::Exists{table:t,index,key,equalities,..} if t==table&&key.iter().chain(equalities.iter().map(|(_,v)|v)).any(|k|matches!(k,RuleTerm::Viewer))=>for (c,v) in &probe_pairs(bound,t,index,key,equalities){if matches!(v,RuleTerm::Literal(snapback4_core::Value::String(_))){columns.insert(c.clone());}},
+        RuleExpr::And(xs)|RuleExpr::Or(xs)=>for r in xs{collect(bound,r,table,columns)},RuleExpr::Not(r)=>collect(bound,r,table,columns),_=>{}
+    }}
+    let named=columns.clone();let mut observed=BTreeSet::new();
     for t in bound.schema.tables.values(){for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete]{collect(bound,r,table,&mut observed);}}
     let global=bound.schema.table(table).is_some_and(|t|t.indexes.values().any(|index|{
         if !index.unique{return false;}
