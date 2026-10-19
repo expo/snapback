@@ -68,5 +68,5 @@ test("an active signup deadline names partial staging setup and never replays",a
   if(url.endsWith("/auth/config"))return response({environment:"staging",development:false,password:true});calls++;
   return new Promise((_,reject)=>{const abort=()=>reject(init.signal.reason);init.signal.addEventListener("abort",abort,{once:true});if(init.signal.aborted)abort();});
  });
- await assert.rejects(seedAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},timeoutMs:30}),/E_STAGING_TIMEOUT.*partial accounts/);assert.equal(calls,1);
+ for(let n=0;n<20;n++) await assert.rejects(seedAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},timeoutMs:10}),/E_STAGING_TIMEOUT.*partial accounts/);assert.equal(calls,20);
 });

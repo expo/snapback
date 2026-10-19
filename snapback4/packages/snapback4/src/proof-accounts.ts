@@ -46,7 +46,10 @@ export async function seedAccounts(host: Pick<ServeHost, "url" | "operatorToken"
       const email = `staging-${role}-${randomUUID()}@example.test`, password = randomBytes(24).toString("base64url");
       const {json: reply} = await identityRequest(host.url + "/auth/signup", {
         method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({email,password}),
-      }, fetch, {timeoutMs:remaining()}).catch(error => { remaining(); throw error; });
+      }, fetch, {timeoutMs:remaining()}).catch(error => {
+        if ((error as {code?: string})?.code === "E_IDENTITY_TIMEOUT") throw Error("E_STAGING_TIMEOUT: signup deadline expired; partial accounts/grants may exist; inspect or discard this staging deployment");
+        remaining(); throw error;
+      });
       if ((reply.denied as {code?:string} | undefined)?.code === "E_RATE_LIMIT") {
         throw Error("E_STAGING_TIMEOUT: identity retry budget exhausted; increase timeoutMs or inspect partial accounts/grants before retrying");
       }

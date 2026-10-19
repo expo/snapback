@@ -22,7 +22,7 @@ export async function identityRequest(url: string, init: RequestInit, fetcher: t
   const abort = () => controller.abort(options.signal?.reason);
   options.signal?.addEventListener("abort", abort, {once:true});
   if (options.signal?.aborted) abort();
-  const timer = setTimeout(() => controller.abort(new Error("identity deadline exceeded")), timeout);
+  const timer = setTimeout(() => controller.abort(Object.assign(new Error("identity deadline exceeded"), {code:"E_IDENTITY_TIMEOUT"})), timeout);
   try {
     for (let attempt = 0; ; attempt++) {
       if (controller.signal.aborted) throw controller.signal.reason;
