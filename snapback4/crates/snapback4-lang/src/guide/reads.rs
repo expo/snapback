@@ -20,7 +20,7 @@ query recentTotal(roomId: rooms, start: time, end: time):
 `one` returns a row/null; `must` refuses missing/hidden rows.
 `roster` reads the capped room; `member`/`admin` test membership.
 `newest` pages newest-first; `recentTotal` counts under the meter.
-Repeated `where` clauses combine with `and` in order.
+Repeated `where` combines using ordered `and`.
 
 ## Limits
 
@@ -46,12 +46,12 @@ State the rows, then the order and page. `messages where .roomId = roomId
 last 20 by .at after c` means the newest matching messages. The compiler
 chooses the index. Positional keys select identity for `id`/same-table references,
 otherwise the declared unique key accepting types in order; ambiguous types need named columns.
-Authorization precedes projection, counting and ordering.
+The rules run before any projection, count or order reaches the caller.
 Declare `c: cursor ?`, read `after c`, pass each answer's `next` as `c`; `usePage` does that.
 
 ### Completeness
 
-N_QUERY_RESERVATION: reduce caps or split reads.
+N_QUERY_RESERVATION: reduce caps/split reads.
 
 Pinned-parent guards are caller-dependent (`N_CONDITIONAL_COMPLETE`; `guide recipes`).
 `T[]` requests a complete fitting group: `return children[] where .parent = parent`.

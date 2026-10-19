@@ -109,7 +109,7 @@ table queryPathFunding:
   expire at .expires
   online only
 query branch(c: cursor ?):
-  if exists queryPathRoles[viewer]:
+  if exists queryPathRoles[viewer, role = 'staff'] or exists queryPathRoles[viewer, role = 'captain'] or exists queryPathRoles[viewer, role = 'officer'] or exists queryPathRoles[viewer, role = 'lead']:
     return queryPathRows last 50 by .at after c
   return queryPathRows where .owner = viewer last 50 by .at after c
 query direct(c: cursor ?):
@@ -128,6 +128,8 @@ query oversized(c: cursor ?):
   return queryPathRows last 50 by .at after c
 `;
     const p=await project(t,'table queryPathRoles:',[source], {expectedNotes:['N_QUERY_FALLTHROUGH','N_QUERY_RESERVATION']});
+    const consoleCheck=invoke(process.execPath,[cliPath,'check'],p.cwd,env);
+    assert.match(consoleCheck,/N_QUERY_FALLTHROUGH/);assert.match(consoleCheck,/is false.*end/);
     await p.seed([
       {table:'queryPathRoles',row:{id:'role',principal:'dev:alice',role:'staff'}},
       {table:'queryPathRows',row:{id:'row',owner:'dev:bob',at:1}},

@@ -96886,3 +96886,30 @@ The focused unit regression distinguishes identity from integrity and preserves
 source/native/worker byte changes as new executable content. Proof hosts also
 honor their explicit binary environment so qualification cannot accidentally
 select a stale checkout release binary.
+
+
+## 2026-10-19 — QRY: returning paths share bounded read reservations
+
+Wave-18 lanes 009/032/048 reported empty partial queries despite explicit
+fallback returns. Reconstructing 009's frozen cask query reproduced it: two
+alternative 5,005-read plans were summed above the 8,192 physical allowance.
+Reserve the maximum of mutually exclusive statement paths before private
+probes; add sequential/condition work, conservatively sum loop/expression-block
+occurrences, and retain once-per-occurrence consumption. No row authority,
+runtime ceiling, protocol or version changes. LLP 3000.036.002 §15 records the
+semantic amendment and independent Muse/fresh-Codex review loop.
+
+Query fallthrough remains compatibility null with N_QUERY_FALLTHROUGH naming
+an uncovered source path; N_QUERY_RESERVATION identifies oversized static paths.
+Optional points keep null for hidden/missing/expired rows; assertions keep
+CODE. N_LOOKUP_FILTERED names private side-table optional mutation reads,
+including inherited rules and helpers. Helper point/viewer markers only suppress
+source advice; they cannot authorize, narrow a runtime value or change prediction.
+Point advice facts invalidate on writes/rebinding. SEC4 owns invariant/security
+tooling; DX4 owns staging/setup. Frozen wave evidence was never modified.
+
+Locked Linux device: 2,387,388 raw / 727,580 gzip (+1,546 / +567 versus
+Integration 18); artifact budget 728,080 = measurement + exactly 500 B.
+The 567 B budget increase carries max-path reservation accounting; no runtime
+ceiling is raised. Review/test/pack evidence is indexed by the workstream report;
+strict family/absence results are recorded separately, never inferred from size.

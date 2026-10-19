@@ -15,7 +15,7 @@ mutation programWrites(roomId: rooms, title: text 1..80):     -- reads and write
 
 ## Limits
 
-- N_QUERY_FALLTHROUGH: return [] or null deliberately.
+- N_QUERY_FALLTHROUGH: return []/null.
 
 - Queries cannot write or mint ids, including through helpers: E_QUARRY_PLACEMENT.
 - Mutation scans need an authorized scope: E_STRUCTURAL_FANOUT.

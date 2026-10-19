@@ -5,11 +5,17 @@ use crate::{ir::{self, Expr, Merge, Stmt}, schema::Schema};
 // private probe, but add sequential work and take the maximum of alternatives.
 pub(super) fn price(schema: &Schema, body: &[Stmt]) -> Option<u64> {
     let paths = paths(schema, body)?;
-    Some(paths.normal.into_iter().chain(paths.returned).max().unwrap_or(0))
+    Some(maximum(paths.normal, paths.returned).unwrap_or(0))
 }
 
 struct Paths { normal: Option<u64>, returned: Option<u64> }
-fn maximum(a: Option<u64>, b: Option<u64>) -> Option<u64> { a.into_iter().chain(b).max() }
+fn maximum(a: Option<u64>, b: Option<u64>) -> Option<u64> {
+    match (a, b) {
+        (Some(a), Some(b)) => Some(a.max(b)),
+        (Some(a), None) => Some(a),
+        (None, b) => b,
+    }
+}
 
 fn sum<'a>(schema: &Schema, merges: impl IntoIterator<Item = &'a Merge>) -> Option<u64> {
     merges.into_iter().flat_map(|merge| &merge.lanes).filter(|lane| lane.bounded())

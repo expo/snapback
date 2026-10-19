@@ -655,9 +655,11 @@ impl Binder<'_> {
 
     pub(super) fn fn_call(&mut self, function: &ast::FunctionDecl, args: &[A], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let bindings = self.helper_arguments(&function.name, &function.args, args, site, out)?;
+        let lookup_points = self.helper_lookup_points(function, args);
         let start = out.len();
         let caller = std::mem::replace(&mut self.scopes, vec![bindings]);
         self.declare(pure_calls::CONSTANTS, Ty::Null);
+        for read in lookup_points { self.narrow_lookup_point(&read); }
         let focal = self.focal.take();
         let loops = std::mem::take(&mut self.loops);
         // @ref LLP 3000.019#6 — remove the measured helper/inline placement discrepancy.

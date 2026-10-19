@@ -2,6 +2,7 @@
 use super::*;
 use std::collections::BTreeSet;
 const POINT: &str = "$point";
+const LOOKUP_POINT: &str = "$lookupPoint";
 
 impl Binder<'_> {
     // A compound condition cannot prove an earlier read after a later effect.
@@ -79,6 +80,23 @@ impl Binder<'_> {
         self.point_key(read).is_some_and(|(key, roots)| roots.iter().all(|root|
             self.binding(root).is_some_and(|binding| binding.fields.get(&key) == Some(&Ty::Bool))))
     }
+    // Diagnostic-only helper transfer: this cannot establish runtime authority,
+    // prediction eligibility or non-null typing.
+    pub(super) fn narrow_lookup_point(&mut self, read: &ReadExpr) {
+        let Some((mut key, roots)) = self.point_key(read) else { return };
+        key[0] = LOOKUP_POINT.into();
+        for root in roots {
+            let Some(mut binding) = self.binding(&root).cloned() else { return };
+            binding.fields.insert(key.clone(), Ty::Bool);
+            self.scopes.last_mut().unwrap().insert(root, binding);
+        }
+    }
+    pub(super) fn lookup_point_present(&self, read: &ReadExpr) -> bool {
+        self.point_key(read).is_some_and(|(mut key, roots)| {
+            key[0] = LOOKUP_POINT.into();
+            roots.iter().all(|root| self.binding(root).is_some_and(|binding| binding.fields.get(&key) == Some(&Ty::Bool)))
+        })
+    }
     pub(super) fn invalidate_points(&mut self) {
         for scope in &mut self.scopes {
             for binding in scope.values_mut() {
@@ -86,7 +104,7 @@ impl Binder<'_> {
                 // value. Clear shadowed roots too, and keep assignment revisions
                 // stable so a job sweep does not mistake a guard for an accumulator.
                 binding.fields.retain(|key, _| key.first().is_none_or(|k| {
-                    k != POINT && k != "$sourceSnapshot" && k != maintain_types::AUTHORIZATION && k != aggregate_facts::NONEMPTY
+                    k != POINT && k != LOOKUP_POINT && k != "$sourceSnapshot" && k != maintain_types::AUTHORIZATION && k != aggregate_facts::NONEMPTY
                         && k != aggregate_facts::COUNT_CAPTURE
                 }));
             }
@@ -113,6 +131,7 @@ impl Binder<'_> {
         for scope in &mut self.scopes {
             for binding in scope.values_mut() {
                 binding.fields.retain(|key, _| match key.first().map(String::as_str) {
+                    Some(LOOKUP_POINT) => false,
                     Some(POINT) => safe && key.get(1) == Some(table) && key.get(2)
                         .and_then(|index| definition.index(index)).is_some_and(|index|
                             !fields.iter().any(|field| index.columns().contains(&field.name)
