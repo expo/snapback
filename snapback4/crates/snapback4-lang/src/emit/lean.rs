@@ -75,6 +75,8 @@ impl std::fmt::Display for Unsupported {
 }
 
 mod pages;
+mod columns;
+use columns::Col;
 
 type R<T> = Result<T, Unsupported>;
 
@@ -138,16 +140,6 @@ enum Ty {
     Scalar(Kind),
     Row(String),
     Unknown,
-}
-
-#[derive(Clone, Debug)]
-struct Col {
-    name: String,
-    kind: Kind,
-    nullable: bool,
-    /// A reference's effective delete action (LLP 3000.039 §2): the declared
-    /// one, else restrict; `None` for `keep` and for a non-reference.
-    on_delete: Option<&'static str>,
 }
 
 #[derive(Clone, Debug)]
@@ -328,7 +320,7 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
             (TypeKind::Ref { .. }, Some(OnDelete::SetNull)) => Some("setNull"),
             _ => None,
         };
-        cols.push(Col { name: c.name.clone(), kind, nullable: c.type_.optional, on_delete });
+        cols.push(Col { name: c.name.clone(), kind, nullable: c.type_.optional, protected: c.read.is_some() || t.column_reads.iter().any(|(fs,_)|fs.contains(&c.name)), on_delete });
     }
     let mut uniques = Vec::new();
     let mut codes = Vec::new();
@@ -367,6 +359,7 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table], selected_expi
         };
         rules.insert(word, json);
     }
+    let column_rules=columns::gates(t,shape,tables)?;
     let rule = |w: &str| rules.get(w).cloned().unwrap_or(json!("deny"));
     let expiry_order = selected_expiry.cloned().unwrap_or_else(|| {
         let Some((column, _)) = &t.expire else { return Vec::new() };
@@ -388,7 +381,7 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table], selected_expi
         "uniqueCodes": shape.codes,
         "immutable": t.immutable.iter().flat_map(|(fields,_)| fields).collect::<Vec<_>>(),
         "caps": shape.caps.iter().map(|(max, by)| json!({"by": by, "max": max})).collect::<Vec<_>>(),
-        "onlineOnly": t.sync.is_none(),
+        "onlineOnly": t.sync.is_none(), "columnReads": column_rules,
         "notBefore": t.not_before.as_ref().map(|(column, _)| column),
         "expire": t.expire.as_ref().map(|(column, _)| column),
         "expiryOrder": expiry_order,
@@ -773,7 +766,7 @@ impl<'a> Scope<'a> {
             }
             Expr::Member { base, name, .. } => match base.as_ref() {
                 Expr::Focal { .. } => match &self.focal {
-                    Some(t) if self.table(t)?.col(name).is_some() => Ok(json!({"dot": name})),
+                    Some(t) if self.table(t)?.col(name).is_some() => Ok(if self.table(t)?.cols.iter().any(|c|c.name==*name&&c.protected) {json!({"dotOpt":name})}else{json!({"dot": name})}),
                     _ => no("focal-column", print()),
                 },
                 other => {
@@ -782,9 +775,10 @@ impl<'a> Scope<'a> {
                     match self.ty(other) {
                         Ty::Scalar(Kind::Id(IdSort::Ref(target))) if name != "id" => {
                             self.table(&target)?;
-                            Ok(json!({"field": [{"point": {"table": target, "key": [["id", value]]}}, name]}))
+                            Ok(if self.table(&target)?.cols.iter().any(|c|c.name==*name&&c.protected) {json!({"fieldOpt":[{"point":{"table":target,"key":[["id",value]]}},name]})}else{json!({"field": [{"point": {"table": target, "key": [["id", value]]}}, name]})})
                         }
                         Ty::Scalar(Kind::Id(IdSort::Ref(_))) => Ok(value),
+                        Ty::Row(ref t) if self.table(t)?.cols.iter().any(|c|c.name==*name&&c.protected) => Ok(json!({"fieldOpt":[value,name]})),
                         Ty::Unknown => no("member-type", print()),
                         _ => Ok(json!({"field": [value, name]})),
                     }
@@ -815,6 +809,9 @@ impl<'a> Scope<'a> {
                         let mut function = function;
                         function["arg"] = self.expr(value)?;
                         Ok(json!({"cal": function}))
+                    }
+                    ("count", [Expr::Name { name: table, .. }]) if self.module.tables.iter().any(|t| &t.name == table) => {
+                        Ok(json!({"count": {"table": table, "pins": [], "filter": null}}))
                     }
                     ("count", [Expr::Read(read)]) => {
                         let (pins, filter) = self.domain(read, false)?;

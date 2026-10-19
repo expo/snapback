@@ -26,7 +26,7 @@ def queryHooks : Hooks View where
 
 /-- The world of a mutation: the store; reads see its visible rows. -/
 def storeHooks : Hooks Store where
-  view cx s := visibleRowsAt cx.schema s cx.viewer cx.now
+  view cx s := disclosedRowsAt cx.schema s cx.viewer cx.now
   apply := applyWrite
 
 -- @ref LLP 3000.036.003#6 — born-expired and updated-expired final images retire in the writer transaction.
@@ -67,7 +67,7 @@ def changedFinalRows (sch : Schema) (before after : Store) : ChangedRows :=
     | some old => if old == row then none else some (td.name, row.id)
 
 def mutationHooks : Hooks MutationWorld where
-  view cx w := visibleRowsAt cx.schema w.store cx.viewer cx.now
+  view cx w := disclosedRowsAt cx.schema w.store cx.viewer cx.now
   apply cx w rw := match applyWrite cx w.store rw with
     | .error e => .error e
     | .ok (value, store) =>
@@ -138,7 +138,7 @@ def runQuery (c : Case) : Outcome :=
   | .error (.refuse code) => .refused code
   | .error .unavailable => .unavailable
   | .ok env =>
-    let vw := visibleRowsAt c.schema c.store c.viewer c.now
+    let vw := disclosedRowsAt c.schema c.store c.viewer c.now
     match (execStmts queryHooks defaultFuel c.ctx vw env c.program.body).run {} with
     | .ok ((fl, _, _), rs) => let (v, nx) := flowValue fl; .answer v rs.complete nx
     | .error (.refuse code) => .refused code

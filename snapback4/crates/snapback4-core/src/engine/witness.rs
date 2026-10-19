@@ -271,7 +271,7 @@ impl Runner<'_> {
             if let Some(seen) = encountered.as_deref_mut() { *seen = true; }
             // @ref LLP 3000.015#1 — stored public bytes exclude adopted defaults.
             // Keep their materialization charge while the returned witness lives.
-            let image = self.disclosed_row(table, row);
+            let image = self.disclosed_row(table, row)?;
             // Public non-expiring images have authority before access. Enforce
             // the outer caller's ceiling even inside a restoring rule scope;
             // private witness work keeps its declaration-only admission.
@@ -337,7 +337,7 @@ impl Runner<'_> {
         // Physical device-work accounting stays separate from the logical meter.
         if self.device_work_active {
             self.authorized_scratch(0,&[],|runner, scope| {
-                let row = runner.disclosed_row(table,row.clone());
+                let row = table.project_fields(row.clone(),Some(&runner.context.viewer));
                 crate::engine::authorized_scan::InternalLedger::with_meter(&mut runner.meter, |meter, _| row.charge_materialization_internal(meter,scope))
             })?;
         }

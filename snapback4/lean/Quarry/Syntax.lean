@@ -111,6 +111,7 @@ structure TableDecl where
   /-- True only without a sync declaration; a simultaneous online-only arm
   does not establish private server exhaustion. -/
   onlineOnly : Bool := true
+  columnReads : List (String × Rule) := []
   read : Rule := .deny
   insert : Rule := .deny
   update : Rule := .deny
@@ -155,6 +156,8 @@ inductive Expr where
   an update condition. -/
   | dot (c : String)
   /-- `e.col` -/
+  | fieldOpt (e : Expr) (c : String)
+  | dotOpt (c : String)
   | field (e : Expr) (c : String)
   | neg (e : Expr)
   | bin (op : BinOp) (a b : Expr)

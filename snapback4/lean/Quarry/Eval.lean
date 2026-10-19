@@ -222,7 +222,7 @@ def Expr.total : Expr → Bool
 /-- Reads no column of the row (conservatively: only the total forms). -/
 def Expr.rowFree : Expr → Bool
   | .lit _ | .var _ | .viewer => true
-  | .field e _ | .not e => e.rowFree
+  | .field e _ | .fieldOpt e _ | .not e => e.rowFree
   | .bin _ a b | .and a b | .or a b => a.rowFree && b.rowFree
   | _ => false
 
@@ -937,6 +937,10 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
       | some p => pure p
       | none => typeErr
     | .viewer => pure (.s (.id cx.viewer), none)
+    | .dotOpt c => pure ((dot.bind (·.field? c)).getD .null, none)
+    | .fieldOpt a c => do
+      let (v, _) ← ev a
+      pure ((v.field? c).getD .null, none)
     | .dot c => match dot.bind (·.field? c) with
       | some v => pure (v, none)
       | none => typeErr

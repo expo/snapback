@@ -59,6 +59,11 @@ impl Runner<'_> {
         self.read_tables.insert(read.table.clone());
         self.live_read_dependency(&read.table);
         self.rule_dependencies(&table.rules.read);
+        for rule in table.column_reads.values() { self.rule_dependencies(rule); }
+        if self.device && table.column_server_reads() {
+            self.unknown_fact(&read.table,&read.index,&key,&read.site);
+            return Ok(Value::Null);
+        }
         self.meter.at(&read.site);
         self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site)?;
         let Some(maintain) = self.schema.maintain_for(&read.table) else {
@@ -145,7 +150,7 @@ impl Runner<'_> {
                 let row = self.live_aggregate_inner(m, Value::Row(fields.into()))?.unwrap_or(Value::Null);
                 *emitted = true;
                 // Key-authorized and computed from the caller's key and the disclosed total: sealed without a lookup.
-                let sealed = self.authorized_synthetic(table, row);
+                let sealed = self.authorized_synthetic(table, row)?;
                 let price = sealed.heap_bytes() + sealed.projection_heap() + sealed.materialization_heap();
                 return Ok((sealed.into_value(), price));
             }
@@ -188,7 +193,7 @@ impl Runner<'_> {
                 // key rule rather than trust delivery of a row it never received.
                 let authorized = self.authorized_scratch(0, &[], |runner, _| {
                     if runner.context.is_system() || runner.authorize_read(&read.table, &zero, true)? {
-                        Ok(Some(runner.authorized_synthetic(table, zero)))
+                        Ok(Some(runner.authorized_synthetic(table, zero)?))
                     } else { Ok(None) }
                 })?;
                 if self.read_capped() { return Ok((Value::Null, 0)); }

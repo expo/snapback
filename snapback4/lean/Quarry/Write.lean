@@ -112,7 +112,7 @@ def resultOf (sch : Schema) (s : Store) (v : List Nat) (t : String) (r : Row) : 
 
 def resultOfAt (sch : Schema) (s : Store) (v : List Nat) (now : Int)
     (t : String) (r : Row) : Value :=
-  if readableAt sch s v now t r then r.toValue else .null
+  if readableAt sch s v now t r then (match sch.table? t with | some td => (projectColumns td (openedStore sch s now) v r).toValue | none => .null) else .null
 
 /-- `guardE b e` continues when `b` holds and refuses `e` otherwise. -/
 def guardE (b : Bool) (e : Stop) : Except Stop Unit := if b then .ok () else .error e

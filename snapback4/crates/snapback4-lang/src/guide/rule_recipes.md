@@ -464,39 +464,55 @@ explicitly. A lookup of a hidden prior slot cannot repair its successor. Give
 that maintenance operation readable authority, or update by key under an
 explicit transition rule; do not silently skip a nullable hidden lookup.
 
-## Column-level privacy: public identity, private sheet
+## Column-level privacy: public identity, private fields
 
-A returned shape does not protect a stored field. Split the row so that every
-field in the public identity is public and the private sheet has its own read
-rule. Column-level read rules remain an open language decision; this recipe applies ordinary row rules.
+Give a field its own `read <-` rule. Its audience is the row audience AND the
+column rule. Whole rows omit hidden fields; explicit scalar/shape selections
+return null for a hidden field. Generated properties are optional, including
+required stored fields. `useQueryData` stays the ordinary query hook; handle
+`row.notes == null` in the UI.
 
 ```quarry
+use personas alice, bob
+
 table identities:
   principal: principal
   name: text 1..80
+  notes: text 1..200 read <- .principal = viewer
+  contact: text <= 100 ?
+  read (contact) <- .principal = viewer
   unique principal
   immutable principal
   public 'display name and account principal are public'
   insert <- .principal = viewer
   online only
-table privateSheets:
-  identity: identities
-  owner: principal
-  notes: text 1..200
-  unique identity
-  immutable identity, owner
-  read <- .owner = viewer
-  insert <- .owner = viewer and exists identities[.identity, principal = .owner]
-  online only
 mutation createIdentity(name: text 1..80, notes: text 1..200):
-  i = insert identities { principal: viewer, name }
-  insert privateSheets { identity: i.id, owner: viewer, notes }
-  return i
+  return insert identities { principal: viewer, name, notes, contact: null }
 query identity(identity: identities):
   return identities[identity]
-query privateSheet(identity: identities):
-  return privateSheets[identity = identity]
 ```
+
+Use `read (notes, contact) <- policy` to give several columns the same gate.
+Rules use the row-read grammar, including unique readable `exists` probes.
+They do not grant write authority; use `written by` or row write rules for that.
+Stored keys, order/search, authority, lifetimes, immutable constraints and
+maintained derivation inputs cannot use protected payloads (E_COLUMN_READ).
+A plain row count still counts readable rows. Queries compute over projected
+values; declared aggregates may count rows but cannot derive from a protected
+input. A child's `read through` inherits row authority; its own payload gates
+remain independent.
+
+Row-local rules sync projected cells. A probe-based column rule keeps its cells
+off replicas: reads of that table use the normal online fallback and remain
+unavailable offline. `held` cannot certify them. Asset downloads and mutation
+returns enforce the same column gate. Adding a rule is a normal deployment;
+a new protected column becomes a dormant cell at rollback, while its row stays
+visible. Rolling back an existing column's rule can widen access; review the
+confidentiality warning.
+
+Keep a separate table when data has its own entity, lifecycle or write authority,
+not solely to narrow the audience of one field. `check` suggests column rules
+for a possible one-to-one privacy extension; it never rewrites stored data.
 
 ## Status dashboard over private rows
 
@@ -925,3 +941,8 @@ query catalogueClubById(club: clubCatalogue):
 query clubSheet(club: clubCatalogue):
   return clubSheets[club = club]
 ```
+
+N_COLUMN_READ identifies a possible one-to-one privacy extension. Put a private
+field on its existing row with `read <- policy` when it only narrows payload
+visibility; keep separate entities, lifecycles and write authority in separate
+tables. This advisory never proves equivalence or rewrites stored data.

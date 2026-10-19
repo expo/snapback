@@ -26,19 +26,19 @@ pub(super) fn exposures(bound:&Bound)->Vec<Exposure> {
     bound.schema.visible_tables().map(|(name,t)| {
         let columns=t.columns.iter().filter(|(c,_)|!t.engine_field(c)).map(|(c,k)| {
             let authority=t.written_by.get(c).map(|a|format!("; written by .{}; {}",a.owner,if a.audience{"audience readable"}else{"private to owner"})).unwrap_or_default();
-            (c.clone(),format!("{k}{authority}"))
+            (c.clone(),format!("{k}{authority}{}",t.column_reads.get(c).map_or(String::new(),|r|format!("; read <- {}; {}",r.quarry(),if r.column_row_local(){"row-local replica projection"}else{"server witnesses; online reads"}))))
         }).collect();
         let effects=[("read",t.rules.read.quarry()),("insert",t.rules.insert.quarry()),("update",t.update_rule_judged().quarry()),("delete",t.rules.delete.quarry())].into_iter().map(|(k,v)|(k.into(),v)).collect();
         let operations=bound.programs.iter().filter(|p|mentions(&serde_json::to_value(&p.program).unwrap(),name)).map(|p|format!("{} ({})",p.program.name,p.program.kind.word())).collect::<Vec<_>>();
         let mut paths=vec!["server point/list/filter/view/search/count/exists/live-refetch: ordinary ruled reads".into(),"mutation valued write images: authorized final reread; logical refusals separately unproved".into()];
         if t.is_expiring()||t.not_before.is_some(){paths.push(format!("live rows only: not before {:?}, expire {:?}; server clock gates delivery",t.not_before,t.expire));}
         if let Some(sync)=&t.sync {paths.push(format!("sync/device envelope: {}; device access uses delivered snapshot; leave {:?}",sync.line(),t.leave));}
-        if t.columns.values().any(|k|k.contains_asset()){paths.push("asset read: owning-row read rule AND applicable owner-private column authority; upload placement: insert/update authority".into());}
+        if t.columns.values().any(|k|k.contains_asset()){paths.push("asset read: owning-row read rule AND column read rule AND applicable owner-private column authority; upload placement: insert/update authority".into());}
         if let Some(through)=&t.through {paths.push(format!("read through {}.{} -> {} (capture/live reduction unproved)",name,through.reference,through.parent));}
         for m in &bound.schema.maintains {if m.source==*name||m.target==*name {paths.push(format!("derived {} -> {} (independent aggregate audience)",m.source,if m.target.starts_with("$column:"){ "maintained column" }else{&m.target}));}}
         if !t.on_delete.is_empty(){paths.push(format!("incoming referential actions bypass child rules: {:?}",t.on_delete));}
         let mut grants=Vec::new();let mut pending=Vec::new();let mut visited=BTreeSet::new();
-        for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete] {for dep in kernel::dependencies(r){pending.push((dep,r.quarry()));}}
+        for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].into_iter().chain(t.column_reads.values()) {for dep in kernel::dependencies(r){pending.push((dep,r.quarry()));}}
         while let Some((dep,predicate))=pending.pop(){if !visited.insert(dep.clone()){continue;}let Some(g)=bound.schema.table(&dep)else{continue};
             grants.push(Grant{table:dep.clone(),predicate,writers:writers(bound,&dep)});
             for r in [&g.rules.read,&g.rules.insert,&g.rules.update,&g.rules.delete]{for next in kernel::dependencies(r){pending.push((next,r.quarry()));}}

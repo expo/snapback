@@ -131,6 +131,10 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
                 _ => {}
             }
         }
+        if old.column_reads != new.column_reads {
+            steps.push(Step { path: format!("{path}.column_reads"), change: Change::RuleChange,
+                message: format!("{name}'s column read audiences change; every device re-acquires projected images") });
+        }
         if old.written_by != new.written_by || old.update_transition != new.update_transition {
             steps.push(Step { path: format!("{path}.written_by"), change: Change::RuleChange,
                 message: format!("{name}'s field authority or visibility changes; every device re-acquires projected images") });

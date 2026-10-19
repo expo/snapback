@@ -125,20 +125,23 @@ pub struct Disclosed<'a> {
     viewer: Option<String>,
     system: bool,
     public: bool,
+    column_grants: Option<std::collections::BTreeSet<String>>,
 }
 
 impl Table {
     pub fn project_fields(&self, row: Value, viewer: Option<&str>) -> Disclosed<'_> {
-        Disclosed { row, table: self, viewer: if self.written_by.is_empty() { None } else { viewer.map(str::to_owned) }, system: false, public: false }
+        Disclosed { row, table: self, viewer: if self.written_by.is_empty() && self.column_reads.is_empty() { None } else { viewer.map(str::to_owned) }, system: false, public: false, column_grants: None }
     }
 
     /// Maintenance runs on its own Runner/Meter, never on a reader's receipt.
     pub(crate) fn system_fields(&self, row: Value, _: &SystemAccess) -> Disclosed<'_> {
-        Disclosed { row, table: self, viewer: None, system: true, public: false }
+        Disclosed { row, table: self, viewer: None, system: true, public: false, column_grants: None }
     }
 }
 
 impl Disclosed<'_> {
+    pub(crate) fn with_column_grants(mut self, grants: std::collections::BTreeSet<String>) -> Self { self.column_grants = Some(grants); self }
+
     /// Authored results omit engine-recorded attribution; delivery retains it.
     pub fn for_query(mut self) -> Self { self.public = true; self }
 
@@ -147,6 +150,9 @@ impl Disclosed<'_> {
         // at emission, so a timeline transition's own reads still see them.
         if self.public && (self.table.recorded.contains_key(field) || self.table.ephemeral.is_some() && field == crate::schema::through::DEADLINE) { return false; }
         if self.system { return true; }
+        if self.table.column_reads.contains_key(field) && !self.column_grants.as_ref().map_or_else(
+            || self.table.local_column_readable(field, &self.row, self.viewer.as_deref()),
+            |grants| grants.contains(field)) { return false; }
         let Some(authority) = self.table.written_by.get(field) else { return true; };
         if authority.audience { return true; }
         let Some(viewer) = &self.viewer else { return false; };

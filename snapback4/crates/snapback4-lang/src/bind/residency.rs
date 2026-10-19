@@ -89,6 +89,9 @@ pub(super) fn execution_with_presence(schema: &Schema, program: &Program, presen
     super::timeline::aggregate_sites(schema, program, &mut fact);
     for (table, kind) in ir::write_tables(program) {
         super::timeline::write_site(schema, &table, kind, &mut fact);
+        if schema.tables.get(&table).is_some_and(|t|t.column_server_reads()) {
+            fact.sites.push(site(schema,&format!("{kind} {table}"),&table,"byId","column write result"));
+        }
         if let Some(reason) = schema.write_prediction_refusal(&table) {
             fact.sites.push(ResidencySite { site: format!("{kind} {table}"), table: table.clone(), index: String::new(),
                 kind: "source reservation".into(), class: SiteClass::Server, reason: reason.into(),
@@ -240,6 +243,8 @@ fn site(schema: &Schema, location: &str, table: &str, index: &str, kind: &str) -
     }
     let sync = schema.tables.get(table).and_then(|table| table.sync.as_ref());
     let (class, reason, rewrite) = match sync {
+        _ if schema.tables.get(table).is_some_and(|t|t.column_server_reads()) =>
+            (SiteClass::Server,format!("{kind} {table}: column read authority needs server witnesses"),"read online; the SDK falls back automatically and protected cells stay off the replica".into()),
         _ if snapback4_core::schema::timeline::partial_read(schema, table, index, &[]) =>
             (SiteClass::Horizon, format!("{kind} {table} by {index}: Following events follow their sources; a missing event or a range with an unheld kind withholds the query"),
                 "read the Following view with held cards, or answer this event read on the server".into()),

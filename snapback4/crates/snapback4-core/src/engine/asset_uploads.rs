@@ -281,6 +281,7 @@ impl Engine {
         materialize_optional_fields(&mut image, table);
         let mut runner = Runner::new(&tx, &self.schema, Context::new(principal, BTreeMap::new()).at(now), Meter::new(self.ceilings, Cut::Cap), 0);
         let allowed = runner.check_rule(table_name, Effect::Read, None, &image)?
+            && runner.column_readable(table,column,&image)?
             && (runner.context.is_system() || !table.written_by.get(column).is_some_and(|authority| !authority.audience
                 && image.field(&authority.owner).ok() != Some(&Value::Id(principal.into()))));
         drop(runner);

@@ -45,7 +45,8 @@ impl Runner<'_> {
         for (column, kind) in table.columns.iter().filter(|(_, kind)| kind.contains_asset()) {
             let Some(value) = fields.get(column) else { continue };
             // @ref LLP 3000.007#17 — explicit hidden assignments prove ownership even if the id was already in this cell.
-            let explicit = hidden_patch.is_some_and(|patch| patch.as_object().is_ok_and(|fields| fields.contains_key(column)));
+            let explicit = hidden_patch.is_some_and(|patch| patch.as_object().is_ok_and(|fields| fields.contains_key(column)))
+                && (table.column_reads.is_empty() || old.is_none() || !self.column_readable(table,column,old.unwrap())? || !self.check_rule(table_name,crate::schema::Effect::Read,None,old.unwrap())?);
             let mut before = BTreeMap::new();
             if !explicit { values(kind, old.and_then(|row| row.field(column).ok()), &mut before); }
             fields.insert(column.clone(), self.asset_facts(table_name, column, kind, value, &before)?);

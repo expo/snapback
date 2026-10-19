@@ -96886,3 +96886,30 @@ The focused unit regression distinguishes identity from integrity and preserves
 source/native/worker byte changes as new executable content. Proof hosts also
 honor their explicit binary environment so qualification cannot accidentally
 select a stale checkout release binary.
+
+## 2026-10-19 — COLR column read rules (0.4.35 workstream)
+
+LLP 3000.036 §22 received independent READY design reviews from Muse
+(muse-spark-1.3-contributor, high) and fresh Codex (gpt-6.1-sol, high);
+verbatim artifacts and content digests are under llp/reviews/3000.036-colr-r3.*.
+Column payload authority is row read AND column read AND owner-private authority.
+Whole rows omit denied fields; explicit scalars use optional/null lowering.
+Row-local rules sync recipient projections. Server-witness cells never enter
+replicas; ordinary queries use automatic online fallback, with honest offline
+unavailability. Structural dependencies on protected payloads refuse admission.
+The ordinary client contract and hooks need no new policy vocabulary.
+
+Blind asset assignments must prove uploader ownership even for a guessed
+existing protected cell; selector changes cannot predict acquisition of an
+omitted value. The device regression caught default materialization concealing
+that omission and now queues the transition. Captured parent identity excludes
+payload gates, so a child column policy can deploy/rollback without recapture.
+DORM owns reverse projections, forward catch-up, renames and dormant inspection;
+SEC4 owns general campaign quality and note ranking.
+
+Locked Linux wasm: 2,401,923 B raw / 732,235 B gzip. Whole-artifact delta
+from Integration 18: +16,081 B raw / +5,222 B gzip. Set budget 732,735 B,
+measurement plus exactly 500 B platform headroom, for column-read schema and
+capability decoding, row-local projection and omission-aware prediction. No
+runtime ceiling changes and no independent subcomponent size attribution.
+Qualification results remain in the workstream report until complete.

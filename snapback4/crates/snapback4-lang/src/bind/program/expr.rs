@@ -410,7 +410,7 @@ impl Binder<'_> {
                 if name == "pending" && self.returned_data && info.maintained.as_ref().is_some_and(|m| m.row_key.is_some()) {
                     return Ok((Expr::Builtin { builtin: Builtin::OptionalField { field: name.into() }, args: vec![base] }, Ty::Bool.optional()));
                 }
-                if let Some(column) = info.decl.columns.iter().find(|column| column.name == name && column.written_by.is_some() && !column.readable_by_audience) {
+                if let Some(column) = info.decl.columns.iter().find(|column| column.name == name && self.schema.tables.get(&info.decl.name).is_some_and(|t|t.read_optional(name))) {
                     return Ok((Expr::Builtin { builtin: Builtin::OptionalField { field: name.into() }, args: vec![base] }, Ty::from_scalar(&column.type_).optional()));
                 }
                 if name == "id" {

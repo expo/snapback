@@ -255,6 +255,26 @@ def visibleRowsAt (sch : Schema) (s : Store) (v : List Nat) (now : Int)
     (t : String) : List Row :=
   (s t).filter (readableAt sch s v now t)
 
+/-- Column gates narrow the visible row's payload, independently of its identity. -/
+-- @ref LLP 3000.036#222-observations-planning-and-derivations — filter payload before the evaluator sees the row.
+def projectColumns (td : TableDecl) (s : Store) (v : List Nat) (r : Row) : Row :=
+  { r with cols := r.cols.filter fun p => match td.columnReads.lookup p.1 with
+    | none => true
+    | some rule => rule.eval s v { self := some r } }
+
+def disclosedRowsAt (sch : Schema) (s : Store) (v : List Nat) (now : Int)
+    (t : String) : List Row :=
+  match sch.table? t with
+  | none => []
+  | some td => (visibleRowsAt sch s v now t).map (projectColumns td (openedStore sch s now) v)
+
+theorem projected_column_authorized {td : TableDecl} {s : Store} {v : List Nat}
+    {r : Row} {p : String × Scalar} (h : p ∈ (projectColumns td s v r).cols) :
+    (match td.columnReads.lookup p.1 with
+      | none => true
+      | some rule => rule.eval s v { self := some r }) = true := by
+  exact (List.mem_filter.mp h).2
+
 /-- What a read can observe: the visible rows of each table. -/
 abbrev View := String → List Row
 

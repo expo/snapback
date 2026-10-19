@@ -75,7 +75,7 @@ impl Runner<'_> {
                 self.meter.heap(super::write_target::row_copy_ceiling(target))?;
             }
             let value = live.map(|value| {
-                    self.disclosed_row(target,value.clone()).into_value().field(&field.column).cloned()
+                    target.project_fields(value.clone(),Some(&self.context.viewer)).into_value().field(&field.column).cloned().map_err(RuntimeError::from)
                 }).transpose()?.unwrap_or(Value::Null);
             self.meter.heap(80 + path.len() as u64 + super::write_target::column_copy_ceiling(&target.columns[&field.column]))?;
             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert(path.clone(), value); }

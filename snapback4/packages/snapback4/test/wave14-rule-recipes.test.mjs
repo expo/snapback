@@ -60,7 +60,7 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
   }
   async function project(t, marker, sourceBlocks = recipes, {schedules = false} = {}) {
     const source = sourceBlocks.find(s=>s.includes(marker)); assert.ok(source, marker);
-    const cwd = join(dir, marker.replace(/\W/g,'_')); mkdirSync(join(cwd,'snapback'),{recursive:true});
+    const cwd = join(dir, marker.replace(/\W/g,'_')+'-'+Math.random().toString(36).slice(2)); mkdirSync(join(cwd,'snapback'),{recursive:true});
     writeFileSync(join(cwd,'snapback/schema.q'), source);
     const checked = JSON.parse(invoke(process.execPath,[cliPath,'check','--json'],cwd,env));
     assert.equal(checked.ok,true);
@@ -85,6 +85,17 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     const read = async (op,who,args={})=>{const reply=await query(op,who,args);assert.ok('data' in reply,JSON.stringify(reply));return reply.data;};
     return {cwd,host,post,seed,mutate,sent,failed,query,read};
   }
+  await t.test('column privacy keeps one public row and omits private fields in exact guide sources', async t=>{
+    for (const sourceBlocks of [recipes,blocks('language')]) {
+      const p=await project(t,'table identities:',sourceBlocks);
+      const saved=await p.sent('createIdentity','alice',{name:'Alice',notes:'private notes'});
+      assert.equal(saved.notes,'private notes');
+      const own=await p.read('identity','alice',{identity:saved.id});assert.equal(own.notes,'private notes');assert.equal(own.contact,null);
+      const publicRow=await p.read('identity','bob',{identity:saved.id});
+      assert.equal(publicRow.id,saved.id);assert.equal(publicRow.name,'Alice');
+      assert.equal(Object.hasOwn(publicRow,'notes'),false);assert.equal(Object.hasOwn(publicRow,'contact'),false);
+    }
+  });
   await t.test('the compact opening recipe grants only its owner', async t=>{
     const p=await project(t,'table ownRuleRecords:');
     await p.sent('ownRuleRecord','alice');

@@ -202,7 +202,7 @@ impl Parser {
         self.take(":")?;
         self.newline()?;
         self.take_kind(Kind::Indent)?;
-        let mut table = TableDecl { receipts: None, ephemeral: None, search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, not_before: None, public: None, sync: None, online_only: false, site };
+        let mut table = TableDecl { column_reads: Vec::new(), receipts: None, ephemeral: None, search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, not_before: None, public: None, sync: None, online_only: false, site };
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -392,6 +392,17 @@ impl Parser {
                 }
                 self.newline()?;
                 table.final_exists.push((value, site));
+                Ok(())
+            }
+            "read" if self.peek_at(1).value == "(" => {
+                let site = self.take("read")?.site;
+                self.take("(")?;
+                let mut columns = vec![self.word()?.value];
+                while self.maybe(",") { columns.push(self.word()?.value); }
+                self.take(")")?;
+                let value = self.parse_focal_rule_value("read", &site)?;
+                self.newline()?;
+                table.column_reads.push((columns, RuleDecl { effect: Effect::Read, bindings: Vec::new(), value, site }));
                 Ok(())
             }
             "read" | "insert" | "update" | "delete" => {
@@ -631,7 +642,7 @@ impl Parser {
                 return Err(crate::diag::Diagnostic::new(&name.site, "E_SEQUENCE_PARENT", "sequence by needs a parent reference column", "ordinal: sequence by conversationId; declare conversationId: conversations").guide("types"));
             };
             self.newline()?;
-            return Ok(ColumnDecl { on_delete: None, written_by: None, readable_by_audience: false, sequence: Some(parent), maintained: None, name: name.value,
+            return Ok(ColumnDecl { read: None, on_delete: None, written_by: None, readable_by_audience: false, sequence: Some(parent), maintained: None, name: name.value,
                 type_: ScalarType { kind: TypeKind::Int, optional: false }, default: None, site: name.site });
         }
         let aggregate = (self.peek_at(2).kind == Kind::Word
@@ -645,7 +656,7 @@ impl Parser {
             let filter = if self.maybe("where") { Some(self.filtered_predicate(&source, &[], true)?) } else { None };
             let by = if self.maybe("by") { self.maybe("."); self.word()?.value } else { String::new() };
             self.newline()?;
-            return Ok(ColumnDecl { on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: Some(ColumnAggregate { source, of, filter, by }),
+            return Ok(ColumnDecl { read: None, on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: Some(ColumnAggregate { source, of, filter, by }),
                 name: name.value, type_: ScalarType { kind: TypeKind::Int, optional: false }, default: None, site: name.site });
         }
         let type_ = self.parse_type(true)?;
@@ -660,7 +671,7 @@ impl Parser {
             return Err(syntax_with(&self.peek().site, "the optional marker belongs on the reference type before its delete action",
                 format!("{}: {} on delete {action}", name.value, print::scalar_type(&optional))).guide("writes"));
         }
-        let default = if self.maybe("default") { Some(self.expression(0, &["written", "readable"])?) } else { None };
+        let default = if self.maybe("default") { Some(self.expression(0, &["written", "readable", "read"])?) } else { None };
         let mut written_by = None;
         let mut readable_by_audience = false;
         let authority_error = || crate::diag::Diagnostic::new(&name.site, "E_FIELD_AUTHORITY",
@@ -675,9 +686,10 @@ impl Parser {
             readable_by_audience = true;
         }
         if self.at("written") || self.at("readable") { return Err(authority_error()); }
+        let read = if self.maybe("read") { Some(self.parse_focal_rule_value("read", &name.site)?) } else { None };
         if self.at("on") { return Err(on_delete_error(&self.peek().site, &name.value)); }
         self.newline()?;
-        Ok(ColumnDecl { on_delete, sequence: None, written_by, readable_by_audience, maintained: None, name: name.value, type_, default, site: name.site })
+        Ok(ColumnDecl { read, on_delete, sequence: None, written_by, readable_by_audience, maintained: None, name: name.value, type_, default, site: name.site })
     }
 
     fn parse_on_delete(&mut self, column: &str) -> Fallible<(OnDelete, Site)> {

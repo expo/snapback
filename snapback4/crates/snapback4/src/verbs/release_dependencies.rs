@@ -31,7 +31,7 @@ impl Dependencies {
         let t = schema.table(table);
         self.0.insert(format!("{table}.column.{column}"), json!([
             t.is_some_and(|t|t.columns.contains_key(column)), t.and_then(|t|t.defaults.get(column)),
-            t.and_then(|t|t.written_by.get(column)), t.and_then(|t|t.maintained.get(column)),
+            t.and_then(|t|t.written_by.get(column)), t.and_then(|t|t.column_reads.get(column)), t.and_then(|t|t.maintained.get(column)),
             t.and_then(|t|t.recorded.get(column))]));
         self.0.insert(format!("{table}.domain.{column}"),json!([
             t.and_then(|t|t.columns.get(column)),

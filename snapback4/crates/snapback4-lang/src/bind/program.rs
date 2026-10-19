@@ -584,6 +584,12 @@ impl<'a> Binder<'a> {
     fn select_index(&mut self, info: &'a TableInfo, read: &ReadExpr, mode: ReadMode, out: &mut setup::Body) -> Fallible<(Vec<(Option<String>, Expr, Ty)>, ast::IndexDecl, String)> {
         // @ref LLP 3000.013#2.2 — retain bound keys for type selection and final lowering.
         // No cloned expression pass: nested lookups must not multiply binder work.
+        for key in &read.keys {
+            if let Some(field) = &key.column
+                && self.schema.tables.get(&read.table).is_some_and(|t|t.column_reads.contains_key(field)) {
+                return Err(super::column_reads::refusal(&key.site,format!("{}.{} is protected and cannot supply a lookup key or raw point equality",read.table,field)));
+            }
+        }
         let mut keys = Vec::<(Option<String>, Expr, Ty)>::new();
         let mixed = read.keys.iter().any(|key| key.column.is_some()) && read.keys.iter().any(|key| key.column.is_none());
         let types = if mixed {

@@ -165,6 +165,7 @@ pub fn analyze(bound:&Bound)->Report {
         verdicts.push(Verdict{invariant:inv.clone(),status,direct_rule:direct,paths,reasons,counterexample:None,obligations});
     }
     let mut notes=lints::notes(bound,&exposures);
+    notes.extend(super::column_reads::notes(&bound.schema));
     let missing=adoption::missing(bound);
     if !missing.is_empty() {notes.push(Diagnostic::new(&Site::default(),"N_SECURITY_INTENT",format!("{} tables have access rules and no security invariants: {}; declare the spec's privacy rules as invariants (`guide security`)",missing.len(),missing.join(", ")),"review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted").guide("security"));}
     let roles=audit::roles(&exposures);

@@ -40,7 +40,7 @@ impl Runner<'_> {
     }
 
     fn insert_mode(&mut self, table_name: &str, row: Supplied, if_absent: bool) -> Result<bool, RuntimeError> {
-        if self.device && self.schema.tables[table_name].not_before.is_some() {
+        if self.device && (self.schema.tables[table_name].not_before.is_some() || self.schema.tables[table_name].column_server_reads()) {
             return Err(RuntimeError::Prediction(
                 "a mutation touching a `not before` table runs on the server".into(),
             ));
@@ -252,6 +252,12 @@ impl Runner<'_> {
         self.commit_receipt_counter(table_name, &row)?;
         let row = self.prepare_event_slots(table_name, None, row, image_bytes)?;
         validate_row(self.schema, table_name, &row)?;
+        // A predicted row retains the same omissions as a delivered projection.
+        let mut row = row;
+        if self.device {
+            let hidden: Vec<_> = table.column_reads.keys().filter(|field| !table.local_column_readable(field, &row, Some(&self.context.viewer))).cloned().collect();
+            if let Value::Row(fields) | Value::Map(fields) = &mut row { for field in hidden { fields.remove(&field); } }
+        }
         let entries = self.maintain_scratch(self.contribution_heap(table), |runner| {
             runner.tx.put(table_name, table, &row, None)
         })?;
@@ -261,7 +267,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Supplied) -> Result<(), RuntimeError> {
-        if self.device && self.schema.tables[table_name].not_before.is_some() {
+        if self.device && (self.schema.tables[table_name].not_before.is_some() || self.schema.tables[table_name].column_server_reads()) {
             return Err(RuntimeError::Prediction(
                 "a mutation touching a `not before` table runs on the server".into(),
             ));
@@ -295,7 +301,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Supplied) -> Result<(), RuntimeError> {
-        if self.device && self.schema.tables[table_name].not_before.is_some() {
+        if self.device && (self.schema.tables[table_name].not_before.is_some() || self.schema.tables[table_name].column_server_reads()) {
             return Err(RuntimeError::Prediction(
                 "a mutation touching a `not before` table runs on the server".into(),
             ));
@@ -382,7 +388,12 @@ impl Runner<'_> {
             && !self.check_rule(table_name, Effect::Insert, None, &new)? {
             return Err(if readable { RuntimeError::Rule { table: table_name.into(), effect: Effect::Update } } else { self.no_write_target() });
         }
-        let new = self.with_asset_facts(table_name, new, Some(&old), (!readable).then_some(patch))?;
+        if self.device {
+            let table=&self.schema.tables[table_name];
+            let hidden: Vec<_>=table.column_reads.keys().filter(|field|!table.local_column_readable(field,&new,Some(&self.context.viewer))).cloned().collect();
+            if let Value::Row(fields)|Value::Map(fields)=&mut new { for field in hidden { fields.remove(&field); } }
+        }
+        let new = self.with_asset_facts(table_name, new, Some(&old), (!readable || !self.schema.tables[table_name].column_reads.is_empty()).then_some(patch))?;
         if let Err(error) = super::validate::validate_projection(self.schema, table_name, &new, self.device.then_some(self.context.viewer.as_str())) { return Err(if readable { error } else { self.no_write_target() }); }
         self.check_constraints(table_name, Some(&old), &new, Effect::Update)?;
         let new = self.prepare_event_slots(table_name, Some(&old), new, copy)?;
@@ -397,7 +408,7 @@ impl Runner<'_> {
     }
 
     pub(super) fn delete(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
-        if self.device && self.schema.tables[table_name].not_before.is_some() {
+        if self.device && (self.schema.tables[table_name].not_before.is_some() || self.schema.tables[table_name].column_server_reads()) {
             return Err(RuntimeError::Prediction(
                 "a mutation touching a `not before` table runs on the server".into(),
             ));

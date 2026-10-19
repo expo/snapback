@@ -292,6 +292,7 @@ pub struct RuleDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ColumnDecl {
+    pub read: Option<Expr>,
     /// `on delete restrict | cascade | set null` on a reference (LLP 3000.039).
     pub on_delete: Option<(OnDelete, Site)>,
     pub sequence: Option<String>,
@@ -406,6 +407,7 @@ pub struct ReceiptsDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TableDecl {
+    pub column_reads: Vec<(Vec<String>, RuleDecl)>,
     pub receipts: Option<ReceiptsDecl>,
     pub ephemeral: Option<EphemeralDecl>,
     pub search: Vec<String>,
@@ -626,4 +628,10 @@ pub struct InvariantDecl {
     pub column: Option<String>,
     pub value: Expr,
     pub site: Site,
+}
+
+impl TableDecl {
+    pub fn column_read_values_mut(&mut self) -> impl Iterator<Item = &mut Expr> {
+        self.columns.iter_mut().filter_map(|c| c.read.as_mut()).chain(self.column_reads.iter_mut().map(|(_,r)| &mut r.value))
+    }
 }

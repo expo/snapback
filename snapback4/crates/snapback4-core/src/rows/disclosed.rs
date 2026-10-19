@@ -9,7 +9,7 @@ use crate::schema::ColumnType;
 pub fn actual_size(table: &Table) -> bool {
     // A read-through child inherits its parent's rule and lifetime; it is never public.
     table.rules.read.is_uniformly_readable() && !table.read_lifetime_sensitive() && table.through.is_none()
-        && table.recorded.is_empty() && table.written_by.values().all(|a| a.audience)
+        && table.column_reads.is_empty() && table.recorded.is_empty() && table.written_by.values().all(|a| a.audience)
 }
 
 /// Public images use the metered store adapter; private images reserve before decode.
