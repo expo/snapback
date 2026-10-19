@@ -1,0 +1,11 @@
+{
+  "started": "2026-10-19T12:42:31.534868+00:00",
+  "amendment_sha256": "8e4286d42e5d984c67081128340f025b1fe6f4865a3b3a28f2ee843fde67c979",
+  "brief": "llp/reviews/3000.036-colr-r2.brief.md",
+  "models": [
+    "muse-spark-1.3-contributor high",
+    "gpt-6.1-sol high"
+  ],
+  "scope": "LLP 3000.036 section 22",
+  "changes": "22.8 exact contract; dispositions to round one Muse findings"
+}
