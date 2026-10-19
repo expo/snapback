@@ -110,6 +110,7 @@ pub(super) fn handle(mut request: Request, shared: &Shared) {
         // the current host clock, as session resolution does (including dev jumps).
         let engine = producing_engine(shared);
         shared.owner.as_ref().expect("authorized owner").path().and_then(|_| {
+            // @ref LLP 3000.000.000.001#8-wave-18-developer-loop-amendment-dx4 — live mint and resolution use the same host clock.
             let now = shared.now();
             identity::service_session(engine.store(), &mint.service, now, mint.days)
         })

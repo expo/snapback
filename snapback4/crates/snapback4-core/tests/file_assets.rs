@@ -215,8 +215,9 @@ fn placement_diagnostics_name_own_home_but_never_another_uploaders() {
     let WriteState::Failed { why, .. } = failed else {panic!("second home admitted")};
     assert_eq!(why.code, "E_ASSET_PLACED");
     assert!(why.message.contains(&format!("receipts[{}].scan", home.field("id").unwrap().as_str().unwrap())), "{}",why.message);
-    let args = BTreeMap::from([("scan".into(),handle(&asset.id))]);
-    let failed = e.mutate("file",None,Context::new("bob",args).with_ids(["foreign-home".into()]).at(3)).unwrap().state;
+    // Exercise placement directly; the file mutation first reads metadata in its guard.
+    let args = BTreeMap::from([("notes".into(),handle(&asset.id))]);
+    let failed = e.mutate("note",None,Context::new("bob",args).with_ids(["foreign-home".into()]).at(3)).unwrap().state;
     let WriteState::Failed { why, .. } = failed else {panic!("foreign upload admitted")};
     assert_eq!(why.code,"E_ASSET_UNKNOWN");assert!(why.message.contains("only the uploading principal"));
     assert!(!why.message.contains(home.field("id").unwrap().as_str().unwrap()));

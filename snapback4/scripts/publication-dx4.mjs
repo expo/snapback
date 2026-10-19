@@ -26,7 +26,12 @@ export async function proveDX4(directory) {
     writeFileSync(join(cwd,"personas.mjs"),fences(personas,"js")[0]);
     writeFileSync(join(cwd,"local.mjs"),local);
     await run(["local.mjs"]);
-    const start=await card("start"),cheat=await card("cheatsheet");assert.match(start,/staging/);assert.match(cheat,/staging/);
+    // Builders first see the default truncated view, not --full.
+    for (const name of ["start","cheatsheet","personas"]) {
+      const reply=spawnSync(process.execPath,[cli,"guide",name],{cwd,env,encoding:"utf8",timeout:30000});
+      assert.equal(reply.status,0,reply.stderr);assert.match(reply.stdout,/guide staging/,`default guide ${name} must surface staging`);
+      if(name==="cheatsheet") {assert.match(reply.stdout,/deploy staging --staging/);assert.match(reply.stdout,/serve staging/);}
+    }
     return {status:"passed",recipes:"verbatim installed guide",uploads:"file hint, one home, foreign upload refusal, reference and download",staging:"discoverable, custom seat and merged args",dev:"memory mint selection, clock and reset recovery",upgrade:"project warning scan"};
   } finally {rmSync(cwd,{recursive:true,force:true});}
 }

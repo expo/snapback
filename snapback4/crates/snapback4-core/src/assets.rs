@@ -815,6 +815,7 @@ impl Tx<'_> {
         }
         // Release detaches the previous home. The uploader may reclaim
         // the still-present bytes until the garbage collector reserves them.
+        // @ref LLP 3000.038#12-wave-18-upload-discovery-and-placement-advice-dx4 — only the uploader (checked above) learns its own home.
         match &asset.home {
             Some((t, r, c)) if (t.as_str(), r.as_str(), c.as_str()) == (table, row_id, column) => {}
             Some((t, r, c)) => return Err(RuntimeError::Asset { code: "E_ASSET_PLACED", message: format!("asset {id} already belongs to {t}[{r}].{c}; one asset, one home. Reference that row, or upload fresh bytes as the placing viewer for a second home") }),

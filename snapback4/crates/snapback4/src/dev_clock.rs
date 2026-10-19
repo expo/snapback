@@ -2,6 +2,7 @@
 use snapback4_core::error::Refusal;
 use std::time::{Duration, Instant};
 
+// @ref LLP 3000.000.000.001#8-wave-18-developer-loop-amendment-dx4 — preserve expiry tests and tell callers how to recover.
 pub(crate) const SESSION_NOTICE: &str = "Time travel also advances session expiry and unplaced-upload collection: seven-day password sessions may now be expired. Sign in again after the jump and upload unplaced bytes after it; never replay an ambiguous clock advance. Password-only dev clock tools require --unsafe-dev-doors; for real-user previews use guide staging (MIG staging clock).";
 
 const MAX_TIME: i64 = snapback4_core::value::I53_MAX;

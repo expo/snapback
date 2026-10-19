@@ -96886,3 +96886,27 @@ The focused unit regression distinguishes identity from integrity and preserves
 source/native/worker byte changes as new executable content. Proof hosts also
 honor their explicit binary environment so qualification cannot accidentally
 select a stale checkout release binary.
+
+## 2026-10-19 — DX4: find staging before opening dev doors
+
+Wave-18 fixes #3/#4/#7/#8 put real-user staging in the default start, cheatsheet
+and personas loop. Password-only proof hosts echo closed-door guidance to the
+caller. Role provisioning accepts a service seat and merges custom arguments;
+first-admin is replayable. Per-project upgrades identify closed-door scripts and
+persistent startDev calls. Store ownership, clock/reset and identity refusals
+explain the recovery action. Memory dev hosts support the same private mutual
+proof as persistent hosts; live service tokens use the host clock. No public
+fixture/token door or weaker staging identity policy was added.
+
+Uploads now point document callers at explicit file verification and explain
+uploader ownership, collection and one home. The complete installed guide
+recipe exercises a PDF, refusals, references and downloads. The packed DX4 hook
+also checks default guide output, custom provisioning, memory tokens, clock
+recovery and upgrade scans. The new recipe's mutations are online-only; its
+authoring census adds two `never` entries and no predicted private write sites.
+
+LLP 3000.000.000.001 §8 and LLP 3000.038 §12 preserve the decisions. Muse and
+a fresh Codex session both returned READY in round 2; verbatim evidence is in
+`llp/reviews/dx4/`. MIG owns the staging clock, SEC4 the security checks and
+QRY read semantics. Final qualification, copied-app warning transcripts and
+limits are recorded in the root WORKSTREAM-REPORT.md. No bump or push.

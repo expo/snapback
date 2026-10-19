@@ -15,17 +15,14 @@ query whoAmI():
 `use identity guests` admits only guests; without `use identity`, both methods are disabled.
 
 ## Seed accounts headlessly
-
-For shared previews, acceptance with real users and `probe:serve`, use
-`snapback4 guide staging`: its complete schema and `startServe({seedUsers})`
-recipe create password accounts and operator-provisioned roles on a
-`deploy --staging` store. It also includes replayable first-admin provisioning.
+For shared previews, acceptance with real users and `probe:serve`, use `snapback4 guide staging`:
+its complete schema and `startServe({seedUsers})` recipe create password accounts and operator-provisioned
+roles on a `deploy --staging` store, including replayable first-admin provisioning.
 The staging clock is covered by `guide time` (MIG); no public time hook is needed.
 
-For a local-only identity experiment, run `snapback4 dev` with the schema above,
-then save this as `seed.mjs` beside `snapback/`. Set `SEED_PASSWORD` privately.
-Reruns log in to the same account; a failed login tries signup, which refuses
-an already registered email without changing its password or authority.
+For a local-only identity experiment, run `snapback4 dev` with the schema above, then save this as
+`seed.mjs` beside `snapback/`. Set `SEED_PASSWORD` privately. Reruns log in to the same account; failed
+login tries signup, which refuses registered emails without changing their password or authority.
 
 ```js
 import { signup, login } from "snapback4/auth";
@@ -45,10 +42,8 @@ try {
 } finally { await client.signOut(); }
 ```
 
-Use one client per account; require `state: "sent"` for a successful mutation.
-Signup grants no role. Never use a caller-selected role or first-claim mutation
-for privileged onboarding. There is no `snapback4 auth create`; `/seed` and
-`run --as` do not create password credentials.
+Use one client per account; require `state: "sent"` for a successful mutation. Signup grants no role. Never use a caller-selected role or first-claim mutation for privileged onboarding.
+There is no `snapback4 auth create`; `/seed` and `run --as` do not create password credentials.
 
 Ordinary guest and password sessions last seven days. `refreshSession` atomically exchanges a live token;
 `logoutAll` revokes every session for the principal. The client refreshes near expiry and uses an in-memory

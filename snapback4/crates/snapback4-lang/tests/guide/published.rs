@@ -24,7 +24,7 @@ fn shipped_files() -> BTreeSet<String> {
 // admit the unshipped adoption instructions that prompted this regression.
 const APP_FILES: &[&str] = &[
     // The executable auth-card example and the installed social starter seed.
-    "seed.mjs", "scripts/seed.mjs",
+    "seed.mjs", "scripts/seed.mjs", "placements.mjs",
     // Complete application scripts executed from the packed staging card.
     "staging.mjs", "first-admin.mjs", "staging-users.json",
     // Engine outputs and the Exact app consumer described by the wire card.
