@@ -85,7 +85,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
     let rows=readback(&proposed)?;
     let actors=histories::actors(bound,&rows);
     let rosters=bound.schema.visible_tables().filter(|(name,t)|t.columns.contains_key("role")||super::super::privilege::global_principal(bound,name).is_some()&&!super::super::privilege::role_columns(bound,name).is_empty()).map(|(name,_)|name.clone()).collect::<BTreeSet<_>>();
-    let creators=bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native&&ir::write_tables(&p.program).iter().any(|(_,kind)|matches!(*kind,"insert"|"upsert"))).collect::<Vec<_>>();
+    let creators=bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native&&!bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral)&&ir::write_tables(&p.program).iter().any(|(_,kind)|matches!(*kind,"insert"|"upsert"))).collect::<Vec<_>>();
     let created=creators.iter().flat_map(|p|ir::write_tables(&p.program)).filter(|(_,kind)|matches!(*kind,"insert"|"upsert")).map(|(t,_)|t).collect::<BTreeSet<_>>();
     let mut engine=engine_on_store(bound,&BTreeMap::new(),Vec::new(),proposed.store().empty_with_asset_ledger().map_err(|e|e.to_string())?)?;
     let mut pending=rows.iter().filter(|(t,_)|rosters.contains(*t)||!created.contains(*t)).flat_map(|(t,rs)|rs.iter().map(move|r|(t.clone(),r.clone()))).collect::<Vec<_>>();

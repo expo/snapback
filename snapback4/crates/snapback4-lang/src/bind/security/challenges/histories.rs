@@ -315,7 +315,7 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     let actors=actors(bound,&initial);
     let probes=Vec::new();
     let mut groups=Vec::new();
-    for bp in bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native){
+    for bp in bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native&&!bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral)){
         let cases=fixture_cases(&bp.program,&initial,&actors,out);
         let mut group=relationship_candidates(bound,&bp.program,&initial,&actors,&cases,fixture,out);
         group.extend(role_candidates(bound,&bp.program,&initial,&actors,&cases,fixture,out));

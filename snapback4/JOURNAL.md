@@ -96925,3 +96925,12 @@ the exact safe transaction has a regression. Saved refutation records deduplicat
 initial observations while retaining complete supporting rows, including the
 600-row regression. Packed policy qualification counts actual native or HTTP
 challenges separately and retains the existing ephemeral-fork coverage gap.
+
+Packed social follow-up supersedes the earlier ephemeral-fork limitation:
+fixture copies now retain independent hub rows/indexes, deadlines, quota
+accounting/limits and epoch/ring state under the hub lock, without a publisher.
+A mismatched store generation refuses. Durable campaigns run in mixed schemas;
+ephemeral mutation histories and external presence are still explicit gaps.
+The core regression verifies copied rows, deadlines, global capacity, independent
+delete/write/sweep, unchanged live publisher and generation mismatch refusal.
+The exact social starter also has a native campaign regression.

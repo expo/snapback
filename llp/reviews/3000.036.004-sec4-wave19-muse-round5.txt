@@ -1,0 +1,27 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+Static review of the committed delta is complete; focused language regression suites are still executing and their results will determine the final verdict.READY — source review of `afcff3d2d7` (range `4be5ffa59e..afcff3d2d7`).
+
+No material correctness, security, false-positive, or regression blockers found in the committed delta. I did not open prior reviews or `WORKSTREAM-REPORT.md`. Governing inputs read: [AGENTS.md](/home/ccheever/projects/sb4-b18-sec4/snapback4/AGENTS.md), §13.7 plus clarifications in the LLP diff, and bakeoff-day2 lines 263–369.
+
+What I verified, requirement by requirement:
+
+- Authored seed/fixture catches fail. `trusted_reads` runs for authored fixtures ([challenges.rs](snapback4/crates/snapback4-lang/src/bind/security/challenges.rs), called from `fixture_observers`), and `$fixture.assertion` is now `AuthoredFixtureTrace`, not supplemental. Discharge skip via `implies(read, policy)` is sound, and row sampling past 1000 is explicit, not silent.
+- Synthetic stays supplemental. `remember` persists only `is_reachable()` origins; the unit test in [record.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4/src/verbs/security/record.rs) proves synthetic witnesses are dropped and witness-free reruns keep failures.
+- Empty fixtures generate. `populated_fixture` gate in [testing.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4/src/verbs/testing.rs) falls back to `generated_campaign`; populated authored fixtures stay selected.
+- Generated starts preserve insertion and creator coupling. [generated.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/security/challenges/generated.rs) bootstraps only insert-admitted actors (a candidate never authorizes itself), then executes authored creators via `mutate`, preserving requires, copies, defaults, and role checks. Deny-gated tables stay explicitly uncovered.
+- Exact evidence binding, no cached proof. Sources are read before compile (testing.rs:20–21), fixtures are snapshotted once into private disposable scratch including followed-symlink bytes, and `remember` re-fingerprints originals before persisting — any mid-run edit or symlink-target change fails loudly. Only failure-eligible witnesses persist; passing runs cache nothing; prior witnesses merge first-wins under an identical fingerprint.
+- Escalation visibility and naming. Short output keeps `max(5, N_PRIVILEGE_ESCALATION count)` with escalation sorted first, so every escalation note survives; risk naming ranks roles by admitted-gate count, most-privileged first ([privilege.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/security/privilege.rs)).
+- Deploy demand. `release_loop` runs on every deploy including `--check`, prints exposure counts, and demands `test` with the exact `--source`/`--fixture` selection when no matching completed campaign exists; it never vetoes activation.
+- Truthful histories. Dedup keys on the operation/viewer path (`trace_key`), not length; `relationship_candidates` front-loads genuinely admitted principal transfers; declined duplicates can no longer mutate a stored witness (bool-returning `violation`).
+- Attribution controls. `coupled()` resolves Const/Let aliases, treats unknown/reassigned objects as coupled, and skips only counterfactual alternates — real typed payloads and committed transitions still run. Nullable role columns still get two actors per role; text-guard literals from `require` comparisons feed history cases (047 `registerStaff`).
+
+Regressions observed passing in this session (with the mandated cargo env, no `scripts/test.sh`):
+
+- `cargo test -p snapback4-lang --test security_wave19 --test security_histories --test security_sec4` — exit 0; `security_wave19` 12/12, including copied-owner non-attribution, cold-approval copies, assignee guards, committed role-change histories, and two-actors-per-nullable-role.
+- `cargo test -p snapback4 --test security_wave19` — 7/7, including empty-fixture generation, source/fixture-change invalidation, symlink-target invalidation, source-edit-during-test non-persistence, deploy demand, escalation-cap survival, and the 600-row sub-megabyte record with all rows retained.
+- `cargo test -p snapback4 --test day5_evidence` — 7/7.
+
+Non-blocking notes, not verdict items: the record-merge key omits history args (harmless across deterministic identical-input runs); the escalation cap counts only `N_PRIVILEGE_ESCALATION` (sufficient since those notes sort first); mixed independent/coupled writers stay conservatively uncovered, which the addendum explicitly sanctions; there is no dedicated 034 judge/coach-overlap test, but the recipient-guard mechanism is covered.
+
+Source readiness is distinct from qualification: full renewed cross-platform qualification is separately pending and not claimed here, and I ran only the focused suites above, not the complete battery.

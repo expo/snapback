@@ -384,6 +384,7 @@ fn materialize_arguments(engine:&mut Engine,args:&BTreeMap<String,ir::ArgType>,v
 /// Fixture-free campaigns retain empty-start bootstraps and populated role worlds.
 /// The two initial states share the existing 512-single/512-pair work envelope.
 pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
+    for (name,_) in bound.schema.visible_tables().filter(|(_,t)|t.ephemeral.is_some()){campaign.unsupported.insert(format!("ephemeral {name}: generated memory populations and ephemeral mutation histories remain uncovered; durable campaigns use isolated hub copies"));}
     campaign.history_limit=64;campaign.generated_fixture=false;
     if !campaign.reserve(1){return;}
     match engine_with(bound,&BTreeMap::new(),Vec::new()){
@@ -422,6 +423,7 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
     let quota=(8192/eligible.max(1)).clamp(1,512);let mut remaining=8192usize;
     for p in &bound.programs{
         if !matches!(p.program.kind,ProgramKind::Query|ProgramKind::Mutation)||p.program.native{campaign.unsupported.insert(format!("{}: trusted/system/opaque operation",p.program.name));continue;}
+        if bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral){campaign.unsupported.insert(format!("{}: ephemeral mutation history is not covered by the durable campaign",p.program.name));continue;}
         let target=bound.schema.visible_tables().find(|(t,_)|super::audit::mentions(&serde_json::to_value(&p.program).unwrap(),t)).or_else(||bound.schema.visible_tables().next()).map(|(t,_)|t.clone());
         let Some(target)=target else{campaign.unsupported.insert(format!("{}: no table population for generated arguments",p.program.name));continue;};
         let dummy=Invariant{table:target,target:"read".into(),column:None,predicate:"allow".into(),site:crate::Site::default(),policy:Some(RuleExpr::Allow),operation:Some(p.program.name.clone()),requirements:Vec::new(),syntax:None,unsupported:None};

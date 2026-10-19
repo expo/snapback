@@ -92,3 +92,19 @@ fn a_post_insert_guard_through_the_returned_row_preserves_owner_coupling(){
  let mut c=Campaign::default();challenges::fixture_observers(&b,&e,&mut c);
  assert!(c.violations.is_empty(),"{c:?}");assert!(c.unsupported.iter().any(|s|s.contains("creator/guard coupling")),"{c:?}");
 }
+
+#[test]
+fn an_ephemeral_declaration_cannot_disable_the_durable_security_campaign(){
+ let b=bind("effect notify\ntable docs:\n  owner: principal\n  body: text <=40\n  read <- allow\n  insert <- allow\n  online only\ntable typing:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  ephemeral 4s\nmutation type():\n  return insert typing {principal: viewer}\nquery docs():\n  return docs first 50 by .id\ninvariant docs.body read only .owner = viewer\n");
+ let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,true);
+ assert!(c.attempted>0);assert!(c.violations.iter().any(|v|v.reachability==Reachability::GeneratedFixtureTrace&&v.operation=="docs"),"{c:?}");
+ assert!(c.unsupported.iter().any(|s|s.contains("ephemeral mutation histories")),"{c:?}");
+}
+
+#[test]
+fn the_social_starter_executes_durable_challenges_with_its_ephemeral_declaration(){
+ let source=include_str!("../../snapback4/src/verbs/init/social/schema.q");let b=bind(source);
+ let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,true);
+ assert!(c.attempted>0,"{c:?}");assert!(!c.operations.is_empty(),"{c:?}");assert!(!c.unsupported.iter().any(|s|s.contains("isolated ephemeral-hub snapshot")),"{c:?}");
+ assert!(c.violations.is_empty(),"{c:?}");
+}
