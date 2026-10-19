@@ -1,0 +1,2141 @@
+{
+  "source": "865fc1273c",
+  "exit": 0,
+  "command": "node scripts/run-client-tests.mjs 16 files; node scripts/run-client-tests.mjs 1 models",
+  "environment": {
+    "SNAPBACK4_BIN": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "RUST_TEST_THREADS": "8"
+  },
+  "counts": {
+    "pool": {
+      "files": 419,
+      "tests": 7779,
+      "pass": 7723,
+      "fail": 0,
+      "skipped": 56
+    },
+    "models": {
+      "files": 2,
+      "tests": 81,
+      "pass": 81,
+      "fail": 0,
+      "skipped": 0
+    }
+  },
+  "summaries": [
+    "419/419; failed 0; tests {\"tests\":7779,\"pass\":7723,\"fail\":0,\"cancelled\":0,\"skipped\":56,\"todo\":0}",
+    "2/2; failed 0; tests {\"tests\":81,\"pass\":81,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+  ],
+  "files": [
+    {
+      "file": "packages/snapback4/test/app-handles.test.mjs",
+      "milliseconds": 1634,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/api-index.test.mjs",
+      "milliseconds": 1825,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-global-attempts.test.mjs",
+      "milliseconds": 2258,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-global.test.mjs",
+      "milliseconds": 2422,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-outcomes.test.mjs",
+      "milliseconds": 790,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-local-session.test.mjs",
+      "milliseconds": 2816,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/answers-stay-bound.test.mjs",
+      "milliseconds": 2965,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-persona.test.mjs",
+      "milliseconds": 896,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-receipts.test.mjs",
+      "milliseconds": 848,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-retirement.test.mjs",
+      "milliseconds": 892,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/approval-lifecycle.test.mjs",
+      "milliseconds": 496,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-storage.test.mjs",
+      "milliseconds": 1241,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/answer-row-authority.test.mjs",
+      "milliseconds": 4245,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/approval-notifications.test.mjs",
+      "milliseconds": 446,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/approval-review.test.mjs",
+      "milliseconds": 445,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-state.test.mjs",
+      "milliseconds": 3390,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-local-outcomes.test.mjs",
+      "milliseconds": 8998,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-online.test.mjs",
+      "milliseconds": 8631,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/answers-stay-review.test.mjs",
+      "milliseconds": 11017,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-local-receipts.test.mjs",
+      "milliseconds": 11717,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/asset-blob-lifecycle.test.mjs",
+      "milliseconds": 7565,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/asset-scan-recipe.test.mjs",
+      "milliseconds": 410,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/asset-files.test.mjs",
+      "milliseconds": 4140,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/asset-pressure.test.mjs",
+      "milliseconds": 2438,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-online-arm.test.mjs",
+      "milliseconds": 13632,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/asset-buffered.test.mjs",
+      "milliseconds": 7471,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/astra-projection.test.mjs",
+      "milliseconds": 639,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/astra-arguments.test.mjs",
+      "milliseconds": 1447,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/browser-write-warnings.test.mjs",
+      "milliseconds": 474,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/cleanup.test.mjs",
+      "milliseconds": 887,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/astra-invalid-input.test.mjs",
+      "milliseconds": 2340,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/client-recipes.test.mjs",
+      "milliseconds": 423,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/astra-rebirth.test.mjs",
+      "milliseconds": 4365,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/codec.test.mjs",
+      "milliseconds": 401,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/browser-navigation.test.mjs",
+      "milliseconds": 6156,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/answer-withdrawal.test.mjs",
+      "milliseconds": 23091,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/asset-retry.test.mjs",
+      "milliseconds": 11517,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/composed-authority.test.mjs",
+      "milliseconds": 3228,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/custody-read.test.mjs",
+      "milliseconds": 447,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/day4-proofs.test.mjs",
+      "milliseconds": 683,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/cross-scope-review.test.mjs",
+      "milliseconds": 1484,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/day5-proofs.test.mjs",
+      "milliseconds": 935,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/delivery-activation.test.mjs",
+      "milliseconds": 1612,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app.test.mjs",
+      "milliseconds": 24852,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/delivery-cas.test.mjs",
+      "milliseconds": 1031,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/close-boundary.test.mjs",
+      "milliseconds": 14806,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/column-stream-recovery.test.mjs",
+      "milliseconds": 13904,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/delivery-crash.test.mjs",
+      "milliseconds": 1687,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/delivery-clients.test.mjs",
+      "milliseconds": 3645,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/answers-stay-react.test.mjs",
+      "milliseconds": 35474,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/delivery-integrated.test.mjs",
+      "milliseconds": 3481,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/delivery-refusal.test.mjs",
+      "milliseconds": 2160,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/delivery-outbox.test.mjs",
+      "milliseconds": 6019,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/answers-stay-round2.test.mjs",
+      "milliseconds": 38875,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/delivery.test.mjs",
+      "milliseconds": 466,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/device-diet.test.mjs",
+      "milliseconds": 438,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/dev-reset.test.mjs",
+      "milliseconds": 1261,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/approval-model.test.mjs",
+      "milliseconds": 37790,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/device-version.test.mjs",
+      "milliseconds": 1980,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/effectful-cancellation.test.mjs",
+      "milliseconds": 944,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/delivery-web.test.mjs",
+      "milliseconds": 4733,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/device-residency.test.mjs",
+      "milliseconds": 3574,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ephemeral-fencing.test.mjs",
+      "milliseconds": 1914,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ephemeral-mock.test.mjs",
+      "milliseconds": 490,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ephemeral-lanes.test.mjs",
+      "milliseconds": 2245,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ephemeral-keep.test.mjs",
+      "milliseconds": 4151,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ephemeral-sender.test.mjs",
+      "milliseconds": 460,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ephemeral-capability.test.mjs",
+      "milliseconds": 5648,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/event-slot-capability.test.mjs",
+      "milliseconds": 557,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ephemeral-reclamation.test.mjs",
+      "milliseconds": 5080,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ephemeral-types.test.mjs",
+      "milliseconds": 3447,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ephemeral-routing.test.mjs",
+      "milliseconds": 5924,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/delivery-publication.test.mjs",
+      "milliseconds": 16703,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/exact-online.test.mjs",
+      "milliseconds": 2042,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/expo-media-storage.test.mjs",
+      "milliseconds": 386,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/expiry-reference-actions.test.mjs",
+      "milliseconds": 1232,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/expo-save-asset.test.mjs",
+      "milliseconds": 790,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/asset-avatars.test.mjs",
+      "milliseconds": 48899,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/expo-session-store.test.mjs",
+      "milliseconds": 690,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/answers-stay-round3.test.mjs",
+      "milliseconds": 54379,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/day3-proofs.test.mjs",
+      "milliseconds": 31280,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/expo-scenes.test.mjs",
+      "milliseconds": 2086,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/export-publication.test.mjs",
+      "milliseconds": 3079,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/expiry-retry-watch.test.mjs",
+      "milliseconds": 6485,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/event-slots.test.mjs",
+      "milliseconds": 11165,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/export-native-round2.test.mjs",
+      "milliseconds": 5870,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/export-native.test.mjs",
+      "milliseconds": 5773,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/familiar-forms.test.mjs",
+      "milliseconds": 3227,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/delivery-approval.test.mjs",
+      "milliseconds": 34275,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/following-hook-react.test.mjs",
+      "milliseconds": 1611,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/export-failure.test.mjs",
+      "milliseconds": 9097,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/front-data-react.test.mjs",
+      "milliseconds": 2239,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-store-replacement.test.mjs",
+      "milliseconds": 60784,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/generated-effect-opt-in.test.mjs",
+      "milliseconds": 473,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/client-lifecycle.test.mjs",
+      "milliseconds": 49665,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/following-routing.test.mjs",
+      "milliseconds": 4476,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/first-account.test.mjs",
+      "milliseconds": 7354,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/generated-modules.test.mjs",
+      "milliseconds": 2522,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/id-from.test.mjs",
+      "milliseconds": 518,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/identity-organizations.test.mjs",
+      "milliseconds": 398,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/headless-registration.test.mjs",
+      "milliseconds": 2588,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/identity-invitation-issuance.test.mjs",
+      "milliseconds": 520,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/identity-profile.test.mjs",
+      "milliseconds": 393,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/following-unfollow.test.mjs",
+      "milliseconds": 7628,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/http-bounds.test.mjs",
+      "milliseconds": 4478,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/following-own-writes.test.mjs",
+      "milliseconds": 9888,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/intent-views.test.mjs",
+      "milliseconds": 722,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/expired-server-watch.test.mjs",
+      "milliseconds": 20416,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/identity.test.mjs",
+      "milliseconds": 4804,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keep-app-expiry.test.mjs",
+      "milliseconds": 1154,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/identity-review.test.mjs",
+      "milliseconds": 6026,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/in-chat-search.test.mjs",
+      "milliseconds": 6997,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/init-recipe.test.mjs",
+      "milliseconds": 5995,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keep-authority.test.mjs",
+      "milliseconds": 4086,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/following-history.test.mjs",
+      "milliseconds": 21907,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keep-adoption.test.mjs",
+      "milliseconds": 11562,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/generated-effect-context.test.mjs",
+      "milliseconds": 20515,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keep-observation.test.mjs",
+      "milliseconds": 2563,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keep-incarnation.test.mjs",
+      "milliseconds": 5926,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keep-expiry.test.mjs",
+      "milliseconds": 11684,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keep-authority-react.test.mjs",
+      "milliseconds": 16722,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/lang4-guide.test.mjs",
+      "milliseconds": 659,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/decorated-search.test.mjs",
+      "milliseconds": 65651,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/kit2-client-react.test.mjs",
+      "milliseconds": 1685,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/linux-package.test.mjs",
+      "milliseconds": 1064,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/list-lower-bounds.test.mjs",
+      "milliseconds": 1437,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keep-device.test.mjs",
+      "milliseconds": 18443,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keep-reset.test.mjs",
+      "milliseconds": 10218,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/live-margin-settlement.test.mjs",
+      "milliseconds": 1615,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/live-margin-browser.test.mjs",
+      "milliseconds": 5069,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/live-propagation-fallback.test.mjs",
+      "milliseconds": 6563,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/local-reads.test.mjs",
+      "milliseconds": 394,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keepalive-headers.test.mjs",
+      "milliseconds": 13235,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/local-signout.test.mjs",
+      "milliseconds": 564,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/loopbar-bounds.test.mjs",
+      "milliseconds": 568,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/loopbar.test.mjs",
+      "milliseconds": 539,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keepalive-browser.test.mjs",
+      "milliseconds": 17444,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/maintains.test.mjs",
+      "milliseconds": 1437,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/measure-launch.test.mjs",
+      "milliseconds": 474,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/live-contention.test.mjs",
+      "milliseconds": 14440,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/media-dependencies.test.mjs",
+      "milliseconds": 1494,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/maintained-column-adoption.test.mjs",
+      "milliseconds": 5255,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/migrations.test.mjs",
+      "milliseconds": 3863,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/native-opening.test.mjs",
+      "milliseconds": 606,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/native-smoke.test.mjs",
+      "milliseconds": 431,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/init-typecheck.test.mjs",
+      "milliseconds": 42339,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/local-e2e.test.mjs",
+      "milliseconds": 15501,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/live-propagation.test.mjs",
+      "milliseconds": 17752,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/node-transport.test.mjs",
+      "milliseconds": 464,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/observation-publication.test.mjs",
+      "milliseconds": 448,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/native-e2e.test.mjs",
+      "milliseconds": 6843,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/offline-run-warning.test.mjs",
+      "milliseconds": 702,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/observation-publication-live.test.mjs",
+      "milliseconds": 2302,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/external-device.test.mjs",
+      "milliseconds": 61250,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/once-preservation.test.mjs",
+      "milliseconds": 4946,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/one-shot-discovery-auth.test.mjs",
+      "milliseconds": 2175,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/one-shot-generation.test.mjs",
+      "milliseconds": 1910,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/one-shot-prediction-replay.test.mjs",
+      "milliseconds": 1360,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/one-shot-bounds.test.mjs",
+      "milliseconds": 8451,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/one-shot-commit-evidence.test.mjs",
+      "milliseconds": 8442,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/one-shot-review-races.test.mjs",
+      "milliseconds": 4144,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/one-shot-model.test.mjs",
+      "milliseconds": 11305,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/one-shot-sync-overlap.test.mjs",
+      "milliseconds": 9265,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/online-intent-store.test.mjs",
+      "milliseconds": 1116,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/online-capture.test.mjs",
+      "milliseconds": 3394,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/online-read-order.test.mjs",
+      "milliseconds": 815,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/maintained-columns.test.mjs",
+      "milliseconds": 32529,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/asset-lists.test.mjs",
+      "milliseconds": 125468,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/one-shot-review.test.mjs",
+      "milliseconds": 14404,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/online-store-order.test.mjs",
+      "milliseconds": 2322,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/online-terminal-entrypoints.test.mjs",
+      "milliseconds": 633,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/legacy-receipts.test.mjs",
+      "milliseconds": 47140,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/online-session.test.mjs",
+      "milliseconds": 3228,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ordinary-search-ledger.test.mjs",
+      "milliseconds": 457,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/online-journal-browser.test.mjs",
+      "milliseconds": 5937,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/overload-browser.test.mjs",
+      "milliseconds": 4584,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/online-store-terminal.test.mjs",
+      "milliseconds": 11556,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/package-require.test.mjs",
+      "milliseconds": 521,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/own-keys.test.mjs",
+      "milliseconds": 7422,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/packaged-docs.test.mjs",
+      "milliseconds": 389,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/package-typecheck.test.mjs",
+      "milliseconds": 5763,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/page-cut.test.mjs",
+      "milliseconds": 1149,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/one-shot-dependencies.test.mjs",
+      "milliseconds": 41300,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ordinary-search.test.mjs",
+      "milliseconds": 23620,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/page-authority.test.mjs",
+      "milliseconds": 13166,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/pending-items-round1.test.mjs",
+      "milliseconds": 2877,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ordinary-history.test.mjs",
+      "milliseconds": 27344,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/pending-items-round2.test.mjs",
+      "milliseconds": 1138,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/page-ready.test.mjs",
+      "milliseconds": 7895,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/acquisition.test.mjs",
+      "milliseconds": 164268,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/pending-items-round3.test.mjs",
+      "milliseconds": 1351,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/pending-items.test.mjs",
+      "milliseconds": 8238,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/per-row-inflight.test.mjs",
+      "milliseconds": 8600,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/per-row-liveness.test.mjs",
+      "milliseconds": 8654,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/horizon-boundary.test.mjs",
+      "milliseconds": 110391,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/per-row-progress.test.mjs",
+      "milliseconds": 6211,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/per-row-boundaries.test.mjs",
+      "milliseconds": 16362,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/per-row-publication.test.mjs",
+      "milliseconds": 7478,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/per-row-retry.test.mjs",
+      "milliseconds": 4557,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/pending-writes.test.mjs",
+      "milliseconds": 20971,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/per-row-work.test.mjs",
+      "milliseconds": 4663,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/per-row-retention.test.mjs",
+      "milliseconds": 10059,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/per-row-react.test.mjs",
+      "milliseconds": 20265,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/presence-composed.test.mjs",
+      "milliseconds": 11475,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/presence-live.test.mjs",
+      "milliseconds": 13554,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/profile-upgrade.test.mjs",
+      "milliseconds": 1654,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/presence-refresh.test.mjs",
+      "milliseconds": 7397,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/production-starters.test.mjs",
+      "milliseconds": 7278,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/proof-fixtures.test.mjs",
+      "milliseconds": 6491,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/pubfix29b.test.mjs",
+      "milliseconds": 1567,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/publication-roundtrip.test.mjs",
+      "milliseconds": 1085,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/proof-contract.test.mjs",
+      "milliseconds": 15875,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/publish-linux.test.mjs",
+      "milliseconds": 6107,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/publish-signing.test.mjs",
+      "milliseconds": 2114,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/qe2-ergonomics.test.mjs",
+      "milliseconds": 1404,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/proof.test.mjs",
+      "milliseconds": 16340,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/query-dependencies.test.mjs",
+      "milliseconds": 379,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/qe2-allocations.test.mjs",
+      "milliseconds": 6357,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/raw-read-deadlines.test.mjs",
+      "milliseconds": 2339,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/qualify-linux.test.mjs",
+      "milliseconds": 7701,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-admission-insert.test.mjs",
+      "milliseconds": 1396,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/periphery.test.mjs",
+      "milliseconds": 48819,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-existence.test.mjs",
+      "milliseconds": 433,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/react.test.mjs",
+      "milliseconds": 4561,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-match.test.mjs",
+      "milliseconds": 425,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-nullable-array.test.mjs",
+      "milliseconds": 619,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-observation.test.mjs",
+      "milliseconds": 412,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/query-publication-session.test.mjs",
+      "milliseconds": 10498,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-only-allocation.test.mjs",
+      "milliseconds": 699,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-only-custody-races.test.mjs",
+      "milliseconds": 589,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/page-observation.test.mjs",
+      "milliseconds": 76710,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-only-custody.test.mjs",
+      "milliseconds": 506,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-only-custody-server.test.mjs",
+      "milliseconds": 927,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-existence-integration.test.mjs",
+      "milliseconds": 3898,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-only-round7.test.mjs",
+      "milliseconds": 1643,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-only-peer-rotation.test.mjs",
+      "milliseconds": 3776,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-only.test.mjs",
+      "milliseconds": 2291,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-only-round4.test.mjs",
+      "milliseconds": 3600,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-presentation.test.mjs",
+      "milliseconds": 394,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-presentation-react.test.mjs",
+      "milliseconds": 2373,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-through-upsert.test.mjs",
+      "milliseconds": 6167,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-through.test.mjs",
+      "milliseconds": 7220,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-through-provenance.test.mjs",
+      "milliseconds": 7935,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/receipt-upgrade.test.mjs",
+      "milliseconds": 2927,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/recorded-compatibility.test.mjs",
+      "milliseconds": 385,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/readme-examples.test.mjs",
+      "milliseconds": 3990,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/reg-upgrade.test.mjs",
+      "milliseconds": 2468,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/overload.test.mjs",
+      "milliseconds": 111957,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/presence-local.test.mjs",
+      "milliseconds": 66930,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/release-react.test.mjs",
+      "milliseconds": 1504,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/one-shot.test.mjs",
+      "milliseconds": 129515,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/remembered-answers.test.mjs",
+      "milliseconds": 386,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/release-capabilities.test.mjs",
+      "milliseconds": 6604,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-only-server.test.mjs",
+      "milliseconds": 25843,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/release-transitions.test.mjs",
+      "milliseconds": 4404,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/repair-b-round8.test.mjs",
+      "milliseconds": 454,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/refresh-behavior.test.mjs",
+      "milliseconds": 14410,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/repair-b-round7.test.mjs",
+      "milliseconds": 3471,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/repair-b-overflow.test.mjs",
+      "milliseconds": 7309,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/replacement-fixture.test.mjs",
+      "milliseconds": 1745,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/reservation-app-headroom.test.mjs",
+      "milliseconds": 583,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/repair-b.test.mjs",
+      "milliseconds": 3821,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/retained-history-cut.test.mjs",
+      "milliseconds": 3470,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/retained-history-order.test.mjs",
+      "milliseconds": 406,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/repair-b-round9.test.mjs",
+      "milliseconds": 9574,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/repair-b-round16.test.mjs",
+      "milliseconds": 12996,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/retention-episode.test.mjs",
+      "milliseconds": 1391,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/retained-search-order.test.mjs",
+      "milliseconds": 2943,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/residency.test.mjs",
+      "milliseconds": 8288,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/retention-pages.test.mjs",
+      "milliseconds": 387,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/navigation-model.test.mjs",
+      "milliseconds": 161454,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/reservation-parity.test.mjs",
+      "milliseconds": 9658,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/retention-online-boundaries.test.mjs",
+      "milliseconds": 1668,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/retention-store-withdrawal.test.mjs",
+      "milliseconds": 1241,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-types.test.mjs",
+      "milliseconds": 37744,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/row-view-prediction.test.mjs",
+      "milliseconds": 548,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/rx-rule-hop-capability.test.mjs",
+      "milliseconds": 379,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/revocation-retention.test.mjs",
+      "milliseconds": 2057,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/schema-capabilities.test.mjs",
+      "milliseconds": 401,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/row-keyed-view.test.mjs",
+      "milliseconds": 2327,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/rx-rule-hops.test.mjs",
+      "milliseconds": 1584,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/schema-session.test.mjs",
+      "milliseconds": 466,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/schema-capability-refusals.test.mjs",
+      "milliseconds": 1677,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/release-activation.test.mjs",
+      "milliseconds": 28289,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keep-clock.test.mjs",
+      "milliseconds": 202834,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/seen.test.mjs",
+      "milliseconds": 438,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/review-probes.test.mjs",
+      "milliseconds": 8414,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/seen-devices.test.mjs",
+      "milliseconds": 4157,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/server-check.test.mjs",
+      "milliseconds": 5517,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/readauth.test.mjs",
+      "milliseconds": 42432,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/server-clock-live.test.mjs",
+      "milliseconds": 3458,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/server-clock-regressions.test.mjs",
+      "milliseconds": 927,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/server-clock.test.mjs",
+      "milliseconds": 429,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/server-output.test.mjs",
+      "milliseconds": 371,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/screen-lifetimes.test.mjs",
+      "milliseconds": 8597,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/server-routes.test.mjs",
+      "milliseconds": 562,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/server-clock-recovery.test.mjs",
+      "milliseconds": 3558,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/server-runtime.test.mjs",
+      "milliseconds": 844,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/session-security.test.mjs",
+      "milliseconds": 835,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/retention-lifecycle.test.mjs",
+      "milliseconds": 22336,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/session-reasons.test.mjs",
+      "milliseconds": 9105,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/store-reset-idb.test.mjs",
+      "milliseconds": 1555,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/screen-lifetimes-react.test.mjs",
+      "milliseconds": 20351,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/routes.test.mjs",
+      "milliseconds": 26763,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/staging.test.mjs",
+      "milliseconds": 6665,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-authority.test.mjs",
+      "milliseconds": 459,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-deadline.test.mjs",
+      "milliseconds": 464,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/prediction-routing.test.mjs",
+      "milliseconds": 120750,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-device.test.mjs",
+      "milliseconds": 3863,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-fairness.test.mjs",
+      "milliseconds": 910,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/store-reset.test.mjs",
+      "milliseconds": 12499,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-memory.test.mjs",
+      "milliseconds": 7490,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-e2e.test.mjs",
+      "milliseconds": 10786,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-names.test.mjs",
+      "milliseconds": 2090,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-online.test.mjs",
+      "milliseconds": 665,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-options.test.mjs",
+      "milliseconds": 442,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-refusal-candidate.test.mjs",
+      "milliseconds": 1534,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-notified-tables.test.mjs",
+      "milliseconds": 3972,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/store-reset-reconnect.test.mjs",
+      "milliseconds": 23494,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/social-browser.test.mjs",
+      "milliseconds": 36497,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-scaling.test.mjs",
+      "milliseconds": 714,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-round1.test.mjs",
+      "milliseconds": 5106,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-scopes.test.mjs",
+      "milliseconds": 2407,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-watermark.test.mjs",
+      "milliseconds": 1315,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-round3.test.mjs",
+      "milliseconds": 7245,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure.test.mjs",
+      "milliseconds": 399,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/supervised-workers.test.mjs",
+      "milliseconds": 2228,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/bounded-following.test.mjs",
+      "milliseconds": 314732,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/sync-after-call.test.mjs",
+      "milliseconds": 480,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/social-quote-jump-browser.test.mjs",
+      "milliseconds": 48396,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-round2.test.mjs",
+      "milliseconds": 18400,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-sync-memory.test.mjs",
+      "milliseconds": 20398,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/sync-scale.test.mjs",
+      "milliseconds": 10148,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/server-e2e.test.mjs",
+      "milliseconds": 59964,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/test-platform-audit.test.mjs",
+      "milliseconds": 2918,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/sync-generation.test.mjs",
+      "milliseconds": 20526,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/test-command-group.test.mjs",
+      "milliseconds": 13048,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/typed-positional-keys.test.mjs",
+      "milliseconds": 1595,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/unicode.test.mjs",
+      "milliseconds": 424,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/retained-history.test.mjs",
+      "milliseconds": 82937,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/typing-expiry.test.mjs",
+      "milliseconds": 4509,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+      "milliseconds": 325421,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/upload-hooks.test.mjs",
+      "milliseconds": 3660,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/surf4.test.mjs",
+      "milliseconds": 39871,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/upload-browser.test.mjs",
+      "milliseconds": 16009,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/store-reset-review.test.mjs",
+      "milliseconds": 71774,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/subscription-pressure-noop.test.mjs",
+      "milliseconds": 56415,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/use-page-cursor.test.mjs",
+      "milliseconds": 2796,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wasm-absent.test.mjs",
+      "milliseconds": 372,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/upload-intents.test.mjs",
+      "milliseconds": 13819,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wasm-families.test.mjs",
+      "milliseconds": 387,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wasm-budget.test.mjs",
+      "milliseconds": 3378,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave10-starters.test.mjs",
+      "milliseconds": 3696,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/upload-retry.test.mjs",
+      "milliseconds": 9945,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/social-starter.test.mjs",
+      "milliseconds": 91495,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/transport-outcomes.test.mjs",
+      "milliseconds": 31903,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave10-upgrade.test.mjs",
+      "milliseconds": 4233,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave11-upgrade-history.test.mjs",
+      "milliseconds": 549,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/test-processes.test.mjs",
+      "milliseconds": 34346,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave11-narration.test.mjs",
+      "milliseconds": 1794,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave12-surface.test.mjs",
+      "milliseconds": 746,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave12-kit.test.mjs",
+      "milliseconds": 2493,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave12-clauses.test.mjs",
+      "milliseconds": 3324,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/sync-overflow.test.mjs",
+      "milliseconds": 52773,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave13-surface.test.mjs",
+      "milliseconds": 924,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/timeline-delivery.test.mjs",
+      "milliseconds": 39439,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave14-release-preview.test.mjs",
+      "milliseconds": 2333,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave13-previews.test.mjs",
+      "milliseconds": 10147,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/web-durability.test.mjs",
+      "milliseconds": 6640,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave11-init.test.mjs",
+      "milliseconds": 14811,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave11-guide-types.test.mjs",
+      "milliseconds": 18059,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/upload-lifetime.test.mjs",
+      "milliseconds": 36738,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wasm-codec-census.test.mjs",
+      "milliseconds": 24983,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave14-rule-recipes.test.mjs",
+      "milliseconds": 14002,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/web-shell.test.mjs",
+      "milliseconds": 617,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/unread-range.test.mjs",
+      "milliseconds": 45057,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/web-worker-control.test.mjs",
+      "milliseconds": 463,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wire-envelopes.test.mjs",
+      "milliseconds": 772,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wire-first.test.mjs",
+      "milliseconds": 633,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave9-dx.test.mjs",
+      "milliseconds": 16115,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/witness.test.mjs",
+      "milliseconds": 648,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/wave10-witness.test.mjs",
+      "milliseconds": 23039,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/web-pages.test.mjs",
+      "milliseconds": 8571,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/word-expansion.test.mjs",
+      "milliseconds": 2078,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/witness-preparation.test.mjs",
+      "milliseconds": 3563,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/worker-ledger-contention.test.mjs",
+      "milliseconds": 6153,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/write-authority.test.mjs",
+      "milliseconds": 7594,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/web-start.test.mjs",
+      "milliseconds": 14402,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/web-review.test.mjs",
+      "milliseconds": 15932,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/value-deadline-types.test.mjs",
+      "milliseconds": 42440,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/security-packed.test.mjs",
+      "milliseconds": 139279,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/web-session-authority.test.mjs",
+      "milliseconds": 21513,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/write-ids.test.mjs",
+      "milliseconds": 22869,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/web-navigation.test.mjs",
+      "milliseconds": 38482,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/web-receipt-upgrade.test.mjs",
+      "milliseconds": 37817,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keep-app-model.test.mjs",
+      "milliseconds": 365849,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/worker.test.mjs",
+      "milliseconds": 40368,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/witness-acquire.test.mjs",
+      "milliseconds": 86023,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/mixed-evidence-oracle.test.mjs",
+      "milliseconds": 377385,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/worker-regressions.test.mjs",
+      "milliseconds": 84239,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/web-admission-review.test.mjs",
+      "milliseconds": 170075,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+      "milliseconds": 569992,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/admit-before-identity.test.mjs",
+      "milliseconds": 63207,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/client-seams.test.mjs",
+      "milliseconds": 63376,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ephemeral-adoption.test.mjs",
+      "milliseconds": 12291,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ephemeral-e2e.test.mjs",
+      "milliseconds": 59835,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/ephemeral-watches.test.mjs",
+      "milliseconds": 26136,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/export-background.test.mjs",
+      "milliseconds": 400448,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/export-maintenance-wakeup.test.mjs",
+      "milliseconds": 38413,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/follow-window.test.mjs",
+      "milliseconds": 31652,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keepalive-retry.test.mjs",
+      "milliseconds": 3555,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/keepalive-reuse.test.mjs",
+      "milliseconds": 4076,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/maintenance-evidence.test.mjs",
+      "milliseconds": 4794,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/read-only-round5.test.mjs",
+      "milliseconds": 6155,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/server-clock-browser.test.mjs",
+      "milliseconds": 10984,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/server-clock-wire.test.mjs",
+      "milliseconds": 41327,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/test-file-runner.test.mjs",
+      "milliseconds": 49239,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/test-signals.test.mjs",
+      "milliseconds": 38959,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/transport-http.test.mjs",
+      "milliseconds": 52425,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/app-session-model.test.mjs",
+      "milliseconds": 253689,
+      "status": "passed"
+    },
+    {
+      "file": "packages/snapback4/test/online-client-model.test.mjs",
+      "milliseconds": 61353,
+      "status": "passed"
+    }
+  ],
+  "log": "/home/ccheever/sb4-loop/integ18/clients-final.log",
+  "logSha256": "372c75a1560ea26362cd79a8dee024fdd623850052c9346450b6e2035f659634"
+}

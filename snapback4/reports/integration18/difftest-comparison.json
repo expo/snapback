@@ -22,6 +22,19 @@
     "seed": true,
     "cases": true
   },
-  "baseFindings": null,
-  "mergedFindings": null
+  "baseFindings": 130,
+  "mergedFindings": 130,
+  "baseSignatures": {
+    "lean--code--E_RULE~NOT_FOUND": 3,
+    "lean--continuation-next--next~no-next": 35,
+    "lean--next--next~no-next": 67,
+    "lean--prelude-code--E_RULE~NOT_FOUND": 25
+  },
+  "mergedSignatures": {
+    "lean--code--E_RULE~NOT_FOUND": 3,
+    "lean--continuation-next--next~no-next": 35,
+    "lean--next--next~no-next": 67,
+    "lean--prelude-code--E_RULE~NOT_FOUND": 25
+  },
+  "newSignatures": []
 }

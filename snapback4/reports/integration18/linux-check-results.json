@@ -35,5 +35,13 @@
     "log": "/home/ccheever/sb4-loop/integ18/qualify-corrected.log",
     "sha256": "dd8fd441e8dbfd4d049f4b19088e5305921804cde2109fd70151e1209fad85fd",
     "publicationQualified": false
+  },
+  {
+    "label": "final-report-checks",
+    "command": "node scripts/check-inventories.mjs && ./ref-check --verbose",
+    "exit": 0,
+    "log": "/home/ccheever/sb4-loop/integ18/final-report-checks.log",
+    "sha256": "c17104f1621e067746377ebdba631ae808ec31118d8b02be638104efba8c83e3",
+    "summary": "inventories PASS; ref-check556 LLPs,12096refs,43481files,0 errors,0 unchecked"
   }
 ]
