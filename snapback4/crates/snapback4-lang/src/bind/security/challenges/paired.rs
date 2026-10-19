@@ -100,7 +100,11 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                         serde_json::Value::Array(xs)=>xs.iter().any(opaque),_=>false,
                     }}
                     if opaque(&json){out.unsupported.insert(format!("{}: generated-id/opaque effects excluded from paired determinism",p.name));continue;}
-                    let Some(args)=arguments(&p.args,variant)else{continue;};
+                    let cases=histories::fixture_cases(&p.args,&present,&[VIEWER.into(),OTHER.into()],out);
+                    if cases.len()>32{out.unsupported.insert(format!("{}: paired observer arguments capped at 32; remaining combinations not covered",p.name));}
+                    for args in cases.into_iter().take(32){
+                    if out.paired_observer_calls+4>8192{out.unsupported.insert("paired observers capped at 8192 call reservations; remaining worlds not covered".into());return;}
+                    out.paired_observer_calls+=4;
                     let execute=|seeds:&BTreeMap<String,Vec<Value>>|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>),String>{
                         if let Err(why)=&prepared{return Err(why.clone());}
 

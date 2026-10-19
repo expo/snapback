@@ -173,14 +173,14 @@ fn changed(bound:&Bound,p:&Program,before:&BTreeMap<String,Vec<Value>>,after:&BT
         if writes.len()!=1 {out.unsupported.insert(format!("{} / {}.{}: multiple or implicit writes require executed-effect tracing",p.name,inv.table,inv.target));continue;}
         if (inv.target=="delete"||inv.operation.is_some())&&writes[0].1!="delete"&&before.get(&inv.table).into_iter().flatten().any(|old|!after.get(&inv.table).into_iter().flatten().any(|r|r.field("id").ok()==old.field("id").ok())){out.unsupported.insert(format!("{}: commit-end/implicit retirement is not an executed delete",p.name));}
         if (inv.target=="delete"||inv.operation.is_some())&&writes[0].1=="delete"{
-            for old in before.get(&inv.table).into_iter().flatten().filter(|old|live(&bound.schema.tables[&inv.table],old)&&!after.get(&inv.table).into_iter().flatten().any(|r|r.field("id").ok()==old.field("id").ok())){
+            for old in before.get(&inv.table).into_iter().flatten().filter(|old|!bound.schema.tables[&inv.table].expired(old,NOW)&&!after.get(&inv.table).into_iter().flatten().any(|r|r.field("id").ok()==old.field("id").ok())){
                 let deps=inv.policy.as_ref().map(kernel::dependencies).unwrap_or_default();
                 if ir::write_tables(p).iter().any(|(t,_)|deps.contains(t)&&t!=&inv.table){out.unsupported.insert(format!("{}: delete policy dependency changes before disclosure",p.name));continue;}
                 if prior_policy(bound,inv,before,viewer,Some(old),old,prior)==Ok(false){violation(out,inv,steps,viewer,old,Some(old),initial,"delete");}
             }
         }
         for row in after.get(&inv.table).into_iter().flatten(){
-            let old=before.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()&&live(&bound.schema.tables[&inv.table],r));
+            let old=before.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()&&!bound.schema.tables[&inv.table].expired(r,NOW));
             if old==Some(row){continue;}
             let effect=if old.is_some(){"update"}else{"insert"};
             if !super::super::effects(inv).contains(&effect){continue;}

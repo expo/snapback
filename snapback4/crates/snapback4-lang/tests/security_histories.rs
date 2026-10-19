@@ -189,3 +189,11 @@ fn demotion_is_followed_by_writes_as_the_affected_principal() {
  let c=fixture_campaign(source,vec![("roles".into(),row(&[("id",Value::Id("r".into())),("principal",Value::Id("dev:inspector".into())),("role",Value::String("inspector".into()))]))]);
  assert!(c.violations.iter().any(|v|v.viewer=="dev:inspector"&&v.effect=="insert"&&v.history.len()==2&&v.history[0].operation=="changeRole"&&v.history[1].operation=="record"),"{c:?}");
 }
+
+#[test]
+fn pending_rows_keep_their_write_arm_and_executed_delete() {
+ let source="table notes:\n  owner: principal\n  body: text <=40\n  opensAt: time\n  not before .opensAt\n  read <- .owner = viewer\n  update <- .owner = viewer\n  delete <- .owner = viewer\n  online only\nmutation edit(note: notes):\n  update notes[note] { body: 'edited' }\n  return null\nmutation remove(note: notes):\n  delete notes[note]\n  return null\ninvariant notes.insert only viewer = 'service:ops'\ninvariant notes.delete only viewer = 'service:ops'\n";
+ let c=fixture_campaign(source,vec![("notes".into(),row(&[("id",Value::Id("n".into())),("owner",Value::Id("dev:owner".into())),("body",Value::String("old".into())),("opensAt",Value::Int(1_800_000_100_000))]))]);
+ assert!(!c.violations.iter().any(|v|v.effect=="insert"),"{c:?}");
+ assert!(c.violations.iter().any(|v|v.effect=="delete"&&v.operation=="remove"&&v.viewer=="dev:owner"),"{c:?}");
+}

@@ -22,7 +22,7 @@ pub enum Reachability { AuthoredFixtureTrace, TrustedSeedOnly, SyntheticOperatio
 #[derive(Clone,Debug,Serialize)]
 pub struct Counterexample {pub reachability:Reachability,pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String, pub observations:Option<paired::Observations>,pub history:Vec<histories::Step>}
 #[derive(Clone,Debug,Default,Serialize)]
-pub struct Campaign {pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
+pub struct Campaign {pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
 fn id(table:&str)->Value {Value::Id(format!("security-{table}"))}
 fn sample(kind:&C,variant:usize)->Option<Value>{Some(match kind{
     C::Optional(inner)=>if variant&4!=0{sample(inner,variant).unwrap_or(Value::Null)}else{Value::Null},C::Id|C::Principal=>Value::Id(if variant&1==0{VIEWER}else{OTHER}.into()),
