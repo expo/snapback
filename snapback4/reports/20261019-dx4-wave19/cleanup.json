@@ -1,0 +1,10 @@
+{
+  "targetRemoved": true,
+  "consumerDirectoriesRemoved": [
+    "/home/ccheever/dx4-wave19-final-platform/staging-recipe",
+    "/home/ccheever/dx4-wave19-complete-platform/staging-recipe",
+    "/home/ccheever/dx4-wave19-final-upgrades/candidate",
+    "/home/ccheever/dx4-wave19-upgrades/candidate"
+  ],
+  "ownedTempRemaining": []
+}

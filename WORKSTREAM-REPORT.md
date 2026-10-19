@@ -129,3 +129,94 @@ by their dead PID and unique +25h two-day ranker seat and removed on Linux/Mac;
 the helper now terminates gracefully before its bounded kill fallback. Mac
 build outputs and this worktree's large completed Cargo outputs were removed.
 Other lanes' temporary files/worktrees were not deleted.
+
+
+## Wave-19 day-two coordinator addendum — complete
+
+Merged `origin/main` first in `eecdbb054d`, without conflicts. Read wave-19
+§6 and fix-list #6/#7. Evidence app originals stayed read-only. No version bump,
+push or publication; source version remains 0.4.34 for integration into 0.4.35.
+
+- **Identity rate limits:** `fa12dce850` shares exact server-delay retry across
+  SDK guest/signup/login and proof seedAccounts/seedUsers. Only delivered auth
+  429 E_RATE_LIMIT refusals retry, at most four attempts within the deadline,
+  preserving credentials/scope. Body retryAfterMs wins; older Retry-After
+  headers include zero and elapsed-date handling. Cancellation stops waiting.
+  Lost/malformed replies, rotation and provisioning never replay.
+  `30a8f2a2f1` explicitly classifies signup deadlines independently of timer
+  precision; `ed0abcf8ca` adds the deterministic early-timer regression.
+- **Local production lifecycle:** deploy/rollback wait for the actual owner
+  flock before admission during shutdown, including a still-open listener
+  with a missing control endpoint. Activation requests never automatically
+  replay. startServe().stop() reaps its retained child and waits for worker/
+  watchdog-held locks. The bounded read-only `serve DIR --wait-stopped` barrier
+  creates no store, opens no SQLite and signals no PID. Cleanup failure rejects.
+- **Inspection:** `data --json` returns `{rows, more, limit}`, including empty
+  results, default 50-row truncation and limit zero. Repository consumers and
+  guide changes 0.4.35 use the envelope. Text stays JSON lines.
+  `d7cb40ffb5` supplies the pagination fixtures' explicit insert rule.
+- **Guide follow-through:** `d9b420ef75`, `dcbc335b98`, `ebc41801f2` and
+  `7239e705c7` register and pin deadline recovery, preserve the existing timeout
+  definition, fit the deploy card's original 150-line budget, and verify both
+  timeout help entries in the installed CLI. All existing guide code fences
+  remain byte-identical. JOURNAL records the commissioned optional Refusal
+  metadata field; SEC4/QRY/MIG scope pointers remain in place.
+
+LLP 3000.000.000.001 §9 carries the semantic amendment. Both final independent
+reviews are **READY**: [Muse](llp/reviews/dx4-wave19/r3-muse.txt) and
+[fresh Codex](llp/reviews/dx4-wave19/r3-codex.txt). All reviewed implementation
+and amendment input hashes still match. [Provenance](llp/reviews/dx4-wave19/provenance.json)
+retains all three rounds, exact commands and complete verbatim transcripts.
+
+Verification and evidence:
+
+- **Rust:** all **430/430 targets** have passing completed results: **6,901 tests,
+  45 default-ignored**, no missing/red target. Fresh affected coverage is all
+  54 CLI targets (1,358 passed) and all 170 language targets (2,292 passed).
+  The five unchanged core/device/sim/difftest/native crates retain their original
+  full-run evidence above. [Coverage index](snapback4/reports/20261019-dx4-wave19/cargo-coverage.json)
+  names every latest result and raw log. Language runs retained earlier guide
+  failures; the complete **127/127 guide rerun** supersedes them. The resume
+  process consequently exited 101 for that earlier guide result; every remaining
+  target and doctest completed, and no failure or timeout is counted as passing.
+- **Affected clients:** **135/135 pass** after the corrected pack, including 12
+  identity tests, staging, proof lifecycle/fixtures/contracts, sessions and HTTP
+  bounds. Exact-delay, cancellation, permanent/ambiguous refusal, active signup
+  deadline and deterministic early-timer cases all pass.
+- **Mac Studio:** **89 native checks pass** (29 lifecycle, 28 admission, 20 CLI
+  surfaces, 12 ownership), plus 41 affected client tests and the final 12-test
+  identity target. Only the assigned `macstudio-charlie-apt101-a:~/sb4-ws-dx4`
+  lane was used. No platform-sensitive implementation changed afterwards.
+- **Fresh full Linux consumer qualification:** source `ed0abcf8ca`, static musl
+  ELF, all **12 generated frontend cases**, **6 host starter cases**, and both
+  complete clean **Ubuntu 24.04/Alpine** matrices pass, along with the full
+  staging, security, production, migration and recipe cases. Its SDK tarball is
+  byte-for-byte identical to the final pack (SHA256
+  `90a010c91882467da1a2e1ac03a13f05e5b27af6f0fca3ee40e832e7176de0d1`).
+  [Full evidence](snapback4/reports/20261019-dx4-wave19/linux/consumer.json).
+- **Final packed qualification:** source `7239e705c7`, native guide source
+  `ebc41801f2`, passes both timeout help entries, verbatim guide recipes and all
+  DX4/staging cases. Actual 30/min peer limits exercise SDK retry and 35 real
+  password accounts through seedUsers; worker cleanup precedes stop resolution,
+  immediate deploy/rollback succeeds, and JSON pagination boundaries pass.
+  [Final proof](snapback4/reports/20261019-dx4-wave19/packed-final/proof.json).
+  This scoped rerun covers the guide-only follow-through after the broad run;
+  it does not claim a new full frontend/userspace snapshot. Neither run is a
+  publication-qualified receipt.
+- **Copied upgrades:** all **10 pass** again (five 0.4.33 wave-18 apps and five
+  0.4.31 wave-17 apps), with the final SDK bytes. All **17 project warnings** are
+  [verbatim here](snapback4/reports/20261019-dx4-wave19/upgrades-final/UPGRADE-WARNINGS.md);
+  full per-project stdout/stderr alongside preserves compiler/package-manager
+  messages too. That platform includes the d9 guide catalog; the later guide
+  paragraph ordering/test matcher changes no upgrade/check behavior. Copied apps were removed; original evidence apps were never modified.
+- **Root/checks:** frozen root install, workspace hoist, generated artifacts,
+  inventories and guide checks pass. Guide: 22 passed, zero failures/skips/
+  preconditions; inherited 121 warnings. Ref-check and docs-budget pass
+  (README 319/320). An initial 180-second inventory watchdog was rerun with
+  sufficient bounded time; it is not counted as a passing run.
+
+[Verification index](snapback4/reports/20261019-dx4-wave19/verification.json)
+binds sources, digests, raw results and artifact locations. Completed Cargo targets, Mac lane dependency outputs and disposable
+consumer apps were removed; new
+packed scratch directories are absent. Tarballs and compact evidence remain.
+No addendum feature is deferred.

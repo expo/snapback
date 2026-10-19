@@ -1,0 +1,1082 @@
+COMMAND ["bun", "install", "--frozen-lockfile"]
+bun install v1.4.2 (744846f84)
+
++ binaryen@132.0.0
++ expo-image-picker@57.0.20
++ expo-linking@57.0.11
++ expo-router@57.0.23
++ playwright-core@1.55.1
++ react-native-safe-area-context@5.7.0
++ react-native-screens@4.26.2
++ react-native-web@0.21.2
+
+598 packages installed [1242.00ms]
+COMMAND ["cargo", "build", "-p", "snapback4"]
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling foldhash v0.2.0
+   Compiling version_check v0.9.5
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling typenum v1.20.1
+   Compiling zmij v1.0.23
+   Compiling cfg-if v1.0.4
+   Compiling allocator-api2 v0.2.21
+   Compiling itoa v1.0.18
+   Compiling stable_deref_trait v1.2.1
+   Compiling bitflags v2.13.2
+   Compiling subtle v2.6.1
+   Compiling siphasher v1.0.3
+   Compiling rustversion v1.0.23
+   Compiling writeable v0.6.4
+   Compiling find-msvc-tools v0.1.12
+   Compiling libc v0.2.189
+   Compiling shlex v2.0.1
+   Compiling icu_locale_fallback_data v2.3.0
+   Compiling pkg-config v0.3.34
+   Compiling litemap v0.8.3
+   Compiling libm v0.2.16
+   Compiling vcpkg v0.2.15
+   Compiling oxc_data_structures v0.154.0
+   Compiling memchr v2.8.3
+   Compiling static_assertions v1.1.0
+   Compiling icu_segmenter_data v2.3.0
+   Compiling rustc-hash v2.1.3
+   Compiling oxc_estree v0.154.0
+   Compiling fastrand v2.5.0
+   Compiling wasmparser v0.228.0
+   Compiling serde_json v1.0.151
+   Compiling wasmi_ir v2.0.0
+   Compiling utf8_iter v1.0.4
+   Compiling rand_core v0.6.4
+   Compiling phf_shared v0.14.0
+   Compiling base64ct v1.8.3
+   Compiling thiserror v2.0.20
+   Compiling wasmi v2.0.0
+   Compiling fallible-iterator v0.3.0
+   Compiling cc v1.4.5
+   Compiling getrandom v0.3.4
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling tinyvec_macros v0.1.1
+   Compiling smawk v0.3.3
+   Compiling spin v0.9.9
+   Compiling wasmi_collections v2.0.0
+   Compiling cow-utils v0.1.3
+   Compiling tinyvec v1.13.2
+   Compiling generic-array v0.14.7
+   Compiling autocfg v1.5.1
+   Compiling unicode-width v0.2.2
+   Compiling dragonbox_ecma v0.1.12
+   Compiling hashbrown v0.17.1
+   Compiling bytecount v0.6.9
+   Compiling phf v0.14.0
+   Compiling phf_generator v0.14.0
+   Compiling password-hash v0.5.0
+   Compiling percent-encoding v2.3.2
+   Compiling nonmax v0.5.5
+   Compiling unicode-segmentation v1.13.3
+   Compiling unicode-id-start v1.5.0
+   Compiling smallvec v1.16.1
+   Compiling unicode-normalization v0.1.25
+   Compiling zeroize v1.9.0
+   Compiling equivalent v1.0.2
+   Compiling opaque-debug v0.3.1
+   Compiling log v0.4.34
+   Compiling toml_write v0.1.2
+   Compiling snapback4-lang v0.4.34 (/Users/ccheever/sb4-ws-dx4/snapback4/crates/snapback4-lang)
+   Compiling winnow v0.7.15
+   Compiling ascii v1.1.0
+   Compiling num-traits v0.2.19
+   Compiling seq-macro v0.3.6
+   Compiling httpdate v1.0.3
+   Compiling chunked_transfer v1.5.0
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling sqlparser v0.59.0
+   Compiling hashlink v0.12.2
+   Compiling oxc_allocator v0.154.0
+   Compiling indexmap v2.14.2
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling castaway v0.2.4
+   Compiling libsqlite3-sys v0.38.2
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling cpufeatures v0.2.17
+   Compiling inout v0.1.4
+   Compiling tiny_http v0.12.0 (/Users/ccheever/sb4-ws-dx4/snapback4/vendor/tiny_http)
+   Compiling syn v3.0.5
+   Compiling syn v2.0.119
+   Compiling universal-hash v0.5.1
+   Compiling aead v0.5.2
+   Compiling cipher v0.4.4
+   Compiling compact_str v0.10.0
+   Compiling digest v0.10.7
+   Compiling poly1305 v0.8.0
+   Compiling wasmi_core v2.0.0
+   Compiling chacha20 v0.9.1
+   Compiling blake2 v0.10.6
+   Compiling sha2 v0.10.9
+   Compiling hmac v0.12.1
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling chacha20poly1305 v0.10.1
+   Compiling num-integer v0.1.47
+   Compiling argon2 v0.5.3
+   Compiling oxc_str v0.154.0
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling num-bigint v0.5.1
+   Compiling phf_macros v0.14.0
+   Compiling synstructure v0.14.0
+   Compiling rusqlite v0.40.2
+   Compiling serde_derive v1.0.229
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling oxc_ast_macros v0.154.0
+   Compiling thiserror-impl v2.0.20
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling oxc_span v0.154.0
+   Compiling zerotrie v0.2.5
+   Compiling zerofrom v0.1.8
+   Compiling yoke v0.8.3
+   Compiling zerovec v0.11.8
+   Compiling oxc_index v5.0.0
+   Compiling toml_datetime v0.6.11
+   Compiling serde_spanned v0.6.9
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling icu_collections v2.3.0
+   Compiling toml_edit v0.22.27
+   Compiling icu_locale_core v2.3.0
+   Compiling oxc_syntax v0.154.0
+   Compiling icu_provider v2.3.1
+   Compiling icu_locale_fallback v2.3.0
+   Compiling icu_segmenter v2.3.0
+   Compiling toml v0.8.23
+   Compiling textwrap v0.16.4
+   Compiling oxc_diagnostics v0.154.0
+   Compiling snapback4-core v0.4.34 (/Users/ccheever/sb4-ws-dx4/snapback4/crates/snapback4-core)
+   Compiling oxc_regular_expression v0.154.0
+   Compiling oxc_ast v0.154.0
+   Compiling oxc_ecmascript v0.154.0
+   Compiling oxc_ast_visit v0.154.0
+   Compiling oxc_parser v0.154.0
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.34 (/Users/ccheever/sb4-ws-dx4/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.34 (/Users/ccheever/sb4-ws-dx4/snapback4/crates/snapback4)
+warning: unused import: `start::serve_requests`
+   --> crates/snapback4/src/serve.rs:327:5
+    |
+327 | use start::serve_requests;
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of deprecated type alias `libc::mach_timebase_info_data_t`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:30
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `libc::mach_timebase_info`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:20:15
+   |
+20 |         libc::mach_timebase_info(&mut info);
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `libc::_dyld_get_image_header`: Use the `mach2` crate instead
+  --> crates/snapback4/src/verbs/security/http_image.rs:28:29
+   |
+28 |     let header=unsafe{libc::_dyld_get_image_header(0)} as u64;
+   |                             ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:58
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                          ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:68
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                                    ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:50
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                  ^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:71
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                                       ^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:138:30
+    |
+138 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: function `check` is never used
+   --> crates/snapback4/src/exact_device.rs:413:8
+    |
+413 | pub fn check(root: &Path, schema: &Schema, json: bool) -> bool {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `work` is never used
+  --> crates/snapback4/src/serve_maintenance.rs:66:4
+   |
+66 | fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+   |    ^^^^
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:908:4
+    |
+908 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: function `wave14_native_smoke` is never used
+   --> crates/snapback4/src/verbs/init/starter.rs:429:15
+    |
+429 | pub(super) fn wave14_native_smoke(password: bool) -> String {
+    |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `run` is never used
+  --> crates/snapback4/src/verbs/test_cases.rs:71:8
+   |
+71 | pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64) -> Result<(usize, usize), Stri...
+   |        ^^^
+
+warning: `snapback4` (bin "snapback4") generated 16 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 3 suggestions)
+    Finished `dev` profile [unoptimized] target(s) in 20.34s
+COMMAND ["bun", "run", "--cwd", "packages/snapback4", "build"]
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/ && node scripts/pack-recipes.mjs
+COMMAND ["cargo", "test", "-p", "snapback4", "--test", "surf4", "--test", "run_admission", "--test", "lifecycle", "--no-fail-fast"]
+   Compiling foldhash v0.2.0
+   Compiling allocator-api2 v0.2.21
+   Compiling typenum v1.20.1
+   Compiling cfg-if v1.0.4
+   Compiling stable_deref_trait v1.2.1
+   Compiling itoa v1.0.18
+   Compiling writeable v0.6.4
+   Compiling bitflags v2.13.2
+   Compiling subtle v2.6.1
+   Compiling litemap v0.8.3
+   Compiling rustc-hash v2.1.3
+   Compiling memchr v2.8.3
+   Compiling static_assertions v1.1.0
+   Compiling oxc_data_structures v0.154.0
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling zmij v1.0.23
+   Compiling icu_locale_fallback_data v2.3.0
+   Compiling icu_segmenter_data v2.3.0
+   Compiling utf8_iter v1.0.4
+   Compiling oxc_estree v0.154.0
+   Compiling libc v0.2.189
+   Compiling siphasher v1.0.3
+   Compiling generic-array v0.14.7
+   Compiling libm v0.2.16
+   Compiling cow-utils v0.1.3
+   Compiling castaway v0.2.4
+   Compiling unicode-width v0.2.2
+   Compiling smawk v0.3.3
+   Compiling dragonbox_ecma v0.1.12
+   Compiling zerotrie v0.2.5
+   Compiling zerofrom v0.1.8
+   Compiling unicode-id-start v1.5.0
+   Compiling nonmax v0.5.5
+   Compiling bytecount v0.6.9
+   Compiling unicode-segmentation v1.13.3
+   Compiling percent-encoding v2.3.2
+   Compiling num-traits v0.2.19
+   Compiling libsqlite3-sys v0.38.2
+   Compiling wasmparser v0.228.0
+   Compiling wasmi_ir v2.0.0
+   Compiling tinyvec_macros v0.1.1
+   Compiling rand_core v0.6.4
+   Compiling base64ct v1.8.3
+   Compiling phf_shared v0.14.0
+   Compiling tinyvec v1.13.2
+   Compiling yoke v0.8.3
+   Compiling wasmi v2.0.0
+   Compiling getrandom v0.3.4
+   Compiling thiserror v2.0.20
+   Compiling serde_json v1.0.151
+   Compiling spin v0.9.9
+   Compiling wasmi_collections v2.0.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling fallible-iterator v0.3.0
+   Compiling hashbrown v0.17.1
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling equivalent v1.0.2
+   Compiling zeroize v1.9.0
+   Compiling snapback4-device v0.4.34 (/Users/ccheever/sb4-ws-dx4/snapback4/crates/snapback4-device)
+   Compiling toml_write v0.1.2
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling log v0.4.34
+   Compiling winnow v0.7.15
+   Compiling opaque-debug v0.3.1
+   Compiling zerovec v0.11.8
+   Compiling snapback4-lang v0.4.34 (/Users/ccheever/sb4-ws-dx4/snapback4/crates/snapback4-lang)
+   Compiling ascii v1.1.0
+   Compiling chunked_transfer v1.5.0
+   Compiling httpdate v1.0.3
+   Compiling phf v0.14.0
+   Compiling password-hash v0.5.0
+   Compiling sqlparser v0.59.0
+   Compiling compact_str v0.10.0
+   Compiling unicode-normalization v0.1.25
+   Compiling cpufeatures v0.2.17
+   Compiling tiny_http v0.12.0 (/Users/ccheever/sb4-ws-dx4/snapback4/vendor/tiny_http)
+   Compiling oxc_allocator v0.154.0
+   Compiling hashlink v0.12.2
+   Compiling indexmap v2.14.2
+   Compiling num-integer v0.1.47
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling inout v0.1.4
+   Compiling wasmi_core v2.0.0
+   Compiling universal-hash v0.5.1
+   Compiling aead v0.5.2
+   Compiling digest v0.10.7
+   Compiling cipher v0.4.4
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling poly1305 v0.8.0
+   Compiling num-bigint v0.5.1
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling blake2 v0.10.6
+   Compiling sha2 v0.10.9
+   Compiling hmac v0.12.1
+   Compiling chacha20 v0.9.1
+   Compiling oxc_str v0.154.0
+   Compiling icu_collections v2.3.0
+   Compiling icu_locale_core v2.3.0
+   Compiling chacha20poly1305 v0.10.1
+   Compiling oxc_span v0.154.0
+   Compiling argon2 v0.5.3
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling icu_provider v2.3.1
+   Compiling smallvec v1.16.1
+   Compiling oxc_index v5.0.0
+   Compiling toml_datetime v0.6.11
+   Compiling serde_spanned v0.6.9
+   Compiling icu_locale_fallback v2.3.0
+   Compiling toml_edit v0.22.27
+   Compiling icu_segmenter v2.3.0
+   Compiling oxc_syntax v0.154.0
+   Compiling textwrap v0.16.4
+   Compiling oxc_diagnostics v0.154.0
+   Compiling oxc_regular_expression v0.154.0
+   Compiling toml v0.8.23
+   Compiling oxc_ast v0.154.0
+   Compiling oxc_ecmascript v0.154.0
+   Compiling oxc_ast_visit v0.154.0
+   Compiling oxc_parser v0.154.0
+   Compiling rusqlite v0.40.2
+   Compiling snapback4-core v0.4.34 (/Users/ccheever/sb4-ws-dx4/snapback4/crates/snapback4-core)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.34 (/Users/ccheever/sb4-ws-dx4/snapback4/crates/snapback4)
+warning: unused import: `start::serve_requests`
+   --> crates/snapback4/src/serve.rs:327:5
+    |
+327 | use start::serve_requests;
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of deprecated type alias `libc::mach_timebase_info_data_t`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:30
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `libc::mach_timebase_info`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:20:15
+   |
+20 |         libc::mach_timebase_info(&mut info);
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `libc::_dyld_get_image_header`: Use the `mach2` crate instead
+  --> crates/snapback4/src/verbs/security/http_image.rs:28:29
+   |
+28 |     let header=unsafe{libc::_dyld_get_image_header(0)} as u64;
+   |                             ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:58
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                          ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:68
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                                    ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:50
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                  ^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:71
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                                       ^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:138:30
+    |
+138 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: function `check` is never used
+   --> crates/snapback4/src/exact_device.rs:413:8
+    |
+413 | pub fn check(root: &Path, schema: &Schema, json: bool) -> bool {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `work` is never used
+  --> crates/snapback4/src/serve_maintenance.rs:66:4
+   |
+66 | fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+   |    ^^^^
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:908:4
+    |
+908 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: function `wave14_native_smoke` is never used
+   --> crates/snapback4/src/verbs/init/starter.rs:429:15
+    |
+429 | pub(super) fn wave14_native_smoke(password: bool) -> String {
+    |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `run` is never used
+  --> crates/snapback4/src/verbs/test_cases.rs:71:8
+   |
+71 | pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64) -> Result<(usize, usize), Stri...
+   |        ^^^
+
+warning: `snapback4` (bin "snapback4") generated 16 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 3 suggestions)
+    Finished `test` profile [optimized] target(s) in 42.83s
+     Running tests/lifecycle.rs (target/debug/deps/lifecycle-0a053c6e906d7d3d)
+
+running 29 tests
+test subprocess_probe ... ok
+test thread_priority::tests::maintenance_keeps_ordinary_priority ... ok
+test thread_priority::tests::background_priority_is_lower_without_changing_its_parent ... ok
+test thread_priority::tests::intake_and_request_inheritance_are_user_initiated ... ok
+test thread_priority::tests::failed_raise_is_reported_and_cannot_admit_utility_inheritance ... ok
+snapback4: thread QoS failed (thread class http, requested 25, errno 22, at unix ms 1792414407215); inspect doctor host.scheduling: Invalid argument (os error 22)
+snapback4: thread QoS failed (thread class http, requested 25, errno 22, at unix ms 1792414407216); inspect doctor host.scheduling: Invalid argument (os error 22)
+test thread_priority::tests::later_failures_preserve_startup_evidence_and_identify_each_class ... ok
+test a_signal_diagnostic_starts_a_line_after_interrupted_stderr ... ok
+test a_real_mapping_fault_reports_before_the_os_terminates_the_process ... ok
+test a_dead_child_reports_its_status_and_stderr_without_waiting_for_the_deadline ... ok
+test off_thread_panic_and_watcher_return_have_one_line_reasons ... ok
+test sqlite_permissions_preserve_database_and_wal_locks ... ok
+test memory_and_sqlite_serialize_adoption_after_replay_then_run_the_backfill ... ok
+test abort_profile_reports_an_off_thread_panic_to_redirected_stderr ... ok
+test dev_refuses_an_explicit_worker_path_instead_of_ignoring_it ... ok
+test startup_refusals_name_the_unserved_generation ... ok
+test offline_doctor_reports_its_inherited_limit_without_raising_it ... ok
+test service_read_disjunct_admits_a_service_token_over_q_and_keeps_the_namespace_reserved ... ok
+test development_banner_and_release_auth_boundary ... ok
+test a_store_without_work_binding_columns_still_serves ... ok
+test a_leftover_release_address_hint_does_not_block_serve_and_is_cleared_on_stop ... ok
+test dev_default_adoption_and_check_share_the_successor_refusal ... ok
+test sqlite_replay_survives_counter_split_and_an_offline_cli_backfill ... ok
+test long_project_path_serves_hot_deploys_rolls_back_and_cleans_up ... ok
+test a_signal_still_cleans_up_the_application_worker ... ok
+test killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_children ... ok
+test dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server ... ok
+test watcher_keeps_serving_after_a_refused_edit_and_a_parked_backfill ... ok
+test w10r1b_dev_reports_the_same_cascades_as_check ... ok
+test dev_and_serve_report_signals_without_a_configured_worker ... ok
+
+test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.93s
+
+     Running tests/run_admission.rs (target/debug/deps/run_admission-08405175f4abac62)
+
+running 28 tests
+test unavailable_cli_body_remains_incomplete_for_exit_zero_consumers ... ok
+test identity::c_abi_open_cannot_initialize_or_clear_a_running_server_store ... ok
+test uncontended_run_keeps_the_short_path ... ok
+test interrupting_a_waiter_does_not_admit_a_job ... ok
+test adaptive_job_run_and_doctor_report_chunk_size_and_retries ... ok
+test invalid_source_and_non_lock_store_errors_keep_their_meaning ... ok
+test startup_adoption_and_run_wait_then_admit_once ... ok
+test identity::moved_store_busy_process_probes_leave_old_path_absent ... ok
+test identity::device_cannot_clear_a_running_servers_rows ... ok
+test source_edit_while_waiting_refuses_original_intent ... ok
+test identity::two_c_abi_opens_share_ownership_until_both_close ... ok
+test no_watch_names_an_unadopted_edit_and_seed_names_the_id_form ... ok
+test cli_ownership_refuses_server_startup_and_store_symlinks_share_the_lock ... ok
+test identity::multiple_device_processes_share_ownership_and_exclude_backend_writers ... ok
+test identity::fresh_init_then_dev_becomes_ready ... ok
+test competing_cli_refuses_before_admission_then_can_retry_after_owner_exit ... ok
+test identity::removing_or_replacing_the_address_record_never_admits_another_owner ... ok
+test identity::moving_a_live_database_and_its_sidecars_preserves_ownership ... ok
+test identity::unlinking_sidecar_admits_second_owner_documented_boundary ... ok
+test identity::sync_refuses_replaced_path_while_changes_keeps_the_owned_database ... ok
+test live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_releases_on_exit ... ok
+test identity::a_run_retry_keeps_database_a_when_its_alias_is_retargeted_to_live_b ... ok
+test identity::address_symlinks_and_nonregular_files_are_refused_without_truncation ... ok
+test identity::owner_sidecar_aliases_and_nonregular_files_are_refused_before_sqlite ... ok
+test changed_maintain_writer_and_backfill_outlast_the_old_five_second_wait ... ok
+test release_token_owns_the_resolved_database_before_sqlite_open ... ok
+test deadline_refuses_before_job_admission_or_activation ... ok
+test release_database_symlinks_share_one_announced_owner_for_all_writers ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 41.95s
+
+     Running tests/surf4.rs (target/debug/deps/surf4-7ccd0536f20a2d89)
+
+running 20 tests
+test runtime_error_code_is_printed_once ... ok
+test web_shell_help_includes_base_and_upgrade_includes_positional_version ... ok
+test clock_release_help_describes_staging_and_missing_store_stays_read_only ... ok
+test failed_seed_discovery_does_not_open_a_legacy_store_or_create_sidecars ... ok
+test discovery_names_directory_roles_seed_and_current_release ... ok
+test run_clock_reset_port_help_describes_only_supported_ports ... ok
+test guide_testing_index_selects_the_exact_numbered_heading ... ok
+test release_consumers_refuse_a_development_store_without_new_sidecars ... ok
+test init_redirected_output_has_no_ansi ... ok
+test release_consumers_refuse_without_creating_any_files ... ok
+test data_json_reports_default_truncation_empty_and_explicit_limits ... FAILED
+test new_help_is_about_templates_and_social_dry_run_writes_nothing ... ok
+test init_port_note_is_conditional_and_preview_rules_are_indented ... ok
+test wait_stopped_is_read_only_and_flags_refuse_before_project_work ... ok
+test current_selector_keeps_legacy_pointer_fallback ... ok
+test releases_json_uses_the_documented_field_names ... ok
+test administrative_release_consumers_can_inspect_damaged_retained_source ... ok
+test release_preflight_uses_database_selection_without_convenience_pointer ... ok
+test every_public_verb_help_matches_the_shared_parser_table_and_wrapper_synopsis ... ok
+test deploy_and_rollback_wait_before_admission_even_with_a_closing_listener_hint ... ok
+
+failures:
+
+---- data_json_reports_default_truncation_empty_and_explicit_limits stdout ----
+
+thread 'data_json_reports_default_truncation_empty_and_explicit_limits' (176468742) panicked at crates/snapback4/tests/surf4.rs:15:5:
+Output { status: ExitStatus(unix_wait_status(256)), stdout: "failed E_RULE: table authorization layer: notes's insert rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a row you cannot read holds this key (a unique key or cap group), or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count\n  rewrite: a mutation require decides intent; each write still passes its table rule; see: guide rule-recipes role-workflow\n", stderr: "run: on the local store .snapback4/store.sqlite (no dev owns it; a dev --fresh/--memory keeps its own: reach it with run --port N)\ndev: notes refused it: table insert rule; no `insert` rule, so insert is deny (table at schema.q:2:1), at add:3 — development evidence only; the refusal a client sees never names the clause\n  a mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system (guide rules)\n" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    data_json_reports_default_truncation_empty_and_explicit_limits
+
+test result: FAILED. 19 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.85s
+
+error: test failed, to rerun pass `-p snapback4 --test surf4`
+error: 1 target failed:
+    `-p snapback4 --test surf4`
+COMMAND ["cargo", "test", "-p", "snapback4", "--bin", "snapback4", "store_owner::tests"]
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.34 (/Users/ccheever/sb4-ws-dx4/snapback4/crates/snapback4)
+warning: use of deprecated type alias `libc::mach_timebase_info_data_t`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:30
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated function `libc::mach_timebase_info`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:20:15
+   |
+20 |         libc::mach_timebase_info(&mut info);
+   |               ^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated function `libc::_dyld_get_image_header`: Use the `mach2` crate instead
+  --> crates/snapback4/src/verbs/security/http_image.rs:28:29
+   |
+28 |     let header=unsafe{libc::_dyld_get_image_header(0)} as u64;
+   |                             ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:58
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                          ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:19:68
+   |
+19 |         let mut info = libc::mach_timebase_info_data_t { numer: 0, denom: 0 };
+   |                                                                    ^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::numer`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:50
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                  ^^^^^^^^^^
+
+warning: use of deprecated field `libc::mach_timebase_info::denom`: Use the `mach2` crate instead
+  --> crates/snapback4/src/serve_trace.rs:22:71
+   |
+22 |         return (mach_continuous_time() as u128 * info.numer as u128 / info.denom as u128) as u64;
+   |                                                                       ^^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:138:30
+    |
+138 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: function `check` is never used
+   --> crates/snapback4/src/exact_device.rs:413:8
+    |
+413 | pub fn check(root: &Path, schema: &Schema, json: bool) -> bool {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `work` is never used
+  --> crates/snapback4/src/serve_maintenance.rs:66:4
+   |
+66 | fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+   |    ^^^^
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:908:4
+    |
+908 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: `snapback4` (bin "snapback4" test) generated 13 warnings (run `cargo fix --bin "snapback4" -p snapback4 --tests` to apply 2 suggestions)
+    Finished `test` profile [optimized] target(s) in 10.19s
+     Running unittests src/main.rs (target/debug/deps/snapback4-3d2bb787ccc38775)
+
+running 12 tests
+test store_owner::tests::doctor_dials_the_published_loopback_address ... ok
+test store_owner::tests::external_sqlite_writer ... ok
+test store_owner::tests::replaced_canonical_path_cannot_be_opened_with_the_old_guard ... ok
+test store_owner::tests::sidecar_is_private_and_shared_devices_exclude_backend_owners ... ok
+test store_owner::tests::busy_missing_database_creates_nothing ... ok
+test store_owner::tests::address_cleanup_preserves_replacements_and_the_ownership_sidecar ... ok
+test store_owner::tests::hard_linked_databases_refuse_both_paths_and_existing_owners ... ok
+test store_owner::tests::removed_or_replaced_sidecar_ends_exclusion_documented_boundary ... ok
+test store_owner::tests::database_renamed_to_auxiliary_name_is_never_opened_or_truncated ... ok
+test store_owner::tests::database_ownership_preserves_sqlites_posix_locks ... ok
+test store_owner::tests::release_command_waits_for_an_unannounced_owner_then_acquires_exclusively ... ok
+test store_owner::tests::release_barrier_waits_for_the_real_lock_without_changing_files ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 481 filtered out; finished in 0.21s
+
+COMMAND ["node", "--test", "packages/snapback4/test/identity-rate.test.mjs", "packages/snapback4/test/proof.test.mjs", "packages/snapback4/test/wave13-surface.test.mjs"]
+✔ guest waits for the server delay and preserves scope without sending retry options (48.215584ms)
+✔ signup waits for the server delay and preserves scope without sending retry options (42.598875ms)
+✔ login waits for the server delay and preserves scope without sending retry options (42.561208ms)
+✔ header-only identity refusals retry; legacy fetch argument still works (42.641458ms)
+✔ identity refusals have bounded attempts and wait budget (3.565208ms)
+✔ abort cancels an identity wait without a late signup (32.490959ms)
+✔ identity does not replay ambiguous, malformed, non-rate or permanent refusals (0.417208ms)
+✔ proof seedAccounts shares identity delay and retries the same account only (41.811959ms)
+✔ proof seeding respects the remaining setup budget and never retries lost signup replies (0.463375ms)
+✔ runtime port range is inclusive, validated, and never cached (0.7745ms)
+✔ proof hosts select the binary from their explicit environment (270.463084ms)
+✔ native and static bind beyond an occupied port; identity and independent logs (259.23175ms)
+✔ exhausted range and missing export fail with bounded cleanup (221.94625ms)
+✔ static host serves wasm correctly and refuses escaped symlink assets (61.535542ms)
+✔ saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes (1306.748125ms)
+✔ cli awaits close, separates output and returns refusal status (57.956708ms)
+✔ ANSI and blank ready lines, early exit, stalled readiness and TERM escalation (172.681166ms)
+✔ cleanup bounds stalled actions and continues after errors (45.228833ms)
+✔ exit sweep kills registered child, not a neighboring child (55.608334ms)
+✔ Vite uses the project's config and bound identity (388.487083ms)
+✔ browser helpers use fresh text, stable values and RN keystrokes (481.93325ms)
+✔ SIGKILLed driver closes frontend liveness and sweeps its whole private group (127.689333ms)
+✔ saved schemas typecheck server companions against private candidate API without replacing working types (2118.532834ms)
+✔ ready PID and served marker mismatches refuse instead of adopting another identity (307.688667ms)
+✔ secret stdout stays in memory; token CLI automatically selects secret capture (180.788666ms)
+✔ startDev explicit --memory preserves isolation with custom arguments (358.486167ms)
+✔ waitForServer waits for authoritative projection and diagnoses unchanged truth (153.883541ms)
+✔ proof browser navigation arms witness before application registration (231.350708ms)
+✔ --no-memory is consumed by the kit and retains dev rows across restarts (305.482583ms)
+✔ proof witness injection survives HTTP redirect destinations (136.6485ms)
+✔ secret capture releases its pipe when an exited tool leaves a descendant holding stdout (6116.017334ms)
+✔ KIT4 missing static output names the app build script (115.350125ms)
+✔ KIT4 missing browser peer refuses before logs or the proof callback (76.549ms)
+✔ serve stop waits for delayed worker cleanup before resolving and is replayable (1258.242041ms)
+✔ H1/H4/H5 help agrees and ignored flags refuse before filesystem work (102.517875ms)
+✔ token quiet/JSON and empty/nonempty data JSON have machine-readable output; releases preserve provenance (143.396708ms)
+✔ startServe names its directory argument and witness disabled errors expose code (0.56ms)
+✔ proof browser prefers caller-installed @playwright/test (3.443375ms)
+✔ guide topic aliases select sections and full long cards carry a section index (56.703708ms)
+✔ helper help shares the command table and web-shell needs no native binary (107.139167ms)
+✔ explicit persona on a system job refuses before creating a store (4.548459ms)
+ℹ tests 41
+ℹ suites 0
+ℹ pass 41
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14861.7645

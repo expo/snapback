@@ -1,0 +1,11 @@
+**NOT READY**
+
+Two material fixes in the current delta:
+
+1. **Honor valid zero-delay Retry-After headers.** [identity-request.ts:33](/home/ccheever/projects/sb4-b18-dx4/snapback4/packages/snapback4/src/identity-request.ts:33) treats a parsed zero as missing and substitutes 1000 ms. Reproduced: a valid auth 429 with `Retry-After: 0` and `timeoutMs: 100` returns after one attempt instead of retrying immediately. Distinguish absent/invalid headers from valid zero delays, and add regressions for zero and elapsed HTTP-date values.
+
+2. **Remove the unresolved import from the generated qualification script.** [publication-dx4.mjs:42](/home/ccheever/projects/sb4-b18-dx4/snapback4/scripts/publication-dx4.mjs:42) inserts `import {proveWave19} from "./publication-wave19.mjs"` into temporary `local.mjs`, but that module is never copied beside it. Node will fail with `ERR_MODULE_NOT_FOUND` before executing the witnesses. Keep this import in the outer qualification module only. This is a concrete implementation failure, independent of pending test evidence.
+
+The nine focused identity tests passed. I found no material introduced authority expansion, ambiguous activation replay, or correctness issue in the owner-wait fallback, stop barrier, or JSON envelope.
+
+I made no file changes and consulted no other model reviews.

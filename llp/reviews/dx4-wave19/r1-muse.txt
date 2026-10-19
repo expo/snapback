@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-dx4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+I reviewed the wave-19 delta (§9 of `llp/3000.000.000.001-staging-with-real-users.rfc.md` plus its implementation) against the cited owner/release/proof contracts. No files were modified. No material issues found; no fixes required.
+
+What I checked:
+
+- Identity retries (`src/identity-request.ts`, `src/auth.ts`, `src/proof-accounts.ts`, `test/identity-rate.test.mjs`): retry only on delivered HTTP 429 with a validated `auth` `E_RATE_LIMIT` refusal not marked `retryable:false`, max 4 attempts, exact `retryAfterMs` (else `Retry-After`, else 1 s), whole-deadline budget with unfit waits returning the original refusal, `AbortSignal` cancelling fetch and waits, retry options stripped from the wire body, credentials/scope preserved. Non-replay matrix covers transport loss, malformed envelopes, wrong status/family/code, permanent refusals, and invalid delays. Session rotation and role provisioning paths are untouched and unretried.
+- Server side already emits `retryAfterMs` (`crates/snapback4/src/auth.rs`), and `refusal()` validation matches it, so the contract lines up.
+- Deploy/rollback admission (`store_owner.rs`, `verbs/releases.rs`): bounded 5 s owner wait only before admission; live listeners keep the authenticated read-only control status path; status/address hints never admit activation; no replay of activation requests; flock, inode/hardlink checks, revision CAS, and `E_STORE_BUSY` preserved; no signalling from hints. The `--check` path is untouched.
+- `serve --wait-stopped` barrier: requires an existing database, opens only the existing sidecar without creating anything, never touches SQLite, clears no addresses, signals nothing, refuses other flags before effects.
+- `startServe().stop()`: reaps the retained child first, then the barrier; concurrent stops coalesce; failure clears the cache so a retry is possible and cleanup can never falsely claim success. The `stopChild` allowance increase is scoped to the documented native-child-plus-barrier budget.
+- `data --json` envelope (`{rows, more, limit}`): same-transaction one-extra-row probe, default 50 and `--limit 0` boundaries covered, text output and stderr notice unchanged, read-rules bypass and private/ephemeral refusals unchanged. Remaining consumers I could find were updated or are substring assertions unaffected by the envelope.
+- Tests match the amendment's required evidence: exact-delay/budget/cancellation/non-replay SDK tests, real-lock wait/no-effect owner probes, delayed-worker stop with replayable stop, stale-listener deploy/rollback with exactly-one-activation, and envelope boundary tests.
+
+Two non-blocking nits (safe direction, not READY conditions): a `Retry-After: 0` header falls back to 1 s rather than retrying immediately, and an unparseable address hint classifies as live (zero initial wait) — the status-failure fallback still bounds and recovers that path.

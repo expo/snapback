@@ -1,0 +1,26 @@
+✔ guest waits for the server delay and preserves scope without sending retry options (54.544515ms)
+✔ signup waits for the server delay and preserves scope without sending retry options (41.384077ms)
+✔ login waits for the server delay and preserves scope without sending retry options (41.655955ms)
+✔ header-only identity refusals retry; legacy fetch argument still works (41.63947ms)
+✔ identity refusals have bounded attempts and wait budget (4.274417ms)
+✔ abort cancels an identity wait without a late signup (31.790697ms)
+✔ identity does not replay ambiguous, malformed, non-rate or permanent refusals (2.489372ms)
+✔ proof seedAccounts shares identity delay and retries the same account only (44.294641ms)
+✖ proof seeding respects the remaining setup budget and never retries lost signup replies (2.10175ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 8
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 364.896816
+
+✖ failing tests:
+
+test at packages/snapback4/test/identity-rate.test.mjs:48:1
+✖ proof seeding respects the remaining setup budget and never retries lost signup replies (2.10175ms)
+  TypeError: mock.restore is not a function
+      at TestContext.<anonymous> (file:///home/ccheever/projects/sb4-b18-dx4/snapback4/packages/snapback4/test/identity-rate.test.mjs:56:59)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7)

@@ -1,0 +1,190 @@
+[
+  {
+    "target": "Running unittests src/lib.rs (target/debug/deps/snapback4_lang-d15b4e2a058bccd1)",
+    "result": "test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s"
+  },
+  {
+    "target": "Running tests/actions.rs (target/debug/deps/actions-415a34e7b7589c48)",
+    "result": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+  },
+  {
+    "target": "Running tests/aggregate_copies.rs (target/debug/deps/aggregate_copies-a85df96efd0ac0cf)",
+    "result": "test result: ok. 64 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 2.18s"
+  },
+  {
+    "target": "Running tests/attribution_guide.rs (target/debug/deps/attribution_guide-50a6cc140b231771)",
+    "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s"
+  },
+  {
+    "target": "Running tests/audience_bounds.rs (target/debug/deps/audience_bounds-e1fff09e81a0bc7d)",
+    "result": "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.47s"
+  },
+  {
+    "target": "Running tests/audience_bounds_runtime.rs (target/debug/deps/audience_bounds_runtime-c21a3593872b5249)",
+    "result": "test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 11.03s"
+  },
+  {
+    "target": "Running tests/bounded_calendar_caps.rs (target/debug/deps/bounded_calendar_caps-07be1f5e283c2ee1)",
+    "result": "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s"
+  },
+  {
+    "target": "Running tests/bounded_following.rs (target/debug/deps/bounded_following-a60a909ca6b04c44)",
+    "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s"
+  },
+  {
+    "target": "Running tests/branch_merge.rs (target/debug/deps/branch_merge-ada397162be05fce)",
+    "result": "test result: ok. 57 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.60s"
+  },
+  {
+    "target": "Running tests/builder_guidance.rs (target/debug/deps/builder_guidance-a6191b47a00cb95e)",
+    "result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+  },
+  {
+    "target": "Running tests/chat.rs (target/debug/deps/chat-5cbf13cebcd60871)",
+    "result": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s"
+  },
+  {
+    "target": "Running tests/clique_03.rs (target/debug/deps/clique_03-552a1cb079452fd3)",
+    "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.03s"
+  },
+  {
+    "target": "Running tests/components.rs (target/debug/deps/components-945c5675bf708f86)",
+    "result": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s"
+  },
+  {
+    "target": "Running tests/constraint_diagnostics.rs (target/debug/deps/constraint_diagnostics-ca5e3024af4ad8dd)",
+    "result": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s"
+  },
+  {
+    "target": "Running tests/control_flow.rs (target/debug/deps/control_flow-b4a484888f47f209)",
+    "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.82s"
+  },
+  {
+    "target": "Running tests/cursor_advice.rs (target/debug/deps/cursor_advice-102954d5d7841036)",
+    "result": "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+  },
+  {
+    "target": "Running tests/declarative_receipts.rs (target/debug/deps/declarative_receipts-47300cc793989bd5)",
+    "result": "test result: ok. 211 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 302.02s"
+  },
+  {
+    "target": "Running tests/delivery.rs (target/debug/deps/delivery-98979287fc2e0a43)",
+    "result": "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s"
+  },
+  {
+    "target": "Running tests/delivery_clause.rs (target/debug/deps/delivery_clause-708e869aa8cd9eef)",
+    "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s"
+  },
+  {
+    "target": "Running tests/delivery_integration.rs (target/debug/deps/delivery_integration-605631a0fa5a839a)",
+    "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s"
+  },
+  {
+    "target": "Running tests/delivery_replay_conversion.rs (target/debug/deps/delivery_replay_conversion-a47cf1d8f2e3a562)",
+    "result": "test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.08s"
+  },
+  {
+    "target": "Running tests/denied_writes.rs (target/debug/deps/denied_writes-3341100fba15d987)",
+    "result": "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s"
+  },
+  {
+    "target": "Running tests/derived_maintains.rs (target/debug/deps/derived_maintains-f178649bda96b61d)",
+    "result": "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s"
+  },
+  {
+    "target": "Running tests/effect_reads.rs (target/debug/deps/effect_reads-bb2232fb7f8e25a2)",
+    "result": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+  },
+  {
+    "target": "Running tests/emit_compatibility.rs (target/debug/deps/emit_compatibility-136e26cd47316a9b)",
+    "result": "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s"
+  },
+  {
+    "target": "Running tests/ephemeral.rs (target/debug/deps/ephemeral-e75a50d6bf02089f)",
+    "result": "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+  },
+  {
+    "target": "Running tests/ephemeral_compat.rs (target/debug/deps/ephemeral_compat-1ff6dd6eb98ec424)",
+    "result": "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s"
+  },
+  {
+    "target": "Running tests/ergonomics.rs (target/debug/deps/ergonomics-e7a323a39fef2f7e)",
+    "result": "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s"
+  },
+  {
+    "target": "Running tests/expiring_mutations.rs (target/debug/deps/expiring_mutations-0454209fbfc5ed57)",
+    "result": "test result: ok. 19 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.11s"
+  },
+  {
+    "target": "Running tests/extrema.rs (target/debug/deps/extrema-bea7d69534081436)",
+    "result": "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.74s"
+  },
+  {
+    "target": "Running tests/extremum_expressions.rs (target/debug/deps/extremum_expressions-9db131b509d899c5)",
+    "result": "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s"
+  },
+  {
+    "target": "Running tests/familiar_guesses.rs (target/debug/deps/familiar_guesses-346dbc35804e4297)",
+    "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s"
+  },
+  {
+    "target": "Running tests/familiar_predicates.rs (target/debug/deps/familiar_predicates-3f13eed71cee66c8)",
+    "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+  },
+  {
+    "target": "Running tests/familiar_repairs.rs (target/debug/deps/familiar_repairs-5d49895acee1ae17)",
+    "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+  },
+  {
+    "target": "Running tests/familiar_source_repairs.rs (target/debug/deps/familiar_source_repairs-338fedaaf219615b)",
+    "result": "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s"
+  },
+  {
+    "target": "Running tests/familiar_verified_repairs.rs (target/debug/deps/familiar_verified_repairs-1c9011acf3611236)",
+    "result": "test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s"
+  },
+  {
+    "target": "Running tests/feed_forms.rs (target/debug/deps/feed_forms-0022575d33d49771)",
+    "result": "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s"
+  },
+  {
+    "target": "Running tests/file_assets.rs (target/debug/deps/file_assets-a2623ddec390ca44)",
+    "result": "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+  },
+  {
+    "target": "Running tests/first_paste.rs (target/debug/deps/first_paste-fb6513226a86e7e9)",
+    "result": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s"
+  },
+  {
+    "target": "Running tests/following_adoption_research.rs (target/debug/deps/following_adoption_research-848c9b2b2acbecc7)",
+    "result": "test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 2.36s"
+  },
+  {
+    "target": "Running tests/following_atomic_launch.rs (target/debug/deps/following_atomic_launch-37d364ec48ee8c3c)",
+    "result": "test result: ok. 9 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 2.32s"
+  },
+  {
+    "target": "Running tests/following_history.rs (target/debug/deps/following_history-5db6ef2aba2d76f0)",
+    "result": "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.88s"
+  },
+  {
+    "target": "Running tests/following_history_research.rs (target/debug/deps/following_history_research-ed5e0a08f7b52e7c)",
+    "result": "test result: ok. 1 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.30s"
+  },
+  {
+    "target": "Running tests/following_view.rs (target/debug/deps/following_view-62282b157d1aa7b2)",
+    "result": "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s"
+  },
+  {
+    "target": "Running tests/front_semantics.rs (target/debug/deps/front_semantics-32468ba8b0b9114a)",
+    "result": "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s"
+  },
+  {
+    "target": "Running tests/frontend_regressions.rs (target/debug/deps/frontend_regressions-faa25618352e39d9)",
+    "result": "test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s"
+  },
+  {
+    "target": "Running tests/guide.rs (target/debug/deps/guide-eee34b0d9c9aebae)",
+    "result": "test result: FAILED. 125 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.86s"
+  }
+]

@@ -1,0 +1,73 @@
+[
+  {
+    "command": [
+      "bun",
+      "install",
+      "--frozen-lockfile"
+    ],
+    "code": 0,
+    "seconds": 1.28
+  },
+  {
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "snapback4"
+    ],
+    "code": 0,
+    "seconds": 20.42
+  },
+  {
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "build"
+    ],
+    "code": 0,
+    "seconds": 1.55
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "surf4",
+      "--test",
+      "run_admission",
+      "--test",
+      "lifecycle",
+      "--no-fail-fast"
+    ],
+    "code": 101,
+    "seconds": 105.36
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "store_owner::tests"
+    ],
+    "code": 0,
+    "seconds": 10.85
+  },
+  {
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/identity-rate.test.mjs",
+      "packages/snapback4/test/proof.test.mjs",
+      "packages/snapback4/test/wave13-surface.test.mjs"
+    ],
+    "code": 0,
+    "seconds": 14.92
+  }
+]

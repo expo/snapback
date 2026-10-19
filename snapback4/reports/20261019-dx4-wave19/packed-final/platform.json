@@ -1,0 +1,17 @@
+{
+  "source": "7239e705c7f4cf3b4873983a8104b9420243d8e1",
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.34",
+    "filename": "snapback4-linux-x64-0.4.34.tgz",
+    "integrity": "sha512-hdZf83OHpe0rm/zPyN8AYYML8iw3KLytPL9NGcT+xE78wMy6AS78Vjq7uDX/lUUCxL/mLZOsgr6TPx3uJlM4dA==",
+    "bytes": 13306667
+  },
+  "binarySha256": "a89ceb000b02211b5b60c5c3e3bc4b07efe47d6a786722cb714399d404151d81",
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  }
+}

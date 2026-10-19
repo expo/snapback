@@ -1,0 +1,9 @@
+{
+  "command": "timeout 5400 env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4",
+  "exitCode": 0,
+  "targets": 54,
+  "passed": 1358,
+  "ignored": 15,
+  "failed": 0,
+  "nestedProbeResultsExcluded": true
+}

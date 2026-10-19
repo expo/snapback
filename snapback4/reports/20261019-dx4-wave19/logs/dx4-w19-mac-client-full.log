@@ -1,0 +1,52 @@
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/ && node scripts/pack-recipes.mjs
+✔ guest waits for the server delay and preserves scope without sending retry options (48.382542ms)
+✔ signup waits for the server delay and preserves scope without sending retry options (41.732417ms)
+✔ login waits for the server delay and preserves scope without sending retry options (42.739042ms)
+✔ header-only identity refusals retry; legacy fetch argument still works (42.806958ms)
+✔ identity refusals have bounded attempts and wait budget (5.13775ms)
+✔ abort cancels an identity wait without a late signup (32.467083ms)
+✔ identity does not replay ambiguous, malformed, non-rate or permanent refusals (0.499959ms)
+✔ proof seedAccounts shares identity delay and retries the same account only (42.334875ms)
+✔ proof seeding respects the remaining setup budget and never retries lost signup replies (0.524084ms)
+✔ zero and elapsed date Retry-After headers fit a short identity deadline (3.069542ms)
+✔ an active signup deadline names partial staging setup and never replays (236.916208ms)
+✔ runtime port range is inclusive, validated, and never cached (0.788583ms)
+✔ proof hosts select the binary from their explicit environment (112.416125ms)
+✔ native and static bind beyond an occupied port; identity and independent logs (323.108917ms)
+✔ exhausted range and missing export fail with bounded cleanup (192.661375ms)
+✔ static host serves wasm correctly and refuses escaped symlink assets (62.741208ms)
+✔ saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes (1273.169458ms)
+✔ cli awaits close, separates output and returns refusal status (59.7435ms)
+✔ ANSI and blank ready lines, early exit, stalled readiness and TERM escalation (173.864458ms)
+✔ cleanup bounds stalled actions and continues after errors (43.86675ms)
+✔ exit sweep kills registered child, not a neighboring child (68.955916ms)
+✔ Vite uses the project's config and bound identity (124.104834ms)
+✔ browser helpers use fresh text, stable values and RN keystrokes (278.477167ms)
+✔ SIGKILLed driver closes frontend liveness and sweeps its whole private group (130.729416ms)
+✔ saved schemas typecheck server companions against private candidate API without replacing working types (2155.85875ms)
+✔ ready PID and served marker mismatches refuse instead of adopting another identity (737.038375ms)
+✔ secret stdout stays in memory; token CLI automatically selects secret capture (87.232041ms)
+✔ startDev explicit --memory preserves isolation with custom arguments (359.961625ms)
+✔ waitForServer waits for authoritative projection and diagnoses unchanged truth (156.883291ms)
+✔ proof browser navigation arms witness before application registration (216.730375ms)
+✔ --no-memory is consumed by the kit and retains dev rows across restarts (309.474291ms)
+✔ proof witness injection survives HTTP redirect destinations (122.150041ms)
+✔ secret capture releases its pipe when an exited tool leaves a descendant holding stdout (6103.202333ms)
+✔ KIT4 missing static output names the app build script (111.144792ms)
+✔ KIT4 missing browser peer refuses before logs or the proof callback (87.36075ms)
+✔ serve stop waits for delayed worker cleanup before resolving and is replayable (1158.554125ms)
+✔ H1/H4/H5 help agrees and ignored flags refuse before filesystem work (109.736125ms)
+✔ token quiet/JSON and empty/nonempty data JSON have machine-readable output; releases preserve provenance (193.366417ms)
+✔ startServe names its directory argument and witness disabled errors expose code (0.635542ms)
+✔ proof browser prefers caller-installed @playwright/test (3.566542ms)
+✔ guide topic aliases select sections and full long cards carry a section index (54.151583ms)
+✔ helper help shares the command table and web-shell needs no native binary (108.799916ms)
+✔ explicit persona on a system job refuses before creating a store (4.934042ms)
+ℹ tests 43
+ℹ suites 0
+ℹ pass 43
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 14494.416292

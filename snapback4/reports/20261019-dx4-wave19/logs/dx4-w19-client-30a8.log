@@ -1,0 +1,186 @@
+✔ a failed local rotation save is not silently repeated by its notification (1605.437885ms)
+✔ a local query retries its consumed predecessor after the owned rotation arrives (781.436551ms)
+▶ HTTP admission, encoding, slow readers and idle changes polls
+  ✔ the liveness probe requires credentials and has an explicit success body (27.894478ms)
+  ✔ catalog, generated API, native module, and change activity refuse anonymous callers (5.230001ms)
+  ✔ declared/chunked oversize, truncation and invalid UTF-8 do not execute a write (21.119502ms)
+  ✔ seed and upload retain their separate larger request ceilings (40.82276ms)
+  ✔ one-view assets finalize only after a complete non-range response (89.371272ms)
+  ✔ eight idle polls leave health/schema/query work free and commits wake subscribers (45.303467ms)
+  ✔ oversized sync JSON is refused and a smaller page remains valid (456.618036ms)
+  ✔ Wasm and process clients acquire wide snapshots by shrinking the same cursor (2483.353303ms)
+  ✔ a paused large response releases the engine before network progress (79.977259ms)
+✔ HTTP admission, encoding, slow readers and idle changes polls (3412.929752ms)
+✔ guest waits for the server delay and preserves scope without sending retry options (53.732944ms)
+✔ signup waits for the server delay and preserves scope without sending retry options (41.396069ms)
+✔ login waits for the server delay and preserves scope without sending retry options (40.613346ms)
+✔ header-only identity refusals retry; legacy fetch argument still works (41.725834ms)
+✔ identity refusals have bounded attempts and wait budget (5.450782ms)
+✔ abort cancels an identity wait without a late signup (31.630469ms)
+✔ identity does not replay ambiguous, malformed, non-rate or permanent refusals (1.301331ms)
+✔ proof seedAccounts shares identity delay and retries the same account only (41.552774ms)
+✔ proof seeding respects the remaining setup budget and never retries lost signup replies (2.485726ms)
+✔ zero and elapsed date Retry-After headers fit a short identity deadline (3.569121ms)
+✔ an active signup deadline names partial staging setup and never replays (208.649971ms)
+✔ cleanup: mark, resume child cleanup, then remove empty parents (175.828937ms)
+✔ active-reference: refuse retired or absent targets and preserve history (97.688722ms)
+✔ H9 renderedText opts into substring matching for a row with more than the needle (2692.757665ms)
+✔ KIT4 substring advice stays inside explicit scope and timeout names the visible screen (658.950555ms)
+✔ H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise (1620.352524ms)
+✔ KIT3 explicit form claim survives slow uploads and never grants an unrelated callback (7449.00177ms)
+✔ KIT3 starter SVG box click and scoped text recipe run literally (433.942632ms)
+✔ KIT3 dev.now reads the current served clock across advance and reset (160.347327ms)
+✖ KIT4 stale online client names dev reset and a newly opened client works (1.043935ms)
+✔ KIT4 waitForClock observes the page client instead of the proof driver clock (548.434464ms)
+✔ KIT4 generated proof API table agrees with every source export (1442.113847ms)
+✔ loadFixtures resolves only typed leaves at one dev clock and returns reset-ready rows (39.586858ms)
+✔ loadFixtures refuses bad clocks, durations and bounded catalog failure (0.557576ms)
+✔ loadFixtures sends persona on catalog and clock reads (7.229368ms)
+✔ loadFixtures sends headers on catalog and clock reads (3.384504ms)
+✔ loadFixtures preserves auth refusals (3004.977664ms)
+✔ KIT4 missing URL refuses before URL parsing (0.396535ms)
+✔ KIT4 fixture auth errors identify persona or token fingerprint without leaking bearer bytes (3006.692716ms)
+✔ runtime port range is inclusive, validated, and never cached (1.460409ms)
+✔ proof hosts select the binary from their explicit environment (58.789104ms)
+✔ native and static bind beyond an occupied port; identity and independent logs (181.307309ms)
+✔ exhausted range and missing export fail with bounded cleanup (243.807567ms)
+✔ static host serves wasm correctly and refuses escaped symlink assets (97.090024ms)
+✔ saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes (964.188707ms)
+✔ cli awaits close, separates output and returns refusal status (70.609775ms)
+✔ ANSI and blank ready lines, early exit, stalled readiness and TERM escalation (167.181883ms)
+✔ cleanup bounds stalled actions and continues after errors (42.549188ms)
+✔ exit sweep kills registered child, not a neighboring child (61.858877ms)
+✔ Vite uses the project's config and bound identity (237.585039ms)
+✔ browser helpers use fresh text, stable values and RN keystrokes (581.365353ms)
+✔ SIGKILLed driver closes frontend liveness and sweeps its whole private group (230.70203ms)
+✔ saved schemas typecheck server companions against private candidate API without replacing working types (5096.1661ms)
+✔ ready PID and served marker mismatches refuse instead of adopting another identity (126.089499ms)
+✔ secret stdout stays in memory; token CLI automatically selects secret capture (90.25698ms)
+✔ startDev explicit --memory preserves isolation with custom arguments (301.242232ms)
+✔ waitForServer waits for authoritative projection and diagnoses unchanged truth (151.210339ms)
+✔ proof browser navigation arms witness before application registration (373.058346ms)
+✔ --no-memory is consumed by the kit and retains dev rows across restarts (292.76299ms)
+✔ proof witness injection survives HTTP redirect destinations (255.215179ms)
+✔ secret capture releases its pipe when an exited tool leaves a descendant holding stdout (6091.149357ms)
+✔ KIT4 missing static output names the app build script (111.060518ms)
+✔ KIT4 missing browser peer refuses before logs or the proof callback (78.461376ms)
+✔ serve stop waits for delayed worker cleanup before resolving and is replayable (1079.355372ms)
+▶ online: each dev/serve refusal survives terminal cleanup and the online arm
+  ✔ dev unknown (50.869451ms)
+  ✔ dev expired (7.30389ms)
+  ✔ dev revoked (5.585413ms)
+  ✔ serve unknown (5.366736ms)
+  ✔ serve expired (4.988319ms)
+  ✔ serve revoked (8.135357ms)
+✔ online: each dev/serve refusal survives terminal cleanup and the online arm (222.829599ms)
+▶ local: each dev/serve refusal survives terminal cleanup and the online arm
+  ✔ dev unknown (494.757903ms)
+  ✔ dev expired (549.548073ms)
+  ✔ dev revoked (544.828688ms)
+  ✔ serve unknown (592.818952ms)
+  ✔ serve expired (583.860743ms)
+  ✔ serve revoked (462.649357ms)
+✔ local: each dev/serve refusal survives terminal cleanup and the online arm (3365.173097ms)
+▶ app-online: each dev/serve refusal survives terminal cleanup and the online arm
+  ✔ dev unknown (29.249329ms)
+  ✔ dev expired (17.134928ms)
+  ✔ dev revoked (16.651924ms)
+  ✔ serve unknown (16.017533ms)
+  ✔ serve expired (17.413826ms)
+  ✔ serve revoked (17.039034ms)
+✔ app-online: each dev/serve refusal survives terminal cleanup and the online arm (247.298461ms)
+▶ app-device: each dev/serve refusal survives terminal cleanup and the online arm
+  ✔ dev unknown (500.948714ms)
+  ✔ dev expired (398.658545ms)
+  ✔ dev revoked (445.652676ms)
+  ✔ serve unknown (560.57225ms)
+  ✔ serve expired (452.180442ms)
+  ✔ serve revoked (477.008344ms)
+✔ app-device: each dev/serve refusal survives terminal cleanup and the online arm (2974.74451ms)
+✔ ordinary signed-out client and app online arm still say sign in (0.903234ms)
+✔ real dev unknown-store bearer keeps the repair through online query and saved local startup (272.944128ms)
+✔ device app restoring a foreign-store token keeps its refusal on the signed-out online facade (1629.052878ms)
+✔ ordinary never-signed-in app stays generic (device: false) (1.916033ms)
+✔ ordinary never-signed-in app stays generic (device: true) (1.068072ms)
+✔ the default session store stays in memory and browser persistence is explicit (1.606689ms)
+✔ the local client rotates near expiry and keeps every protected request on the current bearer (45.971379ms)
+✔ a stale-token mutation refusal remains durable and retries after rotation (281.182959ms)
+✔ an online-only watch retries a stale-token refusal after rotation (30.16301ms)
+✔ a current-token sign-out cannot reclassify a stale write refusal (26.31445ms)
+✔ an authenticated change-feed refusal signs the online client out (13.218867ms)
+✔ worker, effect inspection, and service-session calls always carry the service bearer (1.368823ms)
+✔ staging accepts the generated handle of a qualified mutation module (414.688666ms)
+✔ staging accounts are real password users; service grants obey rules; marker survives release switches (1191.189428ms)
+✔ production cannot be relabelled; bulk setup refuses before token mint or account creation; first admin uses explicit operator (630.917048ms)
+snapback4: password-only development doors CLOSED (/seed, /dev/*, personas). For shared previews and probe:serve run snapback4 deploy staging --staging, then startServe("staging"); see snapback4 guide staging. Local fixtures require dev --unsafe-dev-doors.
+snapback4: password-only development doors CLOSED (/seed, /dev/*, personas). For shared previews and probe:serve run snapback4 deploy staging --staging, then startServe("staging"); see snapback4 guide staging. Local fixtures require dev --unsafe-dev-doors.
+✔ password dev closes fixture and persona doors; explicit opt-in, declared cast, and persistent defaults (504.890603ms)
+✔ adopting password-only identity closes existing dev doors and declared personas (569.347155ms)
+snapback4: Time travel also advances session expiry and unplaced-upload collection: seven-day password sessions may now be expired. Sign in again after the jump and upload unplaced bytes after it; never replay an ambiguous clock advance. Password-only dev clock tools require --unsafe-dev-doors; for real-user previews use guide staging (MIG staging clock).
+✔ MIG staging clock is operator-only and production never accepts an offset (1214.648677ms)
+✔ MIG hot adoption and exact previews use both signs of the staging clock (2236.298919ms)
+✔ DX4 custom provisioning merges principal/role and chooses its authorized service seat (352.432164ms)
+{"boundary":232,"oldOrdinaryLineBytes":8171,"oldMaxIdLineBytes":31835,"postLineBytes":19,"postOrdinaryBodyBytes":6794,"postBodyBytes":30458}
+{"boundary":233,"oldOrdinaryLineBytes":8206,"oldMaxIdLineBytes":31972,"postLineBytes":19,"postOrdinaryBodyBytes":6823,"postBodyBytes":30589}
+{"boundary":256,"oldOrdinaryLineBytes":9011,"oldMaxIdLineBytes":35123,"postLineBytes":19,"postOrdinaryBodyBytes":7490,"postBodyBytes":33602}
+✔ sync request-line boundaries and a deliberate body ceiling (195.359786ms)
+{"store":"wasm","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (1739.071714ms)
+{"store":"wasm","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (1406.270361ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (1710.693631ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (2227.915522ms)
+{"store":"native","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (1156.150329ms)
+{"store":"native","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (1125.772008ms)
+{"store":"native","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (1248.758465ms)
+{"store":"native","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (1937.458921ms)
+{"store":"wasm","offsetMs":500,"requestStartMs":14289.185068,"cutMs":14789.962346,"rejectionMs":18295.423672,"notificationMs":18296.238794,"detectionMs":3506.2764480000005}
+{"store":"native","offsetMs":500,"requestStartMs":14305.103482,"cutMs":14804.471167,"rejectionMs":18306.713137,"notificationMs":18307.356131,"detectionMs":3502.8849640000008}
+{"store":"wasm","offsetMs":5000,"requestStartMs":14293.9225,"cutMs":19294.250128,"rejectionMs":22298.928228,"notificationMs":22299.4764,"detectionMs":3005.226272}
+{"store":"native","offsetMs":5000,"requestStartMs":14308.782909,"cutMs":19308.720702,"rejectionMs":22309.949982,"notificationMs":22310.296641,"detectionMs":3001.575939000002}
+{"store":"wasm","offsetMs":15000,"requestStartMs":14293.685896,"cutMs":29293.895075,"rejectionMs":32296.615563,"notificationMs":32297.232217,"detectionMs":3003.3371420000003}
+{"store":"native","offsetMs":15000,"requestStartMs":14310.291831,"cutMs":29310.326118,"rejectionMs":32312.995699,"notificationMs":32313.552925,"detectionMs":3003.226806999999}
+✔ idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores (21599.903659ms)
+✔ healthy heartbeat polls, buffered native fetch and browser connectivity hints (11164.534975ms)
+✔ E_STREAMS degrades the change feed to paced unheld polls, never offline (5457.228211ms)
+✔ a streaming poll rechecks a revoked bearer before its final JSON (1053.020054ms)
+✔ H1/H4/H5 help agrees and ignored flags refuse before filesystem work (148.007567ms)
+✔ token quiet/JSON and empty/nonempty data JSON have machine-readable output; releases preserve provenance (107.412639ms)
+✔ startServe names its directory argument and witness disabled errors expose code (1.282693ms)
+✔ proof browser prefers caller-installed @playwright/test (4.241268ms)
+✔ guide topic aliases select sections and full long cards carry a section index (40.565364ms)
+✔ helper help shares the command table and web-shell needs no native binary (172.376621ms)
+✔ explicit persona on a system job refuses before creating a store (5.900676ms)
+ℹ tests 134
+ℹ suites 0
+ℹ pass 133
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 52183.664939
+
+✖ failing tests:
+
+test at packages/snapback4/test/proof-contract.test.mjs:162:1
+✖ KIT4 stale online client names dev reset and a newly opened client works (1.043935ms)
+  Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/home/ccheever/projects/sb4-b18-dx4/snapback4/packages/snapback4/dist/client.js' imported from /home/ccheever/projects/sb4-b18-dx4/snapback4/packages/snapback4/test/proof-contract.test.mjs
+      at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+      at moduleResolve (node:internal/modules/esm/resolve:866:10)
+      at defaultResolve (node:internal/modules/esm/resolve:992:11)
+      at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+      at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+      at ModuleLoader.resolveSync (node:internal/modules/esm/loader:765:52)
+      at #resolve (node:internal/modules/esm/loader:701:17)
+      at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:621:35)
+      at onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:650:32)
+      at TracingChannel.tracePromise (node:diagnostics_channel:350:14) {
+    code: 'ERR_MODULE_NOT_FOUND',
+    url: 'file:///home/ccheever/projects/sb4-b18-dx4/snapback4/packages/snapback4/dist/client.js'
+  }

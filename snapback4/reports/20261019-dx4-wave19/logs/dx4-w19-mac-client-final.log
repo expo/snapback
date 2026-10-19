@@ -1,0 +1,1 @@
+[{"command": ["bun", "run", "--cwd", "packages/snapback4", "build"], "code": 0}, {"command": ["node", "--test", "packages/snapback4/test/identity-rate.test.mjs", "packages/snapback4/test/proof.test.mjs", "packages/snapback4/test/wave13-surface.test.mjs"], "code": 0}]

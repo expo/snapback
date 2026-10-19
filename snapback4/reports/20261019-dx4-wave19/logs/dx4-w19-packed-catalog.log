@@ -1,0 +1,35 @@
+
+added 6 packages in 1s
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Partial accounts\/grants may exist/. Input:
+
+'E_STAGING_TIMEOUT: staging setup deadline expired; inspect or discard partial accounts/grants before retrying. guide staging.\n' +
+  '\n' +
+  '### Account setup refusals\n' +
+  '\n' +
+  'E_STAGING_TIMEOUT means the setup deadline expired. Partial accounts/grants\n' +
+  'may exist; inspect or discard the disposable deployment before retrying.\n' +
+  '\n' +
+  'Full card: snapback4 guide staging\n'
+
+    at proveDX4 (file:///home/ccheever/projects/sb4-b18-dx4/snapback4/scripts/publication-dx4.mjs:23:106)
+    at file:///home/ccheever/dx4-wave19-final-probe.mjs:26:41 {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'E_STAGING_TIMEOUT: staging setup deadline expired; inspect or discard partial accounts/grants before retrying. guide staging.\n' +
+    '\n' +
+    '### Account setup refusals\n' +
+    '\n' +
+    'E_STAGING_TIMEOUT means the setup deadline expired. Partial accounts/grants\n' +
+    'may exist; inspect or discard the disposable deployment before retrying.\n' +
+    '\n' +
+    'Full card: snapback4 guide staging\n',
+  expected: /Partial accounts\/grants may exist/,
+  operator: 'match',
+  diff: 'simple'
+}
+
+Node.js v24.13.1

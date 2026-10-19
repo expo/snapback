@@ -1,0 +1,29 @@
+{
+  "source": "7239e705c7f4cf3b4873983a8104b9420243d8e1",
+  "status": "passed",
+  "mode": "affected-packed-DX4-and-staging",
+  "client": {
+    "name": "snapback4",
+    "version": "0.4.34",
+    "filename": "snapback4-0.4.34.tgz",
+    "integrity": "sha512-bp5UrC7tsWyM/DgbXW0bb3uiRxlFg6QbImLxlOnx/nnCfDnjVql8DZqTa3YN+5GSC2ifrM0eN/fU4QNZ3WSCug==",
+    "bytes": 1307866
+  },
+  "expo": {
+    "name": "snapback4-expo",
+    "version": "0.4.34",
+    "filename": "snapback4-expo-0.4.34.tgz",
+    "integrity": "sha512-y4nWpkBVNzHazo2kbwxrjE4PkC0OPYqAn7oKAfzl0eU1NUtm6r//HaWNQ87E9EhmxFXpqzLyQBz2SLmZoa+QLg==",
+    "bytes": 22238
+  },
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.34",
+    "filename": "snapback4-linux-x64-0.4.34.tgz",
+    "integrity": "sha512-hdZf83OHpe0rm/zPyN8AYYML8iw3KLytPL9NGcT+xE78wMy6AS78Vjq7uDX/lUUCxL/mLZOsgr6TPx3uJlM4dA==",
+    "bytes": 13306667
+  },
+  "why": "E_IDENTITY_TIMEOUT checked in installed CLI",
+  "broadQualification": "ed0abcf8ca97baa8748d3eee8f143ef7316b5e2a",
+  "publicationQualified": false
+}
