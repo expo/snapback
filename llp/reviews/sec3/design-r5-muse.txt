@@ -1,0 +1,42 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=9bf112e6-1539-4b0c-a921-0cb55784aeb9]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+Review complete. I read §12–12.7, all five new files, and the full code delta from `3653cae823` (working tree + untracked; deliberately excluded `llp/reviews/sec3/` and `WORKSTREAM-REPORT.md`). No files edited, no tests run.
+
+## Verdict: NOT READY
+
+Two material defects, both mechanisms verified against the engine source. Neither produces false proofs (verdict assembly is correctly conservative — blockers force unproved), but both produce false reachable refutations, i.e. spurious `check`/`test` failures.
+
+### M1. Campaign reference-hop evaluation is raw; the engine's is fail-closed authorized
+
+New `Snapshot::reference` in [challenges.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges.rs) returns the raw field of any live row with no authorization check. The SEC3 delta simultaneously deleted the old guard in `policy()` (`if p.has_reference(){ return Err("live reference policy challenge requires authorized-hop replay") }`).
+
+The engine contradicts raw semantics explicitly in [rule_reference.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-core/src/engine/rule_reference.rs): "no raw witness field escapes authorization"; hidden/unheld parents fail closed; device path calls `authorize_read` and returns `None` when denied. (Exists-probes are raw per [witness.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-core/src/engine/witness.rs) — "never recursively authorized" — so only the *reference* path is wrong, not the `exists` path; the new `live()` filter on exists matches engine expiry behavior.)
+
+Failure mechanism: for an invariant policy with a reference hop (e.g. ownership through a parent ref) where the viewer cannot read the hop target, the engine evaluates unknown (never false, per §3), but the campaign evaluates the raw value and can judge false. That yields a reachable-marked violation in `histories::observe` (typed and absent-world paths), `changed()`, and column observers — failing acceptance on a schema the engine actually enforces. The campaign's own comment admits the split ("Policies describe raw independent intent. The observer itself must still execute through the engine's live/authorized reference implementation") — the same predicate evaluated two ways breaks the §4 contract that counterexamples replay actual engine admission.
+
+Concrete repair: restore the `has_reference()` decline in `policy()`, and add the same guard in [timed.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/timed.rs), which calls `rules::evaluate` with a `Snapshot` directly and is not covered by a `policy()`-level fix (its existing decline only covers exists-probe dependencies, not reference hops).
+
+### M2. Operation-specific history judgments skip the transitive implicit-write gate
+
+[histories.rs:118](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs) applies `stability::safe()` only when `inv.operation.is_none()`. Operation-scoped judgments therefore get the direct dep-write check (line 139) but not the maintain/cascade/set-null transitive closure from new [stability.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/stability.rs). When the named operation's writes trigger implicit writes into a policy dependency, the pre-write snapshot judgment is stale in exactly the way §12.7 says must be unsupported — producing a spurious reachable violation (or a missed one). `ir::write_tables` correctly descends into loop bodies (verified in `ir/writes.rs`), so this is purely the missing `safe()` call, not census coverage.
+
+Concrete repair: drop the `inv.operation.is_none()` exemption at line 118 so `stability::safe()` covers operation-specific judgments. If the exemption is intentional, it needs a stated justification; silent staleness is not an option under §12.2 ("unstable policy need executed-effect tracing and remain unsupported").
+
+### Minor issues (repair, not blocking alone)
+
+- Column observers never call `materialize_arguments` for Image/File args ([column_reads.rs:53-83](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/column_reads.rs)), unlike `run_selected`, `histories::run`, and the operation matrix. Media-argument observers decline on marker-string `E_INPUT` instead of testing with real uploads as §12.7 requires. Repair: materialize inside the `execute` closure.
+- Column observers decline `NewId`/`Emit` but not `JobAs`/`JobQuery` opaque contexts; `paired::run` declines all four. Repair: extend the line-43 check.
+- `table.id read` invariants have no observer path: `alternative()` has no `Id` arm and whole-row observers skip column invariants. Conservative (blockers keep it unproved), but repair by synthesizing `Id` alternates or routing id-columns through presence observers.
+- `add_source_notes` splits messages on `[' ', ':']`, so `name.effect` messages map to table sites even though the site table already holds exact `table.effect` keys. Repair: look up the full dotted token first (§12.5 exact-site requirement).
+- `histories::observe` silently skips metered/incomplete queries in the typed path with no unsupported note; and fixture absent-worlds allow cascade worlds (valid, causally attributable — defensible) while synthetic paired runs decline all referenced tables. Recommend documenting the attribution rationale rather than changing behavior.
+
+### Verified sound (no action)
+
+Verdict assembly (`direct == Proved && reasons.is_empty()` with wire/collision/owner/referential/sync/cascade/raw-probe/maintain/job blockers); reachability/exit gating in `check`/`audit`/`test` (reachable-only `refuted()`, `--all` never changes failure set, kebab-case origins, reachable-wins apply order, `--all` wired in `cli-commands.json`); fixed `NOW` campaign clock with isolated in-memory loader (dev store never replayed, `relative_times` at campaign clock); `fork_memory` completeness (catalog/identity/server/assets, tempdir cleanup, ephemeral/presence declined); immutable-column delete-and-reseed worlds with non-protected-field verification; single-write/arm/pre-write gating; privilege-escalation/grant-lifetime/existence-oracle lint directions (structural comparison, service-only exclusion, owner-bypass and defaulted-role inclusion, mutable-roster plus recipient-tie gating); `Retry-After: 60` / `retryAfterMs: 60000`.
+
+No qualification claim is made; qualification was out of scope for this review.

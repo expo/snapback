@@ -58,3 +58,25 @@ the zero-hole acceptance condition. Evidence: snapback4/reports/20261018-sec2/.
 SEC2 final-content review checkpoints: round 7 both READY for exact old/next immutable-image proofs, maintained-column observer closure, preserved operation assertions and faithful committed witnesses; round 13 both READY for production credential histories with strict HTTP framing and loaded-image custody. The five repaired production copies finish the original probe brief with zero confirmed findings; finite probe evidence does not close this ticket’s remaining whole-proof/device/state-machine obligations. See llp/reviews/3000.036.004-sec2-final-review-manifest.json and the SEC2 probes/summary.json.
 
 SEC2 adoption/qualification checkpoint: fresh Codex102 and Muse181 final declarations across the same10 apps; production replays finish60 commands without timeouts. Codex retains3 legitimate literal-policy/all-snapshot refutations; Muse final0. Initial spec/workflow findings, scope corrections and incomplete coverage remain in verbatim reports. Both reviewer families READY in round14 (operation/intent-only named seats) and round15 (exact deterministic invalid-fixture reuse). Fresh prepared-pack consumer-only Linux qualification passes at3b89b6300e, with no publication claim. All four initially failing Rust targets pass full affected reruns; original suite failures remain visible. General obligations above still prevent closing acceptance.
+
+
+## SEC3 continuation (2026-10-19)
+
+LLP3000.036.004 §12 adds column-value/presence intent and per-column audit,
+complete activated SQLite/asset fixture forks, repeatable committed-world
+observers, physical pending-row write-arm attribution, actor/ref/enum/time/media
+histories and explicit witness origins. Bounded media creation then revocation
+runs from empty media populations through actual uploads/commits; query image/
+file inputs retain verified owned ledgers. Escalation advice respects all touched
+owner gates, named transitions, mixed patches, helper guards and independent
+provisioning intent; notes require real source sites and independent privacy
+intent. Full source reviews16 and nullable delta17 are both READY; provenance
+is in llp/reviews/sec3/final-readiness.json. Qualification receipts are separate.
+
+This ticket remains Open. Arbitrary-length induction, disconnected-device and
+whole-wire/activity guarantees, opaque/native/external disclosure reductions,
+complete paired asset-input coupling and unsupported dynamic/complex source
+patch reductions remain unproved. Finite reachable failures catch bad examples;
+passing finite campaigns, advisory silence and direct-rule implications do not
+close the zero-hole acceptance condition. The final SEC3 measurement/report is
+under snapback4/reports/20261019-sec3 and WORKSTREAM-REPORT.md.

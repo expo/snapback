@@ -1,0 +1,24 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=9979f09a-4ef6-4609-a2e5-5a6bc795f64d]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Reviewed §12 (SEC3 day-two amendment) against the committed implementation at [a1f622c](https://github.com/org/repo/commit/a1f622ce6c48cfe80005649ae66430f2f16df269) (`/home/ccheever/projects/sb4-b17-sec3`), covering `snapback4-lang/src/bind/security*`, `snapback4-core/src/engine/fixture.rs`, `snapback4-core/src/store/fork.rs`, and `snapback4/src/verbs/security.rs` / `testing.rs`.
+
+What holds, traced to source:
+
+- Column payload/refusal provenance: paired observers tag `data` vs `refusal{code,message}` separately ([paired.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/paired.rs:12)); only authored rule/constraint markers qualify, incomplete/metered/resource errors decline. Typed witnesses require compiler-typed `Row/Page` shapes with physical-value equality, so scalar projections still need paired worlds.
+- Identical materialized arguments: the HEAD commit correctly records `primary_args` and declines on any primary/alternate divergence, with repeats checking observations, committed worlds, and args together ([column_reads.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/column_reads.rs:101)).
+- Committed-world equality including captures: `same_base_world` compares full committed readbacks (populations, identities, all non-maintained fields including captures); divergence declines. Maintained targets are never seeded, only recomputed.
+- Physical write arms: predecessor matching uses `expired()` (expire-column only), so not-before-pending rows count as present — updates stay updates, deletes of pending rows are judged. Matches the contract exactly.
+- Three-valued intent/stability: unknown reference judgments never refute; `stability::necessary` weakens only to `Allow`, verifies `original => weakened`, and bails on any implicit write to the target; delete needs an executed direct delete.
+- Real fixture isolation: forks copy the activated store via SQLite backup plus asset-dir copy into fresh temp dirs owned by `Store` (removed on `Drop`, error paths included), with fresh entropy/minter, no re-adoption, and ephemeral/presence fixtures declined.
+- Bounded campaigns with honest caps: 512/512 histories with role-successor then diagonal pairs, 16384/32768/8192 reservation budgets that decline (never prove), per-actor first disclosures, shortest/reachable witness wins, seed/synthetic witnesses non-failing and `--all`-gated.
+- Structural advice: no admin-name allowlist; service branches excluded; appointer boundaries honored; lifetime advice requires independent current-role intent (name-based fallback correctly absent); principal-only creation/reassignment judged per upsert arm; deletion revokes immutable roles; 429 carries `Retry-After: 60` / `retryAfterMs: 60000` ([auth.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4/src/auth.rs:17)).
+
+No material correctness repairs required. Two conservative-direction observations, not blockers: the `role_columns` global-roster fallback can treat a viewer+literal scoped-context probe as a qualifier (extra advisory note at most — advice is explicitly overapproximate); whole-row paired observers pass unmaterialized asset markers, which decline safely in the engine rather than proving anything.
+
+Not in scope for this verdict: finite-campaign completeness, whole-protocol/device/opaque obligations, and §12.4 qualification evidence — all explicitly unproved/not-covered by the design itself.

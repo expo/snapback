@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=f96e7f2f-cffb-43b4-ac99-5a06e7677abd]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+The delta is sound. It changes only value sourcing in `sample_rows` in [column_reads.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/column_reads.rs).
+
+What it does: a `row.field(column)` miss on an optional column with absent or null-literal default now synthesizes `Value::Null` as the old value, instead of declining the pair. Present cells follow the exact prior path. Required columns, optional columns with non-null/`Now`/`Viewer` defaults, and asset columns with no second typed value still decline.
+
+Why it is correct: core read semantics state missing optional columns read as null (`materialize_optional_fields` in `schema.rs`). Validation accepts both missing and explicit null for optional (`fits`: `(Optional(_), None | Some(Null)) => true`). The synthesized null world is therefore the world the engine itself would present, not an invented invalid image.
+
+Safeguards are untouched. Invalid-world decline, committed-image policy-false gating, coupled-argument equality, `same_base_world`, and repeat-execution stability all sit outside the diff and still apply to the new pairs. The presence-pair construction (`Null` versus `sample(required, 0)`) matches the section 12 rule that optional-column pairs vary values and null presence.
+
+No material repair needed. The conservative decline for optional columns with live defaults is acceptable, not a defect.
+
+Scope note: this is a delta source/design review of the stated commit range in this one file only. It is not a whole-source audit and asserts no finite-campaign completeness.

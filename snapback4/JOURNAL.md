@@ -96711,3 +96711,30 @@ campaigns and the repaired 015 custody workflow remain explicit gaps in
 `../issues/20261018-sb4-security-proof-and-adversarial-qualification-gaps.md`.
 This is a conservative verification foundation, not a zero-holes capability
 claim. No version bump, push or publication.
+
+
+## 2026-10-19 — SEC3: column intent and executable fixture histories
+
+LLP3000.036.004 §12 extends independent intent to column values and presence,
+with per-column audit audiences. Engine/SQLite/verified-asset fixture forks
+preserve activation, maintained rows, captures and lifetimes without re-seeding
+engine-owned fields. Actual query payload/refusal comparisons repeat on valid
+worlds with identical inputs; Unknown and unsupported reductions stay unproved.
+Only authored fixture traces fail acceptance; seed/synthetic observations remain
+visible with --all. Global-role and principal-grant advice uses qualified
+appointers, helper scope and runtime field-ownership/transition admission.
+Security notes have source sites, exact current-role intent gating and narrower
+existence evidence. Identity rate refusals carry retry delays; printers retain
+Boolean parentheses and failing summaries say FAIL.
+
+Full scoped Muse/fresh Codex reviews are READY in round16; both incremental
+nullable-column reviews are READY in round17, on the same amendment revision.
+Verbatim records and provenance: llp/reviews/sec3/final-readiness.json. The
+production r15 campaign catches all eight calibrated day-two high roots and
+runs1024 histories in every one of the ten reported-high lanes; final-source
+measurement/consumer qualification is in progress and will have separate
+receipts. A repaired021 bootstrap copy still exposes its wrong-deadline read.
+No universal or whole-wire/device security claim follows from these finite runs.
+REL5 owns release transitions/compatibility; MIG owns backfills/staging clocks;
+STAGE owns the operator first-admin recipe. The0.4.34 guide changes entry carries
+the user-visible changes without a version bump or publication.

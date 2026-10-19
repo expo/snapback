@@ -1,0 +1,47 @@
+{
+  "full_round": 16,
+  "delta_round": 17,
+  "scope": "Full source/design readiness at8890094629 plus the nullable-column delta through53d480551a; finite completeness and qualification are not asserted by reviews.",
+  "rounds": {
+    "16": {
+      "commit": "88900946293fae6d613ab54aa0d330d7d85d50b8",
+      "rfc_sha256": "c0c9b643a74a763f2b717d8d29c0b3b56456585273a02147d510bfaa0f062f0e",
+      "reviews": [
+        {
+          "family": "codex",
+          "verdict": "READY",
+          "raw": "design-r16-codex.txt",
+          "sha256": "6bafa0e37e810f8139a947c393400cfdc0a1f8b5af3cdca5ff72b7eab695be14",
+          "wrapper": "3000.036.004-sec3-r16.codex.md"
+        },
+        {
+          "family": "muse",
+          "verdict": "READY",
+          "raw": "design-r16-muse.txt",
+          "sha256": "6d37db566e5a58591177d2acb55b9deb087c66e34c3d34132764cc15c75f8cf7",
+          "wrapper": "3000.036.004-sec3-r16.muse.md"
+        }
+      ]
+    },
+    "17": {
+      "commit": "53d480551a6732ac2a037d71e590923c86fb831d",
+      "rfc_sha256": "c0c9b643a74a763f2b717d8d29c0b3b56456585273a02147d510bfaa0f062f0e",
+      "reviews": [
+        {
+          "family": "codex",
+          "verdict": "READY",
+          "raw": "design-r17-codex.txt",
+          "sha256": "7753bf45683c4370220f0162f9513b1d24e9d5b4b91b2d659c2c675d1911fac4",
+          "wrapper": "3000.036.004-sec3-r17.codex.md"
+        },
+        {
+          "family": "muse",
+          "verdict": "READY",
+          "raw": "design-r17-muse.txt",
+          "sha256": "ca7301714e0cc4c2f4ec9728e59b5991879100128fbc8ce2e3c8cbeca5040db2",
+          "wrapper": "3000.036.004-sec3-r17.muse.md"
+        }
+      ]
+    }
+  }
+}

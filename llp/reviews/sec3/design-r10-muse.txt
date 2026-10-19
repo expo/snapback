@@ -1,0 +1,39 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=addb628b-c36d-4145-8209-0bc39cf88c56]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+**NOT READY** — one blocking material defect: the committed revision does not compile, so none of the §12 behavior can execute.
+
+## Blocking defect
+
+`[privilege.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/privilege.rs)` at HEAD (76 lines) is a fused fragment of two functions:
+
+- `risk()` (line 27) loses its entire fixed-role comparison tail. Its `if !dynamic {` block (lines 63–76) contains what was meant to be the new `role_columns` body, referencing identifiers that do not exist in `risk`'s scope (`columns`, `named`, `collect`, and `table` as `&str` — it is `&Table` there). There is no privilege comparison, no `return Some(...)`, no final `None`.
+- `fn role_columns` itself is deleted — no definition exists anywhere at HEAD — while 4 call sites remain: [lints.rs:9,17,117](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/lints.rs) and [histories.rs:191](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs).
+- Brace balance is 68 `{` vs 63 `}`. The `fn role_columns` header plus `risk`'s comparison/closings were removed in the `@@ -59,25 +61,15 @@` hunk; the new global-check body was pasted into the wrong function.
+
+Corroborated by inspection only (no build/test per instructions): undefined-name references plus unbalanced delimiters plus zero definitions for four call sites is conclusive without compiling.
+
+**Repair:** re-split the fragment — restore `risk()`'s fixed-role comparison tail (fixed assignment requires new unconditional read/delete or roster authority per the new §12.8 paragraph, which currently has no implementing code), and re-establish `fn role_columns` carrying the new one-principal/role-qualifier-only global check plus the `observed.len()==1` fallback. The new §12 paragraphs on fixed-role comparison and compound-key evidence otherwise describe behavior absent from the committed code. (Note: the working tree holds an in-progress edit to this same file; this verdict is on the committed revision, which I did not mix in.)
+
+## Per-area probes (all read-only; behavior inferred from code, not executed)
+
+| Area | Probe | Result |
+|---|---|---|
+| Scoped role probes | `exists roster [viewer] role='admin'` + equality `region='north'` through new `substitute()` | Opaque predicate retained, not `Allow` — matches "matching role alone cannot make region-qualified read unconditional" |
+| Compound/global keys | Tuple `(principal, qualifier)` vs scoped-enum context | Intended one-principal/qualifier-only check exists only inside the broken fragment — unverifiable until D1 fixed |
+| Delegation intent | Named-operation invariant + `risk(operation)` threading | Present: `operation` param, `i.operation == Some(operation)` filter, upsert recursion carries it |
+| Lifetime advice | Retained branch already implying declared policy (incl. owner alternative) | Present: `recipient_role` requires `role_test` + `implies(branch, p) != Ok(true)`; §12.8 supersession honored |
+| Helper prefixes | `require A; if c { require B }; write` in helper | Only `A` exported (`_ => break`); branch-local guards cloned, never leaked — matches spec |
+| Unknown/stability | Hidden-reference policy; `A AND B` with `B` on op-written table | Unknown → `Err`, never refutation; `weak()` + `implies(policy, weaker)` reduction is a valid weakening |
+| Paired worlds | Column pair where alternate changes a non-protected field | Rejected ("alternate seed changes non-protected base fields"); policy-false-in-both + repeatability required |
+| Initial-first + budgets | Fixture column observers vs history/synthetic phases | Present: `column_reads::fixture` before `histories::run`; `run_selected_after` threads one `Campaign` with shared 16384/32768/8192 counters |
+| Shortest witness | Synthetic exists, then authored found | Present: `apply()` replaces synthetic with authored, keeps fewer committed steps |
+| Assertions | Unchanged pre-existing `always` violation; deleted-then-reinserted row | Supplemental only (not pushed); multi-write/net-image cases → unsupported, not fabricated |
+| Dedup | Repeated enum digits after dependency pruning | Present: `seen` set on `(rows, candidate_args)`; per-case `contains` checks |
+
+Unsupported boundaries (§12.2/12.5–12.8: multiple writes, implicit effects, opaque/loop paths, uncoupled media, ephemeral hub, temporal references, referential paired absence, resource/meter refusals) are each recorded as named `unsupported` strings rather than proofs — consistent with "finite exploration and advice are not universal proofs." No qualification claim is made.
+
+Single verdict: **NOT READY** pending the `privilege.rs` re-split repair.

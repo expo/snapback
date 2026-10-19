@@ -1,0 +1,69 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+# SEC3 §11 review: NOT READY
+
+Blind review of `llp/3000.036.004-security-invariants-and-exposure.rfc.md` §11 ("SEC3 day-two amendment", lines 606–690) against §§1–10 and the current `snapback4` implementation. The amendment's direction is sound, but as written it is not implementable without risking false proofs. Material issues only, each with a concrete repair.
+
+## A. Structure and status
+
+**A1. Duplicate §11.** Two sections are numbered 11 (SEC2 checkpoint at line 509 and SEC3 at line 606), with colliding subsections 11.1–11.4 vs 11.1–11.5. All `@ref LLP 3000.036.004#11x` addresses are now ambiguous.
+Repair: renumber SEC3 to §12 (12.1–12.4), update `@ref`s, and re-run `./ref-check`.
+
+**A2. Missing proposal status and untraceable commission.** §10 states it "is a proposal until the independent reviews and implementation evidence are recorded." §11 has no such sentence, while the header (line 4) still reads "Accepted (…SEC2…round 5…)". "Day-two fix list 3/4/5/8" (line 608) points nowhere.
+Repair: add the proposal sentence to §11 and link the fix list (file + item numbers), or inline the four items.
+
+## B. Column read intent (11.1) — soundness blockers
+
+**B1. Syntax collides with operation intent and has no parser.** `parse_invariant` in `snapback4/crates/snapback4-lang/src/parser/security.rs:4-18` supports only `T.effect`, `T.column write`, `T.always`, `T.operation`. `invariant t.ssn read only P` parses with `target="ssn"`, fails operation resolution, and is rejected by `bind/security.rs:44-46` as `E_SECURITY_TARGET`. The same surface `T.X read` already means "operation X". §11.1 gives no grammar or precedence rule.
+Repair: specify the production, plus resolution order when a name is both a column and an operation (recommend: column wins only when the next word after the dotted name is a second dotted segment or when no operation of that name exists — otherwise authoring error naming both), and the `E_SECURITY_TARGET` message update.
+
+**B2. Vacuous-proof fallthrough (sharpest issue).** If a binder accepts a column-read target without touching analysis, `analyze` in `bind/security.rs:133-145` falls into the generic arm: `effects()` returns `[target]`, and `effect()` (`bind/security.rs:111`) maps any unknown word to `Delete`. Per `kernel.rs:51,64-74`, `implies(Deny, P)` is `Ok(true)`, and `obligations()` (`observers.rs:26`) returns empty for `target != "read"`. So on a job-free schema with `delete <- deny`, a column invariant proves vacuously. I verified each step in code.
+Repair: make `effect()`/`effects()` exhaustive with no default (unknown target → `Unproved` "unknown invariant target"), and gate column-read on a new analysis arm. Add a regression: column-read invariant on a deny-delete table must not prove.
+
+**B3. No direct theorem stated.** §11.1 never says which implication constitutes the "direct column theorem" (observer admission ⇒ policy? row-read ∧ field-gate ⇒ policy?). Without it every column declaration stays unproved (safe but useless) or is proved against the wrong admission (unsound).
+Repair: state the theorem, e.g. "for every observer in the §11.1 census, `observer_admission ∧ row_read ∧ field_gate ⇒ column_policy` over the §3 kernel," and name what `observer_admission` is for each observer kind.
+
+**B4. Projection analysis does not exist.** "Pure projections excluding the field may eliminate that payload path; predicates, group/order keys, derived values and copied fields remain observations" requires column-level dataflow over query IR (return shapes, filter/group/order keys, copies). `observers.rs` has only one payload obligation plus maintained-aggregate pullback; `census::body` is a coarse opaque/scan gate. "Value-dependent counts/existence/refusals" has no decision procedure.
+Repair: either (a) specify the projection analysis (which IR nodes tracked; unknown flow → unproved), enumerate the observer census (point/scan/view/filter/count/sum/exists/returns/refusals/copies/assets), and define the value-dependence test — or (b) drop the distinction and treat every count/exists/refusal over the protected table as an observation. Also define per-column audit shape (fields, not prose).
+
+**B5. Paired-world column counterexample is underspecified.** "Two worlds differing only in that column, policy false in both, outputs differ reproducibly" leaves open: policy evaluated on which image/viewer/clock; which observers executed (one named? all?); comparison function (typed canonical values? ordered arrays — order keys on the protected column leak); maintained recompute vs reseeding derived values (current `engine()` in `challenges.rs:107-111` skips `maintain_for` tables — restate or refine); asset/media identity handling.
+Repair: pin evaluation (viewer, clock, image), observer set, `paired.rs`-style comparison with order-key rule, and reseed exclusions.
+
+## C. Reachability gating (11.2) — acceptance-semantics change
+
+**C1. Origin labels without a representation or verdict mapping.** "Authored trace fails; seed/synthetic visible with `--all`/JSON without failing" contradicts current wiring where any violation fails (`verbs/testing.rs:246`: `security_failed = !violations.is_empty()`). `Counterexample` (`challenges.rs:18`) has only free-text `scope`/`history` — no machine-readable origin. "Never print pass/ok beside exit 1" combined with "refutations that don't fail" yields exit-0-with-`refuted` output, which is a UX trap.
+Repair: add an `origin: AuthoredTrace | TrustedSeed | SyntheticOp` enum to the witness; define verdict mapping (only `RefutedReachable` fails `check`/`test`; others render as e.g. `refuted-unreachable (exit 0)` with distinct text, never bare `pass/ok`); define `--all` filtering (display-only, exit-code invariant); define "stronger witness replaces synthetic" (which verdict/JSON wins per declaration).
+
+**C2. `check` loading fixtures is a hermeticity change.** "Check loads the same fixture base as test" moves `check` from schema-only snapshots to fixture replay (assets, captures, native artifacts, 1000-row cap at `histories.rs:60`). Determinism, runtime, and missing-fixture behavior are unstated.
+Repair: specify fixture discovery for `check`, isolation (fork, never mutate source — `fork_memory` in `store/fork.rs:5` already copies SQLite + asset files; state temp-dir ownership/drop explicitly), and the no-fixture fallback (schema-only + labeled coverage gap).
+
+## D. Campaigns and coverage (11.2 detail)
+
+**D1. Unbounded combinatorics against fixed caps.** "Actors include all fixture principals" × "references range over fixture rows, not only first" × "enum/bool Cartesian tuples" × "BFS short histories" explodes against the existing 512 caps (`histories.rs:47,75`; `challenges.rs:215`). Current code also contradicts the spec in two places: `histories::run` actors omit fixture principals (only `operations()` at `challenges.rs:312` adds them), and ref pinning uses first row in one place (`challenges.rs:322`) vs last row in another (`histories.rs:53`).
+Repair: define deterministic candidate order (sorted names; BFS level order), a global work budget with per-dimension caps and reported unvisited coverage, unify ref-row ranging, and reconcile first/last inconsistency.
+
+**D2. Per-step write/operation judgments have no home.** `histories::run` checks `always` per step and `read` after full pairs only; multi-step write assertions with "correct arms, pre-write policy state, no net-image attribution" match neither `run_selected` (single synthetic ops) nor `operations` (single-op matrix). "Executed-effect tracing" for ambiguous writes/implicit effects does not exist (`operation_preflight`, `challenges.rs:169-184`, rejects rather than traces).
+Repair: scope histories to read/always + single-op write challenges (drop the per-step write claim), or specify the tracing (tracked IR effects, upsert/delete-reinsert arm attribution, pre-write snapshot point).
+
+**D3. Principal independence.** "Principal fields vary independently" is not current behavior: non-target tables vary per-column bits (`challenges.rs:67`) but the target table couples all principals to `variant>>3` (`challenges.rs:54`). Column policies distinguishing owner vs clinician columns will miss counterexamples.
+Repair: vary principal columns independently within the cap, with unvisited-combination reporting.
+
+## E. Lints (11.3)
+
+**E1. `N_PRIVILEGE_ESCALATION` is undecidable as written.** No procedure extracts the granted role value (literal vs argument vs field flow), compares "independent authority to confer that particular grant," or defines delegation ("unrelated ordinary role" vs "independently authorized administrator" — exact literal match? any admin?). "Trusted service seat may appoint" is scope-ambiguous against §3's no-implicit-exemption (advice exemption ≠ proof exemption, but say so and define the seat set).
+Repair: narrow to a decidable shape — grant edge = operation write into a table probed by a later rule + written role literal; advise when operation admission (requires + write rule) does not imply that literal and no allowlisted service seat / exact-role admin check is present; enumerate the seat allowlist source (schema/program/invariant discovery); mark open-enrollment handling explicitly.
+
+**E2. `N_GRANT_OUTLIVES_ROLE` extension undefined.** Current lint covers read branches only (`lints.rs:30-36`). "Actually mutable/revocable population" has no test (non-deny rule? reachable operation write? owner/cascade writer? seed-only tables?), nor does the write-branch "recheck" shape.
+Repair: define mutability (recommend: any non-deny insert/update/delete rule, operation write, owner-field or cascade writer; seed-only allowlist named) and apply the same `role_test` over write-rule disjuncts.
+
+**E3. `N_EXISTENCE_ORACLE` audience gating undefined.** Current lint is purely syntactic on distinct codes (`lints.rs:74-80`) with no table attribution. "Crossing a narrower private audience" needs operation→table attribution plus an audience-narrowness test.
+Repair: define attribution (tables the operation reads) and narrowness (recommend: kernel implication of caller admission ⇒ hidden policy fails), or keep the syntactic advice with an explicit over-approximation disclaimer.
+
+**E4. Real locations, counts, printing, 429.** (i) Table-level notes use `Site::default()` (`lints.rs:12,14`), contradicting "every security note has a real source location" — specify the site per note kind (recommend table/rule declaration site; thread sites into `notes()`). (ii) `quarry()` joins `And`/`Or` flat (`schema.rs:961-962`) while `and` binds tighter than `or` (`parser.rs:28-29`): `And([a, Or([b,c])])` prints `a and b or c`, which re-parses differently — confirmed real bug affecting advice messages. Repair: parenthesize `Or` children inside `And` (minimal) + round-trip test. (iii) Identity 429 (`auth.rs:limited`) sends JSON with `retryable=true` but no visible `Retry-After`; "conservative retry delay covering the rate window" needs the window constant, header value in seconds, and route list — name all three.
+
+## F. Evidence (11.4)
+
+**F1. Untestable qualification gate.** "All ten wave-17 high lanes and their spec-authored invariant sets" are not locatable in this worktree (no `wave17*` paths; `snapback4/apps/` has only `chat`, `chat-expo`). "Read-only copies" enforcement, "caught/partial/not caught" units (per lane? per invariant?), and any pass threshold are all undefined — and "all-snapshot witnesses alone do not count as reachable detection" means lanes may legitimately land "not caught" with no failure criterion.
+Repair: register the ten lanes + invariant sets (paths + source hashes), define caught = reachable-trace refutation on bad / none on fixed, partial = seed-only witness, define the read-only mechanism, and set the acceptance threshold (or mark report-only).
+
+No other review was consulted; no files were modified. With B2, B3, C1, E1, and F1 unresolved, autonomous implementation should not begin — several clauses as written permit false proofs or unenforceable gates.

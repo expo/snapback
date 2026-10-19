@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-19T01:40:12.473919+00:00",
+  "brief": "Blind independent review of the SEC3 amendment in /home/ccheever/projects/sb4-b17-sec3/llp/3000.036.004-security-invariants-and-exposure.rfc.md sections 11\u201311.5. Read prior sections and implementation as needed. Review semantic soundness of column read invariants, dynamic projection/derived observations, complete fixture isolation, reachability acceptance gating, privilege and note precision. The implementation is in progress, so distinguish design defects from pending qualification. Do not edit files or run expensive tests. Return READY or NOT READY with material issues and concrete repairs. Do not read any other review artifacts.\n",
+  "sha256": {
+    "llp/3000.036.004-security-invariants-and-exposure.rfc.md": "e1b08800296e4201403ece1383fe6cdf74717c79bb700464d1a538b426ee37b1"
+  },
+  "reviewers": [
+    "muse-spark-1.3-contributor high via ~/sb4-loop/muse-exec.sh",
+    "fresh codex exec gpt-6.1-sol high"
+  ],
+  "blind": true
+}

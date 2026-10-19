@@ -1,0 +1,52 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=9afde427-c97e-4a72-aae4-ef4ac82ae0c0]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY. Five fence-grounded defects below. No tests run, no edits made, no other documents read.
+
+Scope read: `llp/3000.036.004` §12 only, plus [security.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security.rs) and [security/](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges.rs) (all modules), [engine/fixture.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-core/src/engine/fixture.rs), [store/fork.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-core/src/store/fork.rs), [verbs/security.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4/src/verbs/security.rs) (+ [security/](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4/src/verbs/security/http.rs)), [verbs/testing.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4/src/verbs/testing.rs), [verbs/test_fixture.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4/src/verbs/test_fixture.rs).
+
+## Material defects
+
+1. Write-arm confusion for operation invariants causes false refutations.
+[histories.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs:130) `changed()` filters arms for table invariants (line 155 via `effects()`), but skips that filter whenever `inv.operation.is_some()`. The synthetic path in [challenges.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges.rs:282) has the arm filter (`update`-target skips inserts, `insert`-target skips updates, `delete` skips both).
+Counterexample: table `T` with `insert only P`, `update` open. Authored op `upsertT` updates an existing row. History judges the update image against the insert policy `P`, finds it false, records `AuthoredFixtureTrace` refutation. Check/test then fail on a compliant app.
+Repair: mirror the line-282 arm filter for operation invariants. `write` matches both arms. Upsert images are already resolved to the executed arm by old-row presence.
+
+2. Reachable-witness eviction keeps the longest trace, hiding the minimal one.
+[histories.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs:50) `violation()` drops an existing same-site/viewer witness whenever the new trace is longer. The `observe()` skip at line 75 only fires on equal length, so every step re-searches and evicts.
+Counterexample: fixture already discloses row `R` to viewer `V` at zero committed steps. After one unrelated committed mutation, the 0-step witness is replaced by a 1-step witness. The report blames the mutation. The author hardens the mutation and misses the open read.
+Repair: retain the minimal committed-step witness per site/viewer/reachability. Skip searching when an existing witness is shorter or equal.
+
+3. Column pre-filter judges unvalidated snapshots, missing real refutations.
+[column_reads.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/column_reads.rs:40): non-reference policies are pre-judged on raw synthetic rows. The reference path (lines 41–47) judges on validated readback instead.
+Counterexample: a policy over a defaulted or maintained-adjacent field evaluates true on sampled junk but false on the committed image. The viewer is skipped before any engine world runs. A reachable disclosure goes uncaught.
+Repair: judge primary intent on the validated readback in both paths, as the reference path already does.
+
+4. Synthetic operation path silently drops failed policy judgments.
+[challenges.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges.rs:269): `permitted` is `Err` for every reference-bearing policy (see `policy()`, line 98). Line 284 then just skips, recording neither violation nor unsupported. The word-loop path (line 293) and the fixture paths do record unsupported.
+Counterexample: any operation invariant with a reference hop gets zero recorded coverage on this path, while the campaign log implies it was examined.
+Repair: on `Err`, insert an unsupported entry naming the operation and reason.
+
+5. Paired whole-row judgments use the stale pre-seed image.
+[paired.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/paired.rs:109) judges `policy_in` on `row`, cloned before seeding. Seed hydration rewrites asset markers to ledger values (see `engine()`, lines 119–138). The column path does this correctly: it re-reads the committed row by id ([column_reads.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/column_reads.rs:82)).
+Counterexample: a policy touching an asset-typed field judges false on the marker image but true on the committed image (or the reverse), producing a false refutation or a miss.
+Repair: look up the committed row by id in `actual`, mirroring the column path.
+
+## Areas checked and cleared
+
+- Transitive dependencies. The load-bearing weakening ([stability.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/stability.rs:22)) closes over read rules and through-parents, covers maintain/implicit targets, and backstops with a verified `original => weakened` kernel check. Direct-only uses elsewhere sit atop already-weakened judgments, so they are redundant, not unsound. Pre-write/pre-write same-state semantics hold for the operation proof.
+- Helper substitution and requirement prefixes. Each call gets fresh locals. Branch bodies clone env and guards, so conditional requirements never leak. Only unconditional straight-line prefixes export. Write sites are retained for advice.
+- Bounded calls. The 512/512/1000/32/16384/8192 caps are all named as unsupported on exhaustion. Budgets never discharge obligations and never convert unproved paths to proof.
+- Fixture replay and reachability. Forks copy committed SQLite state plus asset bytes with fresh entropy and no re-adoption. `check` and `test` share the isolated loader at the fixed campaign clock. Origin labels, reachable-wins replacement, `--all`/exit-status separation, and non-failing seed/synthetic labeling all match §12.
+- Role comparisons. Literal targets narrow the set, dynamic values retain all candidates, defaults feed the insert arm for field-less upserts, and tuple keys merge index components with equalities consistently. Service-seat equality is false. The empty-candidate Text case is provably silent-correct: no literal-gated authority exists to confer.
+- Row assertions. Every committed state rechecks all rows including unchanged ones. Pre-existing seed defects stay supplemental. Fixed-clock expiry cannot newly falsify between before/after states.
+
+## Must-confirm (not counted above)
+
+- [histories.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs:93) builds absent worlds via `seed_delete_at` with no referential-closure decline, while [paired.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/paired.rs:62) declines that shape. Soundness of the former rests on engine refusal semantics outside the fenced files. Repair: mirror the closure check before attempting the delete.
+- Retry-After/429 behavior, `quarry()` connective precedence, and `Store` drop cleanup live outside the fenced files. No claim is made about them either way.
+
+No qualification claim is made. Finite-search and unsupported boundaries were treated as non-proof throughout, consistent with §12.

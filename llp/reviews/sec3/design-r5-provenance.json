@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-19T02:12:19.387165+00:00",
+  "brief": "Blind independent review of SEC3 design and implementation in /home/ccheever/projects/sb4-b17-sec3. Read LLP 3000.036.004 section 12 through 12.7 and the full current SEC3 delta from 3653cae823, including new files. Review concrete soundness and material behavior defects for column read/privacy observers, typed payload provenance, independent immutable-column worlds, fixture cloning/clocks, pre-write stability with implicit effects, reachability/exit gating, and precise per-operation role/default/revocation lints. Do not read other reviews or the workstream report. Do not edit files or run expensive tests. Qualification is running separately. Return READY or NOT READY with material issues and concrete repairs only; no qualification claim.\n",
+  "sha256": {
+    "llp/3000.036.004-security-invariants-and-exposure.rfc.md": "9875513305c3105b53bef4c568704f46762039d820b0186491eb3dc36f34a1f6",
+    "snapback4/crates/snapback4-core/src/engine/mod.rs": "4419399ff4b08282b7c9c8bca0212cfe039f9d67d4db71e3da33a4e6e54d401c",
+    "snapback4/crates/snapback4-core/src/schema.rs": "fde36a64e4e80e46bdc655168c7c4a8623447c8bd14234e3d8adda151aa8b88e",
+    "snapback4/crates/snapback4-core/src/store.rs": "864d180f162ceb4476d34cd11f52c714a75f107a3e9344e2dbd5f5fcdb903d67",
+    "snapback4/crates/snapback4-core/src/store/fork.rs": "c888ac5831299c84a53a0cb5e7f32b96142b851a15fd7471d9c882b39340d7a9",
+    "snapback4/crates/snapback4-lang/src/bind/security.rs": "ddcb55e9b85071e8b58229ab0e1c96a6f5105706c9d306dafac4e3c8d65bc204",
+    "snapback4/crates/snapback4-lang/src/bind/security/audit.rs": "9624558bcd91167b2e70e045fbcc7e6dd1b76032f116f4563e1ffc20277e7bab",
+    "snapback4/crates/snapback4-lang/src/bind/security/challenges.rs": "4faa4408782fadb1422840025fe10db687e0363974a9040f55ab599f1500b381",
+    "snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs": "f0dff4eca24b1735e72be8f1044745796d60da68267079921570b4f9f0100b58",
+    "snapback4/crates/snapback4-lang/src/bind/security/challenges/paired.rs": "45792657e5eba5b933175ebbf1afa00c495518fc72a0a645552b4696ae4a5729",
+    "snapback4/crates/snapback4-lang/src/bind/security/challenges/timed.rs": "c6c8ce38e24e3c4a2474076bb8136a16eed0c6c326162a34a7ea87fa518b0f8a",
+    "snapback4/crates/snapback4-lang/src/bind/security/lints.rs": "ce719d6c796a38c3ecd77c2fa4dbe3e0c051bcbbb93f0f16b8f4bffe0fdd884c",
+    "snapback4/crates/snapback4-lang/src/bind/security/observers.rs": "852e193584af9d7bc4f920676caa212b1173bb1ef2e58b0ed1a62a819944a018",
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": "449a8dbe87fdf9f0ae24bd1b3358ba9ccf6474d79be048f1f12e28bf777f5ad5",
+    "snapback4/crates/snapback4-lang/src/parser/security.rs": "c5959881f7ccd5f76fae9681cdee5c4465c431b9ce62ee6d2b41d206ffe48151",
+    "snapback4/crates/snapback4-lang/tests/security.rs": "6f94bcf677227a1ef29a8805bb3f5d5453ec068392544bf830a8378ad3f56baf",
+    "snapback4/crates/snapback4-lang/tests/security_histories.rs": "e4d0076340c5122f16a4732f45a8de4b523312ee24b8c2fcf7bec0d647de865c",
+    "snapback4/crates/snapback4/src/auth.rs": "729afd6b57e56ee04fc883295a25181228f8352dbb2247febd4b97bfe9149184",
+    "snapback4/crates/snapback4/src/verbs.rs": "6bbe8758de07f4ea06220400f231545a4bb9bc976f504cdebea57cedd2791668",
+    "snapback4/crates/snapback4/src/verbs/security.rs": "98bad3d436dd4a1708ab20a0b335ae9d9aed7930a34faff3fd1faaf29ac8d2c1",
+    "snapback4/crates/snapback4/src/verbs/testing.rs": "8d258394e899b71d650e8cf3a277b6cc7cb50cee30be81a3d778f5d393a43404",
+    "snapback4/crates/snapback4/tests/check_notes.rs": "a6a298755a49192fdd740d03a1f301a09dfe3a0e17c4c258f2ef6b91ba03d3c3",
+    "snapback4/crates/snapback4/tests/serve_identity/diagnostics.rs": "60d2ff2bbbdfec4a22653347a1bb0136bee4742a47a94c812580b3d9577e46e0",
+    "snapback4/crates/snapback4-core/src/engine/fixture.rs": "64e351ae4d2366b73d583da91ad3d7ae75944661e485147478f0fe88debd8cf1",
+    "snapback4/crates/snapback4-lang/src/bind/security/challenges/column_reads.rs": "6102c02b01c61d9419b8b72ed6a987d1e5288334b43b828cc46a3819ad97bfb6",
+    "snapback4/crates/snapback4-lang/src/bind/security/challenges/stability.rs": "9ad410762e1fdc21b7711c25d3f0fef19ef6c273eec4fb92ab8b785dc8293c01",
+    "snapback4/crates/snapback4-lang/src/bind/security/columns.rs": "6c88d12039010fa4ded5c5f81cbd1a311a492cbf0f2342a02b837a31fcdb4af8",
+    "snapback4/crates/snapback4-lang/src/bind/security/privilege.rs": "74b1bf1c615892d65c62db03b1300e65a75b9cdeb1b438076e60c6c2461a9489"
+  },
+  "models": [
+    "muse-spark-1.3-contributor high",
+    "fresh codex exec gpt-6.1-sol high"
+  ],
+  "blind": true
+}
