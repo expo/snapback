@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-mig (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=5095e210-2de9-4dda-80ae-a0e44fa388c4]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+READY.
+
+No material defects found. The implementation matches the design on every load-bearing point I checked, including the two final corrections.
+
+Re-entry conflict preservation is implemented in [backfills.rs](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs): unchanged inputs preserve edited cells, changed inputs refuse unless current equals the saved result or the reversed preimage, and fully reversed same-column outputs compare against the per-output reversed view rather than the plain default. The reversed-baseline and heap-budget regressions both exist as tests.
+
+Dormant lifetimes check out. Per-row archived definitions drive the lifetime and reference checks, private `$backfill:` bindings are copied before the ordinary ledger is consumed, unchanged inputs keep their bindings with invalidation rechecked, generic-`id` erasure cannot recapture a reused parent, and deletion clears evidence so id reuse cannot inherit it. Source retirement runs under the assembled predecessor schema before any patch, with cascade, set-null, restrict, cap-bound, and set-null archive handling in the same transaction. Reset empties markers, rebuilds registries, then reseeds.
+
+Clock authority checks out. Only a durably classified staging store admits an offset, through the signed parser. Production with an offset refuses before listener startup. Staging exposes clock status and advance only to full service sessions, with classification and session rechecked under the engine writer. The CLI mints a fresh operator session per call, previews sample the owner's clock with revision-race refusal, and classification cannot be changed at serve time.
+
+Other semantics verified: disjoint outputs, name immutability across gaps, scalar-with-references outputs with per-row historical lifetime refusal, point-lookup uniqueness prevalidation with bounded samples, meter cuts as refusals, staged temp patches applied atomically, store-6 with `release-backfills-v3`, prune tombstone refusal behavior, and no release reset door. Text split and digit semantics match the spec. Counts corroborated: 66 tests in the backfill suite with a 50-lane wave-17 fixture.
+
+Note: two listed paths do not exist under those names. Clock logic lives in `dev_clock.rs`, `serve_start.rs`, `serve_maintenance.rs`, and `serve_token.rs`. Serve surfaces live in `serve.rs`, `serve_dev_doors.rs`, and `serve_release.rs`. All were read. No tests were run.
+

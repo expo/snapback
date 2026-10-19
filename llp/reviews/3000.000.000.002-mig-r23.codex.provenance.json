@@ -1,0 +1,15 @@
+{
+  "round": 23,
+  "reviewer": "codex",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "high",
+  "fresh_session": true,
+  "verdict": "READY",
+  "semantic_commit": "ba49c16f7b",
+  "final_candidate_commit": "689ebd9053",
+  "date": "2026-10-19",
+  "brief": "3000.000.000.002-mig-r23.brief.md",
+  "stdout": "3000.000.000.002-mig-r23.codex.txt",
+  "stderr": "3000.000.000.002-mig-r23.codex.stderr.txt",
+  "stdout_sha256": "4fb9b80b6819fdb4038c62dffc0a8b635079f7e48cb2dab9f94d2738836daa98"
+}
