@@ -35,9 +35,12 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     ? unpack(process.env.SNAPBACK4_RULES_CLIENT_TARBALL, join(nodeModules,'snapback4'))
     : pack(join(root, 'packages/snapback4'), join(nodeModules,'snapback4'));
   const nativeName = `snapback4-${process.platform}-${process.arch}`;
-  const nativeSource = join(dir, 'native'); mkdirSync(nativeSource);
-  copyFileSync(join(root, 'packages', nativeName, 'package.json'), join(nativeSource, 'package.json'));
-  copyFileSync(binary, join(nativeSource, 'snapback4'));
+  const nativeSource = join(dir, 'native');
+  if (!process.env.SNAPBACK4_RULES_PLATFORM_TARBALL) {
+    mkdirSync(nativeSource);
+    copyFileSync(join(root, 'packages', nativeName, 'package.json'), join(nativeSource, 'package.json'));
+    copyFileSync(binary, join(nativeSource, 'snapback4'));
+  }
   const nativeTarball = process.env.SNAPBACK4_RULES_PLATFORM_TARBALL
     ? unpack(process.env.SNAPBACK4_RULES_PLATFORM_TARBALL, join(nodeModules,nativeName))
     : pack(nativeSource, join(nodeModules,nativeName));
