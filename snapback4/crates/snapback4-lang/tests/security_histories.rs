@@ -93,7 +93,7 @@ fn column_observers_recheck_fixture_roles_after_demotion(){
 
 #[test]
 fn aliases_defaults_and_deprecated_inputs_preserve_column_challenges_and_audit() {
- // @ref LLP 3000.036.004#12.1-column-read-intent — compatibility forms keep the same disclosure obligations.
+ // @ref LLP 3000.036.004#121-column-read-intent — compatibility forms keep the same disclosure obligations.
  for fixed in [false, true] {
   let source = SOURCE.replace("invariant reports.read only", "invariant reports.body read only")
    .replace("query inspect(report: reports):", "query inspect(report: reports, enabled: bool default true, old: text <=20 deprecated):")
