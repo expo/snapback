@@ -5,13 +5,13 @@ import { dirname, join, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 
-export function resolveBinary(): string {
+export function resolveBinary(env: NodeJS.ProcessEnv = process.env): string {
   const here = dirname(fileURLToPath(import.meta.url));
   const require = createRequire(import.meta.url);
   // @ref LLP 3000.021#3.3 — the installed platform package precedes checkout fallbacks
   const platform = `snapback4-${process.platform}-${process.arch}`;
   const candidates: string[] = [];
-  if (process.env.SNAPBACK4_BIN) candidates.push(resolve(process.env.SNAPBACK4_BIN));
+  if (env.SNAPBACK4_BIN) candidates.push(resolve(env.SNAPBACK4_BIN));
   try { candidates.push(join(dirname(require.resolve(`${platform}/package.json`)), "snapback4")); } catch { /* not installed for this platform */ }
   candidates.push(resolve(here, "../../../target/release/snapback4"), resolve(here, "../../../target/debug/snapback4"));
   const binary = candidates.find((path) => existsSync(path));

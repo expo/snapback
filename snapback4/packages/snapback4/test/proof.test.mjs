@@ -22,6 +22,14 @@ test("runtime port range is inclusive, validated, and never cached", () => {
   assert.equal(portRange({}), "0"); assert.equal(portRange({ PORT_LO: "29040", PORT_HI: "29049" }), "29040-29049");
   for (const env of [{ PORT_LO: "2" }, { PORT_HI: "2" }, { PORT_LO: "3", PORT_HI: "2" }, { PORT_LO: "0", PORT_HI: "2" }, { PORT_LO: "2", PORT_HI: "65536" }, { PORT_LO: "x", PORT_HI: "3" }]) assert.throws(() => portRange(env), /PORT_LO/);
 });
+test("proof hosts select the binary from their explicit environment", async t => {
+  const cwd = fixture(t), binary = join(cwd, "selected-binary");
+  writeFileSync(binary, `#!${process.execPath}\nconsole.error('selected proof environment binary');process.exit(1);\n`, { mode: 0o755 });
+  const options = { cwd, env: { SNAPBACK4_BIN: binary }, timeoutMs: 5000 };
+  for (const start of [() => startDev(options), () => startServe("unused-deployment", options)]) {
+    await assert.rejects(start(), /selected proof environment binary/);
+  }
+});
 test("native and static bind beyond an occupied port; identity and independent logs", async t => {
   const cwd = fixture(t); mkdirSync(join(cwd, "dist")); writeFileSync(join(cwd, "dist/index.html"), "<h1>owned</h1>");
   const held = createServer(); const port = await bind(held); t.after(() => held.close());

@@ -23,7 +23,7 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
   const ports = portRange(env), timeout = deadline(options.timeoutMs, 30_000);
   const args = [...(options.args ?? [])];
   if (!args.includes("--port")) args.push("--port", ports);
-  const run = logged(resolveBinary(), [verb, ...prefix, ...args], { ...options, env: { ...env, SNAPBACK4_PROOF_ID: id, SNAPBACK4_SUPERVISOR_PID: String(process.pid) } });
+  const run = logged(resolveBinary(env), [verb, ...prefix, ...args], { ...options, env: { ...env, SNAPBACK4_PROOF_ID: id, SNAPBACK4_SUPERVISOR_PID: String(process.pid) } });
   try {
     const url = await ready(run, line => {
       const match = line.match(/^SNAPBACK4_READY verb=(dev|serve) generation=\d+ url=(http:\/\/[^ ]+) pid=(\d+)(?: |$)/);
