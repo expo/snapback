@@ -71,3 +71,9 @@ fn populated_seed_failures_persist_without_quadratic_snapshot_duplication(){
  let record:serde_json::Value=serde_json::from_slice(&bytes).unwrap();assert_eq!(record["violations"].as_array().unwrap().len(),1);assert_eq!(record["violations"][0]["supporting_rows"]["docs"].as_array().unwrap().len(),600);
  let check=app.run(&["check"]);assert_eq!(check.status.code(),Some(1),"{}",text(&check));assert!(text(&check).contains("1 refuted"),"{}",text(&check));
 }
+
+#[test]
+fn password_only_ephemeral_auth_refusals_pass_the_real_security_campaign(){
+ let app=App::new();app.write("snapback/schema.q","use identity password\ntable docs:\n  read <- allow\n  online only\ntable pulses:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  ephemeral 4s\nquery alive():\n  return true\nmutation ping():\n  upsert pulses[viewer] {}\n");
+ let out=app.run(&["test"]);let body=text(&out);assert!(out.status.success(),"{body}");assert!(body.contains("security unauthenticated serve HTTP: 7 attempts refused"),"{body}");assert!(body.contains("security live-session revocation HTTP: 14 attempts refused"),"{body}");assert!(!body.contains("security HTTP failure"),"{body}");
+}

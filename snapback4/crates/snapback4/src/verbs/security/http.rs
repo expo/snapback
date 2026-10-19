@@ -74,6 +74,12 @@ fn chunks(mut wire:&[u8])->Result<Vec<u8>,String>{
         out.extend_from_slice(&wire[..count]);wire=&wire[end..];
     }
 }
+// @ref LLP 3000.036.004#137-wave-19-correction-admissible-starts-and-persistent-refutations — verify the existing door-specific auth envelope without weakening admission.
+fn auth_refusal(status:u16,body:&serde_json::Value,ephemeral:bool)->bool{
+    let refusal=if status==401{&body["denied"]}else if ephemeral&&status==200&&body["state"]=="failed"{&body["why"]}else{return false;};
+    refusal["code"]=="E_AUTH"&&refusal["family"]=="auth"&&refusal["rule"].is_null()&&body.get("data").is_none()&&body.get("result").is_none()
+}
+
 fn rotation_successor<'a>(session:&serde_json::Value,rotated:&'a serde_json::Value)->Result<&'a str,String>{
     let field=|value:&serde_json::Value,name:&str|->Result<String,String>{
         value["session"][name].as_str().filter(|v|!v.trim().is_empty()).map(str::to_owned).ok_or_else(||format!("session response lacks a nonempty {name}"))
@@ -98,6 +104,14 @@ mod tests{
         }
         assert!(super::rotation_successor(&json!({"session":{"token":"first"}}),&json!({"session":{"token":"second"}})).is_err());
         assert!(super::rotation_successor(&original,&original).is_err());
+    }
+    #[test]fn auth_envelopes_follow_the_declared_door_without_accepting_app_refusals_or_payloads(){
+        use serde_json::json;
+        let durable=json!({"denied":{"code":"E_AUTH","family":"auth"}});
+        let memory=json!({"state":"failed","why":{"code":"E_AUTH","family":"auth"}});
+        assert!(super::auth_refusal(401,&durable,false));assert!(super::auth_refusal(401,&durable,true));
+        assert!(super::auth_refusal(200,&memory,true));assert!(!super::auth_refusal(200,&memory,false));
+        for value in [json!({"state":"sent","why":{"code":"E_AUTH","family":"auth"}}),json!({"state":"failed","why":{"code":"E_AUTH","family":"rule"}}),json!({"state":"failed","why":{"code":"E_AUTH","family":"auth","rule":"E_AUTH"}}),json!({"state":"failed","why":{"code":"E_AUTH","family":"auth"},"result":"private"}),json!({"state":"failed","why":{"code":"E_AUTH","family":"auth"},"data":"private"})]{assert!(!super::auth_refusal(200,&value,true));}
     }
     #[test]fn production_schema_chunks_are_decoded_before_json(){
         let body=super::chunks(b"5\r\n{\"a\":\r\n6\r\n\"yes\"}\r\n0\r\n\r\n").unwrap();
@@ -140,14 +154,15 @@ fn revoked_sessions(bound:&Bound,address:SocketAddr)->Result<usize,String>{
     if status!=200||ended["ok"]!=true||ended["revoked"].as_u64().unwrap_or(0)==0{return Err("private revocation campaign could not revoke its successor".into());}
     let mut attempted=0;
     for header in [&bearer,&next] {
-        let mut paths=vec![("GET","/schema".to_owned()),("GET","/changes?since=0&wait=0".to_owned()),("POST","/sync".to_owned()),("POST","/probe".to_owned()),("POST","/auth/refresh".to_owned())];
+        let mut paths=vec![("GET","/schema".to_owned(),false),("GET","/changes?since=0&wait=0".to_owned(),false),("POST","/sync".to_owned(),false),("POST","/probe".to_owned(),false),("POST","/auth/refresh".to_owned(),false)];
         for p in &bound.programs{
             let prefix=match p.program.kind{snapback4_core::ir::ProgramKind::Query=>"q",snapback4_core::ir::ProgramKind::Mutation=>"m",_=>continue};
-            paths.push(("POST",format!("/{prefix}/{}",p.program.name)));
+            let ephemeral=p.program.kind==snapback4_core::ir::ProgramKind::Mutation&&bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral);
+            paths.push(("POST",format!("/{prefix}/{}",p.program.name),ephemeral));
         }
-        for (method,path) in paths{
+        for (method,path,ephemeral) in paths{
             let (status,body)=exchange(address,method,&path,header,"{\"id\":\"security-revoked\",\"args\":{}}")?;attempted+=1;
-            if status!=401||body["denied"]["code"]!="E_AUTH"{return Err(format!("revoked credential admitted at {method} {path} (HTTP {status}); bearer omitted"));}
+            if !auth_refusal(status,&body,ephemeral){return Err(format!("revoked credential admitted at {method} {path} (HTTP {status}); bearer omitted"));}
         }
     }
     println!("security live-session revocation HTTP: {attempted} attempts refused after actual refresh and logout-all; disconnected device storage is not covered");
@@ -195,7 +210,8 @@ pub(super) fn run(bound:&Bound,sources:&[(String,String)])->Result<usize,String>
         let prefix=match p.program.kind{snapback4_core::ir::ProgramKind::Query=>"q",snapback4_core::ir::ProgramKind::Mutation=>"m",_=>continue};
         for forged in [false,true]{
             let (status,body)=request(address,&format!("/{prefix}/{}",p.program.name),forged)?;attempted+=1;
-            if status!=401||body["denied"]["code"]!="E_AUTH" {
+            let ephemeral=p.program.kind==snapback4_core::ir::ProgramKind::Mutation&&bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral);
+            if !auth_refusal(status,&body,ephemeral) {
                 return Err(format!("unauthenticated serve HTTP {} (forged persona={forged}) returned {status}: {body}",p.program.name));
             }
         }

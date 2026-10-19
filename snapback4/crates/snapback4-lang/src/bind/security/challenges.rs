@@ -300,6 +300,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                 }
                 if let Some(operation)=&inv.operation {
                     let Some(p)=bound.programs.iter().find(|p|&p.program.name==operation)else{continue;};
+                    if ephemeral_operation(bound,&p.program,&mut out){continue;}
                     let permitted=match policy(bound,inv,&rows,viewer,None,row){Ok(p)=>p,Err(why)=>{out.unsupported.insert(format!("{operation}: operation intent not judged: {why}"));continue;}};
                     let Some(args)=arguments(&p.program.args,variant)else{out.unsupported.insert(format!("{operation}: arguments need fixture assets or unsupported samples"));continue;};
                     if !out.reserve(1){break;}

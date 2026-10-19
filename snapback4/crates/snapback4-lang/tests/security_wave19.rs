@@ -142,3 +142,26 @@ fn immutable_column_alternates_cannot_drop_unrelated_live_ephemeral_state(){
  let mut c=Campaign::default();challenges::fixture_observers(&b,&e,&mut c);
  assert!(c.violations.is_empty(),"{c:?}");assert!(c.unsupported.iter().any(|s|s.contains("ephemeral state")),"{c:?}");
 }
+
+#[test]
+fn payload_role_columns_preserve_authored_creators_and_integrity(){
+ for principal in [false,true]{
+  let field=if principal{"  principal: principal\n"}else{""};let value=if principal{"principal: viewer, "}else{""};
+  let source=format!("table reports:\n{field}  role: enum('draft','final')\n  approved: bool\n  read <- allow\n  insert <- allow\n  online only\nmutation file():\n  return insert reports {{{value}role: 'draft', approved: true}}\ninvariant reports always .approved\n");
+  let b=bind(&source);let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);assert!(c.violations.is_empty(),"{c:?}");
+  let bad=bind(&source.replace("approved: true","approved: false"));let mut c=Campaign::default();challenges::generated_campaign(&bad,&mut c,false);assert!(c.violations.iter().any(|v|v.reachability==Reachability::AuthoredFixtureTrace&&v.history.iter().any(|s|s.operation=="file")),"{c:?}");
+ }
+}
+
+#[test]
+fn operation_intent_probes_do_not_execute_uncovered_ephemeral_mutations(){
+ let b=bind("table docs:\n  n: int\n  read <- allow\n  online only\ntable pulses:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  ephemeral 4s\nmutation ping():\n  upsert pulses[viewer] {}\ninvariant docs.ping only deny\n");
+ let c=challenges::run(&b);assert_eq!(c.attempted,0,"{c:?}");assert!(c.violations.is_empty());assert!(c.unsupported.iter().any(|s|s.contains("ping")&&s.contains("ephemeral")),"{c:?}");
+}
+
+#[test]
+fn principal_keyed_kind_authority_still_gets_two_actors_per_seat(){
+ let b=bind("table seats:\n  principal: principal\n  kind: enum('reader','manager')\n  unique principal,kind\n  read <- allow\n  insert <- viewer = 'service:operator'\n  online only\ntable docs:\n  read <- exists seats[principal = viewer, kind = 'reader'] or exists seats[principal = viewer, kind = 'manager']\n  online only\n");
+ let mut c=Campaign::default();let e=challenges::generated_fixture(&b,&mut c).unwrap();let rows=e.store().rows("seats").unwrap();
+ for kind in ["reader","manager"]{assert_eq!(rows.iter().filter(|r|r.field("kind").ok()==Some(&Value::String(kind.into()))).count(),2,"{c:?} {rows:?}");}
+}

@@ -101,6 +101,15 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
 invariant tickets.price update only viewer = 'service:operator'
 mutation create():
   return insert tickets {price: 1}
+table pulses:
+  principal: principal
+  unique principal
+  read <- allow
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  ephemeral 4s
+mutation ping():
+  upsert pulses[viewer] {}
 `.replace("\n table", "\ntable"));
   checked(editsOnly); campaign(editsOnly, true);
   command(["test"], editsOnly); // No personas, developer store or handwritten fixtures.

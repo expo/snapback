@@ -6,7 +6,7 @@ fn proposals(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
     if !out.reserve(1){return Err("generated fixture world not reserved; remaining initialization uncovered".into());}
     let mut people=Vec::new();
     for (table,_) in bound.schema.visible_tables(){
-        let role_columns=super::super::privilege::role_columns(bound,table).into_iter().filter(|c|c=="role"||super::super::privilege::global_principal(bound,table).is_some()).collect::<BTreeSet<_>>();
+        let role_columns=super::super::privilege::role_columns(bound,table);
         for column in role_columns{
             {
                 for role in super::super::privilege::role_values(bound,table,&column) {for n in 0..2 {people.push((table.clone(),column.clone(),role.clone(),format!("account:security-{table}-{role}-{n}")));}}
@@ -84,7 +84,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
     let proposed=proposals(bound,out)?;
     let rows=readback(&proposed)?;
     let actors=histories::actors(bound,&rows);
-    let rosters=bound.schema.visible_tables().filter(|(name,t)|t.columns.contains_key("role")||super::super::privilege::global_principal(bound,name).is_some()&&!super::super::privilege::role_columns(bound,name).is_empty()).map(|(name,_)|name.clone()).collect::<BTreeSet<_>>();
+    let rosters=bound.schema.visible_tables().filter(|(name,_)|!super::super::privilege::role_columns(bound,name).is_empty()).map(|(name,_)|name.clone()).collect::<BTreeSet<_>>();
     let creators=bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native&&!bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral)&&ir::write_tables(&p.program).iter().any(|(_,kind)|matches!(*kind,"insert"|"upsert"))).collect::<Vec<_>>();
     let created=creators.iter().flat_map(|p|ir::write_tables(&p.program)).filter(|(_,kind)|matches!(*kind,"insert"|"upsert")).map(|(t,_)|t).collect::<BTreeSet<_>>();
     let mut engine=engine_on_store(bound,&BTreeMap::new(),Vec::new(),proposed.store().empty_with_asset_ledger().map_err(|e|e.to_string())?)?;
