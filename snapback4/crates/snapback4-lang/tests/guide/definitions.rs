@@ -148,6 +148,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_BROAD_READ", "universal or roster-wide readership"),
     ("N_GRANT_OUTLIVES_ROLE", "a stored grant may survive a later role change"),
     ("N_ARGUMENT_GRANT", "an argument becomes a reader-grant column"),
+    ("N_PRIVILEGE_ESCALATION", "identifies role assignments trusted by later rules without independent delegation"),
     ("N_OPTIONAL_EVIDENCE", "optional media permits omitted evidence"),
     ("N_SWEEP_ONLY_DEADLINE", "sweeps leave time between a deadline and cleanup"),
     ("N_EXISTENCE_ORACLE", "absence and later denial can reveal different outcomes"),

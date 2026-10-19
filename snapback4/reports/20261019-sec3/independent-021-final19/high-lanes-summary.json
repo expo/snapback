@@ -1,0 +1,248 @@
+[
+  {
+    "lane": "021-snapback-moot-court-scoring",
+    "binary_sha256": "032fe59092b0ee864bac9a939c4e58519fe3f23d7c2ea764a5a6b77c4329f9a8",
+    "source_sha256": {
+      "/home/ccheever/sb4-loop/wave17/apps/021-snapback-moot-court-scoring/snapback/schema.q": "ce1b052d25bae70bfa6107b4fc45dd1628f4d9dc962f6e92b5cc3820c73a8d6d",
+      "SEC3-F2-repaired-schema": "6bb03b1793f8db00db764992436fb2111f5177a8bb624a46c0af9665ab243dbb",
+      "/home/ccheever/sb4-loop/wave17-repro/sec/021-snapback-moot-court-scoring/snapback/security.q": "f8aee0f4e26b1ddc456c9721ffd77030f031a6fb407bcd3cc85f0e23d4c741aa"
+    },
+    "fixture_source": "/home/ccheever/sb4-loop/wave17-repro/sec/021-snapback-moot-court-scoring/fixtures-focused",
+    "fixture_sha256": {
+      "tournaments.jsonl": "9791c1e46217d11cc522650402388a3d6312089412c76d065e917167ec19a069",
+      "coaches.jsonl": "72deb1cd281782477e0481283709e1b7d46fe402590f0dab11f41801c540ac59",
+      "judges.jsonl": "1ea034288412dcb0aa40594353ec754b893bdf659d1e2bf8307e0d9a832518d9",
+      "rounds.jsonl": "5eff1d5f83c69f93fb1d07dc7334944b419b19f7c21e57dec892f3418448f67c",
+      "teams.jsonl": "c91548bd8fbdc20eab4790126663bfa037d60f1f0ede8acf3803fcd2ccfbce41",
+      "roundTeams.jsonl": "372585aba15bbb6b2adf299d19d1d357c5ac62fb800268d9e57d9455011de2c6",
+      "briefs.jsonl": "8083911f341e53e6d58f37e575fd0ba7ab7de64b21b69dd13f5f7fefa92c1272",
+      "members.jsonl": "324b0e4fb2c97593dd932f68411025cb8b886060f669426113e51be30766d5ec",
+      "profiles.jsonl": "cea64ddb4f4d8b4e65a8a45d9e7006df4efee7dbc455c4f43ea6cc48754787c2",
+      "scores.jsonl": "d5a0f00439c34638209122c655dcfdbcfa1e428a1c0f9a973476c444ca385bcf",
+      "directors.jsonl": "1a08cac1b52f93bbf1511dcd700c323551f358fc83377e78b21db09ba9fb4cad"
+    },
+    "invariants": [
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 9
+        },
+        "target": "briefs. insert",
+        "predicate": "((exists members[.team, viewer]) and not (exists tournaments[briefDeadline <= now]))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 10
+        },
+        "target": "briefs. update",
+        "predicate": "((exists directors[viewer]) or (exists members[.team, viewer]) and not (exists tournaments[briefDeadline <= now]))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 14
+        },
+        "target": "scores. insert",
+        "predicate": "(.judge = viewer and (exists judges[viewer]) and (exists rounds[.round, status = 'open']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.scores.insert"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 15
+        },
+        "target": "scores. update",
+        "predicate": "(.judge = viewer and (exists judges[viewer]) and (exists rounds[.round, status = 'open']))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.scores.update"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 21
+        },
+        "target": "scores. read",
+        "predicate": "(.judge = viewer and (exists judges[viewer]) or (exists directors[viewer]) or (exists rounds[.round, status = 'closed']) and ((exists judges[viewer]) or (exists members[.team, viewer])) or (exists coaches[viewer]) and (exists teams[.team, coach = viewer]))",
+        "status": "refuted",
+        "reachability": "synthetic-operation",
+        "operation": "$security.scores.read"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 26
+        },
+        "target": "teams.bracket write",
+        "predicate": "exists directors[viewer]",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 27
+        },
+        "target": "teams.disqualified write",
+        "predicate": "exists directors[viewer]",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 28
+        },
+        "target": "rounds.bracket write",
+        "predicate": "exists directors[viewer]",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 29
+        },
+        "target": "roundTeams. insert",
+        "predicate": "exists directors[viewer]",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 30
+        },
+        "target": "roundTeams. delete",
+        "predicate": "exists directors[viewer]",
+        "status": "proved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 31
+        },
+        "target": "directors. insert",
+        "predicate": "exists directors[viewer]",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 40
+        },
+        "target": "briefs. read",
+        "predicate": "((exists members[.team, viewer]) or (exists coaches[viewer]) and (exists teams[.team, coach = viewer]) or (exists judges[viewer]) or (exists directors[viewer]))",
+        "status": "refuted",
+        "reachability": "authored-fixture-trace",
+        "operation": "opponentBrief"
+      },
+      {
+        "site": {
+          "col": 1,
+          "file": "security.q",
+          "line": 44
+        },
+        "target": "briefs.side write",
+        "predicate": "((exists directors[viewer]) or (exists members[.team, viewer]) and not (exists tournaments[briefDeadline <= now]))",
+        "status": "unproved",
+        "reachability": null,
+        "operation": null
+      }
+    ],
+    "notes": [
+      {
+        "code": "N_VACUOUS_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 24
+        },
+        "message": "directors: `created tournaments` can bootstrap authority trusted globally by a viewer-only probe; a caller may create their own global administrator grant"
+      },
+      {
+        "code": "N_SECURITY_INTENT",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 1
+        },
+        "message": "5 tables have access rules and no security invariants: coaches, judges, members, profiles, tournaments; declare the spec's privacy rules as invariants (`guide security`)"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 246
+        },
+        "message": "grantDirector writes argument who straight into reader-grant column directors.principal"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 250
+        },
+        "message": "grantJudge writes argument who straight into reader-grant column judges.principal"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 254
+        },
+        "message": "grantCoach writes argument who straight into reader-grant column coaches.principal"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 260
+        },
+        "message": "addMember writes argument who straight into reader-grant column members.student"
+      },
+      {
+        "code": "N_EXISTENCE_ORACLE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 336
+        },
+        "message": "updateScore: lookup absence NOT_FOUND, later denial NOT_YOUR_SCORE; row readership is broader than declared private-existence intent"
+      }
+    ]
+  }
+]

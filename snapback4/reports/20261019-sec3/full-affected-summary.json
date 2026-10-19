@@ -1,0 +1,10 @@
+{
+  "targets": 236,
+  "passed": 3638,
+  "failed": 0,
+  "ignored": 29,
+  "all_targets_green": true,
+  "history_tests": 27,
+  "source_checkpoint": "4a6bc48eee with final bb512f19f4 coverage-summary repair separately verified",
+  "scope": "Full snapback4 and snapback4-lang --no-fail-fast; other full workspace crates passed in original cohort and remain semantically unchanged."
+}

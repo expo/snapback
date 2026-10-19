@@ -1,0 +1,616 @@
+{
+  "scope": "Eight calibrated real high roots from day-two ground truth; extra stricter/miscalibrated declarations are not counted as confirmed highs. Finite execution, not a universal proof.",
+  "source": "bb512f19f4c9e8b8bebb149e27bed0032fb143b0",
+  "binary_sha256": "032fe59092b0ee864bac9a939c4e58519fe3f23d7c2ea764a5a6b77c4329f9a8",
+  "caught": 8,
+  "partial": 0,
+  "not_caught": 0,
+  "results": [
+    {
+      "finding": "013 F1",
+      "status": "caught",
+      "witness": {
+        "invariant_site": "security.q:14:1",
+        "viewer": "dev:judge1",
+        "operation": "visibleSubmissions",
+        "effect": "read",
+        "reachability": "authored-fixture-trace",
+        "history": [
+          {
+            "operation": "assignRole",
+            "viewer": "dev:head1",
+            "args": {
+              "role": {
+                "String": "team"
+              },
+              "who": {
+                "Id": "dev:judge1"
+              }
+            },
+            "result": {
+              "result": {
+                "Row": {
+                  "id": {
+                    "Id": "r-judge1"
+                  },
+                  "principal": {
+                    "Id": "dev:judge1"
+                  },
+                  "role": {
+                    "String": "team"
+                  }
+                }
+              },
+              "seq": 2,
+              "state": "sent"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "finding": "019 F1",
+      "status": "caught",
+      "witness": {
+        "invariant_site": "security.q:29:1",
+        "viewer": "dev:insp1",
+        "operation": "inspectionsOf",
+        "effect": "read",
+        "reachability": "authored-fixture-trace",
+        "history": [
+          {
+            "operation": "grantRole",
+            "viewer": "dev:lead1",
+            "args": {
+              "role": {
+                "String": "landowner"
+              },
+              "who": {
+                "Id": "dev:insp1"
+              }
+            },
+            "result": {
+              "result": {
+                "Row": {
+                  "id": {
+                    "Id": "r-insp1"
+                  },
+                  "principal": {
+                    "Id": "dev:insp1"
+                  },
+                  "role": {
+                    "String": "landowner"
+                  }
+                }
+              },
+              "seq": 2,
+              "state": "sent"
+            }
+          }
+        ]
+      },
+      "write_half": {
+        "invariant_site": "security.q:7:1",
+        "viewer": "dev:insp1",
+        "operation": "recordInspection",
+        "effect": "insert",
+        "reachability": "authored-fixture-trace",
+        "history": [
+          {
+            "operation": "grantRole",
+            "viewer": "dev:lead1",
+            "args": {
+              "role": {
+                "String": "lead"
+              },
+              "who": {
+                "Id": "dev:insp1"
+              }
+            },
+            "result": {
+              "result": {
+                "Row": {
+                  "id": {
+                    "Id": "r-insp1"
+                  },
+                  "principal": {
+                    "Id": "dev:insp1"
+                  },
+                  "role": {
+                    "String": "lead"
+                  }
+                }
+              },
+              "seq": 2,
+              "state": "sent"
+            }
+          },
+          {
+            "operation": "recordInspection",
+            "viewer": "dev:insp1",
+            "args": {
+              "at": {
+                "Int": 1799913600000
+              },
+              "hive": {
+                "Id": "h1"
+              },
+              "miteCount": {
+                "Int": 1
+              },
+              "notes": "Null",
+              "photo": "Null",
+              "queenStatus": {
+                "String": "laying"
+              },
+              "treatment": "Null"
+            },
+            "result": {
+              "result": {
+                "Row": {
+                  "at": {
+                    "Int": 1799913600000
+                  },
+                  "hive": {
+                    "Id": "h1"
+                  },
+                  "id": {
+                    "Id": "01MCC5RM00CMTM6X84CWK300HD"
+                  },
+                  "inspector": {
+                    "Id": "dev:insp1"
+                  },
+                  "miteCount": {
+                    "Int": 1
+                  },
+                  "notes": "Null",
+                  "photo": "Null",
+                  "queenStatus": {
+                    "String": "laying"
+                  },
+                  "treatment": {
+                    "String": "none"
+                  }
+                }
+              },
+              "seq": 3,
+              "state": "sent"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "finding": "021 F1",
+      "status": "caught",
+      "witness": {
+        "invariant_site": "security.q:40:1",
+        "viewer": "dev:stuB",
+        "operation": "opponentBrief",
+        "effect": "read",
+        "reachability": "authored-fixture-trace",
+        "history": [
+          {
+            "operation": "createTournament",
+            "viewer": "account:security-no-role",
+            "args": {
+              "briefDeadline": {
+                "Int": 1799913600000
+              },
+              "code": {
+                "String": "z"
+              },
+              "name": {
+                "String": "z"
+              }
+            },
+            "result": {
+              "result": {
+                "Row": {
+                  "briefDeadline": {
+                    "Int": 1799913600000
+                  },
+                  "code": {
+                    "String": "z"
+                  },
+                  "director": {
+                    "Id": "account:security-no-role"
+                  },
+                  "id": {
+                    "Id": "01MCC5RM00SMJMPNWJA61RX5N7"
+                  },
+                  "name": {
+                    "String": "z"
+                  }
+                }
+              },
+              "seq": 2,
+              "state": "sent"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "finding": "021 F2",
+      "status": "caught",
+      "witness": {
+        "invariant_site": "security.q:31:1",
+        "viewer": "account:security-no-role",
+        "operation": "createTournament",
+        "effect": "insert",
+        "reachability": "authored-fixture-trace",
+        "history": [
+          {
+            "operation": "createTournament",
+            "viewer": "account:security-no-role",
+            "args": {
+              "briefDeadline": {
+                "Int": 1799913600000
+              },
+              "code": {
+                "String": "z"
+              },
+              "name": {
+                "String": "z"
+              }
+            },
+            "result": {
+              "result": {
+                "Row": {
+                  "briefDeadline": {
+                    "Int": 1799913600000
+                  },
+                  "code": {
+                    "String": "z"
+                  },
+                  "director": {
+                    "Id": "account:security-no-role"
+                  },
+                  "id": {
+                    "Id": "01MCC5RM00SMJMPNWJA61RX5N7"
+                  },
+                  "name": {
+                    "String": "z"
+                  }
+                }
+              },
+              "seq": 2,
+              "state": "sent"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "finding": "027 F1",
+      "status": "caught",
+      "witness": {
+        "invariant_site": "security.q:46:1",
+        "viewer": "dev:producer1",
+        "operation": "grantRole",
+        "effect": "update",
+        "reachability": "authored-fixture-trace",
+        "history": [
+          {
+            "operation": "grantRole",
+            "viewer": "dev:producer1",
+            "args": {
+              "role": {
+                "String": "guest"
+              },
+              "who": {
+                "Id": "dev:legal1"
+              }
+            },
+            "result": {
+              "result": {
+                "Row": {
+                  "id": {
+                    "Id": "r-legal1"
+                  },
+                  "principal": {
+                    "Id": "dev:legal1"
+                  },
+                  "role": {
+                    "String": "guest"
+                  }
+                }
+              },
+              "seq": 2,
+              "state": "sent"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "finding": "027 F2",
+      "status": "caught",
+      "witness": {
+        "invariant_site": "security.q:17:1",
+        "viewer": "dev:host1",
+        "operation": "episodesOfShow",
+        "effect": "read",
+        "reachability": "authored-fixture-trace",
+        "history": [
+          {
+            "operation": "grantRole",
+            "viewer": "dev:producer1",
+            "args": {
+              "role": {
+                "String": "guest"
+              },
+              "who": {
+                "Id": "dev:host1"
+              }
+            },
+            "result": {
+              "result": {
+                "Row": {
+                  "id": {
+                    "Id": "r-host1"
+                  },
+                  "principal": {
+                    "Id": "dev:host1"
+                  },
+                  "role": {
+                    "String": "guest"
+                  }
+                }
+              },
+              "seq": 2,
+              "state": "sent"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "finding": "045 F1",
+      "status": "caught",
+      "witness": {
+        "invariant_site": "security.q:26:1",
+        "viewer": "dev:lut1",
+        "operation": "notesFor",
+        "effect": "read",
+        "reachability": "authored-fixture-trace",
+        "history": []
+      }
+    },
+    {
+      "finding": "048 F2",
+      "status": "caught",
+      "witness": {
+        "invariant_site": "security.q:16:1",
+        "viewer": "dev:con1",
+        "operation": "gaugeHistory",
+        "effect": "read",
+        "reachability": "authored-fixture-trace",
+        "history": [
+          {
+            "operation": "logReading",
+            "viewer": "dev:eng1",
+            "args": {
+              "gaugeId": {
+                "Id": "gauge-a"
+              },
+              "photo": {
+                "Map": {
+                  "bytes": {
+                    "Int": 24
+                  },
+                  "duration": "Null",
+                  "height": {
+                    "Int": 1
+                  },
+                  "id": {
+                    "Id": "01MCC5RM007TZPCPVZHSJEE18B"
+                  },
+                  "type": {
+                    "String": "image/png"
+                  },
+                  "width": {
+                    "Int": 1
+                  }
+                }
+              },
+              "pressure": {
+                "Int": 1
+              },
+              "roundId": {
+                "Id": "round-1"
+              },
+              "temp": {
+                "Int": 1
+              }
+            },
+            "result": {
+              "result": {
+                "Row": {
+                  "engineer": {
+                    "Id": "dev:eng1"
+                  },
+                  "gauge": {
+                    "Id": "gauge-a"
+                  },
+                  "id": {
+                    "Id": "01MCC5RM007TZPCPVZHSJEE18C"
+                  },
+                  "loggedAt": {
+                    "Int": 1800000000000
+                  },
+                  "photo": {
+                    "Map": {
+                      "bytes": {
+                        "Int": 24
+                      },
+                      "duration": "Null",
+                      "height": {
+                        "Int": 1
+                      },
+                      "id": {
+                        "Id": "01MCC5RM007TZPCPVZHSJEE18B"
+                      },
+                      "type": {
+                        "String": "image/png"
+                      },
+                      "width": {
+                        "Int": 1
+                      }
+                    }
+                  },
+                  "pressure": {
+                    "Int": 1
+                  },
+                  "round": {
+                    "Id": "round-1"
+                  },
+                  "shift": {
+                    "Id": "shift-a"
+                  },
+                  "temp": {
+                    "Int": 1
+                  }
+                }
+              },
+              "seq": 2,
+              "state": "sent"
+            }
+          },
+          {
+            "operation": "assignRole",
+            "viewer": "service:ops",
+            "args": {
+              "role": {
+                "String": "manager"
+              },
+              "who": {
+                "Id": "dev:con1"
+              }
+            },
+            "result": {
+              "result": {
+                "Row": {
+                  "id": {
+                    "Id": "r-con1"
+                  },
+                  "principal": {
+                    "Id": "dev:con1"
+                  },
+                  "role": {
+                    "String": "manager"
+                  }
+                }
+              },
+              "seq": 3,
+              "state": "sent"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "lanes": [
+    {
+      "lane": "006-snapback-dive-boat-buddy-log",
+      "check_exit": 1,
+      "test_exit": 1,
+      "history_sequences": [
+        "1024"
+      ],
+      "check_seconds": 102.64,
+      "test_seconds": 126.527
+    },
+    {
+      "lane": "011-snapback-freezer-rack-ledger",
+      "check_exit": 1,
+      "test_exit": 1,
+      "history_sequences": [
+        "1024"
+      ],
+      "check_seconds": 36.294,
+      "test_seconds": 40.122
+    },
+    {
+      "lane": "013-snapback-hackathon-rubric-judging",
+      "check_exit": 1,
+      "test_exit": 1,
+      "history_sequences": [
+        "1024"
+      ],
+      "check_seconds": 23.149,
+      "test_seconds": 32.665
+    },
+    {
+      "lane": "015-snapback-foster-pet-handoffs",
+      "check_exit": 1,
+      "test_exit": 1,
+      "history_sequences": [
+        "1024"
+      ],
+      "check_seconds": 199.943,
+      "test_seconds": 199.517
+    },
+    {
+      "lane": "019-snapback-apiary-hive-inspections",
+      "check_exit": 1,
+      "test_exit": 1,
+      "history_sequences": [
+        "1024"
+      ],
+      "check_seconds": 76.095,
+      "test_seconds": 88.303
+    },
+    {
+      "lane": "021-snapback-moot-court-scoring",
+      "check_exit": 1,
+      "test_exit": 1,
+      "history_sequences": [
+        "1024"
+      ],
+      "check_seconds": 18.021,
+      "test_seconds": 34.214
+    },
+    {
+      "lane": "027-snapback-podcast-guest-releases",
+      "check_exit": 1,
+      "test_exit": 1,
+      "history_sequences": [
+        "1024"
+      ],
+      "check_seconds": 77.97,
+      "test_seconds": 84.766
+    },
+    {
+      "lane": "040-snapback-route-setting-rotation",
+      "check_exit": 1,
+      "test_exit": 1,
+      "history_sequences": [
+        "1024"
+      ],
+      "check_seconds": 15.046,
+      "test_seconds": 19.077
+    },
+    {
+      "lane": "045-snapback-instrument-loan-bank",
+      "check_exit": 1,
+      "test_exit": 1,
+      "history_sequences": [
+        "1024"
+      ],
+      "check_seconds": 51.173,
+      "test_seconds": 103.604
+    },
+    {
+      "lane": "048-snapback-boiler-room-rounds",
+      "check_exit": 1,
+      "test_exit": 1,
+      "history_sequences": [
+        "1024"
+      ],
+      "check_seconds": 18.667,
+      "test_seconds": 30.186
+    }
+  ]
+}

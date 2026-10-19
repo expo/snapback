@@ -20,6 +20,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 pub(crate) mod backfills;
+mod fork;
 mod activation;
 mod activation_cache;
 mod activation_index;

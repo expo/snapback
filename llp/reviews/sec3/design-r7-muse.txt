@@ -1,0 +1,28 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=9faeb51a-88ae-442f-a1c1-ec02c4054e69]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+I inspected the full SEC3 delta (worktree vs `3653cae823`, uncommitted included) across the named surface only: `bind/security.rs`, `bind/security/{columns,privilege,authority_walk,kernel,lints,operation,images,observers,temporal,census}.rs`, `bind/security/challenges/{column_reads,stability,histories,paired}.rs`, `parser/security.rs`, `core/engine/fixture.rs`, `core/store/fork.rs`, `verbs/security.rs`, `verbs/testing.rs`, plus the minimal dependency definitions those files rely on (`RuleTerm::references`, `ir::write_tables`/`writes.rs`, `update_images.rs`, `ColumnDefault::value`). No other reviews, journals, reports, or test runs. Section 12 (incl. 12.8) was the contract.
+
+What I verified, area by area:
+
+- **Reference-key/equality dependencies** — `kernel::dependencies` now descends into `Exists`/`Created` keys *and* named equalities via `term.references()` ([kernel.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/kernel.rs:75)), covering single-hop `Reference` and multi-hop `ReferenceChain`. `Field` correctly yields nothing (row-local), `OldField`/`Reference{old}` keep image identity in `atom()`, and `NextField→Field` collapse matches engine image semantics (`old_and_next`: `Field` is the next image in update context). No false-equivalence introduced.
+- **Independent read-hop binding + Unknown** — rebinding read intent as `Insert` ([security.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security.rs:57)) only widens what *intent* may express; every reference-policy judgment goes through `fixture_policy` (authorized `RuleProbe`), and `Unknown` maps to `Err` → unproved, never a refutation ([challenges.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges.rs:101)). Snapshot path rejects reference policies outright. Temporal-reference policies are explicitly declined in `timed.rs`.
+- **Post-commit assertions** — `stability::necessary` weakens unstable atoms (whole unstable negations included) to `Allow` and re-verifies `original ⇒ weakened` in-kernel ([stability.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/stability.rs:28)); the transitive read-authority closure is included. `changed()` judges pre-write state, requires exactly one net write to the target, refuses to relabel expiry as delete, and rechecks unchanged rows with changed policy rows for `always`. Exact committed images (defaults applied via readback) are judged.
+- **Helper expansion + guards** — IR inlines helpers (`ir/writes.rs` header "Expanded helpers", no `Call` variant), so `write_tables`-based stability closures already include helper writes; `authority_walk` adds source-site fidelity for advice with dominating (not branch-conditional) requirements, and `operation::requirements` consumes only leading straight-line safe requires. Proof direction is sound throughout (dropping guards only widens admission).
+- **Fixture clocks/isolation/reachability** — `fork_memory` (SQLite backup + catalog/identity/server + asset copy), `fork_fixture` (fresh entropy/minter/hub, ephemeral/presence refusal), fixed `NOW` campaign clock in both `check` and `test`, `seed_delete_at` clock threading. `refuted()` counts only `AuthoredFixtureTrace`; seed/synthetic witnesses are labeled non-failing, `--all` changes nothing about exit status, reachable replaces synthetic.
+- **Column value-vs-row existence** — pairs require policy-false in *both* worlds, verify non-protected fields/captures/population match, rebuild maintenance, double-execute for repeatability, and vary null presence for optional columns. Whole-row synthetic refutations cannot leak into column verdicts (projection guard).
+- **Default/literal/upsert advice** — omitted-field upserts analyze the insert arm only, `Viewer`/`Now`/non-constant defaults degrade to all-roles (safe direction), literal targets restrict, dynamic/enum arguments expand. `mutable_role` excludes immutable/static populations; both read and write branches covered.
+- **Bounded ≠ proof** — every cap (512/8192-shared/32/matrix/1000-row) and every decline lands in `unsupported` → `campaign_coverage`; no unsupported path yields `Proved`. The `Proved` gate (empty reasons + extensive blockers + per-observer obligations) is intact.
+
+Minor completeness nits (not READY-blocking; advice/coverage only, all fail closed):
+
+1. `lints.rs:130` — privilege dedup keyed by `(table, "$privilege")` per program, so a second role column (`kind` after `role`) in one program gets no note. Repair: key by `(table, column)`.
+2. `lints.rs:119` — whole-row-dynamic `Insert` (row from a variable, no literal field, no default) skips escalation advice even though the dynamic row could carry a role. Repair: treat whole-row-dynamic inserts as dynamic (retain all candidate roles) instead of skipping.
+3. `lints.rs` `N_ARGUMENT_GRANT` walks raw AST bodies, unlike the privilege path which uses helper-expanded `authority_walk` — helper-hidden argument→reader-grant writes get no note. Repair: run the argument-grant scan over `authority_walk::writes` sites.
+
+No qualification claim made; no files modified.

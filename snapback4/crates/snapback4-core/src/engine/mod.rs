@@ -7,6 +7,8 @@
 pub mod actions;
 #[cfg(feature = "sqlite")]
 mod activation;
+#[cfg(feature = "sqlite")]
+mod fixture;
 #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
 pub mod admission;
 #[cfg(feature = "sqlite")]
@@ -1079,9 +1081,13 @@ impl Engine {
     /// Delete a row as the system principal: constraints, aggregates and
     /// partition events apply. Returns the number of rows removed (0 or 1).
     pub fn seed_delete(&mut self, table: &str, id: &str) -> Result<u64, RuntimeError> {
+        self.seed_delete_at(table,id,crate::now_ms())
+    }
+    /// Trusted deletion with the fixture/host clock, including publication and expiry.
+    pub fn seed_delete_at(&mut self, table: &str, id: &str, now:i64) -> Result<u64, RuntimeError> {
         self.schema.refuse_ephemeral_import(table)?;
         timeline::check_import(&self.schema, table)?;
-        let now = self.advance_time_audience(crate::now_ms())?;
+        let now = self.advance_time_audience(now)?;
         let tx = self.store.transaction()?;
         let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let seq = tx.next_seq()?;

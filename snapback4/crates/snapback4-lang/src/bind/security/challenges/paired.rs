@@ -9,12 +9,13 @@ pub struct Observations {
     pub absent_rows: BTreeMap<String,Vec<Value>>,
 }
 
-fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>)->Result<serde_json::Value,String>{
+pub(super) fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>)->Result<serde_json::Value,String>{
     let context=Context::new(viewer,args).at(NOW);
     if p.kind==ProgramKind::Query {
         match engine.query(&p.name,context) {
             Ok(q) if q.unavailable || !q.complete => Err("incomplete/metered query is outside logical payload comparison".into()),
-            Ok(q)=>serde_json::to_value(&q.data).map_err(|e|e.to_string()),
+            Ok(q)=>Ok(serde_json::json!({"data":q.data})),
+            Err(e) if e.rule.is_some() && matches!(e.family.as_str(),"rule"|"constraint") => Ok(serde_json::json!({"refusal":{"code":e.code,"message":e.message}})),
             Err(e)=>Err(format!("query error is not an admitted observation: {e}")),
         }
     }else{
@@ -35,7 +36,7 @@ fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>
 }
 
 pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>){
-    for inv in bound.invariants.iter().filter(|i|i.target=="read"&&sites.is_none_or(|s|s.contains(&i.site.to_string()))) {
+    for inv in bound.invariants.iter().filter(|i|i.target=="read"&&i.column.as_deref().is_none_or(|c|c=="id")&&sites.is_none_or(|s|s.contains(&i.site.to_string()))) {
         if inv.policy.is_none(){out.unsupported.insert(format!("{}: paired observation needs complete bound policy dependencies; unsupported policy AST is not dependency-free",inv.table));continue;}
         if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()){continue;}
         // Closed transitive observer set: include maintained targets, inherited
@@ -68,6 +69,12 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                 out.unsupported.insert(format!("{}: paired fixture asset identities are not coupled",inv.table));continue;
             }
             let Some(row)=present.get(&inv.table).and_then(|rs|rs.first()).cloned()else{continue;};
+            let prepared=(||->Result<Value,String>{
+                let e=engine(bound,&present,program("$security.pair.image",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))]))?;
+                let actual=readback(&e)?;
+                actual.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()).cloned().ok_or_else(||"protected paired row is absent after validation".into())
+            })();
+            let row=prepared.as_ref().unwrap_or(&row);
             let mut absent=present.clone();absent.remove(&inv.table);
             // Final-exists validation is a pure judgment of this fixed seeded
             // world, before operation/viewer admission. Retain its rejection
@@ -93,8 +100,14 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                         serde_json::Value::Array(xs)=>xs.iter().any(opaque),_=>false,
                     }}
                     if opaque(&json){out.unsupported.insert(format!("{}: generated-id/opaque effects excluded from paired determinism",p.name));continue;}
-                    let Some(args)=arguments(&p.args,variant)else{continue;};
+                    let cases=histories::fixture_cases(&p.args,&present,&[VIEWER.into(),OTHER.into()],out);
+                    if cases.len()>32{out.unsupported.insert(format!("{}: paired observer arguments capped at 32; remaining combinations not covered",p.name));}
+                    for args in cases.into_iter().take(32){
+                    if out.paired_observer_calls+4>8192{out.unsupported.insert("paired observers capped at 8192 call reservations; remaining worlds not covered".into());return;}
+                    out.paired_observer_calls+=4;
                     let execute=|seeds:&BTreeMap<String,Vec<Value>>|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>),String>{
+                        if let Err(why)=&prepared{return Err(why.clone());}
+
                         let slot=usize::from(std::ptr::eq(seeds,&absent));
                         if let Some(why)=&invalid.borrow()[slot]{return Err(why.clone());}
                         let mut e=match engine(bound,seeds,program("$security.pair",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))])){
@@ -106,7 +119,8 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                         let actual=readback(&e)?;
                         // Judge the hypothetical protected row in each complete
                         // committed world, before any operation can change roles.
-                        if policy(bound,inv,&actual,viewer,None,&row)!=Ok(false){return Err("paired policy is not definitely false in both worlds".into());}
+                        let focal=actual.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()).cloned().unwrap_or_else(||row.clone());
+                        if policy_in(bound,inv,&actual,viewer,None,&focal,&mut e)!=Ok(false){return Err("paired policy is not definitely false in both worlds".into());}
                         observe(&mut e,p,viewer,args.clone()).map(|value|(value,actual))
                     };
                     let ((a,rows),(b,absent_rows))=match (execute(&present),execute(&absent)) {
@@ -123,12 +137,14 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                     if !matches!((execute(&present),execute(&absent)),(Ok((aa,_)),Ok((bb,_))) if aa==a&&bb==b){
                         out.unsupported.insert(format!("{}: paired observation is not repeatable",p.name));continue;
                     }
-                    out.violations.push(Counterexample {history:Vec::new(),invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.into(),
+                    out.violations.push(Counterexample {reachability:Reachability::SyntheticOperation,history:Vec::new(),invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.into(),
                         operation:p.name.clone(),effect:"read observation".into(),row:row.clone(),old:None,supporting_rows:rows,
                         rule_path:"paired present/absent engine executions differ while the declared privacy policy is false in both".into(),
                         scope:"schema-valid seed-ingress paired worlds; authenticated logical data/refusal only; no application reachability claim".into(),
                         observations:Some(Observations{present:a,absent:b,absent_rows})});
                     break;
+                    }
+                    if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.observations.is_some()){break;}
                 }
                 if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.observations.is_some()){break;}
             }

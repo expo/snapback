@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=b33e12e0-97c3-4a21-935a-42778960d76b]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+The delta is small and each clause of the section 12 addition is implemented.
+
+- Trusted validated empty-start histories: the early return in [`histories.rs`](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs:244) is removed. `run` now executes authored mutations from the empty store through `fork`, `mutate`, `observe`, and `column_reads::after_history`. Violations keep `Reachability::AuthoredFixtureTrace` with the real step history. The query-only empty case still yields no reachable witness. This matches the new spec paragraph exactly.
+- No-production-state coverage in normal output: [`security.rs`](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4/src/verbs/security.rs:19) records `no supplied fixture: histories start at the validated empty store; populated production states remain uncovered`, and [`summary`](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4/src/verbs/security.rs:40) prints it as `security not covered:` on ordinary non-JSON check. JSON carries it via `campaign_coverage`.
+- Isolated memory, no dev store: the no-fixture branch builds `Store::memory()` plus `Engine::new_at` at the fixed campaign clock. It never touches `engine_at` or the project store. The new `check_notes` test asserts `.snapback4/store.sqlite` is not created.
+- Witness origin and failure semantics: unchanged and preserved. `refuted()` is true only for `AuthoredFixtureTrace`. Check exits 1 only then, with no `ok` beside it. Seed and synthetic witnesses stay non-failing and hidden without `--all`. `apply` keeps the reachable-wins rule.
+- Installed proof and counters: [`publication-security.mjs`](/home/ccheever/projects/sb4-b17-sec3/snapback4/scripts/publication-security.mjs:52) matches the new `security tests:` line and asserts zero reachable violations while counting seed/synthetic observations separately. The broad-read case now requires both row and column read verdicts refuted with `authored-fixture-trace` from empty state. Column invariants carry `target: "read"` with `column: "body"`, so the length-2 filter is correct.
+
+No material repairs. No scope beyond this delta was examined.

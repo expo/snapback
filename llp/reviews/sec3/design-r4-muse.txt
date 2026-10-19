@@ -1,0 +1,29 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=a0d9e521-dbe9-4ccf-821b-6b7d9f755b95]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 3/10)
+READY — no material security-soundness or semantic defects found.
+
+Scope inspected (current source only): the SEC3 delta ([95ba44fe77](commit) vs 3653cae823: `fork_memory` plus the `backup` feature) against LLP 3000.036.004 §12–12.6, and the governed code paths — [fork.rs](snapback4/crates/snapback4-core/src/store/fork.rs), [fixture.rs](snapback4/crates/snapback4-core/src/engine/fixture.rs), [challenges.rs](snapback4/crates/snapback4-lang/src/bind/security/challenges.rs), [histories.rs](snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs), [column_reads.rs](snapback4/crates/snapback4-lang/src/bind/security/challenges/column_reads.rs), [paired.rs](snapback4/crates/snapback4-lang/src/bind/security/challenges/paired.rs), [timed.rs](snapback4/crates/snapback4-lang/src/bind/security/challenges/timed.rs), [privilege.rs](snapback4/crates/snapback4-lang/src/bind/security/privilege.rs), [lints.rs](snapback4/crates/snapback4-lang/src/bind/security/lints.rs), [temporal.rs](snapback4/crates/snapback4-lang/src/bind/security/temporal.rs), [concrete.rs](snapback4/crates/snapback4-lang/src/bind/security/concrete.rs), [testing.rs](snapback4/crates/snapback4/src/verbs/testing.rs), [test_fixture.rs](snapback4/crates/snapback4/src/verbs/test_fixture.rs).
+
+Findings, all corroborated in source:
+
+- Fork direction is correct. `Backup::new(from, to)` is called as `(self, fork)`. Activated rows, captures, deadlines, and lifetimes survive via the SQLite backup. Catalog, identity, and server flag are cloned. No re-adoption occurs.
+- Fork isolation holds. Fresh entropy, minter, ephemeral hub, and private asset copies are used. No live connections are shared. Ephemeral-hub fixtures are declined. The source store is never written.
+- Fixed campaign clock holds. All security loading, seeds, `seed_delete_at`, probes, mutations, queries, and policy judgments use the single `NOW` constant. The fixture path reloads into an independent memory store, never the business store.
+- Column-mutation decline holds. Mutations touching the protected table, policy dependencies, or implicit writers are declined before disclosure. Policy is verified false on each committed world image. Column observers run after committed history steps with full fixture Cartesian arguments.
+- Delete assertions judge removed pre-images against the stable pre-write snapshot. Multi-write and implicit cases stay unsupported rather than fabricated.
+- Revocation and delegation gates hold. Lifetime advice requires a mutable or revocable role population plus an independent current-role or role-tied recipient check, across read and write branches. Deletion alone revokes. Escalation advice uses effective per-operation gates with leading requirements and owned-field patch gates, never a role-name allowlist.
+- Raw probes stay conservative. Expiring, not-before, through, and maintained populations are unsupported in the partial evaluator, never proved. Clock-only probes exclude columns and name uncovered ticks.
+
+No repairs proposed. Qualification state is out of scope and not inferred.

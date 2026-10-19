@@ -12,6 +12,7 @@ table privateNotes:
   insert <- .patient = viewer
   online only
 invariant privateNotes.read only .patient = viewer
+invariant privateNotes.body read only .patient = viewer
 invariant privateNotes.insert only .patient = viewer
 query privateNote(note: privateNotes):
   return privateNotes[note]
@@ -23,11 +24,13 @@ Run `snapback4 check`, `snapback4 audit` (or `check --audit`), then
 `snapback4 test`. `audit --json` lists conditional row predicates, operations,
 columns, inherited grants and grant writers. Its final section lists conditional role/row/effect exposures with no matching invariant; declaring one effect does not cover the others. `check` names broad signed-in
 reads and missing intent, once per check for the project. Review `snapback/generated/security-invariants.q.draft` against the specification; it mirrors existing rules and can repeat the same mistakes. Confirm or correct each candidate and copy chosen declarations into an authored `.q` file. The draft is never compiled or auto-accepted. The test command runs isolated schema-derived
-challenges automatically and fails on replayed policy violations. Coverage
+challenges automatically. Replayed authored observations from trusted fixtures fail acceptance; seed-only and synthetic witnesses carry separate reachability labels, remain in JSON, and are shown in text with `--all`. They do not fail check/test. Coverage
 that needs a live HTTP server, fixture assets, operation sequences or a device
 is named as not covered; zero violations alone does not qualify an app secure.
 
 ## Reference
+
+`invariant table.column read only P` protects a column value, derived values and value-dependent counts/existence/refusals. An authored projection excluding the column does not by itself disclose that value; filtering, ordering or copying it can. Audit JSON includes `column_audiences` (effective row rule plus private-owner gate). Unknown derived and opaque paths remain unproved.
 
 `invariant table.read only P` protects read intent; insert, update and delete
 name authority. `invariant table.column write only P` covers writes to a
@@ -66,12 +69,12 @@ A membership or assignment created while a user is an inspector can survive
 their demotion. Conjoin the **current reader's role** with the assignment
 branch, or revoke every derived grant transactionally whenever the role changes.
 A grant writer's role does not establish the recipient's current authority.
-The grant-lifetime advice points at this pattern; the argument-grant advice identifies
+With independent current-role intent, grant-lifetime advice points at this pattern; the argument-grant advice identifies
 arguments written into reader-grant columns: validate the chosen principal's
 role and relationship, even when the caller is privileged.
 Global admin authority must come from a trusted operator or existing admin;
 a group-creation `created` probe must remain scoped to that group everywhere.
-See `guide deploy` for first-admin setup and `guide sharing` for parent authority.
+`N_PRIVILEGE_ESCALATION` identifies role assignments trusted by later rules without independent delegation. Open enrollment may be intentional: compare each note with the specification. See `guide staging` for operator first-admin setup and `guide sharing` for parent authority.
 
 ## Required evidence and deadlines
 
@@ -132,7 +135,7 @@ Focused fixtures also enable short ordered mutation histories followed by
 ordinary reads; traces record actual calls and current policy evaluation.
 Named personas/service seats and enum argument combinations are enumerated
 within reported limits. Asset challenges use real foreign-upload and verified
-non-image ledgers; unsupported fixture/video histories remain named. Neither
+non-image ledgers; video arguments and unvisited histories remain named. Complete fixture stores preserve image/file ledgers, captures, read-through deadlines, maintained views and expiry. Histories include fixture principals and reference-row candidates, under a reported work cap. Neither
 these finite campaigns nor an offline device's retained snapshot establishes
 current-server revocation at a disconnected access.
 
@@ -173,3 +176,14 @@ logs out all sessions and retries both retired credentials against query,
 mutation, schema, changes, sync, probe and refresh doors. It reports missing coverage
 when ordinary identity or complete deployed worker artifacts are unavailable.
 This checks server admission; a disconnected device can still retain old bytes.
+
+### N_PRIVILEGE_ESCALATION
+
+N_PRIVILEGE_ESCALATION identifies self-signup roles or role-grant operations that can confer authority trusted by other rules. Restrict assignment to authorized delegation; provision the first administrator with `guide staging`.
+
+Identity rate refusals return HTTP `Retry-After` (seconds) and
+`denied.retryAfterMs` (milliseconds), conservatively covering the 60-second
+window. Wait that interval before retrying identity requests.
+
+REL5 owns release transitions/old-client compatibility; MIG owns backfills and
+staging clock control for day-two qualification.

@@ -133,3 +133,11 @@ fn invalid_paired_final_exists_fixtures_remain_unsupported_per_observer(){
     assert!(c.violations.is_empty(),"{c:?}");
     for name in ["policy.first","policy.second"]{assert!(c.unsupported.iter().any(|reason|reason.starts_with(&format!("{name}: conversations:"))&&reason.ends_with("trusted seed did not establish final-exists constraint")),"{c:?}");}
 }
+
+#[test]
+fn generated_column_worlds_decline_changed_recorded_captures() {
+ let b=bound("table parents:\n  kind: text <=40\n  immutable kind\n  read <- .kind != 'hidden'\n  online only\ntable children:\n  parent: parents\n  unique parent\n  immutable parent\n  read through .parent\n  insert <- .parent.kind = 'x'\n  online only\nquery inspect(child: children):\n  c = children[child] ! else MISSING\n  return parents[c.parent].kind\ninvariant parents.kind read only viewer = 'service:ops' and exists children[parent = .id]\n");
+ let c=security::challenges::run(&b);
+ assert!(c.violations.is_empty(),"{c:?}");
+ assert!(c.unsupported.iter().any(|s|s.contains("non-protected base fields/captures")),"{c:?}");
+}

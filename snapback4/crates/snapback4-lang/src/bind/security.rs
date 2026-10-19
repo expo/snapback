@@ -16,6 +16,9 @@ mod observers;
 mod temporal;
 mod adoption;
 mod images;
+mod columns;
+mod privilege;
+mod authority_walk;
 pub use audit::{Exposure, Grant};
 pub use observers::Obligation;
 pub use adoption::{draft, UncoveredExposure};
@@ -34,6 +37,9 @@ pub struct Invariant {
     pub syntax: Option<ast::Expr>,
     pub unsupported: Option<String>,
 }
+impl Invariant {
+    pub fn target_label(&self)->String {match &self.column{Some(c)=>format!("{}.{} {}",self.table,c,self.target),None=>format!("{}.{}",self.table,self.target)}}
+}
 pub(super) fn bind(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> Vec<Invariant> {
     let mut out=Vec::new();
     for decl in catalog.documents.iter().flat_map(|d| &d.invariants) {
@@ -42,10 +48,13 @@ pub(super) fn bind(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> Vec<
         };
         let named_operation=operation::resolve(catalog,decl);
         if (!matches!(decl.target.as_str(),"read"|"insert"|"update"|"delete"|"write"|"always") && named_operation.is_none())
-            || decl.column.as_ref().is_some_and(|c|!info.columns.contains_key(c)) {
+            || decl.column.as_ref().is_some_and(|c|c!="id"&&!info.columns.contains_key(c)) {
             diagnostics.push(Diagnostic::new(&decl.site,"E_SECURITY_TARGET","invariant needs a declared column or table effect","use invariant table.read only <policy>, table.column write only <policy>, or table always <predicate>").guide("security")); continue;
         }
         let effect=match decl.target.as_str(){"insert"=>ast::Effect::Insert,"update"|"write"=>ast::Effect::Update,"delete"=>ast::Effect::Delete,_=>ast::Effect::Read};
+        // Independent intent may use authorized reference operands even when a
+        // runtime read gate must use captured authority. It never installs a gate.
+        let effect=if effect==ast::Effect::Read{ast::Effect::Insert}else{effect};
         let rule=ast::RuleDecl{effect,bindings:Vec::new(),value:decl.value.clone(),site:decl.site.clone()};
         let (policy,unsupported)=match super::schema::bind_rule(catalog,info,&rule) {
             Ok(rule)=>(Some(rule),None),Err(error)=>match temporal::bind(catalog,info,&decl.value) {
@@ -81,27 +90,32 @@ pub struct Report {
     pub roles: BTreeMap<String,Vec<String>>,
     pub notes: Vec<Diagnostic>,
     pub uncovered: Vec<UncoveredExposure>,
+    pub campaign_coverage: BTreeSet<String>,
 }
 impl Report {
-    pub fn refuted(&self)->bool {self.invariants.iter().any(|v|v.status==Status::Refuted)}
-    pub fn text(&self)->String {
+    pub fn refuted(&self)->bool {self.invariants.iter().any(|v|v.status==Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability==challenges::Reachability::AuthoredFixtureTrace))}
+    pub fn text(&self)->String {self.text_with_all(false)}
+    pub fn text_with_all(&self,all:bool)->String {
         let mut out=format!("security: {}\n",self.scope);
         for v in &self.invariants {
-            out.push_str(&format!("  {:?}: {}.{} {} — direct rule {:?}\n",v.status,v.invariant.table,v.invariant.target,v.invariant.predicate,v.direct_rule));
+            if !all&&v.status==Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability!=challenges::Reachability::AuthoredFixtureTrace){out.push_str(&format!("  {}: seed/synthetic refutation only (non-failing; --all for details)\n",v.invariant.target_label()));continue;}
+            out.push_str(&format!("  {:?}: {}.{} {} — direct rule {:?}\n",v.status,v.invariant.table,format!("{}{}",v.invariant.column.as_ref().map(|c|format!("{c} ")).unwrap_or_default(),v.invariant.target),v.invariant.predicate,v.direct_rule));
             for reason in &v.reasons {out.push_str(&format!("    {reason}\n"));}
             for o in &v.obligations {out.push_str(&format!("    {:?}: {} — {}\n",o.status,o.path,o.reason));if let Some(repair)=&o.repair{out.push_str(&format!("      repair: {repair}\n"));}}
             if let Some(c)=&v.counterexample {out.push_str(&format!("    counterexample {}\n",serde_json::to_string(c).unwrap()));}
         }
-        for note in &self.notes {out.push_str(&format!("  {}: {}\n    {}\n",note.code,note.message,note.rewrite));}
+        for note in &self.notes {out.push_str(&format!("  {} {}: {}\n    {}\n",note.site,note.code,note.message,note.rewrite));}
         for (role,entries) in &self.roles {
             out.push_str(&format!("role {role} (possible/conditional; row predicates below decide):\n"));
             for entry in entries {out.push_str(&format!("  {entry}\n"));}
         }
         for x in &self.exposures {
             out.push_str(&format!("table {} columns: {}\n",x.table,x.columns.iter().map(|(c,v)|format!("{c} ({v})")).collect::<Vec<_>>().join(", ")));
+            for (column,audience) in &x.column_audiences {out.push_str(&format!("  column {column} audience: {audience}\n"));}
             for path in &x.paths {out.push_str(&format!("  {path}\n"));}
             for grant in &x.grants {out.push_str(&format!("  inherited grant {}: {}\n",grant.table,grant.predicate)); for w in &grant.writers {out.push_str(&format!("    writer {w}\n"));}}
         }
+        for reason in &self.campaign_coverage{out.push_str(&format!("  campaign not covered: {reason}\n"));}
         out.push_str(&format!("  exclusions: {}\n",self.exclusions.join("; ")));
         out.push_str("exposures without an invariant (conditional role/row coverage; declarations are not proof):\n");
         for x in &self.uncovered {out.push_str(&format!("  {}.{}: {}; rows: {}\n",x.table,x.effect,x.audience,x.row_predicate));}
@@ -109,7 +123,7 @@ impl Report {
     }
 }
 fn effect(word:&str)->Effect {match word {"read"=>Effect::Read,"insert"=>Effect::Insert,"update"=>Effect::Update,_=>Effect::Delete}}
-fn effects(inv:&Invariant)->Vec<&str> { if inv.target=="write" {vec!["insert","update"]} else {vec![inv.target.as_str()]} }
+fn effects(inv:&Invariant)->Vec<&str> { if inv.operation.is_some(){vec!["insert","update","delete"]}else if inv.target=="write" {vec!["insert","update"]} else {vec![inv.target.as_str()]} }
 /// Analyze declarations without using fixtures as proof assumptions.
 pub fn analyze(bound:&Bound)->Report {
     let exposures=audit::exposures(bound);
@@ -132,7 +146,7 @@ pub fn analyze(bound:&Bound)->Report {
             match operation::prove(bound,inv) {Ok(true)=>{},Ok(false)=>{direct=Status::Unproved;reasons.push("operation admission does not imply the policy; an actual operation challenge is required".into());},Err(e)=>{direct=Status::Unproved;reasons.push(e);}}
         } else {
             for word in effects(inv) {
-                let admission=if word=="update" {table.update_rule_judged().into_owned()}else if word=="read" {temporal::admission(table)}else{table.rules.for_effect(effect(word)).clone()};
+                let admission=if word=="update" {table.update_rule_judged().into_owned()}else if word=="read" {columns::admission(table,inv.column.as_deref())}else{table.rules.for_effect(effect(word)).clone()};
                 let implication=if word=="update"{images::update(table,inv.policy.as_ref().unwrap())}else{kernel::implies(&admission,inv.policy.as_ref().unwrap())};
                 match implication {
                     Ok(true)=>{},Ok(false)=>{direct=Status::Unproved;reasons.push(format!("{word} admission does not imply intent over independent predicates; a concrete replay is required for refutation"));},
@@ -156,7 +170,7 @@ pub fn analyze(bound:&Bound)->Report {
     let roles=audit::roles(&exposures);
     let uncovered=adoption::uncovered(bound,&exposures);
     Report{format:1,scope:"logical row/authority intent; all database snapshots; ordinary authenticated viewers including service seats; explicit unproved paths".into(),
-        exclusions:vec!["system-principal trust boundary".into(),"physical timing, examined counts and resource/meter side channels".into(),"offline access may use a snapshot predating server revocation".into()],invariants:verdicts,exposures,roles,notes,uncovered}
+        exclusions:vec!["system-principal trust boundary".into(),"physical timing, examined counts and resource/meter side channels".into(),"offline access may use a snapshot predating server revocation".into()],invariants:verdicts,exposures,roles,notes,uncovered,campaign_coverage:BTreeSet::new()}
 }
 fn blockers(bound:&Bound,inv:&Invariant)->Vec<String> {
     let schema=&bound.schema;let t=&schema.tables[&inv.table];let mut out=BTreeSet::new();
@@ -214,4 +228,15 @@ fn blockers(bound:&Bound,inv:&Invariant)->Vec<String> {
     out.into_iter().collect()
 }
 
-pub fn add_source_notes(report:&mut Report,sources:&[(String,String)],bound:&Bound){report.notes.extend(lints::source_notes(sources,bound));}
+pub fn add_source_notes(report:&mut Report,sources:&[(String,String)],bound:&Bound){
+    report.notes.extend(lints::source_notes(sources,bound));
+    let mut sites=BTreeMap::new();
+    for (file,source) in sources{let (doc,_)=crate::parse_document(file,source);for t in doc.tables{
+        sites.insert(t.name.clone(),t.site.clone());for c in t.columns{sites.insert(format!("{}.{}",t.name,c.name),c.site);}
+        for r in t.rules{sites.insert(format!("{}.{}",t.name,r.effect.word()),r.site);}
+    }}
+    for note in &mut report.notes{if note.site.line==0 {
+        let key=note.message.split([' ',':']).next().unwrap_or("");
+        note.site=sites.get(key).or_else(||sites.get(key.split('.').next().unwrap_or(""))).cloned().unwrap_or_else(||Site::new(sources.first().map(|s|s.0.as_str()).unwrap_or("schema.q"),1,1));
+    }}
+}

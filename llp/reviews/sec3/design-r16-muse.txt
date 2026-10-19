@@ -1,0 +1,23 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=1ef35ecd-6897-4d4f-be55-931159d56710]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+**READY** — no material repairs required.
+
+Section 12 (through the head-commit paragraph at lines 1036–1047) matches the implementation at `8890094629` on every scoped clause.
+
+Final authority-advice patch admission (`privilege.rs::write_admission`, shared by `risk` and `membership_grant_risk`):
+
+- Supplied owned-field gates are conjoined (`And`), never ORed with the table gate. The pre-patch OR is gone.
+- Unnamed exclusive bypass matches runtime exactly: bypass iff patch is statically owned-only (non-empty touched set, no spread, no ordinary field, `id` excluded — same exclusions as `Runner::authorize_fields`) **and** `!update_transition`, mirroring `authorize_update_fields` line 94.
+- Mixed patches and named transitions retain the judged table gate (`update_rule_judged`, i.e. old-and-next for unnamed, as-written for named).
+- Untouched private transition inputs are included via `needs_field_value` on the as-written update rule, using `OldField(owner)` for updates — the same predicate and image the runtime refuses on (`field_authority.rs` lines 86–91). Insert ownership covers supplied fields only.
+- Next-image role literals substitute into target roles (`known` handles `NextField`); old-image terms stay opaque, which is the conservative direction.
+- No-change suppression (`implies(admission, OldField(c) == Field(c))`) exists on both the role and principal-only paths, so an unchanged-gate patch that supplies the field is silent, as specified.
+- Principal-only reassignment goes through the same calculation, with upsert creation/reassignment judged on separate arms from both call sites in `lints.rs`.
+
+Compatibility holds: the appointer/delegation structure (`role_guards`, `independent`, service-seat `Deny`, fixed-enrollment read/delete/roster scoping) is untouched by the patch and consistent with §12.7–12.8; lifetime advice still requires independent current-role intent (`recipient_role` returns false otherwise). Fixture/observer behavior is sound in the safe direction: `fork_memory`/`fork_fixture`/`empty_with_asset_ledger` isolate without re-adoption, `Store::Drop` removes owned temp asset dirs, direct-theorem search discharge skips only refutation searches (never promotes to proved), reachable witnesses outrank synthetic ones with shortest-trace retention, and only `AuthoredFixtureTrace` fails check/test.
+
+Two non-blocking notes: spread-based patches conservatively retain the table gate (possible missed advice, never false proof); the runtime regression cases cited in the new spec paragraph were not inspected per the no-tests constraint, so this READY covers source/design only, not qualification evidence.

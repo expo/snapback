@@ -1,0 +1,32 @@
+{
+  "archive_sha256": "8ad9dd32c96d698e097d9d75f9c2d93aaea5da96ee15066ce294f7ed5b5c0473",
+  "results": [
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-j4",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "security_histories",
+        "empty"
+      ],
+      "exit": 0,
+      "seconds": 27.93397808074951
+    },
+    {
+      "command": [
+        "cargo",
+        "test",
+        "-j4",
+        "-p",
+        "snapback4",
+        "--test",
+        "check_notes"
+      ],
+      "exit": 0,
+      "seconds": 46.17961120605469
+    }
+  ]
+}

@@ -962,7 +962,7 @@ impl RuleExpr {
             Self::Eq(l, r) => format!("{} = {}", term(l), term(r)),
             Self::Compare(op,l,r) => format!("{} {} {}", term(l), match op { crate::ir::BinaryOp::Gte => ">=", crate::ir::BinaryOp::Gt => ">", crate::ir::BinaryOp::Lte => "<=", _ => "<" }, term(r)),
             Self::Ne(l, r) => format!("{} != {}", term(l), term(r)),
-            Self::And(items) => items.iter().map(|i| i.quarry()).collect::<Vec<_>>().join(" and "),
+            Self::And(items) => items.iter().map(|i| if matches!(i,Self::Or(_)){format!("({})",i.quarry())}else{i.quarry()}).collect::<Vec<_>>().join(" and "),
             Self::Or(items) => items.iter().map(|i| i.quarry()).collect::<Vec<_>>().join(" or "),
             Self::Not(inner) => format!("not ({})", inner.quarry()),
             Self::Exists { table, key, equalities, .. } => format!("exists {table}[{}]", key.iter().map(term).chain(equalities.iter().map(|(col, value)| format!("{col} = {}", term(value)))).collect::<Vec<_>>().join(", ")),

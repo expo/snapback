@@ -13,6 +13,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_BROAD_READ", &["Confirm the intended audience", "inspect `audit`"]),
     ("N_GRANT_OUTLIVES_ROLE", &["Recheck the current reader role", "inspect `audit`"]),
     ("N_ARGUMENT_GRANT", &["Validate the recipient role and relationship", "inspect `audit`"]),
+    ("N_PRIVILEGE_ESCALATION", &["compare each note with the specification", "operator first-admin setup"]),
     ("N_OPTIONAL_EVIDENCE", &["Declare required media when the spec requires it", "inspect `audit`"]),
     ("N_SWEEP_ONLY_DEADLINE", &["Enforce the deadline in the mutation", "inspect `audit`"]),
     ("N_EXISTENCE_ORACLE", &["Unify the code and message when existence is private", "inspect `audit`"]),

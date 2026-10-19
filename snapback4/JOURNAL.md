@@ -96713,6 +96713,22 @@ This is a conservative verification foundation, not a zero-holes capability
 claim. No version bump, push or publication.
 
 
+## 2026-10-19 — REL5 release transitions and old-client contracts
+
+Deploy now reactivates matching retained source with restoration, validates new
+source privately, and cleans definitive refusals while preserving in-flight or
+committed source after ambiguous control replies. Deploy previews warn about
+future rollback hazards and old-client input/result/refusal changes. Query and
+mutation literal defaults, ignored deprecated inputs and same-module aliases
+preserve v1 callers; the packed deploy recipe exercises the unchanged calls.
+LLP 3000.000.000 §16 and LLP 3000.000.000.000 §11 record these decisions and
+the final blind Muse/Codex READY reviews at 421a345ea1. Six copied day-two
+runs from lanes 013/030/042 pass without release-selection workarounds; evidence
+is reports/20261019-rel5. Version remains 0.4.33 for the 0.4.34 integration.
+MIG owns backfills/staging clock; SEC3 owns invariant/audit tooling. Qualification
+results and remaining limits are recorded in the root WORKSTREAM-REPORT.md.
+
+
 ## 2026-10-19 — MIG staging clock control
 
 Classified staging stores admit serve --clock-offset and the existing clock
@@ -96765,3 +96781,59 @@ physical preimages. Forward re-entry protects edits after literal/optional
 default materialization. Complete receipt saves and staged decodes preflight
 future heap admission; oversized images refuse the originating activation.
 The unpublished store/capability fences are release-store-6/backfills-v3.
+
+
+## 2026-10-19 — SEC3: column intent and executable fixture histories
+
+LLP3000.036.004 §12 extends independent intent to column values and presence,
+with per-column audit audiences. Engine/SQLite/verified-asset fixture forks
+preserve activation, maintained rows, captures and lifetimes without re-seeding
+engine-owned fields. Actual query payload/refusal comparisons repeat on valid
+worlds with identical inputs; Unknown and unsupported reductions stay unproved.
+Only authored fixture traces fail acceptance; seed/synthetic observations remain
+visible with --all. Global-role and principal-grant advice uses qualified
+appointers, helper scope and runtime field-ownership/transition admission.
+Security notes have source sites, exact current-role intent gating and narrower
+existence evidence. Identity rate refusals carry retry delays; printers retain
+Boolean parentheses and failing summaries say FAIL.
+
+Full scoped Muse/fresh Codex reviews are READY in round16; both incremental
+nullable-column reviews are READY in round17, on the same amendment revision.
+Verbatim records and provenance: llp/reviews/sec3/final-readiness.json. The
+production r15 campaign catches all eight calibrated day-two high roots and
+runs1024 histories in every one of the ten reported-high lanes; final-source
+measurement/consumer qualification is in progress and will have separate
+receipts. A repaired021 bootstrap copy still exposes its wrong-deadline read.
+No universal or whole-wire/device security claim follows from these finite runs.
+REL5 owns release transitions/compatibility; MIG owns backfills/staging clocks;
+STAGE owns the operator first-admin recipe. The0.4.34 guide changes entry carries
+the user-visible changes without a version bump or publication.
+
+
+## 2026-10-19 — SEC3 final qualification checkpoint
+
+The final empty-start/coverage/shared-packed-proof delta at bb512f19f4 has
+independent Muse and fresh Codex READY in round 19, following full-source
+round 16 and nullable-column round 17 readiness. Actual verdicts and hashes:
+`llp/reviews/sec3/final-readiness.json`. Final production measurements catch
+all eight calibrated day-two high roots (0partial,0notcaught), with 1,024 histories
+in every one of the ten reported-high lanes and no timeouts. All 150 earlier
+schemas have zero refusals, unchanged input hashes and located notes; the two
+previously noisy codes stay quiet without independent intent. Requested
+escalation lanes 002/036/043/048 are flagged. Intentional open enrollment remains
+a delegation-policy decision rather than an automatically confirmed flaw.
+
+The full affected CLI/language rerun passes 3,638 tests across 236 targets,
+including all 27 history tests; other full workspace product crates passed
+with unchanged semantic inputs. Native20k/devices0–999 retain zero disagreements;
+Lean retains exactly the existing130 findings/four signature classes, with no
+new signatures, sorry or axioms. Mac Studio affected checks, wasm/docs budgets
+and the root frozen-install/artifacts/inventory/guide/ref gates pass.
+Final client/consumer receipts and exact counts are indexed in
+`reports/20261019-sec3/` and the root WORKSTREAM-REPORT.md. Consumer-only Linux
+evidence cannot authorize publication. Finite witnesses do not close general
+opaque/device/wire/history-induction proof obligations: the proof-gap ticket
+remains Open. REL5 owns release/compatibility changes; MIG owns data lifecycle
+and staging clocks; STAGE owns the first-admin recipe. No version bump or push.
+
+SEC3 final client verification: all 417 files pass (7,713 subtests, 56 expected skips); both full-count model files pass 81/81 tests with 5,000 online sessions, 5,000 local sessions and 3,000 online-client interleavings. Compact logs and coverage diagnostics are in reports/20261019-sec3/client-final.json. Owned local/Mac build output and identified scratch are removed; qualified tarball hashes are retained.

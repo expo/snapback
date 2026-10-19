@@ -59,7 +59,7 @@ fn peers(chat: id):
     ] {
         project.source(&format!("{schema}\nquery search(q: text <=100, c: cursor ?):\n  return {read}\n"));
         let json = parsed(&project.run(&["check", "--json"]));
-        let notes = json["notes"].as_array().unwrap().len() + json["search"].as_array().unwrap().len();
+        let notes = json["notes"].as_array().unwrap().len() + json["search"].as_array().unwrap().len() + json["security"]["notes"].as_array().unwrap().len();
         for flags in [vec!["check"], vec!["check", "--cost"], vec!["check", "--residency"], vec!["check", "--verbose"]] {
             let output = project.run(&flags);
             assert!(output.status.success(), "{output:?}");

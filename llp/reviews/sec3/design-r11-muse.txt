@@ -1,0 +1,36 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=2665ed1e-a457-480e-9023-b6866f8d6436]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — one spec-required advisory gap blocks; all soundness-critical paths verified clean by reading.
+
+## Verdict
+
+NOT READY. Section 12 is implemented faithfully across every soundness-critical path I read, except one explicit requirement: §12.8's missing-intent note for lifetime advice has no emitting code.
+
+## Material repair required
+
+**Emit the §12.8 missing current-role-intent note.** §12.8 states "The missing-intent note covers schemas without that specification." The code references it but never emits it:
+
+- [lints.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/lints.rs:49) — `recipient_role()` returns `false` when no independent current-role invariant exists, with the comment "The missing-intent note asks for that independent specification before lifetime advice."
+- No `note(...)` call anywhere emits that pointer. Both `N_GRANT_OUTLIVES_ROLE` sites ([lints.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/lints.rs:82) and [lints.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/lints.rs:87)) require `recipient_role()` true, and `N_SECURITY_INTENT` only fires for tables with zero invariants. A schema with a mutable roster plus retained-grant shape but no current-role invariant therefore gets silence — no advice and no pointer to declare the intent §12.8 demands.
+- Repair: in `notes()`, when the mutable-roster plus retained-grant shape exists but `recipient_role()` is false solely for lack of independent current-role intent, emit one deduped note per table/effect through the existing line-97 retain-set, pointing at declaring an independent current-role invariant. Advisory only; no proof effect.
+
+## Areas verified clean (by reading only)
+
+- **Column value/presence/media disclosure**: [column_reads.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/column_reads.rs:10) value alternatives plus presence variants for optionals; Decimal/Money/Ref/asset columns decline to named-unsupported rather than fabricating pairs; media ids covered via the typed-row path without alternate ledgers.
+- **Private null redaction**: [histories.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs:101) skips non-gate-admitted viewers before `typed_disclosure`, so a redacted null can never equal-match a physical null; paired column worlds compare across worlds, never against physical.
+- **Trusted initial ordering / minimal witnesses**: column fixture observers run before history prefixes ([challenges.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges.rs:352)); initial assertions ([histories.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs:250)) precede breadth-first singles then diagonal pairs; per-actor first disclosure retained; shortest reachable witness wins in `apply`.
+- **Exact intent / Unknown**: every `policy_in` call site requires `Ok(false)`; Unknown/unsupported records named-unsupported, never a refutation; snapshot-only `policy()` declines reference terms.
+- **Transitive stability**: [stability.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/stability.rs:22) closes read-authority dependencies transitively, replaces unstable atoms (or whole negations) with Allow, verifies `original => weakened`, and declines when implicit writes touch the target image.
+- **Fixture cloning / clocks / assets**: [fork.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-core/src/store/fork.rs:5) copies committed SQLite plus asset files into a fresh temp store; [fixture.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-core/src/engine/fixture.rs:5) uses fresh entropy/minter/hub, declines ephemeral; all security paths use the fixed campaign clock; temp asset dirs drop with the Store.
+- **Budgets / dedup**: 16384 column, 32768 history-read (repeats counted), 8192 matrix with 1–512 quotas and explicit unvisited names, 512/512 history caps, 1000-row caps, identical seed/argument dedup after pruning and pinning.
+- **Provisioning advice**: helper expansion with lexical substitution and dominating-only guards ([authority_walk.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/authority_walk.rs:29)); tuple-key normalization via `probe_pairs`; upsert arms split; named-operation intent honored per caller operation; fixed-enrollment and scoped-delegation narrowing present; service-only branches excluded from advice but not proofs.
+- **Principal-only grants**: [lints.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/lints.rs:121) routes role-column-empty rosters through `insert_grant_risk`, which stays silent without a provisioning invariant.
+- **Low-noise lifetime advice**: independent-intent gating, retained-branch implication suppression, per-table/effect dedup all correct — except the missing-note gap above.
+
+## Not assessed (out of allowed scope)
+
+Identity 429 delay values, rule-printing precedence, and HTTP/device qualification live outside the listed paths; no claim is made about them.

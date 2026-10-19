@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=d6d9d29e-9d6c-413a-9aa4-80a714e89123]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Delta reviewed at `4a6bc48` against §12 (`§12.2`, `§12.5`, final empty-store paragraph): one-line removal in `histories.rs`, empty-store memory engine in `verbs/security.rs`, tightened `publication-security.mjs` assertions, plus regression tests. No runtime-authority or observer-contract change.
+
+- Trusted validated empty-start histories: removing the `all empty → unsupported` early return is sound. The empty engine goes through the same `readback`/`fork`/`mutate` path as fixtures; `actors()` never empties (`viewers()` always seeds `VIEWER`, `OTHER`, `account:security-no-role`, `service:security` plus personas/seats, so no modulo-by-zero); empty `fixture_cases` breaks cleanly and `Ref` args fall back to synthetic ids. The new `security_histories.rs` test pins the contract: `add`→`inspect` from empty yields `AuthoredFixtureTrace` with a 1-step history for both `read` and `column read observation`, the mutation-less control stays clean, and schema-only exploration violates without `refuted()`.
+- Explicit no-production-state coverage: the new `no supplied fixture … populated production states remain uncovered` string enters `campaign.unsupported`, surfacing in `campaign_coverage`/`security not covered`. Check runs only `fixture_observers` — no HTTP, no business cases. Test's `development store is not replayed` line is untouched.
+- Isolated-memory check, never the dev store: the no-fixture branch builds `Store::memory()` + `Engine::new_at` at the same fixed campaign clock (`1_800_000_000_000`), bypassing `engine_at`'s `project.open_engine` fallback entirely. The `check_notes.rs` test asserts exit 1 with `authored-fixture-trace` and no `.snapback4/store.sqlite` created.
+- Witness origin and zero unreachable-failure semantics: origins serialize kebab-case (`#[serde(rename_all="kebab-case")]`, confirmed); `histories::violation` labels real traces, synthetic paths keep `TrustedSeedOnly`/`SyntheticOperation`; `apply()` keeps reachable over synthetic and shortest-among-reachable; `Report::refuted()`, check `ok`/exit (`verbs.rs`), and test `security_failed` are all reachable-gated; `--all` affects display only. No unreachable witness can fail acceptance or print `ok` beside exit 1.
+- Installed proof row/column checks and truthful counters: the `mjs` counter regex matches `testing.rs`'s format string exactly (verified both sides), asserts `attempted > 0` and zero reachable violations on good cards, and returns the non-failing seed/synthetic count separately. The broad-read assertion (exactly 2 `read` verdicts, row + column, `authored-fixture-trace`) matches the installed card source, which declares both `privateNotes.read` and `privateNotes.body read` plus writer/reader operations that make empty-start disclosure genuinely reachable. `column_audiences.body` audit check and the retained 14-refusal revocation sessions are concrete. The `240s→360s` timeout bump is honest capacity, not weakening.
+
+Nit (non-blocking, no repair demanded): `CHANGELOG.md` in this commit reads "…role changes. Counterexamples label fixture reachability…" with a duplicated "Counterexamples label" from the sentence merge. Cosmetic only.
+
+No stale references to the removed early-return string remain. No material repairs required.

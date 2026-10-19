@@ -5,7 +5,7 @@ use snapback4_core::ir;
 #[derive(Clone,Debug,Serialize)]
 pub struct Grant {pub table:String,pub predicate:String,pub writers:Vec<String>}
 #[derive(Clone,Debug,Serialize)]
-pub struct Exposure {pub table:String,pub columns:BTreeMap<String,String>,pub effects:BTreeMap<String,String>,pub operations:Vec<String>,pub paths:Vec<String>,pub grants:Vec<Grant>}
+pub struct Exposure {pub table:String,pub columns:BTreeMap<String,String>,pub column_audiences:BTreeMap<String,String>,pub effects:BTreeMap<String,String>,pub operations:Vec<String>,pub paths:Vec<String>,pub grants:Vec<Grant>}
 pub(super) fn mentions(json:&serde_json::Value,table:&str)->bool {
     match json {serde_json::Value::Object(fields)=>fields.iter().any(|(k,v)| k=="table"&&v.as_str()==Some(table)||mentions(v,table)),serde_json::Value::Array(xs)=>xs.iter().any(|x|mentions(x,table)),_=>false}
 }
@@ -43,7 +43,8 @@ pub(super) fn exposures(bound:&Bound)->Vec<Exposure> {
             grants.push(Grant{table:dep.clone(),predicate,writers:writers(bound,&dep)});
             for r in [&g.rules.read,&g.rules.insert,&g.rules.update,&g.rules.delete]{for next in kernel::dependencies(r){pending.push((next,r.quarry()));}}
         }
-        Exposure{table:name.clone(),columns,effects,operations,paths,grants}
+        let column_audiences=t.columns.keys().filter(|c|!t.engine_field(c)).map(|c|(c.clone(),super::columns::admission(t,Some(c)).quarry())).collect();
+        Exposure{table:name.clone(),columns,column_audiences,effects,operations,paths,grants}
     }).collect()
 }
 /// Role labels retain complete predicates, including relationships. Every

@@ -3,9 +3,10 @@
 use super::*;
 
 pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>){
-    for inv in bound.invariants.iter().filter(|i|i.target=="read"&&i.policy.as_ref().is_some_and(super::super::temporal::has_clock)
+    for inv in bound.invariants.iter().filter(|i|i.target=="read"&&i.column.is_none()&&i.policy.as_ref().is_some_and(super::super::temporal::has_clock)
         && sites.is_none_or(|s|s.contains(&i.site.to_string()))) {
         let policy=inv.policy.as_ref().unwrap();
+        if policy.has_reference(){out.unsupported.insert(format!("{}: temporal reference policy needs authorized per-tick engine replay",inv.table));continue;}
         if !kernel::dependencies(policy).is_empty(){out.unsupported.insert(format!("{}: clock policy with raw-probe dependencies needs a live-snapshot evaluator",inv.table));continue;}
         let name="$security.temporal";
         let probe=program(name,ProgramKind::Query,vec![Stmt::Return(Expr::Get(Read{site:"temporal security".into(),table:inv.table.clone(),index:"byId".into(),
@@ -29,7 +30,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                     if let Value::Row(fields)=&mut image {fields.insert("$security:server-clock".into(),Value::Int(now));}
                     if matches!(rules::evaluate(policy,viewer,None,&image,false,&mut Snapshot{schema:&bound.schema,rows:&actual}),Ok(false)) {
                         out.admitted+=1;
-                        out.violations.push(Counterexample {history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:name.into(),
+                        out.violations.push(Counterexample {reachability:Reachability::SyntheticOperation,history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:name.into(),
                             effect:"read".into(),row:row.clone(),old:None,supporting_rows:actual.clone(),rule_path:format!("server read at {now}, before any physical sweep; clock policy false"),
                             scope:"actual engine read over schema-valid committed seed ingress at the recorded server clock; schedules are not assumed to have run".into()});
                         break;

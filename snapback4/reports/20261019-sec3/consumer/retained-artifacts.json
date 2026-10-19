@@ -1,0 +1,20 @@
+[
+  {
+    "name": "snapback4-0.4.33.tgz",
+    "bytes": 1300997,
+    "sha256": "d99a69f3b9ac37c2d635e736c902faa6e111ab8a3c5c9a1905814588dd038a5b",
+    "retained_path": "/home/ccheever/sb4-sec3-qualified-artifacts/snapback4-0.4.33.tgz"
+  },
+  {
+    "name": "snapback4-expo-0.4.33.tgz",
+    "bytes": 22238,
+    "sha256": "f4601cf6e87d7139742472f90cf9bdf56c4f51e6812aa6c3b97c756a0c64e863",
+    "retained_path": "/home/ccheever/sb4-sec3-qualified-artifacts/snapback4-expo-0.4.33.tgz"
+  },
+  {
+    "name": "snapback4-linux-x64-0.4.33.tgz",
+    "bytes": 13053397,
+    "sha256": "6e999d908992765506642ec60862d4fe13e7dba487da34701ba18030c0a28ede",
+    "retained_path": "/home/ccheever/sb4-sec3-qualified-artifacts/snapback4-linux-x64-0.4.33.tgz"
+  }
+]

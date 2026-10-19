@@ -1,0 +1,16 @@
+OpenAI Codex v0.162.1
+--------
+workdir: /home/ccheever/projects/sb4-b17-sec3
+model: gpt-6.1-sol
+provider: openai
+approval: never
+sandbox: danger-full-access
+reasoning effort: high
+reasoning summaries: none
+session id: 01a151d0-ff83-7e13-af70-dcccfe486f12
+--------
+user
+Blind independent review of the SEC3 amendment in /home/ccheever/projects/sb4-b17-sec3/llp/3000.036.004-security-invariants-and-exposure.rfc.md sections 11–11.5. Read prior sections and implementation as needed. Review semantic soundness of column read invariants, dynamic projection/derived observations, complete fixture isolation, reachability acceptance gating, privilege and note precision. The implementation is in progress, so distinguish design defects from pending qualification. Do not edit files or run expensive tests. Return READY or NOT READY with material issues and concrete repairs. Do not read any other review artifacts.
+
+ERROR: Selected model is at capacity. Please try a different model.
+ERROR: Selected model is at capacity. Please try a different model.

@@ -1,0 +1,24 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=2a9523f9-8ec7-4df8-8568-a68c60bdd62a]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — two concrete material gaps against §12. The rest of the scoped contract reads correctly; no proof-by-absence was found.
+
+What holds (checked against code):
+
+- Effective column admission is row-read AND owner-private gate ([columns.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/columns.rs:1)), with per-column audit audiences and separate operation/derived paths.
+- Unknown stays unproved: snapshot evaluator declines references, engine probe maps Unknown to an error, never a refutation ([challenges.rs](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges.rs:1)).
+- Paired/column observers require policy-false in both committed worlds, differ, then repeat to reject instability; JSON keeps both worlds with the primary-vs-dependency distinction stated.
+- Reachability labels are kebab-case origins; only `AuthoredFixtureTrace` fails acceptance; `--all` changes display only; stronger witnesses replace synthetic ones.
+- Direct theorems never clear obligations/blockers; finite traces are labeled as such, never as induction.
+- Role advice is structural (no admin-name allowlist), keeps probe context as opaque, honors appointer boundaries and independent intent, splits upsert arms, and stays silent without current-role intent.
+
+Defects requiring repair:
+
+1. History typed-payload witness is single-shot. [histories.rs:110](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs:110) records a reachable violation on one `e.query(...)` plus `typed_disclosure(...)`, with no re-execution. §12.1/12.5 require outputs to differ reproducibly and both observations repeated to reject unstable outputs. Column and paired paths do this; the typed path does not. A nondeterministic query can therefore produce a failing reachable witness from one lucky read. Repair: re-run the same typed observer on the same committed image and record the violation only if both runs disclose identically; otherwise record `unsupported` for unstable output.
+
+2. Column-observer budget excludes declined worlds. [column_reads.rs:30,63-64](/home/ccheever/projects/sb4-b17-sec3/snapback4/crates/snapback4-lang/src/bind/security/challenges/column_reads.rs:30) counts only executed pairs (`+=4`), while policy-not-false skips, opaque/boundary declines, and validation failures return before counting. §12.8 requires the shared 16384-call budget to include repeatability and declined worlds, with explicit remaining-world coverage on exhaustion. As written, unbounded declined work never trips the cap and coverage is understated. Repair: charge the shared counter (or a separate declined-world counter against the same cap) for each declined/validation world, or bound the outer actor/program/argument enumeration so exhaustion still names the uncovered remainder.
+
+This is a source/design review only, not a qualification claim.

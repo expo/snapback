@@ -1,0 +1,37 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — one spec-prohibition violation plus two unreported-coverage gaps. Everything else in the five areas checks out.
+
+## Scope inspected
+
+Read [LLP 3000.036.004 §12](/home/ccheever/projects/sb4-b17-sec3/llp/3000.036.004-security-invariants-and-exposure.rfc.md) (lines 606–763) and the full SEC3 delta from `3653cae823`: the committed fork commit plus all uncommitted edits and the three new files (`columns.rs`, `privilege.rs`, `challenges/column_reads.rs`). Did not open `llp/reviews/sec3/`, made no edits, ran no tests.
+
+## Material issues and concrete repairs
+
+**1. Whole-row temporal probe can refute a column policy (spec prohibition, must fix).**
+§12 / §12.5: "A synthetic whole-row read cannot refute a projection-only column policy." `paired::run` correctly filters `i.column.is_none()`, but `timed::run` filters only `i.target=="read"` plus `has_clock`, so a column invariant with a clock policy gets the whole-row `$security.temporal` probe and an effect-`"read"` violation that `apply()` records as a refutation of the column declaration.
+Repair: add `&& i.column.is_none()` to the `timed::run` filter in `snapback4/crates/snapback4-lang/src/bind/security/challenges/timed.rs`. Column-plus-clock stays covered by column worlds at the campaign clock; if multi-boundary clock sweeps for columns are wanted, add them inside `column_reads`, or record an explicit unsupported line.
+
+**2. Silent 32-combination truncation in fixture read observers (unreported cap, must fix).**
+`histories::observe` enumerates `fixture_cases(...).into_iter().take(32)` with no unsupported note when cases exceed 32. §12.5 requires caps to be reported ("no exhaustive claim is made for unvisited combinations").
+Repair: bind the cases vec, and when it exceeds 32 insert `unsupported`: `"read-observer arguments capped at 32 per table/viewer; remaining combinations not covered"`.
+
+**3. Column worlds don't try fixture principals as operation arguments (coverage gap, must fix).**
+`column_reads::run_pair` builds fixture-aware `actors` for viewers but enumerates observer args via `argument_cases` (Principal args = VIEWER/OTHER only). Fixture-only principals are therefore never tried as argument values in column worlds, while every other fixture path uses `fixture_cases` with actors.
+Repair: in `run_pair`, call `histories::fixture_cases(&p.args, rows, &actors, out)` instead of `argument_cases` (its built-in `Ref` handling from `rows` also subsumes the manual first-row pin loop).
+
+## Verified sound (no repair needed)
+
+- **Column theorem**: `columns::admission` = row-read admission AND the private owner gate only when `written_by` marks that column owner-private; `analyze` uses it for the read word, `observers.rs` uses it for the payload obligation, and the deny-delete path cannot prove a column read (covered by test).
+- **Column worlds**: policy-false required in both worlds with post-load revalidation, typed alternates, maintained-recompute tolerance with base-field equality check, double-execution stability gate, NewId/Emit and native exclusion, both worlds retained in JSON with the reachability distinction in `scope`.
+- **Fork/campaigns**: `fork_memory` copies the full SQLite image (captures, deadlines, maintained values, lifetimes, sequences) plus catalog/identity/server and the asset ledger; `memory()` stores are ephemeral so error paths still clean up; histories use per-trace forks so the source fixture is never mutated; single-write net-image judging with multi-write/dependency-change → unsupported is per spec.
+- **Reachability gating**: `refuted()` is authored-trace-only; `check`/`test` exits, `ok`, text labels, `--all` printing, and JSON retention all match §12.2/§12.5 (synthetic visible, non-failing; reachable wins and is never downgraded; no ok-beside-exit-1).
+- **Privilege advice**: structural substitution with service-branch exclusion, literal-target restriction, enum-or-probe role enumeration, and the `granted ⇏ previous` escalation direction are correct; `mutable_role` and the narrowed existence-oracle gate match §12.3/§12.5.
+- **Note precision**: zero-line sites are backfilled to table/column/rule sites; `and`-over-`or` parenthesization is complete (parser gives `and` precedence 3 over `or` 2, so `Or`-of-`And` needs no parens); 429 carries `Retry-After: 60` / `retryAfterMs: 60000` matching the 60s `WINDOW` with no limit changes.
+
+## Non-blocking residuals (note only)
+
+- `privilege::risk` short-circuits `admits=true` on any `written_by` entry before service-branch filtering, so a field-gated roster with service-only table rules could draw a false-positive advisory. Advice-only, never a refusal; acceptable overapproximation.
+- `check` pins the fixture loader to the campaign clock (`1_800_000_000_000`) while `test` opens its fixture engine at wall clock. Each run is self-consistent (seed and replay share the clock), so this only matters for absolute-timestamp fixtures; flagging in case the "same fixture base" clause is later read to include clock.
+
+No qualification claim is made here; the wave-17/150-schema counts remain the separate running qualification's job.

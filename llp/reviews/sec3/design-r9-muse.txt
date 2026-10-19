@@ -1,0 +1,29 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=b7627a18-b7d2-416e-8fd1-af16a4dae19d]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b17-sec3 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Blind review of `1ef0697bda` against §12 only, plus the listed implementation. No material soundness or behavior defect found. Nothing below blocks landing.
+
+What holds, claim by claim:
+
+- Authorized intent: reference policies are declined by snapshot evaluators and judged only through the engine's authorized replay (`fixture_policy`), with `Unknown` never a refutation. Hiding behind a read-gate restriction is closed by binding intent with insert effect. Live-hop/reference and temporal-reference gaps are named as unsupported, not proved.
+- Committed images: write/operation judgments use post-commit readback with pre-write images, correct arm detection, and prior-engine pre-write policy state. Deletes judge removed pre-images; implicit/commit-end removals are unsupported, never relabeled deletes.
+- Transitive dependencies: kernel dependencies now include key/equality reference tables; the stability closure covers maintained, through-parent, and cascade/set-null writes; weakening is verified (`original => weakened`) before any refutation use.
+- Independent column worlds: same viewer, clock, and row id; two typed values; policy false in both committed worlds; maintained values recomputed; repeats required; both worlds retained in JSON with the reachability distinction stated. Whole-row probes correctly exclude column invariants.
+- Reachable vs supplemental, minimal traces: the three-origin labeling is wired through `refuted()`, check/test exit codes, and `--all` display. Reachable replaces synthetic, never the reverse; shortest reachable trace is retained; seed-only assertion failures stay supplemental.
+- Initial/postcommit assertions: initial violations recorded once as seed-only; every committed step rechecks row assertions including rows whose policy dependencies changed.
+- Shared work caps: 8192-call matrix with fair 1–512 per-operation quotas, 16384 column-observer, 32768 history-read, 512/512 history, 1000-row, and 32-case observer caps are all enforced and reported. The matrix judges no policy.
+- Helper-aware role advice with global/scoped rosters: helper expansion carries lexical substitution plus only unconditional requirement prefixes; advice requires a principal/role unique roster, so scoped keys are excluded rather than misjudged.
+- Effect-correct defaults/literals/probes and delegation guards: defaults, literals, and enum-argument expansions share one comparison; tuple probes normalize key components and equalities identically; service-only branches are excluded from advice but not from proofs; role-gated appointers are treated as delegation boundaries restrictable by independent intent; fixed enrollment needs new read/delete or roster authority. No universal privilege-detection claim is made.
+
+Non-blocking observations (no repair required):
+
+- `column_reads.rs:102` drops non-repeatable observations silently, while `paired.rs` names that case unsupported. Conservative either way; consider naming it for coverage symmetry.
+- `recipient_role` implements only the independent-intent disjunct; the §12.6 retained-recipient-column alternative never fires. §12.8's stricter rule (current-role invariant required) governs, so this under-fires advice rather than over-claiming. Spec tension worth a footnote, not a code fix.
+- §12.3 identity 429 retry-delay behavior lives outside the listed paths and was not verified here. §12.4 qualification evidence is process state; per instructions, no qualification claim is made.
+
+Scope kept: §12 lines 606–916, the `bind/security` tree, `engine/fixture.rs`, `store/fork.rs` plus `store.rs` ownership bits, and `verbs/security.rs`/`testing.rs` with the commit diff. No tests, journals, reviews, or edits touched.

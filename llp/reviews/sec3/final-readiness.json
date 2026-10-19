@@ -1,0 +1,88 @@
+{
+  "full_round": 16,
+  "delta_round": 17,
+  "scope": "Full source/design readiness at8890094629, nullable-column delta through53d480551a, and empty-start/coverage/packed-proof delta throughbb512f19f4. Both families READY on the final delta. Finite completeness and qualification are not asserted by reviews.",
+  "rounds": {
+    "16": {
+      "commit": "88900946293fae6d613ab54aa0d330d7d85d50b8",
+      "rfc_sha256": "c0c9b643a74a763f2b717d8d29c0b3b56456585273a02147d510bfaa0f062f0e",
+      "reviews": [
+        {
+          "family": "codex",
+          "verdict": "READY",
+          "raw": "design-r16-codex.txt",
+          "sha256": "6bafa0e37e810f8139a947c393400cfdc0a1f8b5af3cdca5ff72b7eab695be14",
+          "wrapper": "3000.036.004-sec3-r16.codex.md"
+        },
+        {
+          "family": "muse",
+          "verdict": "READY",
+          "raw": "design-r16-muse.txt",
+          "sha256": "6d37db566e5a58591177d2acb55b9deb087c66e34c3d34132764cc15c75f8cf7",
+          "wrapper": "3000.036.004-sec3-r16.muse.md"
+        }
+      ]
+    },
+    "17": {
+      "commit": "53d480551a6732ac2a037d71e590923c86fb831d",
+      "rfc_sha256": "c0c9b643a74a763f2b717d8d29c0b3b56456585273a02147d510bfaa0f062f0e",
+      "reviews": [
+        {
+          "family": "codex",
+          "verdict": "READY",
+          "raw": "design-r17-codex.txt",
+          "sha256": "7753bf45683c4370220f0162f9513b1d24e9d5b4b91b2d659c2c675d1911fac4",
+          "wrapper": "3000.036.004-sec3-r17.codex.md"
+        },
+        {
+          "family": "muse",
+          "verdict": "READY",
+          "raw": "design-r17-muse.txt",
+          "sha256": "ca7301714e0cc4c2f4ec9728e59b5991879100128fbc8ce2e3c8cbeca5040db2",
+          "wrapper": "3000.036.004-sec3-r17.muse.md"
+        }
+      ]
+    },
+    "18": {
+      "commit": "4a6bc48eee9f31fe24b3d6e773dfb7030322b5c3",
+      "rfc_sha256": "3454750293026a188bc489acc235003240f1661ca704a1e44e1a2b238a1562bc",
+      "reviews": [
+        {
+          "family": "codex",
+          "verdict": "NOT READY",
+          "raw": "design-r18-codex.txt",
+          "sha256": "12b0ec0c6f10fcaf55ca47c56f0a2845ddbb2e214dd5d6c9ce4a4f107eefa987",
+          "wrapper": "3000.036.004-sec3-r18.codex.md"
+        },
+        {
+          "family": "muse",
+          "verdict": "READY",
+          "raw": "design-r18-muse.txt",
+          "sha256": "2c901952aa5da025043e52fe54d0af652f53f1657ac2919d1b155ac9f2ccf673",
+          "wrapper": "3000.036.004-sec3-r18.muse.md"
+        }
+      ]
+    },
+    "19": {
+      "commit": "bb512f19f4c9e8b8bebb149e27bed0032fb143b0",
+      "rfc_sha256": "3454750293026a188bc489acc235003240f1661ca704a1e44e1a2b238a1562bc",
+      "reviews": [
+        {
+          "family": "codex",
+          "verdict": "READY",
+          "raw": "design-r19-codex.txt",
+          "sha256": "3e495275f3e334ee92dc941f0d0fbdc9fcbe58cb7180d9e622954a9f7cd23560",
+          "wrapper": "3000.036.004-sec3-r19.codex.md"
+        },
+        {
+          "family": "muse",
+          "verdict": "READY",
+          "raw": "design-r19-muse.txt",
+          "sha256": "a429a052629906897e5876659e29cab6bf504dded9af95dde409393ac2267cd2",
+          "wrapper": "3000.036.004-sec3-r19.muse.md"
+        }
+      ]
+    }
+  },
+  "final_delta_round": 19
+}
