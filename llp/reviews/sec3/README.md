@@ -13,3 +13,5 @@ CLI headers and model requests remain, but no unrecorded exact source hash is
 asserted retrospectively. Round2 Codex capacity failure is not a review. Muse
 quota failures were retried by the commissioned wrapper; no key file contents
 were read or printed by this workstream.
+
+Rounds 18–19 review empty-start histories and the shared packed proof. Round 18 Codex requested the normal-output coverage caveat; bb512f19f4 implements it. Both fresh round-19 sessions returned READY. Raw round-18 NOT READY is preserved. Source/design readiness remains scoped and separate from execution qualification.
