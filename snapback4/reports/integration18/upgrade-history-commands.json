@@ -1,0 +1,188 @@
+[
+  {
+    "binary": "/home/ccheever/sb4-loop/integ18/upgrade/old-tools/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "--version"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "snapback4 0.4.33\n",
+    "stderr": ""
+  },
+  {
+    "binary": "/home/ccheever/sb4-loop/integ18/upgrade/old-tools/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "deploy",
+      "/home/ccheever/sb4-loop/integ18/upgrade/release-history-1792399938494",
+      "--schema",
+      "/home/ccheever/sb4-loop/integ18/upgrade/v1/snapback"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "release 1 is current as generation 1; 0 rows, 0 cells, 0 index entries dormant; 1.9 ms\n",
+    "stderr": ""
+  },
+  {
+    "binary": "/home/ccheever/sb4-loop/integ18/upgrade/old-tools/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "deploy",
+      "/home/ccheever/sb4-loop/integ18/upgrade/release-history-1792399938494",
+      "--schema",
+      "/home/ccheever/sb4-loop/integ18/upgrade/v2/snapback"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "release 2 is current as generation 2; 0 rows, 0 cells, 0 index entries dormant, notes.category changed; 4.2 ms; running serve adopted the release\n  backfill: notes.category ← 'historical' on 1 row\n",
+    "stderr": ""
+  },
+  {
+    "binary": "/home/ccheever/sb4-loop/integ18/upgrade/old-tools/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "rollback",
+      "/home/ccheever/sb4-loop/integ18/upgrade/release-history-1792399938494",
+      "--to",
+      "1"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "resolved rollback target: release 1 (current release 2)\nrelease 1 is current as generation 3; 0 rows, 1 cell, 0 index entries dormant; samples: cells notes.category [01M59NS5107V7NJZAJYH5YP1KN], notes.category changed; 3.5 ms; running serve adopted the release\n",
+    "stderr": ""
+  },
+  {
+    "binary": "/home/ccheever/sb4-loop/integ18/upgrade/old-tools/node_modules/snapback4-linux-x64/snapback4",
+    "args": [
+      "releases",
+      "/home/ccheever/sb4-loop/integ18/upgrade/release-history-1792399938494",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "{\n  \"current\": 1,\n  \"event\": null,\n  \"events\": [\n    {\n      \"at\": 1792399938526,\n      \"generation\": 1,\n      \"id\": 1,\n      \"operation\": \"deploy\",\n      \"previous\": null,\n      \"release\": 1,\n      \"revision\": 1,\n      \"summary\": {\n        \"dormant_items\": 0,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 0\n      }\n    },\n    {\n      \"at\": 1792399938647,\n      \"generation\": 2,\n      \"id\": 2,\n      \"operation\": \"deploy\",\n      \"previous\": 1,\n      \"release\": 2,\n      \"revision\": 2,\n      \"summary\": {\n        \"dormant_items\": 0,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 0\n      }\n    },\n    {\n      \"at\": 1792399938730,\n      \"generation\": 3,\n      \"id\": 3,\n      \"operation\": \"rollback\",\n      \"previous\": 2,\n      \"release\": 1,\n      \"revision\": 3,\n      \"summary\": {\n        \"dormant_items\": 1,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 0\n      }\n    }\n  ],\n  \"events_after\": 3,\n  \"generation\": 3,\n  \"items\": [\n    {\n      \"action\": \"dormant\",\n      \"asset_bytes\": 0,\n      \"bytes\": 49,\n      \"key\": \"column:notes.category\",\n      \"kind\": \"column\",\n      \"path\": \"notes.category\",\n      \"rows\": 1,\n      \"sample_ids\": [\n        \"01M59NS5107V7NJZAJYH5YP1KN\"\n      ]\n    }\n  ],\n  \"items_after\": \"column:notes.category\",\n  \"latest\": 2,\n  \"native_digest\": \"\",\n  \"previous_active\": 2,\n  \"release\": 1,\n  \"revision\": 3,\n  \"workers\": []\n}\n",
+    "stderr": ""
+  },
+  {
+    "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "--version"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "snapback4 0.4.34\n",
+    "stderr": ""
+  },
+  {
+    "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "check",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade/v2",
+    "exit": 0,
+    "stdout": "{\"acknowledgedNotes\":[],\"acquisition\":null,\"fieldAuthority\":[],\"followingHistory\":[],\"heldQueries\":[],\"ms\":3852,\"native\":null,\"newNotes\":[],\"notes\":[],\"ok\":true,\"operations\":2,\"plans\":null,\"predictionSummary\":\"1 mutation is server-run (online app: no action): add (writes online-only table notes) — snapback4 why <op>\",\"residency\":null,\"rowViews\":[],\"scale\":null,\"scaleSummary\":\"scale: 2 of 2 operations are constant; 0 grow with data — `check --cost` gives the certificate\",\"search\":[],\"security\":{\"campaign_coverage\":[\"add: paired mutation lacks stable policy/implicit-write and deterministic-id reduction\",\"history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered\",\"no supplied fixture: histories start at the validated empty store; populated production states remain uncovered\",\"offline/revoked-device access and retained history require device boundary qualification\",\"paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification\",\"unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts\"],\"exclusions\":[\"system-principal trust boundary\",\"physical timing, examined counts and resource/meter side channels\",\"offline access may use a snapshot predating server revocation\"],\"exposures\":[{\"column_audiences\":{\"body\":\".owner = viewer\",\"category\":\".owner = viewer\",\"id\":\".owner = viewer\",\"owner\":\".owner = viewer\"},\"columns\":{\"body\":\"text <=80\",\"category\":\"text <=20\",\"id\":\"id\",\"owner\":\"principal\"},\"effects\":{\"delete\":\"deny\",\"insert\":\".owner = viewer\",\"read\":\".owner = viewer\",\"update\":\"deny\"},\"grants\":[],\"operations\":[\"add (mutation)\",\"one (query)\"],\"paths\":[\"server point/list/filter/view/search/count/exists/live-refetch: ordinary ruled reads\",\"mutation valued write images: authorized final reread; logical refusals separately unproved\"],\"table\":\"notes\"}],\"format\":1,\"invariants\":[{\"counterexample\":null,\"direct_rule\":\"proved\",\"invariant\":{\"column\":null,\"operation\":null,\"policy\":{\"Eq\":[{\"Field\":\"owner\"},\"Viewer\"]},\"predicate\":\"(.owner = viewer)\",\"requirements\":[],\"site\":{\"col\":1,\"file\":\"schema.q\",\"line\":9},\"table\":\"notes\",\"target\":\"read\",\"unsupported\":null},\"obligations\":[{\"path\":\"server point/scan/planned view/count/sum/exists payload\",\"reason\":\"every admitted logical contributor satisfies this policy\",\"repair\":null,\"status\":\"proved\"}],\"paths\":[\"server point/list/filter/view/search/count/exists/live-refetch: ordinary ruled reads\",\"mutation valued write images: authorized final reread; logical refusals separately unproved\"],\"reasons\":[\"insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority\",\"wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference\"],\"status\":\"unproved\"}],\"notes\":[],\"roles\":{\"caller satisfying .owner = viewer\":[\"notes insert: .owner = viewer; operations: add (mutation), one (query)\",\"notes read: .owner = viewer; operations: add (mutation), one (query)\"]},\"scope\":\"logical row/authority intent; all database snapshots; ordinary authenticated viewers including service seats; explicit unproved paths\",\"uncovered\":[{\"audience\":\"caller satisfying .owner = viewer\",\"column\":null,\"effect\":\"insert\",\"row_predicate\":\".owner = viewer\",\"table\":\"notes\"}]},\"sequences\":[],\"starterLeftovers\":null,\"synced\":0,\"tables\":1,\"views\":0}\n",
+    "stderr": ""
+  },
+  {
+    "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "deploy",
+      "/home/ccheever/sb4-loop/integ18/upgrade/release-history-1792399938494",
+      "--schema",
+      "/home/ccheever/sb4-loop/integ18/upgrade/v2/snapback",
+      "--check",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "{\n  \"backfills\": [],\n  \"checklist\": [\n    \"Before selecting release 2 from release 1, assert the guarded refusal and query visibility for each affected workflow below against real accounts.\",\n    \"Verify: old-client compatibility (release 1), operation add: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\",\n    \"Verify: old-client compatibility (release 1), operation add: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\",\n    \"Verify: old-client compatibility (release 1), operation one: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\",\n    \"Verify: old-client compatibility (release 1), operation one: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\",\n    \"Keep current value domains, audiences, guards and quotas in a bridge; repair records through authorized mutations; prove the blocked case still refuses, then rerun the target preview. Pause any workflow whose invariant the target cannot retain.\"\n  ],\n  \"clientCompatibility\": [\n    \"old-client compatibility (release 1), operation add: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\",\n    \"old-client compatibility (release 1), operation add: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\",\n    \"old-client compatibility (release 1), operation one: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\",\n    \"old-client compatibility (release 1), operation one: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\"\n  ],\n  \"current\": {\n    \"event\": null,\n    \"events\": [\n      {\n        \"at\": 1792399938526,\n        \"generation\": 1,\n        \"id\": 1,\n        \"operation\": \"deploy\",\n        \"previous\": null,\n        \"release\": 1,\n        \"revision\": 1,\n        \"summary\": {\n          \"dormant_items\": 0,\n          \"narrowed_restored\": 0,\n          \"narrowed_retained\": 0,\n          \"native_digest\": null,\n          \"restored_items\": 0\n        }\n      },\n      {\n        \"at\": 1792399938647,\n        \"generation\": 2,\n        \"id\": 2,\n        \"operation\": \"deploy\",\n        \"previous\": 1,\n        \"release\": 2,\n        \"revision\": 2,\n        \"summary\": {\n          \"dormant_items\": 0,\n          \"narrowed_restored\": 0,\n          \"narrowed_retained\": 0,\n          \"native_digest\": null,\n          \"restored_items\": 0\n        }\n      },\n      {\n        \"at\": 1792399938730,\n        \"generation\": 3,\n        \"id\": 3,\n        \"operation\": \"rollback\",\n        \"previous\": 2,\n        \"release\": 1,\n        \"revision\": 3,\n        \"summary\": {\n          \"dormant_items\": 1,\n          \"narrowed_restored\": 0,\n          \"narrowed_retained\": 0,\n          \"native_digest\": null,\n          \"restored_items\": 0\n        }\n      }\n    ],\n    \"events_after\": 3,\n    \"generation\": 3,\n    \"items\": [\n      {\n        \"action\": \"dormant\",\n        \"asset_bytes\": 0,\n        \"bytes\": 49,\n        \"key\": \"column:notes.category\",\n        \"kind\": \"column\",\n        \"path\": \"notes.category\",\n        \"rows\": 1,\n        \"sample_ids\": [\n          \"01M59NS5107V7NJZAJYH5YP1KN\"\n        ]\n      }\n    ],\n    \"items_after\": \"column:notes.category\",\n    \"native_digest\": \"\",\n    \"previous_active\": 2,\n    \"release\": 1,\n    \"revision\": 3,\n    \"workers\": []\n  },\n  \"estimate\": \"estimated write work up to 0.00 s on a host like measured eb1000 (not a host/load SLO); 0.00 s subtotal excludes row-view visits and is not a floor; source rows [notes=1]; 1 row projections, 0 index row builds, 0 capture fills, 0 aggregate visits, 0 members / up to 0 row-view visits; memory: 64 MiB combined main/temp cache target (larger caller settings retained, reduced for Linux address-space headroom), prior 64 MiB main-cache run used about 147 MiB process RSS (workspace target is not a process cap); SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps caller settings, default 64; if the cache was enlarged, SQLite NOMEM rolls back and retries once at caller settings; payload width, token fanout, group distribution, cache setting and WAL/storage affect the actual time\",\n  \"hazards\": [\n    \"old-client compatibility (release 1), operation add: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\",\n    \"old-client compatibility (release 1), operation add: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\",\n    \"old-client compatibility (release 1), operation one: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\",\n    \"old-client compatibility (release 1), operation one: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\"\n  ],\n  \"notes\": [],\n  \"phases\": \"; phases [read-only advice 0.139 ms, key validation 0.642 ms, preflight 1.291 ms, project and index 0.018 ms, cap counts 0.000 ms, derived rebuild 0.148 ms, validation 0.210 ms, metadata 0.413 ms, commit 0.413 ms]; phase details (nested) [read-through retirement 0.046 ms, feed launch 0.001 ms, event slot fill 0.019 ms, successor assessment 0.269 ms, project/index notes (0 indexes) 0.015 ms]\",\n  \"plan\": {\n    \"event\": null,\n    \"events\": [\n      {\n        \"at\": 1792399938526,\n        \"generation\": 1,\n        \"id\": 1,\n        \"operation\": \"deploy\",\n        \"previous\": null,\n        \"release\": 1,\n        \"revision\": 1,\n        \"summary\": {\n          \"dormant_items\": 0,\n          \"narrowed_restored\": 0,\n          \"narrowed_retained\": 0,\n          \"native_digest\": null,\n          \"restored_items\": 0\n        }\n      },\n      {\n        \"at\": 1792399938647,\n        \"generation\": 2,\n        \"id\": 2,\n        \"operation\": \"deploy\",\n        \"previous\": 1,\n        \"release\": 2,\n        \"revision\": 2,\n        \"summary\": {\n          \"dormant_items\": 0,\n          \"narrowed_restored\": 0,\n          \"narrowed_retained\": 0,\n          \"native_digest\": null,\n          \"restored_items\": 0\n        }\n      },\n      {\n        \"at\": 1792399938730,\n        \"generation\": 3,\n        \"id\": 3,\n        \"operation\": \"rollback\",\n        \"previous\": 2,\n        \"release\": 1,\n        \"revision\": 3,\n        \"summary\": {\n          \"dormant_items\": 1,\n          \"narrowed_restored\": 0,\n          \"narrowed_retained\": 0,\n          \"native_digest\": null,\n          \"restored_items\": 0\n        }\n      },\n      {\n        \"at\": 1792399942756,\n        \"generation\": 4,\n        \"id\": 4,\n        \"operation\": \"preview\",\n        \"previous\": 1,\n        \"release\": 2,\n        \"revision\": 4,\n        \"summary\": {\n          \"dormant_items\": 0,\n          \"narrowed_restored\": 0,\n          \"narrowed_retained\": 0,\n          \"native_digest\": null,\n          \"restored_items\": 1\n        }\n      }\n    ],\n    \"events_after\": 4,\n    \"generation\": 4,\n    \"items\": [],\n    \"items_after\": null,\n    \"native_digest\": \"\",\n    \"previous_active\": 1,\n    \"release\": 2,\n    \"revision\": 4,\n    \"workers\": []\n  },\n  \"preview\": true,\n  \"steps\": [\n    {\n      \"change\": \"additive\",\n      \"message\": \"column notes.category is added with default \\\"historical\\\"; rows written before it read \\\"historical\\\"\",\n      \"path\": \"tables.notes.columns.category\"\n    }\n  ]\n}\n",
+    "stderr": ""
+  },
+  {
+    "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "releases",
+      "/home/ccheever/sb4-loop/integ18/upgrade/release-history-1792399938494",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "{\n  \"current\": 1,\n  \"event\": null,\n  \"events\": [\n    {\n      \"at\": 1792399938526,\n      \"generation\": 1,\n      \"id\": 1,\n      \"operation\": \"deploy\",\n      \"previous\": null,\n      \"release\": 1,\n      \"revision\": 1,\n      \"summary\": {\n        \"dormant_items\": 0,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 0\n      }\n    },\n    {\n      \"at\": 1792399938647,\n      \"generation\": 2,\n      \"id\": 2,\n      \"operation\": \"deploy\",\n      \"previous\": 1,\n      \"release\": 2,\n      \"revision\": 2,\n      \"summary\": {\n        \"dormant_items\": 0,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 0\n      }\n    },\n    {\n      \"at\": 1792399938730,\n      \"generation\": 3,\n      \"id\": 3,\n      \"operation\": \"rollback\",\n      \"previous\": 2,\n      \"release\": 1,\n      \"revision\": 3,\n      \"summary\": {\n        \"dormant_items\": 1,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 0\n      }\n    }\n  ],\n  \"events_after\": 3,\n  \"generation\": 3,\n  \"items\": [\n    {\n      \"action\": \"dormant\",\n      \"asset_bytes\": 0,\n      \"bytes\": 49,\n      \"key\": \"column:notes.category\",\n      \"kind\": \"column\",\n      \"path\": \"notes.category\",\n      \"rows\": 1,\n      \"sample_ids\": [\n        \"01M59NS5107V7NJZAJYH5YP1KN\"\n      ]\n    }\n  ],\n  \"items_after\": \"column:notes.category\",\n  \"latest\": 2,\n  \"native_digest\": \"\",\n  \"previous_active\": 2,\n  \"release\": 1,\n  \"revision\": 3,\n  \"workers\": []\n}\n",
+    "stderr": ""
+  },
+  {
+    "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "deploy",
+      "/home/ccheever/sb4-loop/integ18/upgrade/release-history-1792399938494",
+      "--schema",
+      "/home/ccheever/sb4-loop/integ18/upgrade/v2/snapback"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "release 2 is current as generation 4; 0 rows, 0 cells, 0 index entries dormant, notes.category changed; 2.3 ms\n",
+    "stderr": "WARNING old-client compatibility (release 1), operation add: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\nWARNING old-client compatibility (release 1), operation add: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\nWARNING old-client compatibility (release 1), operation one: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\nWARNING old-client compatibility (release 1), operation one: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\n"
+  },
+  {
+    "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "rollback",
+      "/home/ccheever/sb4-loop/integ18/upgrade/release-history-1792399938494",
+      "--to",
+      "1"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "resolved rollback target: release 1 (current release 2)\nrelease 1 is current as generation 5; 0 rows, 1 cell, 0 index entries dormant; samples: cells notes.category [01M59NS5107V7NJZAJYH5YP1KN], notes.category changed; 2.5 ms; running serve adopted the release\n",
+    "stderr": "WARNING old-client compatibility (release 2), operation add: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\nWARNING old-client compatibility (release 2), operation add: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\nWARNING old-client compatibility (release 2), operation one: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\nWARNING old-client compatibility (release 2), operation one: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\n"
+  },
+  {
+    "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "deploy",
+      "/home/ccheever/sb4-loop/integ18/upgrade/release-history-1792399938494",
+      "--schema",
+      "/home/ccheever/sb4-loop/integ18/upgrade/v2/snapback"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "release 2 is current as generation 6; 0 rows, 0 cells, 0 index entries dormant, notes.category changed; 2.5 ms; running serve adopted the release\n",
+    "stderr": "WARNING old-client compatibility (release 1), operation add: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\nWARNING old-client compatibility (release 1), operation add: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\nWARNING old-client compatibility (release 1), operation one: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\nWARNING old-client compatibility (release 1), operation one: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\n"
+  },
+  {
+    "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "rollback",
+      "/home/ccheever/sb4-loop/integ18/upgrade/release-history-1792399938494",
+      "--to",
+      "1"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "resolved rollback target: release 1 (current release 2)\nrelease 1 is current as generation 7; 0 rows, 1 cell, 0 index entries dormant; samples: cells notes.category [01M59NS5107V7NJZAJYH5YP1KN], notes.category changed; 5.9 ms; running serve adopted the release\n",
+    "stderr": "WARNING old-client compatibility (release 2), operation add: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\nWARNING old-client compatibility (release 2), operation add: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\nWARNING old-client compatibility (release 2), operation one: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\nWARNING old-client compatibility (release 2), operation one: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\n"
+  },
+  {
+    "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "deploy",
+      "/home/ccheever/sb4-loop/integ18/upgrade/release-history-1792399938494",
+      "--schema",
+      "/home/ccheever/sb4-loop/integ18/upgrade/v2/snapback"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "release 2 is current as generation 8; 0 rows, 0 cells, 0 index entries dormant, notes.category changed; 2.4 ms; running serve adopted the release\n",
+    "stderr": "WARNING old-client compatibility (release 1), operation add: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\nWARNING old-client compatibility (release 1), operation add: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\nWARNING old-client compatibility (release 1), operation one: RESULT REVIEW: result shape/value domain changed; preserve the old projection/domain or introduce a new operation before retiring old clients\nWARNING old-client compatibility (release 1), operation one: RESULT REVIEW: declared source domains consumed by this operation changed: notes.category; results or refusals may change even when the TypeScript type stays number/string; preserve the old domains or verify old-client handling\n"
+  },
+  {
+    "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "args": [
+      "releases",
+      "/home/ccheever/sb4-loop/integ18/upgrade/release-history-1792399938494",
+      "--json"
+    ],
+    "cwd": "/home/ccheever/sb4-loop/integ18/upgrade",
+    "exit": 0,
+    "stdout": "{\n  \"current\": 2,\n  \"event\": null,\n  \"events\": [\n    {\n      \"at\": 1792399938526,\n      \"generation\": 1,\n      \"id\": 1,\n      \"operation\": \"deploy\",\n      \"previous\": null,\n      \"release\": 1,\n      \"revision\": 1,\n      \"summary\": {\n        \"dormant_items\": 0,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 0\n      }\n    },\n    {\n      \"at\": 1792399938647,\n      \"generation\": 2,\n      \"id\": 2,\n      \"operation\": \"deploy\",\n      \"previous\": 1,\n      \"release\": 2,\n      \"revision\": 2,\n      \"summary\": {\n        \"dormant_items\": 0,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 0\n      }\n    },\n    {\n      \"at\": 1792399938730,\n      \"generation\": 3,\n      \"id\": 3,\n      \"operation\": \"rollback\",\n      \"previous\": 2,\n      \"release\": 1,\n      \"revision\": 3,\n      \"summary\": {\n        \"dormant_items\": 1,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 0\n      }\n    },\n    {\n      \"at\": 1792399942813,\n      \"generation\": 4,\n      \"id\": 4,\n      \"operation\": \"deploy\",\n      \"previous\": 1,\n      \"release\": 2,\n      \"revision\": 4,\n      \"summary\": {\n        \"dormant_items\": 0,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 1\n      }\n    },\n    {\n      \"at\": 1792399942914,\n      \"generation\": 5,\n      \"id\": 5,\n      \"operation\": \"rollback\",\n      \"previous\": 2,\n      \"release\": 1,\n      \"revision\": 5,\n      \"summary\": {\n        \"dormant_items\": 1,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 0\n      }\n    },\n    {\n      \"at\": 1792399942996,\n      \"generation\": 6,\n      \"id\": 6,\n      \"operation\": \"deploy\",\n      \"previous\": 1,\n      \"release\": 2,\n      \"revision\": 6,\n      \"summary\": {\n        \"dormant_items\": 0,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 1\n      }\n    },\n    {\n      \"at\": 1792399943082,\n      \"generation\": 7,\n      \"id\": 7,\n      \"operation\": \"rollback\",\n      \"previous\": 2,\n      \"release\": 1,\n      \"revision\": 7,\n      \"summary\": {\n        \"dormant_items\": 1,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 0\n      }\n    },\n    {\n      \"at\": 1792399943166,\n      \"generation\": 8,\n      \"id\": 8,\n      \"operation\": \"deploy\",\n      \"previous\": 1,\n      \"release\": 2,\n      \"revision\": 8,\n      \"summary\": {\n        \"dormant_items\": 0,\n        \"narrowed_restored\": 0,\n        \"narrowed_retained\": 0,\n        \"native_digest\": null,\n        \"restored_items\": 1\n      }\n    }\n  ],\n  \"events_after\": 8,\n  \"generation\": 8,\n  \"items\": [],\n  \"items_after\": null,\n  \"latest\": 2,\n  \"native_digest\": \"\",\n  \"previous_active\": 1,\n  \"release\": 2,\n  \"revision\": 8,\n  \"workers\": []\n}\n",
+    "stderr": ""
+  }
+]

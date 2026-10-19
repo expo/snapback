@@ -1,0 +1,39 @@
+[
+  {
+    "label": "root-setup",
+    "command": "bun install --frozen-lockfile; node scripts/ensure-workspace-hoist.mjs; scripts/check-generated-artifacts",
+    "exit": 0,
+    "log": "/home/ccheever/sb4-loop/integ18/root-setup.log",
+    "sha256": "d45331d02cd1fabe7d52aac0c5f0b4883dc3c5211d6343c1977ba8d406558d67"
+  },
+  {
+    "label": "root-qualified",
+    "command": "node scripts/generate-diagnostics-registry.mjs; node scripts/generate-guide-manifest.mjs; node scripts/check-inventories.mjs; ./ref-check --verbose; node scripts/check-guide.mjs",
+    "exit": 0,
+    "log": "/home/ccheever/sb4-loop/integ18/root-qualified.log",
+    "sha256": "cd5db7b008bca68b51e9326ece83b201019dce231a2eff8531e3a975ba3f10d2"
+  },
+  {
+    "label": "docs-qualified",
+    "command": "node scripts/docs-budget.mjs",
+    "exit": 0,
+    "log": "/home/ccheever/sb4-loop/integ18/docs-qualified.log",
+    "sha256": "cf36dd06e3079db863f7de33ba5546342d58a7dc8b9551a8ede8129d4235d26d"
+  },
+  {
+    "label": "survey-qualified",
+    "command": "python3 ~/sb4-loop/integ18/survey.py",
+    "exit": 0,
+    "log": "/home/ccheever/sb4-loop/integ18/survey-qualified.log",
+    "sha256": "987451132d6e6a562c4076480df90ecceefe74cf83c62330f29867ae8c0a039e"
+  },
+  {
+    "label": "qualify-corrected",
+    "exit": 0,
+    "source": "865fc1273c",
+    "command": "node scripts/qualify-linux.mjs --consumer-only (corrected prepared client/Expo, external output)",
+    "log": "/home/ccheever/sb4-loop/integ18/qualify-corrected.log",
+    "sha256": "dd8fd441e8dbfd4d049f4b19088e5305921804cde2109fd70151e1209fad85fd",
+    "publicationQualified": false
+  }
+]

@@ -18,5 +18,17 @@
     "N_SWEEP_ONLY_DEADLINE": 13,
     "N_PRIVILEGE_ESCALATION": 7,
     "N_VACUOUS_RULE": 1
+  },
+  "candidate": "865fc1273c",
+  "wave18Separate": {
+    "N_GRANT_OUTLIVES_ROLE": 9,
+    "N_SECURITY_INTENT": 38,
+    "N_ARGUMENT_GRANT": 65,
+    "N_BROAD_READ": 46,
+    "N_PRIVILEGE_ESCALATION": 14,
+    "N_OPTIONAL_EVIDENCE": 27,
+    "N_EXISTENCE_ORACLE": 15,
+    "N_SWEEP_ONLY_DEADLINE": 6,
+    "N_VACUOUS_RULE": 1
   }
 }

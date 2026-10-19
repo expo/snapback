@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "directory": "/home/ccheever/sb4-loop/integ18/linux-corrected/day2-compatibility",
+  "guideRecipe": "capture-release-and-bridge",
+  "starterCustody": [
+    "web",
+    "expo"
+  ]
+}

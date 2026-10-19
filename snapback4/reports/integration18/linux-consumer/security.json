@@ -1,0 +1,401 @@
+{
+  "status": "passed",
+  "guide": "verbatim installed security card",
+  "artifacts": {
+    "clientSha256": "5fa4e84cdc45a2446fd29ec103fe45ff103d8de30c350713cb3909fadb2c94f3",
+    "platformSha256": "ac1403f86dfe8ebe21704527cadeeb0ebe62242d52a465d4d2f335052179ee86",
+    "binarySha256": "ffa28778de6a890c1cf3da2f1738521221e020ac9574521d4e36bb9227dc5972"
+  },
+  "guideCases": [
+    {
+      "block": 0,
+      "invariants": 3,
+      "audit": "passed",
+      "finite": {
+        "attempted": 1096,
+        "refused": 0,
+        "violations": 0,
+        "seedSyntheticObservations": 0,
+        "unauthenticatedHttpRefused": 7,
+        "revocationHttpRefused": 0
+      },
+      "broadRead": "refuted",
+      "expectedFailureExits": [
+        1,
+        1,
+        1
+      ]
+    }
+  ],
+  "sessions": [
+    {
+      "method": "guests",
+      "status": "passed",
+      "attempted": 1048,
+      "refused": 0,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 7,
+      "revocationHttpRefused": 14,
+      "disconnectedDevice": "not covered"
+    },
+    {
+      "method": "password",
+      "status": "passed",
+      "attempted": 1048,
+      "refused": 0,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 7,
+      "revocationHttpRefused": 14,
+      "disconnectedDevice": "not covered"
+    }
+  ],
+  "starters": [
+    {
+      "id": "todo-online",
+      "status": "passed",
+      "invariants": 1,
+      "attempted": 1204,
+      "refused": 764,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 11,
+      "revocationHttpRefused": 0
+    },
+    {
+      "id": "social",
+      "status": "passed",
+      "invariants": 5,
+      "attempted": 453,
+      "refused": 85,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 0,
+      "unauthenticatedHttpNotCovered": "complete deployed native/action/effect artifacts required",
+      "revocationHttpRefused": 0
+    },
+    {
+      "id": "todo-web",
+      "status": "passed",
+      "invariants": 1,
+      "attempted": 1216,
+      "refused": 649,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 11,
+      "revocationHttpRefused": 18
+    },
+    {
+      "id": "chat-web",
+      "status": "passed",
+      "invariants": 5,
+      "attempted": 1368,
+      "refused": 1368,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 0,
+      "unauthenticatedHttpNotCovered": "complete deployed native/action/effect artifacts required",
+      "revocationHttpRefused": 0
+    },
+    {
+      "id": "chat-expo",
+      "status": "passed",
+      "invariants": 5,
+      "attempted": 1368,
+      "refused": 1368,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 25,
+      "revocationHttpRefused": 32
+    },
+    {
+      "id": "production-recipe",
+      "status": "passed",
+      "source": "installed dist/recipes/production/web/schema.q",
+      "invariants": 2,
+      "attempted": 17528,
+      "refused": 749,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 13,
+      "revocationHttpRefused": 20
+    }
+  ],
+  "scope": "finite campaigns and declared policy checks; no zero-hole or disconnected-device revocation claim",
+  "commands": [
+    {
+      "args": [
+        "guide",
+        "security",
+        "--full"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/card-0",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "audit",
+        "--json"
+      ],
+      "project": "/card-0",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--audit",
+        "--json"
+      ],
+      "project": "/card-0",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/card-0",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/card-0",
+      "exitCode": 1,
+      "expectedExitCode": 1
+    },
+    {
+      "args": [
+        "audit",
+        "--json"
+      ],
+      "project": "/card-0",
+      "exitCode": 1,
+      "expectedExitCode": 1
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/card-0",
+      "exitCode": 1,
+      "expectedExitCode": 1
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/revocation-guests",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/revocation-guests",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/revocation-password",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/revocation-password",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "init",
+        "/home/ccheever/sb4-loop/integ18/linux-corrected/security-policy-vNSNLf/todo-online",
+        "--online"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/todo-online",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/todo-online",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "init",
+        "/home/ccheever/sb4-loop/integ18/linux-corrected/security-policy-vNSNLf/social",
+        "--template",
+        "social"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/social",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/social",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "init",
+        "/home/ccheever/sb4-loop/integ18/linux-corrected/security-policy-vNSNLf/todo-web",
+        "--web"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/todo-web",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/todo-web",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "init",
+        "/home/ccheever/sb4-loop/integ18/linux-corrected/security-policy-vNSNLf/chat-web",
+        "--template",
+        "chat",
+        "--web"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/chat-web",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/chat-web",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "init",
+        "/home/ccheever/sb4-loop/integ18/linux-corrected/security-policy-vNSNLf/chat-expo",
+        "--template",
+        "chat",
+        "--expo"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/chat-expo",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/chat-expo",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/production-recipe",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/production-recipe",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    }
+  ]
+}
