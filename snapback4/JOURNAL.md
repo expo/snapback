@@ -96711,3 +96711,27 @@ campaigns and the repaired 015 custody workflow remain explicit gaps in
 `../issues/20261018-sb4-security-proof-and-adversarial-qualification-gaps.md`.
 This is a conservative verification foundation, not a zero-holes capability
 claim. No version bump, push or publication.
+
+
+## 2026-10-19 — 0.4.31 superseded by 0.4.33; never published
+
+0.4.31 (`snapback4`, both platform packages and `snapback4-expo`) was never
+published; all four `latest` stayed at 0.4.30. The coordinator abandoned it for
+0.4.33 (`3653cae823`, Integration 17), which contains 0.4.31 and 0.4.32.
+
+- **First candidate, `10b1001a95`:** Linux passed. The Mac dry run failed twice, on
+  `run_admission::no_watch_names_an_unadopted_edit_and_seed_names_the_id_form` only.
+  The test waited for the dev URL banner and then asserted the `--no-watch` line,
+  which is printed after `dev_doors::pin` and lags under suite load. The test
+  passed 12/12 alone.
+- **Second candidate, `ccb9f752d1`:** this commit added the test-only wait. Native
+  and the Expo witness passed on Xcode 27.1. Linux attempt 2 hit ENOSPC on the
+  shared disk; attempt 3 passed with `== 0 failure(s) in 3567 s`.
+- **Mac dry run 3 at `ccb9f752d1`:** `cargo test` was green, but the run was
+  invalidated by a clamshell sleep on battery mid-run (23:10Z–01:57Z), which
+  stretched `ordinary-search-oracle.test.mjs` and failed it. Run alone on AC with
+  the lid open, that file passed 8/8.
+
+The 0.4.33 Mac gate now watches AC power, the lid and sleep during the run, and
+restarts an attempt it marks environment-invalid. Details:
+[reports/20261017-publication-0.4.31/REPORT.md](reports/20261017-publication-0.4.31/REPORT.md).

@@ -1,0 +1,9 @@
+file:///Users/ccheever/projects/snapback-pub-0428/snapback4/scripts/prepare-client.mjs:10
+  if (existsSync(receiptPath)) throw new Error(`prepared client already exists at ${receiptPath}; reuse it or bump the release version`);
+                                     ^
+
+Error: prepared client already exists at /Users/ccheever/projects/snapback-pub-0428/snapback4/target/publication/client-0.4.31/prepare.json; reuse it or bump the release version
+    at prepareClient (file:///Users/ccheever/projects/snapback-pub-0428/snapback4/scripts/prepare-client.mjs:10:38)
+    at file:///Users/ccheever/projects/snapback-pub-0428/snapback4/scripts/publish.mjs:31:20
+
+Node.js v24.18.0

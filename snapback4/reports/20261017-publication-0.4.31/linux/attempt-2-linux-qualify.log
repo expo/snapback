@@ -1,0 +1,372 @@
+info: component rust-std for target x86_64-unknown-linux-musl is up to date
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+warning: dropping unsupported crate type `cdylib` for target `x86_64-unknown-linux-musl`
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 2 warnings (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: unused import: `start::serve_requests`
+   --> crates/snapback4/src/serve.rs:313:5
+    |
+313 | use start::serve_requests;
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: use of deprecated type alias `libc::time_t`: This type is changed to 64-bit in musl 1.2.0, we'll follow that change in the future release. See #1848 for more info.
+   --> crates/snapback4/src/verbs/witness/background.rs:388:65
+    |
+388 |     let seconds = (value.as_u64().unwrap_or(0) / 1000) as libc::time_t;
+    |                                                                 ^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:131:30
+    |
+131 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:869:4
+    |
+869 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: function `run` is never used
+  --> crates/snapback4/src/verbs/test_cases.rs:71:8
+   |
+71 | pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64) -> Result<(usize, usize), Stri...
+   |        ^^^
+
+warning: `snapback4` (bin "snapback4") generated 7 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 3 suggestions)
+    Finished `production` profile [optimized] target(s) in 0.24s
+{"status":"passed","machine":"x86_64","interpreter":null,"needed":[]}
+
+added 6 packages in 2s
+packed day-two passed: compatibility baseline, relative saved sources, contemporary fixtures, live backfill, rollback, retained forward
+✔ H9 additive preview-noise budget: unchanged probe guards print zero WARNINGs in both directions (136.218561ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 199.738634
+
+added 1 package in 462ms
+✔ H9 renderedText opts into substring matching for a row with more than the needle (2700.485149ms)
+✔ H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise (1630.018528ms)
+✔ KIT3 explicit form claim survives slow uploads and never grants an unrelated callback (7432.035728ms)
+✔ KIT3 starter SVG box click and scoped text recipe run literally (441.453702ms)
+✔ KIT3 dev.now reads the current served clock across advance and reset (160.367008ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 12443.544481
+✔ guide testing full HTTP bodies match real routes, including null returns, refusals and omitted ids (172.232605ms)
+✔ KIT3 guide wire literal query/mutation success/refusal, point objects and view values (159.863127ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 436.175247
+packed fixture check/test agreement passed
+
+added 6 packages in 643ms
+init: wrote 21 files in . — Expo todos: native when available, online in Expo Go — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 507 packages in 8s
+
+added 1 package, and changed 3 packages in 4s
+runtime changes: 0.4.29 → 0.4.31
+## 0.4.31
+
+- Existing stores keep their rows, ids, schema and captured `read through` authority. No automatic data repair or audience expansion occurs. Regenerate declarations and rebuild web, native and Exact clients to pick up the runtime and client changes below; review new correctness notes before deploying edited schemas.
+- Expo: `upgrade` aligns Expo and declared SDK packages from Expo's own manifest, with the adapter's core floor taking precedence. Supported peers are Expo >=57.0.22 <58 and expo-modules-core >=57.0.23 <58; starters retain Expo 57.0.30, RN 0.86.3 and React/React DOM 19.2.3. Router apps pin the compatible Reanimated/Worklets pair. From an older installation, acquire the new helper with `npx snapback4@latest upgrade`; the direct candidate install is `npm install --save-exact snapback4@0.4.31 snapback4-expo@0.4.31`. Upgrade preserves dependency sections, prints its alignment plan and a per-project check/test/rebuild action. Regenerate iOS and rebuild after native dependency changes.
+- Fixtures and proof hosts: `loadFixtures("fixtures", { url: dev.url })` works on persona-only dev apps. Optional `persona` or `headers` apply to both reads and preserve E_AUTH. The field-type catalog is a dev-only door with Host/Origin checks and private-field filtering; production serve refuses it. `startDev` returns `personas` and async `now()`. `startStatic` names a missing export directory and the awaited build step.
+- Proof contracts: `witnessForm(app,event,async mutate => ...)` carries an explicit handler claim through awaited uploads. E_WITNESS_NO_WRITE and E_WITNESS_UNCLAIMED expose stable `why.reason` values (`not-ready`, `returned-early`, `event`, `arguments`); human mismatch messages now redact argument values. `waitForFresh` returns the fresh string and suggests RegExp/exact:false for substring-only matches. Starter proofs scope rendered assertions; testing covers RN-web, wrapped selects and SVG clicks.
+- Time and reads: reset/clock replies include `now` and `skewMs`; await `dev.now()` after changing time. `clock advance` retains latest-window coalescing, reports fired/skipped windows and runnable replay commands, and offers `--each-boundary` to admit every crossed window chronologically. Jobs use final now plus historical period arguments; action deadlines use current admission time. One-shot HTTP reads after not-before deadlines settle encountered live publications before reevaluating under bounded work. Unrelated unopened rows retain their ordinary background path.
+- Starter custody: saved-release scaffolding is opt-in with `init --web --day2` or `init --expo --day2`. `init --expo --online` explains the Expo Go/zero-sync choice. Check/adapt recognize shipped proof bytes, respect custom saved paths and removed scaffolds, and label custom build/server advice as heuristic. Adapt captures current modules/fixtures into missing saved directories, retains old evidence and repairs managed 0.4.29 npm arguments. Day-two proofs accept a fresh explicit deployment directory. Saved tests return business-case run/skip counts, refuse zero executed cases unless `{fixtureOnly:true}`, and include stdout on failure. Check inspects saved fixtures against their own schema.
+- Production: preview `init --adapt --production`; `--apply` writes the compiled identity/service-seat roster plan. It lists missing first writers and frontend dev-principal sites, preserving application screens. Bare `use identity` keeps guests, who authenticate before reads; `/auth/config` is GET. React/Expo starters include runnable account/persona, roster-role, invitation and authorized-principal-picker recipes.
+- Client runtime: release changes preserve drafts/selections owned above release-sensitive queries; denied capabilities render not available and complete empty lists render empty. Invalid `writes` configuration resolves an inert app refusal through ready and `useAuth().why` before acquiring storage/device/network. Native smoke identifies its provider requirement. Client recipes enumerate read-helper arguments and per-operation prediction timing; generated declarations annotate prediction and decimal scale.
+- Release previews track consulted guard columns, treat forward domain widening as monotone and prove supported trailing guards as tightening. Rollback names lost safety/confidentiality, changed populations/quotas and bridge advice; resolved targets print before preview/activation. Stored data and retention policy are unchanged.
+- Authorization: developer E_RULE evidence identifies query/mutation `require` versus table verb rule and quotes the executing generation's clause, without adding private text to public envelopes. `N_REQUIRE_REFUSED` identifies mixed caller gates missing a table-authority proof without assuming roles are disjoint. Compiled recipes cover maintained parent rosters, private waitlist/public occupancy, expiring membership pages, union acquisition cost, separate image placements, own-or-staff and upsert rollback. Live-parent authority continues separately; no new live syntax ships here.
+- Language and notes: conditional-completeness advice names missing pins; readable held-parent snapshots and continuing audiences can prove an online page complete. Private parent-group repairs keep every audience branch and make optional caps explicit product choices. Enum facts narrow through OR and early returns; sort retains an already complete capped population. Private readable conflict keys receive proven-change/fresh-clock immutable refusals; uncertain/hidden conflicts keep runtime equality and notes. `N_IMMUTABLE_PATCH` is a correctness-review note; stable immutable-parent derivations stay quiet. Proven guards reduce hidden-lookup/reference notes; blind mutable updates do not cause N_LOOKUP_HIDDEN. Top-N/cursor subjects group; cascade diagnostics lead with product edits and keep arithmetic under verbose/JSON; mixed-key and sync errors print precise repairs. Null root fixture aliases name themselves, typed bare-alias checks avoid ordinary literals, and `test --as` names overridden sweep entries.
+- Serving and discovery: conventional captured server/worker imports run from retained release sources; startup warns about unsupervised handlers, labels active/working schema hashes and reports graceful socket closure. Serve help documents bounded `startServe(...,{timeoutMs})`, worker seats and resource roots. Help/parser coverage includes all new flags, retires unsupported clock --release, and supports writing-free starter dry runs. Doctor JSON structures E_EXPIRY_ORPHAN findings; secret-command logs contain a placeholder. Guide sections, literal wire/releases JSON and first-section output agree with execution; chat/social use the readiness gate.
+
+## 0.4.30
+
+- Saved releases: `deploy --schema` resolves compatibility baselines from the original project, preserves module names and deduplicates enum/value unions. Prefer `versions/v1/schema.q`, original-name modules and `versions/v1/fixtures/`; directory and complete-file inputs remain supported. Saved tests prefer contemporary fixtures, name fallback skips and keep explicit fixture selection strict. Deploy/rollback previews group actual guard dependencies and lead with query/count population losses, dependent dormancy and safety effects; literal backfills include exact active-row counts. A bridge-release recipe preserves safety logic as well as data.
+- Existing stores retain their rows and ids. P11 makes Rust ids monotonic at equal or regressed clocks within one live mint context, matching the JavaScript module stream; it gives no order across contexts, devices, processes, restarts or commits. Existing same-millisecond ids keep their previous random ordering; use an explicit order column for cross-context business order and `matchSet` for unordered fixture membership. No store rewrite is needed for P11. Rebuild native/Exact devices to use the new minting runtime.
+- F2 recovery is explicit: `doctor` reports `E_EXPIRY_ORPHAN`; after inspecting/backing up a stopped store, select `doctor --repair-expiry-orphan table:id` (plus `--release dir` for deployed storage). It applies current cascade/set-null/keep actions atomically and refuses restrict/read-through blockers. Upgrade never guesses that a physically absent parent expired or silently deletes legal dangling references.
+- Client runtime: `AppProvider` preserves drafts across restoring→signed-out for the same app/viewer and resets them when app/account ownership changes. `useAppReady()` gates writable screens on opening, current sign-in and admission, including recovery after failed initial restoration. `isPresent` narrows non-null data; `isReady` still permits nullable data. Device-less identity options require explicit session storage; Expo examples use `secureStoreSessionStore(SecureStore)`. Rebuild edited starter forms around the documented readiness gate; application-owned files remain yours.
+- Proofs: `renderedText` is exact by default with explicit substring/RegExp/scoping; `waitForFresh` reports last evidence and `waitForServer` polls server truth with a deadline. A trusted click producing no durable write settles `E_WITNESS_NO_WRITE` after one second; re-arm and abandoned arms also settle, while a claimed write gets its full separate deadline. Observation never cancels a real write. Logs default to project `logs/`; token/secret stdout stays in memory. Browser witnesses start before app scripts; custom `startDev` arguments keep its memory default; request persistence explicitly through the proof helper (guide testing).
+- Starters bake init-time port ranges, print the written defaults and support later launcher overrides. Expo dependencies pin before adapter resolution; zero-sync Expo uses the online tier. `init --adapt` previews inherited proof repairs; `--apply` writes them while preserving business assertions and routes. Generated frontend proofs build their own dist after validating ports; day-two templates require a real business assertion and pass saved-version directories themselves.
+- Fixtures and operations: `check` and `test` share typed relative-time and literal-escape conversion; malformed times report `E_FIXTURE_TIME`. Per-query sweep personas, `matchSet`, `loadFixtures`, reset-time conversion and live-instance memory-dev discovery cover the same forms. Help/usage/flag admission share one table, ignored modes refuse, token quiet/JSON and empty `data --json` work, and deployments record source/version/time provenance. Worker failures invoke `onError` once per recorded failed attempt and remain visible in dev/doctor.
+- Authorization recipes execute offline supervisors, quantified consent, mutable workflows, publication mirrors, timed peer counts, expiring grants with owner history and role transitions. Refusal guidance distinguishes input/hidden lookup/table authority/authored guards; developer evidence names failed update images without changing hidden-client envelopes. Asset recipes share immutable home references and fail closed on scanner failures. These recipes add no language capability marker.
+- Quarry: unique membership lanes filter one point and keep the page's merge order. Indexed negative membership and capped online parent/child groups can report exact exhaustion with a prepaid authorization walk; newly interpreted plans require `branch-pages-v5`. Regenerate clients and rebuild web/native/Exact devices together; older devices refuse the marker before execution. Existing store rows and authority are unchanged. Unsupported copied-scope dependencies keep explicit scope predicates.
+- `check` preserves working immutable updates/upserts: `N_IMMUTABLE_PATCH` explains readable runtime equality; only proven changes or fresh clock/id patches in readable conflicts refuse. Exact-equal and proven insert-only payloads stay quiet. Non-null `where` predicates refine loop and shape snapshots; a proved immutable parent audience narrows private maintained counts. `not before` infers its boundary index. Median disclosure remains an explicit design choice; use authorized public measurements with private attribution for the fuel-board shape.
+- Delete-action caps are required only when a declared source can delete the parent; dormant edges get `N_CASCADE_DORMANT`. Adding a delete rule/program, expiry or reachable cascade rechecks required bounds; external/system IR still requires full prepaid reservation. Existing caps remain enforced on adoption and writes. Required-cap rewrites explain the product limit and heap formula. Diagnostics distinguish statement position and atomic fanout, name nullable Boolean operands, preserve descending cursors, and show source-level sync/job/reference repairs. Cursor and ordered-delete notes recognize enforced whole-group bounds; long rule expansions abbreviate outside verbose/JSON.
+- Expo starters and snapback4-expo now use Expo 57.0.30 / expo-modules-core 57.0.23; the shared config plugin repairs ExpoModulesJSI cache invalidation when switching SDKs, and native preparation accepts Xcode 27.1 as well as 27.0 with matching iOS SDKs. Regenerate iOS and rebuild the native app after upgrading. Qualification records the producing Xcode build and iOS SDK.
+History begins at 0.4.26; earlier changes are not recorded.
+check: ok — 1 table (1 synced), 4 operations, no problems, 5.7 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+info: starter: 1 file left from `snapback4 init` that does not fit your schema
+  src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in
+  info: scripts/day2-proof.mjs is the unmodified 0.4.29 starter: it asserts no business rows; preview `snapback4 init --adapt` to replace it and capture current sources/fixtures
+  info: scripts/frontend-proof.mjs serves dist with no visible build step (heuristic; imported code may build it); build in the proof or its npm script before startStatic("dist")
+  fix: snapback4 init --adapt (removes or rewrites only these files, which still match the starter; your own files are never touched)
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 5711ms index.js (329 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.11ecb52cd00e500a571fb5d4a8a61548.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/index-a2d8caa2577c7f0fb8ee86cdcbb1a495.js (842KB)
+_expo/static/js/web/web-worker-entry-9822a452187aea34d99fcc8340a6767d.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+added 6 packages in 970ms
+init: wrote 21 files in . — Expo todos: native when available, online in Expo Go — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 507 packages in 8s
+upgrade plan: snapback4/snapback4-expo → 0.4.31; expo 57.0.22 → 57.0.22; align expo@57.0.22, @expo/fingerprint@0.20.13, expo-dev-client@57.0.19, expo-secure-store@57.0.4, expo-sqlite@57.0.3, expo-status-bar@57.0.1, react@19.2.3, react-dom@19.2.3, react-native@0.86.3, react-native-web@0.21.0, expo-modules-core@57.0.23
+
+added 1 package, and changed 5 packages in 4s
+project snapback4-expo-starter: snapback4@0.4.31, snapback4-expo@0.4.31; regenerate with check, run acceptance tests; rebuild the native app
+runtime changes: 0.4.29 → 0.4.31
+## 0.4.31
+
+- Existing stores keep their rows, ids, schema and captured `read through` authority. No automatic data repair or audience expansion occurs. Regenerate declarations and rebuild web, native and Exact clients to pick up the runtime and client changes below; review new correctness notes before deploying edited schemas.
+- Expo: `upgrade` aligns Expo and declared SDK packages from Expo's own manifest, with the adapter's core floor taking precedence. Supported peers are Expo >=57.0.22 <58 and expo-modules-core >=57.0.23 <58; starters retain Expo 57.0.30, RN 0.86.3 and React/React DOM 19.2.3. Router apps pin the compatible Reanimated/Worklets pair. From an older installation, acquire the new helper with `npx snapback4@latest upgrade`; the direct candidate install is `npm install --save-exact snapback4@0.4.31 snapback4-expo@0.4.31`. Upgrade preserves dependency sections, prints its alignment plan and a per-project check/test/rebuild action. Regenerate iOS and rebuild after native dependency changes.
+- Fixtures and proof hosts: `loadFixtures("fixtures", { url: dev.url })` works on persona-only dev apps. Optional `persona` or `headers` apply to both reads and preserve E_AUTH. The field-type catalog is a dev-only door with Host/Origin checks and private-field filtering; production serve refuses it. `startDev` returns `personas` and async `now()`. `startStatic` names a missing export directory and the awaited build step.
+- Proof contracts: `witnessForm(app,event,async mutate => ...)` carries an explicit handler claim through awaited uploads. E_WITNESS_NO_WRITE and E_WITNESS_UNCLAIMED expose stable `why.reason` values (`not-ready`, `returned-early`, `event`, `arguments`); human mismatch messages now redact argument values. `waitForFresh` returns the fresh string and suggests RegExp/exact:false for substring-only matches. Starter proofs scope rendered assertions; testing covers RN-web, wrapped selects and SVG clicks.
+- Time and reads: reset/clock replies include `now` and `skewMs`; await `dev.now()` after changing time. `clock advance` retains latest-window coalescing, reports fired/skipped windows and runnable replay commands, and offers `--each-boundary` to admit every crossed window chronologically. Jobs use final now plus historical period arguments; action deadlines use current admission time. One-shot HTTP reads after not-before deadlines settle encountered live publications before reevaluating under bounded work. Unrelated unopened rows retain their ordinary background path.
+- Starter custody: saved-release scaffolding is opt-in with `init --web --day2` or `init --expo --day2`. `init --expo --online` explains the Expo Go/zero-sync choice. Check/adapt recognize shipped proof bytes, respect custom saved paths and removed scaffolds, and label custom build/server advice as heuristic. Adapt captures current modules/fixtures into missing saved directories, retains old evidence and repairs managed 0.4.29 npm arguments. Day-two proofs accept a fresh explicit deployment directory. Saved tests return business-case run/skip counts, refuse zero executed cases unless `{fixtureOnly:true}`, and include stdout on failure. Check inspects saved fixtures against their own schema.
+- Production: preview `init --adapt --production`; `--apply` writes the compiled identity/service-seat roster plan. It lists missing first writers and frontend dev-principal sites, preserving application screens. Bare `use identity` keeps guests, who authenticate before reads; `/auth/config` is GET. React/Expo starters include runnable account/persona, roster-role, invitation and authorized-principal-picker recipes.
+- Client runtime: release changes preserve drafts/selections owned above release-sensitive queries; denied capabilities render not available and complete empty lists render empty. Invalid `writes` configuration resolves an inert app refusal through ready and `useAuth().why` before acquiring storage/device/network. Native smoke identifies its provider requirement. Client recipes enumerate read-helper arguments and per-operation prediction timing; generated declarations annotate prediction and decimal scale.
+- Release previews track consulted guard columns, treat forward domain widening as monotone and prove supported trailing guards as tightening. Rollback names lost safety/confidentiality, changed populations/quotas and bridge advice; resolved targets print before preview/activation. Stored data and retention policy are unchanged.
+- Authorization: developer E_RULE evidence identifies query/mutation `require` versus table verb rule and quotes the executing generation's clause, without adding private text to public envelopes. `N_REQUIRE_REFUSED` identifies mixed caller gates missing a table-authority proof without assuming roles are disjoint. Compiled recipes cover maintained parent rosters, private waitlist/public occupancy, expiring membership pages, union acquisition cost, separate image placements, own-or-staff and upsert rollback. Live-parent authority continues separately; no new live syntax ships here.
+- Language and notes: conditional-completeness advice names missing pins; readable held-parent snapshots and continuing audiences can prove an online page complete. Private parent-group repairs keep every audience branch and make optional caps explicit product choices. Enum facts narrow through OR and early returns; sort retains an already complete capped population. Private readable conflict keys receive proven-change/fresh-clock immutable refusals; uncertain/hidden conflicts keep runtime equality and notes. `N_IMMUTABLE_PATCH` is a correctness-review note; stable immutable-parent derivations stay quiet. Proven guards reduce hidden-lookup/reference notes; blind mutable updates do not cause N_LOOKUP_HIDDEN. Top-N/cursor subjects group; cascade diagnostics lead with product edits and keep arithmetic under verbose/JSON; mixed-key and sync errors print precise repairs. Null root fixture aliases name themselves, typed bare-alias checks avoid ordinary literals, and `test --as` names overridden sweep entries.
+- Serving and discovery: conventional captured server/worker imports run from retained release sources; startup warns about unsupervised handlers, labels active/working schema hashes and reports graceful socket closure. Serve help documents bounded `startServe(...,{timeoutMs})`, worker seats and resource roots. Help/parser coverage includes all new flags, retires unsupported clock --release, and supports writing-free starter dry runs. Doctor JSON structures E_EXPIRY_ORPHAN findings; secret-command logs contain a placeholder. Guide sections, literal wire/releases JSON and first-section output agree with execution; chat/social use the readiness gate.
+
+## 0.4.30
+
+- Saved releases: `deploy --schema` resolves compatibility baselines from the original project, preserves module names and deduplicates enum/value unions. Prefer `versions/v1/schema.q`, original-name modules and `versions/v1/fixtures/`; directory and complete-file inputs remain supported. Saved tests prefer contemporary fixtures, name fallback skips and keep explicit fixture selection strict. Deploy/rollback previews group actual guard dependencies and lead with query/count population losses, dependent dormancy and safety effects; literal backfills include exact active-row counts. A bridge-release recipe preserves safety logic as well as data.
+- Existing stores retain their rows and ids. P11 makes Rust ids monotonic at equal or regressed clocks within one live mint context, matching the JavaScript module stream; it gives no order across contexts, devices, processes, restarts or commits. Existing same-millisecond ids keep their previous random ordering; use an explicit order column for cross-context business order and `matchSet` for unordered fixture membership. No store rewrite is needed for P11. Rebuild native/Exact devices to use the new minting runtime.
+- F2 recovery is explicit: `doctor` reports `E_EXPIRY_ORPHAN`; after inspecting/backing up a stopped store, select `doctor --repair-expiry-orphan table:id` (plus `--release dir` for deployed storage). It applies current cascade/set-null/keep actions atomically and refuses restrict/read-through blockers. Upgrade never guesses that a physically absent parent expired or silently deletes legal dangling references.
+- Client runtime: `AppProvider` preserves drafts across restoring→signed-out for the same app/viewer and resets them when app/account ownership changes. `useAppReady()` gates writable screens on opening, current sign-in and admission, including recovery after failed initial restoration. `isPresent` narrows non-null data; `isReady` still permits nullable data. Device-less identity options require explicit session storage; Expo examples use `secureStoreSessionStore(SecureStore)`. Rebuild edited starter forms around the documented readiness gate; application-owned files remain yours.
+- Proofs: `renderedText` is exact by default with explicit substring/RegExp/scoping; `waitForFresh` reports last evidence and `waitForServer` polls server truth with a deadline. A trusted click producing no durable write settles `E_WITNESS_NO_WRITE` after one second; re-arm and abandoned arms also settle, while a claimed write gets its full separate deadline. Observation never cancels a real write. Logs default to project `logs/`; token/secret stdout stays in memory. Browser witnesses start before app scripts; custom `startDev` arguments keep its memory default; request persistence explicitly through the proof helper (guide testing).
+- Starters bake init-time port ranges, print the written defaults and support later launcher overrides. Expo dependencies pin before adapter resolution; zero-sync Expo uses the online tier. `init --adapt` previews inherited proof repairs; `--apply` writes them while preserving business assertions and routes. Generated frontend proofs build their own dist after validating ports; day-two templates require a real business assertion and pass saved-version directories themselves.
+- Fixtures and operations: `check` and `test` share typed relative-time and literal-escape conversion; malformed times report `E_FIXTURE_TIME`. Per-query sweep personas, `matchSet`, `loadFixtures`, reset-time conversion and live-instance memory-dev discovery cover the same forms. Help/usage/flag admission share one table, ignored modes refuse, token quiet/JSON and empty `data --json` work, and deployments record source/version/time provenance. Worker failures invoke `onError` once per recorded failed attempt and remain visible in dev/doctor.
+- Authorization recipes execute offline supervisors, quantified consent, mutable workflows, publication mirrors, timed peer counts, expiring grants with owner history and role transitions. Refusal guidance distinguishes input/hidden lookup/table authority/authored guards; developer evidence names failed update images without changing hidden-client envelopes. Asset recipes share immutable home references and fail closed on scanner failures. These recipes add no language capability marker.
+- Quarry: unique membership lanes filter one point and keep the page's merge order. Indexed negative membership and capped online parent/child groups can report exact exhaustion with a prepaid authorization walk; newly interpreted plans require `branch-pages-v5`. Regenerate clients and rebuild web/native/Exact devices together; older devices refuse the marker before execution. Existing store rows and authority are unchanged. Unsupported copied-scope dependencies keep explicit scope predicates.
+- `check` preserves working immutable updates/upserts: `N_IMMUTABLE_PATCH` explains readable runtime equality; only proven changes or fresh clock/id patches in readable conflicts refuse. Exact-equal and proven insert-only payloads stay quiet. Non-null `where` predicates refine loop and shape snapshots; a proved immutable parent audience narrows private maintained counts. `not before` infers its boundary index. Median disclosure remains an explicit design choice; use authorized public measurements with private attribution for the fuel-board shape.
+- Delete-action caps are required only when a declared source can delete the parent; dormant edges get `N_CASCADE_DORMANT`. Adding a delete rule/program, expiry or reachable cascade rechecks required bounds; external/system IR still requires full prepaid reservation. Existing caps remain enforced on adoption and writes. Required-cap rewrites explain the product limit and heap formula. Diagnostics distinguish statement position and atomic fanout, name nullable Boolean operands, preserve descending cursors, and show source-level sync/job/reference repairs. Cursor and ordered-delete notes recognize enforced whole-group bounds; long rule expansions abbreviate outside verbose/JSON.
+- Expo starters and snapback4-expo now use Expo 57.0.30 / expo-modules-core 57.0.23; the shared config plugin repairs ExpoModulesJSI cache invalidation when switching SDKs, and native preparation accepts Xcode 27.1 as well as 27.0 with matching iOS SDKs. Regenerate iOS and rebuild the native app after upgrading. Qualification records the producing Xcode build and iOS SDK.
+History begins at 0.4.26; earlier changes are not recorded.
+upgrade delta: 0.4.29 → 0.4.31 for snapback/*.q
+  new notes: none
+  new refusals: none
+  generated/api.ts types: unchanged
+  query completeness: previous proof classes unavailable; no old verdict invented
+  release card: snapback4 guide changes
+check: ok — 1 table (1 synced), 4 operations, no problems, 6.3 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+info: starter: 1 file left from `snapback4 init` that does not fit your schema
+  src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in
+  info: scripts/day2-proof.mjs is the unmodified 0.4.29 starter: it asserts no business rows; preview `snapback4 init --adapt` to replace it and capture current sources/fixtures
+  info: scripts/frontend-proof.mjs serves dist with no visible build step (heuristic; imported code may build it); build in the proof or its npm script before startStatic("dist")
+  fix: snapback4 init --adapt (removes or rewrites only these files, which still match the starter; your own files are never touched)
+upgrade: snapback4, snapback4-expo pinned to 0.4.31 with npm; commit the lockfile, run check and acceptance tests, and rebuild the native app
+check: ok — 1 table (1 synced), 4 operations, no problems, 5.4 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+info: starter: 1 file left from `snapback4 init` that does not fit your schema
+  src/native-smoke.ts: the unmodified native smoke helper uses the previous schema's sign-in
+  info: scripts/day2-proof.mjs is the unmodified 0.4.29 starter: it asserts no business rows; preview `snapback4 init --adapt` to replace it and capture current sources/fixtures
+  info: scripts/frontend-proof.mjs serves dist with no visible build step (heuristic; imported code may build it); build in the proof or its npm script before startStatic("dist")
+  fix: snapback4 init --adapt (removes or rewrites only these files, which still match the starter; your own files are never touched)
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 811ms index.js (330 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.11ecb52cd00e500a571fb5d4a8a61548.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/index-61f98c463ddf672cdf323b7a295cba42.js (842KB)
+_expo/static/js/web/web-worker-entry-3da5a8ac18020b645301c572533dc51c.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+npm error code ENOSPC
+npm error syscall write
+npm error errno ENOSPC
+npm error nospc Invalid response body while trying to fetch http://127.0.0.1:35995/function-bind: ENOSPC: no space left on device, write
+npm error nospc There appears to be insufficient space on your system to finish.
+npm error nospc Clear up some disk space and try again.
+npm error A complete log of this run can be found in: /home/ccheever/.npm/_logs/2026-10-18T10_49_14_596Z-debug-0.log
+file:///home/ccheever/sb4-pub-0431/snapback4/scripts/publication-starters.mjs:45
+  if (status !== 0) throw Error(`${command}: toolchain command exited ${status}`);
+                          ^
+
+Error: npm: toolchain command exited 1
+    at runToolchainCommand (file:///home/ccheever/sb4-pub-0431/snapback4/scripts/publication-starters.mjs:45:27)
+    at async proveExpoUpgrades (file:///home/ccheever/sb4-pub-0431/snapback4/scripts/publication-regressions.mjs:45:9)
+    at async qualify (file:///home/ccheever/sb4-pub-0431/snapback4/scripts/qualify-linux.mjs:103:25)
+    at async file:///home/ccheever/sb4-pub-0431/snapback4/scripts/qualify-linux.mjs:149:90
+
+Node.js v24.13.1
