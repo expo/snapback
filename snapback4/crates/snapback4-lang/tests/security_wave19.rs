@@ -79,3 +79,16 @@ fn optional_role_columns_still_get_two_active_principals_per_role(){
  let mut c=Campaign::default();let fixture=challenges::generated_fixture(&b,&mut c).unwrap();let roles=fixture.store().rows("roles").unwrap();
  for role in ["doctor","volunteer"]{assert_eq!(roles.iter().filter(|r|r.field("role").ok()==Some(&Value::String(role.into()))).count(),2,"{c:?}");}
 }
+
+#[test]
+fn a_post_insert_guard_through_the_returned_row_preserves_owner_coupling(){
+ let b=bind("table homes:\n  owner: principal\n  read <- allow\n  insert <- allow\n  online only\ntable reports:\n  home: homes\n  homeowner: principal\n  immutable home,homeowner\n  read <- .homeowner = viewer\n  insert <- allow\n  online only\nmutation file(home: homes, homeowner: principal):\n  r = insert reports {home,homeowner}\n  h = homes[home] ! else MISSING\n  require r.homeowner = h.owner else WRONG_OWNER\n  return r\nquery mine():\n  return reports where .homeowner = viewer first 50 by .id\ninvariant reports.homeowner read only .home.owner = viewer\n");
+ let mut e=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
+ e.seed_at([("homes".into(),row(vec![("id",id("h")),("owner",id("dev:owner"))])),("reports".into(),row(vec![("id",id("r")),("home",id("h")),("homeowner",id("dev:owner"))]))],challenges::NOW).unwrap();
+ let args=std::collections::BTreeMap::from([("home".into(),id("h")),("homeowner".into(),id("dev:security-a"))]);
+ let rejected=e.mutate("file",None,snapback4_core::Context::new("dev:security-a",args).at(challenges::NOW)).unwrap();
+ assert!(matches!(rejected.state,snapback4_core::WriteState::Failed{..}));
+ let observed=e.query("mine",snapback4_core::Context::new("dev:security-a",std::collections::BTreeMap::new()).at(challenges::NOW)).unwrap();assert_eq!(observed.data,Value::Array(Vec::new()));
+ let mut c=Campaign::default();challenges::fixture_observers(&b,&e,&mut c);
+ assert!(c.violations.is_empty(),"{c:?}");assert!(c.unsupported.iter().any(|s|s.contains("creator/guard coupling")),"{c:?}");
+}

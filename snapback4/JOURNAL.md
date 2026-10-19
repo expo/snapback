@@ -96917,3 +96917,11 @@ review reproduced source-change-during-test and followed-symlink fingerprint
 bugs. Tests now consume captured source strings and private fixture snapshots,
 including symlink target bytes; changed originals prevent persistence. Those
 exact regressions pass. Optional role columns retain two active actors per role.
+
+Wave19 independent implementation review also reproduced a post-insert require
+through the returned row alias. Paired column independence now follows alias
+dependencies into require/check/if guards and declines unresolved coupling;
+the exact safe transaction has a regression. Saved refutation records deduplicate
+initial observations while retaining complete supporting rows, including the
+600-row regression. Packed policy qualification counts actual native or HTTP
+challenges separately and retains the existing ephemeral-fork coverage gap.

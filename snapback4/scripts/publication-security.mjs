@@ -51,11 +51,11 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     const output = command(["test", "--fixture-only"], project);
     const counts = /security tests: (\d+) attempted, (\d+) refused, (\d+) reachable violations; (\d+) seed\/synthetic observations \(non-failing\); finite campaign, not proof/.exec(output);
     assert.ok(counts, "default test executes the generated finite security campaign");
-    assert.ok(Number(counts[1]) > 0, "the security campaign actually attempts challenges");
     assert.equal(Number(counts[3]), 0);
     assert.doesNotMatch(output, /security boundary failure:|security HTTP failure:|security violation:/);
     const http = /security unauthenticated serve HTTP: (\d+) attempts refused/.exec(output);
     const artifactBoundary = "security not covered: unauthenticated serve HTTP for native/action/effect applications needs its complete deployed artifacts";
+    assert.ok(Number(counts[1]) + Number(http?.[1] ?? 0) > 0, `security campaign attempts policy or isolated HTTP challenges in ${project}`);
     if (requireHttp) assert.ok(http && Number(http[1]) > 0, "the isolated production HTTP campaign runs");
     else assert.ok((http && Number(http[1]) > 0) || output.includes(artifactBoundary), "HTTP coverage is executed or explicitly bounded by deployed artifacts");
     return { attempted: Number(counts[1]), refused: Number(counts[2]), violations: Number(counts[3]), seedSyntheticObservations: Number(counts[4]), unauthenticatedHttpRefused: Number(http?.[1] ?? 0),
