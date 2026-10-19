@@ -557,3 +557,66 @@ fn returning_narrowed_rows_interpret_columns_added_by_later_predecessors() {
  let next=defaulted.replace("int 0..5","int 0..10").replace("  n:","  doubled: int\n  n:")+"backfill items twice(n: int):\n  {doubled:n * 2}\n";
  let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","rank":9}));adopt(&mut e,&narrow,2).unwrap();adopt(&mut e,&defaulted,3).unwrap();adopt(&mut e,&next,4).unwrap();assert_eq!(field(&mut e,"items","a","doubled"),Value::Int(6));
 }
+
+#[test]
+fn restored_output_cells_keep_preimages_across_rollback_and_table_suspension() {
+ for kind in ["int","int ?"] {
+  let old=format!("table items:\n  n: int\n  score: {kind}\n  public 'fixture'\n  online only\n");
+  let dropped=old.replace(&format!("  score: {kind}\n"),"");let next=old.clone()+"backfill items score(n: int):\n  {score:n * 2}\n";
+  let mut e=engine(&old);seed(&mut e,"items",json!({"id":"a","n":3,"score":7}));adopt(&mut e,&dropped,2).unwrap();adopt(&mut e,&next,3).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(6));
+  adopt(&mut e,&old,1).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(7));adopt(&mut e,&next,3).unwrap();
+  adopt(&mut e,"query empty():\n  return true\n",4).unwrap();adopt(&mut e,&old,1).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(7));adopt(&mut e,&next,3).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(6));
+ }
+}
+#[test]
+fn replacing_added_output_mappings_restores_each_version_instead_of_a_default() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+ let twice=old.replace("  n:","  score: int default 0\n  n:")+"backfill items twice(n: int):\n  {score:n * 2}\n";let triple=twice.replace("twice(n:","triple(n:").replace("n * 2","n * 3");
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&twice,2).unwrap();adopt(&mut e,&triple,3).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(9));
+ adopt(&mut e,&twice,2).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(6));adopt(&mut e,&triple,3).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(9));
+}
+
+#[test]
+fn partially_hidden_transformed_fields_resume_their_version_and_undo_on_plain_return() {
+ let old="table items:\n  n: int\n  score: int\n  other: int\n  public 'fixture'\n  update <- allow\n  online only\n";
+ let fill="backfill items pair(n: int):\n  {score:n * 2,other:n * 3}\n";
+ let next=old.to_owned()+fill+"mutation edit():\n  update items['a'] {score:11}\n";
+ let hidden=old.replace("  score: int\n","");
+ for edited in [false,true] {
+  let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3,"score":7,"other":8}));adopt(&mut e,&next,2).unwrap();if edited {write(&mut e,"edit");}
+  adopt(&mut e,&hidden,3).unwrap();assert_eq!(field(&mut e,"items","a","other"),Value::Int(8));adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(if edited {11}else{6}));assert_eq!(field(&mut e,"items","a","other"),Value::Int(9));
+  adopt(&mut e,&hidden,3).unwrap();
+  if edited {let error=adopt(&mut e,old,1).unwrap_err().to_string();assert!(error.contains("changed after backfill"),"{error}");}
+  else {adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(7));}
+ }
+}
+#[test]
+fn newly_transformed_reference_cells_keep_binding_when_the_old_row_definition_lacked_them() {
+ let parents="table parents:\n  name: text <=10\n  n: int\n  unique name\n  public 'fixture'\n  online only\n";
+ let old=parents.to_owned()+"table children:\n  rank: int 0..10\n  public 'fixture'\n  online only\n";
+ let link="backfill children link():\n  {link:(parents[name = 'p'] ! else NOT_FOUND).id}\n";
+ let narrow=old.replace("  rank:","  link: parents\n  rank:").replace("int 0..10","int 0..5")+link;
+ let erased=narrow.replace("  link: parents","  link: id");let wide=erased.replace("int 0..5","int 0..10").replace("  rank:","  copied: int\n  rank:")+"backfill children copy(link: id):\n  {copied:(parents[link] ! else NOT_FOUND).n}\n";
+ let mut e=engine(&old);seed(&mut e,"parents",json!({"id":"p","name":"p","n":3}));seed(&mut e,"children",json!({"id":"c","rank":9}));adopt(&mut e,&narrow,2).unwrap();adopt(&mut e,&erased,3).unwrap();adopt(&mut e,&wide,4).unwrap();assert_eq!(field(&mut e,"children","c","copied"),Value::Int(3));
+ adopt(&mut e,parents,5).unwrap();let table=e.schema().tables["parents"].clone();{let tx=e.store_mut().transaction().unwrap();let r=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&r).unwrap();tx.commit().unwrap();}seed(&mut e,"parents",json!({"id":"p","name":"p","n":77}));
+ let error=adopt(&mut e,&wide,4).unwrap_err().to_string();assert!(error.contains("parent lifetime"),"{error}");
+}
+
+#[test]
+fn inverse_absence_does_not_reuse_a_restored_output_cell_or_its_default() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+ let first=old.replace("  n:","  score: int default 10\n  n:")+"backfill items first(n: int):\n  {score:n * 2}\n";
+ let second=old.replace("  n:","  score: int default 10\n  n:")+"backfill items second(score: int ?):\n  {score:(score ?? 0) + 1}\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&first,2).unwrap();adopt(&mut e,old,1).unwrap();adopt(&mut e,&second,3).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(1));
+ let plain=old.replace("  n:","  score: int default 10\n  n:");adopt(&mut e,&plain,4).unwrap();adopt(&mut e,&second,3).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(1));
+ adopt(&mut e,"query empty():\n  return true\n",5).unwrap();adopt(&mut e,&second,3).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(1));
+ adopt(&mut e,&plain,4).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(10));
+}
+#[test]
+fn existing_later_cohorts_see_replayed_earlier_values_after_old_release_writes() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  update <- allow\n  online only\nmutation edit():\n  update items['a'] {n:4}\n";
+ let first=old.replace("  n:","  score: int\n  n:")+"backfill items first(n: int):\n  {score:n * 2}\n";
+ let second=first.replace("  n:","  copied: int\n  n:")+"backfill items second(score: int):\n  {copied:score}\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&first,2).unwrap();adopt(&mut e,&second,3).unwrap();assert_eq!(field(&mut e,"items","a","copied"),Value::Int(6));
+ adopt(&mut e,old,1).unwrap();write(&mut e,"edit");adopt(&mut e,&second,3).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(8));assert_eq!(field(&mut e,"items","a","copied"),Value::Int(8));
+}

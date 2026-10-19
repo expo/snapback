@@ -57,7 +57,7 @@ struct Wire {
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     #[cfg(feature = "sqlite")]
-    ("release-backfills-v1", |s| !s.backfills.is_empty()),
+    ("release-backfills-v2", |s| !s.backfills.is_empty()),
     ("live-parent-copy-v1", |s| s.tables.values().any(|t| t.through.as_ref().is_some_and(|t| t.live.is_some()))),
     ("source-write-reservations-v2", |s| s.source_reservations.values().any(|p| p.birth.is_some())),
     ("source-write-reservations-v1", |s| !s.source_reservations.is_empty()),

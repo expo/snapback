@@ -33,7 +33,7 @@ pub(crate) fn enable(conn: &Connection) -> Result<(), RuntimeError> {
         // particular retained cell ever had live authority.
         conn.execute_batch("ALTER TABLE _dormant_values ADD COLUMN live_source INTEGER NOT NULL DEFAULT 0;")?;
     }
-    conn.execute("UPDATE _meta SET value=?1 WHERE key='version' AND value!='snapback4-release-store-4'", [VERSION])?;
+    conn.execute("UPDATE _meta SET value=?1 WHERE key='version' AND value!='snapback4-release-store-5'", [VERSION])?;
     Ok(())
 }
 
@@ -177,11 +177,12 @@ pub(super) fn capture_refs(
         "DELETE FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3",
         params![t, id, column],
     )?;
-    let mut refs = Vec::new();
-    references(kind, value, &mut refs);
-    for (parent, parent_id) in refs {
-        add_reference(tx, t, id, column, &parent, &parent_id)?;
-    }
+    capture_refs_preserving(tx,t,id,column,kind,value,&BTreeSet::new())
+}
+
+pub(super) fn capture_refs_preserving(tx:&Tx<'_>,t:i64,id:&str,column:&str,kind:&ColumnType,value:&Value,known:&BTreeSet<String>)->Result<(),RuntimeError>{
+    let mut refs=Vec::new();references(kind,value,&mut refs);
+    for(parent,parent_id)in refs {if !known.contains(&parent_id){add_reference(tx,t,id,column,&parent,&parent_id)?;}}
     Ok(())
 }
 
