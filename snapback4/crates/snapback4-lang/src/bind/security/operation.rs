@@ -9,7 +9,7 @@ pub(super) fn resolve<'a>(catalog:&'a Catalog,decl:&InvariantDecl)->Option<(Stri
         .filter(|(name,p)|p.kind==ProgramKind::Mutation&&(name==&decl.target||p.name==decl.target)).collect::<Vec<_>>();
     if matches.len()==1 {matches.into_iter().next()}else{None}
 }
-fn safe(rule:&RuleExpr)->bool {match rule{
+pub(super) fn safe(rule:&RuleExpr)->bool {match rule{
     RuleExpr::Exists{key,equalities,..}=>key.iter().chain(equalities.iter().map(|(_,t)|t)).all(|t|matches!(t,RuleTerm::Viewer|RuleTerm::Literal(_))),
     RuleExpr::And(xs)|RuleExpr::Or(xs)=>xs.iter().all(safe),
     RuleExpr::Eq(a,b)|RuleExpr::Ne(a,b)=>[a,b].iter().all(|t|matches!(t,RuleTerm::Viewer|RuleTerm::Literal(_))),

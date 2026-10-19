@@ -81,6 +81,12 @@ fn reserve_observers(out:&mut Campaign,calls:usize)->bool{
 }
 fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,actors:&[String],steps:&[Step],out:&mut Campaign){
     if !reserve_observers(out,0)||out.history_observer_calls>=32768{return;}
+    let queries=bound.programs.iter().filter(|bp|bp.program.kind==ProgramKind::Query&&!bp.program.native).filter(|bp|{
+        let json=serde_json::to_string(&bp.program).unwrap();
+        if ["NewId","Emit","JobAs","JobQuery"].iter().any(|tag|json.contains(tag)){
+            out.unsupported.insert(format!("{}: generated-id/opaque history observer needs disclosure provenance",bp.program.name));false
+        }else{true}
+    }).collect::<Vec<_>>();
     for inv in bound.invariants.iter().filter(|i|i.target=="read"){
         let direct=inv.policy.as_ref().is_some_and(|p|kernel::implies(&super::super::columns::admission(&bound.schema.tables[&inv.table],inv.column.as_deref()),p)==Ok(true));
         let indirect=bound.schema.maintains.iter().any(|m|m.source==inv.table)||bound.schema.tables.values().any(|t|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|kernel::dependencies(r).contains(&inv.table)));
@@ -96,7 +102,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
 
             // A typed authored row return is already a payload witness. It does
             // not require an invalid absent world that deletes referenced data.
-            for bp in bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Query&&!p.program.native&&typed_source(&p.result,&inv.table)){
+            for bp in queries.iter().copied().filter(|p|typed_source(&p.result,&inv.table)){
                 let cases=fixture_cases(&bp.program.args,rows,actors,out);
                 if cases.len()>32{out.unsupported.insert(format!("{}: typed read-observer arguments capped at 32",bp.program.name));}
                 for args in cases.into_iter().take(32){
@@ -115,7 +121,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
             if let Err(why)=absent.seed_delete_at(&inv.table,id,NOW){out.unsupported.insert(format!("{}: absent world refused: {why}",inv.table));continue;}
             let absent_rows=match readback(&absent){Ok(r)=>r,Err(why)=>{out.unsupported.insert(format!("{}: absent world readback: {why}",inv.table));continue;}};
             if policy_in(bound,inv,&absent_rows,viewer,None,row,&mut absent)!=Ok(false){continue;}
-            for bp in bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Query&&!p.program.native&&observing.iter().any(|t|super::super::audit::mentions(&serde_json::to_value(&p.program).unwrap(),t))){
+            for bp in queries.iter().copied().filter(|p|observing.iter().any(|t|super::super::audit::mentions(&serde_json::to_value(&p.program).unwrap(),t))){
                 let p=&bp.program;
                 let cases=fixture_cases(&p.args,rows,actors,out);
                 if cases.len()>32{out.unsupported.insert(format!("{}: read-observer arguments capped at 32; remaining combinations not covered",p.name));}

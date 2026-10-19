@@ -6,6 +6,32 @@ pub(super) fn probe_pairs(bound:&Bound,table:&str,index:&str,key:&[RuleTerm],equ
     if let Some(idx)=bound.schema.table(table).and_then(|t|t.index(index)){for (component,term) in idx.components.iter().zip(key){if let Some(column)=component.column(){pairs.push((column.into(),term.clone()));}}}
     pairs
 }
+pub(super) fn global_principal(bound:&Bound,table:&str)->Option<String>{
+    let t=bound.schema.table(table)?;
+    t.indexes.values().find_map(|index|{
+        if !index.unique||index.components.len()!=1{return None;}
+        let column=index.components[0].column()?;
+        matches!(t.columns.get(column),Some(snapback4_core::schema::ColumnType::Principal)).then(||column.to_string())
+    })
+}
+pub(super) fn membership_probe(bound:&Bound,rule:&RuleExpr,roster:&str)->bool{
+    let RuleExpr::Exists{table,index,key,equalities,..}=rule else{return false;};
+    if table!=roster{return false;}
+    let Some(principal)=global_principal(bound,table)else{return false;};
+    let pairs=probe_pairs(bound,table,index,key,equalities);
+    pairs.len()==1&&pairs[0].0==principal&&pairs[0].1==RuleTerm::Viewer
+}
+pub(super) fn insert_grant_risk(bound:&Bound,roster:&str,operation:&str,requirements:&[RuleExpr])->bool{
+    fn honors(bound:&Bound,rule:&RuleExpr,roster:&str)->bool{match rule{
+        RuleExpr::And(xs)|RuleExpr::Or(xs)=>xs.iter().any(|r|honors(bound,r,roster)),
+        r=>membership_probe(bound,r,roster),
+    }}
+    if global_principal(bound,roster).is_none()||!bound.schema.tables.values().any(|t|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|honors(bound,r,roster))){return false;}
+    let table=&bound.schema.tables[roster];
+    let admission=RuleExpr::And(std::iter::once(RuleExpr::Or(table.rules.insert.disjuncts().iter().filter(|r|r.service_grant().is_none()).map(|r|(*r).clone()).collect())).chain(requirements.iter().cloned()).collect());
+    let ordinary=substitute(bound,&admission,"$no-roster","$membership",None,None);
+    bound.invariants.iter().filter(|i|i.table==roster&&i.column.is_none()&&(i.operation.as_deref()==Some(operation)||i.operation.is_none()&&matches!(i.target.as_str(),"insert"|"write"))).filter_map(|i|i.policy.as_ref()).any(|p|super::operation::safe(p)&&kernel::implies(&ordinary,p)==Ok(false))
+}
 fn substitute(bound:&Bound,rule:&RuleExpr,roster:&str,column:&str,role:Option<&str>,target:Option<&str>)->RuleExpr{
     let known=|t:&RuleTerm|match t{RuleTerm::Field(c) if c==column=>target.map(|s|snapback4_core::Value::String(s.into())),RuleTerm::Literal(v)=>Some(v.clone()),_=>None};
     match rule{

@@ -6,6 +6,7 @@ const NOW_FOR_DEFAULTS:i64=1_800_000_000_000;
 fn rule_parts(rule:&RuleExpr)->Vec<&RuleExpr>{match rule{RuleExpr::And(xs)|RuleExpr::Or(xs)=>xs.iter().flat_map(rule_parts).collect(),RuleExpr::Not(x)=>rule_parts(x),r=>vec![r]}}
 fn role_test(bound:&Bound,rule:&RuleExpr)->bool {rule_parts(rule).iter().any(|r|match r{
     RuleExpr::Exists{table,index,key,equalities,..} if key.iter().chain(equalities.iter().map(|(_,v)|v)).any(|t|matches!(t,RuleTerm::Viewer))=>{
+        if super::privilege::membership_probe(bound,r,table){return true;}
         let columns=super::privilege::role_columns(bound,table);
         super::privilege::probe_pairs(bound,table,index,key,equalities).iter().any(|(c,t)|columns.contains(c)&&matches!(t,RuleTerm::Literal(_)))
     },_=>false,
@@ -14,7 +15,8 @@ fn reader_columns(rule:&RuleExpr)->BTreeSet<String>{rule_parts(rule).into_iter()
 fn note(notes:&mut Vec<Diagnostic>,site:&Site,code:&str,message:String,rewrite:&str){notes.push(Diagnostic::new(site,code,message,rewrite).guide("security"));}
 fn mutable_role(bound:&Bound,name:&str)->bool {
     let Some(t)=bound.schema.table(name)else{return false;};
-    let roles=super::privilege::role_columns(bound,name);
+    let mut roles=super::privilege::role_columns(bound,name);
+    if roles.is_empty()&&let Some(principal)=super::privilege::global_principal(bound,name){roles.insert(principal);}
     if roles.is_empty(){return false;}
     let mutable=roles.iter().any(|c|!t.constraints.iter().any(|k|matches!(k,snapback4_core::schema::Constraint::Immutable{fields} if fields.contains(c))));
     fn supplied(value:&serde_json::Value,roles:&BTreeSet<String>)->bool{
@@ -116,6 +118,13 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                 let Expr::Write{op,table,fields,site,..}=&write else{continue;};
                 let Some(t)=bound.schema.table(table)else{continue;};
                 let role_columns=super::privilege::role_columns(bound,table);
+                if role_columns.is_empty()&&p.kind==ProgramKind::Mutation&&matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert){
+                    let operation=super::super::operation_name(std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy().as_ref(),&p.name);
+                    let requirements=catalog.tables.get(table).map(|info|super::operation::requirements(&catalog,info,&context)).unwrap_or_default();
+                    if super::privilege::insert_grant_risk(bound,table,&operation,&requirements)&&seen.insert((table.clone(),"$membership".into())){
+                        note(&mut out,site,"N_PRIVILEGE_ESCALATION",format!("{}: {table} membership grants authority, but creation does not establish the independent provisioning intent",p.name),"restrict membership grants to the declared provisioner; use guide staging's first-admin recipe");
+                    }
+                }
                 for column in &role_columns {if p.kind==ProgramKind::Mutation&&(fields.iter().any(|f|&f.name==column)||matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&t.defaults.contains_key(column))&&bound.schema.tables.values().any(|other|[&other.rules.read,&other.rules.insert,&other.rules.update,&other.rules.delete].iter().any(|r|kernel::dependencies(r).contains(table))) {
                     let mut targets=fields.iter().filter(|f|&f.name==column).filter_map(|f|match &f.value{Some(Expr::Literal{value:ast::Literal::Str(s),..})=>Some(s.clone()),_=>None}).collect::<Vec<_>>();
                     if !fields.iter().any(|f|&f.name==column)&&let Some(snapback4_core::Value::String(role))=t.defaults.get(column).map(|d|d.value(NOW_FOR_DEFAULTS,"$advisory")){targets.push(role);}
