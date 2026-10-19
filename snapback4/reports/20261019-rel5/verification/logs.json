@@ -1,0 +1,139 @@
+[
+  {
+    "log": "cargo-full.log.gz",
+    "uncompressedSha256": "de3ff35223161f703a4f6e071b1cb6502f56c7d911e2d36f49cc0d9d0b96f57c",
+    "bytes": 741445
+  },
+  {
+    "log": "lang-sim-full.log.gz",
+    "uncompressedSha256": "aac33d29c1f8d9616c9f2b133fa705e0cf566cbd52264d5997fb78070ddc7521",
+    "bytes": 298364
+  },
+  {
+    "log": "check-target-final.log.gz",
+    "uncompressedSha256": "587b84e8e6d09c86064a2dad0e3d9be3b5d942a6e6be2956d115af140a86349f",
+    "bytes": 14847
+  },
+  {
+    "log": "lane-source-final.log.gz",
+    "uncompressedSha256": "3065db74eb1898b60b49dcf73facba94549c5fedc1c44ce36ca83f21ea3e28f1",
+    "bytes": 2172
+  },
+  {
+    "log": "readauth-final.log.gz",
+    "uncompressedSha256": "2a2212722096b4544ce49875212576daa4cf1013bce33779f06ca64d0924e572",
+    "bytes": 8706
+  },
+  {
+    "log": "guide-corpus-final3.log.gz",
+    "uncompressedSha256": "fe260dbba076a297a3133b8fe7a877dbf3b640e59bacb36fd32df17a2a2e3890",
+    "bytes": 20291
+  },
+  {
+    "log": "corpus-tail-final.log.gz",
+    "uncompressedSha256": "83a2323421e1489f621e643141fa2d229c0ce1717890a4ca19b8b69a68a453db",
+    "bytes": 5179
+  },
+  {
+    "log": "diagnostic-final.log.gz",
+    "uncompressedSha256": "8ce172c4c16f87eb72469dd00211829624eb8180536b45d042f520e8b1e8f464",
+    "bytes": 5040
+  },
+  {
+    "log": "evolution8.log.gz",
+    "uncompressedSha256": "7c678b9e67130e24365aac2d3e4c2bce0350ea555259c74c085236f58f61187f",
+    "bytes": 4696
+  },
+  {
+    "log": "doctests.log.gz",
+    "uncompressedSha256": "7cb94842cfd50299e76700ecec64fa86bc6618ce284be66531f34f373ff875ae",
+    "bytes": 3948
+  },
+  {
+    "log": "candidate.log.gz",
+    "uncompressedSha256": "5a5c19aaba40fea77b1508d60dba624f82515e41b0f631ba19e105a91a7f8007",
+    "bytes": 7030
+  },
+  {
+    "log": "retention-final.log.gz",
+    "uncompressedSha256": "e617f26d58ec890e8ebd1f2f88f2bb8d6b630d838c1950a7659ad4fc7101a2d2",
+    "bytes": 6107
+  },
+  {
+    "log": "client-final.log.gz",
+    "uncompressedSha256": "c9e9b59587e18c66cf87e6c8accf5a6679e3a42a5d1fbaaf8a44d896aa8b4b4c",
+    "bytes": 6602
+  },
+  {
+    "log": "client-extra.log.gz",
+    "uncompressedSha256": "1e3a51509cc537c530ee83183d10d6f436314cd5d1f2b5e5c9a5aede13a74fe3",
+    "bytes": 578
+  },
+  {
+    "log": "wave13-final2.log.gz",
+    "uncompressedSha256": "9d8ef7df135d7dc07d4025d702542eae56037696e1fbe5750e3e104b0895e6f4",
+    "bytes": 4309
+  },
+  {
+    "log": "mac-index-final.log.gz",
+    "uncompressedSha256": "c23925f04847d2c1ab4a86f3c416218d1e46f253a42b906e0a669427df7d5187",
+    "bytes": 30155
+  },
+  {
+    "log": "typecheck.log.gz",
+    "uncompressedSha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630",
+    "bytes": 32
+  },
+  {
+    "log": "ref-complete.log.gz",
+    "uncompressedSha256": "bab709e2351e32cd4595fe4576314856ca6be2fc7b3bf79d5546796b82003d36",
+    "bytes": 81
+  },
+  {
+    "log": "doc-budget-complete.log.gz",
+    "uncompressedSha256": "9bb159076a3adb79c1bc53371dfa0e88a4d0db89953319cc2cf893f246c49689",
+    "bytes": 4383
+  },
+  {
+    "log": "root-guide-complete.log.gz",
+    "uncompressedSha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+    "bytes": 19451
+  },
+  {
+    "log": "root-inventories-complete.log.gz",
+    "uncompressedSha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+    "bytes": 3499
+  },
+  {
+    "log": "cli-unit-final.log.gz",
+    "uncompressedSha256": "3630eebcefd94c41ad4f0879ccd345cc10bbdf6f9ccf6fcb1297fdb17fba6393",
+    "bytes": 77233
+  },
+  {
+    "log": "linux-consumer.log.gz",
+    "exitCode": 0,
+    "uncompressedSha256": "8564e4d690baac4865688011faa42f147e44db0368080b9337c5a730768eca04",
+    "bytes": 448762,
+    "testSessionRedactions": 0
+  },
+  {
+    "log": "linux-initial.log.gz",
+    "exitCode": 1,
+    "uncompressedSha256": "cc76a90e28486d31461a08955ab20ce2136f19c03cb8dabc41c664b63a4894f1",
+    "bytes": 15499,
+    "testSessionRedactions": 0
+  },
+  {
+    "log": "prepare.log.gz",
+    "exitCode": 0,
+    "uncompressedSha256": "da39b962e125e8273089b03dd6b18162cb51ac970107a68ecc3ef545a80f2a89",
+    "bytes": 11729,
+    "testSessionRedactions": 0
+  },
+  {
+    "log": "ref-closeout.log.gz",
+    "exitCode": 0,
+    "uncompressedSha256": "0f1397fa783300475768d6bd6558d4c638d9713aebe490a75e98f0ca550db5c4",
+    "bytes": 81
+  }
+]
