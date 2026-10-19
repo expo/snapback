@@ -1,0 +1,107 @@
+[
+  {
+    "lane": "006",
+    "original": "/home/ccheever/sb4-loop/wave19/apps/006-snapback-trampoline-park-incidents",
+    "sha256": "50efbc83edf03e995f9ef1293b0be92f1d6e4cd7b164272ace05bcb94d512d4d",
+    "originalLines": 222,
+    "columnRuleLines": 186,
+    "delta": -36,
+    "originalCounts": {
+      "physical": 222,
+      "code": 185
+    },
+    "v1Counts": {
+      "physical": 175,
+      "code": 149
+    },
+    "columnCounts": {
+      "physical": 186,
+      "code": 157
+    },
+    "codeReduction": 28
+  },
+  {
+    "lane": "037",
+    "original": "/home/ccheever/sb4-loop/wave19/apps/037-snapback-dairy-tanker-pickups",
+    "sha256": "19d893b02bce24f41dd98b9fa4370f302e39312df93e2902b18230cd68983271",
+    "originalLines": 249,
+    "columnRuleLines": 202,
+    "delta": -47,
+    "originalCounts": {
+      "physical": 249,
+      "code": 189
+    },
+    "v1Counts": {
+      "physical": 199,
+      "code": 157
+    },
+    "columnCounts": {
+      "physical": 202,
+      "code": 171
+    },
+    "codeReduction": 18
+  },
+  {
+    "lane": "039",
+    "original": "/home/ccheever/sb4-loop/wave19/apps/039-snapback-countertop-slab-layouts",
+    "sha256": "b8860779d2135cfee15e89c727bf09f1c2ac57da578cc921e2768a6e941f403c",
+    "originalLines": 241,
+    "columnRuleLines": 223,
+    "delta": -18,
+    "originalCounts": {
+      "physical": 241,
+      "code": 225
+    },
+    "v1Counts": {
+      "physical": 208,
+      "code": 198
+    },
+    "columnCounts": {
+      "physical": 223,
+      "code": 211
+    },
+    "codeReduction": 14
+  },
+  {
+    "lane": "043",
+    "original": "/home/ccheever/sb4-loop/wave19/apps/043-snapback-safe-deposit-access",
+    "sha256": "611c9dbd9109649ce95ede00b507cebaccbc8d1cce8b1b7be24910d4004b2075",
+    "originalLines": 233,
+    "columnRuleLines": 218,
+    "delta": -15,
+    "originalCounts": {
+      "physical": 233,
+      "code": 199
+    },
+    "v1Counts": {
+      "physical": 201,
+      "code": 173
+    },
+    "columnCounts": {
+      "physical": 218,
+      "code": 186
+    },
+    "codeReduction": 13
+  },
+  {
+    "lane": "049",
+    "original": "/home/ccheever/sb4-loop/wave19/apps/049-snapback-park-pavilion-deposits",
+    "sha256": "5be30e602a9d3eddbb3d7a6344a1cfba39c230c7f888b28a91c788d8beeb9925",
+    "originalLines": 184,
+    "columnRuleLines": 174,
+    "delta": -10,
+    "originalCounts": {
+      "physical": 193,
+      "code": 175
+    },
+    "v1Counts": {
+      "physical": 152,
+      "code": 142
+    },
+    "columnCounts": {
+      "physical": 174,
+      "code": 161
+    },
+    "codeReduction": 14
+  }
+]
