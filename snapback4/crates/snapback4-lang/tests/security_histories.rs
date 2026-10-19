@@ -173,3 +173,12 @@ fn typed_media_column_payloads_are_witnesses_and_private_nulls_are_not(){
  assert!(c.violations.iter().any(|v|v.invariant_site==b.invariants[0].site.to_string()&&v.operation=="inspect"&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace),"{c:?}");
  assert!(!c.violations.iter().any(|v|v.invariant_site==b.invariants[1].site.to_string()),"{c:?}");
 }
+
+#[test]
+fn authored_query_refusal_is_a_column_value_observation() {
+ let source="table notes:\n  owner: principal\n  body: text 1..40\n  read <- allow\n  online only\nquery observe(note: notes):\n  n = notes[note] ! else MISSING\n  require n.body = 'secret' else DIFFERENT 'protected value differs'\n  return 0\ninvariant notes.body read only .owner = viewer\n";
+ let c=fixture_campaign(source,vec![("notes".into(),row(&[("id",Value::Id("n".into())),("owner",Value::Id("dev:owner".into())),("body",Value::String("secret".into()))]))]);
+ let v=c.violations.iter().find(|v|v.effect=="column read observation"&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace).unwrap_or_else(||panic!("{c:?}"));
+ let observations=serde_json::to_string(&v.observations).unwrap();
+ assert!(observations.contains("DIFFERENT")&&observations.contains("protected value differs"),"{observations}");
+}

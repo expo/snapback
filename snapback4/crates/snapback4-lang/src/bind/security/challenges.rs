@@ -58,7 +58,7 @@ fn snapshot_mode(bound:&Bound,inv:&Invariant,variant:usize,timed:bool)->Result<B
         let mut principal_index=0usize;
         for (n,k) in &t.columns{
             if n=="id"||t.engine_field(n)||t.maintained.contains_key(n){continue;}
-            let sample_variant=if let C::Enum{variants}=k.required(){let n=enum_case % variants.len();enum_case/=variants.len();n}else if matches!(k.required(),C::Principal){let n=((variant>>(3+principal_index.min(5)))&1)|(variant&4);principal_index+=1;n}else{variant};
+            let sample_variant=if let C::Enum{variants}=k.required(){let n=enum_case % variants.len();enum_case/=variants.len();n}else if matches!(k.required(),C::Principal){let n=((variant>>((if name==inv.table{0}else{3})+principal_index.min(5)))&1)|(variant&4);principal_index+=1;n}else{variant};
             let value=sample(k,sample_variant)
                 .ok_or_else(||format!("{name}.{n}: asset ledger/required sample is not available"))?;
             fields.insert(n.clone(),value);

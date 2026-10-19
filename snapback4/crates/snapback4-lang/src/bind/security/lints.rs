@@ -118,11 +118,13 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                 let Expr::Write{op,table,fields,site,..}=&write else{continue;};
                 let Some(t)=bound.schema.table(table)else{continue;};
                 let role_columns=super::privilege::role_columns(bound,table);
-                if role_columns.is_empty()&&p.kind==ProgramKind::Mutation&&matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert){
+                let principal=super::privilege::global_principal(bound,table);
+                let reassigns=principal.as_ref().is_some_and(|c|fields.iter().any(|f|&f.name==c)&&!t.constraints.iter().any(|k|matches!(k,snapback4_core::schema::Constraint::Immutable{fields} if fields.contains(c))));
+                if role_columns.is_empty()&&p.kind==ProgramKind::Mutation&&(matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)||*op==ast::WriteOp::Update&&reassigns){
                     let operation=super::super::operation_name(std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy().as_ref(),&p.name);
                     let requirements=catalog.tables.get(table).map(|info|super::operation::requirements(&catalog,info,&context)).unwrap_or_default();
-                    if super::privilege::insert_grant_risk(bound,table,&operation,&requirements)&&seen.insert((table.clone(),"$membership".into())){
-                        note(&mut out,site,"N_PRIVILEGE_ESCALATION",format!("{}: {table} membership grants authority, but creation does not establish the independent provisioning intent",p.name),"restrict membership grants to the declared provisioner; use guide staging's first-admin recipe");
+                    if super::privilege::membership_grant_risk(bound,table,&operation,&requirements,if *op==ast::WriteOp::Upsert&&!reassigns{ast::WriteOp::Insert}else{*op})&&seen.insert((table.clone(),"$membership".into())){
+                        note(&mut out,site,"N_PRIVILEGE_ESCALATION",format!("{}: {table} membership grants authority, but assignment does not establish the independent provisioning intent",p.name),"restrict membership grants to the declared provisioner; use guide staging's first-admin recipe");
                     }
                 }
                 for column in &role_columns {if p.kind==ProgramKind::Mutation&&(fields.iter().any(|f|&f.name==column)||matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&t.defaults.contains_key(column))&&bound.schema.tables.values().any(|other|[&other.rules.read,&other.rules.insert,&other.rules.update,&other.rules.delete].iter().any(|r|kernel::dependencies(r).contains(table))) {

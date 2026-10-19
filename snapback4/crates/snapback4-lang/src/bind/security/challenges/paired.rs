@@ -14,7 +14,8 @@ pub(super) fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<St
     if p.kind==ProgramKind::Query {
         match engine.query(&p.name,context) {
             Ok(q) if q.unavailable || !q.complete => Err("incomplete/metered query is outside logical payload comparison".into()),
-            Ok(q)=>serde_json::to_value(&q.data).map_err(|e|e.to_string()),
+            Ok(q)=>Ok(serde_json::json!({"data":q.data})),
+            Err(e) if e.rule.is_some() && matches!(e.family.as_str(),"rule"|"constraint") => Ok(serde_json::json!({"refusal":{"code":e.code,"message":e.message}})),
             Err(e)=>Err(format!("query error is not an admitted observation: {e}")),
         }
     }else{

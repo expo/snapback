@@ -241,3 +241,45 @@ fn principal_only_current_membership_can_revoke_retained_grants(){
  let source="table operators:\n  principal: principal\n  unique principal\n  immutable principal\n  read <- allow\n  delete <- viewer = 'service:ops'\n  online only\ntable grants:\n  principal: principal\n  unique principal\n  insert <- exists operators[viewer]\n  online only\ntable records:\n  read <- exists grants[viewer]\n  online only\ninvariant records.read only exists operators[viewer]\nmutation revoke(who: principal):\n  delete operators[who]\n  return null\n";
  let r=security::analyze(&bound(source));assert!(r.notes.iter().any(|n|n.code=="N_GRANT_OUTLIVES_ROLE"&&n.message.starts_with("records.read")),"{:?}",r.notes);
 }
+
+#[test]
+fn a_separate_global_staff_roster_can_authorize_membership_moderation() {
+    let source = r#"
+table staff:
+  principal: principal
+  role: enum('moderator', 'director')
+  trained: bool
+  unique principal
+  read <- allow
+table memberships:
+  principal: principal
+  status: enum('active', 'muted', 'removed')
+  unique principal
+  update <- exists staff[principal = viewer, role = 'moderator', trained = true]
+table messages:
+  body: text <=100
+  read <- exists memberships[principal = viewer, status = 'active']
+mutation moderate(member: memberships, status: enum('active', 'muted', 'removed')):
+  require exists staff[principal = viewer, role = 'moderator', trained = true] else MODERATOR_ONLY
+  update memberships[member] { status }
+  return null
+"#;
+    let notes = |text: &str| {
+        let sources=vec![("schema.q".into(), text.into())];
+        let b=compile(&sources); assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        let mut r=security::analyze(&b); security::add_source_notes(&mut r,&sources,&b);
+        r.notes.into_iter().filter(|n|n.code=="N_PRIVILEGE_ESCALATION").count()
+    };
+    assert_eq!(notes(source),0);
+    let open=source.replace("update <- exists staff[principal = viewer, role = 'moderator', trained = true]","update <- allow").replace("  require exists staff[principal = viewer, role = 'moderator', trained = true] else MODERATOR_ONLY\n", "");
+    assert!(notes(&open)>0);
+}
+
+#[test]
+fn principal_only_reassignment_obeys_update_write_and_operation_intent() {
+ for effect in ["update","write","reassign"] {for operator in [false,true] {
+  let source=format!("table operators:\n  principal: principal\n  unique principal\n  read <- allow\n  update <- {}\n  online only\ntable secrets:\n  read <- exists operators[viewer]\n  online only\ninvariant operators.{effect} only viewer = 'service:ops'\nmutation reassign(member: operators):\n  update operators[member] {{ principal: viewer }}\n  return null\n",if operator{"viewer = 'service:ops'"}else{"allow"});
+  let b=bound(&source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("policy.q".into(),source)],&b);
+  assert_eq!(r.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"),!operator,"{effect} {operator}: {:?}",r.notes);
+ }}
+}
