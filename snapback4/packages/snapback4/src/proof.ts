@@ -75,7 +75,8 @@ export interface ServeHost extends ProofHost {
 }
 export interface ServeOptions extends ProofOptions { seedUsers?: SeedAccountsOptions; clockOffset?: string }
 // @ref LLP 3000.000.000.001#2-real-staging-accounts — operator authority stays in the existing local store proof; bulk setup refuses production.
-/** @throws E_PROOF_USAGE for missing deployment directory; child exit, readiness deadline or served identity mismatch. */
+/** Starts a release. stop() awaits native exit and kernel store release.
+ * @throws E_PROOF_USAGE for missing deployment directory; child exit, readiness deadline or served identity mismatch. stop() rejects bounded cleanup failure. */
 export async function startServe(deployDir: string, options: ServeOptions | readonly string[] = {}): Promise<ServeHost> {
   if (typeof deployDir !== "string" || !deployDir.trim()) throw Object.assign(new TypeError("E_PROOF_USAGE: startServe(deployDir, options) requires a deployment directory as its first argument"), { code: "E_PROOF_USAGE" });
   const opts: ServeOptions = Array.isArray(options) ? { args: options } : options as ServeOptions;
@@ -93,7 +94,15 @@ export async function startServe(deployDir: string, options: ServeOptions | read
     if (!response.ok || result.denied || !Number.isSafeInteger(result.now)) throw Error(`staging clock refused or reply unavailable; inspect clock and queued work before retrying: ${result.denied?.code ?? response.status} ${result.denied?.message ?? ""}`);
     return result.now!;
   };
-  const served: ServeHost = { ...host,
+  // Exit can precede inherited watchdog flock release. The private local
+  // barrier observes the same canonical ownership sidecar without writing data.
+  let stopping: Promise<void> | undefined;
+  const stop = () => stopping ??= (async () => {
+    await host.stop();
+    const result = await cli(["serve", directory, "--wait-stopped"], {...opts, timeoutMs:6000});
+    if (result.code !== 0) throw Error(`proof serve store release failed: ${result.stderr}`);
+  })().catch(error => { stopping = undefined; throw error; });
+  const served: ServeHost = { ...host, stop,
     now: () => clockCall(),
     advance: (duration, options = {}) => {
       if (typeof duration !== "string" || !/^\+?\d+(ms|s|m|h|d|w)$/.test(duration)) throw new TypeError("E_PROOF_USAGE: advance requires a positive whole duration");

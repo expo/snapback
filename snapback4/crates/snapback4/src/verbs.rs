@@ -880,7 +880,7 @@ pub fn data(options: &Options) -> i32 {
     match inspected {
         Ok((rows, more)) => {
             if options.json {
-                println!("{}", serde_json::Value::Array(rows.iter().map(wire::to_json).collect()));
+                println!("{}", serde_json::json!({"rows":rows.iter().map(wire::to_json).collect::<Vec<_>>(), "more":more, "limit":limit}));
             } else {
                 for row in &rows { println!("{}", wire::to_json(row)); }
             }

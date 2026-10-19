@@ -2,6 +2,8 @@
 
 ## 0.4.35
 
+- SDK guest/signup/login, seedAccounts and proof seedUsers honor identity retryAfterMs with bounded retry and cancellation; ambiguous requests never replay. Deploy/rollback wait for a shutting-down store owner, and startServe().stop() waits for worker-held store locks. data --json returns {rows, more, limit}, making default 50-row truncation visible to stdout-only callers.
+
 - Shared previews and probe:serve now appear in guide start, cheatsheet and personas via guide staging; proof helpers echo password-only closed-door guidance to the caller. seedAccounts merges custom args over principal/role and accepts a service seat; the operator first-admin recipe replays on persistent stores. Staging clock semantics remain MIG's.
 - upgrade prints project-specific closed-door and persistent startDev warnings with matching script paths, including quiet/JSON callers. E_STORE_BUSY names the recorded PID/address and suggests dev --memory for disposable proofs. Token discovers memory dev stores and accepts --port N without opening dev doors.
 - Clock jumps and resets return explicit session recovery guidance; clock CLI and staging proofs echo it. Identity throttles explain Retry-After and scripted staging setup. Uploads is a guide alias; document refusals name the file hint, placement errors explain uploader ownership, one-hour unplaced retention and the existing home. SEC4 owns security check/test guidance; QRY owns partial-query and hidden-lookup semantics.

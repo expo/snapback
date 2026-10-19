@@ -221,6 +221,27 @@ fn target(dir: &Path) -> Result<Option<Owner>, String> {
         Err(error) => Err(error),
     }
 }
+fn activation_target(dir: &Path) -> Result<(Option<Owner>, serde_json::Value), String> {
+    let started = std::time::Instant::now();
+    let owner = match crate::store_owner::release_command(&dir.join("store.sqlite")) {
+        Ok(owner) => Some(owner),
+        Err(error) if error.contains("E_STORE_BUSY") => None,
+        Err(error) => return Err(error),
+    };
+    match status(dir, owner.as_ref(), 0, None, None) {
+        Ok(held) => Ok((owner, held)),
+        // Status is read-only: a shutting-down control socket cannot have
+        // admitted activation. Never repeat a deploy/rollback control request.
+        Err(control_error) if owner.is_none() => {
+            let remaining = std::time::Duration::from_secs(5).saturating_sub(started.elapsed());
+            let owner = crate::store_owner::wait_command(&dir.join("store.sqlite"), remaining)
+                .map_err(|error|format!("{control_error}; {error}"))?;
+            let held = status(dir, Some(&owner), 0, None, None)?;
+            Ok((Some(owner), held))
+        }
+        Err(error) => Err(error),
+    }
+}
 fn status(
     dir: &Path,
     owner: Option<&Owner>,
@@ -331,7 +352,7 @@ pub fn deploy(options: &Options) -> i32 {
             let _command = command_lock(&dir)?;
             let existed = dir.join("store.sqlite").exists();
             let checking=options.flags.contains_key("check");
-            let _deployment = if checking {None} else {target(&dir)?};
+            let (_deployment, held) = if checking { (None, None) } else { let (owner, held) = activation_target(&dir)?; (owner, Some(held)) };
             if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
             let project = super::proof_source::project(options, "schema")?;
             let sources = super::proof_source::sources(&project, options, "schema")?;
@@ -344,7 +365,7 @@ pub fn deploy(options: &Options) -> i32 {
             let held = if checking {
                 if dir.join("store.sqlite").exists() {snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).and_then(|mut s|s.release_status(0,None,None)).map_err(|e|e.to_string())?}
                 else {serde_json::json!({"release":null,"revision":0,"generation":1})}
-            } else {status(&dir, _deployment.as_ref(), 0, None, None)?};
+            } else {held.expect("live activation target status")};
             let previous = if let Some(owner) = _deployment.as_ref() {
                 current(&dir, owner)?
             } else {
@@ -499,9 +520,8 @@ pub fn rollback(options: &Options) -> i32 {
         (|| {
             let dir = existing_deployment(&directory(options)?)?;
             let _command = command_lock(&dir)?;
-            let _deployment = target(&dir)?;
+            let (_deployment, held) = activation_target(&dir)?;
             if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
-            let held = status(&dir, _deployment.as_ref(), 0, None, None)?;
             let active = if let Some(owner) = _deployment.as_ref() {
                 current(&dir, owner)?
             } else {
@@ -641,6 +661,12 @@ pub fn prune(options: &Options) -> i32 {
 }
 
 pub fn serve_release(options: &Options) -> Result<(), String> {
+    if options.flags.contains_key("wait-stopped") {
+        let dir = directory(options)?;
+        crate::store_owner::wait_released(&dir.join("store.sqlite"), std::time::Duration::from_secs(5))?;
+        println!("store released: {}", dir.display());
+        return Ok(());
+    }
     let requested_port = crate::port_flag::parse("serve", options.flags.get("port").map(String::as_str))?;
     let bind = release_bind(options)?;
     let capacity = crate::host_limits::Capacity::from_options(&options.flags, |name| {

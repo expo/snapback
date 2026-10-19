@@ -1,3 +1,4 @@
+import { identityRequest } from "./identity-request.ts";
 import { randomUUID, randomBytes } from "node:crypto";
 import type { ServeHost } from "./proof.ts";
 
@@ -43,18 +44,15 @@ export async function seedAccounts(host: Pick<ServeHost, "url" | "operatorToken"
     sessions[role] = [];
     for (let i = 0; i < count; i++) {
       const email = `staging-${role}-${randomUUID()}@example.test`, password = randomBytes(24).toString("base64url");
-      let reply;
-      // Only an explicit HTTP 429 refusal authorizes retrying signup. Network
-      // failures and malformed/ambiguous successful replies are never retried.
-      for (;;) {
-        const response = await request("/auth/signup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, password }) });
-        reply = await response.json();
-        if (response.status !== 429 || reply.denied?.code !== "E_RATE_LIMIT") break;
-        await new Promise(resolve => setTimeout(resolve, Math.min(1000, remaining())));
+      const {json: reply} = await identityRequest(host.url + "/auth/signup", {
+        method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({email,password}),
+      }, fetch, {timeoutMs:remaining()}).catch(error => { remaining(); throw error; });
+      if ((reply.denied as {code?:string} | undefined)?.code === "E_RATE_LIMIT") {
+        throw Error("E_STAGING_TIMEOUT: identity retry budget exhausted; increase timeoutMs or inspect partial accounts/grants before retrying");
       }
-      const session = reply.session;
+      const session = reply.session as {principal?:string;token?:string;expiresAt?:number} | undefined;
       if (typeof session?.principal !== "string" || typeof session.token !== "string" || typeof session.expiresAt !== "number") {
-        throw Error(`E_STAGING_SIGNUP: signup refused (${reply.denied?.code ?? "invalid reply"}); partial accounts/grants may exist`);
+        throw Error(`E_STAGING_SIGNUP: signup refused (${(reply.denied as {code?:string} | undefined)?.code ?? "invalid reply"}); partial accounts/grants may exist`);
       }
       const account: StagingAccount = { role, email, password, principal: session.principal, token: session.token, expiresAt: session.expiresAt };
       const args = { principal: account.principal, role, ...options.args?.(account) };

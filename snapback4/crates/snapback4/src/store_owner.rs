@@ -59,13 +59,54 @@ fn regular(path: &Path, create: bool, database: &Path) -> Result<File, String> {
 }
 
 // @ref LLP 3000.019#3.4 — sidecar flocks fence backend writers and share device ownership without locking SQLite.
-pub(crate) fn command(store: &Path) -> Result<Owner, String> { acquire(store, false, Duration::ZERO) }
-pub(crate) fn device(store: &Path) -> Result<Owner, String> { acquire(store, true, Duration::ZERO) }
+pub(crate) fn command(store: &Path) -> Result<Owner, String> { acquire(store, false, Duration::ZERO, true) }
+pub(crate) fn device(store: &Path) -> Result<Owner, String> { acquire(store, true, Duration::ZERO, true) }
 // @ref LLP 3000.009#5.3 — a restarting host waits for watchdogs to finish group cleanup.
-pub(crate) fn host(store: &Path) -> Result<Owner, String> { acquire(store, false, Duration::from_secs(5)) }
+pub(crate) fn host(store: &Path) -> Result<Owner, String> { acquire(store, false, Duration::from_secs(5), true) }
+
+// @ref LLP 3000.000.000.001#9-wave-19-identity-retry-and-local-production-lifecycle — only pre-admission ownership can wait; a live host keeps its control path.
+pub(crate) fn release_command(store: &Path) -> Result<Owner, String> {
+    let live = address(store).is_some_and(|published| dialable(&published).is_none_or(|address|
+        std::net::TcpStream::connect_timeout(&address, Duration::from_millis(50)).is_ok()));
+    wait_command(store, if live { Duration::ZERO } else { Duration::from_secs(5) })
+}
+pub(crate) fn wait_command(store: &Path, wait: Duration) -> Result<Owner, String> {
+    acquire(store, false, wait, false)
+}
+
+/// Read-only release barrier: never initializes SQLite, creates a lock file,
+/// clears an address, or treats a PID/listener hint as authority.
+#[cfg(unix)]
+pub(crate) fn wait_released(store: &Path, wait: Duration) -> Result<(), String> {
+    let path = store.canonicalize().map_err(|e| failure(store, e))?;
+    let before = snapback4_core::private_fs::database_metadata(&path).map_err(|e| failure(&path,e))?
+        .ok_or_else(|| failure(&path,"store disappeared"))?;
+    let sidecar = match snapback4_core::private_fs::auxiliary_file(&path, &snapback4_core::private_fs::owner_path(&path), false, 0) {
+        Ok(file) => file,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(e) => return Err(failure(&path,e)),
+    };
+    let end = std::time::Instant::now() + wait;
+    loop {
+        match sidecar.try_lock() {
+            Ok(()) => break,
+            Err(fs::TryLockError::WouldBlock) if std::time::Instant::now() < end => std::thread::sleep(Duration::from_millis(25)),
+            Err(fs::TryLockError::WouldBlock) => return Err(busy(&path)),
+            Err(fs::TryLockError::Error(e)) => return Err(failure(&path,e)),
+        }
+    }
+    let after = snapback4_core::private_fs::database_metadata(&path).map_err(|e|failure(&path,e))?;
+    if !snapback4_core::private_fs::owner_is_named(&path,&sidecar) || !after.is_some_and(|after|same_file(&before,&after)) {
+        return Err(failure(&path,"store or ownership sidecar changed while waiting"));
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+pub(crate) fn wait_released(store: &Path, _: Duration) -> Result<(), String> { Err(failure(store,"database ownership requires Unix")) }
 
 #[cfg(unix)]
-fn acquire(store: &Path, shared: bool, wait: Duration) -> Result<Owner, String> {
+fn acquire(store: &Path, shared: bool, wait: Duration, cleanup_only: bool) -> Result<Owner, String> {
     let deadline = std::time::Instant::now() + wait;
     for _ in 0..16 {
         let path = resolve(store)?;
@@ -81,7 +122,10 @@ fn acquire(store: &Path, shared: bool, wait: Duration) -> Result<Owner, String> 
             let locked = if shared { sidecar.try_lock_shared() } else { sidecar.try_lock() };
             match locked {
                 Ok(()) => break,
-                Err(fs::TryLockError::WouldBlock) if std::time::Instant::now() < deadline && *cleanup.get_or_insert_with(|| stopped_host(&path)) => std::thread::sleep(Duration::from_millis(25)),
+                Err(fs::TryLockError::WouldBlock) if std::time::Instant::now() < deadline && (!cleanup_only || *cleanup.get_or_insert_with(|| stopped_host(&path))) => {
+                    if cleanup.is_none() { eprintln!("waiting for store owner cleanup: {} (up to {} ms); no work admitted", path.display(), wait.as_millis()); cleanup = Some(true); }
+                    std::thread::sleep(Duration::from_millis(25));
+                },
                 Err(fs::TryLockError::WouldBlock) => return Err(busy(&path)),
                 Err(fs::TryLockError::Error(error)) => return Err(failure(&path, error)),
             }
@@ -109,7 +153,7 @@ fn acquire(store: &Path, shared: bool, wait: Duration) -> Result<Owner, String> 
 }
 
 #[cfg(not(unix))]
-fn acquire(store: &Path, _: bool, _: Duration) -> Result<Owner, String> { Err(failure(store, "database ownership requires Unix")) }
+fn acquire(store: &Path, _: bool, _: Duration, _: bool) -> Result<Owner, String> { Err(failure(store, "database ownership requires Unix")) }
 
 pub(crate) fn stopped_host(path: &Path) -> bool {
     // A CLI owner or a host not yet announced still refuses immediately. A

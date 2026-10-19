@@ -36,6 +36,8 @@ export interface Refusal {
   readonly guide?: string;
   readonly rule?: string;
   readonly retryable?: boolean;
+  /** Server-directed identity retry delay in milliseconds. */
+  readonly retryAfterMs?: number;
 }
 
 export type ReadCut = "meter" | "words" | null;

@@ -87,8 +87,10 @@ Each call creates new random email/password pairs and returns role arrays of
 `{role,email,password,principal,token,expiresAt}`. Ordinary sessions last seven
 days; sign in again with `login` from snapback4/auth when needed. Setup is
 sequential and bounded (default five minutes, timeoutMs overrides it, max 100
-accounts). Only explicit identity throttling refusals retry; ambiguous writes
-do not. Partial failure can leave accounts/grants: inspect or discard this
+accounts). Identity 429 refusals wait for retryAfterMs (Retry-After on older
+servers), at most four attempts per account within the remaining setup budget.
+SDK guest/signup/login share this policy (timeoutMs defaults to three minutes;
+signal cancels a request or wait). Ambiguous writes never retry. Partial failure can leave accounts/grants: inspect or discard this
 disposable deployment before retrying. Returned credentials never enter helper
 logs. Print them only to a private operator destination, as above.
 

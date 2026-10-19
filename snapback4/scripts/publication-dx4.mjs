@@ -1,5 +1,6 @@
 // Packed DX4 witnesses; every changed guide recipe is read from the installed CLI.
 import assert from "node:assert/strict";
+import {proveWave19} from "./publication-wave19.mjs";
 import {mkdirSync, writeFileSync, rmSync, mkdtempSync} from "node:fs";
 import {join, resolve} from "node:path";
 import {spawnSync} from "node:child_process";
@@ -32,7 +33,8 @@ export async function proveDX4(directory) {
       assert.equal(reply.status,0,reply.stderr);assert.match(reply.stdout,/guide staging/,`default guide ${name} must surface staging`);
       if(name==="cheatsheet") {assert.match(reply.stdout,/deploy staging --staging/);assert.match(reply.stdout,/serve staging/);}
     }
-    return {status:"passed",recipes:"verbatim installed guide",uploads:"file hint, one home, foreign upload refusal, reference and download",staging:"discoverable, custom seat and merged args",dev:"memory mint selection, clock and reset recovery",upgrade:"project warning scan"};
+    const wave19=await proveWave19(cwd,run,fences(await card("staging"),"quarry")[0]);
+    return {wave19,status:"passed",recipes:"verbatim installed guide",uploads:"file hint, one home, foreign upload refusal, reference and download",staging:"discoverable, custom seat and merged args",dev:"memory mint selection, clock and reset recovery",upgrade:"project warning scan"};
   } finally {rmSync(cwd,{recursive:true,force:true});}
 }
 const local=String.raw`

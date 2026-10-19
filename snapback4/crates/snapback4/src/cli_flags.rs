@@ -62,6 +62,9 @@ pub fn validate(args: &[String]) -> Result<(), String> {
             if let Some(flag) = flags.iter().find(|flag|has(flag)) { return Err(format!("E_INPUT: check {mode} does not accept --{flag}")); }
         }
     }
+    if verb == "serve" && has("wait-stopped") && args.iter().any(|arg|arg.starts_with("--") && !matches!(arg.as_str(),"--wait-stopped"|"--help")) {
+        return Err("E_INPUT: serve --wait-stopped takes only a deployment directory; it does not start or signal a server".into());
+    }
     if verb == "rollback" && has("bridge") && !has("check") { return Err("E_INPUT: rollback --bridge requires --check; it writes a bridge starter without activating it".into()); }
     if verb == "check" && has("audit") && ["cost","residency","fix","store","fixture","as","release","emit-lean","ack-notes"].iter().any(|f|has(f)) { return Err("E_INPUT: check --audit takes only --json or --verbose".into()); }
     if verb == "test" && has("verbose") && !has("residency") { return Err("E_INPUT: test --verbose requires --residency".into()); }
