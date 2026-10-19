@@ -1,0 +1,465 @@
+{
+  "status": "passed",
+  "guide": "verbatim installed security card",
+  "artifacts": {
+    "clientSha256": "60040307f3569036b793858b6599db5d2e4b2f368101dbe602c0f70d14d021eb",
+    "platformSha256": "c06402dfe6d6ee3159b82369c92126001c0cb89b89f83cbb3de868613ffababa",
+    "binarySha256": "e925d1cbdb0f5a02abb00117c3ff2153541c24140a6e313c6c9521b5740d09be"
+  },
+  "guideCases": [
+    {
+      "block": 0,
+      "invariants": 3,
+      "audit": "passed",
+      "finite": {
+        "attempted": 1104,
+        "refused": 0,
+        "violations": 0,
+        "seedSyntheticObservations": 0,
+        "unauthenticatedHttpRefused": 7,
+        "revocationHttpRefused": 0
+      },
+      "broadRead": "refuted",
+      "expectedFailureExits": [
+        1,
+        1,
+        1
+      ]
+    }
+  ],
+  "sessions": [
+    {
+      "method": "guests",
+      "status": "passed",
+      "attempted": 1040,
+      "refused": 0,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 7,
+      "revocationHttpRefused": 14,
+      "disconnectedDevice": "not covered"
+    },
+    {
+      "method": "password",
+      "status": "passed",
+      "attempted": 1040,
+      "refused": 0,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 7,
+      "revocationHttpRefused": 14,
+      "disconnectedDevice": "not covered"
+    }
+  ],
+  "starters": [
+    {
+      "id": "todo-backend",
+      "status": "passed",
+      "invariants": 1,
+      "attempted": 1126,
+      "refused": 619,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 11,
+      "revocationHttpRefused": 0
+    },
+    {
+      "id": "todo-online",
+      "status": "passed",
+      "invariants": 1,
+      "attempted": 1126,
+      "refused": 617,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 11,
+      "revocationHttpRefused": 0
+    },
+    {
+      "id": "social",
+      "status": "passed",
+      "invariants": 2,
+      "attempted": 2884,
+      "refused": 1688,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 0,
+      "unauthenticatedHttpNotCovered": "complete deployed native/action/effect artifacts required",
+      "revocationHttpRefused": 0
+    },
+    {
+      "id": "todo-web",
+      "status": "passed",
+      "invariants": 1,
+      "attempted": 1102,
+      "refused": 607,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 11,
+      "revocationHttpRefused": 18
+    },
+    {
+      "id": "chat-web",
+      "status": "passed",
+      "invariants": 1,
+      "attempted": 192,
+      "refused": 192,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 0,
+      "unauthenticatedHttpNotCovered": "complete deployed native/action/effect artifacts required",
+      "revocationHttpRefused": 0
+    },
+    {
+      "id": "chat-expo",
+      "status": "passed",
+      "invariants": 1,
+      "attempted": 192,
+      "refused": 192,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 25,
+      "revocationHttpRefused": 32
+    },
+    {
+      "id": "production-recipe",
+      "status": "passed",
+      "source": "installed dist/recipes/production/web/schema.q",
+      "invariants": 2,
+      "attempted": 723,
+      "refused": 163,
+      "violations": 0,
+      "seedSyntheticObservations": 0,
+      "unauthenticatedHttpRefused": 13,
+      "revocationHttpRefused": 20
+    }
+  ],
+  "scope": "finite campaigns and declared policy checks; no zero-hole or disconnected-device revocation claim",
+  "commands": [
+    {
+      "args": [
+        "guide",
+        "security",
+        "--full"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/card-0",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "audit",
+        "--json"
+      ],
+      "project": "/card-0",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--audit",
+        "--json"
+      ],
+      "project": "/card-0",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/card-0",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/card-0",
+      "exitCode": 1,
+      "expectedExitCode": 1
+    },
+    {
+      "args": [
+        "audit",
+        "--json"
+      ],
+      "project": "/card-0",
+      "exitCode": 1,
+      "expectedExitCode": 1
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/card-0",
+      "exitCode": 1,
+      "expectedExitCode": 1
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/column-update-intent",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/column-update-intent",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test"
+      ],
+      "project": "/column-update-intent",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/revocation-guests",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/revocation-guests",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/revocation-password",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/revocation-password",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "init",
+        "/home/ccheever/projects/sb4-b18-sec4/snapback4/reports/20261019-sec4-wave19/qualified-complete/security-policy-P8sgvO/todo-backend"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/todo-backend",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/todo-backend",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "init",
+        "/home/ccheever/projects/sb4-b18-sec4/snapback4/reports/20261019-sec4-wave19/qualified-complete/security-policy-P8sgvO/todo-online",
+        "--online"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/todo-online",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/todo-online",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "init",
+        "/home/ccheever/projects/sb4-b18-sec4/snapback4/reports/20261019-sec4-wave19/qualified-complete/security-policy-P8sgvO/social",
+        "--template",
+        "social"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/social",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/social",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "init",
+        "/home/ccheever/projects/sb4-b18-sec4/snapback4/reports/20261019-sec4-wave19/qualified-complete/security-policy-P8sgvO/todo-web",
+        "--web"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/todo-web",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/todo-web",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "init",
+        "/home/ccheever/projects/sb4-b18-sec4/snapback4/reports/20261019-sec4-wave19/qualified-complete/security-policy-P8sgvO/chat-web",
+        "--template",
+        "chat",
+        "--web"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/chat-web",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/chat-web",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "init",
+        "/home/ccheever/projects/sb4-b18-sec4/snapback4/reports/20261019-sec4-wave19/qualified-complete/security-policy-P8sgvO/chat-expo",
+        "--template",
+        "chat",
+        "--expo"
+      ],
+      "project": ".",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/chat-expo",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/chat-expo",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "check",
+        "--json"
+      ],
+      "project": "/production-recipe",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    },
+    {
+      "args": [
+        "test",
+        "--fixture-only"
+      ],
+      "project": "/production-recipe",
+      "exitCode": 0,
+      "expectedExitCode": 0
+    }
+  ]
+}

@@ -1,0 +1,222 @@
+Independent read-only RFC amendment review at commit 4249ef8357407739d16d34389b8335328445d1c3, repository /home/ccheever/projects/sb4-b18-sec4. Review the ENTIRE section13.7 below, not just the last commit's six-sentence delta. Assess all its authored/generated origins, creator/guard coupling, exact evidence binding, check/deploy summaries, actual role/relationship histories, isolated hub forks and explicit ephemeral exclusions. Read surrounding governing constraints or committed implementation as necessary. Return READY or NOT READY for the whole amendment with concrete material blockers. Do not read prior reviews or author reports, modify files, touch secrets/other worktrees, or spawn agents. No exhaustive build or publication qualification requested. Every shell command gets timeout. Any cargo invocation must include CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=8. Never run scripts/test.sh. This is a fresh mutually blind review, no other review or author rationale is supplied.
+
+Exact committed amendment:
+
+### 13.7 Wave-19 correction: admissible starts and persistent refutations
+
+Implementer: Codex, 2026-10-19. This section supersedes conflicting seed-only,
+fixture-selection and bounded-check wording above. The coordinator explicitly
+commissions this semantic correction after wave-19 day-two evidence.
+
+An absent or row-empty fixture selection uses generated security populations;
+an empty directory is not an authored population. Invalid/nonempty explicit
+fixtures still refuse. Business-case and saved-source selection retain their
+separate meanings. Authored fixture assertions and admitted row-read witnesses
+fail even without an authored initialization trace. They are trusted starting
+assumptions, not synthetic writes. Arbitrarily invented schema snapshots and
+unreachable synthetic writes remain supplemental. Column disclosure still needs
+an actual authored observer; raw whole-row admission cannot refute a projected
+private field.
+
+Generated candidates are proposals, not trusted fixtures. Bootstrap roster rows
+and tables without an authored creator must satisfy an ordinary insert gate for
+an identified actor, defaults and all constraints. Where authored creators
+exist, generate initial payloads by executing those creators with real typed
+arguments and uploaded media, preserving their requires, copied relationships,
+constant/default fields and role restrictions. Never independently randomize
+values a creator couples. Unsupported creators/populations name their gap;
+missing coverage is not proof. Actual later role changes and relationship
+transfers retain their committed steps and generated or authored fixture origin.
+Historical grants are not silently repaired to the current role/relationship.
+
+The bounded check cannot promise to rediscover every full campaign witness.
+`test` records only its concrete refutations and completion metadata, keyed to
+all selected source bytes, fixture input bytes and the exact CLI executable.
+`check` incorporates matching refutations into its ordinary failing summary;
+changed source, fixtures or binary invalidate the record. No cached passing
+verdict establishes proof. Persistence failure is explicit. The record lives
+with generated project artifacts, not a deployed store or authentication state.
+
+Every escalation note remains visible in short output even beyond the ordinary
+five-note cap. Risk names prefer the role conferring the largest established
+surface, without relying on names such as admin. Check prints a short exposure
+line independent of N_ note rendering. A rule-changing deploy --check explicitly
+demands `snapback4 test` when no matching completed campaign exists, including
+when no independent invariants are declared. It prints the short exposure
+summary; it must not silently imply that changed rules were security-tested.
+The demand is actionable preflight output, not a new prohibition on activation.
+
+Negative-existence column policies use actual current snapshot truth, never
+negate an unavailable/unknown probe into a refutation. Column update intent
+observes only actual changes to that column; changing a sibling is not evidence.
+Finite campaign caps and unknown stability boundaries remain explicit. Tests
+must cover the wave-19 examples (041 mismatched grant role, 044 assignee,
+034 judge/coach overlap, 047 cold-approval state, 019 copied immutable owner),
+not suppress findings by weakening independent intent.
+
+
+Wave-19 review clarifications (controlling): the coordinator explicitly requires
+catches from the app's own seed/fixtures to fail again. An authored stale seed
+therefore fails under its trusted starting-state assumption; it is never
+credited as an observed role-change or transfer. Credit for 019's transition
+coverage requires the committed role/relationship mutation in the same trace,
+followed by the actual forbidden observer. Generated initial states never gain
+that credit merely by arranging stale fields. Partial nonempty authored fixtures
+are retained as authored input without silently supplementing invented rows;
+row-empty inputs use generation, and missing populations remain named coverage.
+
+Creator discovery uses the bound mutation IR's insert/upsert write census. Its
+actual interpreter executes require predicates and copied fields; no symbolic
+coupling guess admits a generated payload. Global or explicitly role-bearing
+roster proposals and tables without an authored creator require a specific
+insert-admitted actor in the pre-insert world; a candidate cannot authorize its
+own bootstrap. Text arguments include literals compared in bound binary
+expressions (including require role='operator'). Generated starting states are
+still explicitly labeled; initialization is never silently called empty-start.
+
+The record covers the fixed full-default security campaign (512 single/pair
+history envelope, existing full observer/matrix caps and clock NOW), not a
+caller-selected bounded campaign. Exact executable identity binds these
+constants and their algorithms; source and sorted fixture names/contents bind
+inputs. JSON, verbosity, business-case flags and sweep --as do not change this
+security campaign; residency selections do not write records; saved-source tests bind selected
+source and contemporary fixture bytes separately from the working source.
+Records include attempted/sequence counts and coverage-gap counts. Completion
+means all finite security phases returned, not exhaustive coverage or proof;
+authentication-boundary failure cannot produce completed evidence. No passing
+status is loaded into static proof. Write failure is explicit and leaves the
+preview demanding a campaign. Records are generated/security-test.json under
+the app's snapback directory; temp-file rename avoids partial reads.
+
+Changed/new/deleted table rules count as rule changes, comparing all four bound
+gates against the currently selected release. Preview prints the demand even
+with zero invariants; it does not veto actual activation. SEC4 also surfaces
+this reminder on ordinary deploy. The short exposure line states table,
+conditional-audience and broad-read counts independently of N_ note rendering;
+audit retains exact per-role and per-column predicates. Most-privileged naming
+sorts candidate roles by the number of table/effect gates proved universally
+admitted after substituting that role, descending, then deterministic role
+order; the source location, effective gate and recipe remain in the note.
+The existing 200-schema false-refusal bar and explicit origin labels remain.
+
+Only failure-eligible origins are persisted or reloaded, with their exact origin
+and witness. Supplemental synthetic observations are never promoted by caching.
+A later witness-free or interrupted run on identical inputs does not erase
+established failures: records merge prior eligible witnesses, deduplicating by
+site/observer/viewer/effect/origin; a source, fixture or executable change is
+the invalidation boundary. Full phase completion and known violations are
+separate metadata. Saved-source deploys cannot borrow the working-source record;
+the demand must name the corresponding `test --source <candidate> --fixture ...`
+selection, and use matching selected-source evidence, never the working-source record.
+
+Distinct committed operation/viewer paths are not collapsed merely because
+their lengths match. A one-step foundUnit witness cannot hide registerStaff,
+and a one-step provision cannot hide linkUnit. Deduplication preserves each
+operation/viewer path; repeated values on that path remain finite sampling.
+A declined duplicate never mutates a previous witness's operation or arguments.
+Relationship candidates prioritize actual admitted principal transfers from the
+initial world, with explicit bounded probing, followed by ordinary replay and
+observation. No preflight-only candidate is itself a refutation.
+
+Retained-grant lifetime advice no longer requires declared role intent when a
+grant writer depends on a mutable role roster but the read branch does not
+consult that roster. Its wording is conditional: grants can survive role
+changes; confirm whether current-role intent is required. This does not infer
+a privacy specification or refute an invariant. It restores 019's pointer while
+keeping lifetime advice out of the escalation/failing-witness tier.
+
+A bounded check with matching known failures may skip additional concrete
+resampling. It still runs static analysis and advice, incorporates the eligible
+witnesses, names the skipped coverage and fails. Other obligations stay unproved;
+full audit/test retain their campaigns. This avoids paying both executable
+fingerprinting and exploratory work merely to rediscover a known failure.
+
+Counterfactual column worlds must also respect authored coupling. A field
+produced only by copied/computed/constant writer expressions, or by an argument
+that is additionally used in a guard/another expression, is not independently
+perturbed. The paired reduction stays uncovered unless a bound writer supplies
+it from an independently used typed argument. Actual compiler-typed payloads
+and committed transition observations still run and can fail. In particular,
+changing immutable reports.homeowner while leaving its source chimney.owner
+fixed cannot make a safe self-filtered query appear to leak a private field.
+
+Records bind the bytes actually consumed, not a fresh read after testing. Source
+strings are captured before compilation. Selected fixture inputs, including
+symlink targets followed by the loader, are copied once into private disposable
+scratch and both business/security phases consume that copy. The key is derived
+from those captured source/fixture bytes. Before publishing the record, compare
+the current original selection to that key; a change is explicit stale-input
+evidence and does not persist. Later fixture symlink-target changes invalidate
+records exactly like ordinary file edits. Scratch is removed on every return.
+
+Writer-object coupling follows compiler Const/Let aliases (ordinary inserts
+write a temporary, not an inline object). Unknown/reassigned object aliases are
+not independent column worlds. Raw trusted row admission needs one witness per
+declaration, not a full cloned initial snapshot for every row. Persisted evidence
+deduplicates on the first write as well as later merges, keeping the complete
+chosen initial world. A successfully stored matching refutation is never silently
+ignored because its JSON exceeds a size threshold. The 600-row regression retains
+all initial rows in a sub-megabyte record and check still fails on that evidence.
+
+Guard dependence includes aliases of inserted rows and subsequent reads of the
+written table, including post-insert require/check rollback. An argument's
+single textual occurrence does not establish independence when a guard observes
+its stored value through such an alias; unresolved guard aliases stay uncovered.
+Packed qualification requires an actual policy or isolated HTTP challenge,
+records the two counts separately, and retains explicit native campaign gaps
+(e.g. the existing unsupported ephemeral-hub fork) rather than claiming native
+mutation coverage from HTTP probes.
+
+Packed social qualification exposed a complete native campaign skip when an
+otherwise durable app merely declared an ephemeral table. Fixture-only forks
+now copy the hub under its lock into independent memory, preserving row/index
+state, deadlines, per-principal/global quota accounting and limits, epoch, ring
+and generation binding. The copy never retains the live publisher or external
+presence. A mismatched hub/store generation refuses. These are quiescent test
+fixture copies, not live adoption or wire changes (LLP3000.017 §§3–4).
+Durable generated initialization and histories then run normally in mixed apps.
+Generated ephemeral populations and ephemeral mutation histories remain explicit
+coverage gaps; their mutation programs are skipped rather than dispatched
+through the durable mutation door. External presence still refuses a fixture
+fork. Packed social must exercise actual native challenges, not a zero-work pass.
+
+The unsupported ephemeral-program boundary applies in every dispatch phase,
+including column/row paired observers and foreign-asset challenges, with a
+central observer refusal as a backstop. No phase credits a skipped ephemeral
+mutation as a reachable witness. Durable query controls still execute.
+Column independence follows aliases into other written fields/tables as well
+as guards. A creator copying an inserted private value into a related marker
+constrains the alternate world; changing only the source value cannot turn
+an always-public id list into a column disclosure. Alias-dependent operators
+and opaque effects likewise stay conservatively uncovered.
+
+Alias dependence is field-sensitive across compiler-owned object projections:
+a copied row id does not couple an independently supplied private payload.
+Unknown, defaulted or implicit upsert field sources remain uncovered. An
+immutable-column alternate that must rebuild the SQL fixture declines when
+the original hub has committed ephemeral state; it must not reset that state
+and attribute the resulting public-presence difference to a protected column.
+Actual typed disclosures and state-preserving forks remain available.
+
+Roster discovery reuses the authority classifier's global principal/role index
+relationship. A payload column merely named `role` does not bypass its authored
+creator; drafts/final reports preserve creator constants and integrity checks.
+The ephemeral exclusion also applies to operation-specific synthetic probes.
+HTTP checks recognize existing route-specific authentication refusals: queries
+and durable mutations use401 denied.E_AUTH; declared ephemeral mutations may
+use200 failed/why.E_AUTH. Both require the auth family, no application-rule
+marker and no successful data/result. Apply this equally to unsigned/forged
+requests and actually retired credentials. Live wire semantics do not change.
+
+The generated roster bootstrap exemption additionally requires an actual
+viewer/role authority probe in a schema gate. A principal key alone does not
+make a `role` or `kind` payload field an authority seat; such created tables
+execute their authored creator. Program-only authority whose bootstrap cannot
+be established within those creators is left explicitly unpopulated rather
+than inventing payload states. Role actor proposals remain available.
+
+Bootstrap proposals execute an ordinary insert in an isolated fixture fork,
+including supplied-field ownership, sequence authority, defaults, recorded
+fields, table gates and final constraints. A temporary private probe program
+is removed after execution and never adopted or served. Rejected proposals
+are uncovered; no system actor or trusted seeding bypass is used for admission.

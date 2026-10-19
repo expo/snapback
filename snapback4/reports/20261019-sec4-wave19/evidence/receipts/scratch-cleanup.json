@@ -1,0 +1,55 @@
+{
+  "printed": [
+    "/tmp/sb4-maintenance-evidence"
+  ],
+  "specificHarness": [
+    {
+      "path": "/tmp/sec4-survey-avr99x34",
+      "active": false,
+      "marker": "{\"name\":\"sec4-survey\",\"private\":true}"
+    },
+    {
+      "path": "/tmp/sec4-survey-dzny278x",
+      "active": false,
+      "marker": "{\"name\":\"sec4-survey\",\"private\":true}"
+    },
+    {
+      "path": "/tmp/sec4-wave19-t7q4_ag3",
+      "active": false,
+      "marker": "{\"private\":true}"
+    },
+    {
+      "path": "/tmp/sec4-wave19-intybpok",
+      "active": false,
+      "marker": "{\"private\":true}"
+    },
+    {
+      "path": "/tmp/sec4-relationship-vpgxm2pg",
+      "active": false,
+      "marker": "{\"private\":true}"
+    }
+  ],
+  "removedSpecificHarness": [
+    "/tmp/sec4-survey-avr99x34",
+    "/tmp/sec4-survey-dzny278x",
+    "/tmp/sec4-wave19-t7q4_ag3",
+    "/tmp/sec4-wave19-intybpok",
+    "/tmp/sec4-relationship-vpgxm2pg"
+  ],
+  "removedOwnPrintedMaintenanceSnapshots": [
+    "/tmp/sb4-maintenance-evidence/maintenance-ca588830554be764/snapshot-1792417152747688953-0cfa8560-failure-publication-crash-matrix",
+    "/tmp/sb4-maintenance-evidence/maintenance-ca588830554be764/snapshot-1792417265651687884-3af84878-failure-sleep-retry-false",
+    "/tmp/sb4-maintenance-evidence/maintenance-ca588830554be764/snapshot-1792417266901349267-10c1bc15-failure-sleep-retry-true",
+    "/tmp/sb4-maintenance-evidence/maintenance-ca588830554be764/snapshot-1792417268300705799-0b10b1c6-failure-sleep-successor-start"
+  ],
+  "removedOwnUnlockedMaintenanceNamespace": true,
+  "removedOwnTempPlatformAndReviewScratch": [
+    "/tmp/snapback4-linux-aOKdsu",
+    "/tmp/snapback4-linux-8OFiyg",
+    "/tmp/sec4-histories-rerun.log",
+    "/tmp/sec4-security.log",
+    "/tmp/sec4_readonly_probe.5mxnee5ljqpytoni85th8v27l.rcgu.o",
+    "/tmp/sec4_readonly_probe.sec4_readonly_probe.aaf9fc0105970ad7-cgu.0.rcgu.o"
+  ],
+  "otherSharedTempDirectoriesUntouched": true
+}
