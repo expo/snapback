@@ -38,7 +38,8 @@ impl Project {
     fn sessions(&self) -> i64 {
         rusqlite::Connection::open(self.store()).unwrap().query_row("SELECT count(*) FROM _sessions", [], |r| r.get(0)).unwrap()
     }
-    fn assert_session(&self, token: &str, name: &str, days: i64) {
+    fn assert_session(&self, token: &str, name: &str, days: i64) { self.assert_session_at(token, name, days, 0); }
+    fn assert_session_at(&self, token: &str, name: &str, days: i64, offset: i64) {
         let conn = rusqlite::Connection::open(self.store()).unwrap();
         let digest = format!("{:x}", Sha256::digest(token.as_bytes()));
         let (principal, kind, created, expiry, family): (String, String, i64, i64, String) = conn.query_row(
@@ -46,7 +47,7 @@ impl Project {
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))).unwrap();
         assert_eq!(principal, format!("service:{name}")); assert_eq!(kind, "service");
         assert_eq!(expiry - created, days * DAY); assert_eq!(family, digest);
-        assert!((created - snapback4_core::now_ms()).abs() < 30_000, "wall-clock expiry, even with dev's clock offset");
+        assert!((created - snapback4_core::now_ms() - offset).abs() < 30_000, "mint clock must match the selected live host (offline uses wall time)");
     }
 }
 impl Drop for Project { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.root); } }
@@ -86,7 +87,12 @@ impl Host {
     }
 }
 fn io_drain(mut reader: impl Read) { let _ = std::io::copy(&mut reader, &mut std::io::sink()); }
-impl Drop for Host { fn drop(&mut self) { let _ = self.child.kill(); let _ = self.child.wait(); } }
+impl Drop for Host { fn drop(&mut self) {
+    unsafe { libc::kill(self.child.id() as libc::pid_t, libc::SIGTERM); }
+    let end = std::time::Instant::now() + Duration::from_secs(3);
+    while self.child.try_wait().ok().flatten().is_none() && std::time::Instant::now() < end { std::thread::sleep(Duration::from_millis(10)); }
+    let _ = self.child.kill(); let _ = self.child.wait();
+} }
 fn success(out: Output) -> String {
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
     String::from_utf8(out.stdout).unwrap()
@@ -97,7 +103,7 @@ fn token(out: Output) -> String {
     if output.starts_with('{') {
         let record: Value = serde_json::from_str(&output).unwrap();
         assert_eq!(stderr, "");
-        assert!(record["store"].as_str().unwrap().contains("store.sqlite"));
+        assert!(PathBuf::from(record["store"].as_str().unwrap()).is_file(), "token metadata identifies its real persistent or disposable store");
         assert!(record["expiresAt"].as_i64().unwrap() > snapback4_core::now_ms());
         let token = record["token"].as_str().unwrap(); assert_eq!(token.len(),43);
         token.to_owned()
@@ -123,15 +129,16 @@ fn mint_paths(release: bool) {
     assert_eq!(fs::metadata(p.proof()).unwrap().permissions().mode() & 0o777, 0o600);
     assert_eq!(fs::metadata(p.store().parent().unwrap()).unwrap().permissions().mode() & 0o777, 0o700);
     let first_secret = p.secret();
-    let first = token(p.mint("ranker", "2")); p.assert_session(&first, "ranker", 2); host.who(&first);
+    let offset = if release { 0 } else { 25 * 3_600_000 };
+    let first = token(p.mint("ranker", "2")); p.assert_session_at(&first, "ranker", 2, offset); host.who(&first);
     let mut args = vec!["token", "--service", "ranker"];
     if release { args.extend(["--release", "release"]); }
-    let default = token(p.run(&args)); p.assert_session(&default, "ranker", 365);
+    let default = token(p.run(&args)); p.assert_session_at(&default, "ranker", 365, offset);
     let logs = fs::read_to_string(p.root.join("server.log")).unwrap();
     assert!(!logs.contains(&first_secret) && !logs.contains(&first) && !logs.contains(&default));
     // The exact same validation, default and clamping apply live and offline.
     for (days, expected) in [("0", 1), ("4000", 3650), ("nonnumeric", 365)] {
-        let minted = token(p.mint("ranker", days)); p.assert_session(&minted, "ranker", expected);
+        let minted = token(p.mint("ranker", days)); p.assert_session_at(&minted, "ranker", expected, offset);
     }
     let refused = p.mint("invalid/name", "2");
     assert_eq!(refused.status.code(), Some(1)); assert!(refused.stdout.is_empty());
@@ -252,16 +259,23 @@ fn ipv6_loopback_discovery_mints() {
 }
 
 #[test]
-fn first_dev_store_is_still_required_and_temporary_dev_never_publishes_a_proof() {
+fn a_live_temporary_dev_mints_with_its_private_proof_without_creating_a_project_store() {
     let p = Project::new(false);
     let out = p.mint("ranker", "2");
     assert_eq!(out.status.code(), Some(2)); assert!(out.stdout.is_empty()); assert!(!p.store().exists());
     assert!(String::from_utf8_lossy(&out.stderr).contains("run `snapback4 dev` first"));
     let host = Host::with_flags(&p, "127.0.0.1", &["--fresh"]);
     assert!(!p.proof().exists()); assert!(!p.store().exists());
-    assert!(!p.mint("ranker", "2").status.success());
+    let out = p.mint("ranker", "2");
+    let reply: Value = serde_json::from_slice(&out.stdout).unwrap();
+    let temporary = PathBuf::from(reply["store"].as_str().unwrap());
+    assert_eq!(fs::metadata(format!("{}-token",temporary.display())).unwrap().permissions().mode() & 0o777, 0o600);
+    host.who(&token(out));
     let (status, _) = request(host.address, host.address, "/dev/token", &format!("{HEADER}: {}\r\n", "a".repeat(64)), r#"{"service":"ranker","days":2}"#);
     assert_eq!(status, 403);
+    drop(host);
+    assert!(!temporary.exists(), "the disposable host cleans its store and proof");
+    assert!(!p.store().exists());
 }
 
 #[test]

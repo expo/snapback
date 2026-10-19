@@ -225,4 +225,3 @@ test("DX4 custom provisioning merges principal/role and chooses its authorized s
     await assert.rejects(host.seedAccounts({roles:{member:1},provision:{name:"provision"},service:"bad:seat"}),/E_STAGING_INPUT/);
   } finally {await host.stop();}
 });
-
