@@ -19,9 +19,21 @@ pub(super) fn risks(candidate: &Schema, old: &Schema, release: u64, dir: &Path) 
         };
         Some(format!("rollback foresight: release {release}, {table}.{column}: {reason}; keep an expand/contract bridge with the old required fields and compatible domains; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()))
     }).collect();
+    // @ref LLP 3000.000.000#19-dormant-visibility-and-migration-dorm — warn before new writes, including harmless newer-only facts and empty legacy cells.
+    for (name, table) in candidate.visible_tables().filter(|(name,t)|t.ephemeral.is_none() && candidate.maintain_for(name).is_none()) {
+        if old.table(name).is_none() {
+            risks.push(format!("rollback foresight: rows written to new table {name} will be hidden while release {release} is live; release {release} has no such table, so these are newer-only facts, not lost old-table records; declare a reverse projection into an old field if users need that information, or keep a bridge release; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
+        }
+        let _=table;
+    }
     for (name,target) in old.visible_tables().filter(|(_,t)|t.ephemeral.is_none()) {
         let Some(from)=candidate.tables.get(name) else {continue;};
         if old.maintain_for(name).is_some() {continue;}
+        for (column,kind) in &target.columns {
+            if from.columns.contains_key(column) || target.engine_field(column) || target.maintained.contains_key(column) {continue;}
+            let interpretation=if kind.is_optional() {"null".to_owned()} else if let Some(ColumnDefault::Literal(value))=target.defaults.get(column) {format!("the old default {}",snapback4_core::wire::to_json(value))} else {continue;};
+            risks.push(format!("rollback foresight: release {release}, {name}.{column}: records created while this field is absent have no retained old cell and will show {interpretation} to release {release} users; declare a reverse projection from the replacement value, or retain the field in a bridge release; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
+        }
         for (index,definition) in &target.indexes {
             if definition.unique && from.indexes.get(index)!=Some(definition) {
                 risks.push(format!("rollback foresight: release {release}, unique index {name}.{index}: future writes may introduce duplicate keys and refuse restoration; keep the old uniqueness in a bridge; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
