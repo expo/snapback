@@ -205,3 +205,23 @@ fn expired_unswept_source_cannot_extend_its_dropped_expiry() {
   adopt(&mut e,&next,3).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
  }
 }
+
+#[test]
+fn absent_optional_output_is_not_a_native_image_with_missing_historical_inputs() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";
+ let next=old.replace("  n: int","  derived: int ?\n  n: int")+"backfill items absent(missing: int):\n  {derived:missing}\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));let g=e.generation();
+ let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains("historical input items.missing"),"{error}");assert_eq!(g,e.generation());
+}
+#[test]
+fn removal_of_last_opening_boundary_keeps_the_durable_retirement_floor() {
+ let old="table items:\n  opens: time\n  until: time\n  n: int\n  not before .opens\n  expire at .until\n  public 'fixture'\n  online only\n";
+ let next=old.replace("  not before .opens\n","").replace("  expire at .until\n","")+"backfill items prolong(until: time):\n  {until:until + 1d}\n";
+ for requested in [1,100] {
+  let(s,p)=compile(old);let mut e=Engine::new_release_prepared_at(Store::memory().unwrap(),s,p,&ReleaseActivation::new(1,None),false,0).unwrap();
+  let r=wire::row_from_json(&e.schema().tables["items"],&json!({"id":"a","opens":0,"until":50,"n":3})).unwrap();e.seed_at([("items".into(),r)],0).unwrap();
+  {let tx=e.store_mut().transaction().unwrap();tx.pin_time_audience_clock(100).unwrap();tx.commit().unwrap();}
+  let(s,p)=compile(&next);e.adopt_release_at(s,p,&ReleaseActivation::new(2,Some(1)),false,requested).unwrap();
+  assert_eq!(e.store().count("items").unwrap(),0,"source deadline before persisted floor, requested={requested}");
+ }
+}

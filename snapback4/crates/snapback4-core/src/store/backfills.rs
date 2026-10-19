@@ -132,7 +132,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 if crate::engine::validate::validate_column(&fill.table,c,kind,value.as_ref()).is_err() {
                     // Native rows can survive a return through an older source;
                     // they have no historical input, but retain a valid v2 image.
-                    if prior.is_none() && fill.outputs.iter().all(|c|crate::engine::validate::validate_column(&fill.table,c,&table.columns[c],row.field(c).ok()).is_ok()) {return Ok(())}
+                    if prior.is_none() && fill.outputs.iter().all(|c|row.field(c).is_ok() && crate::engine::validate::validate_column(&fill.table,c,&table.columns[c],row.field(c).ok()).is_ok()) {return Ok(())}
                     bad.add(id,&format!("historical input {}.{c} is absent or does not fit {kind}; use a typed bridge to repair it",fill.table));return Ok(())
                 }
                 args.insert(c.clone(),value.unwrap_or(Value::Null));

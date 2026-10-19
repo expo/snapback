@@ -81,6 +81,7 @@ impl Engine {
             }
             Ok(())
         }, |tx, changed, report| {
+            let now=now.max(tx.time_audience_clock()?);
             if let Some(options)=release {tx.set_meta("release",&options.release.to_string())?;}
             use rusqlite::OptionalExtension;
             let repair_live_sums = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'live_sum_candidates'", [], |row| row.get::<_, String>(0)).optional()?.as_deref() != Some("1");
