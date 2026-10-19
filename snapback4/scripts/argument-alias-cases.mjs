@@ -1,6 +1,7 @@
 // @ref LLP 3000.000.000#195-argument-aliases-and-review-evidence — old wire names remain value-preserving inputs across hot release and packed CLI paths.
 import assert from 'node:assert/strict';
 import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {stripTypeScriptTypes} from 'node:module';
 import {join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 
@@ -34,9 +35,8 @@ query list():
     writeFileSync(schema,v1);await run(['deploy',deployment]);
     await run(['check']);
     const legacySource=readFileSync(join(cwd,'snapback/generated/api.ts'),'utf8');
-    const ts=(await import('typescript')).default;
     const legacyModule=join(cwd,'legacy-api.mjs');
-    writeFileSync(legacyModule,ts.transpileModule(legacySource,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText);
+    writeFileSync(legacyModule,stripTypeScriptTypes(legacySource,{mode:'transform'}));
     const legacyApi=(await import(pathToFileURL(legacyModule).href)).api;
     host=await startServe(deployment,{cwd,timeoutMs:60_000});
     const auth=await (await fetch(host.url+'/auth/guest',{method:'POST',body:'{}',signal:AbortSignal.timeout(30_000)})).json();
