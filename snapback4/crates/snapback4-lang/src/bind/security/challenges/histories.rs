@@ -30,6 +30,7 @@ pub(super) fn fixture_cases(args:&BTreeMap<String,ir::ArgType>,rows:&BTreeMap<St
         Some(match k{
             ir::ArgType::Enum{variants}=>variants.iter().map(|s|Value::String(s.clone())).collect(),
             ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],
+            ir::ArgType::Time=>vec![Value::Int(NOW-86_400_000),Value::Int(NOW),Value::Int(NOW+86_400_000)],
             ir::ArgType::Principal=>actors.iter().map(|s|Value::Id(s.clone())).collect(),
             ir::ArgType::Ref{table} if rows.get(table).is_some_and(|rs|!rs.is_empty())=>rows[table].iter().filter_map(|r|r.field("id").ok().cloned()).collect(),
             ir::ArgType::Optional(inner)=>{let mut v=vec![Value::Null];v.extend(values(name,inner,rows,actors)?);v},
@@ -106,7 +107,9 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
                 let cases=fixture_cases(&bp.program.args,rows,actors,out);
                 if cases.len()>32{out.unsupported.insert(format!("{}: typed read-observer arguments capped at 32",bp.program.name));}
                 for args in cases.into_iter().take(32){
-                    if !reserve_observers(out,2){return;}out.attempted+=1;
+                    if !reserve_observers(out,2){return;}
+                    let args=match materialize_arguments(e,&bp.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{}: typed history observer asset/input preparation: {why}",bp.program.name));continue;}};
+                    out.attempted+=1;
                     if let Ok(q)=e.query(&bp.program.name,Context::new(viewer,args.clone()).at(NOW))&&q.complete&&!q.unavailable&&typed_disclosure(&bp.result,&q.data,&inv.table,key,inv.column.as_deref(),row){
                         out.attempted+=1;
                         if !matches!(e.query(&bp.program.name,Context::new(viewer,args.clone()).at(NOW)),Ok(again) if again.complete&&!again.unavailable&&again.data==q.data){
@@ -130,10 +133,18 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
                 let cases=fixture_cases(&p.args,rows,actors,out);
                 if cases.len()>32{out.unsupported.insert(format!("{}: read-observer arguments capped at 32; remaining combinations not covered",p.name));}
                 for args in cases.into_iter().take(32){
-                    if !reserve_observers(out,4){return;}out.attempted+=2;
+                    if !reserve_observers(out,4){return;}
+                    let raw_args=args;
+                    let args=match materialize_arguments(e,&p.args,&raw_args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{}: paired history observer asset/input preparation: {why}",p.name));continue;}};
+                    if args!=raw_args{
+                        absent=match fork(bound,e,Vec::new()){Ok(e)=>e,Err(why)=>{out.unsupported.insert(format!("{}: paired history argument ledger fork: {why}",p.name));continue;}};
+                        if let Err(why)=absent.seed_delete_at(&inv.table,id,NOW){out.unsupported.insert(format!("{}: paired history argument ledger absence: {why}",p.name));continue;}
+                        if readback(&absent)!=Ok(absent_rows.clone()){out.unsupported.insert(format!("{}: paired argument ledger changes the absent base world",p.name));continue;}
+                    }
+                    out.attempted+=2;
                     let (Ok(a),Ok(b))=(paired::observe(e,p,viewer,args.clone()),paired::observe(&mut absent,p,viewer,args.clone()))else{continue;};
                     if a==b{continue;}
-                    if !matches!((paired::observe(e,p,viewer,args.clone()),paired::observe(&mut absent,p,viewer,args.clone())),(Ok(aa),Ok(bb)) if a==aa&&b==bb){continue;}
+                    if !matches!((paired::observe(e,p,viewer,args.clone()),paired::observe(&mut absent,p,viewer,args.clone())),(Ok(aa),Ok(bb)) if a==aa&&b==bb){out.unsupported.insert(format!("{} / {}: paired history observation is unstable or unavailable on repeat",p.name,inv.target_label()));continue;}
                     violation(out,inv,steps,viewer,row,None,initial,"read");
                     if let Some(v)=out.violations.last_mut(){v.operation=p.name.clone();v.args=args;v.observations=Some(paired::Observations{present:a,absent:b,absent_rows:absent_rows.clone()});}
                     continue 'actors;
@@ -286,8 +297,17 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     'pairs:for n in 0..role_groups.iter().map(Vec::len).max().unwrap_or(0){for group in &role_groups{if let Some(pair)=group.get(n){role_pairs.push(*pair);if role_pairs.len()==LIMIT/2{break 'pairs;}}}}
     // Breadth first, then targeted and diagonal pairs: no first step owns the cap.
     let singles=candidates.len().min(LIMIT);
+    let mut setups=Vec::new();let mut role_changes=Vec::new();
+    let mut setup_seen=BTreeSet::new();let mut role_seen=BTreeSet::new();let mut pair_plan=Vec::new();
     for n in 0..singles+LIMIT {
-        let indices=if n<singles{vec![n]}else if candidates.is_empty(){break;}else if let Some((first,second))=role_pairs.get(n-singles){vec![*first,*second]}else{let k=n-singles-role_pairs.len();vec![k%candidates.len(),(k/candidates.len()+k+1)%candidates.len()]};
+        if n==singles&&!candidates.is_empty(){
+            let mut seen=BTreeSet::new();
+            'setup:for &second in &role_changes{for &first in &setups{if seen.insert((first,second)){pair_plan.push((first,second));if pair_plan.len()==LIMIT/2{break 'setup;}}}}
+            for &(first,second) in &role_pairs{if pair_plan.len()==LIMIT{break;}if seen.insert((first,second)){pair_plan.push((first,second));}}
+            let mut k=0;
+            while pair_plan.len()<LIMIT{pair_plan.push((k%candidates.len(),(k/candidates.len()+k+1)%candidates.len()));k+=1;}
+        }
+        let indices=if n<singles{vec![n]}else if candidates.is_empty(){break;}else{let (first,second)=pair_plan[n-singles];vec![first,second]};
         let mut engine=match fork(bound,fixture,probes.clone()){Ok(e)=>e,Err(e)=>{out.unsupported.insert(e);break;}};
         out.sequences+=1;let mut steps=Vec::new();
         for i in indices{
@@ -300,6 +320,19 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
                     let sent=matches!(result.state,snapback4_core::WriteState::Sent{..});
                     steps.push(Step{operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
                     let after=match readback(&engine){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);break;}};
+                    if sent&&n<singles{
+                        let signature=serde_json::to_string(&(&p.name,viewer,&candidates[i].2)).unwrap();
+                        let new_media=bound.invariants.iter().filter(|inv|inv.target=="read"&&initial.get(&inv.table).is_none_or(Vec::is_empty)).any(|inv|{
+                            let table=&bound.schema.tables[&inv.table];
+                            after.get(&inv.table).into_iter().flatten().any(|row|table.columns.iter().any(|(column,kind)|kind.contains_asset()&&row.field(column).is_ok_and(|v|*v!=Value::Null&&!matches!(v,Value::Array(xs) if xs.is_empty()))))
+                        });
+                        if new_media&&setup_seen.insert(signature.clone()){setups.push(i);}
+                        let changed_role=bound.schema.tables.iter().any(|(table,_)|{
+                            let columns=super::super::privilege::role_columns(bound,table);
+                            !columns.is_empty()&&before.get(table).into_iter().flatten().any(|old|after.get(table).into_iter().flatten().find(|r|r.field("id").ok()==old.field("id").ok()).is_some_and(|new|columns.iter().any(|c|old.field(c).ok()!=new.field(c).ok())))
+                        });
+                        if changed_role&&role_seen.insert(signature){role_changes.push(i);}
+                    }
                     if sent{changed(bound,p,&before,&after,&initial,viewer,&steps,&mut prior,&mut engine,out);}else{out.refused+=1;}
                     if sent&&before!=after{observe(bound,&mut engine,&after,&initial,&actors,&steps,out);column_reads::after_history(bound,&engine,&initial,&steps,out);}
                 },Err(e)=>{out.unsupported.insert(format!("{}: history engine error {e}",p.name));break;}

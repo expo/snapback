@@ -205,3 +205,26 @@ fn column_pairs_do_not_change_materialized_asset_inputs() {
  assert!(c.violations.is_empty(),"{c:?}");
  assert!(c.unsupported.iter().any(|s|s.contains("coupled asset ledger")),"{c:?}");
 }
+
+#[test]
+fn time_arguments_expose_a_deadline_checked_on_the_wrong_reference() {
+ let source="table gates:\n  deadline: time\n  read <- allow\n  insert <- allow\n  online only\ntable briefs:\n  home: gates\n  owner: principal\n  body: text <=40\n  read <- allow\n  online only\nmutation create(deadline: time):\n  return insert gates { deadline }\nquery inspect(brief: briefs, gate: gates):\n  b = briefs[brief] ! else MISSING\n  g = gates[gate] ! else MISSING\n  require g.deadline <= now else EARLY\n  return b\ninvariant briefs.read only .owner = viewer\n";
+ let c=fixture_campaign(source,vec![("gates".into(),row(&[("id",Value::Id("future".into())),("deadline",Value::Int(1_800_604_800_000))])),("briefs".into(),row(&[("id",Value::Id("b".into())),("home",Value::Id("future".into())),("owner",Value::Id("dev:owner".into())),("body",Value::String("secret".into()))]))]);
+ assert!(c.violations.iter().any(|v|v.operation=="inspect"&&v.history.len()==1&&v.history[0].operation=="create"&&matches!(v.history[0].args.get("deadline"),Some(Value::Int(n)) if *n<1_800_000_000_000)&&v.args.get("gate")!=Some(&Value::Id("future".into()))),"{c:?}");
+}
+
+#[test]
+fn real_media_creation_is_replayed_before_role_revocation() {
+ let source="table roles:\n  principal: principal\n  role: enum('engineer','contractor','manager')\n  unique principal\n  read <- allow\n  update <- viewer = 'service:ops'\n  online only\ntable grants:\n  principal: principal\n  unique principal\n  read <- allow\n  online only\ntable photos:\n  photo: image <=5000\n  read <- exists roles[viewer, role = 'engineer'] or exists grants[viewer]\n  insert <- exists roles[viewer, role = 'engineer']\n  online only\nmutation add(photo: image <=5000):\n  return insert photos { photo }\nmutation changeRole(who: principal, role: enum('engineer','contractor','manager')):\n  update roles[who] { role }\n  return null\nquery list():\n  return photos first 50 by .id\ninvariant photos.read only exists roles[viewer, role = 'engineer'] or (exists roles[viewer, role = 'contractor'] and exists grants[viewer])\n";
+ let c=fixture_campaign(source,vec![("roles".into(),row(&[("id",Value::Id("eng".into())),("principal",Value::Id("dev:eng".into())),("role",Value::String("engineer".into()))])),("roles".into(),row(&[("id",Value::Id("con".into())),("principal",Value::Id("dev:con".into())),("role",Value::String("contractor".into()))])),("grants".into(),row(&[("id",Value::Id("g".into())),("principal",Value::Id("dev:con".into()))]))]);
+ assert!(c.violations.iter().any(|v|v.viewer=="dev:con"&&v.operation=="list"&&v.history.len()==2&&v.history[0].operation=="add"&&v.history[1].operation=="changeRole"&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace),"{c:?}");
+}
+
+#[test]
+fn history_observers_materialize_owned_media_inputs_for_payloads_and_pairs() {
+ for kind in ["image","file"] {for direct in [true,false] {
+  let source=format!("table notes:\n  owner: principal\n  body: text <=40\n  evidence: {kind} <=5000 ?\n  read <- allow\n  online only\nquery inspect(note: notes, input: {kind} <=5000):\n  return notes[note]{}\ninvariant notes.read only .owner = viewer\n",if direct{""}else{".body"});
+  let c=fixture_campaign(&source,vec![("notes".into(),row(&[("id",Value::Id("n".into())),("owner",Value::Id("dev:owner".into())),("body",Value::String("secret".into()))]))]);
+  assert!(c.violations.iter().any(|v|v.operation=="inspect"&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace&&v.args.get("input").is_some_and(|v|v.field("id").is_ok())&&(!direct||v.observations.is_none())&&(direct||v.observations.is_some())),"{kind} {direct}: {c:?}");
+ }}
+}
