@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, readdirSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, networkInterfaces } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { cli, deploy, startDev, startServe, seedAccounts, rollback } from "../dist/proof.js";
@@ -186,7 +186,9 @@ query readReport(id: reports):
   return reports[id]
 `;
  mkdirSync(join(cwd,"v2"));
- for(const offset of ["-2h","+2h"]){
+ const nonloop=Object.values(networkInterfaces()).flat().find(n=>n && !n.internal && n.family==="IPv4")?.address;
+ if(!nonloop)t.diagnostic("non-loopback bind witness unavailable: no external IPv4 interface");
+ for(const bind of [undefined,...(nonloop?[nonloop]:[])])for(const offset of ["-2h","+2h"]){
   // A not-before store already deployed at wall time has a disclosure floor.
   // Test negative expiry without that floor; positive tests not-before as well.
   const current=offset==="-2h"?base.replace("  not before .opensAt\n",""):base;
@@ -195,9 +197,9 @@ query readReport(id: reports):
   {copied:(facts[fact] ! else NOT_FOUND).expiresAt}
 `;
   writeFileSync(join(cwd,"v2/schema.q"),v2);
-  const dir=offset==="-2h"?"negative":"positive";
+  const dir=(offset==="-2h"?"negative":"positive")+(bind?"-lan":"");
   await deploy(dir,"snapback",{cwd,args:["--staging"]});
-  const host=await startServe(dir,{cwd,clockOffset:offset});
+  const host=await startServe(dir,{cwd,clockOffset:offset,...(bind?{args:["--bind",bind,"--i-understand-cleartext"]}:{})});
   try{
    const account=await signup(host.url,dir+"@example.test","valid-staging-test-password");assert.equal(account.ok,true);
    const expiresAt=Date.now()+(offset==="-2h"?-3600000:10800000);
@@ -206,7 +208,7 @@ query readReport(id: reports):
    const preview=await cli(["deploy",dir,"--schema","v2","--check"],{cwd});assert.equal(preview.code,0,preview.stderr+preview.stdout);assert.match(preview.stdout,/transformed 1 row/);
    await deploy(dir,"v2",{cwd});
    const got=await post(host,"/q/readReport",account.session.token,{id:report.result.id});assert.equal(got.data.copied,expiresAt,offset);
-   const status=await cli(["releases",dir,"--json"],{cwd});assert.equal(status.code,0,status.stderr);assert.ok(Math.abs((await host.now()) - Date.now() - (offset==="-2h"?-7200000:7200000))<5000);
+   const status=await cli(["releases",dir,"--json"],{cwd});assert.equal(status.code,0,status.stderr);if(!bind)assert.ok(Math.abs((await host.now()) - Date.now() - (offset==="-2h"?-7200000:7200000))<5000);
   }finally{await host.stop();}
  }
 });

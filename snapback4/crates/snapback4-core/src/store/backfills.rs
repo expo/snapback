@@ -109,7 +109,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     let fresh_epoch=tx.meta("generation")?.and_then(|s|s.parse::<i64>().ok()).unwrap_or(0).saturating_add(1);
     for epoch in epochs {
         restore_snapshot(tx)?;
-        if let Some(epoch)=epoch { historical_snapshot(tx,epoch,&entering_keys)?; }
+        if let Some(epoch)=epoch { historical_snapshot(tx,epoch,&next_keys)?; }
         rebuild_reads(tx,&source,&reads)?;
     for fill in &entering {
 
@@ -186,6 +186,10 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         if let Value::Row(f)|Value::Map(f)=&mut row {f.extend(patch);}
         tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;
         save(tx,t,&id,&key,&e,true)?;
+        let fill=next.backfills.iter().find(|f|f.key()==key).ok_or_else(||refusal("missing historical declaration"))?;
+        for(c,kind)in &fill.inputs {
+            if let Ok(value)=e.inputs.field(c) {super::dormant::capture_refs(tx,t,&id,&input_ref(&key,c),kind,value)?;}
+        }
     }
     drop(rows);drop(stmt);
     tx.conn().execute_batch("DROP TABLE temp._backfill_pending; DROP TABLE temp._backfill_originals;")?;
@@ -259,8 +263,14 @@ fn historical_snapshot(tx:&Tx<'_>,epoch:i64,keys:&BTreeSet<String>)->Result<(),R
         tx.conn().execute("INSERT OR IGNORE INTO temp._backfill_originals SELECT t,id,data FROM r WHERE t=?1 AND id=?2",params![t,id])?;
         let mut row:Value=decode(&data)?;let e=evidence(tx,t,&id,&key)?.unwrap();
         let fields=match &mut row {Value::Row(f)|Value::Map(f)=>f,_=>return Err(refusal("invalid historical row"))};
-        if let Value::Row(inputs)|Value::Map(inputs)=e.inputs {for(c,value)in inputs {fields.entry(c).or_insert(value);}}
-        for c in e.after.keys() {if !e.before.contains_key(c) {fields.remove(c);}}
+        if let Value::Row(inputs)|Value::Map(inputs)=e.inputs {for(c,value)in inputs {
+            if !fields.contains_key(&c) || fields.get(&c)==Some(&value) {
+                let invalid:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3 AND invalid=1)",params![t,id,input_ref(&key,&c)],|r|r.get(0))?;
+                if invalid {return Err(refusal(format!("historical backfill reference {c} on {id} lost its parent lifetime")));}
+                fields.entry(c).or_insert(value);
+            }
+        }}
+        for c in e.after.keys() {if !e.before.contains_key(c) {fields.insert(c.clone(),Value::Null);}}
         for(c,value)in e.before {fields.insert(c,value);}
         tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;
     } Ok(())
@@ -276,3 +286,5 @@ fn rebuild_reads(tx:&Tx<'_>,source:&Schema,reads:&BTreeSet<(String,String)>)->Re
         if old.unique {validate_lookup(tx,ti,old.components.len(),name,index)?;}
     } Ok(())
 }
+
+fn input_ref(key:&str,column:&str)->String {format!("$backfill:{key}:{column}")}

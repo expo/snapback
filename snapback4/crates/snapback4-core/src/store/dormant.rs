@@ -463,6 +463,7 @@ pub(super) fn transition(
             }
         }
     }
+    let backfilling=!next.backfills.is_empty() || super::backfills::has_evidence(tx)?;
     for (name, old) in &restoring {
         let t = tx.num(name)?;
         let table = &next.tables[name];
@@ -489,7 +490,7 @@ pub(super) fn transition(
                     save_cell(tx, name, old, id, &column, &value, false)?;
                 }
             }
-            if !next.backfills.is_empty() && old.expired(&row,now) {tx.delete(name,old,&row)?;}
+            if backfilling && old.expired(&row,now) {tx.delete(name,old,&row)?;}
             // Full source image/deadlines stay intact until lifetime retirement and narrowed classification.
             Ok(())
         })?;

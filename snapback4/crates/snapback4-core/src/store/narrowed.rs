@@ -230,13 +230,14 @@ pub(super) fn check_write(
 }
 
 pub(super) fn retire_sources(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,now:i64)->Result<(),RuntimeError>{
+    let backfilling=!next.backfills.is_empty() || super::backfills::has_evidence(tx)?;
     // An expired predecessor must not be archived and later revived without its lifetime.
     if let Some(previous) = previous {
         let retirement = crate::engine::through_activation::Retirement::new(next, previous, now);
         for (name, old) in &previous.tables {
-            if next.tables.contains_key(name) && (retirement.affects(name) || !next.backfills.is_empty()) {
+            if next.tables.contains_key(name) && (retirement.affects(name) || backfilling) {
                 super::activation::walk(tx, tx.num(name)?, |_, row| {
-                    if retirement.retires(name, &row) || !next.backfills.is_empty() && old.expired(&row,now) {
+                    if retirement.retires(name, &row) || backfilling && old.expired(&row,now) {
                         tx.delete(name, old, &row)?;
                     }
                     Ok(())

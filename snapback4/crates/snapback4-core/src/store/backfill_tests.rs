@@ -264,3 +264,46 @@ fn a_retained_transform_output_cannot_prove_native_origin() {
  let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&twice,2).unwrap();adopt(&mut e,old,1).unwrap();
  let error=adopt(&mut e,&broken,3).unwrap_err().to_string();assert!(error.contains("historical input items.missing"),"{error}");
 }
+
+#[test]
+fn partial_table_reentry_restores_carried_declarations_in_the_same_cohort() {
+ let parents="table parents:\n  n: int\n  public 'fixture'\n  online only\n";
+ let old=parents.to_owned()+"table children:\n  parent: parents\n  public 'fixture'\n  online only\n";
+ let parent_fill="backfill parents twice(n: int):\n  {n:n * 2}\n";
+ let next=old.replace("  parent: parents","  copied: int\n  parent: parents")+parent_fill+"backfill children copy(parent: parents):\n  {copied:(parents[parent] ! else NOT_FOUND).n}\n";
+ let mut e=engine(&old);seed(&mut e,"parents",json!({"id":"p","n":3}));seed(&mut e,"children",json!({"id":"c","parent":"p"}));adopt(&mut e,&next,2).unwrap();
+ adopt(&mut e,&(parents.to_owned()+parent_fill),3).unwrap();adopt(&mut e,&next,2).unwrap();
+ assert_eq!(field(&mut e,"parents","p","n"),Value::Int(6));assert_eq!(field(&mut e,"children","c","copied"),Value::Int(3));
+}
+
+#[test]
+fn leaving_the_last_backfill_cannot_remove_an_ended_source_lifetime() {
+ let old="table items:\n  n: int\n  until: time\n  public 'fixture'\n  online only\n";
+ let next=old.replace("  until: time","  until: time\n  expire at .until")+"backfill items twice(n: int):\n  {n:n * 2}\n";
+ for absent in [false,true] {
+  let(s,p)=compile(old);let mut e=Engine::new_release_prepared_at(Store::memory().unwrap(),s,p,&ReleaseActivation::new(1,None),false,0).unwrap();
+  let r=wire::row_from_json(&e.schema().tables["items"],&json!({"id":"a","n":3,"until":50})).unwrap();e.seed_at([("items".into(),r)],0).unwrap();
+  let(s,p)=compile(&next);e.adopt_release_at(s,p,&ReleaseActivation::new(2,Some(1)),false,1).unwrap();
+  if absent {let(s,p)=compile("query empty():\n  return true\n");e.adopt_release_at(s,p,&ReleaseActivation::new(3,Some(2)),false,2).unwrap();}
+  let previous=if absent {3}else{2};let(s,p)=compile(old);e.adopt_release_at(s,p,&ReleaseActivation::new(1,Some(previous)),false,100).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+ }
+}
+#[test]
+fn reentry_keeps_absence_distinct_from_a_later_default() {
+ let old="table items:\n  public 'fixture'\n  online only\n";
+ let next=old.replace("  public","  n: int default 100\n  public")+"backfill items one(n: int ?):\n  {n:(n ?? 0) + 1}\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a"}));adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","n"),Value::Int(1));
+ adopt(&mut e,"query empty():\n  return true\n",3).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","n"),Value::Int(1));
+}
+#[test]
+fn saved_reference_inputs_keep_their_own_lifetime_after_live_retargeting() {
+ let parents="table parents:\n  n: int\n  public 'fixture'\n  online only\n";
+ let mutation="mutation retarget():\n  update children['c'] {parent:'q'}\n";
+ let old=parents.to_owned()+"table children:\n  parent: parents on delete keep\n  public 'fixture'\n  update <- allow\n  online only\n"+mutation;
+ let fill="backfill children copy(parent: parents):\n  {copied:(parents[parent] ! else NOT_FOUND).n}\n";
+ let next=old.replace("  parent: parents","  copied: int\n  parent: parents")+fill;
+ let dropped=next.replace("  parent: parents on delete keep\n","").replace(mutation,"");
+ let mut e=engine(&old);for(id,n)in[("p",3),("q",9)]{seed(&mut e,"parents",json!({"id":id,"n":n}));}seed(&mut e,"children",json!({"id":"c","parent":"p"}));adopt(&mut e,&next,2).unwrap();write(&mut e,"retarget");adopt(&mut e,&dropped,3).unwrap();
+ let table=e.schema().tables["parents"].clone();{let tx=e.store_mut().transaction().unwrap();let r=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&r).unwrap();tx.commit().unwrap();}seed(&mut e,"parents",json!({"id":"p","n":77}));
+ adopt(&mut e,parents,4).unwrap();let error=adopt(&mut e,&dropped,3).unwrap_err().to_string();assert!(error.contains("parent lifetime"),"{error}");
+}

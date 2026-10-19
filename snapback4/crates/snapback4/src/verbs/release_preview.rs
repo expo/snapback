@@ -37,12 +37,27 @@ pub(super) fn preview(
         })?;
     drop(source);
     }
+    // Probe the existing filesystem lock, independently of any HTTP address
+    // hint. Keep a stopped store excluded through preview; never create a lock
+    // sidecar or mutate its address record just to inspect ownership.
+    let (live,_stopped_guard)=if store_path.exists() {
+        let database=store_path.canonicalize().map_err(|e|e.to_string())?;
+        match snapback4_core::private_fs::auxiliary_file(&database,&snapback4_core::private_fs::owner_path(&database),false,0) {
+            Ok(owner)=>match owner.try_lock() {
+                Ok(())=>(false,Some(owner)),
+                Err(std::fs::TryLockError::WouldBlock)=>(true,None),
+                Err(std::fs::TryLockError::Error(e))=>return Err(format!("preview owner probe failed: {e}")),
+            },
+            Err(e) if e.kind()==std::io::ErrorKind::NotFound=>(false,None),
+            Err(e)=>return Err(format!("preview owner probe failed: {e}")),
+        }
+    }else{(false,None)};
     let mut store = snapback4_core::Store::open(&path).map_err(|e| e.to_string())?;
     let held = store
         .release_status(0, None, None)
         .map_err(|e| e.to_string())?;
     // @ref LLP 3000.000.000.002#4-staging-clock — preview uses the owning host's authoritative time, without minting or advancing anything.
-    let activation_now=if crate::store_owner::inspector_address(store_path).is_some() {
+    let activation_now=if live {
         let status=crate::release_control::request(store_path.parent().ok_or("preview store has no deployment directory")?,crate::release_control::Command::Status{after:0,items_after:None,event:None})?;
         if status["revision"]!=held["revision"] {return Err("preview raced release activation; retry against the current store".into());}
         status["clock"]["now"].as_i64().ok_or("serving owner does not expose its activation clock; restart it with this CLI before preview")?

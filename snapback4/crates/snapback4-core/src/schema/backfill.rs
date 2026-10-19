@@ -56,7 +56,7 @@ impl Backfill {
                 return Err(format!("backfill output {}.{c} must be an authoritative scalar, not an asset, lifetime or captured field",self.table));
             }
         }
-        if !body(&self.program.body,schema) { return Err("backfill expressions allow deterministic scalar transforms and unique point lookups only; no viewer, clock, ids, scans, loops or writes".into()); }
+        if !body(&self.program.body,schema) { return Err("backfill expressions allow deterministic scalar transforms, unique point lookups and bounded existence; no viewer, clock, ids, row collections, loops or writes".into()); }
         Ok(())
     }
 }
