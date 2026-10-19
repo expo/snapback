@@ -24,9 +24,7 @@ curl -s "$U/auth/signup" -H 'Content-Type: application/json' \
 curl -s "$U/auth/login" -H 'Content-Type: application/json' \
   -d '{"email":"admin@example.test","password":"replace-with-a-private-password"}'
 ```
-Keep the session and send `Authorization: Bearer <token>`. Wrong credentials or a disabled identity method are 401 E_AUTH. Sessions survive ordinary deployments and restarts until expiry/revocation; a replaced/reset store requires sign-in again. Never delete a store to make adoption pass. `serve --port N` accepts 0 or A-B; stdout's first line is its URL, stderr includes SNAPBACK4_READY. Wait for readiness.
-
-Layout: releases/N/ holds source; store.sqlite data/sessions/queues; assets/ uploads. The database owns current release/history; current is a text convenience copy, releases.jsonl a convenience ledger. Back up the whole directory, including sidecars/assets/releases, with serve and external workers stopped (CLIENT-AND-OPERATIONS.md §6). A restore does not rewind external effects.
+Keep the session and send `Authorization: Bearer <token>`. Wrong credentials or a disabled identity method are 401 E_AUTH. Sessions survive ordinary deployments and restarts until expiry/revocation; a replaced/reset store requires sign-in again. Never delete a store to make adoption pass. `serve --port N` accepts 0 or A-B; stdout's first line is its URL, stderr includes SNAPBACK4_READY. Wait for readiness. Layout: releases/N/ holds source; store.sqlite data/sessions/queues; assets/ uploads. The database owns current release/history; current is a text convenience copy, releases.jsonl a convenience ledger. Back up the whole directory, including sidecars/assets/releases, with serve and external workers stopped (CLIENT-AND-OPERATIONS.md §6). A restore does not rewind external effects.
 
 ## First admin: a service seat
 Provision roles through an operator seat, with no public first-user race:
@@ -55,9 +53,7 @@ curl -s "$U/m/grantAdmin" -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' -d '{"args":{"principal":"user:SIGNED_UP_ID"}}'
 unset TOKEN
 ```
-This roster is synced. A whole service-seat branch may add the first member; ordinary callers must already hold the roster. Service grants add no device audience. The seat's own program lookups and `exists` obey read rules too: to inspect a roster, add `or viewer = 'service:ops'` to its read rule, as above. A rule probe has authorization visibility; a program probe does not. The mutation completes before the grant syncs; wait for the enrolled account's client to receive its scope before using offline staff reads.
-
-A synced row has at most one group-roster audience: cross-table crew grants are not a second group. Enroll those readers in the same roster or keep the table `online only` (`guide rule-recipes`). Mint locally against the same store. Token stdout is only the credential; prose is stderr. Protect it; it expires under the seat-session policy. Rotate the credential by revoking its session (guide services) and minting a replacement. Expired or revoked bearer sessions cannot invoke the mutation. A repeat grant hits uniqueness; add membership revocation deliberately. Programmatic account sessions use `mintSession(url, serviceToken, principal)` from `snapback4/worker` (guide services); service seats themselves are minted locally by `token`.
+This roster is synced. A whole service-seat branch may add the first member; ordinary callers must already hold the roster. Service grants add no device audience. The seat's own program lookups and `exists` obey read rules too: to inspect a roster, add `or viewer = 'service:ops'` to its read rule, as above. A rule probe has authorization visibility; a program probe does not. The mutation completes before the grant syncs; wait for the enrolled account's client to receive its scope before using offline staff reads. A synced row has at most one group-roster audience: cross-table crew grants are not a second group. Enroll those readers in the same roster or keep the table `online only` (`guide rule-recipes`). Mint locally against the same store. Token stdout is only the credential; prose is stderr. Protect it; it expires under the seat-session policy. Rotate the credential by revoking its session (guide services) and minting a replacement. Expired or revoked bearer sessions cannot invoke the mutation. A repeat grant hits uniqueness; add membership revocation deliberately. Programmatic account sessions use `mintSession(url, serviceToken, principal)` from `snapback4/worker` (guide services); service seats themselves are minted locally by `token`.
 
 ## Migrations and adoption
 Optional/defaulted columns, new tables/ops, non-unique indexes and wider types are additive. Required new fields need a literal default or explicit backfill; default now/viewer cannot invent historical values. Dev check/adoption refuses incompatible values with E_ADOPT. Release type narrowing instead retains each row whose present values cannot fit. Unique/cap conflicts still refuse atomically; repair active rows, or restore through a widened non-unique bridge, repair, then reinstate constraints. Prefer expand → migrate → contract for client compatibility.
@@ -115,29 +111,13 @@ unset SNAPBACK4_SERVICE_TOKEN
 ```
 `--token-env NAME` reads another environment variable. The command uses served source, so it also works outside the app directory. A lost reply is ambiguous; inspect the queue before retrying. Starter/client recipes: `guide client`.
 
-## Persona transition checklist
-The complete account directory, linked membership and real-account transition is `guide production`.
-1. Add password identity and signup/login UI; persist sessions with localStorageSessionStore on web or the secure native store, and verify restart.
-2. Replace hard-coded persona owners/UI with signed-in account principals; map roles through the trusted seat recipe.
-3. Give profiles a production write path and authorized directory; expose no credentials.
-4. Create required teams/memberships, invitations or principal sharing; wait for scope delivery before offline reads; test expiry, revocation and outsiders.
-5. Bootstrap every required table without fixtures/seed; guide start/client covers first writers and password starters.
-6. Prove real-account writes, role checks, sign-out and rollback on durable storage behind TLS.
+`guide production` covers real accounts: add signup/login and persistent sessions, replace personas with principals, provision authorized profiles/roles and memberships, wait for scopes before offline reads, and bootstrap without fixtures. Prove role checks, sign-out, restart and rollback on durable storage behind TLS (`guide client`).
 
 ## Inspection, proxies and TLS
-| Door | `dev` | `serve` |
-|---|---|---|
-| `/q`, `/m`, `GET /` compatibility record | Loopback persona or bearer | Bearer session required, including public rows |
-| `/auth/config`; signup/login/guest | Public config; declared sign-in methods | Public config; declared sign-in methods |
-| `/seed`, `/dev/*` | Development only | Refused |
-| `/jobs/<job>` | Service seat | Full service seat |
-
+Dev admits loopback personas or bearer sessions for queries, writes and the compatibility record; serve requires bearer sessions even for public rows. Identity config/sign-in endpoints are public. Seed/dev endpoints refuse in serve; system job doors require full service seats. `guide wire` gives the HTTP contract.
 Public visitors obtain guest sessions with `use identity`; `use identity password` disables guests (`guide rule-recipes`).
 
-`snapback4 sql 'SELECT id, archived FROM notes' --release ./deployment --json` returns positional rows under `columns`; `--json-objects` returns object rows with direct boolean columns as true/false. Schema-qualified relations, recursive or shadowing/forward-reference CTEs need positional --json. Inspection bypasses read rules and can show expired stored rows; it is an operator tool, not an app query surface. Bind loopback behind a TLS proxy. Forward Authorization and preserve response bodies; allow long polls without buffering or early timeouts. Non-loopback HTTP requires `--i-understand-cleartext` and a trusted private hop behind TLS. Identity rate keys use the socket peer, not forwarded headers. Serve refuses personas and dev doors even through a local proxy; see SERVER.md for capacity. `--json-objects` returns `{header, columns, rows, limit, more, ruleFiltered:false}` with object `rows`; `--json` uses positional `rows`. Put flags outside the quoted SQL.
-
-## Authoring and proof refusals
-N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. It groups root blockers with their dependents; persona-only schemas get one identity note. Add a service-seat insert mutation and provision real account relationships. E_UPGRADE means installation or post-upgrade check failed. Repair the package-manager or registry error and rerun upgrade. Packages may already be pinned: if check failed, repair the reported schema/device refusal and rerun check.
+`snapback4 sql 'SELECT id, archived FROM notes' --release ./deployment --json` returns positional rows under `columns`; `--json-objects` returns object rows with direct boolean columns as true/false. Schema-qualified relations, recursive or shadowing/forward-reference CTEs need positional --json. Inspection bypasses read rules and can show expired stored rows; it is an operator tool, not an app query surface. Bind loopback behind a TLS proxy. Forward Authorization and preserve response bodies; allow long polls without buffering or early timeouts. Non-loopback HTTP requires `--i-understand-cleartext` and a trusted private hop behind TLS. Identity rate keys use the socket peer, not forwarded headers. Serve refuses personas and dev doors even through a local proxy; see SERVER.md for capacity. `--json-objects` returns `{header, columns, rows, limit, more, ruleFiltered:false}` with object `rows`; `--json` uses positional `rows`. Put flags outside the quoted SQL. N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. It groups root blockers with their dependents; persona-only schemas get one identity note. Add a service-seat insert mutation and provision real account relationships. E_UPGRADE means installation or post-upgrade check failed. Repair the package-manager or registry error and rerun upgrade. Packages may already be pinned: if check failed, repair the reported schema/device refusal and rerun check.
 
 ## Capture a saved version
 After check and business cases pass, from the app root:
@@ -146,30 +126,18 @@ snapback4 deploy ./deployment --save-version versions/v1
 snapback4 rollback ./deployment --to 1 --check --bridge ./bridge
 snapback4 deploy ./deployment --schema ./bridge --check
 ```
-
 The new versions/v1 captures selected modules, their contemporary fixtures and `versions/v1/release.json` with the actual immutable release id, source hash and CLI version. Unchanged deploy keeps its id; existing snapshots never change. Choose a new positive-numbered versions/vN; saving cannot combine with --check. Saved-source deploy uses its own fixtures. Use the recorded id when choosing a baseline; since_release remains the author-supplied newer-schema label. The bridge starts from complete current Quarry source and this app's `bridge/ROLLBACK-CHECKLIST.md`. Retain current domains, audiences, guards and quotas; repair records through authorized mutations; prove blocked cases refuse and affected lists/counts remain correct; repeat the old-source preview. No bridge is activated or business migration synthesized. JSON includes checklist; --verbose retains full evidence/index paths. Dormant rows reserve ids but no unique slots: new active rows may block restoration. A widened non-unique bridge permits repair before reinstating uniqueness; retained storage cannot supply absent safety logic.
 
 ## Keep v1 clients working
 
-`deploy --check --json` reports `clientCompatibility` separately from data
-adoption: missing operations, changed kinds, required new arguments, removed or
-narrowed inputs, result shape/value changes and changed refusal codes/messages.
-Deploy prints the same warnings. Input breaks name the old release and the
-E_INPUT/E_OP outcome. A result or behavior review asks you to verify the intended
-contract; a correct new privacy denial is intentional behavior, not an input
-shape failure. The comparison is conservative, not a proof of unchanged logic.
-
-For example, save this v1 source and its callers sending
-`{name:"Ada",obsolete:"old input"}` to `greet`:
+`deploy --check --json` reports `clientCompatibility` separately from data adoption: missing operations, changed kinds, required new arguments, removed or narrowed inputs, result shape/value changes and changed refusal codes/messages. Deploy prints the same warnings. Input breaks name the old release and the E_INPUT/E_OP outcome. A result or behavior review asks you to verify the intended contract; a correct new privacy denial is intentional behavior, not an input shape failure. The comparison is conservative, not a proof of unchanged logic. For example, save this v1 source and its callers sending `{name:"Ada",obsolete:"old input"}` to `greet`:
 
 ```quarry
 use identity guests
 query greet(name: text <=40, obsolete: text <=40):
   return {message: name + '!'}
 ```
-
-Deploy this v2 source. The unchanged v1 call still returns `{message:"Ada!"}`;
-new callers can use `greeting` and omit `suffix` and `obsolete`:
+Deploy this v2 source. The unchanged v1 call still returns `{message:"Ada!"}`; new callers can use `greeting` and omit `suffix` and `obsolete`:
 
 ```quarry
 use identity guests
@@ -177,20 +145,6 @@ query greeting(name: text <=40, suffix: text <=1 default '!', obsolete: text <=4
   return {message: name + suffix}
 alias greet = greeting
 ```
+A literal default handles omitted or null arguments and must fit the declared scalar type; explicit non-null input still validates. `deprecated` accepts a validated optional argument but forbids referring to it in the body. Unknown arguments still refuse. These modifiers apply to non-native Quarry queries and mutations; helpers, actions and jobs keep their distinct invocation contracts. Aliases target an authored query/mutation in the same module, carry the same rules/guards/results, and cannot chain. Retain the old endpoint until its callers have retired; preserve the old result projection and handle intended denials.
 
-A literal default handles omitted or null arguments and must fit the declared
-scalar type; explicit non-null input still validates. `deprecated` accepts a
-validated optional argument but forbids referring to it in the body. Unknown
-arguments still refuse. These modifiers apply to non-native Quarry queries and
-mutations; helpers, actions and jobs keep their distinct invocation contracts.
-Aliases target an authored query/mutation in the same module, carry the same
-rules/guards/results, and cannot chain. Retain the old endpoint until its callers
-have retired; preserve the old result projection and handle intended denials.
-
-Deploy also warns when later rollback can refuse or hide rows: dropping a
-required old column or widening a value domain can strand newly written rows.
-The preflight separately attempts exact reverse adoption on its post-deploy
-snapshot, naming present-data failures. Keep old fields and compatible domains
-in an expand/contract bridge; after writes run the named
-`rollback <deployment> --to N --check --bridge <new-dir>` before selecting N.
-A green snapshot never freezes later writes.
+Deploy also warns when later rollback can refuse or hide rows: dropping a required old column or widening a value domain can strand newly written rows. The preflight separately attempts exact reverse adoption on its post-deploy snapshot, naming present-data failures. Keep old fields and compatible domains in an expand/contract bridge; after writes run the named `rollback <deployment> --to N --check --bridge <new-dir>` before selecting N. A green snapshot never freezes later writes.

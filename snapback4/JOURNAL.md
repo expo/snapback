@@ -96711,3 +96711,19 @@ campaigns and the repaired 015 custody workflow remain explicit gaps in
 `../issues/20261018-sb4-security-proof-and-adversarial-qualification-gaps.md`.
 This is a conservative verification foundation, not a zero-holes capability
 claim. No version bump, push or publication.
+
+
+## 2026-10-19 — REL5 release transitions and old-client contracts
+
+Deploy now reactivates matching retained source with restoration, validates new
+source privately, and cleans definitive refusals while preserving in-flight or
+committed source after ambiguous control replies. Deploy previews warn about
+future rollback hazards and old-client input/result/refusal changes. Query and
+mutation literal defaults, ignored deprecated inputs and same-module aliases
+preserve v1 callers; the packed deploy recipe exercises the unchanged calls.
+LLP 3000.000.000 §16 and LLP 3000.000.000.000 §11 record these decisions and
+the final blind Muse/Codex READY reviews at 421a345ea1. Six copied day-two
+runs from lanes 013/030/042 pass without release-selection workarounds; evidence
+is reports/20261019-rel5. Version remains 0.4.33 for the 0.4.34 integration.
+MIG owns backfills/staging clock; SEC3 owns invariant/audit tooling. Qualification
+results and remaining limits are recorded in the root WORKSTREAM-REPORT.md.

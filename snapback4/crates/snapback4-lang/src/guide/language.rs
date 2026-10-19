@@ -1,8 +1,6 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
-Query/mutation argument evolution: `name: T default <literal>` supplies a fitting scalar when omitted or null; `name: T deprecated` accepts and ignores the optional old input. `alias oldName = currentName` preserves a same-module endpoint. These forms keep old clients calling; the complete executable v1/v2 recipe is `guide deploy` → Keep v1 clients working. They do not change read/write authority.
-
 **Start here:** Declare tables, rules, queries and mutations; indexes are inferred. Default-starter pattern; `guide from-sql` translates familiar idioms.
 
 ```quarry
