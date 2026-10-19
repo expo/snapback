@@ -175,3 +175,25 @@ impl Drop for Pointer {
         }
     }
 }
+
+// @ref LLP 3000.000.000#16-release-reactivation-and-rollback-foresight-rel5 — deletion requires a definitive non-commit, never a lost reply.
+pub(crate) struct Candidate { dir: PathBuf, release: u64, pub committed: bool }
+impl Candidate {
+    pub(crate) fn new(dir: &Path, release: u64) -> Self { Self {dir:dir.into(),release,committed:false} }
+}
+impl Drop for Candidate {
+    fn drop(&mut self) {
+        if self.committed { return; }
+        let probe=(|| -> Result<bool,String> {
+            let store=snapback4_core::Store::open_read_only(&self.dir.join("store.sqlite")).map_err(|e|e.to_string())?;
+            let history:bool=store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='_release_events')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+            if !history {return Ok(false);}
+            store.conn().query_row("SELECT EXISTS(SELECT 1 FROM _release_events WHERE release=?1 OR previous=?1)",[self.release as i64],|r|r.get(0)).map_err(|e|e.to_string())
+        })();
+        match probe {
+            Ok(false)=>if let Err(e)=fs::remove_dir_all(self.dir.join("releases").join(self.release.to_string())) {eprintln!("uncommitted release {} cleanup failed: {e}",self.release);},
+            Ok(true)=>{},
+            Err(e)=>eprintln!("release {} outcome unknown; retained source for recovery; inspect releases: {e}",self.release),
+        }
+    }
+}
