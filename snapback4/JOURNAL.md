@@ -96837,3 +96837,20 @@ remains Open. REL5 owns release/compatibility changes; MIG owns data lifecycle
 and staging clocks; STAGE owns the first-admin recipe. No version bump or push.
 
 SEC3 final client verification: all 417 files pass (7,713 subtests, 56 expected skips); both full-count model files pass 81/81 tests with 5,000 online sessions, 5,000 local sessions and 3,000 online-client interleavings. Compact logs and coverage diagnostics are in reports/20261019-sec3/client-final.json. Owned local/Mac build output and identified scratch are removed; qualified tarball hashes are retained.
+
+## 2026-10-19 — Integration 18: day-two release and security fixes
+
+REL5, MIG and SEC3 are integrated for 0.4.34. Retained-source reactivation
+passes held ownership into exact previews; one preview exposes both backfill
+counts and old-client contracts. Cross-lane regressions exercise repeated
+non-idempotent backfill rollback/reactivation and aliases/defaults/deprecated
+inputs under column histories and audit. The unified guide changes entry states
+existing-app/store upgrade behavior; LLP 3000.037 §20 records the corrected
+day-two calibration and the 0.4.33 wave-18 population separately.
+
+Locked Linux device: 2,385,842 B raw / 727,013 B gzip; budget 727,513 B is
+measurement + exactly 500 B. Whole-artifact +5,353 raw / +1,011 gzip versus
+Integration 17 includes deterministic text builtins and the new version stamp;
+no independent per-feature attribution or runtime ceiling increase. Verification
+and strict family/absence audits are reported in this integration's workstream
+report, not inferred from the measurement. No publication or push is authorized.
