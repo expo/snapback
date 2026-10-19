@@ -10,6 +10,7 @@ pub struct Observations {
 }
 
 pub(super) fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>)->Result<serde_json::Value,String>{
+    if p.kind==ProgramKind::Mutation&&engine.schema().operations.get(&p.name).is_some_and(|f|f.ephemeral){return Err("ephemeral mutation observer is outside the durable campaign".into());}
     let context=Context::new(viewer,args).at(NOW);
     if p.kind==ProgramKind::Query {
         match engine.query(&p.name,context) {
@@ -84,6 +85,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
             for viewer in [VIEWER,OTHER,"account:security-no-role","service:security"] {
                 for bp in &bound.programs {
                     let p=&bp.program;
+                    if ephemeral_operation(bound,p,out){continue;}
                     if !matches!(p.kind,ProgramKind::Query|ProgramKind::Mutation)||p.native {continue;}
                     let writes=ir::write_tables(p);
                     let deps=inv.policy.as_ref().map(kernel::dependencies).unwrap_or_default();

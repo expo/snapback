@@ -1,0 +1,24 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+**READY** — source ready at `29b9f647280afd961ac34a7214c4d396015f617a`; no material blockers found. Full cross-platform qualification is separately pending and not claimed here.
+
+Bound HEAD `29b9f64728` (`Keep durable security campaigns running beside isolated ephemeral state`) and inspected the committed-only delta `4be5ffa59e..HEAD`, plus [`llp/3000.036.004` §13.7](llp/3000.036.004-security-invariants-and-exposure.rfc.md:1257) with its final clarification, [`bakeoff-day2.md`](https://github.com/ccheever/sb4-loop/wave19/analysis/bakeoff-day2.md) §3 lines 263–369, and `snapback4/AGENTS.md`. I did not read prior reviews or `WORKSTREAM-REPORT.md`.
+
+What I verified directly:
+
+- Authored seed/fixture reads fail without a history: `trusted_reads` in `snapback4-lang/src/bind/security/challenges.rs` emits failing `AuthoredFixtureTrace` row-read and `$fixture.assertion` witnesses; synthetic stays non-failing and `record.rs` filters persistence to `is_reachable()` origins.
+- Empty vs absent fixtures both generate: `verbs/security.rs` and `verbs/testing.rs` branch on populated rows, not directory existence; empty-starter regression covered.
+- Generated starts preserve creator coupling: `challenges/generated.rs` `fixture()` replays authored creators with real typed args, keeps copies/requires/role guards, requires pre-insert-admitted bootstrap actors, and names uncovered populations instead of randomizing coupled values.
+- Exact binding, no cached proof: `verbs/security/record.rs` keys on captured source strings plus followed-symlink fixture bytes plus executable hash, snapshots inputs to disposable scratch, refuses persistence on mid-run changes, merges without erasing prior failures, and never loads a passing verdict into proof.
+- Escalation/most-privileged/deploy: short output keeps all `N_PRIVILEGE_ESCALATION` notes past the five-note cap, privilege risk names sort by universally-admitted gate count then role order, and rule-changing `deploy --check` (plus ordinary deploy) demands `snapback4 test` for the exact selected source with an exposure line.
+- Truthful transitions: histories use full `(operation, viewer)` path keys so `foundUnit` can't hide `registerStaff`; role/relationship candidates prioritize actually-admitted transfers; coupled column worlds (Const/Let aliases, post-insert guard re-reads of the written table, unresolved aliases) stay explicitly uncovered rather than inventing disclosures — the `reports.homeowner` false-attribution shape is refused as a refutation.
+- Ephemeral isolation: `rows.rs`/`ephemeral.rs`/`fixture.rs` `fork_fixture` copies rows, indexes, sequences, deadlines, quota accounting, version/ring/preserved history with store/generation binding, drops the live publisher, and refuses on presence or generation mismatch; ephemeral tables/mutations are explicit durable-campaign gaps, and the social starter now runs real durable challenges.
+
+Focused regressions observed passing (required cargo flags, each command timed):
+
+- `cargo test -p snapback4-lang --test security_wave19`: 14 passed.
+- `cargo test -p snapback4 --test security_wave19`: 7 passed (real CLI: empty fixtures, invalidation, deploy demand, escalation cap, symlink binding).
+- `cargo test -p snapback4-core --test ephemeral campaign_fork`: 2 passed.
+- `cargo test -p snapback4 --bin snapback4 security::record`: 1 passed.
+
+Two non-blocking notes: the record-merge dedup key is `(site, viewer, operation, effect, origin)` while in-memory dedup keeps full operation/viewer paths, so two distinct paths refuting the same invariant for the same viewer can collapse to one persisted witness (verdict stays failing; witness completeness only). And the short-output cap grows only for `N_PRIVILEGE_ESCALATION`, so a pathological mix could still truncate other escalation-adjacent notes behind it (`N_ROLE_WIDE_READ` sorts second, so this is narrow). Neither produces a false pass.

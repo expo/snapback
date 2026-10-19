@@ -423,7 +423,7 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
     let quota=(8192/eligible.max(1)).clamp(1,512);let mut remaining=8192usize;
     for p in &bound.programs{
         if !matches!(p.program.kind,ProgramKind::Query|ProgramKind::Mutation)||p.program.native{campaign.unsupported.insert(format!("{}: trusted/system/opaque operation",p.program.name));continue;}
-        if bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral){campaign.unsupported.insert(format!("{}: ephemeral mutation history is not covered by the durable campaign",p.program.name));continue;}
+        if ephemeral_operation(bound,&p.program,campaign){continue;}
         let target=bound.schema.visible_tables().find(|(t,_)|super::audit::mentions(&serde_json::to_value(&p.program).unwrap(),t)).or_else(||bound.schema.visible_tables().next()).map(|(t,_)|t.clone());
         let Some(target)=target else{campaign.unsupported.insert(format!("{}: no table population for generated arguments",p.program.name));continue;};
         let dummy=Invariant{table:target,target:"read".into(),column:None,predicate:"allow".into(),site:crate::Site::default(),policy:Some(RuleExpr::Allow),operation:Some(p.program.name.clone()),requirements:Vec::new(),syntax:None,unsupported:None};
@@ -446,6 +446,12 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
             }
         }
     }
+}
+
+fn ephemeral_operation(bound:&Bound,p:&Program,out:&mut Campaign)->bool{
+    let unsupported=p.kind==ProgramKind::Mutation&&bound.schema.operations.get(&p.name).is_some_and(|f|f.ephemeral);
+    if unsupported{out.unsupported.insert(format!("{}: ephemeral mutation history is not covered by the durable campaign",p.name));}
+    unsupported
 }
 
 fn fork(_bound:&Bound,fixture:&Engine,probes:Vec<Program>)->Result<Engine,String>{

@@ -108,3 +108,37 @@ fn the_social_starter_executes_durable_challenges_with_its_ephemeral_declaration
  assert!(c.attempted>0,"{c:?}");assert!(!c.operations.is_empty(),"{c:?}");assert!(!c.unsupported.iter().any(|s|s.contains("isolated ephemeral-hub snapshot")),"{c:?}");
  assert!(c.violations.is_empty(),"{c:?}");
 }
+
+#[test]
+fn ephemeral_mutations_are_uncovered_in_every_column_observer_phase(){
+ let source="table docs:\n  body: int\n  read <- allow\n  insert <- allow\n  online only\ntable pulses:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  ephemeral 4s\nmutation ping():\n  upsert pulses[viewer] {}\n  return docs first 10 by .id {body}\ninvariant docs.body read only deny\n";
+ let b=bind(source);let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,true);
+ assert!(c.violations.is_empty(),"{c:?}");assert!(!c.operations.contains_key("ping"),"{c:?}");assert!(c.unsupported.iter().any(|s|s.contains("ping")&&s.contains("ephemeral")),"{c:?}");
+ let b=bind(&format!("{source}query observe():\n  return docs first 10 by .id {{body}}\n"));let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,true);
+ assert!(c.violations.iter().any(|v|v.operation=="observe"&&v.reachability==Reachability::GeneratedFixtureTrace),"{c:?}");
+ assert!(!c.operations.contains_key("ping"),"{c:?}");
+}
+
+#[test]
+fn a_copied_related_value_cannot_make_public_ids_disclose_a_protected_column(){
+ let b=bind("table docs:\n  body: int\n  read <- allow\n  insert <- allow\n  online only\ntable markers:\n  code: int\n  unique code\n  read <- allow\n  insert <- allow\n  online only\nmutation file(body: int):\n  d = insert docs {body}\n  insert markers {code: d.body} if absent\n  return d\nquery publicIds():\n  return docs where exists markers[code = .body] first 50 by .id {id}\ninvariant docs.body read only deny\n");
+ let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
+ assert!(c.violations.is_empty(),"{c:?}");assert!(c.unsupported.iter().any(|s|s.contains("creator/guard coupling")),"{c:?}");
+}
+
+#[test]
+fn a_related_row_id_copy_preserves_independent_payload_observation(){
+ let b=bind("table docs:\n  body: int\n  read <- allow\n  insert <- allow\n  online only\ntable links:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation file(body: int):\n  d = insert docs {body}\n  insert links {doc: d.id}\n  return d\nquery disclose():\n  return docs first 50 by .id {body}\ninvariant docs.body read only deny\n");
+ let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
+ assert!(c.violations.iter().any(|v|v.operation=="disclose"&&v.reachability==Reachability::GeneratedFixtureTrace),"{c:?}");
+}
+
+#[test]
+fn immutable_column_alternates_cannot_drop_unrelated_live_ephemeral_state(){
+ let b=bind("table docs:\n  body: int\n  immutable body\n  read <- allow\n  online only\ntable pulses:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  ephemeral 4s\nmutation ping():\n  upsert pulses[viewer] {}\nquery publicIds():\n  return docs first 10 by .id {id, active: exists pulses[principal = viewer]}\ninvariant docs.body read only deny\n");
+ let mut e=Engine::new_at(snapback4_core::Store::memory().unwrap(),b.schema.clone(),b.programs.iter().map(|p|p.program.clone()),challenges::NOW).unwrap();
+ e.seed_at([("docs".into(),row(vec![("id",id("doc")),("body",Value::Int(1))]))],challenges::NOW).unwrap();
+ e.mutate_ephemeral("ping",snapback4_core::Context::new("dev:security-a",std::collections::BTreeMap::new()).at(challenges::NOW)).unwrap();
+ let mut c=Campaign::default();challenges::fixture_observers(&b,&e,&mut c);
+ assert!(c.violations.is_empty(),"{c:?}");assert!(c.unsupported.iter().any(|s|s.contains("ephemeral state")),"{c:?}");
+}
