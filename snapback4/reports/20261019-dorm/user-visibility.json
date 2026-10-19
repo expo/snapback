@@ -1,0 +1,263 @@
+{
+  "binarySha256": "16b5e79772021242db29620149ebebd98cba2e92ad72258ac7b8425a5d43c56f",
+  "lanes": {
+    "008-snapback-fish-hatchery-raceways": {
+      "cycles": [
+        {
+          "cycle": 1,
+          "forward": {
+            "operatorAuthority": "minted for copied store",
+            "viewers": [
+              {
+                "principalSha256": "a09d392e7905a7fb56a89a3246bc4384eb43603f8a1de00a4a544a31c686df9b",
+                "role": "manager",
+                "rowIdsSha256": "e8164a0072642dbd4f566ecaf04dd943f094cd38ffd87978f3ed5a6f13875191",
+                "rows": 84,
+                "scopes": 34,
+                "zeroObservations": 9
+              },
+              {
+                "principalSha256": "dd0c568a9002330ead85abbbf09178de107f21d51647d4e8495f5b6e3818293d",
+                "role": "culturist",
+                "rowIdsSha256": "1891a7a4201acd34aa7d82f6199ae00ff7a130598355af23d697aba7d40fe9d0",
+                "rows": 69,
+                "scopes": 29,
+                "zeroObservations": 8
+              }
+            ]
+          },
+          "previewHiddenRows": 9,
+          "v1": {
+            "operatorAuthority": "minted for copied store",
+            "viewers": [
+              {
+                "principalSha256": "a09d392e7905a7fb56a89a3246bc4384eb43603f8a1de00a4a544a31c686df9b",
+                "role": "manager",
+                "rowIdsSha256": "dda5d4a5d896e47e6a9d2e474a39a333f874fbb1ae199b9d9802af8fc21e7d27",
+                "rows": 75,
+                "scopes": 34,
+                "zeroObservations": 0
+              },
+              {
+                "principalSha256": "dd0c568a9002330ead85abbbf09178de107f21d51647d4e8495f5b6e3818293d",
+                "role": "culturist",
+                "rowIdsSha256": "177eace00080742e5dded813c20ffbe923ac6ad19f701cfad9bd209722922fea",
+                "rows": 61,
+                "scopes": 29,
+                "zeroObservations": 0
+              }
+            ]
+          }
+        },
+        {
+          "cycle": 2,
+          "forward": {
+            "operatorAuthority": "minted for copied store",
+            "viewers": [
+              {
+                "principalSha256": "a09d392e7905a7fb56a89a3246bc4384eb43603f8a1de00a4a544a31c686df9b",
+                "role": "manager",
+                "rowIdsSha256": "e8164a0072642dbd4f566ecaf04dd943f094cd38ffd87978f3ed5a6f13875191",
+                "rows": 84,
+                "scopes": 34,
+                "zeroObservations": 9
+              },
+              {
+                "principalSha256": "dd0c568a9002330ead85abbbf09178de107f21d51647d4e8495f5b6e3818293d",
+                "role": "culturist",
+                "rowIdsSha256": "1891a7a4201acd34aa7d82f6199ae00ff7a130598355af23d697aba7d40fe9d0",
+                "rows": 69,
+                "scopes": 29,
+                "zeroObservations": 8
+              }
+            ]
+          },
+          "previewHiddenRows": 9,
+          "v1": {
+            "operatorAuthority": "minted for copied store",
+            "viewers": [
+              {
+                "principalSha256": "a09d392e7905a7fb56a89a3246bc4384eb43603f8a1de00a4a544a31c686df9b",
+                "role": "manager",
+                "rowIdsSha256": "dda5d4a5d896e47e6a9d2e474a39a333f874fbb1ae199b9d9802af8fc21e7d27",
+                "rows": 75,
+                "scopes": 34,
+                "zeroObservations": 0
+              },
+              {
+                "principalSha256": "dd0c568a9002330ead85abbbf09178de107f21d51647d4e8495f5b6e3818293d",
+                "role": "culturist",
+                "rowIdsSha256": "177eace00080742e5dded813c20ffbe923ac6ad19f701cfad9bd209722922fea",
+                "rows": 61,
+                "scopes": 29,
+                "zeroObservations": 0
+              }
+            ]
+          }
+        }
+      ],
+      "initialV2": {
+        "operatorAuthority": "minted for copied store",
+        "viewers": [
+          {
+            "principalSha256": "a09d392e7905a7fb56a89a3246bc4384eb43603f8a1de00a4a544a31c686df9b",
+            "role": "manager",
+            "rowIdsSha256": "e8164a0072642dbd4f566ecaf04dd943f094cd38ffd87978f3ed5a6f13875191",
+            "rows": 84,
+            "scopes": 34,
+            "zeroObservations": 9
+          },
+          {
+            "principalSha256": "dd0c568a9002330ead85abbbf09178de107f21d51647d4e8495f5b6e3818293d",
+            "role": "culturist",
+            "rowIdsSha256": "1891a7a4201acd34aa7d82f6199ae00ff7a130598355af23d697aba7d40fe9d0",
+            "rows": 69,
+            "scopes": 29,
+            "zeroObservations": 8
+          }
+        ]
+      },
+      "sourceStoreSha256": "779fcf73529152a91c87d60a75a2bd295483149c2f4a10663539dd56805562aa",
+      "sourceStoreUnchanged": true
+    },
+    "020-snapback-septic-pumpout-compliance": {
+      "baselinePreviewEmptyCells": 12,
+      "declaredDownCycles": [
+        {
+          "cycle": 1,
+          "forwardV2": {
+            "extensionIdsSha256": "92a22e8cca138ee2847a37302bac12024e9e9bc203d91677e4fc6e8bc7915e9b",
+            "officerExtensions": 31,
+            "viewers": [
+              {
+                "extensionIdsSha256": "92a22e8cca138ee2847a37302bac12024e9e9bc203d91677e4fc6e8bc7915e9b",
+                "extensions": 31,
+                "principalSha256": "8e7b6b2187c16184d9b990760664db7d3f833da679f2d5f8fa3fb282b65db99d",
+                "properties": 39,
+                "role": "officer"
+              },
+              {
+                "extensionIdsSha256": "655b2ddb660bdd853c6bf53cb073b1f41256b04c0ff28fbee95b344e70454911",
+                "extensions": 24,
+                "principalSha256": "c4c0963215aa6c36176c27c36b23a2e241f13d05ccbd05daca2a8ea564619e12",
+                "properties": 27,
+                "role": "owner"
+              }
+            ]
+          },
+          "previewEmptyCells": 0,
+          "restoredBaselineNullRows": 12,
+          "restoredReasonValuesSha256": "1496969f0e37089f78fe43137d608842ddf4b7d01c5aa0d850c48b6043dce1af",
+          "v1": {
+            "operatorAuthority": "minted for copied store",
+            "viewers": [
+              {
+                "extensionIdsSha256": "92a22e8cca138ee2847a37302bac12024e9e9bc203d91677e4fc6e8bc7915e9b",
+                "extensions": 31,
+                "principalSha256": "8e7b6b2187c16184d9b990760664db7d3f833da679f2d5f8fa3fb282b65db99d",
+                "properties": 39,
+                "reasonNulls": 0,
+                "reasonTexts": 31,
+                "reasonValuesSha256": "05321d2d2c50a3b21ed9880a4247f6510b9c6e2f3d890b26181e542b801dc257",
+                "role": "officer"
+              },
+              {
+                "extensionIdsSha256": "655b2ddb660bdd853c6bf53cb073b1f41256b04c0ff28fbee95b344e70454911",
+                "extensions": 24,
+                "principalSha256": "c4c0963215aa6c36176c27c36b23a2e241f13d05ccbd05daca2a8ea564619e12",
+                "properties": 27,
+                "reasonNulls": 0,
+                "reasonTexts": 24,
+                "reasonValuesSha256": "80ab2da9b929ca4f96859daf3b212a2817c4b7173a261eb599f64e79b1ef9175",
+                "role": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "cycle": 2,
+          "forwardV2": {
+            "extensionIdsSha256": "92a22e8cca138ee2847a37302bac12024e9e9bc203d91677e4fc6e8bc7915e9b",
+            "officerExtensions": 31,
+            "viewers": [
+              {
+                "extensionIdsSha256": "92a22e8cca138ee2847a37302bac12024e9e9bc203d91677e4fc6e8bc7915e9b",
+                "extensions": 31,
+                "principalSha256": "8e7b6b2187c16184d9b990760664db7d3f833da679f2d5f8fa3fb282b65db99d",
+                "properties": 39,
+                "role": "officer"
+              },
+              {
+                "extensionIdsSha256": "655b2ddb660bdd853c6bf53cb073b1f41256b04c0ff28fbee95b344e70454911",
+                "extensions": 24,
+                "principalSha256": "c4c0963215aa6c36176c27c36b23a2e241f13d05ccbd05daca2a8ea564619e12",
+                "properties": 27,
+                "role": "owner"
+              }
+            ]
+          },
+          "previewEmptyCells": 0,
+          "restoredBaselineNullRows": 12,
+          "restoredReasonValuesSha256": "1496969f0e37089f78fe43137d608842ddf4b7d01c5aa0d850c48b6043dce1af",
+          "v1": {
+            "operatorAuthority": "minted for copied store",
+            "viewers": [
+              {
+                "extensionIdsSha256": "92a22e8cca138ee2847a37302bac12024e9e9bc203d91677e4fc6e8bc7915e9b",
+                "extensions": 31,
+                "principalSha256": "8e7b6b2187c16184d9b990760664db7d3f833da679f2d5f8fa3fb282b65db99d",
+                "properties": 39,
+                "reasonNulls": 0,
+                "reasonTexts": 31,
+                "reasonValuesSha256": "05321d2d2c50a3b21ed9880a4247f6510b9c6e2f3d890b26181e542b801dc257",
+                "role": "officer"
+              },
+              {
+                "extensionIdsSha256": "655b2ddb660bdd853c6bf53cb073b1f41256b04c0ff28fbee95b344e70454911",
+                "extensions": 24,
+                "principalSha256": "c4c0963215aa6c36176c27c36b23a2e241f13d05ccbd05daca2a8ea564619e12",
+                "properties": 27,
+                "reasonNulls": 0,
+                "reasonTexts": 24,
+                "reasonValuesSha256": "80ab2da9b929ca4f96859daf3b212a2817c4b7173a261eb599f64e79b1ef9175",
+                "role": "owner"
+              }
+            ]
+          }
+        }
+      ],
+      "originalNullExtensionIdsSha256": "11896f9ad91692c7b8ce9dffa0c2a8bff72da4c1cd8b6a581609b3ddddc032ea",
+      "originalV1": {
+        "operatorAuthority": "minted for copied store",
+        "viewers": [
+          {
+            "extensionIdsSha256": "92a22e8cca138ee2847a37302bac12024e9e9bc203d91677e4fc6e8bc7915e9b",
+            "extensions": 31,
+            "principalSha256": "8e7b6b2187c16184d9b990760664db7d3f833da679f2d5f8fa3fb282b65db99d",
+            "properties": 39,
+            "reasonNulls": 12,
+            "reasonTexts": 19,
+            "reasonValuesSha256": "10ed12b0cfee72e2d2ce6c614ac24588e43e80c582370934d230ae302332d87a",
+            "role": "officer"
+          },
+          {
+            "extensionIdsSha256": "655b2ddb660bdd853c6bf53cb073b1f41256b04c0ff28fbee95b344e70454911",
+            "extensions": 24,
+            "principalSha256": "c4c0963215aa6c36176c27c36b23a2e241f13d05ccbd05daca2a8ea564619e12",
+            "properties": 27,
+            "reasonNulls": 11,
+            "reasonTexts": 13,
+            "reasonValuesSha256": "d42febf89964b229e86cf97f42b789dca783084c203431ea2a7be97f7497d61e",
+            "role": "owner"
+          }
+        ]
+      },
+      "sourceStoreSha256": "515f3ad03ae9457ccbcb57448bdd4147650c1330b3878f25537d1361a2d8ad69",
+      "sourceStoreUnchanged": true
+    }
+  },
+  "originalEvidenceReadOnly": true,
+  "scope": "real password users over loopback HTTP on SQLite/release copies",
+  "serviceMintLimitation": "engine-owned user:* principals cannot be minted by /auth/session; existing copied password accounts authenticate through /auth/login",
+  "status": "passed"
+}
