@@ -1,0 +1,34 @@
+--- original/scripts/day2-proof.mjs
++++ copy/scripts/day2-proof.mjs
+@@ -207,7 +207,7 @@
+   };
+ 
+   // 1b. Normalize: start from v2 live so the full snapshot sees everything.
+-  if (await currentRelease() !== rel.v2) await putLive(rel.v2, "normalize to v2");
++  if (await currentRelease() !== rel.v2) { const d=await cli(["deploy",DEPLOY]); assert.equal(d.code,0,d.stderr); }
+   C = clients();
+   await snapFullV2("baseline");
+   console.error(`day2-proof: baseline ${exp.size} records under v2`);
+@@ -234,11 +234,8 @@
+   let v2move = "deploy";
+   const dep = await cli(["deploy", DEPLOY]);
+   rel = await resolveReleases();
+-  if (dep.code !== 0 || await currentRelease() !== rel.v2) {
+-    console.error(`day2-proof: deploy did not activate v2 (${dep.stderr.trim().split("\n")[0]}); forwarding`);
+-    await putLive(rel.v2, "forward to v2");
+-    v2move = "rollback-to-latest (deploy refused identical source)";
+-  }
++  assert.equal(dep.code,0,dep.stdout+dep.stderr);
++  assert.equal(await currentRelease(),rel.v2);
+   C = clients();
+   out.recordsCheckedAfterV2 = await verifyFullV2("post-v2");
+   out.dataPreservedAfterV2 = true;
+@@ -326,7 +323,7 @@
+   out.v1ClientNotes = `${afterV2.notes} | ${afterRb.notes}`;
+ 
+   // 9. Forward to v2 again; everything must still be there, v2 left live.
+-  await putLive(rel.v2, "rollforward to v2");
++  { const d=await cli(["deploy",DEPLOY]); assert.equal(d.code,0,d.stderr); }
+   out.rollforward = "ok";
+   C = clients();
+   await verifyFullV2("post-rollforward");

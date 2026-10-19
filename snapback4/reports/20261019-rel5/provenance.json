@@ -1,0 +1,13 @@
+{
+  "sourceRevision": "37877abae635f4e57abb808185db29415b68e736",
+  "binarySha256": "62cef5627d9043f1dacbb4141e4062328979ec6031850953ec56460d64d47e08",
+  "date": "2026-10-19",
+  "lanes": [
+    "013-snapback-hackathon-rubric-judging",
+    "030-snapback-harvest-bin-tickets",
+    "042-snapback-sterile-tray-tracking"
+  ],
+  "runner": "sb4-rel5-replay.py",
+  "sourceEvidenceReadOnly": true,
+  "persistentRunsPerLane": 2
+}

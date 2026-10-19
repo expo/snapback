@@ -1,0 +1,13 @@
+day2-proof: no releases, bootstrapping v1 then v2
+day2-proof: production http://127.0.0.1:26800, v1=release 1, v2=release 2
+day2-proof: v1 live
+day2-proof: 10 real users signed in with roles
+day2-proof: v1 data written on 01M58Z4J9MR14CPTMNZNYWZ7PA: tickets 01M58Z4JA194CMWGN7BE0CTJ60=700, 01M58Z4JABKN5P9DHCNNH8ZB1Z=450
+day2-proof: baseline 2 records under v2
+day2-proof: v1 live, pre-existing ids+nets intact
+day2-proof: 2/2 records verified migrated
+day2-proof: v2 feature + rule hold
+day2-proof: v1 client vs v2: works: v2-live: tickets: ok (3 rows, weightKg present: true); issueTicket(weightKg): sent net=321; correctTicket(weightKg): sent
+day2-proof: rollback ok, data intact; v1 client vs v1: works
+day2:proof passed
+day2-proof: {"ok":true,"recordsBeforeV2":2,"recordsCheckedAfterV2":2,"dataPreservedAfterV2":true,"migratedValuesCorrect":true,"v2FeatureWorks":true,"v2RuleEnforced":true,"rollback":"ok","dataPreservedAfterRollback":true,"rollforward":"ok","dataPreservedAfterRollforward":true,"v1ClientAfterV2":"works","v1ClientAfterRollback":"works","v1ClientNotes":"v2-live: tickets: ok (3 rows, weightKg present: true); issueTicket(weightKg): sent net=321; correctTicket(weightKg): sent | v1-live: tickets: ok (4 rows, weightKg present: true); issueTicket(weightKg): sent net=321; correctTicket(weightKg): sent","notes":"run mvemi7ku848: v1 data on block 01M58Z4J9MR14CPTMNZNYWZ7PA (D2 Block mvemi7ku848); releases v1=1 v2=2; v1->v2 move via deploy."}
