@@ -1,5 +1,16 @@
 # Snapback 4 behavior changes
 
+## 0.4.35
+
+- Guide changes: `guide deploy` now demonstrates a value-preserving argument alias and an explicit reverse projection in its persistent production recipe; installed-tarball qualification runs both snippets as written. It also explains dormant SQL inspection and visibility-first rollback checks.
+- Rollback previews lead with records hidden from the selected release, then distinguish empty/defaulted legacy cells and rows in newer-only tables. Deploy preflight warns before future writes can create these effects. Counts describe schema populations before read rules; retained dormant data is separate from deletion.
+- Declare reverse projections with `down` and identical-type scalar column moves with `renamed from` to preserve representable old views. Forward restores exact saved newer cells, catches up declared backfills for old-release writes, and refuses conflicting edits. Values the old release cannot represent remain dormant. Read-through predicate changes preserve captured lifetime/authority rather than making rollback a one-way door.
+- `sql --dormant --release DIR` inspects retained rows/cells; `sql --all-releases --release DIR` includes active images. Both are read-only operator views with explicit state/source labels, including removed tables, rather than historical database snapshots. Ordinary app queries still see only their active release.
+- A renamed Quarry argument can accept its old spelling with `explanation: text 1..500 alias reason`; it maps and validates the value instead of silently dropping it. Supplying both names refuses E_INPUT. Generated callers and operation availability recognize the alias, and compatibility advice recommends it for renamed inputs.
+- Retained source can be selected after upgrading the CLI; compiler-only packaging metadata does not mint a release identity. Live read-through stores no longer lose preview bookkeeping during rollback checks or dormant restoration. Refused deployments leave no never-adopted numbered source.
+- Migration evidence upgrades transactionally to release-store format 7; use the newer CLI for later source rollback and forward. An older binary refuses the newer format. Declared old-view projections and argument aliases require their advertised runtime capabilities; regenerate and rebuild device engines when adopting them. Existing apps gain the corrected preview/inspection paths; they gain no inferred reverse mapping or side-table reconciliation job.
+- Column read enforcement belongs to COLR; security campaigns and check semantics to SEC4; staging, identity retry and server lifecycle ergonomics to DX4; read planning to QRY.
+
 ## 0.4.34
 
 - Deploy reactivates matching retained source under its existing release id after rollback, validates privately and removes definitively refused candidates. Deploy and rollback share `--restore-dormant`; previews report current and future rollback hazards with bridge commands. Old-client reports compare operation inputs, results and refusals. Literal query/mutation defaults, validated ignored deprecated arguments and same-module aliases preserve existing callers; required inputs remain required in generated types.

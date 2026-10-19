@@ -1,0 +1,9 @@
+No blocking issue in the supplied clarification.
+
+It closes the admission gap by requiring the entire rename pair to pass compilation before either direction can activate. A permitted forward direction cannot bypass a forbidden reverse direction.
+
+The boundary is implementable: reject references, assets, collections, and engine-owned or maintained columns; admit scalar renames only within the same row/table when types are structurally identical, including bounds, nullability, and enums. Protected-column classification must apply independently of type equality.
+
+This preserves the stated lifetime laws and adds neither conversion nor authority. Within this targeted scope, the clarification is consistent with the described existing boundaries.
+
+Verdict: READY

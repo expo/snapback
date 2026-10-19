@@ -12,19 +12,18 @@ pub(super) fn risks(candidate: &Schema, old: &Schema, release: u64, dir: &Path) 
         let from=candidate.tables.get(table)?;
         let reason=match from.columns.get(column) {
             None if !before.is_optional() && !matches!(target.defaults.get(column),Some(ColumnDefault::Literal(_))) =>
-                "new rows will lack the old required field, so rollback can refuse".to_owned(),
+                "without a fitting reverse projection, new rows will lack the old required field, so rollback can refuse".to_owned(),
             Some(kind) if kind!=before && matches!(step.change,Change::Narrowing|Change::Destructive) =>
-                format!("new writes allowed by {kind} may not fit {before}, so rollback can refuse or hide rows"),
+                format!("without a fitting reverse projection, new writes allowed by {kind} may not fit {before}, so rollback can refuse or hide rows"),
             _ => return None,
         };
         Some(format!("rollback foresight: release {release}, {table}.{column}: {reason}; keep an expand/contract bridge with the old required fields and compatible domains; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()))
     }).collect();
     // @ref LLP 3000.000.000#19-dormant-visibility-and-migration-dorm — warn before new writes, including harmless newer-only facts and empty legacy cells.
-    for (name, table) in candidate.visible_tables().filter(|(name,t)|t.ephemeral.is_none() && candidate.maintain_for(name).is_none()) {
+    for (name, _) in candidate.visible_tables().filter(|(name,t)|t.ephemeral.is_none() && candidate.maintain_for(name).is_none()) {
         if old.table(name).is_none() {
             risks.push(format!("rollback foresight: rows written to new table {name} will be hidden while release {release} is live; release {release} has no such table, so these are newer-only facts, not lost old-table records; declare a reverse projection into an old field if users need that information, or keep a bridge release; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
         }
-        let _=table;
     }
     for (name,target) in old.visible_tables().filter(|(_,t)|t.ephemeral.is_none()) {
         let Some(from)=candidate.tables.get(name) else {continue;};
@@ -32,7 +31,7 @@ pub(super) fn risks(candidate: &Schema, old: &Schema, release: u64, dir: &Path) 
         for (column,kind) in &target.columns {
             if from.columns.contains_key(column) || target.engine_field(column) || target.maintained.contains_key(column) {continue;}
             let interpretation=if kind.is_optional() {"null".to_owned()} else if let Some(ColumnDefault::Literal(value))=target.defaults.get(column) {format!("the old default {}",snapback4_core::wire::to_json(value))} else {continue;};
-            risks.push(format!("rollback foresight: release {release}, {name}.{column}: records created while this field is absent have no retained old cell and will show {interpretation} to release {release} users; declare a reverse projection from the replacement value, or retain the field in a bridge release; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
+            risks.push(format!("rollback foresight: release {release}, {name}.{column}: without a fitting reverse projection, records created while this field is absent have no retained old cell and will show {interpretation} to release {release} users; declare a reverse projection from the replacement value, or retain the field in a bridge release; run `snapback4 rollback {} --to {release} --check --bridge <new-dir>` after writes",dir.display()));
         }
         for (index,definition) in &target.indexes {
             if definition.unique && from.indexes.get(index)!=Some(definition) {
@@ -69,5 +68,13 @@ mod tests {
         assert!(risks(&schema(&base.replace("  public","  label: text <=20 ?\n  public")),&old,1,Path::new("deployment")).is_empty());
         let unique=schema(&base.replace("  public","  unique state\n  public"));
         assert!(risks(&old,&unique,1,Path::new("deployment")).iter().any(|w|w.contains("duplicate keys")));
+    }
+    #[test]
+    fn warns_about_newer_only_tables_and_empty_legacy_cells_before_any_writes() {
+        let old=schema("table items:\n  reason: text <=40 ?\n  public\n");
+        let next=schema("table items:\n  public\ntable explanations:\n  text: text <=40\n  public\n");
+        let warnings=risks(&next,&old,1,Path::new("deployment"));
+        assert!(warnings.iter().any(|w|w.contains("new table explanations") && w.contains("newer-only facts")),"{warnings:?}");
+        assert!(warnings.iter().any(|w|w.contains("items.reason") && w.contains("show null") && w.contains("reverse projection")),"{warnings:?}");
     }
 }

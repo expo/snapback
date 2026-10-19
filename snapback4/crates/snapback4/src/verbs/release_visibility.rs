@@ -8,6 +8,8 @@ use serde::Serialize;
 pub(super) struct Visibility {
     pub hidden_rows: u64,
     pub empty_cells: u64,
+    pub newly_empty_cells: u64,
+    pub retained_empty_cells: u64,
     pub newer_only_rows: u64,
     pub tables: Vec<Population>,
     pub cells: Vec<Cells>,
@@ -27,6 +29,7 @@ pub(super) struct Cells {
     pub column: String,
     pub rows: u64,
     pub value: Value,
+    pub retained_empty_rows: u64,
     pub sample_ids: Vec<String>,
 }
 
@@ -67,14 +70,19 @@ pub(super) fn assess(store: &Store, current: Option<&Schema>, target: &Schema) -
                 serde_json::to_string(&old).map_err(|e|e.to_string())?
             } else { encoded.clone() };
             let prior_missing = !table.columns.contains_key(column);
-            let from = "FROM main._release_preview_active p JOIN r ON r.t=p.t AND r.id=p.id WHERE p.name=?1 AND (json_extract(r.data,?2)=json_extract(?3,'$') OR json_extract(r.data,?2) IS NULL) AND ((?4 AND NOT EXISTS(SELECT 1 FROM main._release_preview_cells c WHERE c.t=p.t AND c.id=p.id AND c.column_name=?6)) OR (NOT ?4 AND coalesce(json_extract(p.data,?2),json_extract(?5,'$'))!=json_extract(?3,'$')))";
-            let args = rusqlite::params![name, path, encoded, prior_missing, prior, column];
+            let from = "FROM main._release_preview_active p JOIN r ON r.t=p.t AND r.id=p.id WHERE p.name=?1 AND (json_extract(r.data,?2)=json_extract(?3,'$') OR json_extract(r.data,?2) IS NULL) AND (?4 OR coalesce(json_extract(p.data,?2),json_extract(?5,'$'))!=json_extract(?3,'$'))";
+            let args = rusqlite::params![name, path, encoded, prior_missing, prior];
             let rows: u64 = conn.query_row(&format!("SELECT count(*) {from}"), args, |r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?;
             if rows == 0 { continue; }
             let sample_ids = conn.prepare(&format!("SELECT p.id {from} ORDER BY p.id LIMIT 5")).map_err(|e|e.to_string())?
                 .query_map(args, |r|r.get(0)).map_err(|e|e.to_string())?.collect::<Result<Vec<_>, _>>().map_err(|e|e.to_string())?;
+            let retained_empty_rows = if prior_missing {
+                conn.query_row(&format!("SELECT count(*) {from} AND EXISTS(SELECT 1 FROM main._release_preview_cells c WHERE c.t=p.t AND c.id=p.id AND c.column_name=?6 AND json_extract(c.data,'$')=json_extract(?3,'$'))"),rusqlite::params![name,path,encoded,prior_missing,prior,column],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?
+            } else {0};
             result.empty_cells += rows;
-            result.cells.push(Cells {table:name.clone(), column:column.clone(), rows, value:value.clone(), sample_ids});
+            result.retained_empty_cells += retained_empty_rows;
+            result.newly_empty_cells += rows-retained_empty_rows;
+            result.cells.push(Cells {table:name.clone(), column:column.clone(), rows, value:value.clone(), retained_empty_rows, sample_ids});
         }
     }
     Ok(result)
@@ -88,11 +96,11 @@ impl Visibility {
         }
         for cell in &self.cells {
             let value = if cell.value==Value::Null {"empty (null)".into()} else {format!("the old default {}",snapback4_core::wire::to_json(&cell.value))};
-            lines.push(format!("  {}.{}: {} surviving records show {value}; declare a reverse projection if these records have a truthful old representation, or use a bridge release",cell.table,cell.column,cell.rows));
+            lines.push(format!("  {}.{}: {} surviving records show {value} ({} restored empty legacy cells); declare a reverse projection if these records have a truthful old representation, or use a bridge release",cell.table,cell.column,cell.rows,cell.retained_empty_rows));
         }
         lines.push(format!("  {} cells are empty/defaulted; {} rows belong to tables absent from release {target} (newer-only facts)", self.empty_cells, self.newer_only_rows));
         for table in self.tables.iter().filter(|t|!t.target_has_table) {lines.push(format!("  newer-only {}: {} rows retained dormant",table.table,table.rows));}
-        lines.push("  counts are schema populations before read rules, not per-user query results; nothing dormant is deleted; compatible forward restores retained images".into());
+        lines.push("  counts are schema populations before read rules, not per-user query results; saved empty cells are not proof of lost text; nothing dormant is deleted by this switch; compatible forward restores retained images".into());
         lines
     }
 }
@@ -139,10 +147,12 @@ mod tests {
         super::super::release_safeguards::capture(e.store()).unwrap();
         e.adopt_release(old.schema.clone(),[],&ReleaseActivation::new(1,Some(2)),false).unwrap();
         let v=assess(e.store(),Some(&current),&old.schema).unwrap();
-        // An intentionally null saved old cell is preserved; only the new
-        // record with no old cell needs a representation decision.
-        assert_eq!(v.empty_cells,1);
-        assert_eq!(v.cells[0].sample_ids,["new"]);
+        // Legacy stores cannot distinguish intentionally null preimages from
+        // nulls materialized by an earlier rollback. Report the visible fact,
+        // separating retained empty cells without calling them lost text.
+        assert_eq!(v.empty_cells,2);
+        assert_eq!((v.newly_empty_cells,v.retained_empty_cells),(1,1));
+        assert_eq!(v.cells[0].sample_ids,["empty","new"]);
         super::super::release_safeguards::capture(e.store()).unwrap();
         assert_eq!(assess(e.store(),Some(&old.schema),&old.schema).unwrap().empty_cells,0);
     }

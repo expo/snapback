@@ -96886,3 +96886,32 @@ The focused unit regression distinguishes identity from integrity and preserves
 source/native/worker byte changes as new executable content. Proof hosts also
 honor their explicit binary environment so qualification cannot accidentally
 select a stale checkout release binary.
+
+
+### 2026-10-19 — DORM, target 0.4.35
+
+The wave-19 copies exposed two different operator failures: preview state was
+erased by read-through activation changing SQLite temp-store policy, and
+compiler packaging reports could prevent selecting unchanged retained source.
+Private preview before-images now live in the copied database MAIN schema;
+source identity excludes compiler-only reports while full control integrity
+still covers them. Retained SQL views make whole rows and partial cells
+inspectable without presenting them as historical database snapshots.
+
+Explicit down projections and identical-type column renames retain exact
+preimages and per-cell reverse receipts. Repeated rollback recomputes an old
+view from current newer inputs; old-source conflicting writes refuse, while
+unrelated edits survive. Declared backfills catch up rows written under the
+older release. Predicate-only read-through changes preserve captured lifetime
+and authority instead of recapturing a wider grant. Argument aliases map the
+old spelling to the canonical value, including devices; deprecated remains
+an explicit discard contract. Six blind design rounds ended with Muse and
+fresh Codex READY on the same amendment snapshot (LLP 3000.000.000 §19).
+
+The rebuilt Linux device measures 2,387,166 B raw / 727,382 B gzip, inside the
+existing 727,513 B limit. This is a whole-artifact measurement, not a
+per-feature size attribution; no runtime ceiling or artifact budget changed.
+The guide's changed production recipe and alias fence are inputs to fresh
+packed qualification. WORKSTREAM-REPORT.md records final test/replay results
+and distinguishes schema populations from actual old-user HTTP views. No
+version bump, publication or push is part of this workstream.

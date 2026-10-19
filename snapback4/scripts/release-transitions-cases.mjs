@@ -205,8 +205,9 @@ mutation setup():
     const refs=`use identity guests
 table liveParents:
   owner: principal
-  immutable owner
-  read <- .owner = viewer
+  access: enum('open','pending','closed')
+  immutable owner, access
+  read <- .owner = viewer and .access != 'closed'
   insert <- .owner = viewer
   online only
 table liveChildren:
@@ -221,8 +222,9 @@ table liveChildren:
   online only
 table capturedParents:
   owner: principal
-  immutable owner
-  read <- .owner = viewer
+  access: enum('open','pending','closed')
+  immutable owner, access
+  read <- .owner = viewer and .access != 'closed'
   insert <- .owner = viewer
   online only
 table capturedChildren:
@@ -233,9 +235,9 @@ table capturedChildren:
   insert <- allow
   online only
 mutation setup():
-  liveParent = insert liveParents {owner:viewer}
+  liveParent = insert liveParents {owner:viewer, access:'open'}
   insert liveChildren {parent:liveParent.id, body:'live', note:null}
-  capturedParent = insert capturedParents {owner:viewer}
+  capturedParent = insert capturedParents {owner:viewer, access:'open'}
   return insert capturedChildren {parent:capturedParent.id, body:'captured'}
 query liveRows():
   return liveChildren first 10 by .id
@@ -266,6 +268,14 @@ query capturedRows():
     const activeAndRetained=JSON.parse((await p.run(['sql','SELECT body, _snapback_state, _snapback_source, _snapback_columns FROM liveChildren','--release',p.deployment,'--all-releases','--json-objects'])).stdout);
     assert.equal(activeAndRetained.rows.length,1);assert.equal(activeAndRetained.rows[0].body,'live');assert.equal(activeAndRetained.rows[0]._snapback_state,'active');assert.equal(activeAndRetained.rows[0]._snapback_source,null);
     assert.deepEqual(p.releases(),['1','2']);
+    // A predicate-only change preserves captured parent/lifetime evidence;
+    // selecting the retained broader rule must not require recapture.
+    const predicate=refs.replaceAll(".access != 'closed'",".access = 'open'");
+    p.source(predicate);await p.run(['deploy',p.deployment]);
+    assert.equal((await refHost.post('/q/capturedRows')).data[0].body,'captured');
+    await p.run(['rollback',p.deployment,'--to','1','--check']);
+    await p.run(['rollback',p.deployment,'--to','1']);
+    assert.equal((await refHost.post('/q/capturedRows')).data[0].body,'captured');
     await refHost.host.stop();active.delete(refHost.host);
     return {status:'passed',reactivation:['cold','hot','same-id','dormant-values','unchanged','backfill-receipts','live-and-captured-ref-preview'],refusals:['adoption','post-validation-pointer','no-candidate-left'],rollbackForesight:'dropped-required-column-and-later-writes',oldClients:'installed-guide-signature-diff-baseline-projected-domains'};
   } finally {

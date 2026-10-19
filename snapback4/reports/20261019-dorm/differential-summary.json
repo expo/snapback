@@ -1,0 +1,36 @@
+[
+  {
+    "command": "run",
+    "seed": 0,
+    "requested": 20000,
+    "generated": 20000,
+    "seconds": 457.950471925,
+    "exit": 0,
+    "signatures": {}
+  },
+  {
+    "command": "run-devices",
+    "seed": 0,
+    "requested": 1000,
+    "generated": 1000,
+    "seconds": 20.647353285,
+    "exit": 0,
+    "signatures": {}
+  },
+  {
+    "command": "run-lean",
+    "seed": 0,
+    "requested": 20000,
+    "generated": 20000,
+    "seconds": 122.569791223,
+    "exit": 1,
+    "signatures": {
+      "lean": {
+        "lean--code--E_RULE~NOT_FOUND": 3,
+        "lean--continuation-next--next~no-next": 35,
+        "lean--next--next~no-next": 67,
+        "lean--prelude-code--E_RULE~NOT_FOUND": 25
+      }
+    }
+  }
+]
