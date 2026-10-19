@@ -661,3 +661,21 @@ fn pruned_disjoint_history_does_not_block_an_unchanged_native_output() {
  let g="backfill items g(n: int):\n  {b:n * 2}\n";let f="backfill items f(n: int):\n  {a:n * 3}\n";let mut e=engine(&(plain.to_owned()+g));seed(&mut e,"items",json!({"id":"a","n":3,"a":0,"b":42}));
  adopt(&mut e,&(plain.to_owned()+g+f),2).unwrap();e.store_mut().prune_dormant(true,None).unwrap();adopt(&mut e,&(plain.to_owned()+f),3).unwrap();adopt(&mut e,&(plain.to_owned()+f+g),4).unwrap();assert_eq!(field(&mut e,"items","a","b"),Value::Int(42));assert_eq!(field(&mut e,"items","a","a"),Value::Int(9));
 }
+
+#[test]
+fn reentry_protects_manual_edits_after_an_absent_preimage_materialized_as_a_default() {
+ let old="table items:\n  n: int\n  public 'fixture'\n  update <- allow\n  online only\n";
+ for default in ["int default 10","int ?"] {
+  let plain=old.replace("  n:",&format!("  score: {default}\n  n:"))+"mutation edit():\n  update items['a'] {score:11,n:4}\n";
+  let next=plain.clone()+"backfill items twice(n: int):\n  {score:n * 2}\n";let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":3}));adopt(&mut e,&next,2).unwrap();adopt(&mut e,&plain,3).unwrap();adopt(&mut e,&next,2).unwrap();adopt(&mut e,&plain,3).unwrap();write(&mut e,"edit");let generation=e.generation();let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains("changed while backfill"),"{error}");assert_eq!(e.generation(),generation);assert_eq!(field(&mut e,"items","a","score"),Value::Int(11));
+ }
+}
+#[test]
+fn activation_admits_complete_reversal_evidence_before_committing_the_migration() {
+ let old="table items:\n  source: text <=100000\n  public 'fixture'\n  online only\n";
+ let next=old.replace("  source:","  first: text <=100000\n  second: text <=100000\n  source:")+"backfill items copies(source: text <=100000):\n  {first:source,second:source}\n";
+ for size in [30000,100000] {let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","source":"x".repeat(size)}));let generation=e.generation();let result=adopt(&mut e,&next,2);
+  if size==30000 {result.unwrap();adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","source"),Value::String("x".repeat(size)));}
+  else {let error=result.unwrap_err().to_string();assert!(error.contains("evidence")&&error.contains("budget"),"{error}");assert_eq!(e.generation(),generation);assert!(row(&mut e,"items","a").field("first").is_err());assert_ne!(e.store().meta("version").unwrap().as_deref(),Some(super::backfills::VERSION));}
+ }
+}

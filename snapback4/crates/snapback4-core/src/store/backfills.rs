@@ -3,18 +3,22 @@
 use super::*;
 use crate::{schema::{backfill::Backfill, materialize_optional_fields}, engine::{Context, runner::Runner}, meter::{Ceilings, Cut, Meter}};
 use std::collections::{BTreeMap, BTreeSet};
-pub(crate) const VERSION: &str = "snapback4-release-store-5";
+pub(crate) const VERSION: &str = "snapback4-release-store-6";
 fn refusal(message: impl Into<String>) -> RuntimeError { RuntimeError::Structural { code:"E_ADOPT", message:message.into() } }
 fn present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
     Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_backfill_evidence')",[],|r|r.get(0))?)
 }
 fn enable(tx: &Tx<'_>) -> Result<(), RuntimeError> {
-    tx.conn().execute_batch("CREATE TABLE IF NOT EXISTS _backfill_evidence(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,inputs TEXT NOT NULL,before_image TEXT NOT NULL,after_image TEXT NOT NULL,active INTEGER NOT NULL,epoch INTEGER NOT NULL DEFAULT 0,retained_outputs TEXT NOT NULL DEFAULT '[]',PRIMARY KEY(t,id,definition)) WITHOUT ROWID;
+    tx.conn().execute_batch("CREATE TABLE IF NOT EXISTS _backfill_evidence(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,inputs TEXT NOT NULL,before_image TEXT NOT NULL,after_image TEXT NOT NULL,active INTEGER NOT NULL,epoch INTEGER NOT NULL DEFAULT 0,retained_outputs TEXT NOT NULL DEFAULT '[]',reversed_image TEXT NOT NULL DEFAULT '{}',PRIMARY KEY(t,id,definition)) WITHOUT ROWID;
     CREATE TABLE IF NOT EXISTS _backfill_pruned(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,active INTEGER NOT NULL,retained_outputs TEXT NOT NULL DEFAULT '[]',PRIMARY KEY(t,id,definition)) WITHOUT ROWID;
     CREATE TABLE IF NOT EXISTS _backfill_definitions(digest TEXT PRIMARY KEY,definition TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS _backfill_absence(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,column_name TEXT NOT NULL,PRIMARY KEY(t,id,definition,column_name)) WITHOUT ROWID;
     CREATE TABLE IF NOT EXISTS _backfill_inputs(t INTEGER NOT NULL,column_name TEXT NOT NULL,PRIMARY KEY(t,column_name)) WITHOUT ROWID;
     CREATE TABLE IF NOT EXISTS _backfill_active(t INTEGER NOT NULL,definition TEXT NOT NULL,input_names TEXT NOT NULL,PRIMARY KEY(t,definition)) WITHOUT ROWID;")?;
+    if !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_backfill_evidence') WHERE name='reversed_image')",[],|r|r.get::<_,bool>(0))? {
+        if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _backfill_evidence)",[],|r|r.get::<_,bool>(0))? {return Err(refusal("experimental backfill evidence lacks reversed-view baselines; restore a pre-backfill backup with the matching runtime"));}
+        tx.conn().execute_batch("ALTER TABLE _backfill_evidence ADD COLUMN reversed_image TEXT NOT NULL DEFAULT '{}';")?;
+    }
     if !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_backfill_pruned') WHERE name='retained_outputs')",[],|r|r.get::<_,bool>(0))? {
         tx.conn().execute_batch("ALTER TABLE _backfill_pruned ADD COLUMN retained_outputs TEXT NOT NULL DEFAULT '[]';")?;
     }
@@ -31,19 +35,21 @@ fn enable(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     tx.set_meta("version", VERSION)
 }
 #[derive(serde::Serialize, serde::Deserialize)]
-struct Evidence { #[serde(default)] absent:BTreeSet<String>, #[serde(default)] epoch:i64, #[serde(default)] retained:BTreeSet<String>, active:bool, inputs: Value, before: BTreeMap<String,Value>, after: BTreeMap<String,Value> }
+struct Evidence { #[serde(default)] reversed:BTreeMap<String,Option<Value>>, #[serde(default)] absent:BTreeSet<String>, #[serde(default)] epoch:i64, #[serde(default)] retained:BTreeSet<String>, active:bool, inputs: Value, before: BTreeMap<String,Value>, after: BTreeMap<String,Value> }
 fn evidence(tx: &Tx<'_>, t:i64,id:&str,key:&str) -> Result<Option<Evidence>,RuntimeError> {
-    let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(inputs)+octet_length(before_image)+octet_length(after_image)+octet_length(retained_outputs) FROM _backfill_evidence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key],|r|r.get(0)).optional()?;
+    let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(inputs)+octet_length(before_image)+octet_length(after_image)+octet_length(retained_outputs)+octet_length(reversed_image) FROM _backfill_evidence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key],|r|r.get(0)).optional()?;
     let mut admission=Meter::new(Ceilings::job(),Cut::Abort);admission.heap(bytes.unwrap_or(0).max(0) as u64 * 64 + 8192)?;
-    let value:Option<(String,String,String,bool,i64,String)>=tx.conn().query_row("SELECT inputs,before_image,after_image,active,epoch,retained_outputs FROM _backfill_evidence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?))).optional()?;
-    value.map(|(inputs,before,after,active,epoch,retained)|Ok(Evidence {retained:decode(&retained)?,absent:absence(tx,t,id,key)?,epoch,active,inputs:decode(&inputs)?,before:decode(&before)?,after:decode(&after)?})).transpose()
+    let value:Option<(String,String,String,bool,i64,String,String)>=tx.conn().query_row("SELECT inputs,before_image,after_image,active,epoch,retained_outputs,reversed_image FROM _backfill_evidence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?))).optional()?;
+    value.map(|(inputs,before,after,active,epoch,retained,reversed)|Ok(Evidence {reversed:decode(&reversed)?,retained:decode(&retained)?,absent:absence(tx,t,id,key)?,epoch,active,inputs:decode(&inputs)?,before:decode(&before)?,after:decode(&after)?})).transpose()
 }
 fn decode<T:serde::de::DeserializeOwned>(s:&str)->Result<T,RuntimeError>{serde_json::from_str(s).map_err(|e|RuntimeError::Store(e.to_string()))}
 fn absence(tx:&Tx<'_>,t:i64,id:&str,key:&str)->Result<BTreeSet<String>,RuntimeError>{
     Ok(tx.conn().prepare("SELECT column_name FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition=?3")?.query_map(params![t,id,key],|r|r.get(0))?.collect::<Result<_,_>>()?)
 }
 fn save(tx:&Tx<'_>,t:i64,id:&str,key:&str,e:&Evidence,active:bool)->Result<(),RuntimeError>{
-    tx.conn().execute("INSERT INTO _backfill_evidence(t,id,definition,inputs,before_image,after_image,active,epoch,retained_outputs) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9) ON CONFLICT(t,id,definition) DO UPDATE SET inputs=excluded.inputs,before_image=excluded.before_image,after_image=excluded.after_image,active=excluded.active,epoch=excluded.epoch,retained_outputs=excluded.retained_outputs",params![t,id,key,canonical_json(&e.inputs),canonical_json(&e.before),canonical_json(&e.after),active,e.epoch,canonical_json(&e.retained)])?;
+    let inputs=canonical_json(&e.inputs);let before=canonical_json(&e.before);let after=canonical_json(&e.after);let retained=canonical_json(&e.retained);let reversed=canonical_json(&e.reversed);
+    let mut admission=Meter::new(Ceilings::job(),Cut::Abort);admission.heap((inputs.len()+before.len()+after.len()+retained.len()+reversed.len()) as u64 * 64 + 8192).map_err(|err|refusal(format!("backfill reversal evidence exceeds its future read budget: {err}; reduce the per-row migration image")))?;
+    tx.conn().execute("INSERT INTO _backfill_evidence(t,id,definition,inputs,before_image,after_image,active,epoch,retained_outputs,reversed_image) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10) ON CONFLICT(t,id,definition) DO UPDATE SET inputs=excluded.inputs,before_image=excluded.before_image,after_image=excluded.after_image,active=excluded.active,epoch=excluded.epoch,retained_outputs=excluded.retained_outputs,reversed_image=excluded.reversed_image",params![t,id,key,inputs,before,after,active,e.epoch,retained,reversed])?;
     tx.conn().execute("DELETE FROM _backfill_pruned WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key])?;
     tx.conn().execute("DELETE FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,key])?;
     for c in &e.absent {tx.conn().execute("INSERT INTO _backfill_absence VALUES(?1,?2,?3,?4)",params![t,id,key,c])?;}
@@ -142,6 +148,8 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     fields.remove(c);
                     tx.conn().execute("INSERT OR IGNORE INTO temp._backfill_unprovided VALUES(?1,?2,?3)",params![t,id,c])?;
                 }
+                let mut view=Value::Row(fields.clone());materialize_optional_fields(&mut view,table);
+                e.reversed.insert(c.clone(),view.field(c).ok().cloned());
                 e.retained.remove(c);
                 changed=true;
             }
@@ -276,21 +284,23 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 }
                 if let Some(prior)=&prior {
                     let deps_same=prior.inputs==inputs && prior.after==patch;
-                    let current=fields.get(c);
+                    let current_field=fields.get(c);
                     let original=prior.before.get(c);
-                    if !transformed && prior.before.contains_key(c) && before.get(c)!=original && before.get(c)!=prior.after.get(c) {
+                    let expected=prior.reversed.get(c).cloned().unwrap_or_else(||original.cloned());
+                    let actual=if transformed {None}else{source_value_impl(tx,t,id,&current,c,row_source.as_deref(),&mut preimage_meter,false)?};
+                    if !transformed && actual.as_ref()!=expected.as_ref() && actual.as_ref()!=prior.after.get(c) {
                         bad.add(id,&format!("{}.{} changed while backfill {} was absent; keep a bridge and resolve the conflict",fill.table,c,fill.name));return Ok(())
                     }
-                    if deps_same && transformed && current.is_some() {
+                    if deps_same && transformed && current_field.is_some() {
                         // Added columns retain edits under v1's dormant storage.
-                        desired.insert(c.clone(),current.unwrap().clone());
-                    } else if transformed && !deps_same && current!=prior.after.get(c) && current!=original {
+                        desired.insert(c.clone(),current_field.unwrap().clone());
+                    } else if transformed && !deps_same && current_field!=prior.after.get(c) && current_field!=original {
                         bad.add(id,&format!("{}.{} was edited and its historical inputs changed; keep a bridge and resolve the conflict",fill.table,c));return Ok(())
                     }
                 }
             }
             for(c,value)in &desired {if let Err(e)=validate_output(&fill.table,table,c,value){bad.add(id,&e.to_string());return Ok(())}}
-            let e=Evidence{retained:BTreeSet::new(),absent:original_absence,epoch:epoch.unwrap_or(fresh_epoch),active:true,inputs,before,after:patch};
+            let e=Evidence{reversed:BTreeMap::new(),retained:BTreeSet::new(),absent:original_absence,epoch:epoch.unwrap_or(fresh_epoch),active:true,inputs,before,after:patch};
             tx.conn().execute("INSERT INTO temp._backfill_pending VALUES(?1,?2,?3,?4,?5)",params![t,id,key,canonical_json(&desired),canonical_json(&e)])?;count+=1;
             Ok(())
         })?;
@@ -300,10 +310,11 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     }
     restore_snapshot(tx)?;
     // Stream patches; avoid retaining the whole transformed population in RAM.
-    let mut stmt=tx.conn().prepare("SELECT t,id,definition,patch,evidence FROM temp._backfill_pending ORDER BY t,id,definition")?;
+    let mut stmt=tx.conn().prepare("SELECT t,id,definition,patch,evidence,octet_length(patch)+octet_length(evidence) FROM temp._backfill_pending ORDER BY t,id,definition")?;
     let mut rows=stmt.query([])?;
     while let Some(r)=rows.next()? {
         let t:i64=r.get(0)?;let id:String=r.get(1)?;let key:String=r.get(2)?;
+        let mut admission=Meter::new(Ceilings::job(),Cut::Abort);admission.heap((r.get::<_,i64>(5)?.max(0) as u64).saturating_mul(64).saturating_add(8192)).map_err(|err|refusal(format!("backfill staged reversal evidence exceeds its read budget: {err}; reduce the per-row migration image")))?;
         let patch:BTreeMap<String,Value>=decode(&r.get::<_,String>(3)?)?;let e:Evidence=decode(&r.get::<_,String>(4)?)?;
         let data:String=tx.conn().query_row("SELECT data FROM r WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0))?;let mut row:Value=decode(&data)?;
         if let Value::Row(f)|Value::Map(f)=&mut row {f.extend(patch);}
@@ -569,8 +580,11 @@ fn note_omission(tx:&Tx<'_>,t:i64,id:&str,c:&str)->Result<(),RuntimeError>{
     tx.conn().execute("INSERT OR IGNORE INTO _backfill_absence SELECT ?1,?2,'',?3 WHERE NOT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3)",params![t,id,c])?;Ok(())
 }
 fn source_value(tx:&Tx<'_>,t:i64,id:&str,row:&Value,column:&str,table:Option<&Table>,meter:&mut Meter)->Result<Option<Value>,RuntimeError>{
+    source_value_impl(tx,t,id,row,column,table,meter,true)
+}
+fn source_value_impl(tx:&Tx<'_>,t:i64,id:&str,row:&Value,column:&str,table:Option<&Table>,meter:&mut Meter,honor_absence:bool)->Result<Option<Value>,RuntimeError>{
     if let Ok(value)=row.field(column){meter.heap(value.retained_heap_bytes().saturating_mul(64).saturating_add(8192))?;return Ok(Some(value.clone()));}
-    if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._backfill_unprovided WHERE t=?1 AND id=?2 AND column_name=?3)",params![t,id,column],|r|r.get::<_,bool>(0))? {return Ok(None);}
+    if honor_absence && tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._backfill_unprovided WHERE t=?1 AND id=?2 AND column_name=?3)",params![t,id,column],|r|r.get::<_,bool>(0))? {return Ok(None);}
     let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0)).optional()?;
     meter.heap((bytes.unwrap_or(0).max(0) as u64).saturating_mul(64).saturating_add(8192))?;
     let text:Option<String>=tx.conn().query_row("SELECT data FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0)).optional()?;

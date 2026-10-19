@@ -1,0 +1,25 @@
+muse: workspace root: /home/ccheever/projects/sb4-b17-mig (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=ffe26b7e-b3af-48d6-b047-a6aca2e4cb5b]: Subscription quota exhausted. Your usage window resets at 2026-10-19T06:29:30Z. (rate_limit_error)
+READY
+
+No material actionable defects found in the read-only review.
+
+Checked the current design against the worktree implementation. Backfill language binding, normalization, and admission match the closed deterministic fragment. Evidence identity, per-column views, and immutable-name history match the refusal semantics. Re-entry preserves edited cells and refuses changed dependencies. Dormant retirement runs before patches. Staging clock authority, production refusal, and preview ownership match the stated rules.
+
+Files reviewed:
+
+- [backfill schema](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/schema/backfill.rs)
+- [backfill transition](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfills.rs)
+- [dormant storage](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/dormant.rs)
+- [narrowed rows](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/narrowed.rs)
+- [activation](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/engine/activation.rs)
+- [dev reset](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/engine/dev_reset.rs)
+- [backfill regressions](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-core/src/store/backfill_tests.rs)
+- [backfill binder](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4-lang/src/bind/backfills.rs)
+- [release preview](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4/src/verbs/release_preview.rs)
+- [release serve](/home/ccheever/projects/sb4-b17-mig/snapback4/crates/snapback4/src/serve_release.rs)
+- [proof kit](/home/ccheever/projects/sb4-b17-mig/snapback4/packages/snapback4/src/proof.ts)
+
+Scope: read-only. No commands run. No tests run. The reported 63 passing regressions were not re-verified here.
+

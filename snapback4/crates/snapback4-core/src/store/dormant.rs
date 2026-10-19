@@ -33,7 +33,7 @@ pub(crate) fn enable(conn: &Connection) -> Result<(), RuntimeError> {
         // particular retained cell ever had live authority.
         conn.execute_batch("ALTER TABLE _dormant_values ADD COLUMN live_source INTEGER NOT NULL DEFAULT 0;")?;
     }
-    conn.execute("UPDATE _meta SET value=?1 WHERE key='version' AND value!='snapback4-release-store-5'", [VERSION])?;
+    conn.execute("UPDATE _meta SET value=?1 WHERE key='version' AND value!='snapback4-release-store-6'", [VERSION])?;
     Ok(())
 }
 
