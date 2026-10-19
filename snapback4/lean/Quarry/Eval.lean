@@ -1011,6 +1011,20 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
       match x, y with
       | .s (.int x), .s (.int y) => return (← roundedDiv rounding scale x y, none)
       | _, _ => typeErr
+    | .extremum maximum source projection => do
+      let (input, _) ← ev source
+      let rows ← match input with
+        | .arr rows => pure rows
+        | _ => typeErr
+      let values ← rows.mapM fun row => do
+        let (v, _) ← evalExpr fuel cx vw env (some row) projection
+        asScalar v
+      let best := values.foldl (fun (best candidate : Scalar) =>
+        if candidate == .null then best
+        else if best == .null then candidate
+        else if Scalar.cmp candidate best == (if maximum then .gt else .lt) then candidate
+        else best) .null
+      pure (.s best, none)
     | .arr xs => do return (.arr (← evs xs), none)
     | .record fs => do
       let vs ← fs.mapM fun p => do return (p.1, (← ev p.2).1)

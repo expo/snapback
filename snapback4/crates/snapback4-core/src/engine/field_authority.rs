@@ -123,7 +123,7 @@ impl<'r> Runner<'r> {
         Ok(definition.project_fields(row,Some(&self.context.viewer)).with_column_grants(grants))
     }
 
-    pub(crate) fn project_row(&mut self, table: &str, row: Value) -> Result<super::authorized_point::AuthorizedRow<'r>, RuntimeError> {
+    pub(crate) fn project_row_if_readable(&mut self, table: &str, row: Value) -> Result<Option<super::authorized_point::AuthorizedRow<'r>>, RuntimeError> {
         let definition = &self.schema.tables[table];
         // A merge may retain previously authorized results after its next lane
         // cuts. Revalidate their authority internally without treating that
@@ -131,7 +131,11 @@ impl<'r> Runner<'r> {
         let cap = self.meter.capped_at.take();
         let result = self.authorized_scratch(self.rule_scratch(&definition.rules.read), &[], |runner, _| runner.authorize_image(table,row));
         if cap.is_some() { self.meter.capped_at = cap; }
-        result?.ok_or_else(|| { self.refusing_clause(table, "read rule"); self.no_write_target() })
+        result
+    }
+
+    pub(crate) fn project_row(&mut self, table: &str, row: Value) -> Result<super::authorized_point::AuthorizedRow<'r>, RuntimeError> {
+        self.project_row_if_readable(table, row)?.ok_or_else(|| { self.refusing_clause(table, "read rule"); self.no_write_target() })
     }
 
     pub(super) fn private_scan_authority(&self, table: &str, uniform: bool, admitted: bool) -> Result<(), RuntimeError> {

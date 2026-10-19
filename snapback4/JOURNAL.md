@@ -96913,3 +96913,40 @@ measurement plus exactly 500 B platform headroom, for column-read schema and
 capability decoding, row-local projection and omission-aware prediction. No
 runtime ceiling changes and no independent subcomponent size attribution.
 Qualification results remain in the workstream report until complete.
+
+
+COLR implementation review follow-up: fresh Codex found two real missing paths.
+Valued insert/insert-if-absent bindings now use the existing ProjectFields path
+when column rules are present, including subsequent scalar expressions. Following
+history fetches current rule selectors and checks sealed field visibility before
+staged publication, replay and mounted refresh, without loading changed body
+payloads. Revocation restarts its unit under LLP 3000.026 §9.2. Regression witnesses
+cover local-selector and external-grant revocation before first delivery and after
+publication. The independent Lean column test now also compares explicit-id
+insert results. The recipe stays in the executable rule-recipes card; the language card retains
+its original layout and census. The initial Linux
+consumer run completed its proofs but was intentionally invalidated by these
+source fixes, so it supplies no qualification claim; repeat from the fixed commit.
+
+Final COLR review regressions also preserve optional min/max accessors, invalidate
+preservation certificates on column-selector/witness edits, collect a through
+child's actual column selectors independently of row-authority shortcuts, and
+retain omitted cells through nested object spreads. The existing optional-field
+instruction has a default-false omission bit for object assembly; column-read-v1
+fences programs that use it. Generated native Rust rows and write-result types
+accept audience-omitted required cells. A generated module is compiled and its
+real native `from_row` decoder exercised by the language regression. Linux/Mac
+and final campaign outcomes are recorded in the workstream report.
+
+Final locked COLR wasm supersedes the initial measurement above: 2,401,963 B
+raw / 732,824 B gzip; budget 733,324 B = measured +500. Whole-artifact delta
+versus Integration 18 is +16,121 B raw / +5,811 B gzip. The final omission and
+fallback flags and shared projection changes use this explicit feature allowance;
+no runtime ceiling increase or independent subcomponent attribution.
+
+Final independent implementation reviews: Codex gpt-6.1-sol/high and Muse
+muse-spark-1.3-contributor/high both READY on round 9, same amendment snapshot.
+Artifacts: llp/reviews/3000.036-colr-r9.*. The engine/Lean column matrix now has
+132 comparisons, including blind insert results and disclosed old-image write
+conditions. The original sequence allocation read guard remains unchanged,
+with a regression proving identical consumed/discarded refusals before allocation.

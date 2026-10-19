@@ -15,6 +15,10 @@ table records:
   sync public
 query one(id: records):
   return records[id]
+query spread(id: records):
+  r = records[id] ! else NOT_FOUND
+  s = { ...r }
+  return { ...s }
 query page():
   return records first 20 by .id
 mutation move(id: records, owner: principal):
@@ -57,6 +61,9 @@ fn cells<H: Host>(host: &mut H) {
             viewer == "alice",
             "{read:?}"
         );
+        let spread = device.query("spread", viewer, &json!({"id":"r"}), 10).unwrap();
+        assert!(spread.complete, "{spread:?}");
+        assert_eq!(spread.data.field("secret").is_ok(), viewer == "alice", "{spread:?}");
         let page = device.query("page", viewer, &json!({}), 10).unwrap();
         assert!(page.complete, "{page:?}");
         assert_eq!(

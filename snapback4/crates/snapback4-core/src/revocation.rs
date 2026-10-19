@@ -134,6 +134,8 @@ impl Dependencies {
             if let Some(t) = schema.table(input) { self.table(schema,input,t); } else { self.unknown = true; }
         }
         self.rule(schema,name,&table.rules.read);
+        // @ref LLP 3000.036#223-sync-device-envelopes-and-live-updates — field preservation also depends on every current column grant.
+        for rule in table.column_reads.values() { self.rule(schema,name,rule); }
         // Row readability is insufficient: ownership also decides disclosure.
         // Private values may change without revoking any field; only their
         // non-audience owner columns participate in this authorization decision.
@@ -240,4 +242,19 @@ mod tests {
         let mut footprint = Footprint::default(); footprint.merge(&recorder.footprint());
         assert!(footprint.preserved(&schema).is_empty());
     }
+    #[test]
+    fn column_selector_and_witness_changes_do_not_certify_field_retention() {
+        let source = "table roles:\n  principal: principal\n  role: enum('staff', 'guest')\n  unique principal\n  read <- .principal = viewer\n  online only\ntable records:\n  owner: principal\n  secret: text <=80 read <- .owner = viewer\n  staffSecret: text <=80 read <- exists roles[viewer, role = 'staff']\n  public\n  online only\n";
+        let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+        assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let schema:Schema=crate::json_codec::from_text(&serde_json::to_string(&b.schema).unwrap()).unwrap();
+        for (table,column,expected) in [("records","owner",false),("roles","role",false),("records","secret",true)] {
+            let mut f=Footprint::default();
+            f.tables.insert(table.into(),Change{columns:BTreeSet::from([column.into()]),..Default::default()});
+            assert_eq!(f.preserved(&schema).contains(&"records".into()),expected,"{table}.{column}");
+        }
+        let mut f=Footprint::default();f.tables.insert("roles".into(),Change{population:true,..Default::default()});
+        assert!(!f.preserved(&schema).contains(&"records".into()));
+    }
+
 }

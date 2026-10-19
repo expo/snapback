@@ -208,7 +208,7 @@ impl Dependencies {
                             let mut inner=bindings.clone();inner.insert("$filter".into(),source);
                             self.expression(schema,&args[1],&inner,visited,None);return;
                         },
-                        ir::Builtin::Extremum {field,..} | ir::Builtin::Group {field,..} | ir::Builtin::OptionalField {field} => {
+                        ir::Builtin::Extremum {field,..} | ir::Builtin::Group {field,..} | ir::Builtin::OptionalField {field,..} => {
                             self.expression(schema,&args[0],bindings,visited,Some(&field));return;
                         },
                         ir::Builtin::Sort {keys} => {

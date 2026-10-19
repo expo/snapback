@@ -6,7 +6,8 @@
   `read (a, b) <- policy`. Queries, mutation returns and asset downloads enforce
   row AND column authority. Hidden row properties are omitted and generated
   read properties are optional. Row-local rules sync projected cells; rules
-  needing server witnesses automatically use online query fallback.
+  needing server witnesses automatically use online query fallback. Following
+  rechecks staged, replayed and mounted fields against current column grants.
 - A private new field can stay on its existing row. Normal deploy and rollback
   retain the field as a dormant cell without hiding the row. Existing clients
   receive a compatibility warning when a field becomes audience-optional.

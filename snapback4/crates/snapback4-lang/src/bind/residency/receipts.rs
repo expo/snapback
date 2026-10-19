@@ -149,7 +149,7 @@ impl Walk<'_> {
                 for arg in args { self.value(arg, env); }
                 [table.clone()].into()
             }
-            Expr::Builtin { builtin: Builtin::OptionalField { field }, args } => {
+            Expr::Builtin { builtin: Builtin::OptionalField { field, .. }, args } => {
                 for arg in args { for table in self.value(arg, env) { self.field(&table, field); } }
                 Origins::new()
             }

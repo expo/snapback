@@ -12,6 +12,7 @@ pub(crate) struct AuthorizedRow<'a> {
     expiry: super::expiry::Pending,
 }
 impl AuthorizedRow<'_> {
+    pub(crate) fn field_visible(&self, field: &str) -> bool { self.projection.visible(field) }
     pub(super) fn expiry(&self) -> super::expiry::Pending { self.expiry }
     pub(super) fn scalar_heap(&self, field: &str) -> u64 { self.projection.scalar_heap(field, &self.authority) }
     pub(crate) fn heap_bytes(&self) -> u64 { self.projection.heap_bytes(&self.authority) }

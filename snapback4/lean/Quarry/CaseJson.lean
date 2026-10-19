@@ -201,6 +201,7 @@ partial def expr (j : Json) : D Expr := do
       | none => pure none
       | some value => pure (some (← value.getNat?))
     return .roundDiv rounding scale (← expr (← field v "dividend")) (← expr (← field v "divisor"))
+  | "extremum" => return .extremum (← (← field v "maximum").getBool?) (← expr (← field v "source")) (← expr (← field v "projection"))
   | "arr" => return .arr (← (← v.getArr?).toList.mapM expr)
   | "record" => return .record (← named v)
   | "point" => return .point (← str v "table") (← named (← field v "key"))

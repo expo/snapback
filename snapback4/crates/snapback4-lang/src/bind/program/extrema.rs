@@ -126,10 +126,17 @@ impl Binder<'_> {
             let (source, ty) = self.expr(&args[0], out)?;
             (source, ty.sequence().expect("probed sequence").0, false)
         };
-        let (_, ty) = self.member(Expr::Literal(Value::Null), item, field, args[1].site())?;
+        let (access, ty) = self.member(ir::var("$filter"), item, field, args[1].site())?;
         // Column ordering uses the same total order as binary min/max. Nulls
         // contribute no value, including when every row's column is null.
         let result = if nonempty && !ty.is_optional() { ty } else { ty.optional() };
-        Ok(Some((Expr::Builtin { builtin: Builtin::Extremum { field: field.clone(), max: name == "max", domain }, args: vec![source] }, result)))
+        // @ref LLP 3000.036#222-observations-planning-and-derivations — omitted cells keep their optional getter in an in-memory fold.
+        let plain = matches!(&access, Expr::Field { base, .. } if matches!(base.as_ref(), Expr::Variable(name) if name == "$filter"));
+        let value = if plain {
+            Expr::Builtin { builtin: Builtin::Extremum { field: field.clone(), max: name == "max", domain }, args: vec![source] }
+        } else {
+            Expr::Builtin { builtin: Builtin::ExtremumOf { max: name == "max", domain }, args: vec![source, access] }
+        };
+        Ok(Some((value, result)))
     }
 }

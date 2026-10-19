@@ -647,7 +647,7 @@ impl Binder<'_> {
             let runtime = self.temp(&declared.name);
             self.maintenance_scopes.insert(runtime.clone(), format!("helper/{name}/parameter/{}", declared.name));
             out.push(Stmt::Let { name: runtime.clone(), value: expr });
-            bindings.insert(declared.name.clone(), Binding { runtime, ty: expected.clone(), declared: expected, parameter: true, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
+            bindings.insert(declared.name.clone(), Binding { runtime, ty: expected.clone(), declared: expected, parameter: true, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new(), inline: None });
         }
         Ok(bindings)
     }

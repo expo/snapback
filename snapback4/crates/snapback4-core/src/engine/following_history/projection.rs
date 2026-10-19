@@ -287,6 +287,10 @@ pub(super) fn authorized(
         // Reauthorize the pinned image using current policy inputs only. A body
         // edit must not replace the image or inflate replay's work allowance.
         let mut fields = super::super::rules::deciding_fields(&w.table, table, &table.rules.read);
+        // @ref LLP 3000.036#224-assets-writes-and-refusals — a saved payload must still have its column grant at publication/replay.
+        for rule in table.column_reads.values() {
+            rule.fields(&mut fields);
+        }
         fields.insert("id".into());
         fields.extend(table.written_by.values().map(|a| a.owner.clone()));
         let fields: Vec<String> = fields.into_iter().collect();
@@ -306,18 +310,14 @@ pub(super) fn authorized(
         let Some((Some(row), _)) = found.into_iter().next() else {
             return Ok((false, r.metered()));
         };
-        let value = row.into_value();
         for field in &w.fields {
             if !table.columns.contains_key(field) || table.engine_field(field) {
                 return Ok((false, r.metered()));
             }
-            if let Some(a) = table.written_by.get(field) {
-                if !a.audience
-                    && value.field(&a.owner).ok().and_then(|v| v.as_str().ok())
-                        != Some(s.viewer.as_str())
-                {
-                    return Ok((false, r.metered()));
-                }
+            // Reuse the sealed row/column/owner verdict, without fetching
+            // edited body bytes or evaluating a second policy implementation.
+            if !row.field_visible(field) {
+                return Ok((false, r.metered()));
             }
         }
     }

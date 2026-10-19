@@ -25,7 +25,8 @@ asset, aggregate and rollback boundaries are in `guide rule-recipes`,
 Column-level privacy. Row-local cells sync; probe-based cells stay online and
 ordinary queries fall back automatically. Protected payloads cannot supply
 stored keys, cursors/order/search, authority, lifetimes, immutable constraints
-or maintained derivation inputs (E_COLUMN_READ).
+or maintained derivation inputs (E_COLUMN_READ). Use an ordinary public key
+for structure, or a separate entity with its own lifecycle.
 
 ### Hops, operators and read through
 Write rules and `after insert` keys allow three live hops: `.reaction.message.conversation`, including `exists members[.message.conversation, viewer]`. `messages[id = .message].conversation` is equivalent. Every target must be live and readable; absent, expired or hidden targets remain unknown under `not` and `= null`. Program lookups (`t[id] !`, `exists`) are reads too: a row the caller cannot read is NOT_FOUND there, before any later `require` or the delete/update rule runs, so give a moderator read access to what they moderate, or delete by id without a lookup and let the delete rule decide (`guide refusals` has the recipe). `check` notes N_UNREADABLE_PROBE on guards without proved read authority; use unique/cap/after insert constraints for global absence across hidden rows.

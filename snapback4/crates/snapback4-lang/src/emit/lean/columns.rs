@@ -30,3 +30,12 @@ pub(super) fn gates(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Ve
     }
     Ok(column_rules)
 }
+
+// @ref LLP 3000.019#32-p2-min-and-max-of-an-expression-of-the-row — independent scalar/null fold, never compiler IR.
+pub(super) fn extremum(scope: &Scope<'_>, name: &str, source: &Expr, projection: &Expr) -> R<Json> {
+    let Ty::Rows(table) = scope.ty(source) else { return no(&format!("call-{name}"), "source is outside the materialized-row fragment"); };
+    if !scope.table(&table)?.cols.iter().any(|c|c.protected) {
+        return no(&format!("call-{name}"), "legacy scalar extrema remain outside this fragment");
+    }
+    Ok(json!({"extremum": {"maximum":name == "max", "source":scope.expr(source)?, "projection":scope.with_focal(&table).expr(projection)?}}))
+}

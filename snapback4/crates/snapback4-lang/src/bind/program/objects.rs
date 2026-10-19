@@ -27,7 +27,7 @@ impl Binder<'_> {
         let (expanded, base) = self.object_fields(fields, None, out)?;
         let mut values = BTreeMap::new();
         let mut types = BTreeMap::new();
-        for (name, value, ty, _) in expanded {
+        for (name, value, ty, _) in merge_fields(expanded)? {
             values.insert(name.clone(), value);
             types.insert(name, ty);
         }
@@ -117,7 +117,8 @@ impl Binder<'_> {
                     bases.push(value.clone());
                 }
                 for (name, ty) in self.row_fields(&ty, &field.site)? {
-                    result.push((name.clone(), ir::field(value.clone(), &name), ty, field.site.clone()));
+                    let access = if ty.is_optional() { Expr::Builtin { builtin: Builtin::OptionalField { field: name.clone(), omit: self.schema.tables.values().any(|t| !t.column_reads.is_empty()), fallback: false }, args: vec![value.clone()] } } else { ir::field(value.clone(), &name) };
+                    result.push((name.clone(), access, ty, field.site.clone()));
                 }
             } else {
                 // Snapshot anything that can read, fail or allocate before
@@ -137,10 +138,14 @@ impl Binder<'_> {
     /// maintained-column, identity, default and write-rule validation.
     pub(super) fn expand_object_fields(&mut self, fields: &[ObjectField], table: Option<&TableInfo>, out: &mut setup::Body) -> Fallible<Vec<ObjectField>> {
         let mut expanded = BTreeMap::new();
-        for (name, value, ty, site) in self.object_fields(fields, table, out)?.0 {
+        for (name, value, ty, site) in merge_fields(self.object_fields(fields, table, out)?.0)? {
             let temporary = self.temp("field");
             let runtime = self.declare(&temporary, ty);
-            out.push(Stmt::Let { name: runtime, value });
+            if matches!(&value, Expr::Builtin { builtin: Builtin::OptionalField { omit: true, .. }, .. }) {
+                // Operands already have snapshots. Preserve property presence until
+                // the destination object is assembled; a scalar Let would erase it.
+                self.scopes.last_mut().unwrap().get_mut(&temporary).unwrap().inline = Some(value);
+            } else { out.push(Stmt::Let { name: runtime, value }); }
             expanded.insert(name.clone(), ObjectField { spread: false, name,
                 value: Some(A::Name { name: temporary, site: site.clone() }), site });
         }
@@ -168,4 +173,20 @@ fn pending_base(mut bases: Vec<Expr>, retained: bool) -> Option<Expr> {
         op: BinaryOp::Or, left: Box::new(marked(base)), right: Box::new(right),
     });
     Some(Expr::Object(BTreeMap::from([("pending".into(), pending)])))
+}
+
+// A missing property in a later spread does not overwrite an earlier property.
+// Retain the earlier expression as a lazy presence-aware fallback.
+fn merge_fields(fields: Vec<Field>) -> Fallible<Vec<Field>> {
+    let mut merged: BTreeMap<String, Field> = BTreeMap::new();
+    for (name, mut value, mut ty, site) in fields {
+        if let Expr::Builtin { builtin: Builtin::OptionalField { omit: true, fallback, .. }, args } = &mut value {
+            if let Some((_, prior, prior_ty, _)) = merged.remove(&name) {
+                ty = ty.join(&prior_ty).map_err(|_| type_error(&site, format!("spread field {name} has incompatible alternatives"), format!("give {name} one explicit value after the spreads")))?;
+                *fallback = true; args.push(prior);
+            }
+        }
+        merged.insert(name.clone(), (name, value, ty, site));
+    }
+    Ok(merged.into_values().collect())
 }

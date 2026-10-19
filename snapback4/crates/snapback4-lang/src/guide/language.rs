@@ -1,10 +1,6 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
-A column can narrow its payload audience with `read <- policy`; a table line
-`read (a, b) <- policy` shares a gate. `guide rule-recipes` has the runnable
-column-privacy example and device/aggregate boundaries.
-
 **Start here:** Declare tables, rules, queries and mutations; indexes are inferred. Default-starter pattern; `guide from-sql` translates familiar idioms.
 
 ```quarry
@@ -828,26 +824,4 @@ backfill parcels sizes(weight: int): {sizeClass: 'large' if weight > 3500 else '
 ```
 
 **Historical data:** `backfill` declares a historical-input patch, applied atomically by deploy; keep it in later schemas. Rollback restores untouched preimages or refuses conflicts. `before`/`after` and `beforeLast`/`afterLast` split at first/last exact delimiter (absent: whole-before/empty-after; empty: refusal). `startsWith` tests an exact prefix; `allDigits` means nonempty ASCII digits. `guide deploy` provides the runnable persistent-production recipe.
-
-Column payload authority (whole rows omit hidden cells; explicit selections are optional):
-
-```quarry
-use personas alice, bob
-
-table identities:
-  principal: principal
-  name: text 1..80
-  notes: text 1..200 read <- .principal = viewer
-  contact: text <= 100 ?
-  read (contact) <- .principal = viewer
-  unique principal
-  immutable principal
-  public 'display name and account principal are public'
-  insert <- .principal = viewer
-  online only
-mutation createIdentity(name: text 1..80, notes: text 1..200):
-  return insert identities { principal: viewer, name, notes, contact: null }
-query identity(identity: identities):
-  return identities[identity]
-```
 "##;

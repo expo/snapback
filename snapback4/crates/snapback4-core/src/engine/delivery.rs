@@ -386,9 +386,10 @@ impl Runner<'_> {
         let mut origins = Origins::default();
         let mut fields = BTreeMap::new();
         for (key, expr) in values {
-            let value = self.expr(expr)?;
-            self.origin_field(&mut origins, key);
-            fields.insert(key.clone(), value);
+            if let Some(value) = self.object_field(expr)? {
+                self.origin_field(&mut origins, key);
+                fields.insert(key.clone(), value);
+            }
         }
         Ok((fields.into(), origins))
     }

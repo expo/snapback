@@ -484,3 +484,6 @@ mod matrix;
 mod scale;
 
 mod scale_projection;
+
+#[path = "tests/column_reads.rs"]
+mod column_reads;

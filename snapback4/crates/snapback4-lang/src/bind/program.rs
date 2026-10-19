@@ -152,6 +152,8 @@ pub struct Binder<'a> {
 #[derive(Clone, PartialEq, Eq)]
 struct Binding {
     runtime: String,
+    /// Compiler-only write-spread aliases retain property presence until assembly.
+    inline: Option<Expr>,
     ty: Ty,
     declared: Ty,
     parameter: bool,
@@ -212,7 +214,7 @@ impl<'a> Binder<'a> {
                 defaults.push_if(Expr::Binary {op:ir::BinaryOp::Eq,left:Box::new(ir::var(&runtime)),right:Box::new(Expr::Literal(Value::Null))},fallback,setup::Body::default());
                 runtime
             } else {arg.name.clone()};
-            if !arg.deprecated { binder.scopes[0].insert(arg.name.clone(), Binding { runtime, ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
+            if !arg.deprecated { binder.scopes[0].insert(arg.name.clone(), Binding { runtime, ty: ty.clone(), declared: ty.clone(), parameter: true, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new(), inline: None });
             }
             args.insert(arg.name.clone(), wire_type);
             arg_types.push((arg.name.clone(), if arg.default.is_some() || arg.deprecated {ty.optional()} else {ty}));
@@ -340,7 +342,7 @@ impl<'a> Binder<'a> {
 
     fn declare(&mut self, name: &str, ty: Ty) -> String {
         let runtime = if name.starts_with('$') { name.to_owned() } else { self.temp(name) };
-        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), declared: ty.clone(), ty, parameter: false, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
+        self.scopes.last_mut().expect("a scope").insert(name.to_owned(), Binding { runtime: runtime.clone(), declared: ty.clone(), ty, parameter: false, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new(), inline: None });
         runtime
     }
 
@@ -997,7 +999,7 @@ impl<'a> Binder<'a> {
         self.push_scope();
         // @ref LLP 3000.007#10 — the focal row is a lexical snapshot too;
         // let its field guards carry presence facts into point-key arguments.
-        self.scopes.last_mut().unwrap().insert(row_var.into(), Binding { runtime: row_var.into(), declared: row_ty.clone(), ty: row_ty.clone(), parameter: false, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
+        self.scopes.last_mut().unwrap().insert(row_var.into(), Binding { runtime: row_var.into(), declared: row_ty.clone(), ty: row_ty.clone(), parameter: false, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new(), inline: None });
         if let Some(domain) = domain { self.refine_filtered_row(row_var, &row_ty, domain); }
         let result = (|| {
             let mut exprs = Vec::<(String, Expr)>::new();
@@ -1073,13 +1075,13 @@ impl<'a> Binder<'a> {
             Ty::WriteRow(table) => {
                 let info = self.table(&table, site)?;
                 let mut fields = vec![("id".to_owned(), Ty::Ref(table.clone()))];
-                fields.extend(info.columns.iter().filter(|(name,_)| !super::columns::fields(info).any(|f|f == *name)).map(|(name,scalar)|(name.clone(),Ty::from_scalar(scalar))));
+                fields.extend(info.columns.iter().filter(|(name,_)| !super::columns::fields(info).any(|f|f == *name)).map(|(name,scalar)|(name.clone(),if self.schema.tables[&table].read_optional(name) { Ty::from_scalar(scalar).optional() } else { Ty::from_scalar(scalar) })));
                 Ok(fields)
             }
             Ty::Row(table) => {
                 let info = self.table(&table, site)?;
                 let mut fields = vec![("id".to_owned(), Ty::Ref(table.clone()))];
-                fields.extend(info.columns.iter().map(|(name, scalar)| (name.clone(), Ty::from_scalar(scalar))));
+                fields.extend(info.columns.iter().map(|(name, scalar)| (name.clone(), if self.schema.tables[&table].read_optional(name) { Ty::from_scalar(scalar).optional() } else { Ty::from_scalar(scalar) })));
                 Ok(fields)
             }
             Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => Ok(fields.into_iter().collect()),
@@ -1152,6 +1154,7 @@ impl<'a> Binder<'a> {
         match op {
             WriteOp::Insert => {
                 let (row, row_ty) = self.write_row(info, fields, None, site, out)?;
+                let row_ty = if self.schema.tables[table].column_reads.is_empty() || self.ordinary_write_lifetime(table) && self.row_independent_read_proved(table) { row_ty } else { row_ty.optional() };
                 let tmp = self.temp("inserted");
                 out.push(Stmt::Const { name: tmp.clone(), value: row });
                 if *if_absent {
@@ -1352,7 +1355,7 @@ impl<'a> Binder<'a> {
     }
 
     fn project_insert(&self, info: &TableInfo, row: Expr) -> Expr {
-        if info.decl.columns.iter().any(|column| column.written_by.is_some()) {
+        if info.decl.columns.iter().any(|column| column.written_by.is_some()) || !self.schema.tables[&info.decl.name].column_reads.is_empty() {
             Expr::Builtin { builtin: Builtin::ProjectFields { table: info.decl.name.clone() }, args: vec![row] }
         } else { row }
     }

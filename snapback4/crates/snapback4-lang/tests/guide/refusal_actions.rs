@@ -2,6 +2,8 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_COLUMN_READ", &["ordinary public key", "separate entity"]),
+    ("N_COLUMN_READ", &["existing row", "separate entities"]),
     ("N_LIVE_PARENT_COST", &["Reduce caps or row/index bounds", "Parent writes queue on devices"]),
     ("E_STAGING", &["Choose a separate fresh `deploy --staging` store", "directory named staging never change a production store's classification"]),
     ("E_STAGING_INPUT", &["Provide 1..100 accounts", "positive timeoutMs before setup"]),

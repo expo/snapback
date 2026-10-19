@@ -139,6 +139,7 @@ impl Kind {
 enum Ty {
     Scalar(Kind),
     Row(String),
+    Rows(String),
     Unknown,
 }
 
@@ -685,6 +686,7 @@ impl<'a> Scope<'a> {
                     .unwrap_or(Ty::Unknown)
             }
             Expr::Read(read) if read.range.is_none() && read.filter.is_none() && !read.keys.is_empty() => Ty::Row(read.table.clone()),
+            Expr::Read(read) => Ty::Rows(read.table.clone()),
             // The model erases decimal static scale but evaluates its exact stored integer.
             Expr::Call { name, args, .. } if name == "divide" && args.len() == 4 => if matches!(&args[2], Expr::Literal { value: Literal::Number(_), .. }) { Ty::Scalar(Kind::Int) } else { Ty::Unknown },
             Expr::Call { name, args, .. } if name == "divide" => args.first().map(|arg| self.ty(arg)).unwrap_or(Ty::Unknown),
@@ -810,6 +812,7 @@ impl<'a> Scope<'a> {
                         function["arg"] = self.expr(value)?;
                         Ok(json!({"cal": function}))
                     }
+                    (name @ ("min" | "max"), [source, projection]) => columns::extremum(self, name, source, projection),
                     ("count", [Expr::Name { name: table, .. }]) if self.module.tables.iter().any(|t| &t.name == table) => {
                         Ok(json!({"count": {"table": table, "pins": [], "filter": null}}))
                     }

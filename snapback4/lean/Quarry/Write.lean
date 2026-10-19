@@ -169,7 +169,8 @@ def doUpdateRow (sch : Schema) (s : Store) (v : List Nat) (now : Int) (t : Strin
   let nw ← patchImage td old (immutablePatch td (readableAt sch s v now t old) patch)
   guardE (td.update.eval (openedStore sch s now) v { old := some old, next := some nw })
     (if readableAt sch s v now t old then eRule else notFound)
-  condCheck (readableAt sch s v now t old) cond old
+  -- @ref LLP 3000.036#222-observations-planning-and-derivations — conditions inspect the disclosed old image; authorization and patching retain raw state.
+  condCheck (readableAt sch s v now t old) cond (projectColumns td (openedStore sch s now) v old)
   clashCheck sch s v now t td (readableAt sch s v now t old) old nw
   guardE (!(readableAt sch s v now t old) || immutablePreserved td old nw) (.refuse "E_CONSTRAINT")
   pure (resultOfAt sch (s.replaceRow t old nw) v now t nw, s.replaceRow t old nw)

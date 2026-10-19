@@ -175,6 +175,8 @@ inductive Expr where
   /-- A calendar builtin over one int. -/
   | cal (f : CalFn) (a : Expr)
   | roundDiv (rounding : Rounding) (scale : Option Nat) (a b : Expr)
+  /-- Scalar extrema of an already materialized row collection; null contributes nothing. -/
+  | extremum (maximum : Bool) (source projection : Expr)
   | arr (xs : List Expr)
   | record (fs : List (String × Expr))
   /-- `t[c = e, …]`: a point read by id or a unique key. -/

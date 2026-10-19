@@ -145,7 +145,7 @@ impl Disclosed<'_> {
     /// Authored results omit engine-recorded attribution; delivery retains it.
     pub fn for_query(mut self) -> Self { self.public = true; self }
 
-    fn visible(&self, field: &str) -> bool {
+    pub(crate) fn visible(&self, field: &str) -> bool {
         // Captures, deadlines and event slots are stripped by recorded::public_image
         // at emission, so a timeline transition's own reads still see them.
         if self.public && (self.table.recorded.contains_key(field) || self.table.ephemeral.is_some() && field == crate::schema::through::DEADLINE) { return false; }
