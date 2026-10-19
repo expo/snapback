@@ -16,6 +16,13 @@ export async function proveMigrations(client, platform, directory) {
     const binary=join(cwd,"node_modules/snapback4/bin/snapback4.js");
     const guide=spawnSync(process.execPath,[binary,"guide","deploy","--full"],{cwd,env,encoding:"utf8",timeout:30000});
     assert.equal(guide.status,0,guide.stderr);
+    // Compile the new self-contained language example using the installed CLI.
+    const language=spawnSync(process.execPath,[binary,"guide","language","--full"],{cwd,env,encoding:"utf8",timeout:30000});
+    assert.equal(language.status,0,language.stderr);
+    const examples=[...language.stdout.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).filter(s=>s.includes("backfill parcels sizes"));
+    assert.equal(examples.length,1);
+    mkdirSync(join(cwd,"language-example"));writeFileSync(join(cwd,"language-example/schema.q"),examples[0]);
+    await run(process.execPath,[binary,"check","--schema","language-example"]);
     const scripts=[...guide.stdout.matchAll(/```js\n([\s\S]*?)\n```/g)].map(m=>m[1]).filter(s=>s.startsWith("// day-two-production.mjs"));
     assert.equal(scripts.length,1,"one complete installed production recipe");
     writeFileSync(join(cwd,"day-two-production.mjs"),scripts[0]);

@@ -96744,3 +96744,5 @@ interpreter on server and device; the artifact allowance moves to measured
 727,181 B (exactly 500 B headroom). No runtime meter ceiling changes. Family
 and absent-feature audits and final qualification are recorded in the MIG
 report; this measurement alone does not claim those checks have passed.
+
+2026-10-19 MIG final wasm: metered text argument accounting measures 2,385,447 raw / 726,623 gzip bytes; budget tightened to 727,123 (measurement +500). Server-only backfill metadata remains absent from web wasm.
