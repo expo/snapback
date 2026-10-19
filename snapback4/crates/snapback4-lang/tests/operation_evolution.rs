@@ -13,6 +13,7 @@ fn literal_defaults_aliases_and_deprecated_inputs_execute_the_shared_ir() {
     let api=emit::typescript(&b);
     assert!(api.contains("({ n?: number | null; oldN?: never } | { n?: never; oldN?: number | null })"),"{api}");
     assert!(api.contains("({ explanation: string; reason?: never } | { explanation?: never; reason: string })"),"{api}");
+    assert!(api.contains(r#", JSON.parse("{\"oldN\":\"n\"}"))"#),"aliased availability carries the legacy-to-canonical map: {api}");
     let mut engine=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     for name in ["current","original"] {
         for args in [BTreeMap::new(),BTreeMap::from([("n".into(),Value::Null)]),BTreeMap::from([("oldN".into(),Value::Null)]),BTreeMap::from([("old".into(),Value::String("legacy".into()))])] {

@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import {mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {join} from 'node:path';
+import {pathToFileURL} from 'node:url';
 
 export async function argumentAliasCases({cli,startServe},parent) {
   const cwd=mkdtempSync(join(parent,'argument-alias-cases-'));
@@ -31,6 +32,12 @@ query list():
       .replace('inspect(reason: text 1..500):\n  return reason','inspect(explanation: text 1..500 alias reason):\n  return explanation')
       .replace("fallback(reason: text 1..500 ? default 'default'):\n  return reason","fallback(explanation: text 1..500 ? default 'default' alias reason):\n  return explanation");
     writeFileSync(schema,v1);await run(['deploy',deployment]);
+    await run(['check']);
+    const legacySource=readFileSync(join(cwd,'snapback/generated/api.ts'),'utf8');
+    const ts=(await import('typescript')).default;
+    const legacyModule=join(cwd,'legacy-api.mjs');
+    writeFileSync(legacyModule,ts.transpileModule(legacySource,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText);
+    const legacyApi=(await import(pathToFileURL(legacyModule).href)).api;
     host=await startServe(deployment,{cwd,timeoutMs:60_000});
     const auth=await (await fetch(host.url+'/auth/guest',{method:'POST',body:'{}',signal:AbortSignal.timeout(30_000)})).json();
     assert.ok(auth.session?.token,JSON.stringify(auth));
@@ -62,6 +69,8 @@ query list():
     const metadata=await (await fetch(host.url+'/',{headers,signal:AbortSignal.timeout(30_000)})).json();
     assert.deepEqual(metadata.ops.find(op=>op.name==='inspect').aliases,{reason:'explanation'});
     assert.ok(metadata.device_compatibility.capabilities.includes('argument-alias-v1'),JSON.stringify(metadata.device_compatibility));
+    const currentRelease={generation:metadata.generation,operations:Object.fromEntries(metadata.ops.map(({name,kind,args,aliases})=>[name,{kind,args,aliases}])),tables:{}};
+    assert.equal(legacyApi.inspect.available(currentRelease),true,'the generated v1 client must recognize the renamed v2 operation');
     await run(['check']);
     const generated=readFileSync(join(cwd,'snapback/generated/api.ts'),'utf8');
     assert.match(generated,/\{ explanation: string; reason\?: never \} \| \{ explanation\?: never; reason: string \}/);

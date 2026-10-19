@@ -164,8 +164,10 @@ fn typescript_inner(bound: &Bound, compatibility: Option<(&Bound, u64)>) -> Stri
             } else { words };
             let words = if fact.held { format!("{words}, held: true") } else { words };
             let args = format!("JSON.parse({})", string_literal(&serde_json::to_string(&program.program.args).unwrap()));
-            let aliases = format!("JSON.parse({})", string_literal(&serde_json::to_string(&program.program.arg_aliases).unwrap()));
-            let available = format!(", available: (release) => operationAvailable(release, {}, \"{kind}\", {args}, {aliases})", string_literal(&program.program.name));
+            let aliases = if program.program.arg_aliases.is_empty() { String::new() } else {
+                format!(", JSON.parse({})", string_literal(&serde_json::to_string(&program.program.arg_aliases).unwrap()))
+            };
+            let available = format!(", available: (release) => operationAvailable(release, {}, \"{kind}\", {args}{aliases})", string_literal(&program.program.name));
             out.push_str(&format!("{indent}{}: {{ kind: \"{kind}\", name: {}{words}{available} }},\n", property(short), string_literal(&program.program.name)));
         }
         if module != "schema" {
