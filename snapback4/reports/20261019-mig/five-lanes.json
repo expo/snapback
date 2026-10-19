@@ -9,9 +9,9 @@
     "replacedSourceLines": 0,
     "oldMigrationAndSplitLines": 4,
     "migrationLinesSaved": 2,
-    "legacyMs": 425,
-    "declarativeMs": 251,
-    "savedMs": 174
+    "legacyMs": 931,
+    "declarativeMs": 488,
+    "savedMs": 443
   },
   {
     "lane": 5,
@@ -23,9 +23,9 @@
     "replacedSourceLines": 0,
     "oldMigrationAndSplitLines": 10,
     "migrationLinesSaved": 6,
-    "legacyMs": 634,
-    "declarativeMs": 235,
-    "savedMs": 399
+    "legacyMs": 1278,
+    "declarativeMs": 437,
+    "savedMs": 841
   },
   {
     "lane": 6,
@@ -37,9 +37,9 @@
     "replacedSourceLines": 19,
     "oldMigrationAndSplitLines": 19,
     "migrationLinesSaved": 11,
-    "legacyMs": 392,
-    "declarativeMs": 237,
-    "savedMs": 155
+    "legacyMs": 1446,
+    "declarativeMs": 550,
+    "savedMs": 896
   },
   {
     "lane": 12,
@@ -51,9 +51,9 @@
     "replacedSourceLines": 9,
     "oldMigrationAndSplitLines": 9,
     "migrationLinesSaved": 7,
-    "legacyMs": 252,
-    "declarativeMs": 182,
-    "savedMs": 70
+    "legacyMs": 643,
+    "declarativeMs": 350,
+    "savedMs": 293
   },
   {
     "lane": 36,
@@ -65,8 +65,8 @@
     "replacedSourceLines": 5,
     "oldMigrationAndSplitLines": 5,
     "migrationLinesSaved": 3,
-    "legacyMs": 278,
-    "declarativeMs": 173,
-    "savedMs": 105
+    "legacyMs": 600,
+    "declarativeMs": 367,
+    "savedMs": 233
   }
 ]
