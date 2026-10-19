@@ -20,6 +20,19 @@ also need fixing: `FOR SHARE` starves the owner's own renewals (W8); the
 adapter's head-first lock order deadlocks with takeover (W10); and an
 in-flight COMMIT can be durable but unacknowledged (W9).
 
+**Revision 5's lease claim (W11, added later).** RFC §5.2 now claims the
+expired lease with a no-op `UPDATE` before terminating anything. On this
+cluster the claim behaves as §5.1–§5.2 say. A renewal that lands before the
+claim makes the claim match zero rows, and nothing is terminated (W11a). A
+claim that lands first blocks the renewal, and the renewal then matches zero
+rows (W11b). Fences keep flowing while the claim is held (W11d). The claim's
+row lock survives `ROLLBACK TO SAVEPOINT` (W11e). A racing second standby
+terminates nothing (W11f). The revision-3/4 "re-read, then terminate" design
+kills a live owner that renewed after the re-read, and this run reproduces
+that deterministically (W11c). The earlier witnesses (W2, W3, W8, W10) give
+the same verdicts under the claim strategy. See
+[the claim section](#the-step-2-lease-claim-w11).
+
 Everything below ran against a real PostgreSQL 16.15 cluster on this
 machine. The only exception is the managed-provider column, which comes from
 documentation only and is labelled as such.
@@ -35,6 +48,7 @@ documentation only and is labelled as such.
 | `scripts/cluster.sh` | A private cluster: `initdb`, start on a short `/tmp/sbpgXXXX` socket plus 127.0.0.1, and create the roles |
 | `run.sh` | One command per witness |
 | `results/run1.txt`, `results/run2.txt` | Two complete transcripts with identical verdicts. `results/w8.txt` is a W8 rerun after a reporting fix (below) |
+| `results/claim-run1.txt`, `claim-run2.txt`, `claim-run3.txt` | Three transcripts of `witness w11 claim-reruns`: W11a–f, plus W2, W3, W8 and W10 under the claim strategy |
 
 **Schema.** The tables are `_owner(singleton, holder, token, lease_until,
 backends int[])`, `_head(singleton, seq, owner_token)`, `_log(seq,
@@ -77,6 +91,16 @@ There are three termination strategies:
   than the expired token;
 - `blockers`: whatever `pg_blocking_pids()` reports blocking the waiting
   `FOR UPDATE`, filtered to same-role owner tags.
+
+Two strategies were added later for W11 (`--strategy`, alias `--takeover`):
+
+- `claim`: RFC revision 5 §5.2, in one transaction. A no-op `UPDATE … WHERE
+  token = T AND lease_until < clock_timestamp()` comes before any
+  termination, then the savepoint loop around `FOR UPDATE`. See
+  [below](#the-step-2-lease-claim-w11).
+- `reread`: revision 3/4's design, kept to demonstrate its hazard. Before
+  each termination round, `_owner` is re-read without a lock, and then the
+  blockers are terminated.
 
 Lease 3000 ms, renew 500 ms, standby poll 100 ms. **Stated bound:** a standby
 commits its takeover within lease + 1000 ms of the owner stopping. That is
@@ -132,6 +156,13 @@ verdict on every line. Timings show run 1 / run 2.
 | 8 | Fence lock mode | **PASS** (with `KEY SHARE`) | Under `FOR SHARE`, the renewal blocks behind any open fenced tx and a 7 s tx causes a takeover of a live owner. Under `FOR KEY SHARE`, renewals take 0 ms, the takeover `FOR UPDATE` still blocks, and the W2 scenarios pass |
 | 9 | COMMIT in flight at termination | **PASS** (fencing), with a failure mode to name | The commit was waiting on synchronous replication. It was durable before the takeover, but the old owner saw `connection closed` |
 | 10 | Lock order (fence after `_head`) | **DEADLOCK** | With head first, the takeover gets `40P01 deadlock detected`; with the fence first, no deadlock |
+| 11a | Renewal between poll and claim (`claim`) | **PASS** | Claim `rows=0`, abandoned; 0 `TERMINATE` events, 0 server-log terminations; all 3 owner backends alive; the paused fenced transaction committed |
+| 11b | Claim first, then renewal (`claim`) | **PASS** (hygiene after commit / in loop) | Renewal `Lock:transactionid`, blocked by the standby, for about 1020 ms. After the takeover it returned `rows=0` (hygiene after commit) or `57P01` (hygiene in the loop). 0 old-token commits after the takeover |
+| 11c | Same race, revision 3/4 `reread` | **HAZARD REPRODUCED** (deterministic) | Renewal committed after the unlocked re-read. About 100 ms later the standby had terminated the live owner's fenced backend, then saw `owner_renewed` under `FOR UPDATE` and backed off. The owner lost a write and stopped serving |
+| 11d | Fences flow during the claim | **PASS** | 20 `FOR KEY SHARE` probes: mean about 0.6 ms, max under 1 ms; 93–94 owner commits while the claim was held; takeover 158–159 ms after release |
+| 11e | Savepoint retention | **PASS** | 4 step-3 `55P03`s. After `ROLLBACK TO SAVEPOINT` the renewal is still blocked by the standby, and a probe `UPDATE` gets `55P03`. `_owner` xmax is a multixact holding `<standby xid>:nokeyupd`. The renewal returns `rows=0` after the takeover |
+| 11f | Two claim standbys racing | **PASS** (1 deterministic + 3 free races per run) | The loser's claim blocks behind the winner's (811–812 ms deterministic, about 310 ms free), then `rows=0`. The loser made 0 terminations; every winner backend was alive; one takeover |
+| 2, 3, 8, 10 under `claim` | Reruns | **PASS / PASS / PASS / same as before** | W2 3015–3049 ms; W3 3147 ms (tag hygiene) and 2894 ms (blocker termination only); W8 claim lock matrix and slow owner PASS; W10 head-first still `40P01`, fence-first none |
 
 ### W1: same-role termination without superuser (PASS)
 
@@ -375,6 +406,238 @@ The inverted order is not unsafe: the deadlock victim was the takeover, and
 the owner's commit was ordered before it. But a takeover can keep losing
 deadlocks to a live owner.
 
+## The step-2 lease claim (W11)
+
+RFC revision 5 changed takeover after round 4 (Grok N2). W8 showed that a
+renewal (`FOR NO KEY UPDATE`) is not queued behind a waiting `FOR UPDATE`
+when only key-share locks are held. So the revision-3/4 rule, "re-read
+`_owner` without a lock before each termination round", leaves a window. A
+renewal can commit between the re-read and the termination, and the standby
+then kills a live owner. Revision 5 first claims the expired lease with a
+statement that the renewal does conflict with:
+
+```sql
+BEGIN;
+UPDATE _owner SET lease_until = lease_until
+ WHERE singleton AND token = $T AND lease_until < clock_timestamp()
+ RETURNING token;                     -- 0 rows: abandon, terminate nothing
+SAVEPOINT step3;
+SELECT token, lease_until < clock_timestamp() FROM _owner WHERE singleton FOR UPDATE;
+  -- lock_timeout; a watcher terminates token-bounded same-role tagged blockers;
+  -- on 55P03: ROLLBACK TO SAVEPOINT step3 and retry
+UPDATE _owner SET token = $T + 1, holder = …, lease_until = clock_timestamp() + lease …;
+UPDATE _head SET owner_token = $T + 1;  INSERT INTO _takeovers …;
+COMMIT;
+```
+
+`node --strategy claim` implements this in `takeover_claim()`. The step-2
+claim has its own `lock_timeout` (`--claim-lock-timeout-ms`, default
+5000), and a timeout there abandons the attempt without terminating
+anything. Step 5, the tag-based hygiene sweep, is placed by `--hygiene loop`
+(the default, as §5.2 lists it), `after` (after the commit) or `off`. Every
+W11 owner and standby fences with `FOR KEY SHARE`.
+
+**Interleavings are engineered, not hoped for.** `--hold
+after_poll,after_claim,after_reread,after_savepoint_rollback` makes a node
+print `HOLD at=<point>` and block on stdin until the harness releases it.
+Each hold fires once. The owner's lease is made to lapse by a SIGSTOP while
+the owner is inside a fenced session transaction (`--pause
+session:12:10000`). A SIGCONT then makes its lease thread renew at once. The
+harness confirms the renewal committed by polling `_owner` as the superuser
+before it releases the standby.
+
+Terminations are counted two ways: the node's own `TERMINATE` events, and
+server-log lines `terminating connection due to administrator command`
+appended during the witness window.
+
+Run: `witness w11` (W11a–f), `witness claim-reruns` (W2, W3, W8 and W10
+under `claim`), or `PGFENCE_DIR=… ./run.sh w11 claim-reruns`. Together
+they take about 4 minutes. Three runs (`results/claim-run{1,2,3}.txt`) gave identical
+verdicts. The figures below are from runs 1 and 2.
+
+### W11a: the renewal commits between poll and claim (PASS)
+
+```
+[ 3.050] standby  LEASE_EXPIRED attempt=1 token=1 holder=A lease_until=…:16.265574 db_now=…:16.295246
+[ 3.050] standby  HOLD at=after_poll token=1
+[ 3.052] SIGCONT (the owner's lease thread renews at once) -> owner
+[ 3.062] renewal committed: token=1 lease_until=…:19.297174 (now in the future)
+[ 3.064] RELEASE after_poll -> standby
+[ 3.065] standby  CLAIM rows=0 token=1 waited_ms=0 terminated=0 -> abandon
+[ 3.065] standby  TAKEOVER_ABORTED why=claim_zero_rows
+[10.314] owner    RESUMED kind=session n=12 id=A-1-s0-12
+RESULT W11a … PASS :: … standby TERMINATE events=0 | server-log terminations in window=0 |
+  owner backends before=[1132821, 1132824, 1132825] after=[1132821, 1132824, 1132825] | owner LOST=[] |
+  paused fenced tx resumed=true committed=1 | _owner.token=1
+```
+
+The paused fenced transaction would have been the step-4 victim. It
+survived, finished its 10 s pause and committed.
+
+### W11b: the claim first, then the renewal (PASS)
+
+The standby holds after a successful claim, and the owner is resumed:
+
+```
+standby  CLAIM rows=1 token=1 waited_ms=0 db_at=…
+SIGCONT (claim held: renewal should block, fences should not) -> owner
+while the claim is held: renewal pid=…688 wait=Lock:transactionid blocked_by=[<standby>] waiting_for=1019ms
+RELEASE after_claim -> standby
+standby  FOR_UPDATE acquired_ms=153 step3_timeouts=0 token=1 expired=true
+standby  TOOK_OVER holder=B token=2 …
+owner    RENEWAL n=1 took_ms=1180 rows=0
+owner    LOST token=1 renewal_refused_token_moved
+owner    PROBE kind=head fenced=true result=REFUSED owner_token_is_2_process_holds_1
+commit-order check: … _log: … committed-after-takeover=0 … _sessions: … committed-after-takeover=0 …
+  paused-tx rows present: sessions=0 log=0
+```
+
+With `--hygiene loop`, the step-5 sweep terminates the waiting renewal's
+connection before the commit. The owner then learns from
+`RENEWAL … rows=error err=57P01` instead of from zero rows. The renewal was
+blocked for the same 1020 ms, and there were 0 late commits. Both are
+losses, and neither lets the renewal succeed.
+
+### W11c: the same race under the revision-3/4 re-read (HAZARD REPRODUCED)
+
+`--strategy reread --hold after_reread`. The standby's `FOR UPDATE` waits
+on the paused fenced transaction. Its watcher re-reads `_owner` (still
+expired) and holds. The owner is resumed and renews. Then the watcher is
+released:
+
+```
+[34.656] standby  REREAD result=still_expired token=1 lease_until=…:47.862198 db_now=…:47.901218 blockers=[(1134849, "sb-owner:A:1")]
+[34.656] standby  HOLD at=after_reread token=1
+[34.658] SIGCONT (the owner renews while the standby's FOR UPDATE waits) -> owner
+[34.669] renewal committed: token=1 lease_until=…:50.904067 (now in the future)
+           1134856 sb_core sb-standby:B  active  Lock:transactionid  {1134849}  SELECT token, lease_until < clock_timestamp() FROM _owner … FOR UPDATE
+           _owner: token=1 holder=A … lease_until=…:50.904067 expired=false
+[34.671] RELEASE after_reread -> standby
+[34.772] standby  TERMINATE pid=1134849 why=blocker:sb-owner:A:1 ok=true ms=100
+[34.823] standby  TAKEOVER_ABORTED why=owner_renewed
+[41.910] owner    COMMIT_FAILED kind=session n=12 pid=1134849 DB_ERROR error communicating with the server
+[41.910] owner    LOST token=1 session_write_failed n=12
+[41.926] owner    PROBE kind=head fenced=true result=COMMITTED value=688
+```
+
+So a renewal can commit while a `FOR UPDATE` waits. Here it did, and the
+standby still terminated the live owner's backend. It issued the
+termination 2 ms after the renewal was confirmed, and the backend was gone
+100 ms later. The
+standby's own check under `FOR UPDATE` then found the lease renewed, and it
+backed off. The owner's probe afterwards *committed* under token 1, which
+confirms that no takeover happened: the owner was healthy and lost a
+transaction for nothing. (This prototype's owner treats any failed write as
+a loss of ownership and stops serving. A real owner might retry instead, but
+the in-flight write is gone either way.) Safety held; this is a liveness
+and availability defect, which is what Grok N2 predicted. It reproduced in
+all three runs.
+
+### W11d: fences keep flowing during the claim (PASS)
+
+The same run as W11b (hygiene after the commit). While the claim was held,
+a separate `sb_core` connection ran 20 fenced transactions (`BEGIN; SELECT
+token … FOR KEY SHARE; COMMIT`, 25 ms apart):
+
+| | run 1 | run 2 |
+| --- | --- | --- |
+| Probe fence latency, mean / max | 605 / 950 µs | 614 / 963 µs |
+| Token read by every probe | 1 | 1 |
+| Owner commits with token 1 after the claim and before release | 94 | 93 |
+| Claim held after SIGCONT | 1021 ms | 1022 ms |
+| Release → takeover commit (step 3 + 1 termination + commit) | 158 ms | 159 ms |
+
+The claim stalls only the renewal. Ordinary fenced writes run at full speed
+until step 3 and its terminations. The W8 lock matrix (below) shows why that
+is safe: a fence granted *during* the claim locks the pre-claim row version,
+and the lock still blocks step 3's `FOR UPDATE` on the claim's new version.
+
+### W11e: the claim survives ROLLBACK TO SAVEPOINT (PASS)
+
+`_owner` is set to token 1 with a lapsed lease, and no owner process runs.
+A same-role connection that is **not** owner-tagged holds `FOR KEY SHARE`,
+so the standby skips it (`BLOCKER_SKIPPED`), and step 3 times out with
+`--takeover-lock-timeout-ms 300`. A token-1 renewal is issued after the
+claim. The standby holds right after its first `55P03` and `ROLLBACK TO
+SAVEPOINT`, in state `idle in transaction`:
+
+```
+[42.851] standby  LOCK_TIMEOUT step=3 n=1 waited_ms=300 rolled_back_to_savepoint=true
+[42.851] standby  HOLD at=after_savepoint_rollback n=1
+[43.157] after ROLLBACK TO SAVEPOINT: renewal state=active wait=Lock:transactionid blocked_by=[1135840];
+           standby state=idle in transaction xid=11455; committed _owner row xmax=2515
+           multixact members=[11454:keysh,11455:nokeyupd]; probe update: 55P03 canceling statement due to lock timeout
+[43.459] standby  LOCK_TIMEOUT step=3 n=2 … [43.760] n=3 … [44.061] n=4
+[44.359] after further step-3 timeouts: renewal state=active wait=Lock:transactionid blocked_by=[1135840]
+RESULT W11e savepoint-retention PASS :: … renewal finished rows=0 after 2150 ms, after the takeover commit=true
+```
+
+The claim's row lock belongs to the top-level transaction: the committed
+row's xmax is a multixact of the blocker's `keysh` and the standby's
+top-level xid as `nokeyupd`. The savepoint covers only the `FOR UPDATE`.
+
+Honesty note: the first W11e run (not saved; it ran before the recorded
+transcripts) reported FAIL. The harness had compared `xmax` with the
+standby's xid directly, and `xmax` is a MultiXactId whenever a key-share
+locker is present. Every behavioural check in that run passed: the renewal
+stayed blocked through 4 timeouts, the probe got `55P03`, and the renewal
+returned `rows=0` after the takeover. The check now expands the multixact
+with `pg_get_multixact_members` and requires the standby's xid as
+`nokeyupd`.
+
+### W11f: two standbys racing (PASS)
+
+Deterministic. B and C both observe the expiry and hold. B is released, and
+it claims and holds. C is released:
+
+```
+C's claim while B holds its claim: wait=Lock:transactionid blocked_by=[<B>] query=UPDATE _owner SET lease_until = lease_un
+standbyB TOOK_OVER holder=B token=2 …
+standbyC CLAIM rows=0 token=1 waited_ms=812 terminated=0 -> abandon
+RESULT W11f two-standbys/deterministic PASS :: … C TERMINATE events=0 | B (sb-owner:B:2) backends before=[…] after 2 s=[…] (identical) |
+  B LOST=[] | _takeovers=["1:A", "2:B"] | … committed-after-takeover=0 … committed-after-takeover=0
+```
+
+There were three free races per run, with no holds and two pollers. Both
+standbys won at least once across the runs. Every loser's claim blocked
+behind the winner's whole takeover (308–311 ms: step 3, the terminations
+and the commit) and then returned `rows=0`. The losers made 0 terminations,
+there was one takeover, and every winner backend survived.
+
+### Reruns under the claim strategy
+
+| Witness | Verdict (runs 1, 2) | Evidence |
+| --- | --- | --- |
+| W2 SIGSTOP, paused in a head / session tx | **PASS / PASS** | 3015/3016 ms and 3049/3049 ms (bound 4000). 0 late commits. Claim `rows=1 waited_ms=0`, `FOR UPDATE` after 304 ms (3 hygiene terminations at about 100 ms each) |
+| W3 unlisted paused backend, hygiene in the loop | **PASS** | 3147/3147 ms. The tag sweep terminated all four `sb-owner:A:1` sessions, including the unlisted one |
+| W3 unlisted paused backend, `--hygiene off` | **PASS** | 2894 / 2899 ms (runs 2 and 3; added after run 1). Only `TERMINATE … why=blocker:sb-owner:A:1`: blocker termination alone suffices after the claim |
+| W8 lock matrix with the claim | **PASS** | See below |
+| W8 slow owner (one 7 s fenced tx, `KEY SHARE`) | **PASS** | No claim, no takeover, slow-transaction row committed, owner still serving |
+| W10 lock order | **head-first DEADLOCK, fence-first none**, as before | head-first: the claim takeover gets `40P01` after 1002 ms; fence-first: commits after 301 ms |
+
+The W8 lock matrix with the claim (`FOR KEY SHARE` fences, `lock_timeout`
+1000 ms). Every run gave the same outcomes; timings varied by at most
+1 ms:
+
+| Step | Result |
+| --- | --- |
+| Fence F1 before the claim | granted, 0 ms |
+| Claim (no-op `UPDATE`) with F1 open | **granted, 1 row, 0 ms** |
+| Renewal while the claim is held | **blocked** (`55P03`) |
+| New fence F2 while the claim is held | **granted, 0 ms** |
+| `FOR UPDATE` (in a savepoint) with F1 and F2 open | blocked (`55P03`) |
+| Renewal after `ROLLBACK TO SAVEPOINT` | **still blocked** (`55P03`) |
+| `FOR UPDATE` with only F2 (taken during the claim) open | **blocked** (`55P03`) |
+| `FOR UPDATE` with no fence open | granted |
+| Renewal after the token increment commits | 0 rows |
+
+The row "only F2 open" is the safety-critical one. F2 was granted on the row
+version the claim had already superseded. Postgres carries a `SELECT … FOR
+KEY SHARE` lock forward along the update chain, so the claimer's `FOR
+UPDATE` on its own new version still waits for F2. That is consistent with
+W11b, W11d and W11f, which all show 0 old-token commits after the takeover
+while fences flowed during the claim.
+
 ## Privileges discovered
 
 The serving role needs:
@@ -473,14 +736,38 @@ Each change cites the witness that drives it.
    `ClientWrite`, and neither does `statement_timeout`. TCP keepalives do not
    detect a paused process at all.
 
+9. **The step-2 claim (revision 5) holds up; three wording changes** (W11).
+   Nothing in §5.1–§5.2 is contradicted. The claim is granted beside
+   in-flight fences, blocks the renewal, keeps its lock across `ROLLBACK TO
+   SAVEPOINT`, and fences granted during it still order before the token
+   change (W8 claim matrix). The wording changes:
+   1. **Step 5 versus "matches zero rows".** If the hygiene sweep runs
+      inside the loop, as listed, it terminates the old owner's waiting
+      renewal connection. The owner then learns of the loss from `57P01`,
+      not from zero rows (W11b, hygiene in the loop). Both are safe. Either
+      say "fails or matches zero rows", or run the sweep after the commit.
+      It is only hygiene: blocker termination alone took over in 2894 ms
+      (W3, `--hygiene off`).
+   2. **Give step 2 its own `lock_timeout` and say what 55P03 means.** The
+      claim waits behind another standby's claim for that standby's whole
+      takeover: 308–812 ms here, so in general step 3's wait plus the
+      terminations. A claim that times out has terminated nothing and
+      should abandon like zero rows. "Zero rows: … or another standby won"
+      should read "blocks, then zero rows" (W11f).
+   3. **State the dependency on `FOR KEY SHARE`.** The claim is granted
+      beside fences only because `FOR NO KEY UPDATE` does not conflict with
+      `FOR KEY SHARE`. Under the first draft's `FOR SHARE` fence, Postgres's
+      lock-conflict table says the claim itself would wait on every
+      in-flight fence. That is reasoning from the documentation; it was not
+      run.
+
 Still open after this prototype; none of these were run:
 
 - a real network partition;
 - provider failover, including the database clock moving between hosts at
   promotion, which leaves a `lease_until` computed on the old primary;
 - PgBouncer in session mode;
-- several standbys racing each other (the token re-check and the
-  generation-bounded tag filter are written for this, but no witness
-  exercises it);
+- several standbys racing under the older strategies. W11f covers two
+  standbys under `claim` only;
 - `kill -9` of the owner followed by takeover. W7 shows only that the
   backends vanish in 21 ms; a takeover still waits for the lease.

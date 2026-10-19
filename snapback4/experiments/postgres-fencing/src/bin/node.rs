@@ -30,7 +30,7 @@ struct Opts {
     renew_ms: u64,
     poll_ms: u64,
     lock: LockMode,
-    strategy: String, // pidlist | appname | blockers
+    strategy: String, // pidlist | appname | blockers | reread | claim
     head_every_ms: u64,
     session_every_ms: u64,
     session_threads: usize,
@@ -43,6 +43,16 @@ struct Opts {
     head_first: bool,
     pg_options: String,
     quiet_renewals: bool,
+    /// Test hooks (`--hold after_poll,after_claim,...`): see `hold()`.
+    hold: Vec<String>,
+    /// claim strategy: where the tag-based hygiene termination (§5.2 step 5)
+    /// runs: `loop` (inside the takeover, after the claim), `after` (after
+    /// the commit) or `off`.
+    hygiene: String,
+    /// claim strategy: lock_timeout of the step-2 claim itself.
+    claim_lock_timeout_ms: u64,
+    /// claim strategy: give up after this many step-3 lock timeouts.
+    max_step3_timeouts: u32,
 }
 
 fn parse() -> Opts {
@@ -66,6 +76,10 @@ fn parse() -> Opts {
         head_first: false,
         pg_options: String::new(),
         quiet_renewals: false,
+        hold: vec![],
+        hygiene: "loop".into(),
+        claim_lock_timeout_ms: 5000,
+        max_step3_timeouts: 50,
     };
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut i = 0;
@@ -82,7 +96,11 @@ fn parse() -> Opts {
             "--renew-ms" => o.renew_ms = val().parse().unwrap(),
             "--poll-ms" => o.poll_ms = val().parse().unwrap(),
             "--lock" => o.lock = LockMode::parse(&val()),
-            "--strategy" => o.strategy = val(),
+            "--strategy" | "--takeover" => o.strategy = val(),
+            "--hold" => o.hold = val().split(',').map(String::from).collect(),
+            "--hygiene" => o.hygiene = val(),
+            "--claim-lock-timeout-ms" => o.claim_lock_timeout_ms = val().parse().unwrap(),
+            "--max-step3-timeouts" => o.max_step3_timeouts = val().parse().unwrap(),
             "--head-every-ms" => o.head_every_ms = val().parse().unwrap(),
             "--session-every-ms" => o.session_every_ms = val().parse().unwrap(),
             "--session-threads" => o.session_threads = val().parse().unwrap(),
@@ -174,17 +192,31 @@ fn acquire(lease: &mut Client, o: &Opts) -> i64 {
                     }
                 }
                 "appname" => terminate_tagged(lease, token),
-                "blockers" => {} // a watcher terminates whatever blocks the FOR UPDATE below
+                // blockers / reread: a watcher terminates whatever blocks the FOR UPDATE below.
+                // claim: nothing is terminated before the claim (§5.2 step 2).
+                "blockers" | "reread" | "claim" => {}
                 other => panic!("unknown strategy {other}"),
             }
         }
-        let watcher = (o.strategy == "blockers" && token > 0).then(|| spawn_blocker_watcher(my_pid, token, o));
         let t0 = Instant::now();
-        let result = takeover_tx(lease, o, token, holder.as_deref(), &lease_until, &db_now);
-        if let Some((done, h)) = watcher {
-            done.store(true, SeqCst);
-            let _ = h.join();
-        }
+        let result = if o.strategy == "claim" {
+            if token > 0 {
+                hold(o, "after_poll", &format!("token={token} lease_until={}", lease_until.replace(' ', "T")));
+            }
+            takeover_claim(lease, o, my_pid, token, holder.as_deref(), &lease_until, &db_now)
+        } else {
+            let watcher = match o.strategy.as_str() {
+                "blockers" if token > 0 => Some(spawn_blocker_watcher(my_pid, token, o, WatchMode::Plain)),
+                "reread" if token > 0 => Some(spawn_blocker_watcher(my_pid, token, o, WatchMode::Reread)),
+                _ => None,
+            };
+            let r = takeover_tx(lease, o, token, holder.as_deref(), &lease_until, &db_now);
+            if let Some((done, h)) = watcher {
+                done.store(true, SeqCst);
+                let _ = h.join();
+            }
+            r
+        };
         match result {
             Ok(new_token) => {
                 let row = lease.query_one("SELECT clock_timestamp()::text", &[]).unwrap();
@@ -193,6 +225,9 @@ fn acquire(lease: &mut Client, o: &Opts) -> i64 {
                     "TOOK_OVER",
                     &format!("holder={} token={new_token} from_token={token} from_holder={holder_s} tx_ms={} db_at={} attempts={attempts}", o.holder, t0.elapsed().as_millis(), at.replace(' ', "T")),
                 );
+                if o.strategy == "claim" && o.hygiene == "after" && token > 0 {
+                    terminate_tagged(lease, token);
+                }
                 return new_token;
             }
             Err(TakeoverError::LockTimeout) => {
@@ -238,32 +273,84 @@ fn terminate_tagged(c: &mut Client, observed_token: i64) {
 /// transaction waits for `_owner FOR UPDATE`, a second connection asks the
 /// server who blocks it and terminates those that are same-role owner
 /// sessions of a generation no newer than the one observed expired.
-fn spawn_blocker_watcher(waiter_pid: i32, observed_token: i64, o: &Opts) -> (Arc<AtomicBool>, thread::JoinHandle<()>) {
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum WatchMode {
+    /// Terminate eligible blockers as soon as they are seen (`blockers`).
+    Plain,
+    /// Revision 3/4's design (`reread`): before each termination round,
+    /// re-read `_owner` without locking; abandon if renewed or moved.
+    Reread,
+    /// `claim`: as Plain, plus the tag-based hygiene termination once at the
+    /// start (only when `--hygiene loop`). Runs only after a successful claim.
+    Claim,
+}
+
+fn eligible_blockers(w: &mut Client, waiter_pid: i32, observed_token: i64, report: bool) -> Vec<(i32, String)> {
+    let rows = w
+        .query(
+            "SELECT a.pid, a.application_name, a.usename = current_user \
+             FROM pg_stat_activity a WHERE a.pid = ANY (pg_blocking_pids($1))",
+            &[&waiter_pid],
+        )
+        .unwrap_or_default();
+    let mut out = vec![];
+    for r in rows {
+        let (pid, app, same): (i32, Option<String>, bool) = (r.get(0), r.get(1), r.get(2));
+        let app = app.unwrap_or_default();
+        let gen_ok = app
+            .strip_prefix("sb-owner:")
+            .and_then(|rest| rest.rsplit(':').next())
+            .and_then(|t| t.parse::<i64>().ok())
+            .is_some_and(|t| t <= observed_token);
+        if same && gen_ok {
+            out.push((pid, app));
+        } else if report {
+            event("BLOCKER_SKIPPED", &format!("pid={pid} app={app} same_role={same}"));
+        }
+    }
+    out
+}
+
+fn spawn_blocker_watcher(waiter_pid: i32, observed_token: i64, o: &Opts, mode: WatchMode) -> (Arc<AtomicBool>, thread::JoinHandle<()>) {
     let done = Arc::new(AtomicBool::new(false));
     let d = done.clone();
+    let o = o.clone();
     let mut w = connect(ROLE, &format!("sb-standby-watch:{}", o.holder), &o.pg_options).expect("watch conn");
     let h = thread::spawn(move || {
+        if mode == WatchMode::Claim && o.hygiene == "loop" {
+            terminate_tagged(&mut w, observed_token);
+        }
+        let mut skipped_reported = 0;
         while !d.load(SeqCst) {
-            let rows = w
-                .query(
-                    "SELECT a.pid, a.application_name, a.usename = current_user \
-                     FROM pg_stat_activity a WHERE a.pid = ANY (pg_blocking_pids($1))",
-                    &[&waiter_pid],
-                )
-                .unwrap_or_default();
-            for r in rows {
-                let (pid, app, same): (i32, Option<String>, bool) = (r.get(0), r.get(1), r.get(2));
-                let app = app.unwrap_or_default();
-                let gen_ok = app
-                    .strip_prefix("sb-owner:")
-                    .and_then(|rest| rest.rsplit(':').next())
-                    .and_then(|t| t.parse::<i64>().ok())
-                    .is_some_and(|t| t <= observed_token);
-                if same && gen_ok {
-                    terminate(&mut w, pid, &format!("blocker:{app}"));
-                } else {
-                    event("BLOCKER_SKIPPED", &format!("pid={pid} app={app} same_role={same}"));
+            let mut eligible = eligible_blockers(&mut w, waiter_pid, observed_token, skipped_reported < 5);
+            if eligible.is_empty() {
+                skipped_reported += 1;
+                thread::sleep(Duration::from_millis(50));
+                continue;
+            }
+            if mode == WatchMode::Reread {
+                let r = w
+                    .query_one(
+                        "SELECT token, lease_until < clock_timestamp(), lease_until::text, clock_timestamp()::text FROM _owner WHERE singleton",
+                        &[],
+                    )
+                    .expect("reread");
+                let (tok, expired, lu, now): (i64, bool, String, String) = (r.get(0), r.get(1), r.get(2), r.get(3));
+                if tok != observed_token || !expired {
+                    event("REREAD", &format!("result=abandon token={tok} expired={expired} lease_until={} db_now={}", lu.replace(' ', "T"), now.replace(' ', "T")));
+                    let _ = w.query_one("SELECT pg_cancel_backend($1)", &[&waiter_pid]);
+                    return;
                 }
+                event("REREAD", &format!("result=still_expired token={tok} lease_until={} db_now={} blockers={eligible:?}", lu.replace(' ', "T"), now.replace(' ', "T")));
+                hold(&o, "after_reread", &format!("token={tok}"));
+                if d.load(SeqCst) {
+                    return;
+                }
+                // Revision 3/4 step 4: terminate what pg_blocking_pids reports now.
+                eligible = eligible_blockers(&mut w, waiter_pid, observed_token, true);
+            }
+            for (pid, app) in eligible {
+                terminate(&mut w, pid, &format!("blocker:{app}"));
             }
             thread::sleep(Duration::from_millis(50));
         }
@@ -271,8 +358,132 @@ fn spawn_blocker_watcher(waiter_pid: i32, observed_token: i64, o: &Opts) -> (Arc
     (done, h)
 }
 
+/// The step-2 claim design (§5.2, revision 5), in one transaction:
+///
+/// 2. `UPDATE _owner SET lease_until = lease_until WHERE token = T AND
+///    lease_until < clock_timestamp()`: FOR NO KEY UPDATE, which fences
+///    (FOR KEY SHARE) do not conflict with but the owner's renewal does.
+///    Zero rows: abandon, having terminated nothing.
+/// 3. SAVEPOINT; `SELECT … FOR UPDATE` with a short lock_timeout,
+/// 4. while a watcher terminates token-bounded same-role tagged blockers,
+/// 5. (hygiene: tag-based termination, `--hygiene loop|after|off`),
+/// 6. on 55P03 ROLLBACK TO SAVEPOINT (the claim's row lock must survive) and retry,
+/// 7. increment the token, record the holder, set the lease, commit.
+#[allow(clippy::too_many_arguments)]
+fn takeover_claim(c: &mut Client, o: &Opts, my_pid: i32, observed: i64, from_holder: Option<&str>, lease_until: &str, decided_at: &str) -> Result<i64, TakeoverError> {
+    let db = TakeoverError::Db;
+    let mut tx = c.transaction().map_err(db)?;
+    tx.batch_execute(&format!("SET LOCAL lock_timeout = {}", o.claim_lock_timeout_ms)).map_err(db)?;
+    let t0 = Instant::now();
+    let claimed = tx.query_opt(
+        "UPDATE _owner SET lease_until = lease_until \
+         WHERE singleton AND token = $1 AND lease_until < clock_timestamp() \
+         RETURNING token, clock_timestamp()::text",
+        &[&observed],
+    );
+    let claimed = match claimed {
+        Ok(r) => r,
+        Err(e) if is_lock_timeout(&e) => {
+            event("CLAIM", &format!("rows=lock_timeout token={observed} waited_ms={} terminated=0 -> abandon", t0.elapsed().as_millis()));
+            return Err(TakeoverError::Changed("claim_lock_timeout".into()));
+        }
+        Err(e) => return Err(db(e)),
+    };
+    let Some(row) = claimed else {
+        event("CLAIM", &format!("rows=0 token={observed} waited_ms={} terminated=0 -> abandon", t0.elapsed().as_millis()));
+        return Err(TakeoverError::Changed("claim_zero_rows".into()));
+    };
+    let at: String = row.get(1);
+    event("CLAIM", &format!("rows=1 token={observed} waited_ms={} db_at={}", t0.elapsed().as_millis(), at.replace(' ', "T")));
+    hold(o, "after_claim", &format!("token={observed}"));
+
+    tx.batch_execute(&format!("SET LOCAL lock_timeout = {}", o.takeover_lock_timeout_ms)).map_err(db)?;
+    let watcher = (observed > 0).then(|| spawn_blocker_watcher(my_pid, observed, o, WatchMode::Claim));
+    let mut timeouts = 0u32;
+    let t3 = Instant::now();
+    let res = loop {
+        if let Err(e) = tx.batch_execute("SAVEPOINT step3") {
+            break Err(db(e));
+        }
+        let tw = Instant::now();
+        match tx.query_one("SELECT token, lease_until < clock_timestamp() FROM _owner WHERE singleton FOR UPDATE", &[]) {
+            Ok(r) => break Ok(r),
+            Err(e) if is_lock_timeout(&e) => {
+                if let Err(e) = tx.batch_execute("ROLLBACK TO SAVEPOINT step3") {
+                    break Err(db(e));
+                }
+                timeouts += 1;
+                event("LOCK_TIMEOUT", &format!("step=3 n={timeouts} waited_ms={} rolled_back_to_savepoint=true", tw.elapsed().as_millis()));
+                hold(o, "after_savepoint_rollback", &format!("n={timeouts}"));
+                if timeouts >= o.max_step3_timeouts {
+                    break Err(TakeoverError::Changed(format!("step3_gave_up_after_{timeouts}_timeouts")));
+                }
+            }
+            Err(e) => break Err(db(e)),
+        }
+    };
+    if let Some((done, h)) = watcher {
+        done.store(true, SeqCst);
+        let _ = h.join();
+    }
+    let row = res?;
+    let (token, expired): (i64, bool) = (row.get(0), row.get(1));
+    event("FOR_UPDATE", &format!("acquired_ms={} step3_timeouts={timeouts} token={token} expired={expired}", t3.elapsed().as_millis()));
+    if token != observed {
+        // Cannot happen while the claim is held; reported if it does.
+        return Err(TakeoverError::Changed(format!("CLAIM_VIOLATED_token_moved_{observed}_to_{token}")));
+    }
+    let new = token + 1;
+    tx.batch_execute(&format!("SET application_name = '{}'", owner_tag(&o.holder, new))).map_err(db)?;
+    tx.execute(
+        "UPDATE _owner SET token = $1, holder = $2, lease_until = clock_timestamp() + make_interval(secs => $3), \
+         backends = ARRAY[pg_backend_pid()] WHERE singleton",
+        &[&new, &o.holder, &(o.lease_ms as f64 / 1000.0)],
+    )
+    .map_err(db)?;
+    tx.execute("UPDATE _head SET owner_token = $1 WHERE singleton", &[&new]).map_err(db)?;
+    tx.execute(
+        "INSERT INTO _takeovers (token, holder, from_token, from_holder, lease_until_was, decided_at, strategy) \
+         VALUES ($1, $2, $3, $4, $5::text::timestamptz, $6::text::timestamptz, $7)",
+        &[&new, &o.holder, &observed, &from_holder, &lease_until, &decided_at, &o.strategy],
+    )
+    .map_err(db)?;
+    tx.commit().map_err(db)?;
+    Ok(new)
+}
+
+static HOLDS_FIRED: Mutex<Vec<String>> = Mutex::new(Vec::new());
+
+/// Test hook for deterministic interleavings: with `--hold <name>`, print
+/// `HOLD at=<name>` and block until the harness writes a line to stdin.
+/// Each named hold fires at most once per process.
+fn hold(o: &Opts, name: &str, fields: &str) {
+    if !o.hold.iter().any(|h| h == name) {
+        return;
+    }
+    {
+        let mut f = HOLDS_FIRED.lock().unwrap();
+        if f.iter().any(|h| h == name) {
+            return;
+        }
+        f.push(name.to_string());
+    }
+    event("HOLD", &format!("at={name} {fields}"));
+    let mut s = String::new();
+    let _ = std::io::stdin().read_line(&mut s);
+    event("HOLD_RELEASED", &format!("at={name}"));
+}
+
 fn takeover_tx(c: &mut Client, o: &Opts, observed: i64, from_holder: Option<&str>, lease_until: &str, decided_at: &str) -> Result<i64, TakeoverError> {
-    let map = |e: postgres::Error| if is_lock_timeout(&e) { TakeoverError::LockTimeout } else { TakeoverError::Db(e) };
+    let map = |e: postgres::Error| {
+        if is_lock_timeout(&e) {
+            TakeoverError::LockTimeout
+        } else if e.code() == Some(&postgres::error::SqlState::QUERY_CANCELED) {
+            TakeoverError::Changed("canceled_by_reread_watcher".into())
+        } else {
+            TakeoverError::Db(e)
+        }
+    };
     let mut tx = c.transaction().map_err(map)?;
     tx.batch_execute(&format!("SET LOCAL lock_timeout = {}", o.takeover_lock_timeout_ms)).map_err(map)?;
     let row = tx
@@ -466,8 +677,14 @@ fn lease_loop(c: &mut Client, sh: &Shared) {
                     event("RENEWED", &format!("n={n} took_ms={took} lease_until={}", r.get::<_, String>(0).replace(' ', "T")));
                 }
             }
-            Ok(None) => sh.lose("renewal_refused_token_moved".into()),
-            Err(e) => sh.lose(format!("renewal_failed err={}", err_str(&e))),
+            Ok(None) => {
+                event("RENEWAL", &format!("n={n} took_ms={} rows=0", t0.elapsed().as_millis()));
+                sh.lose("renewal_refused_token_moved".into())
+            }
+            Err(e) => {
+                event("RENEWAL", &format!("n={n} took_ms={} rows=error err={}", t0.elapsed().as_millis(), err_str(&e).replace(' ', "_")));
+                sh.lose(format!("renewal_failed err={}", err_str(&e)))
+            }
         }
     }
 }

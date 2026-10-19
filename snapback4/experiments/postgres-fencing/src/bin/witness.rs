@@ -2,7 +2,9 @@
 //! schema, drives `node` processes (owner, standby) with signals, observes
 //! the database as the superuser, and prints `RESULT` lines with evidence.
 //!
-//!   witness <w1|w2|w3|w4|w5|w6|w7|w8|w9|all>
+//!   witness <w1|w2|w3|w4|w5|w6|w7|w8|w9|w10|all>
+//!   witness <w11a|w11b|w11c|w11d|w11e|w11f|w11>          (the step-2 lease claim)
+//!   witness <w2claim|w3claim|w8claim|w10claim|claim-reruns>
 //!
 //! Needs PGFENCE_HOST / PGFENCE_PORT / PGFENCE_DB (see scripts/cluster.sh).
 
@@ -10,7 +12,8 @@ use postgres::Client;
 use snapback4_postgres_fencing::*;
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::io::Write as _;
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::OnceLock;
 use std::sync::mpsc::{Receiver, channel};
 use std::thread;
@@ -47,6 +50,7 @@ impl Results {
 struct Proc {
     name: String,
     child: Child,
+    stdin: Option<ChildStdin>,
     rx: Receiver<(Instant, String)>,
     seen: Vec<(Instant, String)>,
 }
@@ -62,11 +66,12 @@ fn shim_path() -> PathBuf {
 impl Proc {
     fn spawn(name: &str, args: &[&str], envs: &[(&str, String)]) -> Proc {
         let mut cmd = Command::new(bin_dir().join("node"));
-        cmd.args(args).stdout(Stdio::piped()).stderr(Stdio::piped());
+        cmd.args(args).stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
         for (k, v) in envs {
             cmd.env(k, v);
         }
         let mut child = cmd.spawn().expect("spawn node");
+        let stdin = child.stdin.take();
         let (tx, rx) = channel();
         let out = child.stdout.take().unwrap();
         let err = child.stderr.take().unwrap();
@@ -82,7 +87,21 @@ impl Proc {
             }
         });
         log(&format!("spawned {name} pid={} args={}", child.id(), args.join(" ")));
-        Proc { name: name.into(), child, rx, seen: vec![] }
+        Proc { name: name.into(), child, stdin, rx, seen: vec![] }
+    }
+    /// Release a node blocked in a `--hold` hook (it reads one line from stdin).
+    fn release(&mut self, label: &str) -> Instant {
+        if let Some(s) = self.stdin.as_mut() {
+            let _ = s.write_all(b"go\n");
+            let _ = s.flush();
+        }
+        let at = Instant::now();
+        log(&format!("RELEASE {label} -> {}", self.name));
+        at
+    }
+    fn wait_hold(&mut self, at: &str, timeout: Duration) -> Option<(Instant, String)> {
+        let want = format!("at={at}");
+        self.wait_for(|l| l.starts_with("HOLD ") && l.split_whitespace().any(|t| t == want), timeout)
     }
     fn pid(&self) -> i32 {
         self.child.id() as i32
@@ -444,15 +463,19 @@ fn owner_base() -> Vec<&'static str> {
 }
 
 fn w2(db: &mut Client, r: &mut Results, lock: &'static str, w: &str) {
+    w2_with(db, r, lock, w, "pidlist")
+}
+
+fn w2_with(db: &mut Client, r: &mut Results, lock: &'static str, w: &str, strategy: &'static str) {
     for (kind, pause) in [("head", "head:30:3000"), ("session", "session:12:3000")] {
-        log(&format!("=== {w} SIGSTOP takeover, owner paused inside a fenced {kind} transaction, lock={lock}"));
+        log(&format!("=== {w} SIGSTOP takeover, owner paused inside a fenced {kind} transaction, lock={lock}, standby strategy={strategy}"));
         let mut owner = owner_base();
         owner.extend(["--lock", lock, "--pause", pause, "--after-loss", "probe"]);
         let o = run_scenario(
             db,
             &Scenario {
                 owner,
-                standby: vec!["--lease-ms", "3000", "--renew-ms", "500", "--lock", lock, "--strategy", "pidlist"],
+                standby: vec!["--lease-ms", "3000", "--renew-ms", "500", "--lock", lock, "--strategy", strategy],
                 owner_env: vec![],
                 standby_env: vec![],
                 stop_on: Some(kind),
@@ -460,21 +483,34 @@ fn w2(db: &mut Client, r: &mut Results, lock: &'static str, w: &str) {
                 before: vec![],
             },
         );
-        takeover_verdict(r, w, &format!("pause-in-{kind}-tx/{lock}"), &o);
+        let case = if strategy == "pidlist" { format!("pause-in-{kind}-tx/{lock}") } else { format!("pause-in-{kind}-tx/{lock}/{strategy}") };
+        takeover_verdict(r, w, &case, &o);
+        if strategy == "claim" {
+            r.add(w, &format!("{case}/standby-events"), "NOTE", format!("{:?} {:?} {:?}", o.standby.lines("CLAIM"), o.standby.lines("FOR_UPDATE"), o.standby.lines("TERMINATE")));
+        }
     }
 }
 
 fn w3(db: &mut Client, r: &mut Results) {
-    for strategy in ["pidlist", "appname", "blockers"] {
-        log(&format!("=== W3 unlisted backend paused holding _owner FOR SHARE; standby strategy={strategy}"));
+    w3_with(db, r, &["pidlist", "appname", "blockers"], "share")
+}
+
+fn w3_with(db: &mut Client, r: &mut Results, strategies: &[&'static str], lock: &'static str) {
+    for &strategy in strategies {
+        log(&format!("=== W3 unlisted backend paused holding _owner (lock={lock}); standby strategy={strategy}"));
         let mut owner = owner_base();
-        owner.extend(["--late-conn", "--pause", "late:12:8000", "--after-loss", "probe"]);
+        owner.extend(["--late-conn", "--pause", "late:12:8000", "--after-loss", "probe", "--lock", lock]);
         let cap = if strategy == "pidlist" { Duration::from_secs(20) } else { Duration::from_secs(10) };
         let o = run_scenario(
             db,
             &Scenario {
                 owner,
-                standby: vec!["--lease-ms", "3000", "--renew-ms", "500", "--strategy", strategy],
+                // `claim-hygiene-off`: the claim strategy with only blocker termination (no tag sweep).
+                standby: if strategy == "claim-hygiene-off" {
+                    vec!["--lease-ms", "3000", "--renew-ms", "500", "--strategy", "claim", "--hygiene", "off", "--lock", lock]
+                } else {
+                    vec!["--lease-ms", "3000", "--renew-ms", "500", "--strategy", strategy, "--lock", lock]
+                },
                 owner_env: vec![],
                 standby_env: vec![],
                 stop_on: Some("late"),
@@ -491,7 +527,7 @@ fn w3(db: &mut Client, r: &mut Results) {
         let fenced = o.check.as_ref().is_some_and(|c| c.ok);
         r.pass(
             "W3",
-            &format!("unlisted-backend/{strategy}"),
+            &format!("unlisted-backend/{strategy}{}", if lock == "share" { String::new() } else { format!("/{lock}") }),
             within && fenced,
             format!(
                 "took_over_after_stop={}{detail_extra} | {}",
@@ -951,13 +987,662 @@ fn w10(db: &mut Client, r: &mut Results) {
     }
 }
 
+// ------------------------------------------------- W11: the step-2 lease claim
+//
+// §5.2 revision 5: takeover runs in one transaction and, before terminating
+// anything, claims the expired lease with a no-op UPDATE (FOR NO KEY UPDATE)
+// that the owner's renewal conflicts with but its FOR KEY SHARE fences do not.
+// All W11 owners and standbys fence with FOR KEY SHARE, as §5.1 specifies; the
+// claim is only meaningful under KEY SHARE (under FOR SHARE the claim itself
+// would wait on every in-flight fence).
+
+fn spawn_owner(extra: &[&str]) -> Proc {
+    let mut a = vec!["--role", "owner", "--holder", "A", "--quiet-renewals", "--lease-ms", "3000", "--renew-ms", "500", "--lock", "keyshare"];
+    a.extend(extra);
+    Proc::spawn("owner", &a, &[])
+}
+
+fn spawn_standby(name: &str, holder: &str, extra: &[&str]) -> Proc {
+    let mut a = vec!["--role", "standby", "--holder", holder, "--after-loss", "exit", "--quiet-renewals", "--lease-ms", "3000", "--renew-ms", "500", "--lock", "keyshare"];
+    a.extend(extra);
+    Proc::spawn(name, &a, &[])
+}
+
+fn tagged_pids(db: &mut Client, tag: &str) -> Vec<i32> {
+    db.query("SELECT pid FROM pg_stat_activity WHERE application_name = $1 ORDER BY pid", &[&tag]).unwrap().iter().map(|r| r.get(0)).collect()
+}
+
+fn alive_of(db: &mut Client, pids: &[i32]) -> Vec<i32> {
+    db.query("SELECT pid FROM pg_stat_activity WHERE pid = ANY($1) ORDER BY pid", &[&pids]).unwrap().iter().map(|r| r.get(0)).collect()
+}
+
+/// Poll (superuser) until `_owner` shows `token` with an unexpired lease:
+/// i.e. a renewal by that token's owner has committed.
+fn wait_renewed(db: &mut Client, token: i64, timeout: Duration) -> Option<(Instant, String)> {
+    let deadline = Instant::now() + timeout;
+    while Instant::now() < deadline {
+        let r = db.query_one("SELECT token, lease_until > clock_timestamp(), lease_until::text FROM _owner", &[]).unwrap();
+        if r.get::<_, i64>(0) == token && r.get::<_, bool>(1) {
+            let lu: String = r.get(2);
+            log(&format!("renewal committed: token={token} lease_until={lu} (now in the future)"));
+            return Some((Instant::now(), lu));
+        }
+        thread::sleep(Duration::from_millis(10));
+    }
+    None
+}
+
+/// The owner's lease-renewal statement, if it is currently waiting on a lock.
+/// Returns (description, blocked_by_pid).
+fn renewal_state(db: &mut Client, tag: &str, blocker: i32) -> (String, bool) {
+    let rows = db
+        .query(
+            "SELECT pid, coalesce(wait_event_type || ':' || wait_event, '-'), pg_blocking_pids(pid), \
+                    round(extract(epoch FROM clock_timestamp() - query_start) * 1000)::bigint \
+             FROM pg_stat_activity WHERE application_name = $1 AND state = 'active' \
+               AND query LIKE 'UPDATE _owner SET lease_until = clock_timestamp()%'",
+            &[&tag],
+        )
+        .unwrap();
+    match rows.first() {
+        None => ("renewal not in flight".into(), false),
+        Some(r) => {
+            let (pid, w, bl, ms): (i32, String, Vec<i32>, i64) = (r.get(0), r.get(1), r.get(2), r.get(3));
+            (format!("renewal pid={pid} wait={w} blocked_by={bl:?} waiting_for={ms}ms"), w.starts_with("Lock:") && bl.contains(&blocker))
+        }
+    }
+}
+
+fn server_log() -> PathBuf {
+    let dir = std::env::var("PGFENCE_DIR").unwrap_or_else(|_| {
+        format!("{}/pgfence-{}", std::env::var("TMPDIR").unwrap_or_else(|_| "/tmp".into()), std::env::var("USER").unwrap_or_default())
+    });
+    PathBuf::from(dir).join("server.log")
+}
+
+fn log_len() -> u64 {
+    std::fs::metadata(server_log()).map(|m| m.len()).unwrap_or(0)
+}
+
+/// Server-log lines appended since `off` that record a backend terminated by
+/// pg_terminate_backend ("terminating connection due to administrator command").
+/// Independent of the node's own TERMINATE events.
+fn admin_terminations_since(off: u64) -> Vec<String> {
+    use std::io::{Read, Seek, SeekFrom};
+    let Ok(mut f) = std::fs::File::open(server_log()) else { return vec!["<server.log unreadable>".into()] };
+    let _ = f.seek(SeekFrom::Start(off));
+    let mut buf = String::new();
+    let _ = f.read_to_string(&mut buf);
+    buf.lines().filter(|l| l.contains("terminating connection due to administrator command")).map(String::from).collect()
+}
+
+fn w11a(db: &mut Client, r: &mut Results) {
+    log("=== W11a renewal commits between the standby's poll (step 1) and its claim (step 2)");
+    reset(db);
+    let mut owner = spawn_owner(&["--pause", "session:12:10000", "--after-loss", "probe"]);
+    owner.wait_ev("REGISTERED", Duration::from_secs(10)).expect("owner registered");
+    let mut standby = spawn_standby("standby", "B", &["--strategy", "claim", "--hold", "after_poll"]);
+    standby.wait_ev("STANDBY_WAITING", Duration::from_secs(10)).expect("standby waiting");
+    let (_, paused) = owner.wait_for(|l| l.starts_with("PAUSING ") && l.contains("kind=session "), Duration::from_secs(15)).expect("pause");
+    owner.sig(libc::SIGSTOP, "SIGSTOP (lets the lease lapse; the owner stays inside a fenced session tx)");
+    if standby.wait_hold("after_poll", Duration::from_secs(10)).is_none() {
+        r.pass("W11a", "renewal-between-poll-and-claim", false, "standby never observed the expiry".into());
+        return;
+    }
+    let before = tagged_pids(db, "sb-owner:A:1");
+    let off = log_len();
+    owner.sig(libc::SIGCONT, "SIGCONT (the owner's lease thread renews at once)");
+    let renewed = wait_renewed(db, 1, Duration::from_secs(3));
+    activity(db, "renewal committed; standby held after step 1, before step 2");
+    standby.release("after_poll");
+    let claim = standby.wait_ev("CLAIM", Duration::from_secs(5)).map(|x| x.1).unwrap_or_default();
+    let aborted = standby.wait_ev("TAKEOVER_ABORTED", Duration::from_secs(2)).map(|x| x.1).unwrap_or_default();
+    thread::sleep(Duration::from_millis(1500));
+    standby.drain();
+    let after = alive_of(db, &before);
+    // The paused fenced tx (whose backend would have been the step-4 victim) finishes and commits.
+    let resumed = owner.wait_ev("RESUMED", Duration::from_secs(10)).is_some();
+    thread::sleep(Duration::from_millis(500));
+    owner.drain();
+    standby.drain();
+    let id = kv(&paused, "id").unwrap_or("").to_string();
+    let committed: i64 = db.query_one("SELECT count(*) FROM _sessions WHERE id = $1", &[&id]).unwrap().get(0);
+    let token: i64 = db.query_one("SELECT token FROM _owner", &[]).unwrap().get(0);
+    let terms = standby.lines("TERMINATE");
+    let logged = admin_terminations_since(off);
+    let lost = owner.lines("LOST");
+    let ok = renewed.is_some()
+        && claim.contains("rows=0")
+        && aborted.contains("claim_zero_rows")
+        && terms.is_empty()
+        && logged.is_empty()
+        && before.len() >= 3
+        && after == before
+        && lost.is_empty()
+        && resumed
+        && committed == 1
+        && token == 1
+        && standby.lines("TOOK_OVER").is_empty();
+    r.pass(
+        "W11a",
+        "renewal-between-poll-and-claim",
+        ok,
+        format!(
+            "renewal_committed_before_claim={} | standby: {claim} ; {aborted} | standby TERMINATE events={} | server-log terminations in window={} | \
+             owner backends before={before:?} after={after:?} | owner LOST={lost:?} | paused fenced tx resumed={resumed} committed={committed} | _owner.token={token}",
+            renewed.as_ref().map_or("NO".to_string(), |x| format!("yes lease_until={}", x.1)),
+            terms.len(),
+            logged.len()
+        ),
+    );
+}
+
+fn w11c(db: &mut Client, r: &mut Results) {
+    log("=== W11c the same race under revision 3/4's unlocked re-read (strategy reread)");
+    reset(db);
+    let mut owner = spawn_owner(&["--pause", "session:12:10000", "--after-loss", "probe"]);
+    owner.wait_ev("REGISTERED", Duration::from_secs(10)).expect("owner registered");
+    let mut standby = spawn_standby("standby", "B", &["--strategy", "reread", "--hold", "after_reread", "--takeover-lock-timeout-ms", "10000"]);
+    standby.wait_ev("STANDBY_WAITING", Duration::from_secs(10)).expect("standby waiting");
+    let (_, paused) = owner.wait_for(|l| l.starts_with("PAUSING ") && l.contains("kind=session "), Duration::from_secs(15)).expect("pause");
+    let paused_pid: i32 = kv(&paused, "pid").unwrap().parse().unwrap();
+    owner.sig(libc::SIGSTOP, "SIGSTOP");
+    let Some((_, reread)) = standby.wait_hold("after_reread", Duration::from_secs(10)) else {
+        r.add("W11c", "renewal-after-unlocked-reread", "NOT-REPRODUCED", "the reread watcher never reached its hold".into());
+        return;
+    };
+    let _ = reread;
+    let before = tagged_pids(db, "sb-owner:A:1");
+    let off = log_len();
+    owner.sig(libc::SIGCONT, "SIGCONT (the owner renews while the standby's FOR UPDATE waits)");
+    let renewed = wait_renewed(db, 1, Duration::from_secs(3));
+    activity(db, "renewal committed after the standby's unlocked re-read; FOR UPDATE still waiting");
+    standby.release("after_reread");
+    let term = standby.wait_ev("TERMINATE", Duration::from_secs(3)).map(|x| x.1).unwrap_or_default();
+    let aborted = standby.wait_ev("TAKEOVER_ABORTED", Duration::from_secs(5)).map(|x| x.1).unwrap_or_default();
+    let failed = owner.wait_ev("COMMIT_FAILED", Duration::from_secs(12)).map(|x| x.1).unwrap_or_default();
+    thread::sleep(Duration::from_millis(300));
+    owner.drain();
+    standby.drain();
+    let after = alive_of(db, &before);
+    let logged = admin_terminations_since(off);
+    let terms = standby.lines("TERMINATE");
+    let killed_owner_pids: Vec<i32> = terms.iter().filter(|l| l.contains("ok=true")).filter_map(|l| kv(l, "pid").and_then(|p| p.parse().ok())).filter(|p| before.contains(p)).collect();
+    let reproduced = renewed.is_some() && !killed_owner_pids.is_empty();
+    r.add(
+        "W11c",
+        "renewal-after-unlocked-reread",
+        if reproduced { "HAZARD-REPRODUCED" } else { "NOT-REPRODUCED" },
+        format!(
+            "renewal committed after the re-read and before termination={} | standby: {term} ; {aborted} | live-owner backends terminated={killed_owner_pids:?} (paused fenced tx pid={paused_pid}) | \
+             server-log terminations in window={} | owner backends before={before:?} after={after:?} | owner: {failed} ; LOST={:?}",
+            renewed.as_ref().map_or("NO".to_string(), |x| format!("yes lease_until={}", x.1)),
+            logged.len(),
+            owner.lines("LOST")
+        ),
+    );
+}
+
+fn w11bd(db: &mut Client, r: &mut Results, hygiene: &'static str) {
+    log(&format!("=== W11b/W11d claim first, then the owner's renewal and fences (hygiene={hygiene})"));
+    reset(db);
+    let mut owner = spawn_owner(&["--pause", "session:12:10000", "--after-loss", "probe"]);
+    owner.wait_ev("REGISTERED", Duration::from_secs(10)).expect("owner registered");
+    let mut standby = spawn_standby("standby", "B", &["--strategy", "claim", "--hold", "after_claim", "--hygiene", hygiene]);
+    let (_, wl) = standby.wait_ev("STANDBY_WAITING", Duration::from_secs(10)).expect("standby waiting");
+    let standby_pid: i32 = kv(&wl, "pid").unwrap().parse().unwrap();
+    let (_, paused) = owner.wait_for(|l| l.starts_with("PAUSING ") && l.contains("kind=session "), Duration::from_secs(15)).expect("pause");
+    owner.sig(libc::SIGSTOP, "SIGSTOP");
+    if standby.wait_hold("after_claim", Duration::from_secs(10)).is_none() {
+        r.pass("W11b", &format!("claim-then-renewal/hygiene-{hygiene}"), false, format!("no claim: {:?}", standby.lines("CLAIM")));
+        return;
+    }
+    let claim_at = standby.lines("CLAIM").last().and_then(|l| kv(l, "db_at").map(|s| s.replace('T', " "))).unwrap_or_default();
+    let t_cont = owner.sig(libc::SIGCONT, "SIGCONT (claim held: renewal should block, fences should not)");
+    thread::sleep(Duration::from_millis(200));
+    // W11d: fenced transactions on a separate same-role connection while the claim is held.
+    let mut probe = connect("sb_core", "w11d-probe-fence", "").unwrap();
+    let mut lat_us = vec![];
+    let mut toks = vec![];
+    for _ in 0..20 {
+        let t0 = Instant::now();
+        probe.batch_execute("BEGIN").unwrap();
+        let tok: i64 = probe.query_one("SELECT token FROM _owner WHERE singleton FOR KEY SHARE", &[]).unwrap().get(0);
+        probe.batch_execute("COMMIT").unwrap();
+        lat_us.push(t0.elapsed().as_micros() as u64);
+        toks.push(tok);
+        thread::sleep(Duration::from_millis(25));
+    }
+    drop(probe);
+    thread::sleep(Duration::from_millis(300));
+    let (rstate, rblocked) = renewal_state(db, "sb-owner:A:1", standby_pid);
+    log(&format!("while the claim is held: {rstate}"));
+    activity(db, "claim held by the standby; owner resumed");
+    let during: i64 = db
+        .query_one(
+            "SELECT (SELECT count(*) FROM _log WHERE owner_token = 1 AND pg_xact_commit_timestamp(xmin) > $1::text::timestamptz) + \
+                    (SELECT count(*) FROM _sessions WHERE minted_by_token = 1 AND pg_xact_commit_timestamp(xmin) > $1::text::timestamptz)",
+            &[&claim_at],
+        )
+        .unwrap()
+        .get(0);
+    let t_rel = standby.release("after_claim");
+    let hold_ms = ms(t_rel.saturating_duration_since(t_cont));
+    let took = standby.wait_ev("TOOK_OVER", Duration::from_secs(10));
+    let release_to_takeover = took.as_ref().map(|(at, _)| ms(at.saturating_duration_since(t_rel)));
+    let renewal = owner.wait_ev("RENEWAL", Duration::from_secs(5)).map(|x| x.1).unwrap_or_default();
+    thread::sleep(Duration::from_millis(1000));
+    let _ = owner.wait_exit(Duration::from_secs(15));
+    standby.drain();
+    let new_token = took.as_ref().and_then(|(_, l)| kv(l, "token")).and_then(|t| t.parse().ok()).unwrap_or(0);
+    let ids: Vec<String> = kv(&paused, "id").into_iter().map(String::from).collect();
+    let check = late_commit_check(db, new_token, &ids, None);
+    let renewal_ms: u128 = kv(&renewal, "took_ms").and_then(|v| v.parse().ok()).unwrap_or(0);
+    let renewed_after_claim = owner.lines("RENEWED");
+    let expect_rows = if hygiene == "loop" { "rows=error" } else { "rows=0" };
+    let ok_b = rblocked && renewal.contains(expect_rows) && renewal_ms >= hold_ms.saturating_sub(300) && renewed_after_claim.is_empty() && took.is_some() && check.ok;
+    r.pass(
+        "W11b",
+        &format!("claim-then-renewal/hygiene-{hygiene}"),
+        ok_b,
+        format!(
+            "during claim: {rstate} | owner renewal outcome: {renewal} (claim held {hold_ms} ms after SIGCONT; expected {expect_rows}) | RENEWED lines={renewed_after_claim:?} | \
+             takeover {} ms after release, standby {:?} | {}",
+            release_to_takeover.map_or("NEVER".into(), |m| m.to_string()),
+            standby.lines("FOR_UPDATE"),
+            check.summary
+        ),
+    );
+    if hygiene == "after" {
+        let max = lat_us.iter().max().copied().unwrap_or(0);
+        let mean = lat_us.iter().sum::<u64>() as f64 / lat_us.len().max(1) as f64;
+        let ok_d = toks.iter().all(|t| *t == 1) && max < 100_000 && during > 0 && took.is_some() && check.ok;
+        r.pass(
+            "W11d",
+            "fences-flow-during-claim",
+            ok_d,
+            format!(
+                "{} probe fences (FOR KEY SHARE) while the claim was held: all granted, token read={:?}, mean {:.0} us, max {} us | \
+                 owner fenced commits with token 1 after the claim and before release={during} | claim held {hold_ms} ms after SIGCONT | \
+                 release -> takeover commit {} ms ({:?}, terminations {:?}) | old-token commits after takeover: see W11b",
+                lat_us.len(),
+                toks.iter().collect::<std::collections::BTreeSet<_>>(),
+                mean,
+                max,
+                release_to_takeover.map_or("NEVER".into(), |m| m.to_string()),
+                standby.lines("FOR_UPDATE"),
+                standby.lines("TERMINATE").len()
+            ),
+        );
+    }
+}
+
+fn w11e(db: &mut Client, r: &mut Results) {
+    log("=== W11e savepoint retention: force 55P03 in step 3; the claim must survive ROLLBACK TO SAVEPOINT");
+    reset(db);
+    db.batch_execute("UPDATE _owner SET token = 1, holder = 'A', lease_until = clock_timestamp() - interval '1 s'").unwrap();
+    // A blocker the standby will not terminate (same role, not owner-tagged), so step 3 times out.
+    let mut blocker = connect("sb_core", "w11e-untagged-blocker", "").unwrap();
+    blocker.batch_execute("BEGIN").unwrap();
+    blocker.query_one("SELECT token FROM _owner WHERE singleton FOR KEY SHARE", &[]).unwrap();
+    let mut standby = spawn_standby("standby", "B", &["--strategy", "claim", "--hold", "after_claim,after_savepoint_rollback", "--takeover-lock-timeout-ms", "300"]);
+    let (_, wl) = standby.wait_ev("STANDBY_WAITING", Duration::from_secs(10)).expect("standby waiting");
+    let standby_pid: i32 = kv(&wl, "pid").unwrap().parse().unwrap();
+    if standby.wait_hold("after_claim", Duration::from_secs(5)).is_none() {
+        r.pass("W11e", "savepoint-retention", false, format!("no claim: {:?}", standby.lines("CLAIM")));
+        return;
+    }
+    // A renewal by the (token 1) owner, issued after the claim.
+    let mut ren = connect("sb_core", "w11e-renewal", "").unwrap();
+    let ren_h = thread::spawn(move || {
+        let t0 = Instant::now();
+        let res = ren
+            .execute("UPDATE _owner SET lease_until = clock_timestamp() + interval '3 s' WHERE singleton AND token = 1", &[])
+            .map(|n| format!("rows={n}"))
+            .unwrap_or_else(|e| format!("error {}", err_str(&e)));
+        (Instant::now(), ms(t0.elapsed()), res)
+    });
+    thread::sleep(Duration::from_millis(300));
+    let renewal_tag = "w11e-renewal";
+    let state = |db: &mut Client| -> (String, bool) {
+        let r = db
+            .query_opt(
+                "SELECT coalesce(wait_event_type || ':' || wait_event, '-'), pg_blocking_pids(pid), state FROM pg_stat_activity WHERE application_name = $1",
+                &[&renewal_tag],
+            )
+            .unwrap();
+        match r {
+            None => ("renewal connection gone".into(), false),
+            Some(r) => {
+                let (w, bl, st): (String, Vec<i32>, String) = (r.get(0), r.get(1), r.get(2));
+                (format!("renewal state={st} wait={w} blocked_by={bl:?}"), st == "active" && w.starts_with("Lock:") && bl.contains(&standby_pid))
+            }
+        }
+    };
+    let (s0, b0) = state(db);
+    log(&format!("after the claim: {s0}"));
+    standby.release("after_claim");
+    let held2 = standby.wait_hold("after_savepoint_rollback", Duration::from_secs(5));
+    // The standby now sits idle in its transaction right after 55P03 + ROLLBACK TO SAVEPOINT.
+    let (s1, b1) = state(db);
+    let sb = db
+        .query_one(
+            "SELECT coalesce(state, ''), coalesce(backend_xid::text, '-'), (SELECT xmax::text FROM fence._owner) FROM pg_stat_activity WHERE pid = $1",
+            &[&standby_pid],
+        )
+        .unwrap();
+    let (sb_state, sb_xid, row_xmax): (String, String, String) = (sb.get(0), sb.get(1), sb.get(2));
+    // With a key-share locker present when the claim updated the row, the
+    // committed version's xmax is a MultiXactId; expand it. (The first W11e run
+    // compared xmax to the xid directly and failed on that harness assumption.)
+    let members = db
+        .query_one("SELECT coalesce(string_agg(xid::text || ':' || mode, ','), '') FROM pg_get_multixact_members($1::text::xid)", &[&row_xmax])
+        .map(|r| r.get::<_, String>(0))
+        .unwrap_or_else(|e| format!("not-a-multixact({})", err_str(&e)));
+    let claim_lock_owned = row_xmax == sb_xid || members.split(',').any(|m| m == format!("{sb_xid}:nokeyupd"));
+    let mut pr = connect("sb_core", "w11e-probe", "").unwrap();
+    pr.batch_execute("SET lock_timeout = 300").unwrap();
+    let probe = pr
+        .execute("UPDATE _owner SET lease_until = lease_until WHERE singleton", &[])
+        .map(|n| format!("UPDATED({n}) -- claim lost"))
+        .unwrap_or_else(|e| err_str(&e));
+    log(&format!("after ROLLBACK TO SAVEPOINT: {s1}; standby state={sb_state} xid={sb_xid}; committed _owner row xmax={row_xmax} multixact members=[{members}]; probe update: {probe}"));
+    activity(db, "standby idle in tx after 55P03 + ROLLBACK TO SAVEPOINT");
+    standby.release("after_savepoint_rollback");
+    thread::sleep(Duration::from_millis(1200));
+    standby.drain();
+    let (s2, b2) = state(db);
+    log(&format!("after further step-3 timeouts: {s2}"));
+    let timeouts_before_release = standby.lines("LOCK_TIMEOUT").len();
+    let t_commit = Instant::now();
+    blocker.batch_execute("COMMIT").unwrap();
+    let took = standby.wait_ev("TOOK_OVER", Duration::from_secs(5));
+    let (ren_end, ren_ms, ren_res) = ren_h.join().unwrap();
+    standby.drain();
+    let ren_after_takeover = took.as_ref().is_some_and(|(at, _)| ren_end + Duration::from_millis(50) >= *at) && ren_end >= t_commit;
+    let ok = held2.is_some() && timeouts_before_release >= 2 && b0 && b1 && b2 && probe.starts_with("55P03") && claim_lock_owned && ren_res == "rows=0" && ren_after_takeover && took.is_some();
+    r.pass(
+        "W11e",
+        "savepoint-retention",
+        ok,
+        format!(
+            "step-3 55P03 count before the blocker released={timeouts_before_release} | after claim: {s0} | after ROLLBACK TO SAVEPOINT: {s1}; standby {sb_state} xid={sb_xid}, committed _owner xmax={row_xmax} members=[{members}] (claim lock owned by the standby's top-level xid={claim_lock_owned}); \
+             concurrent probe UPDATE: {probe} | after more timeouts: {s2} | renewal finished {ren_res} after {ren_ms} ms, after the takeover commit={ren_after_takeover} | {:?}",
+            standby.lines("FOR_UPDATE")
+        ),
+    );
+}
+
+fn w11f(db: &mut Client, r: &mut Results) {
+    log("=== W11f two standbys racing with the claim strategy (deterministic interleaving)");
+    reset(db);
+    let mut owner = spawn_owner(&["--pause", "session:12:10000", "--after-loss", "probe"]);
+    owner.wait_ev("REGISTERED", Duration::from_secs(10)).expect("owner registered");
+    let mut b = spawn_standby("standbyB", "B", &["--strategy", "claim", "--hold", "after_poll,after_claim"]);
+    b.wait_ev("STANDBY_WAITING", Duration::from_secs(10)).expect("B waiting");
+    let mut c = spawn_standby("standbyC", "C", &["--strategy", "claim", "--hold", "after_poll,after_claim", "--claim-lock-timeout-ms", "5000"]);
+    let (_, cw) = c.wait_ev("STANDBY_WAITING", Duration::from_secs(10)).expect("C waiting");
+    let c_pid: i32 = kv(&cw, "pid").unwrap().parse().unwrap();
+    let b_pid: i32 = kv(&b.lines("STANDBY_WAITING")[0], "pid").unwrap().parse().unwrap();
+    let (_, paused) = owner.wait_for(|l| l.starts_with("PAUSING ") && l.contains("kind=session "), Duration::from_secs(15)).expect("pause");
+    owner.sig(libc::SIGSTOP, "SIGSTOP");
+    let hb = b.wait_hold("after_poll", Duration::from_secs(10)).is_some();
+    let hc = c.wait_hold("after_poll", Duration::from_secs(10)).is_some();
+    b.release("after_poll");
+    let bclaim = b.wait_hold("after_claim", Duration::from_secs(5)).is_some();
+    c.release("after_poll");
+    thread::sleep(Duration::from_millis(500));
+    let row = db
+        .query_one("SELECT coalesce(wait_event_type || ':' || wait_event, '-'), pg_blocking_pids(pid), left(query, 40) FROM pg_stat_activity WHERE pid = $1", &[&c_pid])
+        .unwrap();
+    let (cw_ev, c_bl, c_q): (String, Vec<i32>, String) = (row.get(0), row.get(1), row.get(2));
+    let c_blocked = cw_ev.starts_with("Lock:") && c_bl.contains(&b_pid);
+    log(&format!("C's claim while B holds its claim: wait={cw_ev} blocked_by={c_bl:?} (B={b_pid}) query={c_q}"));
+    b.release("after_claim");
+    let took = b.wait_ev("TOOK_OVER", Duration::from_secs(10));
+    let cclaim = c.wait_ev("CLAIM", Duration::from_secs(6)).map(|x| x.1).unwrap_or_default();
+    thread::sleep(Duration::from_millis(300));
+    let b_tag = owner_tag("B", 2);
+    let b_before = tagged_pids(db, &b_tag);
+    thread::sleep(Duration::from_millis(2000));
+    b.drain();
+    c.drain();
+    let b_after = alive_of(db, &b_before);
+    owner.sig(libc::SIGCONT, "SIGCONT");
+    let _ = owner.wait_exit(Duration::from_secs(15));
+    let ids: Vec<String> = kv(&paused, "id").into_iter().map(String::from).collect();
+    let check = late_commit_check(db, 2, &ids, None);
+    let takeovers: Vec<String> = db.query("SELECT token::text || ':' || holder FROM _takeovers ORDER BY token", &[]).unwrap().iter().map(|r| r.get(0)).collect();
+    let c_terms = c.lines("TERMINATE");
+    let ok = hb && hc && bclaim && c_blocked && took.is_some() && cclaim.contains("rows=0") && c_terms.is_empty() && !b_before.is_empty() && b_after == b_before && b.lines("LOST").is_empty() && c.lines("TOOK_OVER").is_empty() && check.ok;
+    r.pass(
+        "W11f",
+        "two-standbys/deterministic",
+        ok,
+        format!(
+            "C's claim blocked behind B's claim={c_blocked} (wait={cw_ev} blocked_by={c_bl:?}) | C: {cclaim} | C TERMINATE events={} | B ({b_tag}) backends before={b_before:?} after 2 s={b_after:?} | \
+             B LOST={:?} | _takeovers={takeovers:?} | B terminations={} | {}",
+            c_terms.len(),
+            b.lines("LOST"),
+            b.lines("TERMINATE").len(),
+            check.summary
+        ),
+    );
+    drop(b);
+    drop(c);
+    drop(owner);
+
+    for round in 1..=3 {
+        log(&format!("=== W11f free race, round {round}: two claim standbys released together, no holds"));
+        reset(db);
+        let mut owner = spawn_owner(&["--pause", "session:12:10000", "--after-loss", "probe"]);
+        owner.wait_ev("REGISTERED", Duration::from_secs(10)).expect("owner registered");
+        let mut b = spawn_standby("standbyB", "B", &["--strategy", "claim"]);
+        let mut c = spawn_standby("standbyC", "C", &["--strategy", "claim"]);
+        b.wait_ev("STANDBY_WAITING", Duration::from_secs(10)).expect("B");
+        c.wait_ev("STANDBY_WAITING", Duration::from_secs(10)).expect("C");
+        let (_, paused) = owner.wait_for(|l| l.starts_with("PAUSING ") && l.contains("kind=session "), Duration::from_secs(15)).expect("pause");
+        owner.sig(libc::SIGSTOP, "SIGSTOP");
+        let deadline = Instant::now() + Duration::from_secs(8);
+        while Instant::now() < deadline && b.lines("TOOK_OVER").is_empty() && c.lines("TOOK_OVER").is_empty() {
+            b.drain();
+            c.drain();
+            thread::sleep(Duration::from_millis(20));
+        }
+        thread::sleep(Duration::from_millis(300));
+        b.drain();
+        c.drain();
+        let (winner, loser, wh) = if !b.lines("TOOK_OVER").is_empty() { (&mut b, &mut c, "B") } else { (&mut c, &mut b, "C") };
+        let tag = owner_tag(wh, 2);
+        let wbefore = tagged_pids(db, &tag);
+        thread::sleep(Duration::from_millis(1500));
+        winner.drain();
+        loser.drain();
+        let wafter = alive_of(db, &wbefore);
+        let lterms = loser.lines("TERMINATE");
+        let lclaims = loser.lines("CLAIM");
+        let wins = winner.lines("TOOK_OVER").len() + loser.lines("TOOK_OVER").len();
+        owner.sig(libc::SIGCONT, "SIGCONT");
+        let _ = owner.wait_exit(Duration::from_secs(15));
+        let ids: Vec<String> = kv(&paused, "id").into_iter().map(String::from).collect();
+        let check = late_commit_check(db, 2, &ids, None);
+        let ok = wins == 1 && lterms.is_empty() && !wbefore.is_empty() && wafter == wbefore && check.ok;
+        r.pass(
+            "W11f",
+            &format!("two-standbys/free-race-{round}"),
+            ok,
+            format!(
+                "winner={wh} takeovers={wins} | loser claims={lclaims:?} loser LEASE_EXPIRED={} loser TERMINATE={} | winner backends before={wbefore:?} after 1.5 s={wafter:?} | {}",
+                loser.lines("LEASE_EXPIRED").len(),
+                lterms.len(),
+                check.summary
+            ),
+        );
+    }
+}
+
+/// W8a's lock matrix, extended with the step-2 claim.
+fn w8_claim_matrix(db: &mut Client, r: &mut Results) {
+    log("=== W8a-claim lock matrix with the claim (KEY SHARE fences)");
+    reset(db);
+    let try_ = |c: &mut Client, sql: &str| -> String {
+        let t0 = Instant::now();
+        match c.query(sql, &[]) {
+            Ok(rows) => format!("ok({} rows) {} ms", rows.len(), ms(t0.elapsed())),
+            Err(e) => format!("{} after {} ms", err_str(&e), ms(t0.elapsed())),
+        }
+    };
+    let mut f1 = connect("sb_core", "w8c-fence-before-claim", "").unwrap();
+    let mut f2 = connect("sb_core", "w8c-fence-during-claim", "").unwrap();
+    let mut ren = connect("sb_core", "w8c-renewal", "").unwrap();
+    let mut tk = connect("sb_core", "w8c-takeover", "").unwrap();
+    ren.batch_execute("SET lock_timeout = 1000").unwrap();
+    f2.batch_execute("SET lock_timeout = 1000").unwrap();
+    f1.batch_execute("BEGIN").unwrap();
+    let a = try_(&mut f1, "SELECT token FROM _owner WHERE singleton FOR KEY SHARE");
+    tk.batch_execute("BEGIN; SET LOCAL lock_timeout = 1000").unwrap();
+    let claim = try_(&mut tk, "UPDATE _owner SET lease_until = lease_until WHERE singleton AND token = 0 AND lease_until < clock_timestamp() RETURNING token");
+    let renew = try_(&mut ren, "UPDATE _owner SET lease_until = clock_timestamp() + interval '3 s' WHERE singleton AND token = 0");
+    f2.batch_execute("BEGIN").unwrap();
+    let fence2 = try_(&mut f2, "SELECT token FROM _owner WHERE singleton FOR KEY SHARE");
+    tk.batch_execute("SAVEPOINT s3").unwrap();
+    let fu1 = try_(&mut tk, "SELECT token FROM _owner WHERE singleton FOR UPDATE");
+    tk.batch_execute("ROLLBACK TO SAVEPOINT s3").unwrap();
+    let renew2 = try_(&mut ren, "UPDATE _owner SET lease_until = clock_timestamp() + interval '3 s' WHERE singleton AND token = 0");
+    f1.batch_execute("COMMIT").unwrap();
+    // Only the fence taken DURING the claim is still open: does FOR UPDATE wait for it?
+    tk.batch_execute("SAVEPOINT s3").unwrap();
+    let fu2 = try_(&mut tk, "SELECT token FROM _owner WHERE singleton FOR UPDATE");
+    tk.batch_execute("ROLLBACK TO SAVEPOINT s3").unwrap();
+    f2.batch_execute("COMMIT").unwrap();
+    tk.batch_execute("SAVEPOINT s3").unwrap();
+    let fu3 = try_(&mut tk, "SELECT token FROM _owner WHERE singleton FOR UPDATE");
+    tk.batch_execute("UPDATE _owner SET token = token + 1; COMMIT").unwrap();
+    ren.batch_execute("RESET lock_timeout").unwrap();
+    let renew3 = try_(&mut ren, "UPDATE _owner SET lease_until = clock_timestamp() + interval '3 s' WHERE singleton AND token = 0 RETURNING 1");
+    let rows = [
+        ("fence before the claim", a.clone()),
+        ("claim (no-op UPDATE) with that fence open", claim.clone()),
+        ("renewal while the claim is held", renew.clone()),
+        ("new fence while the claim is held", fence2.clone()),
+        ("FOR UPDATE with both fences open", fu1.clone()),
+        ("renewal after ROLLBACK TO SAVEPOINT", renew2.clone()),
+        ("FOR UPDATE with only the during-claim fence open", fu2.clone()),
+        ("FOR UPDATE with no fence open", fu3.clone()),
+        ("renewal (token 0) after the takeover commits", renew3.clone()),
+    ];
+    for (k, v) in &rows {
+        log(&format!("  {k:<52} {v}"));
+    }
+    let ok = claim.starts_with("ok(1")
+        && renew.starts_with("55P03")
+        && fence2.starts_with("ok(1")
+        && fu1.starts_with("55P03")
+        && renew2.starts_with("55P03")
+        && fu2.starts_with("55P03")
+        && fu3.starts_with("ok(1")
+        && renew3.starts_with("ok(0");
+    r.pass("W8", "lock-matrix/claim", ok, rows.iter().map(|(k, v)| format!("{k}: {v}")).collect::<Vec<_>>().join("; "));
+}
+
+fn w8_claim(db: &mut Client, r: &mut Results) {
+    w8_claim_matrix(db, r);
+    log("=== W8c-claim slow-but-alive owner (one 7 s fenced tx), KEY SHARE, claim standby");
+    let mut owner = owner_base();
+    owner.extend(["--lock", "keyshare", "--pause", "session:12:7000", "--after-loss", "exit"]);
+    let mut o = run_scenario(
+        db,
+        &Scenario {
+            owner,
+            standby: vec!["--lease-ms", "3000", "--renew-ms", "500", "--lock", "keyshare", "--strategy", "claim"],
+            owner_env: vec![],
+            standby_env: vec![],
+            stop_on: Some(""),
+            cap: Duration::from_secs(10),
+            before: vec![],
+        },
+    );
+    if o.took_over_after_stop.is_none() {
+        let _ = o.owner.wait_ev("RESUMED", Duration::from_secs(10));
+        thread::sleep(Duration::from_millis(1500));
+        o.owner.drain();
+    }
+    o.standby.drain();
+    let resumed = o.owner.lines("RESUMED").len();
+    let id = o.owner.lines("PAUSING").first().and_then(|l| kv(l, "id").map(String::from)).unwrap_or_default();
+    let committed: i64 = db.query_one("SELECT count(*) FROM _sessions WHERE id = $1", &[&id]).unwrap().get(0);
+    let still_owner = resumed > 0 && o.owner.lines("LOST").is_empty();
+    r.pass(
+        "W8",
+        "slow-owner/keyshare/claim",
+        o.took_over_after_stop.is_none() && still_owner && committed == 1,
+        format!(
+            "takeover={} owner_resumed_and_still_serving={still_owner} slow-tx row committed={committed} | standby CLAIM={:?} TERMINATE={:?} | slow renewals={:?}",
+            o.took_over_after_stop.map_or("none in 10 s".into(), |d| format!("after {} ms", ms(d))),
+            o.standby.lines("CLAIM"),
+            o.standby.lines("TERMINATE"),
+            o.owner.lines("RENEWED")
+        ),
+    );
+}
+
+fn w10_claim(db: &mut Client, r: &mut Results) {
+    log("=== W10-claim lock order against the claim takeover (KEY SHARE fence)");
+    for order in ["fence-first", "head-first"] {
+        reset(db);
+        let mut owner = connect("sb_core", "w10c-owner-tx", "").unwrap();
+        let mut take = connect("sb_core", "w10c-takeover", "").unwrap();
+        owner.batch_execute("BEGIN").unwrap();
+        if order == "fence-first" {
+            owner.query_one("SELECT token FROM _owner WHERE singleton FOR KEY SHARE", &[]).unwrap();
+        }
+        owner.query_one("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[]).unwrap();
+        let h = thread::spawn(move || {
+            let t0 = Instant::now();
+            let res = (|| -> Result<(), postgres::Error> {
+                take.batch_execute("BEGIN; SET LOCAL lock_timeout = 5000")?;
+                take.query_one("UPDATE _owner SET lease_until = lease_until WHERE singleton AND token = 0 AND lease_until < clock_timestamp() RETURNING token", &[])?;
+                take.batch_execute("SAVEPOINT s3")?;
+                take.query_one("SELECT token FROM _owner WHERE singleton FOR UPDATE", &[])?;
+                take.execute("UPDATE _owner SET token = token + 1", &[])?;
+                take.execute("UPDATE _head SET owner_token = 1", &[])?;
+                take.batch_execute("COMMIT")
+            })();
+            format!("{} after {} ms", res.map(|_| "committed".to_string()).unwrap_or_else(|e| err_str(&e)), ms(t0.elapsed()))
+        });
+        thread::sleep(Duration::from_millis(300));
+        let t0 = Instant::now();
+        let mine = if order == "head-first" {
+            owner
+                .query_one("SELECT token FROM _owner WHERE singleton FOR KEY SHARE", &[])
+                .map(|row| format!("fence read token={}", row.get::<_, i64>(0)))
+                .unwrap_or_else(|e| err_str(&e))
+        } else {
+            "fence already held".to_string()
+        };
+        let mine = format!("{mine} after {} ms", ms(t0.elapsed()));
+        let _ = owner.batch_execute("ROLLBACK");
+        let theirs = h.join().unwrap();
+        log(&format!("{order}: owner tx: {mine}; claim takeover tx: {theirs}"));
+        let deadlock = mine.contains("40P01") || theirs.contains("40P01");
+        r.add("W10", &format!("{order}/claim"), if deadlock { "DEADLOCK" } else { "NO-DEADLOCK" }, format!("owner tx: {mine}; takeover tx: {theirs}"));
+    }
+}
+
 fn main() {
     START.get_or_init(Instant::now);
     let which: Vec<String> = std::env::args().skip(1).collect();
     let which: Vec<&str> = if which.is_empty() || which.iter().any(|w| w == "all") {
         vec!["w1", "w2", "w3", "w4", "w5", "w6", "w7", "w8", "w9", "w10"]
     } else {
-        which.iter().map(|s| s.as_str()).collect()
+        which
+            .iter()
+            .flat_map(|s| match s.as_str() {
+                "w11" => vec!["w11a", "w11b", "w11c", "w11e", "w11f"],
+                "claim-reruns" => vec!["w2claim", "w3claim", "w8claim", "w10claim"],
+                other => vec![other],
+            })
+            .collect()
     };
     let mut db = su();
     let v: String = db.query_one("SELECT version()", &[]).unwrap().get(0);
@@ -975,6 +1660,19 @@ fn main() {
             "w8" => w8(&mut db, &mut r),
             "w9" => w9(&mut db, &mut r),
             "w10" => w10(&mut db, &mut r),
+            "w11a" => w11a(&mut db, &mut r),
+            // W11b and W11d share one run (hygiene after commit), plus a W11b variant with hygiene in the loop.
+            "w11b" | "w11d" => {
+                w11bd(&mut db, &mut r, "after");
+                w11bd(&mut db, &mut r, "loop");
+            }
+            "w11c" => w11c(&mut db, &mut r),
+            "w11e" => w11e(&mut db, &mut r),
+            "w11f" => w11f(&mut db, &mut r),
+            "w2claim" => w2_with(&mut db, &mut r, "keyshare", "W2", "claim"),
+            "w3claim" => w3_with(&mut db, &mut r, &["claim", "claim-hygiene-off"], "keyshare"),
+            "w8claim" => w8_claim(&mut db, &mut r),
+            "w10claim" => w10_claim(&mut db, &mut r),
             other => panic!("unknown witness {other}"),
         }
     }
