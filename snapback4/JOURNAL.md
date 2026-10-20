@@ -97667,3 +97667,12 @@ Asset policy retains uploader-only home guidance and the extracted ledger
 access. Both journal histories remain intact. No version or runtime ceiling
 change. Linux qualification and wasm remeasurement follow in the workstream
 report; the publication's Mac dry run covers platform checks.
+
+
+### 2026-10-21 — storage-port merge wasm remeasurement
+
+Clean merged product `07b210d2ff` measures 2,404,722 B raw / 733,690 B
+gzip / 552,771 B Brotli (Node zlib quality 11), with strict family and
+server-only/Unicode absence attribution passing. The existing 734,190 B
+gzip budget remains measured + exactly 500 B. Raw/gzip bytes are identical
+to Integration 19; the storage adapters add no device payload.
