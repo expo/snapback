@@ -97356,3 +97356,60 @@ errors and unchecked refs. All eleven SQL/catalog CLI probes pass again on
 the final test-profile binary; persisted database bytes are unchanged.
 `scripts/test.sh` was not run. No functional uncertainty or new follow-up is
 left by this extraction; Postgres tooling/inspection implementations remain P1.
+
+## 2026-10-20 — K0a: the reference committer seam (P0-S9, first slice)
+
+The crate-private `engine/committer.rs` now carries `Member`, the five member
+kinds and the reference `Committer`. A member runs in place, opens its original
+transaction through the committer and selects its original commit point.
+Explicit rollback errors and implicit drop on early normal returns remain
+distinct. Hooks execute synchronously after a successful commit, in submission
+order; `Committed<T>` carries those continuations across adapter/engine layers.
+There is no queue, batching, thread, retry or persisted revision in this slice.
+
+Mutation, expiry, seed (including trusted deletion), load/restore, job chunks,
+time-audience publication, timeline delivery, row views and expiry-orphan
+recovery use the seam. Activation rebuild and Following launch retain their
+shared raw immediate transaction, opened by the committer through the adapter's
+original preparation path. Reset and the host smoke barrier also enter through
+their existing adapter operations. `seed_sequences` remains a seed savepoint,
+not a separate transaction. The private clock pin also becomes a Direct member.
+Mutation's publication prelude, the evaluation Postgres `mutate_once`, host
+metadata and host wakeup positions are unchanged.
+
+Post-commit work now uses hooks: expiry continuation and follow-on audience
+advancement, committed job status reads, timeline rotation, activation reports
+and runtime catalog/identity acceptance, engine adoption/reset state, expiry
+continuation clearing and ephemeral rebind. Existing SQL and error strings are
+verbatim. The producer table and complete grouped K0b inventory are in
+`reports/20261020-k0a/REPORT.md`.
+
+The new production durable-opener ratchet shares the store-port lexer and has
+no raise override. Its base count is 62 lines in 15 files; K0a leaves 49 in 11
+files. Remaining candidates cover identity/session operations, action/route
+admission and lifecycle, claims/settlement/leases/presence, action/effect steps,
+asset intents/views/sweeps/receipt-only reports, job/schedule admission, opening
+upgrades and development replay metadata. Six matches are authority snapshots
+that only read/roll back today; adapter-internal transactions remain outside
+this lexical census and need K0b review too. The existing store-port allowlist
+falls from 11 to seven production lines by removing stale allowances (the base
+already has seven actual matches); its test count remains 95.
+
+Required checks ran with the requested target directory, incremental disabled,
+line-table debug information and at most `-j 32`. The binary build and complete
+core suite, integrations and doctests pass. The complete host run executes all
+targets, including both censuses; it has three inherited failures:
+`w11r1c_toolchain_why_explains_node_start_failure_too` and
+`farm2_typescript_7_is_refused_by_version_not_crashed_on` need the missing
+TypeScript installation; `web_witness_help_and_invalid_input` needs the missing
+built `packages/snapback4/dist/client.js`. Both failing targets reproduce all
+three failures in a second local worktree at `ce6c0d87da`. Clippy reproduces the
+base's `while_immutable_condition` in `engine/read.rs` and `never_loop` in
+`engine/row_views.rs`; final warning message/source-file comparisons find no
+new warnings. No inherited lint is suppressed or repaired.
+
+Final focused seam tests (two), Quarry/native time-audience tests (five), both
+ratchet targets (eight), the final build and `ref-check --verbose` pass. The
+second worktree was removed after comparison. No sub-agent, clone, remote
+machine, stash, push or `scripts/test.sh` run was used. K0a is an extraction;
+K0's queued stream and batching remain later work.
