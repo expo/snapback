@@ -183,7 +183,7 @@ impl Ty {
         }
         match (self, expected) {
             (Ty::Omittable(a), Ty::Omittable(b)) => a.assignable_to(b),
-            (Ty::Omittable(a), b) => a.assignable_to(b),
+            (Ty::Omittable(a), b) => a.as_ref().clone().optional().assignable_to(b),
             (a, Ty::Omittable(b)) => a.assignable_to(b),
             (Ty::Null, Ty::Optional(_)) => true,
             (Ty::Optional(inner), Ty::Optional(target)) => inner.assignable_to(target),
@@ -214,7 +214,7 @@ impl Ty {
     /// actual length. It cannot claim a smaller bound inside an inline helper.
     pub(crate) fn writable_to(&self, expected: &Ty) -> bool {
         match (self, expected) {
-            (Ty::Omittable(a),b) => a.writable_to(b),
+            (Ty::Omittable(a),b) => a.as_ref().clone().optional().writable_to(b),
             (a,Ty::Omittable(b)) => a.writable_to(b),
             (Ty::Optional(a), Ty::Optional(b)) => a.writable_to(b),
             (a, Ty::Optional(b)) => a.writable_to(b) || *a == Ty::Null,

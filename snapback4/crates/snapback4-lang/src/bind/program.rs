@@ -1096,25 +1096,6 @@ impl<'a> Binder<'a> {
         result
     }
 
-    fn row_fields(&self, ty: &Ty, site: &Site) -> Fallible<Vec<(String, Ty)>> {
-        match ty.required() {
-            Ty::WriteRow(table) => {
-                let info = self.table(&table, site)?;
-                let mut fields = vec![("id".to_owned(), Ty::Ref(table.clone()))];
-                fields.extend(info.columns.iter().filter(|(name,_)| !super::columns::fields(info).any(|f|f == *name)).map(|(name,scalar)|(name.clone(),if self.schema.tables[&table].read_optional(name) { Ty::from_scalar(scalar).optional() } else { Ty::from_scalar(scalar) })));
-                Ok(fields)
-            }
-            Ty::Row(table) => {
-                let info = self.table(&table, site)?;
-                let mut fields = vec![("id".to_owned(), Ty::Ref(table.clone()))];
-                fields.extend(info.columns.iter().map(|(name, scalar)| (name.clone(), if self.schema.tables[&table].read_optional(name) { Ty::from_scalar(scalar).optional() } else { Ty::from_scalar(scalar) })));
-                Ok(fields)
-            }
-            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => Ok(fields.into_iter().collect()),
-            other => Err(type_error(site, format!("* spreads a row or an object; got {}", other.name()), "shape a row")),
-        }
-    }
-
     // ----- writes -----
 
     /// Bind a write. When `valued`, the write yields its row (an insert's

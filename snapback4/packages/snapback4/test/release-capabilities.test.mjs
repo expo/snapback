@@ -135,3 +135,9 @@ test('availability checks the actual accepted spellings without rewriting reques
   assert.equal(operationAvailable(removed,'inspect','query',{explanation:type},{reason:'explanation'}),false);
   assert.equal(operationAvailable(old,'inspect','query',{explanation:{Text:{min:1,max:499}}},{reason:'explanation'}),false);
 });
+
+test('availability refuses consolidation of independent caller arguments',()=>{
+ const release={generation:2,operations:{q:{kind:'query',args:{b:'Int'},aliases:{a:'b'}}},tables:{}};
+ assert.equal(operationAvailable(release,'q','query',{a:'Int',b:'Int'}),false);
+ assert.equal(operationAvailable(release,'q','query',{b:'Int'},{a:'b'}),true);
+});

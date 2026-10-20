@@ -1,0 +1,11 @@
+Three material bugs remain:
+
+1. **P1 — Reverse projections read an already-reversed source.** [backfills.rs:346](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs:346) runs `apply_downfills` after restoring forward preimages. Trigger: v1 has `n=3, reason=null`; v2 backfills `n` to `6` and declares `down … {reason:n}`. Rollback restores `n=3` before evaluating the down expression, producing `reason=3` instead of the newer-source value `6`. Stage down results against the newer snapshot before applying reversals.
+
+2. **P2 — Alias consolidation falsely passes availability and compatibility.** [release.ts:44](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/src/release.ts:44), [generated predicate:19](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/emit/availability.ts:19), and [client_contracts.rs:89](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/client_contracts.rs:89) accept changing `q(a:int,b:int)` into `q(b:int alias a)`, with an unchanged constant result. Availability returns true and comparison reports no input break, but an old request containing both arguments gets `E_INPUT`. Independent argument positions must not resolve to the same served binding.
+
+3. **P2 — Protected required fields retain synthetic nullability after a guaranteed fallback.** [objects.rs:186](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/bind/program/objects.rs:186) removes `Omittable` but retains the `Optional` introduced by `row_fields`. For required protected `r.secret`, `insert copies {secret:'fallback', ...r, id:newId}` consequently fails type checking when `copies.secret` is required, although runtime produces either the readable string or the non-null fallback. Generated output likewise retains impossible nullability. Presence and stored nullability need separate treatment.
+
+Static inspection only; no tests ran and no files were changed.
+
+A broad merge-diff command inadvertently exposed journal text. I excluded it from the findings above.

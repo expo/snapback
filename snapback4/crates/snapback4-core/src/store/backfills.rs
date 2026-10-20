@@ -94,6 +94,17 @@ fn protected(kind:&crate::schema::ColumnType)->bool {
 struct SourceMask<'a,'b>(&'a Tx<'b>);
 impl Drop for SourceMask<'_,'_>{fn drop(&mut self){let _=self.0.conn().execute_batch("DROP TABLE IF EXISTS temp._backfill_unprovided");}}
 
+// A declared forward receipt may temporarily expose its exact predecessor while
+// the down receipt still remembers the newer input. Ordinary changed inputs
+// remain conflicts; the later forward pass must validate and restore this receipt.
+fn forward_preimage(tx:&Tx<'_>,next:&Schema,table:&str,t:i64,id:&str,column:&str,current:Option<&Value>,newer:&Value)->Result<bool,RuntimeError>{
+    for fill in next.backfills.iter().filter(|f|f.table==table&&f.outputs.contains(column)) {
+        if let Some(e)=evidence(tx,t,id,&fill.key())? {
+            if !e.active&&e.before.get(column)==current&&e.after.get(column)==Some(newer){return Ok(true)}
+        }
+    }Ok(false)
+}
+
 fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report::AdoptionReport)->Result<(),RuntimeError>{
     for fill in &next.downfills {
         let t=tx.num(&fill.table)?;let key=fill.down_key();let table=&next.tables[&fill.table];
@@ -113,7 +124,8 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report:
             for (column,original) in &e.inputs.as_object()?.iter().map(|(k,v)|(k.clone(),v.clone())).collect::<BTreeMap<_,_>>() {
                 if let Some(kind)=table.columns.get(column) {
                     let current=fields.get(column).cloned().or_else(||table.defaults.get(column).and_then(|d|if let crate::schema::ColumnDefault::Literal(v)=d{Some(v.clone())}else{None})).unwrap_or(Value::Null);
-                    if &current!=original && crate::engine::validate::validate_column(&fill.table,column,kind,Some(&current)).is_ok() {
+                    if &current!=original && crate::engine::validate::validate_column(&fill.table,column,kind,Some(&current)).is_ok()
+                        && !forward_preimage(tx,next,&fill.table,t,id,column,fields.get(column),original)? {
                         bad.add(id,&format!("{}.{} changed while the older release was active; reverse dependencies cannot be recaptured",fill.table,column));return Ok(())
                     }
                 }
@@ -148,10 +160,10 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report:
     } Ok(())
 }
 
-fn apply_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,now:i64,report:&mut super::adoption_report::AdoptionReport)->Result<(),RuntimeError>{
+fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,now:i64,report:&mut super::adoption_report::AdoptionReport)->Result<bool,RuntimeError>{
     let next_keys:BTreeSet<String>=next.downfills.iter().map(Backfill::down_key).collect();
     let leaving:Vec<_>=previous.downfills.iter().filter(|f|!next_keys.contains(&f.down_key())).collect();
-    if leaving.is_empty(){return Ok(())}
+    if leaving.is_empty(){return Ok(false)}
     let mut source=previous.clone();source.backfills.clear();source.downfills.clear();
     tx.conn().execute_batch("CREATE TEMP TABLE _downfill_pending(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,patch TEXT NOT NULL,evidence TEXT NOT NULL,PRIMARY KEY(t,id,definition)) WITHOUT ROWID;")?;
     for fill in leaving {
@@ -240,6 +252,10 @@ fn apply_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,now:i64,report:&mut 
         if bad.count>0{return Err(refusal(format!("down {} {}: {}",fill.table,fill.name,bad.describe())))}
         if count>0{report.backfills.push(format!("{} {} projected {count} {} down",fill.table,fill.name,if count==1{"row"}else{"rows"}));}
     }
+    Ok(true)
+}
+// @ref LLP 3000.000.000#191-declared-old-views-and-renames — all down expressions observe the assembled newer snapshot before any forward preimage is restored.
+fn apply_staged_downfills(tx:&Tx<'_>)->Result<(),RuntimeError>{
     let mut stmt=tx.conn().prepare("SELECT t,id,definition,patch,evidence,octet_length(patch)+octet_length(evidence) FROM temp._downfill_pending ORDER BY t,id,definition")?;let mut rows=stmt.query([])?;
     while let Some(r)=rows.next()? {let t:i64=r.get(0)?;let id:String=r.get(1)?;let key:String=r.get(2)?;
         let mut admission=Meter::new(Ceilings::job(),Cut::Abort);admission.heap((r.get::<_,i64>(5)?.max(0) as u64).saturating_mul(64).saturating_add(8192)).map_err(|err|refusal(format!("down projection staged reversal evidence exceeds its read budget: {err}; reduce the per-row migration image")))?;
@@ -307,6 +323,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         tx.conn().execute("INSERT OR IGNORE INTO _downfill_definitions VALUES(?1,?2)",params![fill.down_key(),canonical_json(fill)])?;
     }
     let next_keys:BTreeSet<_>=next.backfills.iter().map(Backfill::key).collect();
+    let down_pending=if let Some(previous)=previous{stage_downfills(tx,next,previous,now,report)?}else{false};
     let definitions:Vec<Backfill>=tx.conn().prepare("SELECT definition FROM _backfill_definitions WHERE digest IN (SELECT definition FROM _backfill_evidence WHERE active=1 OR retained_outputs!='[]' UNION SELECT definition FROM _backfill_pruned WHERE active=1 OR retained_outputs!='[]') ORDER BY digest")?.query_map([],|r|r.get::<_,String>(0))?.map(|s|decode(&s?)).collect::<Result<_,RuntimeError>>()?;
     for fill in definitions.iter().rev().filter(|f|!next_keys.contains(&f.key())) {
         let Some(table)=next.table(&fill.table) else {continue};
@@ -343,7 +360,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         if count>0 {report.backfills.push(format!("{} {} reversed on {count} {}",fill.table,fill.name,if count==1 {"row"}else{"rows"}));tx.set_meta("activation_population","true")?;}
     }
     restore_downfills(tx,next,report)?;
-    if let Some(previous)=previous {apply_downfills(tx,next,previous,now,report)?;}
+    if down_pending {apply_staged_downfills(tx)?;}
     let old_keys:BTreeSet<_>=previous.into_iter().flat_map(|s|s.backfills.iter().map(Backfill::key)).collect();
     let restored_tables:BTreeSet<i64>=tx.conn().prepare("SELECT DISTINCT n.t FROM _dormant_narrow_rows n WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)")?.query_map([],|r|r.get(0))?.collect::<Result<_,_>>()?;
     let entering:Vec<_>=next.backfills.iter().filter(|f|!old_keys.contains(&f.key()) || tx.num(&f.table).is_ok_and(|t|restored_tables.contains(&t))).collect();

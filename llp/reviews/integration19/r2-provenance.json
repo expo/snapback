@@ -1,0 +1,17 @@
+{
+  "source": "138d61dcbf",
+  "reviewers": [
+    {
+      "file": "r2-codex.txt",
+      "model": "gpt-6.1-sol",
+      "effort": "high",
+      "sha256": "b04587732dadeda1cfe869d5449ae4e4769f86fcbe91ecc578c121ab04225c40"
+    },
+    {
+      "file": "r2-muse.txt",
+      "model": "muse-spark-1.3-contributor",
+      "effort": "high",
+      "sha256": "0b274462be3d0422ad8cc70da6885721357b27d7c6f792a94ca0903a4dbd6243"
+    }
+  ]
+}

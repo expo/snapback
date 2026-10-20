@@ -105,6 +105,17 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
                 _=>{}
             }
         }
+        let mut positions:BTreeMap<String,String>=BTreeMap::new();
+        for canonical in before.program.args.keys() {
+            for spelling in std::iter::once(canonical).chain(before.program.arg_aliases.iter().filter_map(|(alias,target)|(target==canonical).then_some(alias))) {
+                let target=after.program.args.contains_key(spelling).then_some(spelling).or_else(||after.program.arg_aliases.get(spelling));
+                if let Some(target)=target {
+                    if let Some(prior)=positions.insert(target.clone(),canonical.clone())&&prior!=*canonical {
+                        lines.push(format!("{prefix}: INPUT BREAK: independent arguments {prior} and {canonical} now share {target}; old calls containing both positions get E_INPUT; retain separate arguments or a compatible wrapper"));
+                    }
+                }
+            }
+        }
         for (table,before_table) in old.schema.visible_tables() {
             let Some(after_table)=new.schema.table(table) else { continue; };
             if !snapback4_core::ir::read_sites(&before.program).iter().any(|site|site.table==*table)

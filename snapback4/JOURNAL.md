@@ -97170,3 +97170,17 @@ checks every accepted spelling without silently remapping requests. A compiler-o
 omittable property marker preserves nested spreads, scalar null access and fallback
 presence; it adds no wire or engine type. Both initial reviews remain verbatim.
 New detecting regressions and regenerated output snapshots cover these repairs.
+
+
+## 2026-10-20 — Integration 19 reverse source snapshot
+
+The second fresh Codex review found that down expressions ran after forward
+preimages had already reversed newer inputs. Stage every down expression against
+the same newer source before any reversal; apply disjoint staged outputs afterward.
+Forward recognizes only an exact declared forward receipt's predecessor image,
+while unrelated older edits still conflict. The detecting test combines direct
+and point-read transformed inputs across repeated cycles; all77 backfill tests pass.
+Argument consolidation now reports INPUT BREAK and unavailable old handles.
+Omitted protected properties retain their stored domain separately from absence,
+so a definite fallback into a required destination typechecks. The binder's row
+field helper moves into its existing object module to keep the parent under1500lines.

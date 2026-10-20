@@ -119,7 +119,8 @@ impl Binder<'_> {
                 for (name, field_ty) in self.row_fields(&ty, &field.site)? {
                     let omit=self.schema.tables.values().any(|t|!t.column_reads.is_empty())&&match ty.required(){Ty::Row(table)|Ty::WriteRow(table)=>self.schema.tables[&table].read_optional(&name),_=>matches!(field_ty,Ty::Omittable(_))};
                     let access = if field_ty.is_optional() { Expr::Builtin { builtin: Builtin::OptionalField { field: name.clone(), omit, fallback: false }, args: vec![value.clone()] } } else { ir::field(value.clone(), &name) };
-                    result.push((name.clone(), access, if omit{field_ty.omittable()}else{field_ty}, field.site.clone()));
+                    let stored=match ty.required(){Ty::Row(table)|Ty::WriteRow(table) if omit=>self.schema.tables[&table].columns.get(&name).map(Ty::from_column).unwrap_or_else(||field_ty.clone()),_=>field_ty.clone()};
+                    result.push((name.clone(), access, if omit{stored.omittable()}else{field_ty}, field.site.clone()));
                 }
             } else {
                 // Snapshot anything that can read, fail or allocate before
@@ -191,4 +192,26 @@ fn merge_fields(fields: Vec<Field>) -> Fallible<Vec<Field>> {
         merged.insert(name.clone(), (name, value, ty, site));
     }
     Ok(merged.into_values().collect())
+}
+
+impl Binder<'_> {
+    pub(super) fn row_fields(&self, ty: &Ty, site: &Site) -> Fallible<Vec<(String, Ty)>> {
+        match ty.required() {
+            Ty::WriteRow(table) => {
+                let info = self.table(&table, site)?;
+                let mut fields = vec![("id".to_owned(), Ty::Ref(table.clone()))];
+                fields.extend(info.columns.iter().filter(|(name,_)| !super::super::columns::fields(info).any(|f|f == *name)).map(|(name,scalar)|(name.clone(),if self.schema.tables[&table].read_optional(name) { Ty::from_scalar(scalar).optional() } else { Ty::from_scalar(scalar) })));
+                Ok(fields)
+            }
+            Ty::Row(table) => {
+                let info = self.table(&table, site)?;
+                let mut fields = vec![("id".to_owned(), Ty::Ref(table.clone()))];
+                fields.extend(info.columns.iter().map(|(name, scalar)| (name.clone(), if self.schema.tables[&table].read_optional(name) { Ty::from_scalar(scalar).optional() } else { Ty::from_scalar(scalar) })));
+                Ok(fields)
+            }
+            Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => Ok(fields.into_iter().collect()),
+            other => Err(type_error(site, format!("* spreads a row or an object; got {}", other.name()), "shape a row")),
+        }
+    }
+
 }

@@ -692,7 +692,15 @@ fn protected_scalar_rename_reverse_projection_and_argument_alias_survive_two_rel
 fn protected_spread_types_preserve_omission_nested_fields_and_fallback_presence(){
  let b=clean(&(SOURCE.to_owned()+"query spread(id: records):\n  r = records[id] ! else MISSING\n  s = {...r}\n  return {nested: {...s}}\nquery fallback(id: records):\n  r = records[id] ! else MISSING\n  return {secret: 'fallback', ...r}\nquery scalarSpread(id: records):\n  r = records[id] ! else MISSING\n  s = {...r}\n  return s.secret\n"));
  let spread=b.programs.iter().find(|p|p.program.name=="spread").unwrap();
- let ty=snapback4_lang::emit::ty_ts(&spread.result);assert!(ty.contains("secret?: string | null"),"{ty}");
- let fallback=b.programs.iter().find(|p|p.program.name=="fallback").unwrap();let ty=snapback4_lang::emit::ty_ts(&fallback.result);assert!(ty.contains("secret: string | null"),"{ty}");assert!(!ty.contains("secret?:"),"{ty}");
+ let ty=snapback4_lang::emit::ty_ts(&spread.result);assert!(ty.contains("secret?: string;"),"{ty}");
+ let fallback=b.programs.iter().find(|p|p.program.name=="fallback").unwrap();let ty=snapback4_lang::emit::ty_ts(&fallback.result);assert!(ty.contains("secret: string;"),"{ty}");assert!(!ty.contains("secret?:"),"{ty}");
  let scalar=b.programs.iter().find(|p|p.program.name=="scalarSpread").unwrap();assert_eq!(snapback4_lang::emit::ty_ts(&scalar.result),"string | null");
+}
+
+#[test]
+fn a_required_protected_spread_with_a_guaranteed_fallback_can_write_a_required_field(){
+ let source="table originals:\n  owner: principal\n  secret: text <=80 read <- .owner = viewer\n  public\n  online only\ntable copies:\n  owner: principal\n  secret: text <=80\n  public\n  insert <- allow\n  online only\nmutation copy(id: originals):\n  r = originals[id] ! else MISSING\n  return insert copies {secret: 'fallback', ...r, id: new}\n";
+ let b=clean(source);let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+ e.seed([("originals".into(),object([("id",Value::Id("original".into())),("owner",Value::Id("alice".into())),("secret",Value::String("private".into()))]))]).unwrap();
+ for viewer in ["alice","bob"]{let mut c=context(viewer);c.args.insert("id".into(),Value::Id("original".into()));let out=e.mutate("copy",None,c).unwrap();let WriteState::Sent{result,..}=out.state else{panic!("{out:?}")};assert_eq!(result.field("secret").unwrap(),&Value::String(if viewer=="alice"{"private"}else{"fallback"}.into()));}
 }

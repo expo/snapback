@@ -16,6 +16,7 @@ function operationAvailable(release: ReleaseSnapshot, name: string, kind: string
     const names = [expected, ...Object.entries(aliases).filter(([, name]) => name === expected).map(([alias]) => alias)];
     if (!target || !Object.hasOwn(op.args, target) || canonical(op.args[target]) !== canonical(type)
       || names.some(name => resolve(name) !== target)) return false;
+    if (matched.has(target)) return false;
     matched.add(target);
   }
   return Object.entries(op.args).every(([name, type]) => matched.has(name) || (object(type) && Object.hasOwn(type, "Optional")));

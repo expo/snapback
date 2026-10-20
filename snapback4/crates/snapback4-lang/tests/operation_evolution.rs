@@ -199,3 +199,9 @@ fn removing_or_narrowing_a_previous_argument_alias_warns_old_callers(){
  let narrowed=checked("query q(x: int, y: int 0..10 default 0 alias oldX):\n  return x\n");
  assert!(compare(&before,&narrowed,"release 1").iter().any(|s|s.contains("alias oldX retyped or narrowed")));
 }
+
+#[test]
+fn consolidating_two_independent_arguments_into_one_alias_is_an_input_break(){
+ let old=checked("query q(a: int, b: int):\n  return 1\n");let next=checked("query q(b: int alias a):\n  return 1\n");
+ assert!(compare(&old,&next,"release 1").iter().any(|s|s.contains("independent arguments")&&s.contains("get E_INPUT")));
+}

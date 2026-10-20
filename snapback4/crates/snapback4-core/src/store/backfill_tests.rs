@@ -788,3 +788,14 @@ fn column_rename_rejects_protected_reference_asset_and_collection_types_before_a
   assert!(bound.schema.downfills.is_empty());assert!(bound.schema.backfills.is_empty());
  }
 }
+
+#[test]
+fn down_reads_the_newer_snapshot_before_forward_preimages_are_reversed(){
+ let old="table docs:\n  n: int\n  reason: int ?\n  public\n  online only\ntable sources:\n  m: int\n  public\n  online only\n";
+ let new=old.replace("  reason: int ?\n","")+"backfill docs double(n: int): {n:n * 2}\nbackfill sources triple(m: int): {m:m * 3}\ndown docs oldReason(n: int): {reason:n + (sources['s'] ! else MISSING).m}\n";
+ let mut e=engine(old);seed(&mut e,"docs",json!({"id":"d","n":3,"reason":null}));seed(&mut e,"sources",json!({"id":"s","m":4}));
+ for _ in 0..2 {
+  adopt(&mut e,&new,2).unwrap();assert_eq!(field(&mut e,"docs","d","n"),Value::Int(6));assert_eq!(field(&mut e,"sources","s","m"),Value::Int(12));
+  adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"docs","d","n"),Value::Int(3));assert_eq!(field(&mut e,"sources","s","m"),Value::Int(4));assert_eq!(field(&mut e,"docs","d","reason"),Value::Int(18));
+ }
+}
