@@ -1,0 +1,50 @@
+{
+  "sourceCommit": "1ab2105e0a05200c9e550c77b3d5f76b659559b4",
+  "clientTarball": "colr-fresh-pack-fixed/snapback4-0.4.34.tgz",
+  "clientIntegrity": "sha512-+1wEbcSD0SwWappWcyKIsnGI4MK+dpNmNUfaBQ5XYvtnaEZpSDjqkLzLTPoyhueOpoxWg4S5UpFVmO2+l6RRGg==",
+  "expoIntegrity": "sha512-y4nWpkBVNzHazo2kbwxrjE4PkC0OPYqAn7oKAfzl0eU1NUtm6r//HaWNQ87E9EhmxFXpqzLyQBz2SLmZoa+QLg==",
+  "binarySha256": "7355b65aeb40fea11fbfebddb1d039cd2a743381fdfef7ea24454a94063296e2",
+  "mode": "Production schema checks and TypeScript noEmit using the fresh packed SDK and checkout dependency toolchain; no browser/simulator claim for these five copies",
+  "results": [
+    {
+      "lane": "006",
+      "checkExit": 0,
+      "checkOk": true,
+      "seconds": 10.16,
+      "typesExit": 0,
+      "types": ""
+    },
+    {
+      "lane": "037",
+      "checkExit": 0,
+      "checkOk": true,
+      "seconds": 93.91,
+      "typesExit": 0,
+      "types": ""
+    },
+    {
+      "lane": "039",
+      "checkExit": 0,
+      "checkOk": true,
+      "seconds": 35.68,
+      "typesExit": 0,
+      "types": ""
+    },
+    {
+      "lane": "043",
+      "checkExit": 0,
+      "checkOk": true,
+      "seconds": 36.2,
+      "typesExit": 0,
+      "types": ""
+    },
+    {
+      "lane": "049",
+      "checkExit": 0,
+      "checkOk": true,
+      "seconds": 82.3,
+      "typesExit": 0,
+      "types": ""
+    }
+  ]
+}

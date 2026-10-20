@@ -341,7 +341,7 @@ impl Binder<'_> {
             _ => {
                 if let Some(binding) = self.binding(name) {
                     if let Some(error) = &binding.error { return Err(error.clone()); }
-                    return Ok((ir::var(&binding.runtime), binding.ty.clone()));
+                    return Ok((binding.inline.clone().unwrap_or_else(|| ir::var(&binding.runtime)), binding.ty.clone()));
                 }
                 if self.catalog.tables.contains_key(name) {
                     return Err(unknown(site, format!("{name} is a table; a read needs a key or a range"), format!("{name}[key]  -- or: {name}[prefix] first 50 by index")));
@@ -411,10 +411,10 @@ impl Binder<'_> {
                     super::super::row_views::predicate_field(info, name, site)?;
                 }
                 if name == "pending" && self.returned_data && info.maintained.as_ref().is_some_and(|m| m.row_key.is_some()) {
-                    return Ok((Expr::Builtin { builtin: Builtin::OptionalField { field: name.into() }, args: vec![base] }, Ty::Bool.optional()));
+                    return Ok((Expr::Builtin { builtin: Builtin::OptionalField { field: name.into(), omit: false, fallback: false }, args: vec![base] }, Ty::Bool.optional()));
                 }
-                if let Some(column) = info.decl.columns.iter().find(|column| column.name == name && column.written_by.is_some() && !column.readable_by_audience) {
-                    return Ok((Expr::Builtin { builtin: Builtin::OptionalField { field: name.into() }, args: vec![base] }, Ty::from_scalar(&column.type_).optional()));
+                if let Some(column) = info.decl.columns.iter().find(|column| column.name == name && self.schema.tables.get(&info.decl.name).is_some_and(|t|t.read_optional(name))) {
+                    return Ok((Expr::Builtin { builtin: Builtin::OptionalField { field: name.into(), omit: false, fallback: false }, args: vec![base] }, Ty::from_scalar(&column.type_).optional()));
                 }
                 if name == "id" {
                     Ty::Ref(table.clone())
@@ -465,7 +465,7 @@ impl Binder<'_> {
             other => return Err(type_error(site, format!("{} has no fields", other.name()), "read a row or an object before selecting a field")),
         };
         let result_ty = if ty.is_optional() { field_ty.optional() } else { field_ty };
-        Ok((ir::field(base, name), result_ty))
+        Ok((if result_ty.is_optional() && matches!(ty.required(), Ty::Object(_) | Ty::RowObject(_) | Ty::RowShape(_)) && self.schema.tables.values().any(|t| !t.column_reads.is_empty()) { Expr::Builtin { builtin: Builtin::OptionalField { field: name.into(), omit: false, fallback: false }, args: vec![base] } } else { ir::field(base, name) }, result_ty))
     }
 
     pub(super) fn binary(&mut self, op: &str, left: &A, right: &A, site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
@@ -1032,6 +1032,7 @@ fn lexical_value(expr: &Expr) -> bool {
     match expr {
         Expr::Variable(_) => true,
         Expr::Field { base, .. } => lexical_value(base),
+        Expr::Builtin { builtin: Builtin::OptionalField { .. }, args } => args.iter().all(|e| matches!(e, Expr::Literal(_)) || lexical_value(e)),
         _ => false,
     }
 }

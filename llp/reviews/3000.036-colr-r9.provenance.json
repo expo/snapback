@@ -1,0 +1,14 @@
+{
+  "started": "2026-10-19T15:12:03.470822+00:00",
+  "amendment_sha256": "157b093f970bcb99d4b4604e65c193ac8decbd7c6ed1756fc6cfdce1da1fa89e",
+  "models": [
+    "gpt-6.1-sol high",
+    "muse-spark-1.3-contributor high"
+  ],
+  "scope": "section22 and all source; disclosed conditional model and unchanged sequence preconditions",
+  "finished": "2026-10-19T15:17:23.761711+00:00",
+  "verdicts": {
+    "codex": "READY",
+    "muse": "READY"
+  }
+}

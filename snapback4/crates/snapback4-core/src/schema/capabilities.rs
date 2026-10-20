@@ -56,6 +56,7 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    ("column-read-v1", |s| s.tables.values().any(|t| !t.column_reads.is_empty())),
     #[cfg(feature = "sqlite")]
     ("release-backfills-v3", |s| !s.backfills.is_empty()),
     ("live-parent-copy-v1", |s| s.tables.values().any(|t| t.through.as_ref().is_some_and(|t| t.live.is_some()))),

@@ -135,8 +135,8 @@ fn day_assignment_and_half_open_window_are_independent_authorities() {
     );
 }
 #[test]
-fn public_identity_does_not_publish_private_sheet() {
-    let mut e = engine("table privateSheets:");
+fn public_identity_does_not_publish_private_columns() {
+    let mut e = engine("table identities:");
     let r = write(
         &mut e,
         "createIdentity",
@@ -149,11 +149,10 @@ fn public_identity_does_not_publish_private_sheet() {
         read(&mut e, "identity", "bob", args.clone(), 1000)["name"],
         "Alice"
     );
-    assert!(read(&mut e, "privateSheet", "bob", args.clone(), 1000).is_null());
-    assert_eq!(
-        read(&mut e, "privateSheet", "alice", args, 1000)["notes"],
-        "private"
-    );
+    let public = read(&mut e, "identity", "bob", args.clone(), 1000);
+    assert!(public.get("notes").is_none());
+    assert!(public.get("contact").is_none());
+    assert_eq!(read(&mut e,"identity","alice",args,1000)["notes"],"private");
 }
 #[test]
 fn dashboard_discloses_count_to_staff_but_not_private_bodies() {

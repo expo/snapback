@@ -76,6 +76,11 @@ impl<'r> Runner<'r> {
         // default. It prevents prediction only when this transition needs it,
         // or when changing ownership would expose it to this device.
         let definition = &self.schema.tables[table];
+        if self.device && (definition.column_server_reads() || definition.column_reads.keys().any(|field|
+            patch.as_object().is_ok_and(|p| !p.contains_key(field))
+            && !definition.local_column_readable(field,old,Some(&self.context.viewer)) && definition.local_column_readable(field,next,Some(&self.context.viewer)))) {
+            return Err(RuntimeError::Prediction(format!("{table}: this transition must acquire a protected cell; queue it for the server (guide rules)")));
+        }
         if self.device && definition.written_by.iter().any(|(field, authority)|
             !authority.audience && old.field(&authority.owner).ok() != Some(&Value::Id(self.context.viewer.clone()))
             && ((!owned_only || definition.update_transition) && definition.rules.update.needs_field_value(field, &definition.columns[field])
@@ -97,14 +102,28 @@ impl<'r> Runner<'r> {
         Ok(())
     }
 
-    pub(crate) fn disclosed_row<'a>(&self, definition: &'a crate::schema::Table, row: Value) -> crate::value::Disclosed<'a> {
-        match self.system_access() {
-            Some(system) => definition.system_fields(row, &system),
-            None => definition.project_fields(row, Some(&self.context.viewer)),
-        }
+    pub(crate) fn column_readable(&mut self, definition: &crate::schema::Table, field: &str, row: &Value) -> Result<bool, RuntimeError> {
+        if self.context.is_system() { return Ok(true); }
+        let Some(rule) = definition.column_reads.get(field) else { return Ok(true); };
+        self.rule_dependencies(rule);
+        if self.device && !rule.column_row_local() { return Ok(false); }
+        let viewer=self.context.viewer.clone();
+        self.authorized_scratch(self.rule_scratch(rule), &[(MeterKind::RuleProbes,rules::rule_probes(rule))], |runner, allowance| {
+            let mut probe=super::read::RuleProbe { runner, allowance };
+            rules::evaluate(rule,&viewer,None,&crate::schema::row_image(row,definition),false,&mut probe)
+        })
     }
 
-    pub(crate) fn project_row(&mut self, table: &str, row: Value) -> Result<super::authorized_point::AuthorizedRow<'r>, RuntimeError> {
+    pub(crate) fn disclosed_row<'a>(&mut self, definition: &'a crate::schema::Table, row: Value) -> Result<crate::value::Disclosed<'a>,RuntimeError> {
+        if let Some(system)=self.system_access() { return Ok(definition.system_fields(row,&system)); }
+        let mut grants=std::collections::BTreeSet::new();
+        for field in definition.column_reads.keys() {
+            if self.column_readable(definition,field,&row)? { grants.insert(field.clone()); }
+        }
+        Ok(definition.project_fields(row,Some(&self.context.viewer)).with_column_grants(grants))
+    }
+
+    pub(crate) fn project_row_if_readable(&mut self, table: &str, row: Value) -> Result<Option<super::authorized_point::AuthorizedRow<'r>>, RuntimeError> {
         let definition = &self.schema.tables[table];
         // A merge may retain previously authorized results after its next lane
         // cuts. Revalidate their authority internally without treating that
@@ -112,7 +131,11 @@ impl<'r> Runner<'r> {
         let cap = self.meter.capped_at.take();
         let result = self.authorized_scratch(self.rule_scratch(&definition.rules.read), &[], |runner, _| runner.authorize_image(table,row));
         if cap.is_some() { self.meter.capped_at = cap; }
-        result?.ok_or_else(|| { self.refusing_clause(table, "read rule"); self.no_write_target() })
+        result
+    }
+
+    pub(crate) fn project_row(&mut self, table: &str, row: Value) -> Result<super::authorized_point::AuthorizedRow<'r>, RuntimeError> {
+        self.project_row_if_readable(table, row)?.ok_or_else(|| { self.refusing_clause(table, "read rule"); self.no_write_target() })
     }
 
     pub(super) fn private_scan_authority(&self, table: &str, uniform: bool, admitted: bool) -> Result<(), RuntimeError> {

@@ -12,6 +12,7 @@ pub(crate) struct AuthorizedRow<'a> {
     expiry: super::expiry::Pending,
 }
 impl AuthorizedRow<'_> {
+    pub(crate) fn field_visible(&self, field: &str) -> bool { self.projection.visible(field) }
     pub(super) fn expiry(&self) -> super::expiry::Pending { self.expiry }
     pub(super) fn scalar_heap(&self, field: &str) -> u64 { self.projection.scalar_heap(field, &self.authority) }
     pub(crate) fn heap_bytes(&self) -> u64 { self.projection.heap_bytes(&self.authority) }
@@ -39,7 +40,7 @@ impl<'r> Runner<'r> {
         // hidden/expired images nor private fields can select actual-size admission.
         #[cfg(feature = "server-search")]
         if trusted && !self.device && !table.read_lifetime_sensitive() && table.recorded.is_empty()
-            && table.through.is_none() && table.written_by.values().all(|a|a.audience) {
+            && table.through.is_none() && table.column_reads.is_empty() && table.written_by.values().all(|a|a.audience) {
             if !self.read_charge(MeterKind::Examined,1)? { return Ok(None); }
             self.meter.heap(crate::rows::word_heap::text(id) + crate::rows::word_heap::slots::<Value>(1))?;
             let key = [Value::Id(id.into())];
@@ -88,9 +89,9 @@ impl<'r> Runner<'r> {
         // Memory deadlines are hidden by Disclosed itself; transfer the live
         // boundary before projecting, still inside this candidate's expiry scope.
         if table.ephemeral.is_some() { self.note_expiry(table, &row); }
-        let projection = self.disclosed_row(table, row).for_query();
+        let projection = self.disclosed_row(table, row)?.for_query();
         let visible = projection.into_value();
-        Ok(Some(AuthorizedRow { projection: self.disclosed_row(table, visible).for_query(), authority: RowAuthorization(()), expiry: expiry.defer() }))
+        Ok(Some(AuthorizedRow { projection: self.disclosed_row(table, visible)?.for_query(), authority: RowAuthorization(()), expiry: expiry.defer() }))
     }
 
     pub(super) fn scan_disclosed(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize) -> Result<Vec<(Option<AuthorizedRow<'r>>, Vec<u8>)>, RuntimeError> {
@@ -110,7 +111,7 @@ impl<'r> Runner<'r> {
         // Trusted selected heads may use the same actual-size adapter. It
         // decodes a full transient image; the streaming consumer retains only
         // its ordering key. Selection remains useful in the private decoder.
-        if (self.context.is_system() || trusted && !table.read_lifetime_sensitive()) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
+        if (self.context.is_system() || trusted && !table.read_lifetime_sensitive()) && table.recorded.is_empty() && table.through.is_none() && table.column_reads.is_empty() && table.written_by.values().all(|a| a.audience) {
             if metered { self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>,
                 )>(limit))?; }
             #[cfg(feature = "sqlite")]
@@ -136,7 +137,7 @@ impl<'r> Runner<'r> {
                     self.prepaid_scan(&[], false, |runner, scope| {
                         runner.candidate_verdict(scope, name, index, prefix, row, true, rule_prepaid)
                     })?
-                } else { Some(AuthorizedRow { projection:self.disclosed_row(table,row),authority:RowAuthorization(()),expiry:Default::default() }) };
+                } else { Some(AuthorizedRow { projection:self.disclosed_row(table,row)?,authority:RowAuthorization(()),expiry:Default::default() }) };
                 out.push((row, key));
             }
             return Ok(out);
@@ -221,7 +222,7 @@ impl<'r> Runner<'r> {
             return Ok(None);
         }
         if trusted && !provisional && self.schema.maintain_for(name).is_some_and(|m| m.parent_key.is_some()) {
-            return Ok(Some(self.authorized_synthetic(table, row)));
+            return Ok(Some(self.authorized_synthetic(table, row)?));
         }
         self.authorize_image(name,row)
     }
@@ -245,7 +246,7 @@ impl<'r> Runner<'r> {
                     out.push((None, key)); continue;
                 }
                 let row = if !provisional && runner.schema.maintain_for(name).is_some_and(|m| m.parent_key.is_some()) {
-                    Some(runner.authorized_synthetic(table, row))
+                    Some(runner.authorized_synthetic(table, row)?)
                 } else { runner.authorize_image(name, row)? };
                 out.push((row, key));
             }
@@ -310,10 +311,10 @@ impl<'r> Runner<'r> {
                 // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
                 if runner.device && runner.retained_row(&read.table, &row)? { runner.components.note(|frame| frame.retained = true); }
                 runner.note_expiry(table, &row);
-                let projected = runner.disclosed_row(table, row).for_query();
+                let projected = runner.disclosed_row(table, row)?.for_query();
 
                 let visible = projected.into_value(); // drop hidden storage before leaving the internal scope
-                Ok(Some(AuthorizedRow { projection: runner.disclosed_row(table, visible).for_query(), authority: RowAuthorization(()), expiry: Default::default() }))
+                Ok(Some(AuthorizedRow { projection: runner.disclosed_row(table, visible)?.for_query(), authority: RowAuthorization(()), expiry: Default::default() }))
             })?;
             // The live aggregate is an authorized result computation. It must keep
             // its ordinary work budget and cannot publish a partial scalar value.
@@ -326,7 +327,7 @@ impl<'r> Runner<'r> {
         };
         // A maintained point read has already reserved its recount scratch (aggregate_point_scratch).
         let row = if prepaid_examined { self.live_aggregate_prepaid(&read.table, row)? } else { self.live_aggregate(&read.table, row)? }.unwrap_or(Value::Null);
-        Ok(Some(AuthorizedRow { projection: self.disclosed_row(table, row).for_query(), authority: RowAuthorization(()), expiry: Default::default() }))
+        Ok(Some(AuthorizedRow { projection: self.disclosed_row(table, row)?.for_query(), authority: RowAuthorization(()), expiry: Default::default() }))
     }
 
     fn point_event_held(&mut self, read: &Read, key: &[Value], row: &Value) -> bool {
@@ -340,8 +341,8 @@ impl<'r> Runner<'r> {
     /// A key-authorized synthetic aggregate image (its fields are the caller's
     /// key, the group id derived from it and the disclosed total) is sealed
     /// without a second row lookup: nothing in it came from hidden storage.
-    pub(super) fn authorized_synthetic(&self, table: &'r crate::schema::Table, row: Value) -> AuthorizedRow<'r> {
-        AuthorizedRow { projection: self.disclosed_row(table, row).for_query(), authority: RowAuthorization(()), expiry: Default::default() }
+    pub(super) fn authorized_synthetic(&mut self, table: &'r crate::schema::Table, row: Value) -> Result<AuthorizedRow<'r>,RuntimeError> {
+        Ok(AuthorizedRow { projection: self.disclosed_row(table, row)?.for_query(), authority: RowAuthorization(()), expiry: Default::default() })
     }
 
     // @ref LLP 3000.016#2.2 — withhold missing cards before an examination cut can conceal their coverage.

@@ -44,6 +44,7 @@ mod cascade_repair;
 mod reference_arguments;
 mod delete_guards;
 mod private_scans;
+mod column_reads;
 mod optional_patches;
 mod positional_keys;
 mod helper_names;
@@ -254,6 +255,9 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
         let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();
         for decl in &doc.programs {
             if decl.held && let Some(fact) = schema.operations.get_mut(&operation_name(&module, &decl.name)) {
+                if fact.sites.iter().any(|s|s.reason.contains("column read authority needs server witnesses")) {
+                    diagnostics.push(column_reads::refusal(&decl.site,"held queries cannot certify server-witness column rules; use an ordinary query for automatic online fallback"));
+                }
                 fact.held = true;
                 fact.components.clear();
                 fact.runs = Some("device".into());

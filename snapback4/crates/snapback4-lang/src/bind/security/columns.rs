@@ -6,5 +6,6 @@ pub(super) fn admission(table:&snapback4_core::schema::Table,column:Option<&str>
     if let Some(owner)=column.and_then(|c|table.written_by.get(c)).filter(|o|!o.audience){
         rules.push(RuleExpr::Eq(RuleTerm::Field(owner.owner.clone()),RuleTerm::Viewer));
     }
+    if let Some(rule)=column.and_then(|c|table.column_reads.get(c)) { rules.push(rule.clone()); }
     RuleExpr::And(rules)
 }

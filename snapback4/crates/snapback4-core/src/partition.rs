@@ -199,7 +199,7 @@ mod log_events {
     use super::*;
     pub(super) fn put(events: &mut PendingEvents, table: &str, definition: &Table, id: &str, new: &Value, after: &BTreeSet<String>) {
         for partition in after {
-            events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Put, id: id.to_owned(), data: Some(definition.project_fields(new.clone(), partition.strip_prefix("p:")).into_value()) });
+            events.push(Event { partition: partition.clone(), table: table.to_owned(), kind: EventKind::Put, id: id.to_owned(), data: Some({ let mut row=definition.project_fields(new.clone(), partition.strip_prefix("p:")).into_value(); if let Value::Row(fields)|Value::Map(fields)=&mut row { for field in definition.column_reads.keys() { fields.remove(field); } } row }) });
         }
     }
     pub(super) fn del(events: &mut PendingEvents, table: &str, id: &str, before: &BTreeSet<String>, after: &BTreeSet<String>) {

@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "source": "1ab2105e0a05200c9e550c77b3d5f76b659559b4",
+  "expo": {
+    "name": "snapback4-expo",
+    "version": "0.4.34",
+    "filename": "snapback4-expo-0.4.34.tgz",
+    "integrity": "sha512-y4nWpkBVNzHazo2kbwxrjE4PkC0OPYqAn7oKAfzl0eU1NUtm6r//HaWNQ87E9EhmxFXpqzLyQBz2SLmZoa+QLg==",
+    "bytes": 22238,
+    "tarball": "/home/ccheever/sb4-loop/colr-fresh-pack-fixed/snapback4-expo-0.4.34.tgz"
+  },
+  "client": {
+    "name": "snapback4",
+    "version": "0.4.34",
+    "filename": "snapback4-0.4.34.tgz",
+    "integrity": "sha512-+1wEbcSD0SwWappWcyKIsnGI4MK+dpNmNUfaBQ5XYvtnaEZpSDjqkLzLTPoyhueOpoxWg4S5UpFVmO2+l6RRGg==",
+    "bytes": 1309409,
+    "files": 319,
+    "tarball": "/home/ccheever/sb4-loop/colr-fresh-pack-fixed/snapback4-0.4.34.tgz"
+  },
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.34",
+    "filename": "snapback4-linux-x64-0.4.34.tgz",
+    "integrity": "sha512-q3YMhKlOmq5cFlyaSQE8crUplXCmrA4dfkHm17L5wjTvW3+0CzwC07cum/nwlqBWdBVPQ37lD3veEKJzA2vM5A==",
+    "bytes": 13362319,
+    "tarball": "/home/ccheever/sb4-loop/colr-fresh-pack-fixed/snapback4-linux-x64-0.4.34.tgz"
+  },
+  "binarySha256": "7355b65aeb40fea11fbfebddb1d039cd2a743381fdfef7ea24454a94063296e2"
+}

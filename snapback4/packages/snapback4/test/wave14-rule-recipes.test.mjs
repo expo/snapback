@@ -60,7 +60,7 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
   }
   async function project(t, marker, sourceBlocks = recipes, {schedules = false, expectedNotes = []} = {}) {
     const source = sourceBlocks.find(s=>s.includes(marker)); assert.ok(source, marker);
-    const cwd = join(dir, marker.replace(/\W/g,'_')); mkdirSync(join(cwd,'snapback'),{recursive:true});
+    const cwd = join(dir, marker.replace(/\W/g,'_')+'-'+Math.random().toString(36).slice(2)); mkdirSync(join(cwd,'snapback'),{recursive:true});
     writeFileSync(join(cwd,'snapback/schema.q'), source);
     const checked = JSON.parse(invoke(process.execPath,[cliPath,'check','--json'],cwd,env));
     assert.equal(checked.ok,true);
@@ -148,6 +148,52 @@ query oversized(c: cursor ?):
     assert.equal(await p.read('asserted','alice',{owner:'dev:alice'}),3);
     const oversized=await p.query('oversized','alice',{c:null});assert.deepEqual(oversized.data,[]);assert.equal(oversized.complete,false);
     assert.equal(await p.read('missing','alice',{flag:false}),null);
+  });
+  await t.test('column privacy keeps one public row and omits private fields in exact guide sources', async t=>{
+    for (const sourceBlocks of [recipes]) {
+      const p=await project(t,'table identities:',sourceBlocks);
+      const saved=await p.sent('createIdentity','alice',{name:'Alice',notes:'private notes'});
+      assert.equal(saved.notes,'private notes');
+      const own=await p.read('identity','alice',{identity:saved.id});assert.equal(own.notes,'private notes');assert.equal(own.contact,null);
+      const publicRow=await p.read('identity','bob',{identity:saved.id});
+      assert.equal(publicRow.id,saved.id);assert.equal(publicRow.name,'Alice');
+      assert.equal(Object.hasOwn(publicRow,'notes'),false);assert.equal(Object.hasOwn(publicRow,'contact'),false);
+    }
+  });
+  await t.test('packed wasm preserves omitted column cells through nested spreads', async t=>{
+    const source = `use personas alice, bob
+ table colrReplica:
+  owner: principal
+  title: text <=80
+  secret: text <=80 read <- .owner = viewer
+  public 'identities are shared'
+  insert <- .owner = viewer
+  sync public last 20 by .id
+ mutation putReplica():
+  return insert colrReplica { owner: viewer, title: 'shared', secret: 'private' }
+ query spreadReplica(id: colrReplica):
+  r = colrReplica[id] ! else NOT_FOUND
+  s = { ...r }
+  return { ...s }
+ query fallbackReplica(id: colrReplica):
+  r = colrReplica[id] ! else NOT_FOUND
+  return { secret: 'fallback', ...r }
+`.replace(/^ (table|mutation|query)/gm,'$1');
+    const p=await project(t,'table colrReplica:',[source]);
+    const saved=await p.sent('putReplica','alice');
+    for(const persona of ['alice','bob']) {
+      const opener=webDevice({wasm,persist:memoryPersistence()});let core;
+      const client=await createLocalClient({url:p.host.url,persona,device:{open:async(...args)=>{core=await opener.open(...args);return core;}}});
+      t.after(()=>client.close());await client.sync();
+      const reply=(await core.call({op:'query',name:'spreadReplica',viewer:`dev:${persona}`,args:{id:saved.id},now:Date.now()})).ok;
+      assert.ok(reply.complete,JSON.stringify(reply));
+      assert.equal(reply.data.title,'shared');
+      assert.equal(Object.hasOwn(reply.data,'secret'),persona==='alice');
+      if(persona==='alice') assert.equal(reply.data.secret,'private');
+      const fallback=(await core.call({op:'query',name:'fallbackReplica',viewer:`dev:${persona}`,args:{id:saved.id},now:Date.now()})).ok;
+      assert.ok(fallback.complete,JSON.stringify(fallback));
+      assert.equal(fallback.data.secret,persona==='alice'?'private':'fallback');
+    }
   });
   await t.test('the compact opening recipe grants only its owner', async t=>{
     const p=await project(t,'table ownRuleRecords:');

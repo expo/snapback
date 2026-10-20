@@ -65,8 +65,8 @@ impl Runner<'_> {
         let provisional = self.is_provisional(table, row)?;
         let definition = &self.schema.tables[table];
         let rule = definition.rules.read.clone();
-        if self.device_work_active { self.authorized_scratch(0,&[],|runner, scope| { let image = runner.disclosed_row(definition,row.clone()); super::authorized_scan::InternalLedger::with_meter(&mut runner.meter, |meter,_| image.charge_materialization_internal(meter,scope)) })?; }
-        let row = self.disclosed_row(definition, row.clone()).into_value();
+        if self.device_work_active { self.authorized_scratch(0,&[],|runner, scope| { let image = definition.project_fields(row.clone(),Some(&runner.context.viewer)); super::authorized_scan::InternalLedger::with_meter(&mut runner.meter, |meter,_| image.charge_materialization_internal(meter,scope)) })?; }
+        let row = definition.project_fields(row.clone(),Some(&self.context.viewer)).into_value();
         self.rule_dependencies(&rule);
         let viewer = self.context.viewer.clone();
         let verdict = rules::evaluate_verdict(&rule, &viewer, None, &row, false, &mut ReadProbe { runner: self, allowance, table, provisional, prepaid, unknown: false })?;

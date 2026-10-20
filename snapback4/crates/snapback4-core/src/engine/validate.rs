@@ -61,6 +61,7 @@ fn validate_image(schema: &Schema, table_name: &str, row: &Value, viewer: Option
         let value = object.get(name).or_else(|| table.maintained.contains_key(name).then_some(&Value::Int(0)));
         if value.is_none() && viewer.is_some_and(|viewer| table.written_by.get(name).is_some_and(|authority|
             !authority.audience && row.field(&authority.owner).ok() != Some(&Value::Id(viewer.into())))) { continue; }
+        if value.is_none() && viewer.is_some() && table.column_reads.contains_key(name) { continue; }
         validate_column(table_name, name, kind, value)?;
     }
     for constraint in &table.constraints {

@@ -221,7 +221,7 @@ impl Binder<'_> {
         // fields without leaking facts to another scan or an enclosing row.
         self.scopes.last_mut().unwrap().insert("$filter".into(), Binding {
             runtime: "$filter".into(), declared: row_ty.clone(), ty: row_ty,
-            parameter: false, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new(),
+            parameter: false, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new(), inline: None,
         });
         let bound = self.expr(predicate, &mut body);
         self.pop_scope();

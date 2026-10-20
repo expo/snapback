@@ -71,7 +71,7 @@ pub(super) fn baseline_rows(bound: &Bound, out: &mut String) {
     for (name, table) in bound.schema.visible_tables() {
         out.push_str(&format!("  {}: {{\n", property(name)));
         for (column, kind) in table.columns.iter().filter(|(name, _)| !table.engine_field(name) && !snapback4_core::schema::timeline::is_slot(name)) {
-            out.push_str(&format!("    {}{}: {};\n", property(column), if table.private_field(column) { "?" } else { "" }, column_ts(kind, &bound.schema)));
+            out.push_str(&format!("    {}{}: {};\n", property(column), if table.read_optional(column) { "?" } else { "" }, column_ts(kind, &bound.schema)));
         }
         out.push_str("    pending?: boolean; retained?: boolean;\n  };\n");
     }

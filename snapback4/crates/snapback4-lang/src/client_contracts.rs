@@ -32,7 +32,7 @@ fn result(ty: &Ty, bound: &Bound) -> String {
         Ty::Row(name)|Ty::WriteRow(name)|Ty::Page(name,_)=> {
             let schema=bound.schema.public_projection();
             if let Some(table)=schema.tables.get(name) {
-                let fields: BTreeMap<_,_>=table.columns.iter().filter(|(n,_)|!table.engine_field(n)).map(|(n,t)|(n,format!("{t:?};private={};constraints={:?}",table.private_field(n),table.constraints.iter().filter(|c|matches!(c,snapback4_core::schema::Constraint::Text{field,..} if field==n)).collect::<Vec<_>>()))).collect();
+                let fields: BTreeMap<_,_>=table.columns.iter().filter(|(n,_)|!table.engine_field(n)).map(|(n,t)|(n,format!("{t:?};private={};constraints={:?}",table.read_optional(n),table.constraints.iter().filter(|c|matches!(c,snapback4_core::schema::Constraint::Text{field,..} if field==n)).collect::<Vec<_>>()))).collect();
                 format!("{}:{name}:{fields:?}",if matches!(ty,Ty::Page(..)){"page"}else{"row"})
             } else {format!("{ty:?}")}
         }
@@ -78,6 +78,14 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
                 None=>lines.push(format!("{prefix}: INPUT BREAK: removed argument {arg}; old calls sending it get E_INPUT; retain `{arg}: <old type> deprecated` on a query/mutation")),
                 Some(next) if !accepts(kind,next)=>lines.push(format!("{prefix}: INPUT BREAK: argument {arg} retyped or narrowed ({kind:?} → {next:?}); old values may get E_INPUT; retain the old input domain or a compatible wrapper")),
                 _=>{}
+            }
+        }
+        for (table,before_table) in old.schema.visible_tables() {
+            let Some(after_table)=new.schema.table(table) else { continue; };
+            if !snapback4_core::ir::read_sites(&before.program).iter().any(|site|site.table==*table)
+                && !snapback4_core::ir::write_tables(&before.program).iter().any(|(name,_)|name==table) { continue; }
+            for field in before_table.columns.keys().filter(|f|!before_table.read_optional(f)&&after_table.read_optional(f)) {
+                lines.push(format!("{prefix}: RESULT REVIEW: {table}.{field} is now audience-optional; handle an omitted row property or a null explicit scalar before adopting the new column read rule"));
             }
         }
         let action_result_changed=old.schema.action_specs.get(name).map(|s|&s.returns)!=new.schema.action_specs.get(name).map(|s|&s.returns);

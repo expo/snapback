@@ -137,6 +137,16 @@ pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, targe
     use super::clause_compare::{self as clauses, Change};
     for (name, old) in &current.tables {
         let Some(next) = target.table(name) else { continue; };
+        // DORM owns dormant visibility narration; column confidentiality composes here.
+        for field in old.column_reads.keys().chain(next.column_reads.keys()).collect::<BTreeSet<_>>() {
+            let allow=snapback4_core::schema::RuleExpr::Allow;
+            let before=old.column_reads.get(field).unwrap_or(&allow);
+            let after=next.column_reads.get(field).unwrap_or(&allow);
+            if before==after { continue; }
+            let change=clauses::compare(&clauses::rule(before),&clauses::rule(after));
+            let line=format!("{target_label} changes {name}.{field} column read; old: {} | new: {}{}",clauses::display_rule(before),clauses::display_rule(after),if rollback && matches!(change,Change::Loosens|Change::Unknown){"; rollback users may lose current confidentiality; preserve the column rule in a bridge release"}else{""});
+            if matches!(change,Change::Tightens|Change::Same) { notes.push(line); } else { warnings.push(line); }
+        }
         for effect in [snapback4_core::schema::Effect::Read, snapback4_core::schema::Effect::Insert, snapback4_core::schema::Effect::Update, snapback4_core::schema::Effect::Delete] {
             let (before, after) = (old.rules.for_effect(effect), next.rules.for_effect(effect));
             let before_judged=if effect==snapback4_core::schema::Effect::Update {old.update_rule_judged()} else {std::borrow::Cow::Borrowed(before)};

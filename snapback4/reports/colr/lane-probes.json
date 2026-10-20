@@ -1,0 +1,347 @@
+[
+  {
+    "allowedProbe": "pass",
+    "columnDormant": [],
+    "deniedProbe": "pass",
+    "field": "photo",
+    "forwardRestore": "pass",
+    "lane": "006",
+    "originalDormant": [
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:parentReports.$intent:byParentReport:9ba125721b87366c",
+        "kind": "index",
+        "path": "parentReports.$intent:byParentReport:9ba125721b87366c",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:parentReports.$intent:byReport:927124c345aba74c",
+        "kind": "index",
+        "path": "parentReports.$intent:byReport:927124c345aba74c",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:parentReports.$reference:child",
+        "kind": "index",
+        "path": "parentReports.$reference:child",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:parentReports.$reference:court",
+        "kind": "index",
+        "path": "parentReports.$reference:court",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:parentReports.byId",
+        "kind": "index",
+        "path": "parentReports.byId",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:reports.$intent:byAuthor:9d58900d63d83883",
+        "kind": "index",
+        "path": "reports.$intent:byAuthor:9d58900d63d83883",
+        "rows": 1,
+        "sample_ids": [
+          "record"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 248,
+        "key": "table:parentReports",
+        "kind": "table",
+        "path": "parentReports",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      }
+    ],
+    "primary": "reports",
+    "removedSideTable": "parentReports",
+    "rollbackPrimary": "visible in v1 shape"
+  },
+  {
+    "allowedProbe": "pass",
+    "columnDormant": [
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 30,
+        "key": "column:pickups.size",
+        "kind": "column",
+        "path": "pickups.size",
+        "rows": 1,
+        "sample_ids": [
+          "record"
+        ]
+      }
+    ],
+    "deniedProbe": "pass",
+    "field": "size",
+    "forwardRestore": "pass",
+    "lane": "037",
+    "originalDormant": [
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:pickupSizes.$intent:byPickup:c87bf6be0070f289",
+        "kind": "index",
+        "path": "pickupSizes.$intent:byPickup:c87bf6be0070f289",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:pickupSizes.byId",
+        "kind": "index",
+        "path": "pickupSizes.byId",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 146,
+        "key": "table:pickupSizes",
+        "kind": "table",
+        "path": "pickupSizes",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      }
+    ],
+    "primary": "pickups",
+    "removedSideTable": "pickupSizes",
+    "rollbackPrimary": "visible in v1 shape"
+  },
+  {
+    "allowedProbe": "pass",
+    "columnDormant": [
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 39,
+        "key": "column:jobs.summary",
+        "kind": "column",
+        "path": "jobs.summary",
+        "rows": 1,
+        "sample_ids": [
+          "record"
+        ]
+      }
+    ],
+    "deniedProbe": "pass",
+    "field": "summary",
+    "forwardRestore": "pass",
+    "lane": "039",
+    "originalDormant": [
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:jobReviews.$intent:byJob:34367f301b3b7f17",
+        "kind": "index",
+        "path": "jobReviews.$intent:byJob:34367f301b3b7f17",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:jobReviews.byId",
+        "kind": "index",
+        "path": "jobReviews.byId",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 132,
+        "key": "table:jobReviews",
+        "kind": "table",
+        "path": "jobReviews",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      }
+    ],
+    "primary": "jobs",
+    "removedSideTable": "jobReviews",
+    "rollbackPrimary": "visible in v1 shape"
+  },
+  {
+    "allowedProbe": "pass",
+    "columnDormant": [
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 25,
+        "key": "column:boxes.arrangement",
+        "kind": "column",
+        "path": "boxes.arrangement",
+        "rows": 1,
+        "sample_ids": [
+          "record"
+        ]
+      }
+    ],
+    "deniedProbe": "pass",
+    "field": "arrangement",
+    "forwardRestore": "pass",
+    "lane": "043",
+    "originalDormant": [
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:rentalArrangements.$intent:byBox:d9bf8a58e964f9ee",
+        "kind": "index",
+        "path": "rentalArrangements.$intent:byBox:d9bf8a58e964f9ee",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:rentalArrangements.byId",
+        "kind": "index",
+        "path": "rentalArrangements.byId",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 96,
+        "key": "table:rentalArrangements",
+        "kind": "table",
+        "path": "rentalArrangements",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      }
+    ],
+    "primary": "boxes",
+    "removedSideTable": "rentalArrangements",
+    "rollbackPrimary": "visible in v1 shape"
+  },
+  {
+    "allowedProbe": "pass",
+    "columnDormant": [
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 38,
+        "key": "column:bookings.description",
+        "kind": "column",
+        "path": "bookings.description",
+        "rows": 1,
+        "sample_ids": [
+          "record"
+        ]
+      }
+    ],
+    "deniedProbe": "pass",
+    "field": "description",
+    "forwardRestore": "pass",
+    "lane": "049",
+    "originalDormant": [
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:depositReviews.$intent:byBooking:df4e8e195964760e",
+        "kind": "index",
+        "path": "depositReviews.$intent:byBooking:df4e8e195964760e",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 0,
+        "key": "index:depositReviews.byId",
+        "kind": "index",
+        "path": "depositReviews.byId",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      },
+      {
+        "action": "dormant",
+        "asset_bytes": 0,
+        "bytes": 113,
+        "key": "table:depositReviews",
+        "kind": "table",
+        "path": "depositReviews",
+        "rows": 1,
+        "sample_ids": [
+          "separate"
+        ]
+      }
+    ],
+    "primary": "bookings",
+    "removedSideTable": "depositReviews",
+    "rollbackPrimary": "visible in v1 shape"
+  }
+]

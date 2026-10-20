@@ -1,0 +1,246 @@
+{
+  "format": 1,
+  "sourceCommit": "1ab2105e0a05200c9e550c77b3d5f76b659559b4",
+  "review": {
+    "round": 9,
+    "codex": "READY",
+    "muse": "READY"
+  },
+  "rust": {
+    "status": "passed across complete workspace run plus exact-feature interrupted-tail completion and workspace doc tests",
+    "runs": [
+      {
+        "log": "colr-full-rust6.log",
+        "exit": 124,
+        "completedCargoTargets": 418,
+        "passed": 6769,
+        "ignored": 43
+      },
+      {
+        "log": "colr-rust-tail-final.log",
+        "exit": 0,
+        "completedCargoTargets": 18,
+        "passed": 220,
+        "ignored": 2
+      },
+      {
+        "log": "colr-rust-doc-final.log",
+        "exit": 0,
+        "completedCargoTargets": 6,
+        "passed": 17,
+        "ignored": 0
+      }
+    ],
+    "uniqueCargoAndDocTargets": 434,
+    "passed": 6923,
+    "failed": 0,
+    "ignored": 45,
+    "counting": "Last result per Cargo target; nested subprocess test counts are excluded; repeated targets are deduplicated by executable identity.",
+    "independentFullSim": {
+      "exit": 0,
+      "passed": 749,
+      "ignored": 7
+    }
+  },
+  "clients": {
+    "status": "passed full pool plus corrected packed fixture recheck",
+    "files": 421,
+    "tests": 7862,
+    "passed": 7806,
+    "platformSkipped": 56,
+    "remainingFailures": 0,
+    "modelSequences": {
+      "appSession": 5000,
+      "online": 3000
+    },
+    "packedRecheckTests": 24
+  },
+  "focused": {
+    "language": 17,
+    "device": 4,
+    "leanColumnComparisons": 132,
+    "macStudioTests": 29
+  },
+  "difftest": {
+    "native": {
+      "schemas": 20000,
+      "executions": 1222111,
+      "disagreements": 0
+    },
+    "devices": {
+      "seeds": "0-999",
+      "schemas": 1000,
+      "executions": 27922,
+      "disagreements": 0
+    },
+    "lean": {
+      "schemas": 20000,
+      "passed": 16697,
+      "unsupported": 3173,
+      "existingDisagreements": 130,
+      "existingSignatures": {
+        "lean--code--E_RULE~NOT_FOUND": 3,
+        "lean--continuation-next--next~no-next": 35,
+        "lean--next--next~no-next": 67,
+        "lean--prelude-code--E_RULE~NOT_FOUND": 25
+      },
+      "newSignatures": []
+    }
+  },
+  "leanCheck": {
+    "buildJobs": 60,
+    "theorems": 81,
+    "newAxioms": 0,
+    "sorry": 0,
+    "examples": 116,
+    "oracleFixtures": 7
+  },
+  "survey": {
+    "qualifiedSchemas": 200,
+    "columnPresenceCanarySchemas": 200,
+    "falseRefusals": 0,
+    "originalsUnchanged": true
+  },
+  "copiedLanes": {
+    "lanes": [
+      "006",
+      "037",
+      "039",
+      "043",
+      "049"
+    ],
+    "backendLinesSaved": 87,
+    "schemaChecks": "passed",
+    "freshPackedSdkTypes": "passed",
+    "audienceRollbackForwardProbes": "passed",
+    "originalStoresOpened": false,
+    "browserClaim": false
+  },
+  "wasm": {
+    "rawBytes": 2401963,
+    "gzipBytes": 732824,
+    "budgetGzipBytes": 733324,
+    "strictFamilyAndServerUnicodeAbsenceAudit": "passed"
+  },
+  "rootChecks": {
+    "frozenInstall": "passed",
+    "workspaceHoist": "passed",
+    "generatedArtifacts": "passed",
+    "inventories": "passed",
+    "guide": {
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "preconditions": 0
+    },
+    "references": {
+      "llps": 556,
+      "refs": 12108,
+      "errors": 0,
+      "unchecked": 0
+    },
+    "docsBudget": {
+      "readmeLines": 319,
+      "ceiling": 320,
+      "focusedGuide": "passed"
+    }
+  },
+  "linuxConsumer": {
+    "status": "passed",
+    "receipt": "linux-consumer.json",
+    "mode": "consumer-only",
+    "route": "proot",
+    "publicationQualified": false,
+    "fullSuites": "run separately; forbidden scripts/test.sh was not used"
+  },
+  "logs": {
+    "colr-full-rust6.log": {
+      "path": "/home/ccheever/sb4-loop/colr-full-rust6.log",
+      "sha256": "3519d8302ef85a2baefa1705fcb2da398b0bbcb25e082e3678cf4c112a6fdfc1",
+      "bytes": 999669
+    },
+    "colr-rust-tail-final.log": {
+      "path": "/home/ccheever/sb4-loop/colr-rust-tail-final.log",
+      "sha256": "09972f4ba07e04e126a4ae6214c85721fba506f9fda16c31509e0875daa434df",
+      "bytes": 23105
+    },
+    "colr-rust-doc-final.log": {
+      "path": "/home/ccheever/sb4-loop/colr-rust-doc-final.log",
+      "sha256": "5bac7e3c795ff976ed5a0dc9a43d9a4e89b823e0601e018a9c9c5ea92dc40abe",
+      "bytes": 4032
+    },
+    "colr-sim-full-final.log": {
+      "path": "/home/ccheever/sb4-loop/colr-sim-full-final.log",
+      "sha256": "02366790d127f74cdb6bb36e1d42d39dece654318d7690f6de5cce4d7ef054e4",
+      "bytes": 73245
+    },
+    "colr-clients-final.log": {
+      "path": "/home/ccheever/sb4-loop/colr-clients-final.log",
+      "sha256": "6a27b45303f897ba4b58a57175ed9e7255cd62418f9546e53ecd8ed5f692dbad",
+      "bytes": 2130978
+    },
+    "colr-packed-rerun-final.log": {
+      "path": "/home/ccheever/sb4-loop/colr-packed-rerun-final.log",
+      "sha256": "33f14f8ffa4e521ec686f3b86126039b8a1301d51a4a5f7cb22d82bafd9901b1",
+      "bytes": 6132
+    },
+    "colr-r9-lean-check.log": {
+      "path": "/home/ccheever/sb4-loop/colr-r9-lean-check.log",
+      "sha256": "231c63fa31d6f0fba98890b2a5ffbede8b73d3f3ae18e91f5896e7dd73177036",
+      "bytes": 972
+    },
+    "colr-wasm-audit-r8.log": {
+      "path": "/home/ccheever/sb4-loop/colr-wasm-audit-r8.log",
+      "sha256": "25d4b83998e99d22dcf23749470ff6f9555d5301c69a560279fc01033baae52d",
+      "bytes": 59551
+    },
+    "colr-mac-final-source4.log": {
+      "path": "/home/ccheever/sb4-loop/colr-mac-final-source4.log",
+      "sha256": "b05cec79b7b0efe8956f7c1c7aa41e7806b3d9e1581f574f14309977fb7fb2c1",
+      "bytes": 32103
+    },
+    "colr-docs-budget-final2.log": {
+      "path": "/home/ccheever/sb4-loop/colr-docs-budget-final2.log",
+      "sha256": "2ec189505e1d6143429d5b45472e5d396c273ec14bdace7da229d9074c11603b",
+      "bytes": 4709
+    },
+    "colr-inventories-final-restored.log": {
+      "path": "/home/ccheever/sb4-loop/colr-inventories-final-restored.log",
+      "sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "bytes": 3499
+    },
+    "colr-guide-final-restored.log": {
+      "path": "/home/ccheever/sb4-loop/colr-guide-final-restored.log",
+      "sha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+      "bytes": 19451
+    },
+    "colr-ref-final-restored.log": {
+      "path": "/home/ccheever/sb4-loop/colr-ref-final-restored.log",
+      "sha256": "2883065bf711d56d1eb6a16759d9d1f1235cc9f05b22899f5a3648b7e61b1312",
+      "bytes": 81
+    },
+    "colr-root-install-final.log": {
+      "path": "/home/ccheever/sb4-loop/colr-root-install-final.log",
+      "sha256": "957241b566ac9ab72b35d0f76f045468229dad1ce505e20c8a84094f1d6244e4",
+      "bytes": 397
+    },
+    "colr-root-hoist-final.log": {
+      "path": "/home/ccheever/sb4-loop/colr-root-hoist-final.log",
+      "sha256": "029220472bbb9a59211cb6c81d8ccb8f78c7ec70949efd86002fd311ad794c24",
+      "bytes": 1354
+    },
+    "colr-root-generated-final.log": {
+      "path": "/home/ccheever/sb4-loop/colr-root-generated-final.log",
+      "sha256": "e548a8e68cf72ed10dff7c9aa9b33d8178e94f252c6fef8efaee55f7aa4e03f4",
+      "bytes": 60627
+    }
+  },
+  "cleanup": {
+    "rustTargetRemoved": true,
+    "leanBuildRemoved": true,
+    "colrTmpScratchRemaining": [],
+    "qualificationInstallTreesRemoved": true,
+    "macOwnedBuildOutputsRemoved": true,
+    "qualifiedTarballsAndReceiptsRetained": true
+  }
+}

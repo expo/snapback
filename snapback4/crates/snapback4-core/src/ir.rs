@@ -246,7 +246,7 @@ pub enum Builtin {
     ProjectFields { table: String },
     ReceiptSettled { table: String },
     /// A private field may be absent from a projected row.
-    OptionalField { field: String },
+    OptionalField { field: String, #[serde(default, skip_serializing_if = "std::ops::Not::not")] omit: bool, #[serde(default, skip_serializing_if = "std::ops::Not::not")] fallback: bool },
     Calendar { millis: i64 },
     // @ref LLP 3000.040#22-builtins — a new tag: an older device cannot decode a program that uses it.
     Civil(crate::calendar::Civil),
@@ -302,8 +302,8 @@ impl Builtin {
             Self::JobQuery { .. } => 1,
             #[cfg(feature = "sqlite")]
             Self::JobAs => 2,
-            Self::ReceiptSettled { .. } | Self::Extremum { .. } | Self::ProjectFields { .. } | Self::OptionalField { .. } | Self::Calendar { .. } | Self::Civil(_) | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::RequireUncapped | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
-            Self::ExtremumOf { .. } | Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } | Self::Divide { .. } => 2,
+            Self::ReceiptSettled { .. } | Self::Extremum { .. } | Self::ProjectFields { .. } | Self::OptionalField { fallback: false, .. } | Self::Calendar { .. } | Self::Civil(_) | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::RequireUncapped | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
+            Self::OptionalField { fallback: true, .. } | Self::ExtremumOf { .. } | Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } | Self::Divide { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }
     }

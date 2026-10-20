@@ -119,6 +119,8 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
                 diagnostics.push(Diagnostic::new(&site, "E_QUARRY_EPHEMERAL", message, fix).guide("ephemeral"));
             } else if issue.message.starts_with("live parent:") {
                 diagnostics.push(Diagnostic::new(&site, "E_READ_THROUGH", issue.message, "use a capped ordinary nonexpiring parent/child pair; guide rule-recipes current-roster has the manual alternative").guide("rules"));
+            } else if issue.message.starts_with("column read:") {
+                diagnostics.push(super::column_reads::refusal(&site,issue.message));
             } else if issue.message.starts_with("written by:") {
                 diagnostics.push(Diagnostic::new(&site, "E_FIELD_AUTHORITY", issue.message, "name a required principal column of this table; declare a default; use readable by audience before indexing or deriving from the field").guide("rules"));
             } else if issue.message.contains("E_VIEW_KEY") {
@@ -291,7 +293,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     let written_by = decl.columns.iter().filter_map(|column| column.written_by.as_ref().map(|owner|
         (column.name.clone(), core::FieldAuthority { owner: owner.clone(), audience: column.readable_by_audience }))).collect();
     let update_transition = decl.rules.iter().any(|rule| rule.effect == Effect::Update && !rule.bindings.is_empty());
-    Table { ephemeral: decl.ephemeral.as_ref().map(|e| core::ephemeral::Ephemeral { life_ms: e.life_ms }), sequences, written_by, update_transition, through: info.through.clone(), on_delete: BTreeMap::new(), maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, not_before, expire, residency }
+    Table { ephemeral: decl.ephemeral.as_ref().map(|e| core::ephemeral::Ephemeral { life_ms: e.life_ms }), sequences, column_reads: super::column_reads::bind(catalog, info, diagnostics), written_by, update_transition, through: info.through.clone(), on_delete: BTreeMap::new(), maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, not_before, expire, residency }
 }
 
 /// `expire at .column`: a `time` column (optional means "never" when null)
@@ -1090,17 +1092,17 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
             None => return Err(unknown(&site, format!("sum names unknown column {}.{column}", maintain.source), name_rewrite(column, source.columns.keys().map(String::as_str), None))),
         },
     };
-    columns.push(ColumnDecl { on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: "value".into(), type_: value_type, site: site.clone() });
+    columns.push(ColumnDecl { read: None, on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: "value".into(), type_: value_type, site: site.clone() });
     let computed = super::maintains::keys(&source, maintain)?;
     let aliases = super::maintains::inherited_aliases(source,maintain);
     if let Some(expr) = &maintain.filter { super::maintains::predicate(&source, expr)?; }
     for field in &maintain.by {
         let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: computed[field].column.contains('.') } } else { source.columns[aliases.get(field).unwrap_or(field)].clone() };
-        columns.push(ColumnDecl { on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
+        columns.push(ColumnDecl { read: None, on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
     // @ref LLP 3000.013.001#3-global-maintained-view-representation — the logical empty tuple gets one store-indexable, compiler-only discriminator.
     let group = if maintain.by.is_empty() {
-        columns.push(ColumnDecl { on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: GLOBAL.into(), type_: ScalarType { kind: TypeKind::Bool, optional: false }, site: site.clone() });
+        columns.push(ColumnDecl { read: None, on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: GLOBAL.into(), type_: ScalarType { kind: TypeKind::Bool, optional: false }, site: site.clone() });
         vec![GLOBAL.into()]
     } else { maintain.by.clone() };
     let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: group, unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];
@@ -1125,6 +1127,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         indexes.push(index);
     }
     Ok(TableDecl {
+        column_reads: Vec::new(),
         receipts: None,
         ephemeral: None,
         search: Vec::new(),

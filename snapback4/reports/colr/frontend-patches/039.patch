@@ -1,0 +1,11 @@
+--- original/App.tsx
++++ column-rules/App.tsx
+@@ -89,7 +89,7 @@
+   async function act(fn: () => Promise<unknown>, success: string) {setMessage('');setBusy(true);try {await fn();setMessage(success);}catch(e){setMessage(String(e));}finally{setBusy(false);}}
+   if(!j) return <Text>Loading job…</Text>;
+   return <View style={{gap: 22}}><View style={s.chips}><Tag text={j.approved ? 'APPROVED FOR CUTTING' : j.layoutReady ? 'HOMEOWNER REVIEW' : 'PREPARING LAYOUT'} green={j.approved}/>{price && <Text style={s.muted}>Quote · ${(price.cents/100).toLocaleString()}</Text>}</View><Text role="status" style={message.includes('Error') ? s.error : s.success}>{message}</Text>
+-    {review && <View style={[s.card,{padding:24,gap:8}]}><Text style={s.sectionTitle}>Layout review summary</Text><Text accessibilityLabel="Layout review summary" style={s.body}>{review.summary}</Text></View>}
++    {review && <View style={[s.card,{padding:24,gap:8}]}><Text style={s.sectionTitle}>Layout review summary</Text><Text accessibilityLabel="Layout review summary" style={s.body}>{review.summary ?? 'Review unavailable'}</Text></View>}
+     <View style={[s.card,{padding: 24, gap: 18}]}><View style={s.cardHeading}><Text style={s.sectionTitle}>The slab composition</Text><Text style={s.small}>{slab?.name ?? 'Choose a slab to begin'}</Text></View><Layout job={j} slab={slab}/><View style={s.chips}><Text style={s.small}>TEMPLATE  {j.widthMm} × {j.depthMm} mm</Text>{slab && <Text style={s.small}>SLAB  {slab.widthMm} × {slab.depthMm} mm</Text>}<Text style={s.small}>{hold ? hold.approved ? 'Reserved for your kitchen' : `Hold ends ${new Date(hold.expiresAt).toLocaleString()}` : 'No active hold'}</Text></View>{role === 'homeowner' && !j.approved && <Button title="Approve this layout" disabled={!j.layoutReady || busy} onPress={() => void act(() => write(app,api.approveLayout,{job:id}), 'Layout approved — your slab is reserved.')}/>}</View>
+     {role === 'templater' && !j.approved && <Capture job={j} act={act}/>}
+     {role === 'designer' && !j.approved && <Design job={j} act={act}/>}

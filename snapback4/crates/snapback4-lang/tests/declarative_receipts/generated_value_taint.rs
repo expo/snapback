@@ -88,7 +88,7 @@ fn internal_expression(name: &str, binding: &str) -> Option<snapback4_core::ir::
         ),
         "ir-optional" => (
             B::OptionalField {
-                field: "recipients".into(),
+                field: "recipients".into(), omit: false, fallback: false,
             },
             vec![row],
         ),

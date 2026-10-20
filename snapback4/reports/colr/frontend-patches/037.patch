@@ -1,0 +1,10 @@
+--- original/App.tsx
++++ column-rules/App.tsx
+@@ -80,6 +80,7 @@
+   const s = useQuery(api.pickupSize, { pickup });
+   if ("denied" in s) return null;
+   if ("loading" in s || !s.data) return <Text style={DIM}>Collection size: …</Text>;
++  if (s.data.size == null) return null;
+   return <Text style={BODY}>Collection size: {SIZE_LABEL[s.data.size]}</Text>;
+ }
+ 

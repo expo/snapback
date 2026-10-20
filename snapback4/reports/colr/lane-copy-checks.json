@@ -1,0 +1,390 @@
+[
+  {
+    "lane": "006",
+    "exit": 0,
+    "problems": [],
+    "notes": [
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query listChildren returns a page of 200 children rows with no cursor, so the page cannot continue: rows past the first 200 are not reachable. Fine for a top-200 list, or a list that stays under 200 rows; a pinned unique key or a `cap` at or under 200 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in listChildren and append `after c` to this children page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 32
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query listWaivers returns a page of 200 waivers rows with no cursor, so the page cannot continue: rows past the first 200 are not reachable. Fine for a top-200 list, or a list that stays under 200 rows; a pinned unique key or a `cap` at or under 200 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in listWaivers and append `after c` to this waivers page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 55
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query listCourts returns a page of 100 courts rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in listCourts and append `after c` to this courts page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 72
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query listBookings returns a page of 200 bookings rows with no cursor, so the page cannot continue: rows past the first 200 are not reachable. Fine for a top-200 list, or a list that stays under 200 rows; a pinned unique key or a `cap` at or under 200 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in listBookings and append `after c` to this bookings page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 99
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query listReports returns a page of 200 reports rows with no cursor, so the page cannot continue: rows past the first 200 are not reachable. Fine for a top-200 list, or a list that stays under 200 rows; a pinned unique key or a `cap` at or under 200 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in listReports and append `after c` to this reports page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 140
+        }
+      },
+      {
+        "code": "N_NEVER_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query listReports: truly partial absence evidence: the page over reports[..] by byId is never `complete` except for callers `exists roles[viewer, role = 'supervisor'] or exists roles[viewer, role = 'safety']` admits \u2014 the read rule `exists children[.child, parent = viewer] and exists roles[viewer, role = 'parent'] or .author = viewer and exists roles[viewer, role = 'monitor'] or exists roles[viewer, role = 'supervisor'] or exists roles[viewer, role = 'safety']` reads .author, .child, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; test.cases.jsonl: run it as a caller `exists roles[viewer, role = 'supervisor'] or exists roles[viewer, role = 'safety']` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; analyzer limitation: no verified complete form for this read (`exists children[.child, parent = viewer] and exists roles[viewer, role = 'parent']` reads a column the page does not pin and is not a `.column = viewer` party, so no pin selects its rows); keep the query and expect `capped` (check --verbose)",
+        "rewrite": "pin .author, .child with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read. As code: first declare `child: children` among listReports's arguments, then add `and .author = viewer and .child = child` to the page's where (keeping its current pins); this narrows the answer to that scope \u2014 only for a screen meant for that scope alone: every other reader the rule admits loses their rows; analyzer limitation: no verified complete form for this read: `exists children[.child, parent = viewer] and exists roles[viewer, role = 'parent']` reads a column the page does not pin and is not a `.column = viewer` party, so no pin selects its rows; keep the query as written and expect `complete: false` (`capped`; test.cases.jsonl's default passes it). This does not rule out an author-written branched query; for callers `exists roles[viewer, role = 'supervisor'] or exists roles[viewer, role = 'safety']` admits (staff), this page is decided once and answers `complete: true`; everyone else pages their own rows with complete: false \u2014 in test.cases.jsonl run it as staff to expect complete, and expect `capped` for the others",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 140
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query listHistory returns a page of 200 courtHistory rows with no cursor, so the page cannot continue: rows past the first 200 are not reachable. Fine for a top-200 list, or a list that stays under 200 rows; a pinned unique key or a `cap` at or under 200 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in listHistory and append `after c` to this courtHistory page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 174
+        }
+      },
+      {
+        "code": "N_REQUIRE_HIDDEN",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "buySession: callers who cannot read waivers get NOT_FOUND at `w`'s lookup, never WRONG_WAIVER from this require",
+        "rewrite": "put a caller authorization check before the lookup if WRONG_WAIVER must win; otherwise keep NOT_FOUND as the privacy-preserving answer and test it (guide rules)",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 92
+        }
+      },
+      {
+        "code": "N_REFERENCE_UNCHECKED",
+        "guide": "types",
+        "mechanical": false,
+        "message": "mutation changeCourt stores argument incident directly in courtHistory.incident, without a mandatory lookup of reports[incident] on every committing path: a reference accepts any well-formed id even when the row is absent",
+        "rewrite": "add `require exists reports[incident] else NOT_FOUND` in the same atomic mutation; keep the direct id only when dangling references are intentional",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 172
+        }
+      }
+    ],
+    "error": null
+  },
+  {
+    "lane": "037",
+    "exit": 0,
+    "problems": [],
+    "notes": [
+      {
+        "code": "N_QUERY_FILTERED",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "query pickupSize: an explicit caller branch does not establish pickups's read rule `.farmer = viewer or .hauler = viewer or exists members[viewer, role = 'intake'] or exists members[viewer, role = 'officer']` at schema.q:52:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+        "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+        "site": {
+          "col": 7,
+          "file": "schema.q",
+          "line": 100
+        }
+      },
+      {
+        "code": "N_QUERY_FILTERED",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "query route: an explicit caller branch does not establish pickups's read rule `.farmer = viewer or .hauler = viewer or exists members[viewer, role = 'intake'] or exists members[viewer, role = 'officer']` at schema.q:52:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+        "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 116
+        }
+      }
+    ],
+    "error": null
+  },
+  {
+    "lane": "039",
+    "exit": 0,
+    "problems": [],
+    "notes": [
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query directory returns a page of 100 roles rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in directory and append `after c` to this roles page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 101
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query listJobs returns a page of 100 jobs rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in listJobs and append `after c` to this jobs page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 104
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query inventory returns a page of 100 slabs rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in inventory and append `after c` to this slabs page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 113
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query cuttingQueue returns a page of 100 jobs rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in cuttingQueue and append `after c` to this jobs page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 122
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query recutHistory returns a page of 100 recuts rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in recutHistory and append `after c` to this recuts page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 125
+        }
+      },
+      {
+        "code": "N_QUERY_FILTERED",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "query listJobs: an explicit caller branch does not establish jobs's read rule `.customer = viewer or .templater = viewer or .designer = viewer or .installer = viewer or exists roles[viewer, role = 'manager'] or .approved = true and exists roles[viewer, role = 'floor']` at schema.q:36:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+        "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 106
+        }
+      },
+      {
+        "code": "N_QUERY_FILTERED",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "query jobDetail: an explicit caller branch does not establish jobs's read rule `.customer = viewer or .templater = viewer or .designer = viewer or .installer = viewer or exists roles[viewer, role = 'manager'] or .approved = true and exists roles[viewer, role = 'floor']` at schema.q:36:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+        "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 109
+        }
+      }
+    ],
+    "error": null
+  },
+  {
+    "lane": "043",
+    "exit": 0,
+    "problems": [],
+    "notes": [
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query directory returns a page of 100 roles rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in directory and append `after c` to this roles page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 99
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query listBoxes returns a page of 100 boxes rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in listBoxes and append `after c` to this boxes page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 103
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query listBoxes returns a page of 100 members rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in listBoxes and append `after c` to this members page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 103
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query boxMembers returns a page of 100 members rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in boxMembers and append `after c` to this members page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 111
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query visitLog returns a page of 100 visits rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in visitLog and append `after c` to this visits page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 115
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query boxVisits returns a page of 100 visits rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in boxVisits and append `after c` to this visits page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 119
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query officersPresent returns a page of 100 presence rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in officersPresent and append `after c` to this presence page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 131
+        }
+      },
+      {
+        "code": "N_QUERY_FILTERED",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "query rentalArrangement: an explicit caller branch does not establish boxes's read rule `exists roles[viewer, role = 'renter'] and exists members[.id, viewer] or exists roles[viewer, role = 'manager'] or exists roles[viewer, role = 'attendant'] or exists roles[viewer, role = 'officer']` at schema.q:24:3; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof",
+        "rewrite": "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 31
+        }
+      }
+    ],
+    "error": null
+  },
+  {
+    "lane": "049",
+    "exit": 0,
+    "problems": [],
+    "notes": [
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query staff returns a page of 100 people rows with no cursor, so the page cannot continue: rows past the first 100 are not reachable. Fine for a top-100 list, or a list that stays under 100 rows; a pinned unique key or a `cap` at or under 100 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in staff and append `after c` to this people page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 79
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query calendar returns a page of 200 availability rows with no cursor, so the page cannot continue: rows past the first 200 are not reachable. Fine for a top-200 list, or a list that stays under 200 rows; a pinned unique key or a `cap` at or under 200 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in calendar and append `after c` to this availability page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 82
+        }
+      },
+      {
+        "code": "N_NO_CURSOR",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query myBookings returns a page of 200 bookings rows with no cursor, so the page cannot continue: rows past the first 200 are not reachable. Fine for a top-200 list, or a list that stays under 200 rows; a pinned unique key or a `cap` at or under 200 silences this when its full planned walk fits the examined allowance",
+        "rewrite": "if the screen pages, declare `c: cursor ?` in myBookings and append `after c` to this bookings page, keeping its current predicate, direction and column order",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 85
+        }
+      }
+    ],
+    "error": null
+  }
+]

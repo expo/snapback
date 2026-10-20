@@ -89,3 +89,5 @@ open Quarry
 
 #print axioms Quarry.Security.sound
 #print axioms Quarry.Security.complete
+
+#print axioms projected_column_authorized

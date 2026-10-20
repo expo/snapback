@@ -403,6 +403,11 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
                 if let Expr::Exists { read, .. } | Expr::Created { read, .. } = value { requests.read(&tables, read, true); }
             });
         }
+        for value in table.decl.column_read_values_mut() {
+            walk::expression(value, &mut |value| {
+                if let Expr::Exists { read, .. } = value { requests.read(&tables, read, true); }
+            });
+        }
         for (value, _) in &mut table.decl.final_exists {
             walk::expression(value, &mut |value| {
                 // @ref LLP 3000.013#2.3 — FinalExistsOnInsert has no residual-equality carrier: every
@@ -560,6 +565,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     };
     for table in catalog.tables.values_mut() {
         for rule in &mut table.decl.rules { walk::expression(&mut rule.value, &mut resolve); }
+        for value in table.decl.column_read_values_mut() { walk::expression(value, &mut resolve); }
         for (value, _) in &mut table.decl.final_exists { walk::expression(value, &mut resolve); }
         if let Some((_, SyncOrder::Index(by))) = table.decl.sync.as_mut().and_then(|sync| sync.horizon.as_mut())
             && let Some(name) = names.get(&(table.decl.name.clone(), by.clone())) { *by = name.clone(); }

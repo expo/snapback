@@ -1,0 +1,11 @@
+--- original/App.tsx
++++ column-rules/App.tsx
+@@ -103,7 +103,7 @@
+ }
+ function Arrangement({ box }: { box: string }) {
+   const result = useQuery(api.rentalArrangement, { box });
+-  return <Text testID="rental-arrangement" style={s.label}>{'data' in result && result.data ? (result.data.arrangement === 'shared' ? 'Shared rental' : 'Individual rental') : 'Rental arrangement unavailable'}</Text>;
++  return <Text testID="rental-arrangement" style={s.label}>{'data' in result && result.data?.arrangement != null ? (result.data.arrangement === 'shared' ? 'Shared rental' : 'Individual rental') : 'Rental arrangement unavailable'}</Text>;
+ }
+ function ReasonAction({ label, button, onSave }: { label: string; button: string; onSave: (reason: string) => Promise<void> }) {
+   const [reason, setReason] = useState('');

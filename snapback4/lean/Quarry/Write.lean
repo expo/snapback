@@ -112,7 +112,7 @@ def resultOf (sch : Schema) (s : Store) (v : List Nat) (t : String) (r : Row) : 
 
 def resultOfAt (sch : Schema) (s : Store) (v : List Nat) (now : Int)
     (t : String) (r : Row) : Value :=
-  if readableAt sch s v now t r then r.toValue else .null
+  if readableAt sch s v now t r then (match sch.table? t with | some td => (projectColumns td (openedStore sch s now) v r).toValue | none => .null) else .null
 
 /-- `guardE b e` continues when `b` holds and refuses `e` otherwise. -/
 def guardE (b : Bool) (e : Stop) : Except Stop Unit := if b then .ok () else .error e
@@ -169,7 +169,8 @@ def doUpdateRow (sch : Schema) (s : Store) (v : List Nat) (now : Int) (t : Strin
   let nw ← patchImage td old (immutablePatch td (readableAt sch s v now t old) patch)
   guardE (td.update.eval (openedStore sch s now) v { old := some old, next := some nw })
     (if readableAt sch s v now t old then eRule else notFound)
-  condCheck (readableAt sch s v now t old) cond old
+  -- @ref LLP 3000.036#222-observations-planning-and-derivations — conditions inspect the disclosed old image; authorization and patching retain raw state.
+  condCheck (readableAt sch s v now t old) cond (projectColumns td (openedStore sch s now) v old)
   clashCheck sch s v now t td (readableAt sch s v now t old) old nw
   guardE (!(readableAt sch s v now t old) || immutablePreserved td old nw) (.refuse "E_CONSTRAINT")
   pure (resultOfAt sch (s.replaceRow t old nw) v now t nw, s.replaceRow t old nw)

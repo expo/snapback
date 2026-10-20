@@ -51,7 +51,7 @@ pub fn cases() -> Vec<(String, Schema, Vec<Program>)> {
             vec![Stmt::Return(Expr::Block {body:vec![Stmt::Const {name:"helper".into(),value:status.clone()}],value:Box::new(compare(Expr::Variable("helper".into())))})],
             vec![Stmt::Return(compare(Expr::Block {body:vec![Stmt::Return(status.clone())],value:Box::new(Expr::Literal(Value::Null))}))],
             vec![Stmt::If {condition:status.clone(),then_body:vec![],else_body:vec![]}],
-            vec![Stmt::Return(compare(Expr::Builtin {builtin:Builtin::OptionalField {field:field.clone()},args:vec![row.clone()]}))],
+            vec![Stmt::Return(compare(Expr::Builtin {builtin:Builtin::OptionalField {field:field.clone(),omit:false,fallback:false},args:vec![row.clone()]}))],
         ];
         let boxed = Expr::Object([("value".into(), row.clone())].into());
         let unboxed = field_expr(boxed.clone(), "value");

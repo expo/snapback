@@ -162,6 +162,8 @@ partial def expr (j : Json) : D Expr := do
   match k with
   | "lit" => return .lit (← value v)
   | "var" => return .var (← v.getStr?)
+  | "dotOpt" => return .dotOpt (← v.getStr?)
+  | "fieldOpt" => do let (e, c) ← pair v; return .fieldOpt (← expr e) (← c.getStr?)
   | "dot" => return .dot (← v.getStr?)
   | "field" => do let (e, c) ← pair v; return .field (← expr e) (← c.getStr?)
   | "neg" => return .neg (← expr v)
@@ -199,6 +201,7 @@ partial def expr (j : Json) : D Expr := do
       | none => pure none
       | some value => pure (some (← value.getNat?))
     return .roundDiv rounding scale (← expr (← field v "dividend")) (← expr (← field v "divisor"))
+  | "extremum" => return .extremum (← (← field v "maximum").getBool?) (← expr (← field v "source")) (← expr (← field v "projection"))
   | "arr" => return .arr (← (← v.getArr?).toList.mapM expr)
   | "record" => return .record (← named v)
   | "point" => return .point (← str v "table") (← named (← field v "key"))
@@ -285,7 +288,12 @@ def table (j : Json) : D TableDecl := do
   let expiryOrder ← match optField j "expiryOrder" with
     | none => pure []
     | some order => (← order.getArr?).toList.mapM (·.getStr?)
-  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps, immutable, notBefore, expire, expiryOrder, onlineOnly := ((optField j "onlineOnly").bind (fun x => x.getBool?.toOption)).getD true,
+  let columnReads ← match optField j "columnReads" with
+    | none => pure []
+    | some rs => (← rs.getArr?).toList.mapM fun r => do
+        let (name, gate) ← pair r
+        pure (← name.getStr?, ← rule gate)
+  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps, immutable, columnReads, notBefore, expire, expiryOrder, onlineOnly := ((optField j "onlineOnly").bind (fun x => x.getBool?.toOption)).getD true,
            read := ← rule (← field j "read"), insert := ← rule (← field j "insert"),
            update := ← rule (← field j "update"), delete := ← rule (← field j "delete") }
 

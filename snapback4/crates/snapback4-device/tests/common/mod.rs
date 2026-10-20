@@ -19,32 +19,84 @@ pub fn id(s: &str) -> Value {
 }
 
 pub fn args(pairs: &[(&str, Value)]) -> BTreeMap<String, Value> {
-    pairs.iter().map(|(k, v)| ((*k).to_owned(), v.clone())).collect()
+    pairs
+        .iter()
+        .map(|(k, v)| ((*k).to_owned(), v.clone()))
+        .collect()
 }
 
 pub fn compile(source: &str) -> (Engine, Backend) {
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), source.to_owned())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    let engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-    let backend = Backend { generation: engine.generation(), schema: bound.schema, programs: bound.programs.into_iter().map(|p| p.program).collect() };
+    let engine = Engine::memory(
+        bound.schema.clone(),
+        bound.programs.iter().map(|p| p.program.clone()),
+    )
+    .unwrap();
+    let backend = Backend {
+        generation: engine.generation(),
+        schema: bound.schema,
+        programs: bound.programs.into_iter().map(|p| p.program).collect(),
+    };
     let text = serde_json::to_string(&backend).unwrap();
     let decoded: Backend = snapback4_core::json_codec::from_text(&text).unwrap();
-    assert_eq!(serde_json::to_value(&backend).unwrap(), serde_json::to_value(decoded).unwrap());
+    assert_eq!(
+        serde_json::to_value(&backend).unwrap(),
+        serde_json::to_value(decoded).unwrap()
+    );
     (engine, backend)
 }
 
 /// The chat server with one conversation, two members, 120 messages.
 pub fn server() -> (Engine, Backend) {
     let (mut engine, backend) = compile(CHAT);
-    let mut rows = vec![("conversations".to_owned(), snapback4_core::value::object([("id", id("c1")), ("title", Value::String("General".into())), ("creatorId", id("dev:alice"))]))];
+    let mut rows = vec![(
+        "conversations".to_owned(),
+        snapback4_core::value::object([
+            ("id", id("c1")),
+            ("title", Value::String("General".into())),
+            ("creatorId", id("dev:alice")),
+        ]),
+    )];
     for (n, member) in ["dev:alice", "dev:bob"].iter().enumerate() {
-        rows.push(("memberships".to_owned(), snapback4_core::value::object([("id", id(&format!("m{n}"))), ("conversationId", id("c1")), ("principal", id(member)), ("role", Value::String(if n == 0 { "admin".into() } else { "member".into() })), ("joinedAt", Value::Int(n as i64))])));
+        rows.push((
+            "memberships".to_owned(),
+            snapback4_core::value::object([
+                ("id", id(&format!("m{n}"))),
+                ("conversationId", id("c1")),
+                ("principal", id(member)),
+                (
+                    "role",
+                    Value::String(if n == 0 {
+                        "admin".into()
+                    } else {
+                        "member".into()
+                    }),
+                ),
+                ("joinedAt", Value::Int(n as i64)),
+            ]),
+        ));
     }
     for n in 0..120 {
-        rows.push(("messages".to_owned(), snapback4_core::value::object([("id", id(&format!("msg{n:03}"))), ("conversationId", id("c1")), ("authorId", id(if n % 2 == 1 { "dev:alice" } else { "dev:bob" })), ("body", Value::String(format!("m{n}"))), ("at", Value::Int(1_000 + n))])));
+        rows.push((
+            "messages".to_owned(),
+            snapback4_core::value::object([
+                ("id", id(&format!("msg{n:03}"))),
+                ("conversationId", id("c1")),
+                (
+                    "authorId",
+                    id(if n % 2 == 1 { "dev:alice" } else { "dev:bob" }),
+                ),
+                ("body", Value::String(format!("m{n}"))),
+                ("at", Value::Int(1_000 + n)),
+            ]),
+        ));
     }
     engine.seed(rows).unwrap();
-    let backend = Backend { generation: engine.generation(), ..backend };
+    let backend = Backend {
+        generation: engine.generation(),
+        ..backend
+    };
     (engine, backend)
 }
 
@@ -53,8 +105,20 @@ pub fn snapshot_pages(engine: &mut Engine, principal: &str, limit: usize) -> Vec
     let mut pages = Vec::new();
     let mut after: Option<String> = None;
     loop {
-        let page = engine.snapshot_acquisition_page_at(principal, after.as_deref(), limit, snapback4_core::now_ms()).unwrap();
-        let (events, watermark, next, held) = (page.events, page.watermark, page.next.map(|next| next.encode()), page.held);
+        let page = engine
+            .snapshot_acquisition_page_at(
+                principal,
+                after.as_deref(),
+                limit,
+                snapback4_core::now_ms(),
+            )
+            .unwrap();
+        let (events, watermark, next, held) = (
+            page.events,
+            page.watermark,
+            page.next.map(|next| next.encode()),
+            page.held,
+        );
         let more = next.is_some();
         pages.push(serde_json::from_value(serde_json::json!({
             "snapshot": true, "after": after, "held": held, "acquisitions": page.acquisitions,
@@ -89,7 +153,11 @@ pub fn context(principal: &str, pairs: &[(&str, Value)]) -> Context {
 /// named store; `close` gives it back so the next `open` finds what it kept.
 pub trait Host {
     type Store: BoundaryMetadata;
-    fn open(&mut self, name: &str, backend: Option<Backend>) -> Result<Device<Self::Store>, RuntimeError>;
+    fn open(
+        &mut self,
+        name: &str,
+        backend: Option<Backend>,
+    ) -> Result<Device<Self::Store>, RuntimeError>;
     fn close(&mut self, name: &str, device: Device<Self::Store>);
     /// Model a persisted older device format between owners.
     fn patch_meta(&mut self, name: &str, changes: &[(&str, Option<String>)]);
@@ -104,9 +172,15 @@ pub struct Sqlite {
 impl Sqlite {
     pub fn new(tag: &str) -> Self {
         static OPENED: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-        let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
         let n = OPENED.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("sb4-device-{tag}-{}-{nonce}-{n}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!(
+            "sb4-device-{tag}-{}-{nonce}-{n}",
+            std::process::id()
+        ));
         std::fs::create_dir_all(&dir).unwrap();
         Self { dir }
     }
@@ -123,7 +197,11 @@ impl Drop for Sqlite {
 
 impl Host for Sqlite {
     type Store = snapback4_core::store::Store;
-    fn open(&mut self, name: &str, backend: Option<Backend>) -> Result<Device<Self::Store>, RuntimeError> {
+    fn open(
+        &mut self,
+        name: &str,
+        backend: Option<Backend>,
+    ) -> Result<Device<Self::Store>, RuntimeError> {
         Device::open(&self.path(name), backend)
     }
     fn close(&mut self, _name: &str, device: Device<Self::Store>) {
@@ -133,8 +211,16 @@ impl Host for Sqlite {
         let store = snapback4_core::store::Store::open(&self.path(name)).unwrap();
         let conn = store.conn();
         for (key, value) in changes {
-            if let Some(value) = value { conn.execute("INSERT OR REPLACE INTO _meta (key,value) VALUES (?1,?2)", [key, &value.as_str()]).unwrap(); }
-            else { conn.execute("DELETE FROM _meta WHERE key=?1", [key]).unwrap(); }
+            if let Some(value) = value {
+                conn.execute(
+                    "INSERT OR REPLACE INTO _meta (key,value) VALUES (?1,?2)",
+                    [key, &value.as_str()],
+                )
+                .unwrap();
+            } else {
+                conn.execute("DELETE FROM _meta WHERE key=?1", [key])
+                    .unwrap();
+            }
         }
     }
     fn label(&self) -> &'static str {
@@ -165,16 +251,30 @@ impl Memory {
 
 impl Host for Memory {
     type Store = MemoryStore;
-    fn open(&mut self, name: &str, backend: Option<Backend>) -> Result<Device<Self::Store>, RuntimeError> {
+    fn open(
+        &mut self,
+        name: &str,
+        backend: Option<Backend>,
+    ) -> Result<Device<Self::Store>, RuntimeError> {
         let mut store = MemoryStore::new();
         store.load(self.kept.get(name).cloned().unwrap_or_default())?;
         Device::open_store(store, backend)
     }
     fn close(&mut self, name: &str, device: Device<Self::Store>) {
-        self.kept.entry(name.to_owned()).or_default().extend(device.store().drain());
+        self.kept
+            .entry(name.to_owned())
+            .or_default()
+            .extend(device.store().drain());
     }
     fn patch_meta(&mut self, name: &str, changes: &[(&str, Option<String>)]) {
-        self.kept.entry(name.to_owned()).or_default().extend(changes.iter().map(|(k, v)| Change { s: 'm', k: (*k).into(), v: v.clone() }));
+        self.kept
+            .entry(name.to_owned())
+            .or_default()
+            .extend(changes.iter().map(|(k, v)| Change {
+                s: 'm',
+                k: (*k).into(),
+                v: v.clone(),
+            }));
     }
     fn label(&self) -> &'static str {
         "memory"
@@ -184,7 +284,10 @@ impl Host for Memory {
 /// Persist what a memory device changed so far without closing it — what
 /// the web host does after every call.
 pub fn checkpoint(host: &mut Memory, name: &str, device: &Device<MemoryStore>) {
-    host.kept.entry(name.to_owned()).or_default().extend(device.store().drain());
+    host.kept
+        .entry(name.to_owned())
+        .or_default()
+        .extend(device.store().drain());
 }
 
 /// Inspect persisted acquisition metadata without changing device API.
@@ -193,7 +296,9 @@ pub trait BoundaryMetadata: DeviceStore {
     fn raw_rows(&self, table: &str) -> Vec<Value>;
 }
 impl BoundaryMetadata for snapback4_core::store::Store {
-    fn raw_rows(&self, table: &str) -> Vec<Value> { self.rows(table).unwrap() }
+    fn raw_rows(&self, table: &str) -> Vec<Value> {
+        self.rows(table).unwrap()
+    }
     fn boundary_entries(&self) -> Vec<(String, String)> {
         self.conn().prepare("SELECT key, value FROM _meta WHERE key LIKE 'device:acquisition-boundaries:%' ORDER BY key").unwrap()
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<_, _>>().unwrap()
@@ -201,10 +306,19 @@ impl BoundaryMetadata for snapback4_core::store::Store {
 }
 impl BoundaryMetadata for MemoryStore {
     fn raw_rows(&self, table: &str) -> Vec<Value> {
-        self.export().into_iter().filter(|c| c.s == 'r' && serde_json::from_str::<Vec<String>>(&c.k).unwrap()[0] == table)
-            .map(|c| serde_json::from_str(&c.v.unwrap()).unwrap()).collect()
+        self.export()
+            .into_iter()
+            .filter(|c| {
+                c.s == 'r' && serde_json::from_str::<Vec<String>>(&c.k).unwrap()[0] == table
+            })
+            .map(|c| serde_json::from_str(&c.v.unwrap()).unwrap())
+            .collect()
     }
     fn boundary_entries(&self) -> Vec<(String, String)> {
-        self.export().into_iter().filter(|c| c.s == 'm' && c.k.starts_with("device:acquisition-boundaries:")).map(|c| (c.k, c.v.unwrap())).collect()
+        self.export()
+            .into_iter()
+            .filter(|c| c.s == 'm' && c.k.starts_with("device:acquisition-boundaries:"))
+            .map(|c| (c.k, c.v.unwrap()))
+            .collect()
     }
 }

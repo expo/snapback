@@ -1180,6 +1180,12 @@ impl<'r> Runner<'r> {
         if aggregate_parent == Some(false) { return Ok((Vec::new(), Vec::new())); }
         let aggregate_expiry = aggregate_scope.defer();
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
+        for rule in table.column_reads.values() { self.rule_dependencies(rule); }
+        if self.device && table.column_server_reads() {
+            self.unknown_fact(&scan.table,&scan.index,&prefix,&scan.site);
+            return Ok((Vec::new(),Vec::new()));
+        }
+
         let index = table.index(&scan.index).ok_or_else(|| {
             RuntimeError::Schema(format!("missing index {}.{}", scan.table, scan.index))
         })?;
@@ -1291,7 +1297,7 @@ impl<'r> Runner<'r> {
             || matches!(&self.timeline_authority, Some(super::timeline_authority::Authority::Transition(_)));
         // @ref LLP 3000.015#1 — reserve declared decode scratch, never actual private bytes.
         // Both adapters use the typed projection boundary before retention.
-        let private_payload = table.written_by.values().any(|a| !a.audience);
+        let private_payload = !table.column_reads.is_empty() || table.written_by.values().any(|a| !a.audience);
         let streaming = aggregate.is_some();
         let transient = streaming || metered_domain;
         #[cfg(feature = "server-search")]
@@ -1441,7 +1447,7 @@ impl<'r> Runner<'r> {
                         break 'outer;
                     }
                     let Some(row) = live_row else { continue; };
-                    let disclosed = authority.project(self.disclosed_row(table,row).for_query());
+                    let disclosed = authority.project(self.disclosed_row(table,row)?.for_query());
                     let disclosed_bytes = disclosed.heap_bytes();
                     let mut row = super::recorded::public_image(table, self.sequence_read_result(&scan.table, disclosed.into_value())?);
                     self.stamp_source(&scan.table, &mut row)?;

@@ -276,7 +276,7 @@ impl Check<'_> {
                     if !forwards { self.inspect(ty)?; }
                 }
                 match builtin {
-                    Builtin::OptionalField { field } => self.field(first, field, data),
+                    Builtin::OptionalField { field, .. } => self.field(first, field, data),
                     Builtin::ProjectFields { .. } => Ok(first),
                     Builtin::First | Builtin::Last | Builtin::At => Ok(first.item()),
                     Builtin::Slice => Ok(first),
@@ -453,7 +453,7 @@ mod tests {
     #[test]
     fn every_builtin_has_an_explicit_inspection_classification() {
         use Builtin::*;
-        let builtins = vec![ProjectFields { table: "t".into() }, ReceiptSettled { table: "t".into() }, OptionalField { field: "id".into() },
+        let builtins = vec![ProjectFields { table: "t".into() }, ReceiptSettled { table: "t".into() }, OptionalField { field: "id".into(), omit: false, fallback: false },
             Calendar { millis: 1 }, Civil(crate::calendar::Civil::Month), Text(crate::text::Function::Before), Len, Slice, Concat, Lower, Trim, Sha256, Join, Group { field: "id".into(), optional: false },
             First, Last, At, Min, Max, Extremum { field: "id".into(), max: false, domain: false }, ExtremumOf { max: false, domain: false },
             Divmod { remainder_sink: "r".into() }, Divide { rounding: crate::ir::Rounding::HalfEven, scale: None }, Sort { keys: vec![] }, MentionTokens, SearchPresent, DeterministicShare, Count, Sum, CountCapped, Connected, RequireUncapped];

@@ -30,6 +30,18 @@ readable projections. N_LOOKUP_HIDDEN reviews required read/write gates.
 Blind writes need no lookup. Rule `exists` uses separate witnesses.
 See `guide refusals` and local `why recent`.
 
+### Column read rules
+
+A column may append `read <- policy`; `read (a, b) <- policy` on the table
+shares a gate. Both narrow row authority, omit denied row properties and make
+explicit selections optional/null. The complete runnable example and sync,
+asset, aggregate and rollback boundaries are in `guide rule-recipes`,
+Column-level privacy. Row-local cells sync; probe-based cells stay online and
+ordinary queries fall back automatically. Protected payloads cannot supply
+stored keys, cursors/order/search, authority, lifetimes, immutable constraints
+or maintained derivation inputs (E_COLUMN_READ). Use an ordinary public key
+for structure, or a separate entity with its own lifecycle.
+
 ### Hops, operators and read through
 Write rules and `after insert` keys allow three live hops: `.reaction.message.conversation`, including `exists members[.message.conversation, viewer]`. `messages[id = .message].conversation` is equivalent. Every target must be live and readable; absent, expired or hidden targets remain unknown under `not` and `= null`. Program lookups (`t[id] !`, `exists`) are reads too: a row the caller cannot read is null in an optional lookup (false for program `exists`) and the authored CODE in an asserted lookup, before any later `require` or the delete/update rule runs, so give a moderator read access to what they moderate, or delete by id without a lookup and let the delete rule decide (`guide refusals` has the recipe). `check` notes N_UNREADABLE_PROBE on guards without proved read authority; use unique/cap/after insert constraints for global absence across hidden rows.
 Each occurrence prepays one probe, including skipped branches. `check --cost`/`why` list them; prediction needs every read covered.
@@ -359,3 +371,8 @@ E_FIELD_AUTHORITY means an owner declaration is invalid, or a supplied/updated f
 Read-through repairs: `why E_READ_THROUGH`, `why E_READ_THROUGH_ADOPT`, `why E_PARENT_HAS_CHILDREN` and `why E_READ_THROUGH_SCAN`.
 
 Membership paths spelling the whole parent rule lower to `read through`. Without sync, a one-hop read-rule equality (`.author = viewer or .goal.owner = viewer`) is the probe `exists goals[.goal, owner = viewer]`; other read reference expressions (two hops, `!=`, a synced table) remain unsupported. Write rules admit live chains as above. Parent-key aggregates inherit the read rule. A diagnostic never suggests dropping the parent hop. An aggregate read line proved identical to the parent's rule has a whole-line repair; additional conditions remain a modeling choice and are not removed by `--fix`.
+
+N_COLUMN_READ identifies a possible one-to-one privacy extension. Put a private
+field on its existing row with `read <- policy` when it only narrows payload
+visibility; keep separate entities, lifecycles and write authority in separate
+tables. This advisory never proves equivalence or rewrites stored data.

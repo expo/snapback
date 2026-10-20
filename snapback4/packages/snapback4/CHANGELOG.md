@@ -16,6 +16,19 @@
 - Default `test` synthesizes isolated per-role fixtures, memberships, ownership and verified media, including password-only apps. Failures distinguish authored and generated initial fixtures; generated initialization is a test assumption, not proof that app operations create that state. Fixture-free campaigns name missing business-case coverage; saved-source/populated-explicit-fixture business-case requirements stay in force. Deployment auth and dev doors keep their existing authority.
 - `check` summarizes proved/refuted/unproved invariants and five ranked actionable notes, points to `test` and `audit`, and keeps full evidence behind `--verbose`/JSON. Concrete exploration has a shared 512 call/world budget and 1500 ms safety bound; exhaustion stays unproved. Exact static implications reuse a bounded process-local cache. Role-wide private/media board branches and argument-restricted escalation advice name the risky audience. Returned private fields count as disclosures even on incomplete pages; declared delete cascades no longer prevent testing an ordinary update.
 
+- Column read rules: append `read <- policy` to a column, or share a gate with
+  `read (a, b) <- policy`. Queries, mutation returns and asset downloads enforce
+  row AND column authority. Hidden row properties are omitted and generated
+  read properties are optional. Row-local rules sync projected cells; rules
+  needing server witnesses automatically use online query fallback. Following
+  rechecks staged, replayed and mounted fields against current column grants.
+- A private new field can stay on its existing row. Normal deploy and rollback
+  retain the field as a dormant cell without hiding the row. Existing clients
+  receive a compatibility warning when a field becomes audience-optional.
+- `guide rule-recipes` teaches column privacy; `check` suggests it for a possible
+  one-to-one privacy extension. Structural uses of protected payloads refuse
+  E_COLUMN_READ; plain readable-row counts remain available.
+
 ## 0.4.34
 
 - Deploy reactivates matching retained source under its existing release id after rollback, validates privately and removes definitively refused candidates. Deploy and rollback share `--restore-dormant`; previews report current and future rollback hazards with bridge commands. Old-client reports compare operation inputs, results and refusals. Literal query/mutation defaults, validated ignored deprecated arguments and same-module aliases preserve existing callers; required inputs remain required in generated types.

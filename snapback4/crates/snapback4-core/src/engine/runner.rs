@@ -926,7 +926,7 @@ impl<'a> Runner<'a> {
                 #[cfg(feature = "sqlite")]
                 let (mut fields, origins) = self.delivery_fields(fields)?;
                 #[cfg(not(feature = "sqlite"))]
-                let mut fields: crate::value::ObjectFields = fields.iter().map(|(key, value)| Ok((key.clone(), self.expr(value)?))).collect::<Result<_, RuntimeError>>()?;
+                let mut fields = self.object_fields(fields)?;
                 // @ref LLP 3000.014#5 — retained history stays marked through projections.
                 // A spread can merge multiple row bases. Application fields named
                 // retained are ordinary data; only the reader creates provenance.
@@ -951,8 +951,7 @@ impl<'a> Runner<'a> {
                 };
                 #[cfg(not(feature = "sqlite"))]
                 let value = {
-                    let fields = crate::small_map::try_collect(values.iter().map(|(key, value)| -> Result<_, RuntimeError> { Ok((key.clone(), self.expr(value)?)) }))?;
-                    Value::Row(fields.into())
+                    Value::Row(self.object_fields(values)?)
                 };
                 self.meter.heap(expression_heap(&value))?;
                 Ok(value)
@@ -1067,6 +1066,26 @@ impl<'a> Runner<'a> {
         }
     }
 
+    // @ref LLP 3000.036#221-surface-and-authority — a spread preserves absent protected cells, including nested spreads.
+    pub(super) fn object_field(&mut self, expr: &Expr) -> Result<Option<Value>, RuntimeError> {
+        if let Expr::Builtin { builtin: Builtin::OptionalField { field, omit: true, fallback }, args } = expr {
+            let base = self.expr(&args[0])?;
+            #[cfg(feature = "sqlite")]
+            self.delivery_field(&base, field);
+            return match base.as_object()?.get(field) {
+                Some(value) => Ok(Some(value.clone())),
+                None if *fallback => self.object_field(&args[1]),
+                None => Ok(None),
+            };
+        }
+        self.expr(expr).map(Some)
+    }
+    #[cfg(not(feature = "sqlite"))]
+    fn object_fields(&mut self, values: &BTreeMap<String, Expr>) -> Result<crate::value::ObjectFields, RuntimeError> {
+        let fields = crate::small_map::try_collect(values.iter().filter_map(|(key, expr)|
+            self.object_field(expr).map(|value| value.map(|value| (key.clone(), value))).transpose()))?;
+        Ok(fields.into())
+    }
     fn builtin(&mut self, builtin: &Builtin, mut args: Vec<Value>) -> Result<Value, RuntimeError> {
         let result: Result<Value, RuntimeError> = match builtin {
             #[cfg(feature = "sqlite")]
@@ -1083,14 +1102,29 @@ impl<'a> Runner<'a> {
             Builtin::ProjectFields { table } => {
                 let row = args.remove(0);
                 if row == Value::Null { Ok(row) } else {
-                    let row = self.with_defaults(table, row.expression_input(ExpressionAccess(())))?.into_value();
-                    self.project_row(table, row).map(|row| super::recorded::public_image(&self.schema.tables[table], row.into_value()))
+                    let row = if self.schema.tables[table].through.is_some() {
+                        // Insertion stamps captured authority in storage, after
+                        // evaluating its input object. Project the completed image.
+                        let id = row.field("id")?.as_str()?.to_owned();
+                        self.metered_scan(|runner, allowance| runner.tx.get(allowance, table, &id))?
+                            .ok_or_else(|| self.no_write_target())?
+                    } else { self.with_defaults(table, row.expression_input(ExpressionAccess(())))?.into_value() };
+                    let projected = if self.schema.tables[table].column_reads.is_empty() { Some(self.project_row(table, row)?) }
+                        else { self.project_row_if_readable(table, row)? };
+                    Ok(projected.map_or(Value::Null, |row| {
+                        let definition = &self.schema.tables[table];
+                        let mut row = super::recorded::public_image(definition, row.into_value());
+                        if !definition.maintained.is_empty() {
+                            if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|field, _| !definition.maintained.contains_key(field)); }
+                        }
+                        row
+                    }))
                 }
             }
-            Builtin::OptionalField { field } => {
+            Builtin::OptionalField { field, fallback, .. } => {
                 #[cfg(feature = "sqlite")]
                 self.delivery_field(&args[0], field);
-                Ok(args[0].field(field).cloned().unwrap_or(Value::Null))
+                Ok(args[0].field(field).cloned().unwrap_or_else(|_| if *fallback { args[1].clone() } else { Value::Null }))
             },
             Builtin::Len | Builtin::Count | Builtin::CountCapped | Builtin::Sum => scalar_builtin(builtin, &args[0]),
             Builtin::Calendar { millis } => {

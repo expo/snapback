@@ -166,8 +166,9 @@ fn adopted_default_prepay_is_replaced_by_the_retained_row_charge() {
     assert_eq!(new.data,old.data);
     assert_eq!(new.data.as_array().unwrap()[0].field("payload").unwrap().as_str().unwrap().len(),1_000_000);
     // Both were 8-9 KB higher while SQLite's column reserve and preflight copies stayed on the meter (LLP 3000.007 §20.24.5).
-    assert_eq!(new.metered.heap_bytes,3_016_535,"exact retained compact ownership");
-    assert_eq!(old.metered.heap_bytes,3_025_663,"exact retained control ownership");
+    // The sealed column-grant metadata adds 32 bytes to the retained compact row slot.
+    assert_eq!(new.metered.heap_bytes,3_016_567,"exact retained compact ownership");
+    assert_eq!(old.metered.heap_bytes,3_025_855,"exact retained control ownership");
     eprintln!("3,600,000-byte heap: compact={}, control={}",new.metered.heap_bytes,old.metered.heap_bytes);
     assert!(!complete_or_refused(&mut e,64 << 10));
 }
