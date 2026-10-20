@@ -10,6 +10,7 @@ def s1a_tables(directory):
     import statistics
     groups = {}
     rejected = []
+    interrupted = []
     for path in sorted(glob.glob(os.path.join(directory, "*.json"))):
         if not os.path.basename(path).startswith(("raw-", "execution-", "commit-", "sqlite-", "ping-")):
             continue
@@ -17,7 +18,7 @@ def s1a_tables(directory):
         if "result" not in record:
             continue
         if not record.get("accepted"):
-            rejected.append(path)
+            (interrupted if record.get("interrupted") else rejected).append(path)
             continue
         r = record["result"]
         key = (r.get("cell"), r.get("net", {}).get("label", "local"),
@@ -46,9 +47,10 @@ def s1a_tables(directory):
              "p99":statistics.median(r["p99_ms"] for r in runs), "max_p99":max(r["p99_ms"] for r in runs)}
         stats[key] = s
         print(f"| {' | '.join(map(str,key))} | {s['rate']:,.0f} ({min(rate):,.0f}–{max(rate):,.0f}) | {s['p50']:.3f} | {s['p99']:.3f} | {s['max_p99']:.3f} | {max(r['max_load'] for r in records):.2f} |")
-    print(f"\nRejected load attempts retained: {len(rejected)}")
+    print(f"\nRejected load attempts retained: {len(rejected)}; interrupted attempts retained: {len(interrupted)}")
     print("\n| RTT | Execution C32 /s | Best full commit 0/10/30% /s (N) | Predicted 0% /s | Raw C32 disjoint/hot1 /s | Predicted/raw disjoint |")
     print("| --- | ---: | --- | ---: | --- | ---: |")
+    sizing_note = None
     for net in ["rtt200", "rtt500", "rtt1000"]:
         execution = stats.get(("pg-execution",net,32,1,0,"disjoint"))
         raw = [stats.get(("raw",net,32,1,0,keys)) for keys in ["disjoint","hot1"]]
@@ -62,7 +64,9 @@ def s1a_tables(directory):
             print(f"| {net} | {execution['rate']:,.0f} | {detail} | {ceiling:,.0f} | {raw[0]['rate']:,.0f} / {raw[1]['rate']:,.0f} | {ceiling/raw[0]['rate']:.1%} |")
             if net == "rtt500":
                 bar = max(2000,raw[0]["rate"]*0.5)
-                print(f"\nSizing rule: {'BUILD' if ceiling>=bar else 'DO NOT BUILD'}; ceiling={ceiling:.1f}/s, 2× bar={bar:.1f}/s.")
+                sizing_note = f"Sizing rule: {'BUILD' if ceiling>=bar else 'DO NOT BUILD'}; ceiling={ceiling:.1f}/s, 2× bar={bar:.1f}/s."
+    if sizing_note:
+        print("\n" + sizing_note)
     sqread = [(s["rate"],k[2]) for k,s in stats.items() if k[0]=="sqlite-execution"]
     sqwrite = [(s["rate"],k[3]) for k,s in stats.items() if k[0]=="sqlite-commit" and s["max_p99"]<=100]
     if len(sqread)==4 and len(sqwrite)==4:

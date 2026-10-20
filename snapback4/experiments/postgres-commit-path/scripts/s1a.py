@@ -87,7 +87,8 @@ def run(out, block, number, args, gate=6, wait=True):
         record = {"started": started, "argv": args, "exit_status": process.returncode,
                   "load_samples_1s": loads, "max_load": max(loads), "load_qualified": quiet,
                   "accepted": quiet, "starting_load_gate": gate, "result": result}
-        (out / (name + ".json")).write_text(json.dumps(record) + "\n")
+        with (out / (name + ".json")).open("x") as record_file:
+            record_file.write(json.dumps(record) + "\n")
         print(f"{name}: exit {process.returncode}, max load {max(loads):.2f}, "
               f"{'accepted' if quiet else 'REJECTED; rerunning'}: {' '.join(args)}", flush=True)
         if quiet:
@@ -97,6 +98,7 @@ def run(out, block, number, args, gate=6, wait=True):
         if not wait:
             return False
         attempt += 1
+        gate = max(2, gate - 0.5)
 
 
 
@@ -113,14 +115,26 @@ def starting_gate(args):
     # Headroom affects scheduling only. Acceptance always requires max <= 8.
     if args[0] == "sqlite-execution":
         threads = int(args[args.index("--threads")+1])
-        return 4 if threads == 32 else 6 if threads == 16 else 7
+        return 5 if threads == 32 else 6 if threads == 16 else 7
     if args[0] == "pg-execution":
         c = int(args[args.index("--connections")+1])
         net = args[args.index("--net")+1]
-        return 4 if c == 64 and net == "rtt200" else 6 if c >= 32 else 7
+        return 5 if c == 64 and net == "rtt200" else 6 if c >= 32 else 7
     if args[0] == "raw" and "rtt200" in args:
         return 6
     return 7
+
+
+def effective_gate(out, task):
+    block, number, args = task
+    rejected = 0
+    for path in out.glob(f"{block}-{number}-*.json"):
+        record = json.loads(path.read_text())
+        if not record.get("load_qualified", False) and not record.get("interrupted"):
+            rejected += 1
+    # Retrying a load rejection is useful only with more starting headroom.
+    # No product parameter, timeout, retry budget or measured window changes.
+    return max(2, starting_gate(args) - 0.5 * rejected)
 
 
 if __name__ == "__main__":
@@ -128,7 +142,7 @@ if __name__ == "__main__":
     destination.mkdir(parents=True, exist_ok=True)
     if sys.argv[2] != "all":
         for block, number, args in tasks(sys.argv[2]):
-            run(destination, block, number, args, gate=starting_gate(args))
+            run(destination, block, number, args, gate=effective_gate(destination,(block,number,args)))
     else:
         pending = []
         for block in ("raw", "execution", "commit", "sqlite"):
@@ -140,11 +154,11 @@ if __name__ == "__main__":
         # most headroom; among those, prioritize the 0.5 ms decision cells.
         pending.sort(key=lambda t: (starting_gate(t[2]), 0 if "rtt500" in t[2] else 1, t[0], t[1]))
         while pending:
-            eligible = [task for task in pending if os.getloadavg()[0] <= starting_gate(task[2])]
+            eligible = [task for task in pending if os.getloadavg()[0] <= effective_gate(destination,task)]
             if not eligible:
                 print(f"waiting for load headroom: {os.getloadavg()[0]:.2f}; {len(pending)} blocks remain", flush=True)
                 time.sleep(5)
                 continue
             task = eligible[0]
-            if run(destination, *task, gate=starting_gate(task[2]), wait=False):
+            if run(destination, *task, gate=effective_gate(destination,task), wait=False):
                 pending.remove(task)

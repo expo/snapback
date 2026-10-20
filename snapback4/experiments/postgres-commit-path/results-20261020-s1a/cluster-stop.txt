@@ -1,0 +1,1 @@
+stopped /tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7-917c-2880afdea35c/scratchpad/s1a/pgdata.XzR3gw/data; removed /tmp/sbpgJCKG

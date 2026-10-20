@@ -598,6 +598,8 @@ ms RTT and its best measured batch size, is below 1,000 commits/s, or below
 
 ## S1a: sizing (a)
 
+**Outcome:** Postgres **DO NOT BUILD** at the current call boundary (C=32 ceiling 4,775/s at 0.5 ms, 13.5% of raw). SQLite's best separate-stage model predicts 22,024/s with one reader and batching; the full engine gain is unmeasured.
+
 This extends S0 with **models of two separate stages**, governed by
 [the sizing rule, §8](../../../llp/3000.009.001.002-scale-limits-against-postgres-controls.rfc.md#8-decision-rules).
 The prediction is `min(execution at C=32, best full-write-set commit stage
@@ -633,6 +635,8 @@ S1A_SCRATCH=/tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7
 S1A_ENV=$(scripts/cluster.sh start "$S1A_SCRATCH" 56431)
 source "$S1A_ENV"
 export SQLITE_DIR="$S1A_SCRATCH/sqlite"
+export CP_WARMUP_MS=1000 CP_MEASURE_MS=4000
+export NETS="rtt200 rtt500 rtt1000"
 ```
 
 One command per cell family (each command sweeps the requested settings;
@@ -654,8 +658,11 @@ effect, and the next two are warm. This avoids measuring that startup
 effect three times. Every run, including the first, is retained. `NETS` can select a subset of
 `rtt200 rtt500 rtt1000`. `scripts/s1a.py` treats each repetition
 as a measurement block (all three runs together for the PG commit stage)
-and records `uptime` and `vmstat 1 5` before and after it. Starting-load gates of 4–7 leave headroom according to the cell's
-thread/connection demand; every gate is recorded, and load is sampled each second;
+and records `uptime` and `vmstat 1 5` before and after it. Initial
+starting-load gates of 5–7 leave headroom according to the cell's
+thread/connection demand; the final runner records the chosen gate and
+samples load each second. Earlier raw repetitions used a fixed starting gate
+of 6; the initial ping and two long rejected raw attempts used 8;
 a block exceeding 8 is kept as rejected evidence and rerun in fresh files.
 A quiet failed product cell is retained as failed, without a success retry.
 The runner never changes durability, the existing 5 s timeouts, or retry
@@ -706,11 +713,17 @@ pin, over warm-up, measurement and drain. The short smoke run (excluded from
 sizing tables) passed with 4,336 receipts/footprints/revisions, 1,301 sessions,
 and 3,035 increments. Initial raw attempts exceeded load 8 and were retained;
 the three repetitions were separated by host snapshots and load gating,
-with conservative starting-load headroom for the unchanged S0 proxy. The two rejected 15-second attempts remain in the directory. Later load
+with conservative starting-load headroom for the unchanged S0 proxy. The
+two rejected 15-second attempts remain in the directory. Later load
 rejections are also retained. `python3 scripts/s1a.py <new-results> all`
 schedules the same cells serially, taking low-load gaps for cells needing
 more headroom, without changing any cell parameters or the load-8 acceptance
-ceiling. This is the final sweep command used here. Product timeouts and retries were not changed.
+ceiling. A load rejection lowers that setting's starting gate by 0.5 for its
+next attempt, down to 2. The measured window and all product parameters stay
+fixed. This is the final sweep command used here. One controller interruption
+cut short an after-snapshot (`commit-04-01`); its completed stdout and partial
+snapshot are retained as unqualified evidence, and attempt 02 reran the
+cell. Product timeouts and retries were not changed.
 
 ### SQLite optimistic models
 
@@ -766,3 +779,111 @@ python3 -I scripts/tables.py results-20261020-s1a
   work; a model gain over S0's real engine is not a demonstrated engine gain.
   Only the separate stage SLO is tested; combined execution + queue + commit
   latency and open-loop saturation still need an engine measurement.
+
+### Postgres sizing verdict at 0.5 ms
+
+**DO NOT BUILD (a) under §8's sizing rule at the current call boundary.**
+C=32 execution is **4,775 executions/s** (4,735–4,849). The best 0% full-write
+commit stage within the 100 ms SLO is **12,128/s at N=64** (2,240–12,288,
+including the cold first run); all three run p99s are <= 79.3 ms. Thus the
+predicted ceiling is **4,775/s**. Raw PG at the fixed 32 writers measures
+**35,460/s** disjoint and **35,122/s** with the 1% hot-key mix.
+
+The prediction is **13.5% of the disjoint raw denominator**, below even the
+unmargined 25% line (8,865/s). With the required 2× margin, the two bars are
+2,000/s and 17,730/s. Execution clears the absolute bar and fails the ratio
+bar. The measured explicit-transaction full-write commit stage also fails
+the ratio bar with margin,
+although it clears the unmargined 25% line. Execution is the smaller stage.
+The 10/30% mixed streams reach 12,448/12,528 total stream operations/s at
+N=64; neither changes that conclusion. Their head-increment rates are
+approximately 90%/70% of those stream rates, rather than extra increments.
+
+The next work named by the rule is reducing mutation round trips (`k`) or
+the driver boundary before building the optimistic committer. This is a
+sizing verdict, not a correctness rejection of the proposed protocol.
+
+At an ideal exact 0.5 ms per call, ten serial calls would still cap C=32
+execution at 6,400/s before client work, below the measured raw margin bar
+of 17,730/s. That calculation is a model inference; no rescaled result
+replaces the measurements. A more efficient commit protocol alone cannot
+remove the measured execution bottleneck.
+
+
+### S1a result tables
+
+All 62 settings completed, three qualified repetitions each (186 runs). Maximum sampled load in retained blocks, including ping, was 7.68. All counter, receipt, footprint, revision and pin checks passed. 22 load-rejected attempts and 1 interrupted attempt remain as unqualified evidence; corrected smoke failures are separate. No qualified product cell failed.
+
+Full spread and worst-run tails: [tables.md](./results-20261020-s1a/tables.md); machine-readable aggregate and custody audit: [summary.json](./results-20261020-s1a/summary.json). Throughput and p50/p99 are medians of the three run statistics. For SLO selection, conservatively require **all three run p99s <= 100 ms**, including the cold first run. Every PG commit point passed; the largest run p99 was 80.374 ms.
+
+**Proxy calibration** (actual SELECT 1 round trip, ms):
+
+| Nominal added RTT | p50 | p99 |
+| ---: | ---: | ---: |
+| 0.2 | 0.313 | 0.343 |
+| 0.5 | 0.619 | 0.674 |
+| 1.0 | 1.123 | 1.146 |
+
+**Cell 1: PG execution MODEL.** Entries are executions/s; p50/p99 ms.
+
+| C | 0.2 ms | 0.5 ms | 1.0 ms |
+| ---: | ---: | ---: | ---: |
+| 8 | 2,358; 3.390/3.749 | 1,231; 6.501/6.780 | 693; 11.544/11.770 |
+| 16 | 4,544; 3.521/3.786 | 2,439; 6.582/6.838 | 1,378; 11.619/11.926 |
+| 32 | 10,474; 2.973/3.714 | 4,775; 6.705/6.993 | 2,724; 11.748/12.002 |
+| 64 | 22,172; 2.870/3.114 | 10,333; 6.174/6.732 | 5,363; 11.932/12.242 |
+
+**Cell 2: full-write commit MODEL.** Entries are stream operations/s; acknowledgement p50/p99 ms (including enqueue/queue/flush). Non-head percentages replace increments. Producers = max(4, 2N).
+
+| RTT ms | Non-head % | N=1 | N=4 | N=16 | N=64 |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.2 | 0 | 621; 6.414/7.269 | 2,533; 3.316/3.646 | 7,004; 4.552/5.114 | 20,943; 6.685/7.698 |
+| 0.2 | 10 | 637; 6.296/7.099 | 2,335; 3.449/3.751 | 7,128; 4.401/6.760 | 18,240; 7.005/7.727 |
+| 0.2 | 30 | 651; 6.136/6.994 | 2,332; 3.419/3.862 | 7,260; 4.400/4.987 | 18,880; 6.740/7.692 |
+| 0.5 | 0 | 410; 9.667/11.108 | 1,481; 5.384/6.332 | 5,012; 6.358/7.122 | 12,128; 10.509/39.262 |
+| 0.5 | 10 | 401; 9.903/10.488 | 1,510; 5.378/5.692 | 5,032; 6.288/6.809 | 12,448; 10.295/38.528 |
+| 0.5 | 30 | 409; 9.774/10.312 | 1,580; 5.241/5.554 | 5,080; 6.208/7.271 | 12,528; 10.082/12.574 |
+| 1.0 | 0 | 248; 16.104/16.947 | 960; 8.322/8.622 | 3,392; 9.394/9.993 | 9,136; 14.024/14.666 |
+| 1.0 | 10 | 250; 16.026/16.962 | 959; 8.331/8.638 | 3,436; 9.315/9.767 | 9,376; 13.612/14.488 |
+| 1.0 | 30 | 251; 15.967/16.425 | 968; 8.287/9.355 | 3,444; 9.278/9.787 | 9,616; 13.216/14.431 |
+
+**Cell 3: raw PG, 32 concurrent writers.** Entries are commits/s; p50/p99 ms.
+
+| RTT ms | Disjoint | 1% hot-key mix |
+| ---: | ---: | ---: |
+| 0.2 | 57,689; 0.548/0.698 | 56,055; 0.567/0.720 |
+| 0.5 | 35,460; 0.906/1.031 | 35,122; 0.912/1.042 |
+| 1.0 | 22,905; 1.397/1.520 | 23,289; 1.374/1.501 |
+
+**Cell 4: predicted PG ceiling, 0% non-head W4 comparison.** N=64 is the best full-write batch within the write SLO at each RTT.
+
+| RTT ms | Execution C=32 /s | Full commit /s | Predicted /s | % of raw disjoint |
+| ---: | ---: | ---: | ---: | ---: |
+| 0.2 | 10,474 | 20,943 | 10,474 | 18.2% |
+| 0.5 | 4,775 | 12,128 | 4,775 | 13.5% |
+| 1.0 | 2,724 | 9,136 | 2,724 | 11.9% |
+
+**Cell 5: SQLite MODEL.** Read connections are separate WAL readers; commits are prefilled durable batches. All write-stage run p99s were below 100 ms.
+
+| Reader threads | Executions/s | p50 ms | p99 ms |
+| ---: | ---: | ---: | ---: |
+| 1 | 22,024 | 0.045 | 0.051 |
+| 4 | 5,791 | 0.688 | 0.882 |
+| 16 | 2,968 | 5.380 | 6.610 |
+| 32 | 2,895 | 11.034 | 13.505 |
+
+| Batch N | Increments/s | p50 ms | p99 ms | Worst run p99 ms |
+| ---: | ---: | ---: | ---: | ---: |
+| 1 | 11,821 | 0.070 | 0.177 | 0.178 |
+| 4 | 29,642 | 0.122 | 0.660 | 0.662 |
+| 16 | 64,492 | 0.219 | 1.225 | 1.242 |
+| 64 | 103,648 | 0.565 | 2.665 | 2.694 |
+
+**SQLite answer: the model leaves room for improvement with one reader and batched writes.** Its best predicted ceiling is min(22,024, 103,648) = **22,024/s**, **5.24–5.95×** S0's 3,700–4,200/s single-engine `serve` topology. At 32 readers, the model is instead capped at **2,895/s**, below S0. Parallel readers do not scale in this bundled SQLite configuration; the cause was not profiled. The best SQL-only model is not evidence of a 5.2× engine gain: interpreter CPU and the other omitted costs remain to be measured in the engine.
+
+
+Verification: the experiment-only locked release build, preserved S0 smoke
+cells, S1a smoke cells, the complete 62-setting result-integrity audit,
+Python syntax checks, and `ref-check --verbose` passed. The private cluster
+was stopped and its socket removed; synthetic databases were removed to
+recover disk space. Raw results and server/cleanup logs remain here.
