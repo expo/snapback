@@ -190,3 +190,12 @@ fn word_search_indexes_include_their_actual_source_domains() {
     let unused=checked(&source.replace("unused: int 0..10","unused: int 0..100"));
     assert!(compare(&old,&unused,"release 1").is_empty());
 }
+
+#[test]
+fn removing_or_narrowing_a_previous_argument_alias_warns_old_callers(){
+ let before=checked("query q(x: int alias oldX):\n  return x\n");
+ let after=checked("query q(x: int):\n  return x\n");
+ assert!(compare(&before,&after,"release 1").iter().any(|s|s.contains("removed argument alias oldX")));
+ let narrowed=checked("query q(x: int, y: int 0..10 default 0 alias oldX):\n  return x\n");
+ assert!(compare(&before,&narrowed,"release 1").iter().any(|s|s.contains("alias oldX retyped or narrowed")));
+}

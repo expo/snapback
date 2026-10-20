@@ -74,7 +74,7 @@ fn row_fields(ty:&crate::types::Ty,bound:&Bound,fields:&mut BTreeSet<String>) {
         Ty::Row(name)|Ty::WriteRow(name)|Ty::Page(name,_)=>if let Some(table)=bound.schema.table(name) {fields.extend(table.columns.keys().cloned());},
         Ty::RowShape(parts)|Ty::RowObject(parts)=>{fields.extend(parts.keys().cloned());for ty in parts.values(){row_fields(ty,bound,fields);}},
         Ty::Object(parts)=>for ty in parts.values(){row_fields(ty,bound,fields);},
-        Ty::Optional(ty)|Ty::List(ty,_)|Ty::Collection(ty,_)=>row_fields(ty,bound,fields),
+        Ty::Optional(ty)|Ty::Omittable(ty)|Ty::List(ty,_)|Ty::Collection(ty,_)=>row_fields(ty,bound,fields),
         _=>{}
     }
 }

@@ -37,6 +37,7 @@ fn result(ty: &Ty, bound: &Bound) -> String {
             } else {format!("{ty:?}")}
         }
         Ty::Optional(t)=>format!("optional {}",result(t,bound)),
+        Ty::Omittable(t)=>format!("omittable {}",result(t,bound)),
         Ty::List(t,_)|Ty::Collection(t,_)=>format!("list {}",result(t,bound)),
         Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>format!("object {:?}",fields.iter().map(|(n,t)|(n,result(t,bound))).collect::<BTreeMap<_,_>>()),
         Ty::Text(max)=>format!("text<={max}"),
@@ -85,10 +86,22 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
         }
         for (arg,kind) in &before.program.args {
             match after.program.args.get(arg) {
-                None if after.program.arg_aliases.contains_key(arg)=>{},
+                None if after.program.arg_aliases.contains_key(arg)=>{
+                    let next=&after.program.args[&after.program.arg_aliases[arg]];
+                    if !accepts(kind,next){lines.push(format!("{prefix}: INPUT BREAK: aliased argument {arg} retyped or narrowed ({kind:?} → {next:?}); retain its old input domain"));}
+                },
                 None if after.program.args.iter().any(|(new,next)|compatible_rename(new,next).is_some_and(|(old,_)|old==arg))=>{},
                 None=>lines.push(format!("{prefix}: INPUT BREAK: removed argument {arg}; old calls sending it get E_INPUT; retain `{arg}: <old type> deprecated` on a query/mutation")),
                 Some(next) if !accepts(kind,next)=>lines.push(format!("{prefix}: INPUT BREAK: argument {arg} retyped or narrowed ({kind:?} → {next:?}); old values may get E_INPUT; retain the old input domain or a compatible wrapper")),
+                _=>{}
+            }
+        }
+        for (alias,canonical) in &before.program.arg_aliases {
+            let old_kind=&before.program.args[canonical];
+            let next=after.program.args.get(alias).or_else(||after.program.arg_aliases.get(alias).and_then(|name|after.program.args.get(name)));
+            match next {
+                None=>lines.push(format!("{prefix}: INPUT BREAK: removed argument alias {alias}; old calls sending it get E_INPUT; retain its alias or a compatible wrapper")),
+                Some(kind) if !accepts(old_kind,kind)=>lines.push(format!("{prefix}: INPUT BREAK: argument alias {alias} retyped or narrowed ({old_kind:?} → {kind:?}); retain its old input domain")),
                 _=>{}
             }
         }

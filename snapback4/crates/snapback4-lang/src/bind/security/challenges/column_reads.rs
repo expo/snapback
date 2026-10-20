@@ -9,7 +9,7 @@ fn reserve(out:&mut Campaign,cost:usize)->bool{
 fn discharged(bound:&Bound,inv:&Invariant)->bool{
     inv.policy.as_ref().is_some_and(|p|kernel::implies(&super::super::columns::admission(&bound.schema.tables[&inv.table],inv.column.as_deref()),p)==Ok(true))
         &&!bound.schema.maintains.iter().any(|m|m.source==inv.table)
-        &&!bound.schema.tables.values().any(|t|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|kernel::dependencies(r).contains(&inv.table)))
+        &&!bound.schema.tables.values().any(|t|super::super::columns::rules(t).any(|r|kernel::dependencies(r).contains(&inv.table)))
         &&!bound.programs.iter().any(|p|ir::write_tables(&p.program).iter().any(|(t,_)|t!=&inv.table)&&super::super::audit::mentions(&serde_json::to_value(&p.program).unwrap(),&inv.table))
 }
 fn alternative(kind:&C,old:&Value)->Option<Value>{Some(match (kind.required(),old){

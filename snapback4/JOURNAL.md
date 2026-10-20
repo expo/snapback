@@ -97157,3 +97157,16 @@ Details: [reports/20261019-publication-0.4.33/REPORT.md](reports/20261019-public
 ## 2026-10-20 — Integration 19 wasm ratchet
 
 Integration 19, 0.4.35: locked Linux merged web device is 2,404,722 B raw / 733,690 B gzip; budget 734,190 B = measured gzip + exactly 500 B. Whole-artifact delta from Integration 18 is +18,880 B raw / +6,677 B gzip, including column projection/omission, shared query-branch reservations, argument-alias metadata and the 0.4.35 stamp. Server-only reverse receipts and security campaigns remain absent from the web artifact. No independent per-feature attribution, Mac measurement or runtime ceiling increase.
+
+
+## 2026-10-20 — Integration 19 independent-review corrections
+
+Fresh Codex and Muse independently found missing column-only policy edges in
+security discovery. One shared rule census now feeds generated rosters, audit,
+observer closure and escalation; privilege scoring uses effective column authority.
+Additional Codex findings corrected omission-aware TypeScript spread properties,
+removed/narrowed alias compatibility reports, and directional availability that
+checks every accepted spelling without silently remapping requests. A compiler-only
+omittable property marker preserves nested spreads, scalar null access and fallback
+presence; it adds no wire or engine type. Both initial reviews remain verbatim.
+New detecting regressions and regenerated output snapshots cover these repairs.

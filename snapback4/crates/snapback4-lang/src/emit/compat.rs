@@ -16,8 +16,8 @@ pub(super) fn result(current: &Ty, old: Option<&Ty>, since: Option<u64>) -> Stri
     match (current, old) {
         (Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields), Ty::Object(before) | Ty::RowShape(before) | Ty::RowObject(before)) => {
             let mut fields = fields.iter().map(|(name, ty)| {
-                let optional = !before.contains_key(name);
-                format!("{}{}{}: {}", if optional { format!("/** Since release {}; optional: releases before {} lack this column. */ ", since.unwrap(), since.unwrap()) } else { String::new() }, property(name), if optional { "?" } else { "" }, result(ty, before.get(name), since))
+                let optional = !before.contains_key(name)||matches!(ty,Ty::Omittable(_))||before.get(name).is_some_and(|t|matches!(t,Ty::Omittable(_)));
+                format!("{}{}{}: {}", if !before.contains_key(name) { format!("/** Since release {}; optional: releases before {} lack this column. */ ", since.unwrap(), since.unwrap()) } else { String::new() }, property(name), if optional { "?" } else { "" }, result(ty, before.get(name), since))
             }).collect::<Vec<_>>();
             if matches!(current, Ty::RowShape(_) | Ty::RowObject(_)) { fields.push("pending?: boolean".into()); fields.push("retained?: boolean".into()); }
             format!("{{ {} }}", fields.join("; "))
@@ -58,7 +58,7 @@ fn baseline_type(ty: &Ty) -> String {
         Ty::Optional(inner) => format!("{} | null", baseline_type(inner)),
         Ty::List(inner, _) | Ty::Collection(inner, _) => format!("Array<{}>", baseline_type(inner)),
         Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => {
-            let mut parts = fields.iter().map(|(name, ty)| format!("{}: {}", property(name), baseline_type(ty))).collect::<Vec<_>>();
+            let mut parts = fields.iter().map(|(name, ty)| format!("{}{}: {}", property(name), if matches!(ty,Ty::Omittable(_)){"?"}else{""}, baseline_type(ty))).collect::<Vec<_>>();
             if matches!(ty, Ty::RowShape(_) | Ty::RowObject(_)) { parts.push("pending?: boolean".into()); parts.push("retained?: boolean".into()); }
             if parts.is_empty() { "Record<string, never>".into() } else { format!("{{ {} }}", parts.join("; ")) }
         }

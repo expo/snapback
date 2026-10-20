@@ -95,21 +95,22 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
         for leaf in rule_parts(&t.rules.insert) {
             if let RuleExpr::Created {table:parent,..}=leaf
                 && bound.schema.table(parent).is_some_and(|p| p.rules.insert.disjuncts().iter().any(|r| matches!(r,RuleExpr::Allow|RuleExpr::Eq(RuleTerm::Field(_),RuleTerm::Viewer)|RuleExpr::Eq(RuleTerm::Viewer,RuleTerm::Field(_)))))
-                && bound.schema.tables.values().any(|other| [&other.rules.read,&other.rules.insert,&other.rules.update,&other.rules.delete].iter().any(|r| rule_parts(r).iter().any(|r|matches!(r,RuleExpr::Exists{table,key,equalities,..} if table==name&&matches!(key.as_slice(),[RuleTerm::Viewer])&&equalities.is_empty())))) {
+                && bound.schema.tables.values().any(|other| super::columns::rules(other).any(|r| rule_parts(r).iter().any(|r|matches!(r,RuleExpr::Exists{table,key,equalities,..} if table==name&&matches!(key.as_slice(),[RuleTerm::Viewer])&&equalities.is_empty())))) {
                 note(&mut notes,&Site::default(),"N_VACUOUS_RULE",format!("{name}: `created {parent}` can bootstrap authority trusted globally by a viewer-only probe; a caller may create their own global administrator grant"),"provision global authority only through an operator/service seat or existing authorized admin; group creation must scope every later grant to that group (guide deploy, first-admin setup)");
             }
         }
-        for (effect,rule) in [("read",&t.rules.read),("insert",&t.rules.insert),("update",&t.rules.update),("delete",&t.rules.delete)] {
+        for (label,rule) in super::columns::effects(t) {
+          let (effect,column)=label.strip_suffix(" read").map(|column|("read",Some(column))).unwrap_or((label.as_str(),None));
           for branch in rule.disjuncts(){
             for dep in kernel::dependencies(branch){if let Some(g)=bound.schema.table(&dep) {
                 let rosters=[&g.rules.insert,&g.rules.update].into_iter().flat_map(kernel::dependencies).filter(|r|r!=&dep&&mutable_role(bound,r)).collect::<BTreeSet<_>>();
                 if rosters.iter().any(|r|recipient_role(bound,name,branch,Some(&dep),r,effect))&&(role_test(bound,&g.rules.insert)||role_test(bound,&g.rules.update)){
-                    note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{effect}: `{}` trusts retained {dep} grants that can survive role changes in {}; confirm whether current-role intent is required",branch.quarry(),rosters.into_iter().collect::<Vec<_>>().join(", ")),"recheck the current role in this branch or revoke every derived grant transactionally on role changes; guide security");
+                    note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{label}: `{}` trusts retained {dep} grants that can survive role changes in {}; confirm whether current-role intent is required",branch.quarry(),rosters.into_iter().collect::<Vec<_>>().join(", ")),"recheck the current role in this branch or revoke every derived grant transactionally on role changes; guide security");
                 }
             }}
-            let declared=bound.invariants.iter().filter(|i|i.table==*name&&(i.target==effect||i.target=="write"&&matches!(effect,"insert"|"update"))).filter_map(|i|i.policy.as_ref()).flat_map(kernel::dependencies).filter(|r|mutable_role(bound,r)).collect::<BTreeSet<_>>();
+            let declared=bound.invariants.iter().filter(|i|i.table==*name&&column.is_none_or(|c|i.column.as_deref()==Some(c))&&(i.target==effect||i.target=="write"&&matches!(effect,"insert"|"update"))).filter_map(|i|i.policy.as_ref()).flat_map(kernel::dependencies).filter(|r|mutable_role(bound,r)).collect::<BTreeSet<_>>();
             if !reader_columns(branch).is_empty()&&declared.iter().any(|r|recipient_role(bound,name,branch,None,r,effect)) {
-                note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{effect}: principal branch `{}` does not recheck the declared mutable current role",branch.quarry()),"recheck the current role as well as principal attribution; guide security");
+                note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{label}: principal branch `{}` does not recheck the declared mutable current role",branch.quarry()),"recheck the current role as well as principal attribution; guide security");
             }
           }
         }
@@ -152,7 +153,7 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                         note(&mut out,site,"N_PRIVILEGE_ESCALATION",format!("{}: {table} membership grants authority, but assignment does not establish the independent provisioning intent",p.name),"restrict membership grants to the declared provisioner; use guide staging's first-admin recipe");
                     }
                 }
-                for column in &role_columns {if p.kind==ProgramKind::Mutation&&(fields.iter().any(|f|&f.name==column)||matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&t.defaults.contains_key(column))&&bound.schema.tables.values().any(|other|[&other.rules.read,&other.rules.insert,&other.rules.update,&other.rules.delete].iter().any(|r|kernel::dependencies(r).contains(table))) {
+                for column in &role_columns {if p.kind==ProgramKind::Mutation&&(fields.iter().any(|f|&f.name==column)||matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&t.defaults.contains_key(column))&&bound.schema.tables.values().any(|other|super::columns::rules(other).any(|r|kernel::dependencies(r).contains(table))) {
                     let mut targets=fields.iter().filter(|f|&f.name==column).filter_map(|f|match &f.value{Some(Expr::Literal{value:ast::Literal::Str(s),..})=>Some(s.clone()),_=>None}).collect::<Vec<_>>();
                     if !fields.iter().any(|f|&f.name==column)&&let Some(snapback4_core::Value::String(role))=t.defaults.get(column).map(|d|d.value(NOW_FOR_DEFAULTS,"$advisory")){targets.push(role);}
                     let chosen=fields.iter().find(|f|&f.name==column);

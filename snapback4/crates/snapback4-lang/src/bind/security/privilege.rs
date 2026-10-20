@@ -42,7 +42,7 @@ pub(super) fn membership_grant_risk(bound:&Bound,roster:&str,operation:&str,requ
         RuleExpr::And(xs)|RuleExpr::Or(xs)=>xs.iter().any(|r|honors(bound,r,roster)),
         r=>membership_probe(bound,r,roster),
     }}
-    if global_principal(bound,roster).is_none()||!bound.schema.tables.values().any(|t|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].into_iter().chain(t.column_reads.values()).any(|r|honors(bound,r,roster))){return false;}
+    if global_principal(bound,roster).is_none()||!bound.schema.tables.values().any(|t|super::columns::rules(t).any(|r|honors(bound,r,roster))){return false;}
     let table=&bound.schema.tables[roster];
     let admission=RuleExpr::And(std::iter::once(write_admission(table,op,fields)).chain(requirements.iter().cloned()).collect());
     if op==ast::WriteOp::Update&&global_principal(bound,roster).is_some_and(|column|kernel::implies(&admission,&RuleExpr::Eq(RuleTerm::OldField(column.clone()),RuleTerm::Field(column)))==Ok(true)){return false;}
@@ -82,7 +82,7 @@ pub(super) fn risk(bound:&Bound,roster:&str,column:&str,operation:&str,targets:&
     let mut guards=Vec::new();role_guards(bound,&admission,&mut guards);
     let independent=kernel::implies(&substitute(bound,&admission,"$no-roster",column,None,None),&RuleExpr::Or(guards))==Ok(true);
     let mut ranked=roles.iter().filter(|r|targets.is_empty()||targets.contains(r)).collect::<Vec<_>>();
-    let score=|role:&&String|bound.schema.visible_tables().flat_map(|(_,t)|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete]).filter(|rule|kernel::implies(&RuleExpr::Allow,&substitute(bound,rule,roster,column,Some(role.as_str()),None))==Ok(true)).count();
+    let score=|role:&&String|bound.schema.visible_tables().flat_map(|(_,t)|super::columns::effects(t)).filter(|(_,rule)|kernel::implies(&RuleExpr::Allow,&substitute(bound,rule,roster,column,Some(role.as_str()),None))==Ok(true)).count();
     ranked.sort_by_key(|role|(std::cmp::Reverse(score(role)),role.as_str()));
     for target in ranked{
         for caller in std::iter::once(None).chain(roles.iter().map(|s|Some(s.as_str()))){
@@ -95,10 +95,10 @@ pub(super) fn risk(bound:&Bound,roster:&str,column:&str,operation:&str,targets:&
             // roles. Independent intent can restrict a particular target role.
             if independent&&!violates_intent{continue;}
             if violates_intent{return Some(format!("{roster}.{column} assignment to '{target}' is not established by the independent delegation intent for {}",caller.unwrap_or("a caller without a role")));}
-            for (name,t) in bound.schema.visible_tables(){for (effect,rule) in [("read",&t.rules.read),("insert",&t.rules.insert),("update",&t.rules.update),("delete",&t.rules.delete)]{
-                let granted=substitute(bound,rule,roster,column,Some(target),None);let previous=substitute(bound,rule,roster,column,caller,None);
+            for (name,t) in bound.schema.visible_tables(){for (effect,rule) in super::columns::effects(t){
+                let granted=substitute(bound,&rule,roster,column,Some(target),None);let previous=substitute(bound,&rule,roster,column,caller,None);
                 if kernel::implies(&RuleExpr::Allow,&granted)!=Ok(true){continue;}
-                if !dynamic&&!(matches!(effect,"read"|"delete")||!role_columns(bound,name).is_empty()){continue;}
+                if !dynamic&&!((matches!(effect.as_str(),"read"|"delete")||effect.ends_with(" read"))||!role_columns(bound,name).is_empty()){continue;}
                 if kernel::implies(&granted,&previous)==Ok(false){return Some(format!("{} can confer '{target}', which adds {name}.{effect} authority not held by {}",roster,caller.unwrap_or("a caller without a role")));}
             }}
         }
@@ -113,7 +113,7 @@ pub(super) fn role_columns(bound:&Bound,table:&str)->BTreeSet<String>{
         RuleExpr::And(xs)|RuleExpr::Or(xs)=>for r in xs{collect(bound,r,table,columns)},RuleExpr::Not(r)=>collect(bound,r,table,columns),_=>{}
     }}
     let named=columns.clone();let mut observed=BTreeSet::new();
-    for t in bound.schema.tables.values(){for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].into_iter().chain(t.column_reads.values()){collect(bound,r,table,&mut observed);}}
+    for t in bound.schema.tables.values(){for r in super::columns::rules(t){collect(bound,r,table,&mut observed);}}
     let global=bound.schema.table(table).is_some_and(|t|t.indexes.values().any(|index|{
         if !index.unique{return false;}
         let Some(parts)=index.components.iter().map(|p|p.column()).collect::<Option<Vec<_>>>()else{return false;};
@@ -122,7 +122,7 @@ pub(super) fn role_columns(bound:&Bound,table:&str)->BTreeSet<String>{
         parts.iter().all(|c|matches!(t.columns.get(*c).map(|k|k.required()),Some(snapback4_core::schema::ColumnType::Principal))||named.contains(*c))
             ||named.is_empty()&&observed.len()==1&&parts.len()==2&&parts.iter().all(|c|observed.contains(*c)||matches!(t.columns.get(*c).map(|k|k.required()),Some(snapback4_core::schema::ColumnType::Principal)))
     }));
-    if global{for t in bound.schema.tables.values(){for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].into_iter().chain(t.column_reads.values()){collect(bound,r,table,&mut columns);}}}else{columns.clear();}
+    if global{for t in bound.schema.tables.values(){for r in super::columns::rules(t){collect(bound,r,table,&mut columns);}}}else{columns.clear();}
     columns
 }
 
@@ -135,6 +135,6 @@ pub(super) fn role_values(bound:&Bound,roster:&str,column:&str)->Vec<String>{
             RuleExpr::Exists{table,index,key,equalities,..} if table==roster=>for (c,t) in &probe_pairs(bound,table,index,key,equalities){if c==column&&let RuleTerm::Literal(snapback4_core::Value::String(s))=t{roles.insert(s.clone());}},
             RuleExpr::And(xs)|RuleExpr::Or(xs)=>for r in xs{collect(bound,r,roster,column,roles)},RuleExpr::Not(r)=>collect(bound,r,roster,column,roles),_=>{}
         }}
-        for t in bound.schema.tables.values(){for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].into_iter().chain(t.column_reads.values()){collect(bound,r,roster,column,&mut roles);}}roles.into_iter().collect()
+        for t in bound.schema.tables.values(){for r in super::columns::rules(t){collect(bound,r,roster,column,&mut roles);}}roles.into_iter().collect()
     },_=>Vec::new()}
 }

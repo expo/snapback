@@ -201,3 +201,10 @@ fn column_only_role_gates_generate_the_real_roster_and_preserve_private_payloads
  challenges::fixture_observers(&b,&e,&mut c);assert!(c.violations.is_empty(),"{c:?}");
  let report=security::analyze(&b);let exposure=report.exposures.iter().find(|e|e.table=="docs").unwrap();assert!(exposure.column_audiences["secret"].contains("doctor"));assert!(exposure.grants.iter().any(|g|g.table=="seats"));
 }
+
+#[test]
+fn column_only_privilege_assignment_warns_and_audit_follows_every_column_edge(){
+ let source="table clinics:\n  principal: principal\n  unique principal\n  public\n  online only\ntable seats:\n  principal: principal\n  clearance: enum('doctor','reader')\n  notes: text <=40 read <- exists clinics[viewer]\n  unique principal\n  public\n  insert <- .principal = viewer\n  online only\ntable docs:\n  secret: text <=40 read <- exists seats[viewer,clearance = 'doctor']\n  public\n  online only\nmutation register(clearance: enum('doctor','reader')):\n  return insert seats {principal: viewer,clearance,notes: 'note'}\nquery all():\n  return docs first 50 by .id\n";let b=bind(source);
+ let mut report=security::analyze(&b);security::add_source_notes(&mut report,&[("schema.q".into(),source.into())],&b);assert!(report.notes.iter().any(|n|n.code=="N_PRIVILEGE_ESCALATION"&&n.message.contains("doctor")&&n.message.contains("docs.secret read")),"{:?}",report.notes);
+ let exposure=report.exposures.iter().find(|e|e.table=="docs").unwrap();assert!(exposure.grants.iter().any(|g|g.table=="clinics"),"{:?}",exposure.grants);
+}

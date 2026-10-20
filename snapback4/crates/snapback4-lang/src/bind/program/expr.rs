@@ -103,7 +103,7 @@ impl Binder<'_> {
                         "project the field you need first (value, member identity or copied member fields); return maintenance state only as query data").guide("maintains"));
                 }
             },
-            Ty::Optional(item) | Ty::List(item, _) | Ty::Collection(item, _) => self.maintenance_operand(item, site)?,
+            Ty::Optional(item) | Ty::Omittable(item) | Ty::List(item, _) | Ty::Collection(item, _) => self.maintenance_operand(item, site)?,
             Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => for ty in fields.values() { self.maintenance_operand(ty, site)?; },
             _ => {},
         }
@@ -465,6 +465,7 @@ impl Binder<'_> {
             other => return Err(type_error(site, format!("{} has no fields", other.name()), "read a row or an object before selecting a field")),
         };
         let result_ty = if ty.is_optional() { field_ty.optional() } else { field_ty };
+        let result_ty=if let Ty::Omittable(inner)=result_ty{inner.optional()}else{result_ty};
         Ok((if result_ty.is_optional() && matches!(ty.required(), Ty::Object(_) | Ty::RowObject(_) | Ty::RowShape(_)) && self.schema.tables.values().any(|t| !t.column_reads.is_empty()) { Expr::Builtin { builtin: Builtin::OptionalField { field: name.into(), omit: false, fallback: false }, args: vec![base] } } else { ir::field(base, name) }, result_ty))
     }
 

@@ -205,7 +205,7 @@ fn blockers(bound:&Bound,inv:&Invariant)->Vec<String> {
             out.insert("incoming cascade/set-null changes bypass this table's ordinary rules".into());
         }
         if inv.target=="read" {
-            for rule in [&other.rules.read,&other.rules.insert,&other.rules.update,&other.rules.delete] {
+            for rule in columns::rules(other) {
                 if kernel::dependencies(rule).contains(&inv.table) {out.insert(format!("raw rule probe/reference from {name} can observe {} independently of its read rule",inv.table));}
             }
         }

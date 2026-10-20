@@ -38,10 +38,10 @@ pub(super) fn exposures(bound:&Bound)->Vec<Exposure> {
         for m in &bound.schema.maintains {if m.source==*name||m.target==*name {paths.push(format!("derived {} -> {} (independent aggregate audience)",m.source,if m.target.starts_with("$column:"){ "maintained column" }else{&m.target}));}}
         if !t.on_delete.is_empty(){paths.push(format!("incoming referential actions bypass child rules: {:?}",t.on_delete));}
         let mut grants=Vec::new();let mut pending=Vec::new();let mut visited=BTreeSet::new();
-        for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].into_iter().chain(t.column_reads.values()) {for dep in kernel::dependencies(r){pending.push((dep,r.quarry()));}}
+        for r in super::columns::rules(t) {for dep in kernel::dependencies(r){pending.push((dep,r.quarry()));}}
         while let Some((dep,predicate))=pending.pop(){if !visited.insert(dep.clone()){continue;}let Some(g)=bound.schema.table(&dep)else{continue};
             grants.push(Grant{table:dep.clone(),predicate,writers:writers(bound,&dep)});
-            for r in [&g.rules.read,&g.rules.insert,&g.rules.update,&g.rules.delete]{for next in kernel::dependencies(r){pending.push((next,r.quarry()));}}
+            for r in super::columns::rules(g){for next in kernel::dependencies(r){pending.push((next,r.quarry()));}}
         }
         let column_audiences=t.columns.keys().filter(|c|!t.engine_field(c)).map(|c|(c.clone(),super::columns::admission(t,Some(c)).quarry())).collect();
         Exposure{table:name.clone(),columns,column_audiences,effects,operations,paths,grants}

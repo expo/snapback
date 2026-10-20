@@ -34,18 +34,17 @@ export function operationAvailable(release: ReleaseSnapshot, name: string, kind:
   const op = release.operations[name];
   if (!op || op.kind !== kind) return false;
   const servedAliases = op.aliases ?? {};
-  return Object.entries(args).every(([expected, type]) => {
-      const names=[expected,
-        ...Object.entries(aliases).filter(([,canonicalName])=>canonicalName===expected).map(([alias])=>alias),
-        ...(servedAliases[expected] ? [servedAliases[expected]] : [])];
-      return names.some(servedName=>Object.hasOwn(op.args,servedName) && canonical(op.args[servedName])===canonical(type));
-    })
-    && Object.entries(op.args).every(([servedName, type]) => {
-      const names=[servedName,
-        ...Object.entries(servedAliases).filter(([,canonicalName])=>canonicalName===servedName).map(([alias])=>alias),
-        ...(aliases[servedName] ? [aliases[servedName]] : [])];
-      return names.some(expectedName=>Object.hasOwn(args,expectedName)) || (object(type) && Object.hasOwn(type,"Optional"));
-    });
+  const matched = new Set<string>();
+  for (const [expected, type] of Object.entries(args)) {
+    const resolve = (name: string) => Object.hasOwn(op.args, name) ? name : servedAliases[name];
+    const target = resolve(expected);
+    const names = [expected, ...Object.entries(aliases).filter(([, name]) => name === expected).map(([alias]) => alias)];
+    if (!target || !Object.hasOwn(op.args, target) || canonical(op.args[target]) !== canonical(type)
+      || names.some(name => resolve(name) !== target)) return false;
+    matched.add(target);
+  }
+  return Object.entries(op.args).every(([name, type]) => matched.has(name) || (object(type) && Object.hasOwn(type, "Optional")));
+
 }
 
 function freeze<T>(value: T): T {

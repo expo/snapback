@@ -116,9 +116,10 @@ impl Binder<'_> {
                 if matches!(ty, Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_) | Ty::RowObject(_)) {
                     bases.push(value.clone());
                 }
-                for (name, ty) in self.row_fields(&ty, &field.site)? {
-                    let access = if ty.is_optional() { Expr::Builtin { builtin: Builtin::OptionalField { field: name.clone(), omit: self.schema.tables.values().any(|t| !t.column_reads.is_empty()), fallback: false }, args: vec![value.clone()] } } else { ir::field(value.clone(), &name) };
-                    result.push((name.clone(), access, ty, field.site.clone()));
+                for (name, field_ty) in self.row_fields(&ty, &field.site)? {
+                    let omit=self.schema.tables.values().any(|t|!t.column_reads.is_empty())&&match ty.required(){Ty::Row(table)|Ty::WriteRow(table)=>self.schema.tables[&table].read_optional(&name),_=>matches!(field_ty,Ty::Omittable(_))};
+                    let access = if field_ty.is_optional() { Expr::Builtin { builtin: Builtin::OptionalField { field: name.clone(), omit, fallback: false }, args: vec![value.clone()] } } else { ir::field(value.clone(), &name) };
+                    result.push((name.clone(), access, if omit{field_ty.omittable()}else{field_ty}, field.site.clone()));
                 }
             } else {
                 // Snapshot anything that can read, fail or allocate before
@@ -182,7 +183,8 @@ fn merge_fields(fields: Vec<Field>) -> Fallible<Vec<Field>> {
     for (name, mut value, mut ty, site) in fields {
         if let Expr::Builtin { builtin: Builtin::OptionalField { omit: true, fallback, .. }, args } = &mut value {
             if let Some((_, prior, prior_ty, _)) = merged.remove(&name) {
-                ty = ty.join(&prior_ty).map_err(|_| type_error(&site, format!("spread field {name} has incompatible alternatives"), format!("give {name} one explicit value after the spreads")))?;
+                let incoming=if let Ty::Omittable(inner)=&ty{inner.as_ref()}else{&ty};
+                ty = incoming.join(&prior_ty).map_err(|_| type_error(&site, format!("spread field {name} has incompatible alternatives"), format!("give {name} one explicit value after the spreads")))?;
                 *fallback = true; args.push(prior);
             }
         }

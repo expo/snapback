@@ -687,3 +687,12 @@ fn protected_scalar_rename_reverse_projection_and_argument_alias_survive_two_rel
   assert!(e.query("one",query("bob")).unwrap().data.field("secret").is_err());
  }
 }
+
+#[test]
+fn protected_spread_types_preserve_omission_nested_fields_and_fallback_presence(){
+ let b=clean(&(SOURCE.to_owned()+"query spread(id: records):\n  r = records[id] ! else MISSING\n  s = {...r}\n  return {nested: {...s}}\nquery fallback(id: records):\n  r = records[id] ! else MISSING\n  return {secret: 'fallback', ...r}\nquery scalarSpread(id: records):\n  r = records[id] ! else MISSING\n  s = {...r}\n  return s.secret\n"));
+ let spread=b.programs.iter().find(|p|p.program.name=="spread").unwrap();
+ let ty=snapback4_lang::emit::ty_ts(&spread.result);assert!(ty.contains("secret?: string | null"),"{ty}");
+ let fallback=b.programs.iter().find(|p|p.program.name=="fallback").unwrap();let ty=snapback4_lang::emit::ty_ts(&fallback.result);assert!(ty.contains("secret: string | null"),"{ty}");assert!(!ty.contains("secret?:"),"{ty}");
+ let scalar=b.programs.iter().find(|p|p.program.name=="scalarSpread").unwrap();assert_eq!(snapback4_lang::emit::ty_ts(&scalar.result),"string | null");
+}

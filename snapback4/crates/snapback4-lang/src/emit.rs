@@ -185,7 +185,7 @@ fn scale_docs(ty: &Ty, path: &str, out: &mut Vec<String>) {
     match ty {
         Ty::Decimal(scale) => out.push(scaled(format!("decimal {scale}"), *scale)),
         Ty::Money(currency, scale) => out.push(scaled(format!("money {currency} {scale}"), *scale)),
-        Ty::Optional(inner) => scale_docs(inner, path, out),
+        Ty::Optional(inner) | Ty::Omittable(inner) => scale_docs(inner, path, out),
         Ty::List(inner, _) | Ty::Collection(inner, _) => scale_docs(inner, &format!("{path}[]"), out),
         Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields) => {
             for (field, inner) in fields { scale_docs(inner, &format!("{path}.{field}"), out); }
@@ -253,7 +253,7 @@ fn args_ts(args: &[(String, Ty)]) -> String {
     if args.is_empty() {
         return "Record<string, never>".into();
     }
-    let fields: Vec<String> = args.iter().map(|(name, ty)| if ty.is_optional() { format!("{}?: {}", property(name), ty_ts(ty)) } else { format!("{}: {}", property(name), ty_ts(ty)) }).collect();
+    let fields: Vec<String> = args.iter().map(|(name, ty)| if ty.is_optional() { format!("{}?: {}", property(name), ty_ts(ty)) } else { format!("{}{}: {}", property(name), if matches!(ty,Ty::Omittable(_)){"?"}else{""}, ty_ts(ty)) }).collect();
     format!("{{ {} }}", fields.join("; "))
 }
 
@@ -284,20 +284,21 @@ pub fn ty_ts(ty: &Ty) -> String {
         Ty::Enum(variants) => variants.iter().map(|v| string_literal(v)).collect::<Vec<_>>().join(" | "),
         Ty::Cursor => "Cursor".into(),
         Ty::Optional(inner) => format!("{} | null", ty_ts(inner)),
+        Ty::Omittable(inner) => ty_ts(inner),
         Ty::List(item, _) => format!("{}[]", wrap(item)),
         Ty::Row(table) => format!("Rows[{}]", string_literal(table)),
         Ty::WriteRow(table) => format!("WriteRows[{}]", string_literal(table)),
         Ty::Page(table, _) => format!("Rows[{}][]", string_literal(table)),
         Ty::Collection(item, _) => format!("{}[]", wrap(item)),
         Ty::RowShape(fields) | Ty::RowObject(fields) => {
-            let fields = fields.iter().map(|(name, ty)| format!("{}: {}", property(name), ty_ts(ty))).chain(["pending?: boolean".into()]).chain((!fields.contains_key("retained")).then(|| "retained?: boolean".into())).collect::<Vec<_>>();
+            let fields = fields.iter().map(|(name, ty)| format!("{}{}: {}", property(name), if matches!(ty,Ty::Omittable(_)){"?"}else{""}, ty_ts(ty))).chain(["pending?: boolean".into()]).chain((!fields.contains_key("retained")).then(|| "retained?: boolean".into())).collect::<Vec<_>>();
             format!("{{ {} }}", fields.join("; "))
         }
         Ty::Object(fields) => {
             if fields.is_empty() {
                 return "Record<string, never>".into();
             }
-            format!("{{ {} }}", fields.iter().map(|(name, ty)| format!("{}: {}", property(name), ty_ts(ty))).collect::<Vec<_>>().join("; "))
+            format!("{{ {} }}", fields.iter().map(|(name, ty)| format!("{}{}: {}", property(name), if matches!(ty,Ty::Omittable(_)){"?"}else{""}, ty_ts(ty))).collect::<Vec<_>>().join("; "))
         }
     }
 }

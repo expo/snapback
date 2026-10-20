@@ -53,7 +53,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
             }}
             for (name,t) in &bound.schema.tables {
                 if t.through.as_ref().is_some_and(|p|observers.contains(&p.parent))
-                    || [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|kernel::dependencies(r).iter().any(|d|observers.contains(d))) {
+                    || super::super::columns::rules(t).any(|r|kernel::dependencies(r).iter().any(|d|observers.contains(d))) {
                     observers.insert(name.clone());
                 }
             }

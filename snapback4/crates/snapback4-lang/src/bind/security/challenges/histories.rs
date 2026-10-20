@@ -81,7 +81,7 @@ fn typed_disclosure(ty:&crate::types::Ty,data:&Value,table:&str,key:&Value,colum
     let payload=|data:&Value|matches!(data,Value::Row(_))&&data.field("id").ok()==Some(key)&&column.is_none_or(|c|data.field(c).ok().is_some_and(|v|physical.field(c).ok()==Some(v)));
     match ty{
         Ty::Row(t)|Ty::WriteRow(t) if t==table=>payload(data),
-        Ty::Optional(inner)=>typed_disclosure(inner,data,table,key,column,physical),
+        Ty::Optional(inner)|Ty::Omittable(inner)=>typed_disclosure(inner,data,table,key,column,physical),
         Ty::Page(t,_) if t==table=>matches!(data,Value::Array(xs) if xs.iter().any(payload)),
         Ty::List(inner,_)|Ty::Collection(inner,_)=>matches!(data,Value::Array(xs) if xs.iter().any(|r|typed_disclosure(inner,r,table,key,column,physical))),
         Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>fields.iter().any(|(name,ty)|data.field(name).ok().is_some_and(|v|typed_disclosure(ty,v,table,key,column,physical))),
@@ -90,13 +90,13 @@ fn typed_disclosure(ty:&crate::types::Ty,data:&Value,table:&str,key:&Value,colum
 }
 fn typed_source(ty:&crate::types::Ty,table:&str)->bool{
     use crate::types::Ty;
-    match ty{Ty::Row(t)|Ty::WriteRow(t)|Ty::Page(t,_)=>t==table,Ty::Optional(inner)|Ty::List(inner,_)|Ty::Collection(inner,_)=>typed_source(inner,table),Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>fields.values().any(|ty|typed_source(ty,table)),_=>false}
+    match ty{Ty::Row(t)|Ty::WriteRow(t)|Ty::Page(t,_)=>t==table,Ty::Optional(inner)|Ty::Omittable(inner)|Ty::List(inner,_)|Ty::Collection(inner,_)=>typed_source(inner,table),Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>fields.values().any(|ty|typed_source(ty,table)),_=>false}
 }
 pub(super) fn observer_tables(bound:&Bound,table:&str)->BTreeSet<String>{
     let mut out=BTreeSet::from([table.into()]);
     loop{let before=out.len();
         for m in &bound.schema.maintains{if out.contains(&m.source){out.insert(m.target.clone());if let Some(owner)=&m.private{out.insert(owner.table.clone());}}}
-        for (name,t) in &bound.schema.tables{if t.through.as_ref().is_some_and(|edge|out.contains(&edge.parent))||[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|kernel::dependencies(r).iter().any(|t|out.contains(t))){out.insert(name.clone());}}
+        for (name,t) in &bound.schema.tables{if t.through.as_ref().is_some_and(|edge|out.contains(&edge.parent))||super::super::columns::rules(t).any(|r|kernel::dependencies(r).iter().any(|t|out.contains(t))){out.insert(name.clone());}}
         if out.len()==before{return out;}
     }
 }
@@ -115,7 +115,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
     if queries.is_empty(){return;}
     for inv in bound.invariants.iter().filter(|i|i.target=="read"){
         let direct=inv.policy.as_ref().is_some_and(|p|kernel::implies(&super::super::columns::admission(&bound.schema.tables[&inv.table],inv.column.as_deref()),p)==Ok(true));
-        let indirect=bound.schema.maintains.iter().any(|m|m.source==inv.table)||bound.schema.tables.values().any(|t|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|kernel::dependencies(r).contains(&inv.table)));
+        let indirect=bound.schema.maintains.iter().any(|m|m.source==inv.table)||bound.schema.tables.values().any(|t|super::super::columns::rules(t).any(|r|kernel::dependencies(r).contains(&inv.table)));
         if direct&&!indirect{continue;}
 
         let observing=observer_tables(bound,&inv.table);

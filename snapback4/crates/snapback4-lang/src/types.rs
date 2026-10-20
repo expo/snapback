@@ -28,6 +28,8 @@ pub enum Ty {
     Enum(Vec<String>),
     Cursor,
     Optional(Box<Ty>),
+    /// An object property that can be absent after a protected spread.
+    Omittable(Box<Ty>),
     /// A bounded list of scalars; `max` bounds a loop over it.
     List(Box<Ty>, u32),
     /// One row of a table, present.
@@ -58,13 +60,17 @@ impl Ty {
             Ty::RowShape(fields) => Ty::RowShape(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
             Ty::RowObject(fields) => Ty::RowObject(fields.into_iter().map(|(name, ty)| (name, ty.rebound())).collect()),
             Ty::Optional(inner) => inner.rebound().optional(),
+            Ty::Omittable(inner) => inner.rebound().omittable(),
             other => other,
         }
     }
 
+    pub(crate) fn omittable(self) -> Ty {
+        if matches!(self,Ty::Omittable(_)){self}else{Ty::Omittable(Box::new(self))}
+    }
     pub fn optional(self) -> Ty {
         match self {
-            Ty::Optional(_) | Ty::Null | Ty::Unknown => self,
+            Ty::Optional(_) | Ty::Omittable(_) | Ty::Null | Ty::Unknown => self,
             other => Ty::Optional(Box::new(other)),
         }
     }
@@ -72,12 +78,13 @@ impl Ty {
     pub fn required(&self) -> Ty {
         match self {
             Ty::Optional(inner) => inner.as_ref().clone(),
+            Ty::Omittable(inner) => inner.required(),
             other => other.clone(),
         }
     }
 
     pub fn is_optional(&self) -> bool {
-        matches!(self, Ty::Optional(_) | Ty::Null)
+        matches!(self, Ty::Optional(_) | Ty::Omittable(_) | Ty::Null)
     }
 
     pub fn is_bool(&self) -> bool {
@@ -159,6 +166,7 @@ impl Ty {
             Ty::Enum(variants) => format!("enum({})", variants.iter().map(|v| format!("'{v}'")).collect::<Vec<_>>().join(", ")),
             Ty::Cursor => "cursor".into(),
             Ty::Optional(inner) => format!("{} ?", inner.name()),
+            Ty::Omittable(inner) => inner.name(),
             Ty::List(item, max) => format!("[{}] <={max}", item.name()),
             Ty::Row(table) => format!("a {table} row"),
             Ty::WriteRow(table) => format!("a {table} write result"),
@@ -174,6 +182,9 @@ impl Ty {
             return true;
         }
         match (self, expected) {
+            (Ty::Omittable(a), Ty::Omittable(b)) => a.assignable_to(b),
+            (Ty::Omittable(a), b) => a.assignable_to(b),
+            (a, Ty::Omittable(b)) => a.assignable_to(b),
             (Ty::Null, Ty::Optional(_)) => true,
             (Ty::Optional(inner), Ty::Optional(target)) => inner.assignable_to(target),
             (value, Ty::Optional(target)) => value.assignable_to(target),
@@ -203,6 +214,8 @@ impl Ty {
     /// actual length. It cannot claim a smaller bound inside an inline helper.
     pub(crate) fn writable_to(&self, expected: &Ty) -> bool {
         match (self, expected) {
+            (Ty::Omittable(a),b) => a.writable_to(b),
+            (a,Ty::Omittable(b)) => a.writable_to(b),
             (Ty::Optional(a), Ty::Optional(b)) => a.writable_to(b),
             (a, Ty::Optional(b)) => a.writable_to(b) || *a == Ty::Null,
             (Ty::Text(u32::MAX), Ty::Text(_)) => true,
@@ -262,6 +275,8 @@ impl Ty {
 
     fn join_inner(&self, other: &Ty, strict: bool) -> Result<Ty, JoinError> {
         if self == other { return Ok(self.clone()); }
+        if let Ty::Omittable(a)=self {return Ok(a.join_inner(if let Ty::Omittable(b)=other{b}else{other},strict)?.omittable());}
+        if let Ty::Omittable(b)=other {return Ok(self.join_inner(b,strict)?.omittable());}
         // Absence adds nullability; it supplies no competing wildcard kind.
         if *self == Ty::Null { return Ok(other.clone().optional()); }
         if *other == Ty::Null { return Ok(self.clone().optional()); }
@@ -348,7 +363,7 @@ impl Ty {
         match self {
             Ty::Row(_) => Some("Row"), Ty::WriteRow(_) => Some("WriteRow"),
             Ty::RowShape(_) => Some("RowShape"), Ty::RowObject(_) => Some("RowObject"),
-            Ty::Optional(inner) => inner.row_kind(),
+            Ty::Optional(inner) | Ty::Omittable(inner) => inner.row_kind(),
             _ => None,
         }
     }
@@ -369,7 +384,7 @@ impl Ty {
     fn contains_row(&self) -> bool {
         match self {
             Ty::Row(_) | Ty::WriteRow(_) | Ty::RowShape(_) | Ty::RowObject(_) | Ty::Page(..) => true,
-            Ty::Optional(inner) | Ty::List(inner, _) | Ty::Collection(inner, _) => inner.contains_row(),
+            Ty::Optional(inner) | Ty::Omittable(inner) | Ty::List(inner, _) | Ty::Collection(inner, _) => inner.contains_row(),
             Ty::Object(fields) => fields.values().any(Ty::contains_row),
             _ => false,
         }

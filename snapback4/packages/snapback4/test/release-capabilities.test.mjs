@@ -124,11 +124,14 @@ test('availability permits extra optional served inputs while preserving existin
   assert.equal(operationAvailable(release,'edit','mutation',{text:{Text:{max:50}}}),false);
 });
 
-test('availability recognizes argument aliases in both release directions', () => {
+test('availability checks the actual accepted spellings without rewriting requests', () => {
   const type={Text:{min:1,max:500}};
   const old={generation:1,operations:{inspect:{kind:'query',args:{reason:type}}},tables:{}};
   const current={generation:2,operations:{inspect:{kind:'query',args:{explanation:type},aliases:{reason:'explanation'}}},tables:{}};
-  assert.equal(operationAvailable(old,'inspect','query',{explanation:type},{reason:'explanation'}),true);
+  assert.equal(operationAvailable(old,'inspect','query',{explanation:type},{reason:'explanation'}),false);
   assert.equal(operationAvailable(current,'inspect','query',{reason:type}),true);
+  assert.equal(operationAvailable(current,'inspect','query',{explanation:type},{reason:'explanation'}),true);
+  const removed={...current,operations:{inspect:{kind:'query',args:{explanation:type}}}};
+  assert.equal(operationAvailable(removed,'inspect','query',{explanation:type},{reason:'explanation'}),false);
   assert.equal(operationAvailable(old,'inspect','query',{explanation:{Text:{min:1,max:499}}},{reason:'explanation'}),false);
 });

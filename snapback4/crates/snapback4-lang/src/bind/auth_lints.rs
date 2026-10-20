@@ -219,7 +219,7 @@ fn vacuous_inserts(catalog: &Catalog, schema: &Schema, mutations: &[&ProgramDecl
         // A row that only grants the other principal access to the caller's
         // own data (a patient naming a doctor) is consent, not a hole.
         let Some(trusted) = schema.tables.iter().find_map(|(other, t)| {
-            [&t.rules.read, &t.rules.insert, &t.rules.update, &t.rules.delete].into_iter()
+            [&t.rules.read, &t.rules.insert, &t.rules.update, &t.rules.delete].into_iter().chain(t.column_reads.values())
                 .find_map(|rule| trusts(rule, name, &owner)).map(|probe| (other.clone(), probe))
         }) else { continue };
         notes.push(Diagnostic::new(&write_site, "N_VACUOUS_RULE",

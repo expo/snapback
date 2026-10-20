@@ -56,7 +56,7 @@ fn needed(schema:&Schema,name:&str,out:&mut BTreeSet<String>){
     if !out.insert(name.into()){return;}let Some(t)=schema.table(name)else{return};
     for m in schema.maintains.iter().filter(|m|m.target==name){needed(schema,&m.source,out);}
     for k in t.columns.values(){if let C::Ref{table}=k.required(){needed(schema,table,out);}}
-    for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete]{for dep in kernel::dependencies(r){needed(schema,&dep,out);}}
+    for r in super::columns::rules(t){for dep in kernel::dependencies(r){needed(schema,&dep,out);}}
 }
 fn snapshot(bound:&Bound,inv:&Invariant,variant:usize)->Result<BTreeMap<String,Vec<Value>>,String>{
     snapshot_mode(bound,inv,variant,false)
