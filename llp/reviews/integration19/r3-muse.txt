@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Reviewed Integration 19 at `fdd5b61fbb` read-only. No tests run, no files edited, no other reviews or reports opened, no `target/` or publication paths inspected. Read [snapback4/AGENTS.md](/home/ccheever/projects/snapback-sb4loop/snapback4/AGENTS.md), [NOT-DOING.md](/home/ccheever/projects/snapback-sb4loop/snapback4/NOT-DOING.md), and the journal tail. Composition covered: the `sb4-b19-colr` / `sb4-b19-dorm` / `sb4-b18-sec4` merges plus `8dbe9ece2b`, `7dff38691a`, `9ec63002ee`, `1c59daa995`, `138d61dcbf`, and `fdd5b61fbb`.
+
+What I checked, against the code as read:
+
+- Reverse vs forward preimages: `forward_preimage` in [backfills.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs) only excuses an exact per-row, per-column `before == current` and `after == newer` match on a declared `next` backfill output with an inactive receipt, and the later forward pass still re-validates. Coincidental value matches across other columns cannot trigger it, and genuine old writes to down inputs still conflict. No false acceptance or false refusal found.
+- Staged reverse projections: `stage_downfills` runs before any forward reversal so direct and point-read inputs both observe the newer snapshot, staged patches are filtered to disjoint projected outputs, and `apply_staged_downfills` runs after restoration. The two-table, two-cycle trigger in `down_reads_the_newer_snapshot_before_forward_preimages_are_reversed` matches this ordering. No snapshot-ordering bug remains.
+- Scalar renames: identical cell types enforced in both directions, protected/reference/asset/collection renames refused at bind, round-trip carry covered. No gap found.
+- Omission and nullability: omitted protected properties now carry the stored domain (`Omittable(Text)` → `secret?: string`, not `string | null`), nested spreads preserve omission, fallback joins strip omission so a guaranteed fallback typechecks into a required destination, and scalar spread still yields `string | null`. Covered in [objects.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/bind/program/objects.rs) and [types.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/types.rs). No nullability bug found.
+- Alias compatibility and availability: consolidation of two independent arguments into one alias reports INPUT BREAK in [client_contracts.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/client_contracts.rs), and `operationAvailable` in [release.ts](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/src/release.ts) and [availability.ts](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/emit/availability.ts) refuses only the consolidated both-spellings call while each single spelling stays available, and removed server aliases are not rewritable from caller-side maps. No spelling-truth bug found.
+
+One non-material note: the `@ref LLP 3000.000.000#191-…` anchor in `backfills.rs` names a section number with no matching heading in the LLP file; the pattern predates this commit, so it is hygiene, not a behavior bug.
+
+No remaining material bugs found by inspection.

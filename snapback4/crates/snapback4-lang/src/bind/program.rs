@@ -1324,7 +1324,7 @@ impl<'a> Binder<'a> {
             };
             let expected = Ty::from_scalar(scalar);
             let mut setup = setup::Body::default();
-            let (e, t) = self.field_value(field, &expected, &mut setup)?;
+            let (e, t) = self.insert_field_value(info, field, &expected, &mut setup)?;
             literal_in_range(info, &field.name, scalar, &e, &field.site)?;
             self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
             if !t.writable_to(&expected) {

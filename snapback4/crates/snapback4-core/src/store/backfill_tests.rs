@@ -799,3 +799,33 @@ fn down_reads_the_newer_snapshot_before_forward_preimages_are_reversed(){
   adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"docs","d","n"),Value::Int(3));assert_eq!(field(&mut e,"sources","s","m"),Value::Int(4));assert_eq!(field(&mut e,"docs","d","reason"),Value::Int(18));
  }
 }
+
+#[test]
+fn down_outputs_restore_native_inputs_independently_of_declaration_order(){
+ let old="table items:\n  count: int\n  other: int\n  public\n  update <- allow\n  online only\nmutation edit():\n  update items['a'] {count:8}\n";
+ let a="down items first(count: int): {count:count - 1}\n";
+ let b="down items second(count: int, other: int): {other:count + other}\n";
+ for declarations in [format!("{a}{b}"),format!("{b}{a}")] {
+  let current=format!("{old}{declarations}");let mut e=engine(&current);
+  seed(&mut e,"items",json!({"id":"a","count":10,"other":20}));
+  for _ in 0..2 {
+   adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(9));assert_eq!(field(&mut e,"items","a","other"),Value::Int(30));
+   adopt(&mut e,&current,2).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(10));assert_eq!(field(&mut e,"items","a","other"),Value::Int(20));
+  }
+  adopt(&mut e,old,1).unwrap();write(&mut e,"edit");let generation=e.generation();
+  assert!(adopt(&mut e,&current,2).unwrap_err().to_string().contains("changed while the older release"));assert_eq!(generation,e.generation());
+ }
+}
+
+#[test]
+fn first_column_rename_refuses_a_conflicting_present_or_retained_destination(){
+ let old="table items:\n  title: text <=40\n  name: text <=40\n  public\n  online only\n";
+ let current="table items:\n  name: text <=40 renamed from title\n  public\n  online only\n";
+ for dormant in [false,true] {for identical in [false,true] {
+  let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","title":"A","name":if identical {"A"}else{"B"}}));
+  if dormant {adopt(&mut e,&old.replace("  name: text <=40\n",""),2).unwrap();}
+  let generation=e.generation();let outcome=adopt(&mut e,current,3);
+  if identical {outcome.unwrap();assert_eq!(field(&mut e,"items","a","name"),Value::String("A".into()));}
+  else {let error=outcome.unwrap_err().to_string();assert!(error.contains("rename destination"),"{error}");assert_eq!(generation,e.generation());}
+ }}
+}

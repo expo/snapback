@@ -97,15 +97,23 @@ impl Drop for SourceMask<'_,'_>{fn drop(&mut self){let _=self.0.conn().execute_b
 // A declared forward receipt may temporarily expose its exact predecessor while
 // the down receipt still remembers the newer input. Ordinary changed inputs
 // remain conflicts; the later forward pass must validate and restore this receipt.
-fn forward_preimage(tx:&Tx<'_>,next:&Schema,table:&str,t:i64,id:&str,column:&str,current:Option<&Value>,newer:&Value)->Result<bool,RuntimeError>{
+fn receipt_preimage(tx:&Tx<'_>,next:&Schema,table:&str,t:i64,id:&str,column:&str,current:Option<&Value>,newer:&Value)->Result<bool,RuntimeError>{
     for fill in next.backfills.iter().filter(|f|f.table==table&&f.outputs.contains(column)) {
         if let Some(e)=evidence(tx,t,id,&fill.key())? {
             if !e.active&&e.before.get(column)==current&&e.after.get(column)==Some(newer){return Ok(true)}
+        }
+    }
+    // Another down receipt (including this one) owns its exact old-view output.
+    // Validate all receipts before restoring any, so declaration order is inert.
+    for fill in next.downfills.iter().filter(|f|f.table==table&&f.outputs.contains(column)) {
+        if let Some(e)=evidence(tx,t,id,&fill.down_key())? {
+            if !e.active&&e.after.get(column)==current&&e.reversed.get(column).and_then(Option::as_ref)==Some(newer){return Ok(true)}
         }
     }Ok(false)
 }
 
 fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report::AdoptionReport)->Result<(),RuntimeError>{
+    for validate in [true,false] {
     for fill in &next.downfills {
         let t=tx.num(&fill.table)?;let key=fill.down_key();let table=&next.tables[&fill.table];
         let mut bad=super::adopt_refusals::Samples::default();let mut count=0;
@@ -118,6 +126,7 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report:
             };
             if e.active{return Ok(())}
             let fields=match &mut row {Value::Row(f)|Value::Map(f)=>f,_=>return Err(refusal("invalid stored row"))};
+            if validate {
             for (column,expected) in &e.after {
                 if fields.get(column)!=Some(expected) {bad.add(id,&format!("{}.{} changed while the older release was active; repair it under a bridge before selecting this release",fill.table,column));return Ok(())}
             }
@@ -125,10 +134,12 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report:
                 if let Some(kind)=table.columns.get(column) {
                     let current=fields.get(column).cloned().or_else(||table.defaults.get(column).and_then(|d|if let crate::schema::ColumnDefault::Literal(v)=d{Some(v.clone())}else{None})).unwrap_or(Value::Null);
                     if &current!=original && crate::engine::validate::validate_column(&fill.table,column,kind,Some(&current)).is_ok()
-                        && !forward_preimage(tx,next,&fill.table,t,id,column,fields.get(column),original)? {
+                        && !receipt_preimage(tx,next,&fill.table,t,id,column,fields.get(column),original)? {
                         bad.add(id,&format!("{}.{} changed while the older release was active; reverse dependencies cannot be recaptured",fill.table,column));return Ok(())
                     }
                 }
+            }
+            return Ok(())
             }
             for column in e.reversed.keys() {
                 match e.reversed.get(column).cloned().flatten() {
@@ -157,7 +168,7 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report:
         })?;
         if bad.count>0{return Err(refusal(format!("down {} {} forward: {}",fill.table,fill.name,bad.describe())))}
         if count>0 {report.backfills.push(format!("{} {} restored {count} native {}",fill.table,fill.name,if count==1{"row"}else{"rows"}));tx.set_meta("activation_population","true")?;}
-    } Ok(())
+    }} Ok(())
 }
 
 fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,now:i64,report:&mut super::adoption_report::AdoptionReport)->Result<bool,RuntimeError>{
@@ -478,6 +489,11 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
             for (c,value) in &patch {
                 if let Err(e)=validate_output(&fill.table,table,c,value) {bad.add(id,&e.to_string());return Ok(())}
                 if let Some(kind)=row_source.as_deref().and_then(|t|t.columns.get(c)) {if protected(kind) && prior.as_ref().is_none_or(|e|e.before.contains_key(c)) {bad.add(id,&format!("cannot overwrite historical reference or asset {}.{c}; derive into a new column",fill.table));return Ok(())}}
+                if prior.is_none() && fill.name.starts_with("$rename:up:") {
+                    if let Some(existing)=source_value(tx,t,id,&current,c,row_source.as_deref(),&mut preimage_meter)? {
+                        if &existing!=value {bad.add(id,&format!("rename destination {}.{c} already has a conflicting value; resolve it in a bridge",fill.table));return Ok(())}
+                    }
+                }
                 let transformed=prior.as_ref().is_some_and(|e|e.active || e.retained.contains(c));
                 if transformed {
                     if let Some(value)=prior.as_ref().and_then(|e|e.before.get(c)){before.insert(c.clone(),value.clone());}

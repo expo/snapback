@@ -195,6 +195,26 @@ fn merge_fields(fields: Vec<Field>) -> Fallible<Vec<Field>> {
 }
 
 impl Binder<'_> {
+    // @ref LLP 3000.036#221-surface-and-authority — absent protected properties use insert defaults; present null retains its ordinary type.
+    pub(super) fn insert_field_value(&mut self, info: &TableInfo, field: &ObjectField, expected: &Ty, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        let (mut value, mut ty)=self.field_value(field,expected,out)?;
+        if let Ty::Omittable(inner)=&ty {
+            if let Some(column)=info.decl.columns.iter().find(|c|c.name==field.name&&c.written_by.is_none()) {
+                if !self.schema.receipt_assigned(&info.decl.name,&field.name) && let Some(default)=&column.default {
+                    if let Expr::Builtin{builtin:Builtin::OptionalField{omit:true,fallback,..},args}=&mut value {
+                        let default=match super::super::defaults::column(column,default)? {
+                            snapback4_core::schema::ColumnDefault::Literal(v)=>Expr::Literal(v),
+                            snapback4_core::schema::ColumnDefault::Now=>Expr::Input(Input::Now),
+                            snapback4_core::schema::ColumnDefault::Viewer=>Expr::Input(Input::Viewer),
+                        };
+                        *fallback=true;args.push(default);ty=inner.as_ref().clone();
+                    }
+                }
+            }
+        }
+        Ok((value,ty))
+    }
+
     pub(super) fn row_fields(&self, ty: &Ty, site: &Site) -> Fallible<Vec<(String, Ty)>> {
         match ty.required() {
             Ty::WriteRow(table) => {

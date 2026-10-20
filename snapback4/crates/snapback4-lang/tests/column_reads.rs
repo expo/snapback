@@ -704,3 +704,13 @@ fn a_required_protected_spread_with_a_guaranteed_fallback_can_write_a_required_f
  e.seed([("originals".into(),object([("id",Value::Id("original".into())),("owner",Value::Id("alice".into())),("secret",Value::String("private".into()))]))]).unwrap();
  for viewer in ["alice","bob"]{let mut c=context(viewer);c.args.insert("id".into(),Value::Id("original".into()));let out=e.mutate("copy",None,c).unwrap();let WriteState::Sent{result,..}=out.state else{panic!("{out:?}")};assert_eq!(result.field("secret").unwrap(),&Value::String(if viewer=="alice"{"private"}else{"fallback"}.into()));}
 }
+
+#[test]
+fn protected_spread_omission_uses_a_required_destination_default_but_present_null_does_not(){
+ let source="table originals:\n  owner: principal\n  secret: text <=80 read <- .owner = viewer\n  public\n  online only\ntable copies:\n  owner: principal\n  secret: text <=80 default 'fallback'\n  public\n  insert <- allow\n  online only\nmutation copy(id: originals):\n  r = originals[id] ! else MISSING\n  return insert copies {...r, id: new}\n";
+ let b=clean(source);let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+ e.seed([("originals".into(),object([("id",Value::Id("original".into())),("owner",Value::Id("alice".into())),("secret",Value::String("private".into()))]))]).unwrap();
+ for viewer in ["alice","bob"] {let mut c=context(viewer);c.args.insert("id".into(),Value::Id("original".into()));let out=e.mutate("copy",None,c).unwrap();let WriteState::Sent{result,..}=out.state else{panic!("{out:?}")};assert_eq!(result.field("secret").unwrap(),&Value::String(if viewer=="alice"{"private"}else{"fallback"}.into()));}
+ let nullable=source.replace("secret: text <=80 read", "secret: text <=80 ? read");
+ let b=snapback4_lang::compile(&[("schema.q".into(),nullable)]);assert!(b.diagnostics.iter().any(|d|d.code=="E_QUARRY_TYPE"),"{:?}",b.diagnostics);
+}

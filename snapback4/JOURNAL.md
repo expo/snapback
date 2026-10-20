@@ -97184,3 +97184,7 @@ Argument consolidation now reports INPUT BREAK and unavailable old handles.
 Omitted protected properties retain their stored domain separately from absence,
 so a definite fallback into a required destination typechecks. The binder's row
 field helper moves into its existing object module to keep the parent under1500lines.
+
+### 2026-10-20 — Integration 19, third independent review corrections
+
+Fresh Codex review of `fdd5b61fbb` identified three further composition failures; Muse returned READY on the same source. Each minimal regression failed before its correction. Reverse restoration now validates every receipt against the untouched old-view snapshot before changing any row, and accepts only exact receipt-owned predecessor images, including a down receipt's own output. Two interacting down declarations restore exact native scalar values in either declaration order over repeated cycles; overlapping old writes still refuse atomically. A first scalar rename refuses a conflicting present or dormant destination instead of overwriting it. An omitted protected spread property can use a required destination default, while a present nullable source still fails the required write type. These enforce existing LLP 3000.000.000 §19.1 and 3000.036 §22.1.
