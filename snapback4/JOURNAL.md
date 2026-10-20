@@ -98320,3 +98320,19 @@ fixtures against the owned PostgreSQL 16 cluster passes all five, zero
 failed/ignored. Ref-check passes (564 documents, 11,516 refs). The final
 collation-refusal tightening and its extra fixture will be rebuilt with the
 remaining lane work. This checkpoint is well under the 1,500-line diff stop.
+
+### 2026-10-21 — P1-OB (b), presence, leases and snapshots
+
+Added the Postgres OutboxStore view using identity's scoped RefCell pattern.
+Every read uses a repeatable-read transaction; health counts and presence
+deferrals share it. Replay checks deployment authority in the head-fenced
+writer, so a refused change rolls back. Replay state stays in `_meta`.
+
+The shared fixtures distinguish grace deferral from retry backoff, check list
+ordering and unsigned bounds, and preserve suppression across replay changes.
+Lease fixtures cover both marker spellings (including ASCII case folding),
+the exact expired-worker boundary, ordinary sessions, a legacy request, a
+family-capped request/delegated bearer, an absent family and an unclaimed
+request. Session extension, both work tables and delegated bearer adjustment
+all use the same transaction. Overdue outbox leases still shift; this is
+SQLite's existing behavior, retained deliberately.

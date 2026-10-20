@@ -134,7 +134,7 @@ pub struct EffectHealth {
     pub deferred: Result<(i64, Option<i64>), String>,
 }
 
-/// P1: implement snapshot reads and the dev replay write for Postgres.
+/// Snapshot reads and the dev replay write on either adapter.
 pub(crate) trait OutboxStore {
     fn effects_due(&self, effect: Option<&str>, now: i64) -> Result<bool, RuntimeError>;
     fn list_effects(&self, state: Option<&str>, limit: u64) -> Result<Vec<EffectRun>, RuntimeError>;
@@ -598,6 +598,62 @@ impl Engine {
 #[cfg(test)]
 pub(crate) mod test_cases {
     use super::*;
+
+    pub(crate) fn snapshot_seed(tx: &impl OutboxTransaction) {
+        let schema = Schema { effects: vec!["mail".into()], ..Schema::default() };
+        for (id, seq, deadline) in [("z",1,None), ("a",1,None), ("deferred",2,Some(1_000)), ("retry",3,None)] {
+            let presence = deadline.map(|d| BTreeMap::from([("alice".into(),Some(d))])).unwrap_or_default();
+            record(tx, &[(id.into(),"mail".into(),Value::Null,presence)], seq, 0, false, &schema).unwrap();
+        }
+        tx.retry_effect("retry", "backoff", 2_000).unwrap();
+    }
+
+    pub(crate) fn snapshot_reads(store: &impl OutboxStore) {
+        assert!(store.effects_due(None, 100).unwrap());
+        assert!(store.effects_due(Some("mail"), 100).unwrap());
+        assert!(!store.effects_due(Some("other"), i64::MAX).unwrap());
+        assert!(store.list_effects(None, 0).unwrap().is_empty());
+        let ids = |limit| store.list_effects(Some("queued"),limit).unwrap().into_iter().map(|r| r.id).collect::<Vec<_>>();
+        assert_eq!(ids(3), ["retry","deferred","z"]);
+        assert_eq!(ids(u64::MAX), ["retry","deferred","z","a"]);
+        assert!(store.list_effects(Some("sent"), 10).unwrap().is_empty());
+        let health = store.effect_health(100).unwrap();
+        assert_eq!(health.counts.get("queued"), Some(&4));
+        assert_eq!(health.deferred.unwrap(), (1,Some(1_000)));
+        assert_eq!(store.effect_health(1_000).unwrap().deferred.unwrap(), (0,None));
+        assert_eq!(store.effect_counts().unwrap(), health.counts);
+        store.set_effect_replay(true, require_dev_store).unwrap();
+        assert_eq!(store.set_effect_replay(false, |_| Err(RuntimeError::Input("refused".into()))).unwrap_err().code(), "E_INPUT");
+    }
+
+    pub(crate) const LEASE_SEED: &str = "
+        INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES
+            ('legacy-worker','service:worker','service',0,1000,NULL),
+            ('modern-worker','service:worker','service',0,1500,'modern'),
+            ('expired-worker','service:worker','service',0,100,'modern'),
+            ('ordinary','member','member',0,900,'member-family'),
+            ('delegated','member','member',0,850,'delegated-family');
+        INSERT INTO _meta(key,value) VALUES ('worker:session-family','legacy-worker'),('WoRkEr:FaMiLy:modern','1');
+        INSERT INTO _requests(id,name,args,principal,at,state,attempts,lease_until,session_digest,family,principal_generation,admitted_expires_at) VALUES
+            ('legacy','action','null','member',0,'running',1,800,NULL,NULL,NULL,NULL),
+            ('bound','action','null','member',0,'running',1,850,'delegated','member-family',0,900),
+            ('missing','action','null','absent',0,'running',1,700,NULL,'absent-family',0,900),
+            ('queued','action','null','member',0,'queued',1,600,NULL,NULL,NULL,NULL);
+    ";
+    pub(crate) fn lease_shift(tx: &impl OutboxTransaction) {
+        let schema = Schema { effects: vec!["mail".into()], ..Schema::default() };
+        record(tx, &[("leased".into(),"mail".into(),Value::Null,BTreeMap::new())], 1, 0, false, &schema).unwrap();
+        tx.claim_effect("leased","worker",90,None).unwrap();
+        tx.shift_worker_leases(200,100).unwrap();
+        assert_eq!(tx.required_effect_run("leased").unwrap().lease_until,Some(290), "overdue effect leases shift too, as on SQLite");
+    }
+    pub(crate) fn replay_suppression(tx: &impl OutboxTransaction) {
+        assert!(tx.replay_suppresses().unwrap(), "a refused replay change rolls back");
+        let schema = Schema::default();
+        record(tx, &[("suppressed".into(),"mail".into(),Value::Null,BTreeMap::new())], 4, 0, true, &schema).unwrap();
+        assert!(tx.effect_run("suppressed").unwrap().is_none());
+        tx.suppress_effects(2).unwrap();
+    }
 
     // Shared capability cases: each adapter supplies an empty writer transaction.
     pub(crate) fn expiry_and_generation(tx: &impl OutboxTransaction) {

@@ -95,3 +95,27 @@ fn outbox_attach_refuses_incompatible_shapes() {
         assert!(error.to_string().contains("SNAPBACK_OUTBOX_SCHEMA"), "{ddl}: {error}");
     }
 }
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn outbox_shared_snapshots_replay_and_leases() {
+    use crate::engine::effects::OutboxStore;
+    use std::cell::RefCell;
+    let mut engine = authority_engine();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.batch(effects::test_cases::LEASE_SEED).unwrap();
+    effects::test_cases::lease_shift(&tx);
+    let sessions: Vec<(String,i64)> = tx.query("SELECT token_digest,expires_at FROM _sessions ORDER BY token_digest", &[]).unwrap().iter().map(|r| (r.get(0),r.get(1))).collect();
+    assert_eq!(sessions, [("delegated".into(),900),("expired-worker".into(),100),("legacy-worker".into(),1200),("modern-worker".into(),1700),("ordinary".into(),900)]);
+    let requests: Vec<(String,i64)> = tx.query("SELECT id,lease_until FROM _requests ORDER BY id", &[]).unwrap().iter().map(|r| (r.get(0),r.get(1))).collect();
+    assert_eq!(requests, [("bound".into(),900),("legacy".into(),1000),("missing".into(),700),("queued".into(),600)]);
+    tx.rollback().unwrap();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    effects::test_cases::snapshot_seed(&tx);
+    tx.commit().unwrap();
+    effects::test_cases::snapshot_reads(&RefCell::new(&mut engine.store));
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    effects::test_cases::replay_suppression(&tx);
+    tx.commit().unwrap();
+    assert_eq!(RefCell::new(&mut engine.store).effect_counts().unwrap().get("suppressed"),Some(&3));
+}

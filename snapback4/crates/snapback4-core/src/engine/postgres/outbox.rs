@@ -7,6 +7,8 @@ macro_rules! runs {
     ($suffix:literal) => { concat!("SELECT id, effect, payload, state, attempts, seq, at, next_at, lease_until, claimed_by, result, error, work_spec, deadline, release, error_code, cancelled, contract FROM _outbox ", $suffix) };
 }
 
+pub(super) use runs;
+
 pub(super) fn read_run(row: postgres::Row) -> Result<EffectRun, RuntimeError> {
     let payload: &str = row.get(2);
     let result: Option<&str> = row.get(10);

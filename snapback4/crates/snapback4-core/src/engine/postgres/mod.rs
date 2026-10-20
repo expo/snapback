@@ -13,6 +13,7 @@ mod identity_schema;
 mod requests;
 mod outbox;
 mod outbox_schema;
+mod outbox_store;
 mod prefetch;
 mod tail;
 mod through;

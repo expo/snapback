@@ -253,6 +253,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn shared_snapshots_replay_and_leases() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        tx.conn().execute_batch(crate::engine::effects::test_cases::LEASE_SEED).unwrap();
+        crate::engine::effects::test_cases::lease_shift(&tx);
+        let sessions = tx.conn().prepare("SELECT token_digest,expires_at FROM _sessions ORDER BY token_digest").unwrap().query_map([], |r| Ok((r.get::<_,String>(0)?,r.get::<_,i64>(1)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        assert_eq!(sessions, [("delegated".into(),900),("expired-worker".into(),100),("legacy-worker".into(),1200),("modern-worker".into(),1700),("ordinary".into(),900)]);
+        let requests = tx.conn().prepare("SELECT id,lease_until FROM _requests ORDER BY id").unwrap().query_map([], |r| Ok((r.get::<_,String>(0)?,r.get::<_,i64>(1)?))).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        assert_eq!(requests, [("bound".into(),900),("legacy".into(),1000),("missing".into(),700),("queued".into(),600)]);
+        tx.rollback().unwrap();
+        let tx = store.transaction().unwrap();
+        crate::engine::effects::test_cases::snapshot_seed(&tx);
+        tx.commit().unwrap();
+        crate::engine::effects::test_cases::snapshot_reads(&store);
+        let tx = store.transaction().unwrap();
+        crate::engine::effects::test_cases::replay_suppression(&tx);
+        tx.commit().unwrap();
+        assert_eq!(store.effect_counts().unwrap().get("suppressed"),Some(&3));
+    }
+
+    #[test]
     fn shared_expiry_and_generation_cases() {
         let mut store = Store::memory().unwrap();
         let tx = store.transaction().unwrap();
