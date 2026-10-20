@@ -577,7 +577,7 @@ pub(super) fn transition(
     // individually inside transition as well.
     crate::engine::through_activation::reconcile_manual(tx,next,&authority_sources,now)?;
     if backfilling {
-        super::narrowed::restore_images(tx,next,now,&source_definitions,&authority_sources,true)?;
+        super::narrowed::restore_images(tx,next,previous,now,&source_definitions,&authority_sources,true)?;
         super::backfills::retire_snapshot(tx,&source_definitions,previous,now)?;
     }else{super::narrowed::retire_sources(tx,next,previous,now)?;}
     // Reverse projections still read the complete predecessor snapshot,

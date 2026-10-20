@@ -870,3 +870,81 @@ fn already_narrowed_rows_keep_down_patches_and_native_restoration_through_later_
   for _ in 0..2 {adopt(&mut e,a,1).unwrap();assert_eq!(e.store().count("items").unwrap(),0);adopt(&mut e,&c,4).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(0));}
  }
 }
+
+#[test]
+fn new_down_declarations_mark_already_narrowed_rows_when_their_owned_images_are_assembled(){
+ let a="table items:\n  count: int 0..10\n  public\n  online only\n";
+ let b=a.replace("int 0..10","int 1..10");
+ let c=format!("{b}down items legacy(): {{count:-1}}\n");
+ let mut e=engine(a);seed(&mut e,"items",json!({"id":"a","count":0}));
+ adopt(&mut e,&b,2).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+ adopt(&mut e,&c,3).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+ adopt(&mut e,a,1).unwrap();assert_eq!(e.store().count("items").unwrap(),0,"the declared -1 old view remains dormant instead of exposing the earlier 0");
+ let wide=c.replace("int 1..10","int 0..10");adopt(&mut e,&wide,4).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(0));
+}
+
+#[test]
+fn same_typed_down_outputs_enter_narrowing_even_without_any_prior_dormant_row(){
+ let old="table items:\n  count: int 0..10\n  public\n  online only\n";
+ let new=format!("{old}down items legacy(): {{count:-1}}\n");
+ let mut e=engine(&new);seed(&mut e,"items",json!({"id":"a","count":5}));
+ for _ in 0..2 {adopt(&mut e,old,1).unwrap();assert_eq!(e.store().count("items").unwrap(),0);adopt(&mut e,&new,2).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(5));}
+}
+
+#[test]
+fn r8_an_unrestored_down_receipt_keeps_its_native_preimage_when_a_different_column_still_hides_it(){
+ let a="table items:\n  count: int 0..10\n  gate: int 0..10\n  public\n  online only\n";
+ let b=format!("{a}down items legacy(): {{count:-1}}\n");let c=b.replace("gate: int 0..10","gate: int 1..10");
+ let mut e=engine(&b);seed(&mut e,"items",json!({"id":"a","count":5,"gate":0}));
+ adopt(&mut e,a,1).unwrap();adopt(&mut e,&c,3).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+ adopt(&mut e,a,1).unwrap();adopt(&mut e,&b,2).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(5));
+}
+
+#[test]
+fn r8_forward_inverse_updates_a_preexisting_narrowed_archive(){
+ let a="table items:\n  count: int\n  gate: int 0..10\n  public\n  online only\n";
+ let fill="backfill items up(count: int): {count:count + 1}\n";
+ let b=a.replace("gate: int 0..10","gate: int 1..10")+fill;
+ let c=a.replace("count: int\n","count: int 1..10\n");let d=format!("{a}{fill}");
+ let mut e=engine(a);seed(&mut e,"items",json!({"id":"a","count":0,"gate":0}));
+ adopt(&mut e,&b,2).unwrap();adopt(&mut e,&c,3).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+ adopt(&mut e,&d,4).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(1));
+}
+
+#[test]
+fn r8_dormant_cell_overlay_keeps_the_down_result_until_receipt_verification(){
+ let a="table items:\n  x: int 0..10 ?\n  gate: int 0..10\n  public\n  online only\n";
+ let down="down items legacy(): {x:-1}\n";
+ let b=a.replace("  x: int 0..10 ?\n","").replace("gate: int 0..10","gate: int 1..10")+down;
+ let c=format!("{a}{down}");let mut e=engine(a);seed(&mut e,"items",json!({"id":"a","x":null,"gate":0}));
+ adopt(&mut e,&b,2).unwrap();adopt(&mut e,a,1).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+ adopt(&mut e,&c,3).unwrap();assert_eq!(field(&mut e,"items","a","x"),Value::Null);
+}
+
+#[test]
+fn r8_interacting_down_receipts_interpret_exact_native_absence_as_optional_null(){
+ let a="table items:\n  y: int\n  public\n  online only\n";
+ let b=a.replace("  y: int","  x: int ?\n  y: int");
+ let first="down items first(): {x:1}\n";let second="down items second(x: int ?): {y:x ?? 0}\n";
+ for declarations in [format!("{first}{second}"),format!("{second}{first}")] {
+  let c=format!("{b}{declarations}");let mut e=engine(a);seed(&mut e,"items",json!({"id":"a","y":10}));adopt(&mut e,&b,2).unwrap();
+  for _ in 0..2 {adopt(&mut e,&c,3).unwrap();adopt(&mut e,&b,2).unwrap();assert_eq!(field(&mut e,"items","a","x"),Value::Int(1));assert_eq!(field(&mut e,"items","a","y"),Value::Int(0));adopt(&mut e,&c,3).unwrap();assert!(row(&mut e,"items","a").field("x").is_err());assert_eq!(field(&mut e,"items","a","y"),Value::Int(10));}
+ }
+}
+
+#[test]
+fn r8_first_leaving_down_output_can_make_a_previously_narrowed_row_representable(){
+ let a="table items:\n  count: int 0..10\n  public\n  online only\n";
+ let c=a.replace("int 0..10","int 1..10");let b=format!("{c}down items legacy(): {{count:5}}\n");
+ let mut e=engine(a);seed(&mut e,"items",json!({"id":"a","count":0}));adopt(&mut e,&b,2).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+ adopt(&mut e,&c,3).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(5));
+ let wide=b.replace("int 1..10","int 0..10");adopt(&mut e,&wide,4).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(0));
+}
+
+#[test]
+fn r8_a_native_forward_backfill_does_not_conflict_with_its_restored_down_receipt(){
+ let a="table items:\n  count: int\n  public\n  online only\n";
+ let b=format!("{a}backfill items up(): {{count:1}}\ndown items legacy(): {{count:0}}\n");
+ let mut e=engine(&b);seed(&mut e,"items",json!({"id":"a","count":5}));
+ for _ in 0..2 {adopt(&mut e,a,1).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(0));adopt(&mut e,&b,2).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(5));}
+}

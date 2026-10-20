@@ -86,12 +86,12 @@ pub(super) fn transition(
             })
         })
     });
-    if !have_dormant && !type_change && !restored_images {
+    if !have_dormant && !type_change && !restored_images && tx.meta("activation_population")?.as_deref()!=Some("true") {
         return Ok(());
     }
     let mut newly_retained = 0u64;
     // Stream on the primary key. Do not retain a store-sized list of images.
-    restore_images(tx,next,now,source_definitions,authority_sources,false)?;
+    restore_images(tx,next,previous,now,source_definitions,authority_sources,false)?;
     tx.clear_activation_scan();
     // References to a hidden row hide their dependents, including memberships.
     loop {
@@ -267,8 +267,8 @@ pub(super) fn retire_sources(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,no
 // Restore retained source images before backfill evaluation. Candidate-owned
 // output cells are checked after transformation, so a same-column enum rename
 // does not preclude its own source image from entering the snapshot.
-pub(super) fn restore_images(tx:&Tx<'_>,next:&Schema,now:i64,source_definitions:&BTreeMap<String,Table>,authority_sources:&BTreeMap<String,Table>,for_backfills:bool)->Result<(),RuntimeError>{
-    let rewritten=if for_backfills {super::backfills::columns(tx,next)?}else{Default::default()};
+pub(super) fn restore_images(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,now:i64,source_definitions:&BTreeMap<String,Table>,authority_sources:&BTreeMap<String,Table>,for_backfills:bool)->Result<(),RuntimeError>{
+    let rewritten=if for_backfills {super::backfills::columns(tx,next,previous)?}else{Default::default()};
     let mut cursor = (0i64, String::new());
     loop {
         let item: Option<(i64,String,i64,i64)> = tx.conn().query_row(
