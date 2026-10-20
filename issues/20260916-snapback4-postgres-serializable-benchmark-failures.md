@@ -48,3 +48,25 @@ retry policy. All 86 core Postgres cases (including 25 jobs cases) and the
 19-test Postgres corpus target passed when the skipped stages ran separately.
 All were run with four Cargo jobs, incremental off and dev/test line-table debug
 info. The private cluster was stopped and `pg_ctl status` confirmed no server.
+## 2026-10-21 — P1-OB conformance observation
+
+The P1-OB working tree above `9b2a9b468f` (the final contract-test slice not
+yet committed), on expo-build-450a with PostgreSQL 16.15, also hit SQLSTATE
+40001 after the existing 32-retry budget in
+`concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`.
+The ordinary stock script had RUST_TEST_THREADS=6; the other evaluation
+tests, including the exhaustive prefetch loops, were active. The test's
+serialized mode completed 65 increments with zero retries; serializable
+workers returned `could not serialize access due to concurrent update`.
+That conformance target finished 17 passed / 1 failed / 0 ignored.
+
+An isolated rerun, with the same four concurrent writers inside the test,
+passes both modes: 65 increments each, no lost updates, 84 total serializable
+transaction retries. The same test in the subsequent stock-script run with
+RUST_TEST_THREADS=1 passes with 86 total serializable retries and the same
+65/65 outcomes. No product retry bound, backoff, timeout or durability input
+changed. This is additional evidence for the open exhaustion question, not
+proof that the outbox delta introduced or resolved it. Raw lane logs remain
+in `/tmp/p1-ob-postgres-final.log`,
+`/tmp/p1-ob-postgres-concurrency-isolated.log` and
+`/tmp/p1-ob-postgres-serial-final.log` on this worktree's host.

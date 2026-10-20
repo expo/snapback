@@ -48,7 +48,7 @@ fn verify(tx: &Tx<'_>, table: &str, required: &[Column], optional: &[Column], pr
     for column in &columns {
         let name: &str = column.get(0);
         let Some(&(_, sql_type, not_null)) = required.iter().chain(optional).find(|c| c.0 == name) else { return Err(incompatible(table, "unexpected column")); };
-        if column.get::<_, &str>(1) != sql_type || column.get::<_, bool>(2) != not_null || column.get::<_, &str>(4) != "" || column.get::<_, &str>(5) != "" {
+        if column.get::<_, &str>(1) != sql_type || column.get::<_, bool>(2) != not_null || !column.get::<_, &str>(4).is_empty() || !column.get::<_, &str>(5).is_empty() {
             return Err(incompatible(table, &format!("incompatible column {name}")));
         }
         let default: Option<&str> = column.get(3);
@@ -58,13 +58,13 @@ fn verify(tx: &Tx<'_>, table: &str, required: &[Column], optional: &[Column], pr
     for &(name, _, _) in required {
         if !columns.iter().any(|c| c.get::<_, &str>(0) == name) { return Err(incompatible(table, &format!("missing column {name}"))); }
     }
-    let keys = tx.query("SELECT c.contype::text,c.condeferrable,ARRAY(SELECT a.attname::text FROM unnest(c.conkey) WITH ORDINALITY k(num,ord) JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.num ORDER BY k.ord),c.confrelid = to_regclass('_commits'),ARRAY(SELECT a.attname::text FROM unnest(c.confkey) WITH ORDINALITY k(num,ord) JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.num ORDER BY k.ord) FROM pg_constraint c WHERE c.conrelid = to_regclass($1)", &[&table])?;
+    let keys = tx.query("SELECT c.contype::text,c.condeferrable,ARRAY(SELECT a.attname::text FROM unnest(c.conkey) WITH ORDINALITY k(num,ord) JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.num ORDER BY k.ord),c.confrelid = to_regclass('_commits'),ARRAY(SELECT a.attname::text FROM unnest(c.confkey) WITH ORDINALITY k(num,ord) JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.num ORDER BY k.ord),NOT c.condeferrable AND c.convalidated AND c.confupdtype = 'a' AND c.confdeltype = 'a' AND c.confmatchtype = 's' FROM pg_constraint c WHERE c.conrelid = to_regclass($1)", &[&table])?;
     let mut primaries = 0;
     for key in keys {
         let kind: &str = key.get(0);
         let columns: Vec<String> = key.get(2);
         if kind == "p" && !key.get::<_, bool>(1) && columns == primary { primaries += 1; }
-        else if !(table == "_outbox" && kind == "f" && columns == ["seq"] && key.get::<_, bool>(3) && key.get::<_, Vec<String>>(4) == ["seq"]) {
+        else if !(table == "_outbox" && kind == "f" && columns == ["seq"] && key.get::<_, bool>(3) && key.get::<_, Vec<String>>(4) == ["seq"] && key.get::<_, bool>(5)) {
             return Err(incompatible(table, "unexpected constraint"));
         }
     }
@@ -76,7 +76,7 @@ fn verify(tx: &Tx<'_>, table: &str, required: &[Column], optional: &[Column], pr
 }
 
 fn verify_index(tx: &Tx<'_>, table: &str, index: &str, columns: &[&str]) -> Result<(), RuntimeError> {
-    let rows = tx.query("SELECT i.indrelid = to_regclass($1),am.amname::text,i.indisunique,i.indisvalid AND i.indisready,i.indpred IS NULL AND i.indexprs IS NULL AND i.indnatts = i.indnkeyatts,ARRAY(SELECT pg_get_indexdef(i.indexrelid,k,true) FROM generate_series(1,i.indnkeyatts) k),NOT EXISTS(SELECT 1 FROM unnest(i.indkey,i.indcollation,i.indoption) k(num,coll,opts) JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.num WHERE k.coll <> a.attcollation OR k.opts <> 0) FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid JOIN pg_am am ON am.oid = c.relam WHERE i.indexrelid = to_regclass($2)", &[&table, &index])?;
+    let rows = tx.query("SELECT COALESCE(i.indrelid = to_regclass($1),false),am.amname::text,i.indisunique,i.indisvalid AND i.indisready,i.indpred IS NULL AND i.indexprs IS NULL AND i.indnatts = i.indnkeyatts,ARRAY(SELECT pg_get_indexdef(i.indexrelid,k,true) FROM generate_series(1,i.indnkeyatts) k),NOT EXISTS(SELECT 1 FROM unnest(i.indkey,i.indcollation,i.indoption) k(num,coll,opts) JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.num WHERE k.coll <> a.attcollation OR k.opts <> 0) FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid JOIN pg_am am ON am.oid = c.relam WHERE i.indexrelid = to_regclass($2)", &[&table, &index])?;
     if let Some(row) = rows.first() {
         if !row.get::<_, bool>(0) || row.get::<_, &str>(1) != "btree" || row.get::<_, bool>(2) || !row.get::<_, bool>(3) || !row.get::<_, bool>(4) || row.get::<_, Vec<String>>(5) != columns || !row.get::<_, bool>(6) {
             return Err(incompatible(table, &format!("incompatible index {index}")));

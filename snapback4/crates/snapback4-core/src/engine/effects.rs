@@ -131,7 +131,7 @@ pub(crate) trait OutboxTransaction {
 #[derive(Debug)]
 pub struct EffectHealth {
     pub counts: BTreeMap<String, u64>,
-    pub deferred: Result<(i64, Option<i64>), String>,
+    pub deferred: Result<(u64, Option<i64>), String>,
 }
 
 /// Snapshot reads and the dev replay write on either adapter.
@@ -510,12 +510,7 @@ impl Engine {
 
     pub fn cancel_effect(&mut self, id: &str, now: i64) -> Result<EffectRun, RuntimeError> {
         let tx = self.store.transaction()?;
-        let run = tx.effect_run(id)?.ok_or_else(|| RuntimeError::Structural { code: "E_EFFECT_UNKNOWN", message: "no effect with this id is available".into() })?;
-        if !run.work.policy.cancellable { return Err(RuntimeError::Structural { code: "E_EFFECT_CANCELLATION", message: "this effect declaration does not allow cancellation".into() }); }
-        if matches!(run.state.as_str(), "queued" | "running" | "parked") {
-            tx.cancel_effect(id, now)?;
-        }
-        let run = tx.required_effect_run(id)?;
+        let run = cancel(&tx,id,now)?;
         tx.commit()?;
         Ok(run)
     }
@@ -569,6 +564,13 @@ fn expire_run(tx: &impl OutboxTransaction, run: &EffectRun, now: i64) -> Result<
     Ok(())
 }
 
+pub(super) fn cancel(tx: &impl OutboxTransaction, id: &str, now: i64) -> Result<EffectRun, RuntimeError> {
+    let run = tx.effect_run(id)?.ok_or_else(|| RuntimeError::Structural { code: "E_EFFECT_UNKNOWN", message: "no effect with this id is available".into() })?;
+    if !run.work.policy.cancellable { return Err(RuntimeError::Structural { code: "E_EFFECT_CANCELLATION", message: "this effect declaration does not allow cancellation".into() }); }
+    if matches!(run.state.as_str(), "queued" | "running" | "parked") { tx.cancel_effect(id,now)?; }
+    tx.required_effect_run(id)
+}
+
 fn require_dev_store(deployed: bool) -> Result<(), RuntimeError> {
     if deployed { return Err(RuntimeError::Generation("this store belongs to a deployment; use `deploy` to activate source and `serve` to run it".into())); }
     Ok(())
@@ -596,132 +598,4 @@ impl Engine {
 }
 
 #[cfg(test)]
-pub(crate) mod test_cases {
-    use super::*;
-
-    pub(crate) fn snapshot_seed(tx: &impl OutboxTransaction) {
-        let schema = Schema { effects: vec!["mail".into()], ..Schema::default() };
-        for (id, seq, deadline) in [("z",1,None), ("a",1,None), ("deferred",2,Some(1_000)), ("retry",3,None)] {
-            let presence = deadline.map(|d| BTreeMap::from([("alice".into(),Some(d))])).unwrap_or_default();
-            record(tx, &[(id.into(),"mail".into(),Value::Null,presence)], seq, 0, false, &schema).unwrap();
-        }
-        tx.retry_effect("retry", "backoff", 2_000).unwrap();
-    }
-
-    pub(crate) fn snapshot_reads(store: &impl OutboxStore) {
-        assert!(store.effects_due(None, 100).unwrap());
-        assert!(store.effects_due(Some("mail"), 100).unwrap());
-        assert!(!store.effects_due(Some("other"), i64::MAX).unwrap());
-        assert!(store.list_effects(None, 0).unwrap().is_empty());
-        let ids = |limit| store.list_effects(Some("queued"),limit).unwrap().into_iter().map(|r| r.id).collect::<Vec<_>>();
-        assert_eq!(ids(3), ["retry","deferred","z"]);
-        assert_eq!(ids(u64::MAX), ["retry","deferred","z","a"]);
-        assert!(store.list_effects(Some("sent"), 10).unwrap().is_empty());
-        let health = store.effect_health(100).unwrap();
-        assert_eq!(health.counts.get("queued"), Some(&4));
-        assert_eq!(health.deferred.unwrap(), (1,Some(1_000)));
-        assert_eq!(store.effect_health(1_000).unwrap().deferred.unwrap(), (0,None));
-        assert_eq!(store.effect_counts().unwrap(), health.counts);
-        store.set_effect_replay(true, require_dev_store).unwrap();
-        assert_eq!(store.set_effect_replay(false, |_| Err(RuntimeError::Input("refused".into()))).unwrap_err().code(), "E_INPUT");
-    }
-
-    pub(crate) const LEASE_SEED: &str = "
-        INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES
-            ('legacy-worker','service:worker','service',0,1000,NULL),
-            ('modern-worker','service:worker','service',0,1500,'modern'),
-            ('expired-worker','service:worker','service',0,100,'modern'),
-            ('ordinary','member','member',0,900,'member-family'),
-            ('delegated','member','member',0,850,'delegated-family');
-        INSERT INTO _meta(key,value) VALUES ('worker:session-family','legacy-worker'),('WoRkEr:FaMiLy:modern','1');
-        INSERT INTO _requests(id,name,args,principal,at,state,attempts,lease_until,session_digest,family,principal_generation,admitted_expires_at) VALUES
-            ('legacy','action','null','member',0,'running',1,800,NULL,NULL,NULL,NULL),
-            ('bound','action','null','member',0,'running',1,850,'delegated','member-family',0,900),
-            ('missing','action','null','absent',0,'running',1,700,NULL,'absent-family',0,900),
-            ('queued','action','null','member',0,'queued',1,600,NULL,NULL,NULL,NULL);
-    ";
-    pub(crate) fn lease_shift(tx: &impl OutboxTransaction) {
-        let schema = Schema { effects: vec!["mail".into()], ..Schema::default() };
-        record(tx, &[("leased".into(),"mail".into(),Value::Null,BTreeMap::new())], 1, 0, false, &schema).unwrap();
-        tx.claim_effect("leased","worker",90,None).unwrap();
-        tx.shift_worker_leases(200,100).unwrap();
-        assert_eq!(tx.required_effect_run("leased").unwrap().lease_until,Some(290), "overdue effect leases shift too, as on SQLite");
-    }
-    pub(crate) fn replay_suppression(tx: &impl OutboxTransaction) {
-        assert!(tx.replay_suppresses().unwrap(), "a refused replay change rolls back");
-        let schema = Schema::default();
-        record(tx, &[("suppressed".into(),"mail".into(),Value::Null,BTreeMap::new())], 4, 0, true, &schema).unwrap();
-        assert!(tx.effect_run("suppressed").unwrap().is_none());
-        tx.suppress_effects(2).unwrap();
-    }
-
-    // Shared capability cases: each adapter supplies an empty writer transaction.
-    pub(crate) fn expiry_and_generation(tx: &impl OutboxTransaction) {
-        let schema = Schema { effects: vec!["mail".into()], ..Schema::default() };
-        let emissions = vec![("retry".into(), "mail".into(), Value::Null, BTreeMap::new())];
-        record(tx, &emissions, 1, 0, false, &schema).unwrap();
-        tx.claim_effect("retry", "worker", 100, Some(&identity::digest("claim"))).unwrap();
-        let run = strict_run(tx, "retry").unwrap();
-        // Strict ownership ends at equality; queue expiry retains its legacy < boundary.
-        assert_eq!(held_strict_claim(tx, &run, "worker", "claim", 100).unwrap_err().code(), "E_EFFECT_LEASE");
-        assert_eq!(expire(tx, 100).unwrap(), 0);
-        assert_eq!(expire(tx, 101).unwrap(), 1);
-        let retried = strict_run(tx, "retry").unwrap();
-        assert_eq!((retried.state.as_str(), retried.attempts, retried.next_at), ("queued", 1, Some(101)));
-        assert_eq!(retried.error.as_deref(), Some("the lease expired"));
-        assert!(retried.claimed_by.is_none() && retried.lease_until.is_none());
-        assert!(tx.effect_lease_digest("retry").unwrap().is_none());
-
-        let mut changed = schema.clone();
-        let mut work = legacy_work();
-        work.policy.max_attempts = 1;
-        changed.effect_specs.insert("mail".into(), work);
-        // A changed declaration wins over expiry, even for a stale lease.
-        tx.claim_effect_strict("retry", "worker", 200, None).unwrap();
-        assert_eq!(expire_strict(tx, &changed, 201).unwrap(), 1);
-        let parked = strict_run(tx, "retry").unwrap();
-        assert_eq!((parked.state.as_str(), parked.error_code.as_deref()), ("parked", Some("E_EFFECT_GENERATION")));
-        assert!(!contract_stands(tx, &changed, &parked, 999).unwrap());
-        assert_eq!(strict_run(tx, "retry").unwrap(), parked, "terminal evidence stays immutable");
-
-        let emissions = vec![("deadline".into(), "mail".into(), Value::Null, BTreeMap::new())];
-        let mut work = legacy_work();
-        work.policy.max_attempts = 1;
-        work.policy.deadline_ms = Some(1_000);
-        let mut bounded = schema.clone();
-        bounded.effect_specs.insert("mail".into(), work);
-        record(tx, &emissions, 2, 0, false, &bounded).unwrap();
-        tx.claim_effect("deadline", "worker", 5_000, None).unwrap();
-        assert_eq!(strict_run(tx, "deadline").unwrap().lease_until, Some(1_000));
-        assert_eq!(expire(tx, 1_000).unwrap(), 1);
-        let failed = strict_run(tx, "deadline").unwrap();
-        assert_eq!((failed.state.as_str(), failed.error_code.as_deref()), ("failed", Some("E_EFFECT_DEADLINE")));
-        assert_eq!(failed.error.as_deref(), Some("the effect deadline passed"));
-    }
-
-    pub(crate) fn presence_and_bounded_maintenance(tx: &impl OutboxTransaction) {
-        let schema = Schema { effects: vec!["mail".into()], ..Schema::default() };
-        let presence = BTreeMap::from([("alice".into(), Some(100)), ("bob".into(), Some(200))]);
-        let emissions = vec![("presence".into(), "mail".into(), Value::Null, presence)];
-        record(tx, &emissions, 1, 0, false, &schema).unwrap();
-        assert!(tx.effect_candidates(None, 199, 10).unwrap().is_empty());
-        assert_eq!(tx.effect_candidates(Some("mail"), 200, 10).unwrap(), ["presence"]);
-        assert!(tx.pending_effect_presence("alice", 100).unwrap());
-        tx.reconnect_effect_presence("alice", 100).unwrap();
-        assert!(!tx.pending_effect_presence("alice", 100).unwrap());
-        assert!(tx.effect_presence_satisfied("presence").unwrap());
-        assert!(tx.effect_presence("presence").unwrap().iter().any(|(p, live)| p == "alice" && *live));
-        tx.clear_effect_presence("presence").unwrap();
-        assert!(tx.effect_presence("presence").unwrap().is_empty());
-        for id in ["presence", "second"] {
-            if id == "second" {
-                record(tx, &[(id.into(), "mail".into(), Value::Null, BTreeMap::new())], 2, 0, false, &schema).unwrap();
-            }
-            tx.claim_effect(id, "worker", 50, None).unwrap();
-        }
-        // A zero budget still makes progress once and does not consume the next row.
-        assert_eq!(expire_batch(tx, 51, 256, std::time::Duration::ZERO).unwrap(), 1);
-        assert_eq!(tx.expired_effects(51, 256).unwrap().len(), 1);
-        assert_eq!(expire(tx, 51).unwrap(), 1);
-    }
-}
+pub(crate) mod test_cases;

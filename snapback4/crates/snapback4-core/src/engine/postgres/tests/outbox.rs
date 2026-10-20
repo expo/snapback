@@ -26,7 +26,10 @@ fn outbox_shared_presence_and_bounded_maintenance() {
 #[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
 fn outbox_tail_matches_the_ordinary_recorder() {
     let mut engine = authority_engine();
-    let schema = Schema { effects: vec!["mail".into()], ..Schema::default() };
+    let mut work = effects::legacy_work();
+    work.policy.deadline_ms = Some(1_000);
+    work.policy.backoff_ms = 8_000;
+    let schema = Schema { effects: vec!["mail".into()], effect_specs: BTreeMap::from([("mail".into(),work)]), ..Schema::default() };
     let presence = BTreeMap::from([("alice".into(), Some(500)), ("bob".into(), None)]);
     let emissions = vec![("batched".into(), "mail".into(), Value::String("nul\0payload".into()), presence.clone())];
     let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
@@ -45,6 +48,8 @@ fn outbox_tail_matches_the_ordinary_recorder() {
     assert_eq!(tx.effect_presence("batched").unwrap(), tx.effect_presence("ordinary").unwrap());
     assert_eq!(ordinary.release.as_deref(), Some("release-1"));
     assert_eq!(ordinary.next_at, Some(500));
+    assert_eq!(ordinary.deadline,Some(1_100));
+    assert_eq!(ordinary.work.policy.backoff_ms,8_000);
     tx.commit().unwrap();
 }
 
@@ -85,6 +90,9 @@ fn outbox_attach_refuses_incompatible_shapes() {
         "ALTER TABLE _outbox ALTER COLUMN attempts TYPE INTEGER",
         "ALTER TABLE _outbox ALTER COLUMN cancelled DROP DEFAULT",
         "ALTER TABLE _outbox ADD UNIQUE(effect)",
+        "DROP TABLE _outbox; CREATE INDEX _outbox_due ON _meta(value)",
+        "DROP INDEX _outbox_due; CREATE TABLE _outbox_due(id BIGINT)",
+        "ALTER TABLE _outbox ADD FOREIGN KEY(seq) REFERENCES _commits(seq) ON DELETE CASCADE",
         "ALTER TABLE _outbox ALTER COLUMN id TYPE TEXT COLLATE \"POSIX\"",
         "ALTER TABLE _outbox DROP CONSTRAINT _outbox_pkey; ALTER TABLE _outbox ADD PRIMARY KEY(id) DEFERRABLE",
         "DROP INDEX _outbox_due; CREATE INDEX _outbox_due ON _outbox(effect)",
@@ -118,4 +126,100 @@ fn outbox_shared_snapshots_replay_and_leases() {
     effects::test_cases::replay_suppression(&tx);
     tx.commit().unwrap();
     assert_eq!(RefCell::new(&mut engine.store).effect_counts().unwrap().get("suppressed"),Some(&3));
+}
+
+impl effects::test_cases::Evidence for super::super::store::Tx<'_> {
+    fn settled_at(&self,id: &str) -> Option<i64> {
+        self.query("SELECT settled_at FROM _outbox WHERE id = $1", &[&id]).unwrap()[0].get(0)
+    }
+    fn seed_legacy(&self) { self.batch(effects::test_cases::LEGACY_ROW).unwrap(); }
+}
+
+macro_rules! contract {
+    ($($name:ident),*) => { $(#[test]
+    #[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+    fn $name() {
+        let mut engine = authority_engine();
+        let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+        effects::test_cases::$name(&tx);
+        tx.commit().unwrap();
+    })* };
+}
+contract!(candidate_ordering,lifecycle_variants,text_and_wide_values,presence_satisfaction,deadline_and_attempt_limits);
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn outbox_statement_error_is_terminal_and_rolls_back() {
+    let mut engine = authority_engine();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    effects::test_cases::race_seed(&tx,false);
+    assert!(tx.insert_effect(&effects::NewEffect { id:"race",seq:1,effect:"mail",payload:&Value::Null,now:0,next_at:None,work:&effects::legacy_work(),deadline:None,release:None,contract:"contract" }).is_err());
+    tx.rollback().unwrap();
+    let tx = engine.store.transaction(None).unwrap();
+    assert!(tx.effect_run("race").unwrap().is_none());
+    tx.rollback().unwrap();
+}
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn outbox_writers_require_head_and_never_repair_missing_storage() {
+    let mut engine = authority_engine();
+    for mode in [None,Some(WriteMode::Serializable)] {
+        let tx = engine.store.transaction(mode).unwrap();
+        assert!(tx.cancel_effect("missing",0).unwrap_err().to_string().contains("serialized shared-head fence"));
+        tx.rollback().unwrap();
+    }
+    let name: String = engine.store.client.query_one("SELECT current_schema()", &[]).unwrap().get(0);
+    engine.store.client.batch_execute("DROP TABLE _effect_presence").unwrap();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    assert!(tx.insert_effect_presence("alice","missing",0).is_err());
+    tx.rollback().unwrap();
+    assert!(!engine.store.client.query_one("SELECT to_regclass('_effect_presence') IS NOT NULL", &[]).unwrap().get::<_,bool>(0));
+    drop(engine);
+    let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let mut engine = PostgresEngine::open(postgres::Client::connect(&url,postgres::NoTls).unwrap(),&name).unwrap();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.insert_effect_presence("alice","missing",0).unwrap();
+    tx.commit().unwrap();
+}
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn outbox_cached_projection_survives_additive_ddl() {
+    let mut engine = authority_engine();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    effects::test_cases::race_seed(&tx,false);
+    tx.commit().unwrap();
+    let tx = engine.store.transaction(None).unwrap();
+    let before = tx.required_effect_run("race").unwrap();
+    tx.rollback().unwrap();
+    engine.store.client.batch_execute("ALTER TABLE _outbox ADD COLUMN evaluation_probe TEXT").unwrap();
+    let tx = engine.store.transaction(None).unwrap();
+    assert_eq!(tx.required_effect_run("race").unwrap(),before);
+    tx.rollback().unwrap();
+    engine.store.client.batch_execute("ALTER TABLE _outbox DROP COLUMN evaluation_probe").unwrap();
+}
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn outbox_lease_shift_error_rolls_back_all_families_and_deployed_replay_refuses() {
+    use std::cell::RefCell;
+    let mut engine = authority_engine();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.batch(effects::test_cases::LEASE_SEED).unwrap();
+    effects::test_cases::race_seed(&tx,true);
+    tx.commit().unwrap();
+    engine.store.client.batch_execute("DROP TABLE _requests").unwrap();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    assert!(tx.shift_worker_leases(200,100).is_err());
+    tx.rollback().unwrap();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    assert_eq!(tx.required_effect_run("race").unwrap().lease_until,Some(100));
+    assert_eq!(tx.query("SELECT expires_at FROM _sessions WHERE token_digest = 'legacy-worker'",&[]).unwrap()[0].get::<_,i64>(0),1000);
+    tx.execute("INSERT INTO _meta(key,value) VALUES ('release','live')",&[]).unwrap();
+    tx.commit().unwrap();
+    effects::test_cases::deployed_replay_refusal(&RefCell::new(&mut engine.store));
+    let tx = engine.store.transaction(None).unwrap();
+    assert!(!tx.replay_suppresses().unwrap());
+    tx.rollback().unwrap();
 }

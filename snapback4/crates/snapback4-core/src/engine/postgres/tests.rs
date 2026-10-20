@@ -5,6 +5,7 @@ mod caps;
 mod identity;
 mod jobs;
 mod outbox;
+mod outbox_races;
 mod delivery;
 mod expiring_counts;
 mod refusals;

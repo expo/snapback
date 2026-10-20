@@ -232,7 +232,7 @@ impl OutboxStore for Store {
         // @ref LLP 3000.007#20.16 — report grace deferrals without treating retry backoff as presence.
         let deferred = self.conn().query_row(
             "SELECT COUNT(*), MIN(next_at) FROM _outbox WHERE state = 'queued' AND next_at > ?1 AND EXISTS (SELECT 1 FROM _effect_presence WHERE id = _outbox.id)",
-            [now], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?)),
+            [now], |row| Ok((row.get::<_, i64>(0)? as u64, row.get::<_, Option<i64>>(1)?)),
         ).map_err(|error| error.to_string());
         snapshot.rollback()?;
         Ok(EffectHealth { counts, deferred })
@@ -251,6 +251,84 @@ impl OutboxStore for Store {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    impl crate::engine::effects::test_cases::Evidence for Tx<'_> {
+        fn settled_at(&self,id: &str) -> Option<i64> {
+            self.conn().query_row("SELECT settled_at FROM _outbox WHERE id = ?1",[id],|r| r.get(0)).unwrap()
+        }
+        fn seed_legacy(&self) { self.conn().execute_batch(crate::engine::effects::test_cases::LEGACY_ROW).unwrap(); }
+    }
+
+    macro_rules! contract {
+        ($($name:ident),*) => { $(#[test] fn $name() {
+            let mut store = Store::memory().unwrap();
+            let tx = store.transaction().unwrap();
+            crate::engine::effects::test_cases::$name(&tx);
+            tx.commit().unwrap();
+        })* };
+    }
+    contract!(candidate_ordering,lifecycle_variants,text_and_wide_values,presence_satisfaction,deadline_and_attempt_limits);
+
+    #[test]
+    fn lease_shift_error_rolls_back_all_families_and_deployed_replay_refuses() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        tx.conn().execute_batch(crate::engine::effects::test_cases::LEASE_SEED).unwrap();
+        crate::engine::effects::test_cases::race_seed(&tx,true);
+        tx.commit().unwrap();
+        store.conn().execute_batch("DROP TABLE _requests").unwrap();
+        let tx = store.transaction().unwrap();
+        assert!(tx.shift_worker_leases(200,100).is_err());
+        tx.rollback().unwrap();
+        let tx = store.transaction().unwrap();
+        assert_eq!(tx.required_effect_run("race").unwrap().lease_until,Some(100));
+        assert_eq!(tx.conn().query_row("SELECT expires_at FROM _sessions WHERE token_digest = 'legacy-worker'",[],|r| r.get::<_,i64>(0)).unwrap(),1000);
+        tx.conn().execute("INSERT INTO _meta(key,value) VALUES ('release','live')",[]).unwrap();
+        tx.commit().unwrap();
+        crate::engine::effects::test_cases::deployed_replay_refusal(&store);
+        let tx = store.transaction().unwrap();
+        assert!(!tx.replay_suppresses().unwrap());
+        tx.rollback().unwrap();
+    }
+
+    #[test]
+    fn cached_projection_survives_additive_ddl_and_writer_never_repairs() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        crate::engine::effects::test_cases::race_seed(&tx,false);
+        let before = tx.required_effect_run("race").unwrap();
+        tx.commit().unwrap();
+        store.conn().execute_batch("ALTER TABLE _outbox ADD COLUMN evaluation_probe TEXT; DROP TABLE _effect_presence").unwrap();
+        let tx = store.transaction().unwrap();
+        assert_eq!(tx.required_effect_run("race").unwrap(),before);
+        assert!(tx.insert_effect_presence("alice","race",100).is_err());
+        tx.rollback().unwrap();
+        assert_eq!(store.conn().query_row("SELECT COUNT(*) FROM sqlite_master WHERE name = '_effect_presence'",[],|r|r.get::<_,i64>(0)).unwrap(),0);
+    }
+
+    #[test]
+    fn adapter_error_rolls_back_and_legacy_nul_rows_remain_usable() {
+        let mut store = Store::memory().unwrap();
+        {
+            let tx = store.transaction().unwrap();
+            crate::engine::effects::test_cases::race_seed(&tx,false);
+            assert!(tx.insert_effect(&NewEffect { id:"race", seq:1, effect:"mail",payload:&Value::Null,now:0,next_at:None,work:&legacy_work(),deadline:None,release:None,contract:"contract" }).is_err());
+            // A statement error ends the transaction; the adapter is not called again.
+            tx.rollback().unwrap();
+        }
+        assert!(store.list_effects(None,10).unwrap().is_empty());
+        let tx = store.transaction().unwrap();
+        tx.conn().execute("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at) VALUES (?1,1,?2,'null','queued',0,0)",params!["legacy\0id","legacy\0effect"]).unwrap();
+        tx.conn().execute("INSERT INTO _effect_presence(principal,id,deadline) VALUES (?1,?2,100)",params!["legacy\0principal","legacy\0id"]).unwrap();
+        tx.claim_effect("legacy\0id","legacy\0worker",100,None).unwrap();
+        tx.reconnect_effect_presence("legacy\0principal",100).unwrap();
+        assert!(tx.effect_presence_satisfied("legacy\0id").unwrap());
+        assert_eq!(tx.required_effect_run("legacy\0id").unwrap().claimed_by.as_deref(),Some("legacy\0worker"));
+        tx.retry_effect("legacy\0id","retry",0).unwrap();
+        tx.cancel_effect("legacy\0id",1).unwrap();
+        assert!(tx.required_effect_run("legacy\0id").unwrap().cancelled);
+        tx.commit().unwrap();
+    }
 
     #[test]
     fn shared_snapshots_replay_and_leases() {

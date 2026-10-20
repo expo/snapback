@@ -117,7 +117,7 @@ impl OutboxTransaction for Tx<'_> {
     }
     fn mark_effect_settled(&self, id: &str, now: i64) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("mark effect settled")?;
-        self.execute("UPDATE _outbox SET settled_at = CASE WHEN state IN ('sent','failed') THEN $2 ELSE NULL END WHERE id = $1", &[&id, &now])?;
+        self.execute("UPDATE _outbox SET settled_at = CASE WHEN state IN ('sent','failed') THEN $2::bigint ELSE NULL END WHERE id = $1", &[&id, &now])?;
         Ok(())
     }
     fn send_effect_strict(&self, id: &str, result: Option<&Value>, now: i64) -> Result<(), RuntimeError> {

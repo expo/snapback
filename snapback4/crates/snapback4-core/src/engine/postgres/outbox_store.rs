@@ -38,7 +38,7 @@ impl OutboxStore for RefCell<&mut Store> {
         let tx = store.transaction(None)?;
         let counts = counts(&tx)?;
         // A failed advisory query is terminal too: roll back this snapshot.
-        let deferred = tx.query("SELECT COUNT(*),MIN(next_at) FROM _outbox WHERE state = 'queued' AND next_at > $1 AND EXISTS(SELECT 1 FROM _effect_presence WHERE id = _outbox.id)", &[&now]).map(|r| (r[0].get(0), r[0].get(1))).map_err(|e| e.to_string());
+        let deferred = tx.query("SELECT COUNT(*),MIN(next_at) FROM _outbox WHERE state = 'queued' AND next_at > $1 AND EXISTS(SELECT 1 FROM _effect_presence WHERE id = _outbox.id)", &[&now]).map(|r| (r[0].get::<_, i64>(0) as u64, r[0].get(1))).map_err(|e| e.to_string());
         tx.rollback()?;
         Ok(EffectHealth { counts, deferred })
     }
