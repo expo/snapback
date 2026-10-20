@@ -22,7 +22,8 @@
 //! to both categories. A mixed file can appear in both allowlists.
 //!
 //! From snapback4/: SNAPBACK4_RATCHET_UPDATE=1 cargo test -p snapback4
-//! --test store_port_ratchet. Updates only lower/delete counts by default;
+//! --test store_port_ratchet. A count below its listed number only prints a note
+//! (never fails), so removing access stays green. Updates only lower/delete counts by default;
 //! SNAPBACK4_RATCHET_ALLOW_RAISE=1 is additionally required for any increase or
 //! new entry (including initial generation). Review the resulting data diff.
 
@@ -321,8 +322,14 @@ fn store_port_ratchet() {
     .map(|name| manifest.join("tests").join(name));
     let mut errors = Vec::new();
     for (actual, path) in counts.iter().zip(&paths) {
+        let allowed = read_allowlist(path);
+        // Decreases never fail: concurrent work that removes database access must
+        // not go red. They are reported so the list can be lowered deliberately.
+        for line in differences(actual, &allowed, false, true) {
+            eprintln!("note: {}: {line}", path.display());
+        }
         errors.extend(
-            differences(actual, &read_allowlist(path), update, may_raise)
+            differences(actual, &allowed, true, may_raise)
                 .into_iter()
                 .map(|error| format!("{}: {error}", path.display())),
         );
