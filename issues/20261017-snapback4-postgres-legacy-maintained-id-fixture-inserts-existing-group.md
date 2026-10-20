@@ -23,3 +23,14 @@ This is an inherited fixture failure, not a deferred LIVE feature change.
 
 Evidence: [candidate log](../snapback4/reports/wave14-live/qualification/postgres-expanded.log)
 and [base reproduction](../snapback4/reports/wave14-live/qualification/postgres-base-legacy.log).
+
+## 2026-10-20 — P1-RQ confirmation
+
+The enabled Postgres module suite on `sb4-pg/p1-requests` reports 44 passed,
+this one failed, zero skipped, on a private PostgreSQL 16.15 cluster. All ten
+request-family cases pass. The failing test body and `Rows::put` implementation
+are byte-for-byte identical to mirror base
+`d6545aaf594fb1c82482311e599ba7b4d8b0dc00`; the same `23505`/`r_pkey`
+failure occurs at `engine/postgres/tests.rs:123`. The request lane leaves this
+unrelated fixture unchanged. The ordinary full SQLite and feature-enabled
+core commands pass (this explicitly enabled fixture is ignored by default).

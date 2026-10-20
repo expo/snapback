@@ -97741,3 +97741,101 @@ it for a shared Store reference to retain `Engine::action_counts(&self)`.
 the shared cases on both stores, including real database races and all
 requested final checks. This is adapter-family coverage only; public
 Postgres actions/routes and the other work families remain later slices.
+
+## 2026-10-20 — P1-RQ task 2: one request contract, two adapters
+
+Task 1 is local commit `95f897f659897316f7cfb780dc7362daec88a7fa`.
+The original SQLite request tests pass (2/2). The shared finish case now
+accepts a harness-provided delegated credential: SQLite still creates it
+through `identity::action_session`, while Postgres seeds the same facts
+without implementing or modifying the parallel identity lane.
+
+The shared cases exercise finish and credential revocation, settlement fence
+clearing, due ordering/name restrictions, rollback, legacy NULL columns and
+incomplete authority, JSON null versus absent result, signed-64-bit times,
+attempts across the i32 boundary and up to u32::MAX, rejection of negative or
+out-of-range attempts, missing-ID update no-ops, cancellation idempotence,
+native affected-row counts, and the production authority/lease functions.
+Both adapters also race two connections after both have observed the same
+candidate. They reselect under their ordinary writer fence: exactly one
+claim wins, its attempt is one, a separate competing conditional UPDATE
+reports affected counts [0, 1], and stale conditional updates cannot overwrite
+the claimed request. SQLite checks execute's count against changes();
+Postgres checks the actual RETURNING rows.
+
+Postgres adds witnesses for every request write rejecting read-only and
+unfenced serializable transactions, finish/session invalidation rolling back
+together, repeatable-read snapshots, durable reopen, upgrade of all optional
+columns on predecessor rows, absent/populated release metadata, and reopening
+while a reader holds a request-table lock. The ten request tests pass on an
+owned socket-only PostgreSQL 16.15 cluster: 10 passed, zero skipped. The seven
+SQLite request tests pass. After strengthening the concurrent conditional
+update assertions, both adapter race tests pass again (2 passed, zero skipped).
+No request outcome difference was found. Postgres uses BOOLEAN/BIGINT and
+RETURNING where SQLite uses integer booleans/dynamic integers and changes();
+the typed observations agree. Public Postgres action/route host wiring, action
+step storage and the later owner fence remain outside this request-only lane.
+
+Without explicit enablement the ten Postgres request tests are named ignored
+cases: `SKIP_POSTGRES_REQUESTS_DATABASE: requires private
+SNAPBACK4_EVAL_POSTGRES`. Enabling them without that environment fails with
+the same named diagnostic; missing database access never counts as a pass.
+
+The corpus run against the private cluster reports SQLite 210 passed / 85
+skipped and Postgres 207 passed / 88 skipped, zero disagreements. The Postgres
+skip census is: `legacy-asset-record` 10, `legacy-asset-upload` 15,
+`legacy-delivery` 19, `legacy-null-point` 2, `legacy-word-search` 7,
+`postgres-unsupported-capability` 3, `receipt-authority` 14,
+`receipt-coverage` 15, `receipt-replacement` 1,
+`shared-effect-id-supply` 1, `static-resource-price` 1. These named skips
+remain outside the request-family parity claim.
+
+The complete required `cargo test -p snapback4-core` and `cargo test -p
+snapback4-core --features postgres` both pass, including integration targets
+and doctests. The ordinary feature run keeps 43 database-dependent unit tests
+ignored; these are exercised separately with explicit enablement. The
+strengthened race assertions were added while the full runs were in progress
+and separately passed on both adapters afterward; product code did not change.
+The ratchet passes (5 tests), and `ref-check --verbose` passes with zero errors
+and zero unchecked references.
+
+The enabled Postgres module run executes 45 tests: 44 pass (including all ten
+request tests), zero skip, one fails. The failing existing case is
+`reopening_legacy_maintained_ids_rebuilds_before_publishing_the_generation`
+at `engine/postgres/tests.rs:123`, with SQLSTATE 23505: the fixture calls
+`tx.put("groups", ..., None)` for the `groups/group` row it already seeded.
+The group insertion implementation and this test body are unchanged by the
+request lane. A same-checkout base reproduction is being checked before the
+final report; this failure is not counted as a pass or silently excluded.
+
+The required Clippy command stops at the two acknowledged baseline errors
+(`while_immutable_condition`, `engine/read.rs:780`; `never_loop`,
+`engine/row_views.rs:1010`). No new library errors are reported. A diagnostic
+run allowing only those two lints will check the test code as well; no source
+suppression is added. The private cluster was stopped by the runner's owned
+cleanup trap. No push was made.
+
+Final audit: the maintained-ID failure is already tracked in
+[`20261017-snapback4-postgres-legacy-maintained-id-fixture-inserts-existing-group.md`](../issues/20261017-snapback4-postgres-legacy-maintained-id-fixture-inserts-existing-group.md),
+including a prior base reproduction. Comparing this lane against mirror base
+`d6545aaf594fb1c82482311e599ba7b4d8b0dc00` confirms the entire failing test
+body and `Rows::put` implementation are byte-for-byte identical. That existing
+base witness plus the unchanged source settles attribution; no additional
+checkout or base build was needed, and the unrelated fixture is unchanged.
+
+Clarification of the ordinary feature-run count above: its 43 ignored unit
+tests comprise 40 database-dependent cases and three native measurements,
+not 43 database cases. All 40 database cases were enabled in the separate
+45-test Postgres module run (five static tests plus 40 database tests).
+That run's final result remains 44 passed, one inherited fixture failure,
+zero skipped; all ten request cases passed. The ordinary full core runs also
+retain the existing ignored `m7_to_m8` scale fixture.
+
+The diagnostic Clippy run with only the two acknowledged lints allowed
+passes through library and test checking. Neither request adapter, the shared
+request cases nor the new Postgres request tests receive a diagnostic. The
+unchanged action policy retains its existing warnings. No source lint
+suppression was added. Final disk space is 79 GB free, well above the stop
+threshold. The owned private cluster is stopped. No request behavior or
+scope uncertainty remains within the tested contract; the known expanded
+fixture failure is the only failing product-test command. No push.

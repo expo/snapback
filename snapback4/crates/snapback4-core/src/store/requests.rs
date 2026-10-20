@@ -223,7 +223,8 @@ mod tests {
     fn request_finish_and_settlement_contract() {
         let mut store = Store::memory().unwrap();
         let tx = store.transaction().unwrap();
-        test_cases::finish_and_settle(&tx);
+        let session = identity::action_session(&tx, "dev:alice", 10, 1_010).unwrap();
+        test_cases::finish_and_settle(&tx, &identity::digest(&session.token));
         tx.commit().unwrap();
         assert_eq!(
             store.request_counts().unwrap(),
@@ -238,5 +239,107 @@ mod tests {
         test_cases::selection(&tx);
         tx.rollback().unwrap();
         assert!(store.request_counts().unwrap().is_empty());
+    }
+
+    #[test]
+    fn request_nulls_and_integer_bounds_contract() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        test_cases::nulls_and_integer_bounds(&tx, |attempts| {
+            tx.conn()
+                .execute(
+                    "UPDATE _requests SET attempts = ?1 WHERE id = 'wide'",
+                    [attempts],
+                )
+                .unwrap();
+        });
+        tx.commit().unwrap();
+        assert_eq!(
+            store.request_counts().unwrap(),
+            std::collections::BTreeMap::from([("queued".into(), 1)])
+        );
+    }
+
+    #[test]
+    fn request_legacy_nulls_contract() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        tx.conn().execute("INSERT INTO _requests(id, name, args, principal, at, state, family) VALUES ('legacy', 'work', '{}', 'dev:alice', ?1, 'queued', 'partial')", [i64::MIN]).unwrap();
+        test_cases::legacy_nulls(&tx);
+    }
+
+    #[test]
+    fn request_conditional_update_counts_contract() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        test_cases::conditional_counts(&tx, |id, from, to| {
+            let changed = tx
+                .conn()
+                .execute(
+                    "UPDATE _requests SET state = ?3 WHERE id = ?1 AND state = ?2",
+                    params![id, from, to],
+                )
+                .unwrap();
+            assert_eq!(changed as u64, tx.conn().changes());
+            changed as u64
+        });
+    }
+
+    #[test]
+    fn request_claim_race_has_exactly_one_winner() {
+        let dir = std::env::temp_dir().join(format!("sb4-requests-{:x}", crate::ids::seed()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("requests.sqlite");
+        let mut store = Store::open(&path).unwrap();
+        let tx = store.transaction().unwrap();
+        test_cases::insert(&tx, "race", "work", 0);
+        test_cases::insert(&tx, "conditional-race", "conditional", 0);
+        tx.commit().unwrap();
+        let mut stores = [Store::open(&path).unwrap(), Store::open(&path).unwrap()];
+        // Both connections discover the same candidate before the write race.
+        for store in &mut stores {
+            let tx = store.transaction().unwrap();
+            assert_eq!(
+                tx.due_requests(10, Some("work"), None, 1).unwrap(),
+                ["race"]
+            );
+            tx.rollback().unwrap();
+        }
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let handles: Vec<_> = stores.into_iter().enumerate().map(|(n, mut store)| {
+            let barrier = barrier.clone();
+            std::thread::spawn(move || {
+                barrier.wait();
+                let tx = store.transaction().unwrap();
+                let won = test_cases::claim_due(&tx, &format!("service:worker{n}"));
+                let conditional = tx.conn().execute("UPDATE _requests SET state = 'running' WHERE id = 'conditional-race' AND state = 'queued'", []).unwrap();
+                assert_eq!(conditional as u64, tx.conn().changes());
+                // Native conditional updates see the winner's committed state,
+                // including when this connection selected it before the fence.
+                assert_eq!(tx.conn().execute("UPDATE _requests SET state = 'failed' WHERE id = 'race' AND state = 'queued'", []).unwrap(), 0);
+                tx.commit().unwrap();
+                (won, conditional)
+            })
+        }).collect();
+        let winners: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
+        assert_eq!(winners.iter().filter(|(won, _)| *won).count(), 1);
+        let mut affected: Vec<_> = winners.iter().map(|(_, changed)| *changed).collect();
+        affected.sort();
+        assert_eq!(affected, [0, 1]);
+        let tx = store.transaction().unwrap();
+        let run = tx.request("race").unwrap().unwrap();
+        assert_eq!(run.state, "running");
+        assert_eq!(run.attempt, 1);
+        tx.rollback().unwrap();
+        drop(store);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn request_authority_and_lease_contract() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        tx.conn().execute_batch("INSERT INTO _sessions(token_digest, principal, kind, created_at, expires_at, family) VALUES ('admitting', 'alice', 'member', 0, 100, 'family'), ('delegated', 'alice', 'action', 10, 80, 'delegated')").unwrap();
+        test_cases::authority_and_lease(&tx);
     }
 }
