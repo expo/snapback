@@ -27,6 +27,14 @@ pub(crate) struct SessionRecord {
     pub expires_at: i64,
 }
 
+impl SessionRecord {
+    fn identity_is_valid(&self) -> bool {
+        crate::identity::refuse_nul(&[(&self.principal, "this session is not live; sign in again"),
+            (&self.kind, "this session is not live; sign in again"),
+            (&self.family, "this session is not live; sign in again")]).is_ok()
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct WorkRecord {
     pub principal: String,
@@ -85,7 +93,7 @@ pub(crate) fn admission_authority(
     let Some(session) = tx.session_by_digest(token_digest)? else {
         return Ok(AdmissionStanding::SessionNotLive);
     };
-    if session.scope != SessionScope::Full || session.principal != principal || session.expires_at <= now {
+    if !session.identity_is_valid() || session.scope != SessionScope::Full || session.principal != principal || session.expires_at <= now {
         return Ok(AdmissionStanding::SessionNotLive);
     }
     let generation = tx.principal_generation(principal)?;
@@ -110,17 +118,19 @@ pub(crate) fn family_authority_expiry(
     generation: i64,
     now: i64,
 ) -> Result<Option<i64>, RuntimeError> {
+    if crate::identity::refuse_nul(&[(principal, "identity is not live"), (family, "identity is not live")]).is_err() { return Ok(None); }
     let current_generation = tx.principal_generation(principal)?;
     let (mut family, mut generation, mut bound) = (family.to_owned(), generation, i64::MAX);
     let mut seen = std::collections::BTreeSet::new();
     loop {
-        if generation != current_generation || !seen.insert(family.clone()) {
+        if crate::identity::refuse_nul(&[(&family, "identity is not live")]).is_err()
+            || generation != current_generation || !seen.insert(family.clone()) {
             return Ok(None);
         }
         let Some(session) = tx.latest_live_family_member(principal, &family, now)? else {
             return Ok(None);
         };
-        if session.scope != SessionScope::Full { return Ok(None); }
+        if !session.identity_is_valid() || session.scope != SessionScope::Full { return Ok(None); }
         bound = bound.min(session.expires_at);
         if session.kind != "action" {
             return Ok(Some(bound));
@@ -152,6 +162,8 @@ pub(crate) fn work_authority_expiry(
     work: &WorkRecord,
     now: i64,
 ) -> Result<Option<i64>, RuntimeError> {
+    if crate::identity::refuse_nul(&[(&work.principal, "identity is not live"),
+        (work.admission.family.as_deref().unwrap_or(""), "identity is not live")]).is_err() { return Ok(None); }
     if let Some(generation) = work.service_generation {
         return Ok((tx.principal_generation(&work.principal)? == generation).then_some(i64::MAX));
     }
@@ -212,7 +224,7 @@ pub(crate) fn live_session(
     let Some(session) = tx.session_by_digest(digest)? else {
         return Ok(None);
     };
-    if session.expires_at <= now {
+    if !session.identity_is_valid() || session.expires_at <= now {
         return Ok(None);
     }
     // @ref LLP 3000.033#1.3 — revocation generations survive an older executable.
@@ -235,7 +247,7 @@ pub(crate) fn live_service_session(
     now: i64,
 ) -> Result<bool, RuntimeError> {
     Ok(tx.session_by_digest(digest)?.is_some_and(|session| {
-        session.scope == SessionScope::Full && session.principal == principal && session.kind == "service" && session.expires_at > now
+        session.identity_is_valid() && session.scope == SessionScope::Full && session.principal == principal && session.kind == "service" && session.expires_at > now
     }))
 }
 

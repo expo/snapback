@@ -1,150 +1,105 @@
-//! Pre-upgrade SQLite rows remain usable and revocable byte for byte.
+//! Pre-upgrade SQLite NUL identities fail closed without creating replacements.
 use crate::identity::*;
-use crate::{Store, authority::AuthorityTransaction};
+use crate::{Store, authority::{self, AdmissionStanding}, identity::test_cases::IdentityFixture};
 use rusqlite::params;
 
-fn seed(store: &Store) -> Session {
-    let session = Session {
-        principal: "member:old\0id".into(),
-        kind: "old\0kind".into(),
-        token: "legacy-bearer".into(),
-        expires_at: 1_000 + 7 * DAY_MS,
-        scope: SessionScope::Full,
-        cap_expires_at: None,
-    };
-    store
-        .conn()
-        .execute(
-            "INSERT INTO _principals(id,kind,created_at) VALUES (?1,?2,1000)",
-            params![session.principal, session.kind],
-        )
-        .unwrap();
-    store.conn().execute("INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES (?1,?2,?3,1000,?4,?5)",
-        params![digest(&session.token), session.principal, session.kind, session.expires_at, "old\0family"]).unwrap();
-    session
-}
-
 #[test]
-fn legacy_nul_principal_logout_all_advances_generation_and_revokes_bearers() {
-    let mut store = Store::memory().unwrap();
-    let full = seed(&store);
-    assert!(resolve(&store, &full.token, 2_000).unwrap().is_some());
-    let read = narrow_session(&mut store, &full.token, || ServiceSample {
-        now: 2_000,
-        supervisor_revision: 0,
-    })
-    .unwrap();
-    // /auth/logout-all resolves this same principal then calls revoke_principal.
-    assert_eq!(revoke_principal(&store, &full.principal).unwrap(), 2);
-    let tx = store.authority_transaction().unwrap();
-    assert_eq!(tx.principal_generation(&full.principal).unwrap(), 1);
-    tx.rollback().unwrap();
-    for token in [&full.token, &read.token] {
-        assert!(resolve(&store, token, 2_001).unwrap().is_none());
+fn legacy_nul_identity_never_authenticates_or_rotates_in_either_scope() {
+    for (principal, kind, family) in [
+        ("member:old\0id", "member", "family"),
+        ("member:old", "old\0kind", "family"),
+        ("member:old", "member", "old\0family"),
+        ("service:worker\0id", "service", "family"),
+        ("service:worker", "service", "old\0family"),
+    ] {
+        for scope in [SessionScope::Full, SessionScope::Read] {
+            let mut store = Store::memory().unwrap();
+            // Bypass current policy exactly as a pre-upgrade SQLite file does.
+            store.conn().execute("INSERT INTO _principals(id,kind,created_at) VALUES (?1,?2,1000)", params![principal, kind]).unwrap();
+            let token = if scope == SessionScope::Full { "legacy-bearer" } else { "ro.legacy-bearer" };
+            let token_digest = digest(token);
+            if scope == SessionScope::Full {
+                store.conn().execute("INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES (?1,?2,?3,1000,900000,?4)", params![token_digest, principal, kind, family]).unwrap();
+            } else {
+                super::initialize_read(store.conn()).unwrap();
+                store.conn().execute("INSERT INTO _read_sessions(token_digest,principal,kind,created_at,expires_at,family,cap_expires_at,principal_generation) VALUES (?1,?2,?3,1000,900000,?4,900000,0)", params![token_digest, principal, kind, family]).unwrap();
+            }
+            let before = store.identity_row_counts();
+            let changes = store.conn().total_changes();
+            let sample = ServiceSample { now: 2_000, supervisor_revision: 0 };
+            assert!(resolve(&store, token, sample.now).unwrap().is_none());
+            assert!(resolve_supervised(&store, token, sample).unwrap().is_none());
+            let store_id = store.store_id().unwrap();
+            assert!(resolve_read_only(&store, token, sample.now, Some(&store_id)).unwrap().is_none());
+            assert!(resolve_read_only_supervised(&store, token, sample, Some(&store_id)).unwrap().is_none());
+            assert!(current_service(&store, token, sample).unwrap().is_none());
+            let tx = store.authority_transaction().unwrap();
+            assert!(matches!(authority::admission_authority(&tx, &token_digest, principal, sample.now).unwrap(), AdmissionStanding::SessionNotLive));
+            assert!(!authority::live_service_session(&tx, &token_digest, principal, sample.now).unwrap());
+            assert!(authority::family_authority_expiry(&tx, principal, family, 0, sample.now).unwrap().is_none());
+            tx.rollback().unwrap();
+            assert!(rotate_session(&store, token, sample.now).unwrap().is_none());
+            for error in [
+                narrow_session(&mut store, token, || sample).unwrap_err(),
+                logout_session(&mut store, token, || sample.now).unwrap_err(),
+            ] {
+                assert_eq!(error.to_string(), "E_AUTH: this session is not live; sign in again");
+            }
+            let refusal = diagnostics::refused(&store, token, sample.now, false);
+            assert_eq!(refusal.message, "this session is not live; sign in again");
+            assert_eq!(store.identity_row_counts(), before);
+            assert_eq!(store.conn().total_changes(), changes, "NUL authority must not write");
+        }
     }
-    assert_eq!(revoke_principal(&store, &full.principal).unwrap(), 0);
-    let tx = store.authority_transaction().unwrap();
-    assert_eq!(tx.principal_generation(&full.principal).unwrap(), 2);
-    tx.rollback().unwrap();
 }
 
 #[test]
-fn legacy_nul_rotation_lookup_and_family_retirement_keep_exact_identity() {
-    let mut store = Store::memory().unwrap();
-    let full = seed(&store);
-    let next = rotate_session(&store, &full.token, 2_000).unwrap().unwrap();
-    assert_eq!((&next.principal, &next.kind), (&full.principal, &full.kind));
-    assert_eq!(
-        store
-            .full_rotation_record(&digest(&next.token), 2_000)
-            .unwrap()
-            .unwrap()
-            .family,
-        "old\0family"
-    );
-    let read = narrow_session(&mut store, &next.token, || ServiceSample {
-        now: 2_001,
-        supervisor_revision: 0,
-    })
-    .unwrap();
-    store
-        .conn()
-        .execute("UPDATE _read_sessions SET family = ?1", ["read\0family"])
-        .unwrap();
-    let rotated = rotate_session(&store, &read.token, 2_002).unwrap().unwrap();
-    assert_eq!(
-        (&rotated.principal, &rotated.kind),
-        (&full.principal, &full.kind)
-    );
-    assert_eq!(
-        store
-            .conn()
-            .query_row("SELECT family FROM _read_sessions", [], |r| r
-                .get::<_, String>(0))
-            .unwrap(),
-        "read\0family"
-    );
-    // Existing credential lookup/sign-in is not a new identity admission.
-    let prepared = prepare_signup("unused@example.com", "correct horse").unwrap();
-    store
-        .conn()
-        .execute(
-            "INSERT INTO _credentials(principal,email,hash) VALUES (?1,?2,?3)",
-            params![full.principal, "old\0mail@example.com", prepared.hash],
-        )
-        .unwrap();
-    let signed_in = login(&store, "OLD\0MAIL@example.com", "correct horse", 2_003).unwrap();
-    assert_eq!(signed_in.principal, full.principal);
-    let checked = credential(&store, "old\0mail@example.com")
-        .unwrap()
-        .unwrap();
-    assert_eq!(
-        finish_login_scoped(&store, checked, 2_003, SessionScope::Read)
-            .unwrap()
-            .principal,
-        full.principal
-    );
-    // Family logout accepts the stored principal/family, then worker retirement
-    // accepts an existing NUL family instead of turning it into an immortal seat.
-    logout_session(&mut store, &next.token, || 2_004).unwrap();
-    assert!(resolve(&store, &next.token, 2_004).unwrap().is_none());
-    store
-        .conn()
-        .execute("UPDATE _sessions SET family = ?1", ["worker\0family"])
-        .unwrap();
-    store.set_meta("worker:family:worker\0family", "0").unwrap();
-    revoke_worker_family(&store, Some("worker\0family")).unwrap();
-    assert!(resolve(&store, &signed_in.token, 2_004).unwrap().is_none());
-    assert!(
-        store
-            .meta("worker:family:worker\0family")
-            .unwrap()
-            .is_none()
-    );
+fn legacy_nul_credentials_cannot_sign_in_or_create_sessions() {
+    let store = Store::memory().unwrap();
+    store.conn().execute("INSERT INTO _principals(id,kind,created_at) VALUES (?1,'user',1000)", ["member:old\0id"]).unwrap();
+    for email in ["old\0mail@example.com", "plain@example.com"] {
+        // Separate stores are unnecessary: replace the one principal's credential.
+        store.conn().execute("INSERT OR REPLACE INTO _credentials(principal,email,hash) VALUES (?1,?2,'unused')", params!["member:old\0id", email]).unwrap();
+        let before = store.identity_row_counts();
+        let changes = store.conn().total_changes();
+        assert_eq!(credential(&store, email).err().unwrap().code(), "E_AUTH");
+        assert_eq!(login(&store, email, "correct horse", 2_000).unwrap_err().code(), "E_AUTH");
+        for scope in [SessionScope::Full, SessionScope::Read] {
+            assert_eq!(finish_login_scoped(&store, Credential { principal: "member:old\0id".into(), hash: "unused".into() }, 2_000, scope).unwrap_err().code(), "E_AUTH");
+        }
+        assert_eq!(store.identity_row_counts(), before);
+        assert_eq!(store.conn().total_changes(), changes);
+    }
 }
 
 #[test]
-fn nul_bound_worker_reports_the_malformed_value_before_sampling() {
+fn nul_identity_entry_points_refuse_before_sampling_or_writing() {
     let mut store = Store::memory().unwrap();
-    let binding = SessionMintBinding {
-        invocation_id: "invocation".into(),
-        intent: BOUND_SESSION_INTENT.into(),
-        replace_lost_delivery: false,
-    };
-    let error = bound_custom_session(
-        &mut store,
-        "unused",
-        "service:bad\0worker",
-        "lease",
-        "member:x",
-        "member",
-        || panic!("malformed worker must refuse before the writer"),
-        7,
-        &binding,
-    )
-    .unwrap_err();
-    assert_eq!(
-        error.to_string(),
-        "E_AUTH: a worker principal cannot contain U+0000"
-    );
+    // The target already exists: bound mint must still refuse before lookup.
+    store.conn().execute("INSERT INTO _principals(id,kind,created_at) VALUES (?1,'member',1000)", ["member:old\0id"]).unwrap();
+    let before = store.identity_row_counts();
+    let changes = store.conn().total_changes();
+    for (principal, kind, worker, invocation, code, message) in [
+        ("member:old\0id", "member", "service:worker", "invocation", "E_AUTH", "a principal is 1–128 printable characters"),
+        ("member:x", "mem\0ber", "service:worker", "invocation", "E_AUTH", "a session kind is 1–64 letters, digits, _ or -"),
+        ("member:x", "member", "service:bad\0worker", "invocation", "E_AUTH", "a worker principal cannot contain U+0000"),
+        ("member:x", "member", "service:worker", "inv\0ocation", "E_INPUT", "binding requires a valid invocationId and intent identity-session/v1"),
+    ] {
+        let binding = SessionMintBinding { invocation_id: invocation.into(), intent: BOUND_SESSION_INTENT.into(), replace_lost_delivery: true };
+        let error = bound_custom_session(&mut store, "unused", worker, "lease", principal, kind,
+            || panic!("NUL identity must refuse before the writer"), 7, &binding).unwrap_err();
+        assert_eq!(error.to_string(), format!("{code}: {message}"));
+    }
+    for error in [
+        open_session(&store, "member:\0new", "member", 2_000).unwrap_err(),
+        custom_session(&store, "member:\0new", "member", 2_000, 7).unwrap_err(),
+        custom_session(&store, "member:new", "mem\0ber", 2_000, 7).unwrap_err(),
+        service_session(&store, "bad\0worker", 2_000, 7).unwrap_err(),
+        mint_supervised_child(&store, Some("bad\0worker"), 2_000, 0).unwrap_err(),
+        revoke_principal(&store, "member:\0ghost").unwrap_err(),
+        revoke_principal(&store, "member:old\0id").unwrap_err(),
+        revoke_worker_family(&store, Some("old\0family")).unwrap_err(),
+    ] { assert_eq!(error.code(), "E_AUTH"); }
+    assert_eq!(store.identity_row_counts(), before);
+    assert_eq!(store.conn().total_changes(), changes);
 }

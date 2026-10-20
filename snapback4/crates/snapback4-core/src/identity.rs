@@ -146,6 +146,7 @@ pub fn revoke_worker_family(store: &Store, family: Option<&str>) -> Result<(), R
 }
 
 fn revoke_worker_family_in(store: &impl IdentityStore, family: Option<&str>) -> Result<(), RuntimeError> {
+    refuse_nul(&[(family.unwrap_or(""), "a session family cannot contain U+0000")])?;
     store.revoke_worker_family(family)
 }
 
@@ -158,6 +159,7 @@ pub fn mint_supervised_child(
 ) -> Result<Session, RuntimeError> {
     let named = name.is_some();
     let name = name.unwrap_or("worker");
+    refuse_nul(&[(name, "a service name is 1–64 letters, digits, _ or -")])?;
     if !valid_name(name) {
         return Err(RuntimeError::Auth("a service name is 1–64 letters, digits, _ or -".into()));
     }
@@ -286,9 +288,9 @@ pub(crate) fn digest(token: &str) -> String {
     format!("{:x}", Sha256::digest(token.as_bytes()))
 }
 
-// Existing stored identities may contain NUL on legacy SQLite stores. Token
-// replacement preserves them; admission boundaries validate new identities.
 fn new_session(principal: &str, kind: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
+    refuse_nul(&[(principal, "a principal is 1–128 printable characters"),
+        (kind, "a session kind is 1–64 letters, digits, _ or -")])?;
     Ok(Session {
         principal: principal.to_owned(),
         kind: kind.to_owned(),
@@ -302,7 +304,6 @@ fn new_session(principal: &str, kind: &str, now: i64, days: i64) -> Result<Sessi
 /// Mint a session for a principal; returns the token exactly once.
 pub fn open_session(store: &Store, principal: &str, kind: &str, now: i64,
 ) -> Result<Session, RuntimeError> {
-    validate_new_identity(principal, kind)?;
     let session = new_session(principal, kind, now, SESSION_DAYS)?;
     store.insert_identity_session(&session, now)?;
     Ok(session)
@@ -312,6 +313,7 @@ pub fn open_session(store: &Store, principal: &str, kind: &str, now: i64,
 /// claim transaction and deletes it in the settlement transaction.
 // @ref LLP 3000.007#9.2 — the worker borrows the request principal only for its lease.
 pub(crate) fn action_session(tx: &impl IdentityTransaction, principal: &str, now: i64, expires_at: i64) -> Result<Session, RuntimeError> {
+    refuse_nul(&[(principal, "an action needs a signed-in principal")])?;
     if principal == crate::SYSTEM_PRINCIPAL || !crate::value::identity_fits(principal) {
         return Err(RuntimeError::Auth("an action needs a signed-in principal".into()));
     }
@@ -384,6 +386,9 @@ fn rotate_session_in(store: &impl IdentityStore, old_token: &str, now: i64) -> R
         store.delete_expired_identity_session(&old_digest, now)?;
         return Ok(None);
     };
+    if refuse_nul(&[(&principal, "a principal is 1–128 printable characters"),
+        (&kind, "a session kind is 1–64 letters, digits, _ or -"),
+        (&family, "a session family cannot contain U+0000")]).is_err() { return Ok(None); }
     if kind == "action" {
         return Err(RuntimeError::Auth("an action session lasts only for its claim and cannot be refreshed".into()));
     }
@@ -415,18 +420,16 @@ pub fn normalized_email(email: &str) -> String {
     email.trim().to_ascii_lowercase()
 }
 
-fn refuse_nul(value: &str, message: &str) -> Result<(), RuntimeError> {
-    if value.contains('\0') { return Err(RuntimeError::Auth(message.into())); }
+// @ref LLP 3000.009.001.000#9.1 — identity fails closed on both stores, including pre-upgrade SQLite rows.
+pub(crate) fn refuse_nul(values: &[(&str, &str)]) -> Result<(), RuntimeError> {
+    for (value, message) in values {
+        if value.contains('\0') { return Err(RuntimeError::Auth((*message).into())); }
+    }
     Ok(())
 }
 
-fn validate_new_identity(principal: &str, kind: &str) -> Result<(), RuntimeError> {
-    refuse_nul(principal, "a principal is 1–128 printable characters")?;
-    refuse_nul(kind, "a session kind is 1–64 letters, digits, _ or -")
-}
-
 fn validate_bound_worker(worker: &str) -> Result<(), RuntimeError> {
-    refuse_nul(worker, "a worker principal cannot contain U+0000")
+    refuse_nul(&[(worker, "a worker principal cannot contain U+0000")])
 }
 pub fn password_bound(password: &str) -> Result<(), RuntimeError> {
     if password.len() > PASSWORD_MAX_BYTES {
@@ -450,7 +453,8 @@ pub struct Credential {
 // @ref LLP 3000#7-decisions-during-execution — KDF work has no engine or database guard
 pub fn prepare_signup(email: &str, password: &str) -> Result<PreparedSignup, RuntimeError> {
     let email = normalized_email(email);
-    if !email.contains('@') || email.len() > 254 || email.contains('\0') {
+    refuse_nul(&[(&email, "an email address is needed")])?;
+    if !email.contains('@') || email.len() > 254 {
         return Err(RuntimeError::Auth("an email address is needed".into()));
     }
     password_bound(password)?;
@@ -480,7 +484,7 @@ pub fn finish_signup_scoped(store: &Store, prepared: PreparedSignup, now: i64, e
 }
 
 fn finish_signup_in(store: &impl IdentityStore, prepared: PreparedSignup, now: i64, entropy: &mut crate::ids::Mint, scope: SessionScope) -> Result<Session, RuntimeError> {
-    refuse_nul(&prepared.email, "an email address is needed")?;
+    refuse_nul(&[(&prepared.email, "an email address is needed")])?;
     let principal = format!("user:{}", crate::ids::mint(now, entropy)?);
     let session = read_sessions::scoped_session(&principal, "user", now, scope)?;
     store.signup_identity(&prepared, &session, now, |taken| {
@@ -507,7 +511,12 @@ pub fn credential(store: &Store, email: &str) -> Result<Option<Credential>, Runt
 }
 
 fn credential_in(store: &impl IdentityStore, email: &str) -> Result<Option<Credential>, RuntimeError> {
-    store.identity_credential(&normalized_email(email))
+    refuse_nul(&[(email, "an email address is needed")])?;
+    let found = store.identity_credential(&normalized_email(email))?;
+    if let Some(checked) = &found {
+        refuse_nul(&[(&checked.principal, "a principal is 1–128 printable characters")])?;
+    }
+    Ok(found)
 }
 
 /// A syntactically valid default-cost Argon2id hash; its deliberately random
@@ -538,7 +547,7 @@ pub fn finish_login_scoped(store: &Store, checked: Credential, now: i64, scope: 
 }
 
 fn finish_login_in(store: &impl IdentityStore, checked: Credential, now: i64, scope: SessionScope) -> Result<Session, RuntimeError> {
-    let session = read_sessions::existing_scoped_session(&checked.principal, "user", now, scope)?;
+    let session = read_sessions::scoped_session(&checked.principal, "user", now, scope)?;
     store.login_identity(&checked.principal, &session, now, |current| {
         if current.as_deref() != Some(checked.hash.as_str()) { return Err(bad_login()); }
         Ok(())
@@ -668,6 +677,7 @@ fn valid_name(name: &str) -> bool {
 /// A session for the service `name`, `days` long: what `snapback4 token
 /// --service name` prints once and a worker keeps.
 pub fn service_session(store: &Store, name: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
+    refuse_nul(&[(name, "a service name is 1–64 letters, digits, _ or -")])?;
     if !valid_name(name) {
         return Err(RuntimeError::Auth("a service name is 1–64 letters, digits, _ or -".into()));
     }
@@ -685,7 +695,8 @@ pub fn custom_session(store: &Store, principal: &str, kind: &str, now: i64, days
 }
 
 pub fn validate_custom_session(principal: &str, kind: &str) -> Result<(), RuntimeError> {
-    refuse_nul(principal, "a principal is 1–128 printable characters")?;
+    refuse_nul(&[(principal, "a principal is 1–128 printable characters"),
+        (kind, "a session kind is 1–64 letters, digits, _ or -")])?;
     if principal == crate::SYSTEM_PRINCIPAL || RESERVED_PREFIXES.iter().any(|prefix| principal.starts_with(prefix)) {
         return Err(RuntimeError::Auth(format!("{principal} is a principal the engine mints itself; name the account in your own namespace (`member:42`)")));
     }
@@ -699,7 +710,6 @@ pub fn validate_custom_session(principal: &str, kind: &str) -> Result<(), Runtim
 }
 
 fn open_session_for(store: &impl IdentityStore, principal: &str, kind: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
-    validate_new_identity(principal, kind)?;
     let session = new_session(principal, kind, now, days)?;
     store.insert_identity_session(&session, now)?;
     Ok(session)
@@ -713,8 +723,11 @@ pub struct SessionMintBinding {
 }
 
 fn validate_mint_binding(binding: &SessionMintBinding) -> Result<(), RuntimeError> {
+    refuse_nul(&[(&binding.invocation_id, "binding requires a valid invocationId and intent identity-session/v1"),
+        (&binding.intent, "binding requires a valid invocationId and intent identity-session/v1")])
+        .map_err(|_| RuntimeError::Input("binding requires a valid invocationId and intent identity-session/v1".into()))?;
     if binding.intent != BOUND_SESSION_INTENT || binding.invocation_id.is_empty() || binding.invocation_id.len() > 128
-        || !crate::value::identity_fits(&binding.invocation_id) || binding.invocation_id.contains('\0')
+        || !crate::value::identity_fits(&binding.invocation_id)
     {
         return Err(RuntimeError::Input("binding requires a valid invocationId and intent identity-session/v1".into()));
     }
@@ -793,7 +806,7 @@ pub fn bound_custom_session(
             if previous.expires_at <= now || previous.principal_generation != target_generation {
                 return Err(session_mint_authority_error("the bound session authority expired or was revoked and cannot be recreated"));
             }
-            let family_is_live = tx.latest_live_family_member(principal, &previous.family, now)?.is_some();
+            let family_is_live = authority::family_authority_expiry(&tx, principal, &previous.family, target_generation, now)?.is_some();
             if !family_is_live {
                 return Err(session_mint_authority_error("the bound session family is no longer live and cannot be recreated"));
             }
@@ -817,6 +830,7 @@ pub fn revoke_principal(store: &Store, principal: &str) -> Result<u64, RuntimeEr
 }
 
 fn revoke_principal_in(store: &impl IdentityStore, principal: &str) -> Result<u64, RuntimeError> {
+    refuse_nul(&[(principal, "a principal is 1–128 printable characters")])?;
     store.revoke_identity_principal(principal)
 }
 

@@ -99015,3 +99015,78 @@ refusals. Full consumer qualification remains the explicit 8d2633e8c1 snapshot;
 this later native delta has affected-scope packed verification, not a relabeled
 full battery or publication receipt. Sanitized results: outbox-followup.json
 under reports/integration19-storage-port/. No Mac/private-Postgres claim.
+### 2026-10-21 — P1-ID-NUL: identity deliberately fails closed
+
+Implements LLP 3000.009.001.000 §9.1 rule 1 above main 1791e1a22b.
+Round 2's preservation of pre-upgrade SQLite NUL identities is withdrawn:
+NUL principal, kind or family makes a stored full/read session not live.
+This is a deliberate SQLite behavior change. Such identities cannot sign in,
+refresh, narrow or authenticate for logout-all; direct revoke refuses without
+installing a generation tombstone. Postgres cannot store those text rows.
+
+One shared identity helper refuses NUL at mint, credential lookup, action
+session, bound mint, principal revoke and worker-family revoke boundaries.
+Shared authority also rejects NUL in bearer, service, admission and family
+resolution. The legacy-only scoped-session constructor is removed. Stored
+NUL refresh returns absent, preserving the ordinary host not-live refusal.
+The sole engine/actions.rs production edit adds a viewer NUL refusal at the
+start of request_action, before replay or storage. Neither actions/requests.rs
+nor postgres/requests.rs is edited; identity_fits keeps its general value-size
+semantics. No ratchet or allowlist is raised.
+
+Two legacy-success tests and the old bound-worker-only fixture are replaced
+by three fail-closed fixtures: each identity field and bearer scope, stored
+credentials, and bound/public entry points with no writes or clock sampling.
+The shared SQLite/Postgres refusal case checks all six identity table counts,
+including revoke_principal of unknown member:\0ghost on an empty store and
+action_session for member:\0new. An action admission integration test proves
+that never-stored viewer creates no request, principal, generation or session
+and supplies no claim. Verification results follow when complete.
+
+### 2026-10-21 — P1-ID-NUL verification
+
+All work stayed in this worktree on sb4-pg/p1-identity-nul above 1791e1a22b,
+with one worker, no sub-agents, clone, remote-machine command, stash or push.
+Every Cargo invocation used the supplied target, incremental/debug settings
+and at most 24 build jobs. Observed free disk stayed above 25 GB (74 GB at
+completion). Neither requests family file nor any ratchet/allowlist changed.
+
+- cargo test -p snapback4-core passes every target, including all 17
+  doctests. The expanded shared NUL case and all three fail-closed SQLite
+  fixtures pass. The new never_stored_nul_viewer_is_refused_before_action_admission
+  case passes, with no request, principal, generation or session written.
+- cargo test -p snapback4 --no-fail-fast passes every target. All five
+  store-port ratchet cases pass. The three named possible baseline failures
+  (w11r1c_toolchain_why_explains_node_start_failure_too,
+  farm2_typescript_7_is_refused_by_version_not_crashed_on and
+  web_witness_help_and_invalid_input) all pass in this environment.
+  pre_upgrade_nul_principal_bearers_get_the_existing_auth_refusal proves
+  HTTP 401/E_AUTH with the existing not-live text and no writes for both
+  bearer scopes on query, refresh, narrow, logout and logout-all.
+- The unmodified full scripts/test-postgres.sh passes: 138 passed,
+  0 failed, 0 ignored (58 evaluation, 61 core adapter, 19 corpus tests).
+  shared_nul_inputs_refused executes on Postgres, including unknown
+  member:\0ghost revoke with all six identity table counts unchanged and
+  refusal of action_session for member:\0new. The sole cluster started
+  was /tmp/sb4-pg-eval.MsdEeP. Script cleanup stopped it; an independent
+  pg_ctl status returned 3 (no server running), and postmaster.pid is absent.
+- The exact requested Clippy command fails on the inherited default-deny
+  while_immutable_condition in engine/read.rs:780 and never_loop in
+  engine/row_views.rs:1013. These files and device/ffi.rs are unchanged
+  from 1791e1a22b. A follow-up allowing only those two lint classes and the
+  previously documented not_unsafe_ptr_arg_deref class completes. No warning
+  points into added lines; warnings in modified files point to unchanged
+  code. No source lint suppression was added.
+- Root ref-check passes: 564 LLP documents, 11,513 references, 0 errors,
+  0 unchecked. The RFC keeps exactly one Revised line with P1-ID-NUL
+  prepended. git diff --check passes.
+
+Removed the round-2 success cases
+legacy_nul_principal_logout_all_advances_generation_and_revokes_bearers and
+legacy_nul_rotation_lookup_and_family_retirement_keep_exact_identity.
+Their replacements are legacy_nul_identity_never_authenticates_or_rotates_in_either_scope
+and legacy_nul_credentials_cannot_sign_in_or_create_sessions. The old
+nul_bound_worker_reports_the_malformed_value_before_sampling is expanded into
+nul_identity_entry_points_refuse_before_sampling_or_writing. All checks are
+against the final semantic delta; no identity fix remains deferred. PostgreSQL
+host wiring and the internal migration runner remain outside this lane.

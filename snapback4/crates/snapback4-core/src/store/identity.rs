@@ -459,6 +459,12 @@ impl crate::identity::test_cases::IdentityFixture for Store {
     fn principal_ids(&self) -> Vec<String> {
         self.conn.prepare("SELECT id FROM _principals ORDER BY id").unwrap().query_map([], |r| r.get(0)).unwrap().collect::<Result<_, _>>().unwrap()
     }
+    fn identity_row_counts(&self) -> [i64; 6] {
+        ["_principals", "_principal_generations", "_sessions", "_read_sessions", "_credentials", "_session_mint_bindings"].map(|table| {
+            if table == "_read_sessions" && !present(&self.conn).unwrap() { return 0; }
+            self.conn.query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0)).unwrap()
+        })
+    }
     fn null_full_family(&self, digest: &str) {
         self.conn.execute("UPDATE _sessions SET family = NULL WHERE token_digest = ?1", [digest]).unwrap();
     }

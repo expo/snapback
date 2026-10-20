@@ -165,6 +165,7 @@ pub(super) fn insert_spec(tx: &Tx<'_>, program: &Program, id: &str, context: &Co
 impl Engine {
     // @ref LLP 3000.007#9.2 — durable action admission precedes the worker and survives retries by id.
     pub fn request_action(&mut self, name: &str, id: &str, mut context: Context) -> Result<(ActionRequest, bool), RuntimeError> {
+        identity::refuse_nul(&[(&context.viewer, "an action needs a signed-in principal")])?;
         if context.viewer == crate::SYSTEM_PRINCIPAL || !crate::value::identity_fits(&context.viewer) {
             return Err(RuntimeError::Auth("an action needs a signed-in principal".into()));
         }

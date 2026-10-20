@@ -37,6 +37,35 @@ fn snapshot(h: &Host) -> String {
     format!("{values:?}")
 }
 #[test]
+fn pre_upgrade_nul_principal_bearers_get_the_existing_auth_refusal() {
+    use snapback4_core::identity::{self, SessionScope, ServiceSample};
+    for scope in [SessionScope::Full, SessionScope::Read] {
+        let mut store = Store::memory().unwrap();
+        let full = identity::open_session(&store, "member:legacy", "member", NOW).unwrap();
+        let token = if scope == SessionScope::Full { full.token } else {
+            identity::narrow_session(&mut store, &full.token, || ServiceSample { now: NOW, supervisor_revision: 0 }).unwrap().token
+        };
+        // Model a pre-upgrade SQLite identity, bypassing current admission.
+        store.conn().execute("UPDATE _principals SET id = ?1", ["member:\0legacy"]).unwrap();
+        let table = if scope == SessionScope::Full { "_sessions" } else { "_read_sessions" };
+        store.conn().execute(&format!("UPDATE {table} SET principal = ?1"), ["member:\0legacy"]).unwrap();
+        let h = Host::with_store(false, store, super::SCHEMA);
+        lock(&h.shared.clock).freeze(NOW);
+        let before = snapshot(&h);
+        let changes = lock(&h.shared.engine).store().conn().total_changes();
+        let header = format!("Authorization: Bearer {token}\r\n");
+        for path in ["/q/who", "/auth/logout", "/auth/logout-all", "/auth/narrow", "/auth/refresh"] {
+            let response = h.request("POST", path, &header, "{}");
+            assert_eq!(status(&response), 401, "{path}: {response}");
+            assert_eq!(body(&response)["denied"]["code"], "E_AUTH");
+            assert!(response.contains("this session is not live; sign in again"), "{response}");
+        }
+        assert_eq!(snapshot(&h), before);
+        assert_eq!(lock(&h.shared.engine).store().conn().total_changes(), changes);
+    }
+}
+
+#[test]
 fn guard_barriers_replay_and_http_parity() {
     let h=host(); let session=narrowed(&h); let read=headers(&session);
     for path in ["/m/edit","/m/typeNow","/a/external","/assets","/declared","/actions/claim","/effects/claim","/effects/settle","/routes/verify/claim","/auth/session","/auth/narrow","/auth/revoke","/auth/logout-all","/seed","/dev/clock/advance","/future-route","/following/cards"] {

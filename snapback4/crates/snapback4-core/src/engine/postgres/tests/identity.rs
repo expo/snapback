@@ -122,6 +122,12 @@ impl IdentityFixture for RefCell<&mut Store> {
         })
         .unwrap()
     }
+    fn identity_row_counts(&self) -> [i64; 6] {
+        self.with_identity_tx(|tx| {
+            let row = &tx.query("SELECT (SELECT count(*) FROM _principals), (SELECT count(*) FROM _principal_generations), (SELECT count(*) FROM _sessions), (SELECT count(*) FROM _read_sessions), (SELECT count(*) FROM _credentials), (SELECT count(*) FROM _session_mint_bindings)", &[])?[0];
+            Ok([row.get(0), row.get(1), row.get(2), row.get(3), row.get(4), row.get(5)])
+        }).unwrap()
+    }
     fn null_full_family(&self, digest: &str) {
         self.with_identity_tx(|tx| {
             tx.execute(

@@ -271,20 +271,35 @@ pub(crate) trait IdentityFixture: RotationFixture {
     ) -> Result<T, RuntimeError>;
     fn principal_facts(&self, principal: &str) -> Option<(String, Option<String>, i64)>;
     fn principal_ids(&self) -> Vec<String>;
+    fn identity_row_counts(&self) -> [i64; 6];
     fn null_full_family(&self, digest: &str);
     fn set_worker_meta(&self, key: &str, value: &str);
     fn worker_meta(&self, key: &str) -> Option<String>;
 }
 
 pub(crate) fn assert_nul_inputs_refused(store: &impl IdentityFixture) {
+    // Unknown principal: refusal must not install a generation tombstone.
+    let empty = store.identity_row_counts();
+    assert_eq!(empty, [0; 6]);
+    assert_eq!(revoke_principal_in(store, "member:\0ghost").unwrap_err().code(), "E_AUTH");
+    assert_eq!(store.identity_row_counts(), empty);
     let mut expired = new_session("member:untouched", "member", 1_000, 7).unwrap();
     expired.expires_at = 1_001;
     store.insert_identity_session_atomic(&expired, 1_000).unwrap();
+    let before = store.identity_row_counts();
     let principal_message = "a principal is 1–128 printable characters";
     let kind_message = "a session kind is 1–64 letters, digits, _ or -";
     for (error, message) in [
         (prepare_signup("a\0b@example.com", "correct horse").err().unwrap(), "an email address is needed"),
         (finish_signup_in(store, PreparedSignup { email: "a\0b@example.com".into(), hash: "unused".into() }, 2_000, &mut crate::ids::Mint::default(), SessionScope::Full).unwrap_err(), "an email address is needed"),
+        (new_session("member:\0new", "member", 2_000, 7).unwrap_err(), principal_message),
+        (new_session("member:new", "mem\0ber", 2_000, 7).unwrap_err(), kind_message),
+        (credential_in(store, "a\0b@example.com").err().unwrap(), "an email address is needed"),
+        (finish_login_in(store, Credential { principal: "member:\0x".into(), hash: "unused".into() }, 2_000, SessionScope::Full).unwrap_err(), principal_message),
+        (finish_login_in(store, Credential { principal: "member:\0x".into(), hash: "unused".into() }, 2_000, SessionScope::Read).unwrap_err(), principal_message),
+        (revoke_principal_in(store, "member:\0ghost").unwrap_err(), principal_message),
+        (revoke_worker_family_in(store, Some("worker\0family")).unwrap_err(), "a session family cannot contain U+0000"),
+        (store.with_identity_tx(|tx| action_session(tx, "member:\0new", 2_000, 3_000)).unwrap_err(), "an action needs a signed-in principal"),
         (validate_custom_session("member:\0x", "member").unwrap_err(), principal_message),
         (validate_custom_session("member:x", "mem\0ber").unwrap_err(), kind_message),
         (open_session_for(store, "member:\0x", "member", 2_000, 7).unwrap_err(), principal_message),
@@ -295,6 +310,7 @@ pub(crate) fn assert_nul_inputs_refused(store: &impl IdentityFixture) {
         assert_eq!(error.code(), "E_AUTH", "malformed identity must never reach a driver");
         assert_eq!(error.to_string(), format!("E_AUTH: {message}"));
     }
+    assert_eq!(store.identity_row_counts(), before, "refused identity entries must not add or delete any rows");
     assert!(!valid_name("worker\0x"));
     for (invocation, intent) in [("inv\0ocation", BOUND_SESSION_INTENT), ("invocation", "identity-session/v1\0")] {
         let error = validate_mint_binding(&SessionMintBinding {
