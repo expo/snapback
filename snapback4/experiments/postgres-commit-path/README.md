@@ -890,9 +890,15 @@ recover disk space. Raw results and server/cleanup logs remain here.
 
 ## S1b: real network and round-trip reduction
 
+**Outcome:** the C=32 **model sizing rule clears** on this host: predicted
+(a) is 3,692/s at the current boundary, or 4,256/s after batching reads,
+against the same-host 2,945/s requirement. Larger C=64/128 budgets fail the
+same-C ratio rule even with reduced k: the commit stage binds. Minimal
+`k_exec` is **2**. These are statement models, not an implemented committer.
+
 S1b extends these separate-stage **statement models**, without changing the
 engine. `scripts/s1b.py` connects from `expo-build-450b` to the existing durable
-Postgres 16.15 on `expo-build-450a` (12 cores) through independent SSH local
+Postgres 16.15 on `expo-build-450a` (6 physical cores / 12 logical CPUs) through independent SSH local
 forwards. It creates and finally drops one `sb4_s1b_<UTC timestamp>_<pid>`
 database per invocation; the cluster and other databases are never changed.
 Each physical database connection, including admin and sampling connections,
@@ -980,3 +986,169 @@ stopped. That failed setup is retained. The runner now defaults to local
 ports 62000–62143, outside this host's ephemeral range (32768–60999);
 `S1B_TUNNEL_BASE` may select another free range. This changes no server,
 transport, timeout, durability or workload setting.
+
+### Full-window measurements
+
+The completed sweep is in [`results-20261020-s1b-network/`](./results-20261020-s1b-network/),
+with source commit and source/binary SHA-256s in `ownership.json`. Both hosts
+are Ryzen 5 3600 machines (6 physical cores, 12 logical CPUs). The supplied
+cluster has 8 GiB shared buffers, max_connections=300 and fdatasync; fsync,
+synchronous_commit and full_page_writes are on. These are recorded settings,
+not changes made by the experiment. The same tunnel pool is reused between
+serialized cell processes; each live connection has its own SSH stream.
+
+Standalone SELECT 1, median of three: **p50 580.1 µs; p99 724.6 µs**.
+Run p50s: 598.3, 580.1, 565.2 µs; run p99s: 849.4, 711.0, 724.6 µs.
+The full derived tables retain each setting's before/after RTT, all-run rate
+spread, median/worst p99, and CPU: [tables](./results-20261020-s1b-network/tables.md).
+RTT calibration is unloaded, before and after each setting; operation latency
+captures loaded scheduling and transport.
+
+Execution stage, median executions/s (all eight reads preserved):
+
+| C | Baseline, k=10 | k1, k=4 | k2, k=4 | k3p, k=2 | k3, k=2 |
+|---:|---:|---:|---:|---:|---:|
+| 8 | 1,218 | — | — | — | — |
+| 16 | 2,275 | — | — | — | — |
+| 32 | 3,692 | 376 | 6,969 | 381 | 9,544 |
+| 64 | 4,460 | 767 | 8,149 | 776 | 9,640 |
+| 128 | 4,537 | 1,580 | 7,935 | 1,616 | 9,378 |
+
+The minimal achieved `k_exec` is **2**, using k3's SimpleQuery flights.
+Its worst-run execution p99 is 6.54 ms at C=32, 18.57 ms at C=64, 46.73 ms at C=128.
+The timer's calls field counts SQL commands here: k3 has four commands but
+two frontend requests/flights. Nominal flight count alone does not predict
+performance: k1 and k3p retain roughly 80 ms execution latency even though
+they pipeline requests. Their backend samples are predominantly ClientRead
+across idle and idle-in-transaction sessions. The difference from k3 is
+protocol-sensitive; small-message buffering/delayed acknowledgement is a
+plausible explanation, not an isolated root cause. No TCP settings were changed.
+
+Raw durable controls, median commits/s. The disjoint control is the fixed W4
+denominator; 1% hot is diagnostic and never substitutes for it.
+
+| C | Disjoint | 1% hot | Disjoint worst p99 ms | Required: max(2,000, 0.5 × disjoint) |
+|---:|---:|---:|---:|---:|
+| 32 | 5,890 | 6,066 | 7.18 | 2,945 |
+| 64 | 12,388 | 11,810 | 14.15 | 6,194 |
+| 128 | 24,383 | 18,560 | 7.23 | 12,191 |
+
+These are the same-host equivalents of S1a's 17,730/s target. The old absolute
+number came from a different raw control (35,460/s on the EPYC host and delay
+proxy) and is not the required rate on this host.
+
+### Full-write-set commit stage and re-sizing
+
+Values are median stream operations/s / **worst run write p99 ms**. A batch
+qualifies only when every run has p99 ≤ 100 ms, as in the S1a table script.
+Queueing and durable acknowledgement are included; batch fill delay for an
+external arrival stream and execution are absent.
+
+| N | 0% non-head | 10% non-head | 30% non-head |
+|---:|---:|---:|---:|
+| 1 | 180 / 62.63 | 182 / 63.43 | 182 / 62.31 |
+| 4 | 688 / 52.13 | 686 / 51.50 | 658 / 51.92 |
+| 16 | 2,064 / 60.49 | 2,088 / 60.07 | 2,080 / 58.00 |
+| 64 | 4,256 / 87.68 | 4,528 / 84.01 | 4,592 / 96.80 |
+
+All twelve commit settings qualify. N=64 is best at each mix. **W4 uses the
+0% non-head result, 4,256/s**; the 10% and 30% mixtures are sensitivity cells,
+with different work, and never replace that denominator-matching stage.
+The cold first N=64 pure-counter run is **2,000/s**, followed by **4,256/s**
+and **4,368/s**. The first-run FK-plan effect is retained in the median and
+spread, not tuned away; its write p99 is 87.68 ms. The sizing pass is a
+three-run-median result, not a claim that every run clears the rate bar.
+
+Apply §8 with `predicted(a) = min(execution, 4,255.93)` and
+`required(C) = max(2,000, 0.5 × raw_disjoint(C))`. These are isolated-stage
+models with a commit-stage p99 check, not a combined end-to-end SLO proof.
+
+| Lever | C | Predicted (a)/s | Required/s | Margin/s | Margin % | §8 model verdict |
+|---|---:|---:|---:|---:|---:|---|
+| Current boundary | 32 | 3,692 | 2,945 | +747 | +25.4% | CLEARS |
+| Reduce k: k2 or k3 | 32 | 4,256 | 2,945 | +1,311 | +44.5% | CLEARS |
+| Raise C only | 64 | 4,256 | 6,194 | -1,938 | -31.3% | DO NOT BUILD at this C |
+| Raise C only | 128 | 4,256 | 12,191 | -7,935 | -65.1% | DO NOT BUILD at this C |
+| Reduce k + raise C | 64 | 4,256 | 6,194 | -1,938 | -31.3% | DO NOT BUILD at this C |
+| Reduce k + raise C | 128 | 4,256 | 12,191 | -7,935 | -65.1% | DO NOT BUILD at this C |
+
+**Reduced k clears the C=32 rule:** k2 and k3 both predict 4,256/s, 72.3%
+of raw and 44.5% above the required 50%-of-raw rate. k3's faster execution
+does not raise the predicted ceiling past k2 because commit now binds.
+**The baseline also clears on this host**, at 3,692/s, 25.4% above its
+same-host requirement; the historical S1a DO NOT BUILD was a different
+host/control result. Raising C to 64 or 128, alone or together with reduced
+k, fails: the unchanged commit stage is below the larger same-C raw bar.
+k1 and k3p fail at every C, including the absolute 2,000/s requirement.
+This clears a model-sizing condition at C=32; it is not engine qualification.
+
+### Saturation and waits
+
+CPU below is whole-host us+sy, as **block mean / peak one-second interval**.
+Blocks include fixture setup and warm-up, which lower the mean relative to
+the busy measured intervals. These are PG + SSH + other host work, not a
+Postgres-only CPU profile. Wait percentages are sampled backend states, not
+percentages of CPU time; a null wait event is labelled CPU by the S0 sampler.
+
+| Work | C | 450a CPU % mean / peak | 450b CPU % mean / peak | Leading backend wait/state |
+|---|---:|---:|---:|---|
+| k2 | 32 | 33.7 / 74 | 34.1 / 64 | Client:ClientRead:idle in transaction, 58.2% |
+| k2 | 64 | 41.3 / 92 | 23.5 / 49 | Client:ClientRead:idle in transaction, 42.7% |
+| k2 | 128 | 45.0 / 97 | 26.9 / 57 | Client:ClientRead:idle in transaction, 34.6% |
+| k3 | 32 | 40.2 / 89 | 17.5 / 39 | CPU:-:active, 30.9% |
+| k3 | 64 | 44.7 / 98 | 18.2 / 39 | CPU:-:active, 31.7% |
+| k3 | 128 | 45.5 / 99 | 18.7 / 36 | CPU:-:active, 30.1% |
+| raw | 32 | 22.6 / 32 | 17.5 / 22 | LWLock:WALWrite:active, 79.5% |
+| raw | 64 | 26.9 / 30 | 26.7 / 29 | LWLock:WALWrite:active, 82.8% |
+| raw | 128 | 51.8 / 56 | 37.9 / 50 | LWLock:WALWrite:active, 79.2% |
+
+**There is no single connection count that saturates every workload.**
+For k3 execution, C=32 is already near the ceiling: C=64 adds just 1.0%,
+with database-host CPU reaching 98%; C=128 reaches 99% and loses 2.7% in
+throughput. Its active/no-explicit-wait samples are about 30–32%. k2 peaks
+at C=64 (92% peak host CPU); C=128 reaches 97% and adds no throughput.
+These observations put the execution/SSH CPU knee around C=32–64.
+Additional execution connections do not improve the observed rate.
+
+Raw disjoint Postgres still scales about 2× from 32 to 64 to 128 writers;
+**its throughput plateau is not reached by C=128**. WALWrite dominates: 79.5% at C=32, 82.8% at C=64, 79.2% at C=128.
+The 1% hot control reaches 18,560/s at C=128, 24% below disjoint, with
+additional row-lock waits; it is a different ceiling from disjoint execution.
+The commit stage has one database connection, regardless of the execution
+budget. More execution connections cannot raise that stage's rate.
+
+
+### S1b caveats and custody
+
+1. **Models and separate stages.** These replay a successful counter increment,
+   not the interpreter or a working optimistic committer. Interpreter work,
+   overlay construction, read-set recording/validation, conflict reruns,
+   authority/fencing checks and sequence rewriting are omitted. The RFC's
+   additional admission/revision reads are not added to the captured eight.
+   Stage CPU/I/O competition and a combined execution + queue + commit p99
+   are unmeasured. Transcript checks establish this fixture's read equivalence;
+   they do not qualify a dependency planner for other programs/refusal paths.
+2. **SSH transport.** The physical path is SSH forwards over the fleet network,
+   with one live database connection per SSH stream. TLS, direct TCP, managed
+   Postgres and replicated durable commit are not measured. The roughly 80 ms
+   pipelined executions are real observations of this path; their per-flight
+   delay and root cause were not isolated. k3's SimpleQuery improvement is not evidence
+   that an unmodified engine already uses that protocol.
+3. **Host and workload scope.** Both hosts have only 6 physical cores / 12
+   logical CPUs. They are shared: early client blocks show substantial other
+   activity, and starting/ending load plus vmstat are retained for both hosts.
+   Precise cross-block speedup ratios therefore include temporal host noise.
+   Windows are 1 s warm-up + 4 s measurement, closed loop, three runs, with
+   the known cold FK-plan spread. No open-loop sustainable engine SLO, large
+   program, maintained-counter contention, effect or mixed-length workload is
+   established; 1% hot is only a raw control.
+
+The full sweep contains 105 non-ping measured repetitions (35 settings × 3),
+all with complete status and successful applicable counter/transcript/full-write
+checks.
+The two short smokes and the failed initial port setup remain separate evidence.
+All three created run databases were dropped. All 211 recorded SSH tunnel PIDs
+across the two smokes, failed setup and sweep were stopped; the full run's
+`cleanup.json` also verifies its database is absent. `postgres-after.txt`
+records unchanged durability. The experiment-only target directory is below
+5 GiB, so the requested size-triggered cargo clean was unnecessary.

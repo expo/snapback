@@ -1,0 +1,135 @@
+{
+  "args": [
+    "pg-execution-network",
+    "--variant",
+    "k2",
+    "--connections",
+    "32",
+    "--runs",
+    "1"
+  ],
+  "exit_status": 0,
+  "result": {
+    "argv": [
+      "/home/ccheever/projects/sb4-s1b/snapback4/experiments/postgres-commit-path/target/release/snapback4-postgres-commit-path",
+      "pg-execution-network",
+      "--variant",
+      "k2",
+      "--connections",
+      "32",
+      "--runs",
+      "1",
+      "--net",
+      "tunnels"
+    ],
+    "cell": "pg-execution-network",
+    "connections": 32,
+    "counters_unchanged": true,
+    "finished": "2026-10-20T16:51:58Z",
+    "k_exec": 4,
+    "label": "MODEL: same eight reads, SQL transcript equivalence checked on every operation; no interpreter/overlay/validation",
+    "loadavg_after": [
+      4.79,
+      6.55,
+      6.01
+    ],
+    "loadavg_before": [
+      4.84,
+      6.62,
+      6.03
+    ],
+    "net": {
+      "added_rtt_us": null,
+      "label": "tunnels",
+      "one_ssh_stream_per_connection": true,
+      "proxy": false
+    },
+    "profile": "release",
+    "read_transcript_check": true,
+    "reads_per_execution": 8,
+    "runs": [
+      {
+        "calls_per_op": 4.0,
+        "commits": 27681,
+        "commits_per_s": 6920.147092222628,
+        "errors": [],
+        "mean_ms": 4.620714911816789,
+        "p50_ms": 4.316493,
+        "p99_ms": 7.605161,
+        "per_writer_commits": [
+          867,
+          877,
+          875,
+          858,
+          867,
+          861,
+          860,
+          882,
+          878,
+          866,
+          867,
+          863,
+          847,
+          866,
+          883,
+          854,
+          855,
+          848,
+          892,
+          861,
+          858,
+          884,
+          848,
+          870,
+          869,
+          843,
+          853,
+          864,
+          860,
+          862,
+          860,
+          883
+        ],
+        "pg_stat_wal_delta": {
+          "wal_bytes": 0,
+          "wal_fpi": 0,
+          "wal_records": 0,
+          "wal_sync": 0,
+          "wal_write": 0
+        },
+        "seconds": 4.000059483,
+        "status": "complete",
+        "total_ops": 35697,
+        "wait_events": {
+          "samples": 1181,
+          "session_states": {
+            "CPU:-:active": 4744,
+            "CPU:-:idle": 490,
+            "CPU:-:idle in transaction": 2582,
+            "Client:ClientRead:active": 897,
+            "Client:ClientRead:idle": 7003,
+            "Client:ClientRead:idle in transaction": 22076
+          }
+        },
+        "wal_bytes_per_commit": 0.0
+      }
+    ],
+    "snapshot_flights_check": true,
+    "started": "2026-10-20T16:51:46Z",
+    "summary": {
+      "calls_per_op_median": 4.0,
+      "commits_per_s_max": 6920.147092222628,
+      "commits_per_s_median": 6920.147092222628,
+      "commits_per_s_min": 6920.147092222628,
+      "p50_ms_median": 4.316493,
+      "p99_ms_median": 7.605161,
+      "status": "complete",
+      "wal_bytes_per_commit_median": 0.0
+    },
+    "timing_ms": {
+      "measure": 4000,
+      "warmup": 1000
+    },
+    "variant": "k2"
+  }
+}

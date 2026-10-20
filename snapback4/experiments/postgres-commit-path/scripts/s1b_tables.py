@@ -72,7 +72,7 @@ def row(name):
 
 
 if __name__=='__main__':
-    print('Rates = median of three; spreads retain all runs. Latencies = median / worst run p99. RTT = before/after p50 / before/after p99, µs.')
+    print('Rates = median of three; spreads retain all runs. Latencies = median / worst run p99. RTT = before/after p50 / before/after p99, µs.\n')
     print('| Execution cell | executions/s (min–max) | p99 ms | CPU 450a/450b % | RTT µs |')
     print('|---|---:|---:|---:|---:|')
     for c in [8,16,32,64,128]: row(f'exec-c{c}')
@@ -111,6 +111,8 @@ if __name__=='__main__':
             verdicts.append(record)
             print(f"| {v} | {c} | {execution:,.0f} | {predicted:,.0f} | {bar:,.0f} | {predicted-bar:+,.0f} | {predicted/bar:.3f}× | {'CLEARS' if passed else 'DO NOT BUILD'} |")
     (ROOT/'sizing.json').write_text(json.dumps({'best_commit':best,'verdicts':verdicts},indent=2)+'\n')
-    print('\nCPU and wait-event details:')
+    print('\n```text\nCPU and wait-event details:')
     for name in ['exec-c32','exec-c64','exec-c128']+[f'{v}-c{c}' for v in ['k1','k2','k3p','k3'] for c in [32,64,128]]+[f'raw-c{c}-{key}' for c in [32,64,128] for key in ['disjoint','hot1']]:
         print(name,json.dumps({'450a':cpu(name,'450a'),'450b':cpu(name,'450b'),'waits_pct':waits(name)}))
+
+    print("```")

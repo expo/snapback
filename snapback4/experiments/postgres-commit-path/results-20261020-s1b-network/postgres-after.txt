@@ -1,0 +1,7 @@
+commit_delay|0
+fsync|on
+full_page_writes|on
+max_connections|300
+shared_buffers|1048576
+synchronous_commit|on
+wal_sync_method|fdatasync

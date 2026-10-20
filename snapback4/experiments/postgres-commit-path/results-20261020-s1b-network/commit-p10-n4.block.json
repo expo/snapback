@@ -1,0 +1,17 @@
+{
+  "records": [
+    [
+      "model",
+      "--protocol",
+      "A",
+      "--batch",
+      "4",
+      "--counters",
+      "disjoint",
+      "--full-writes",
+      "--non-head-pct",
+      "10"
+    ]
+  ],
+  "complete": true
+}

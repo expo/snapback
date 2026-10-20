@@ -1,0 +1,254 @@
+{
+  "args": [
+    "model",
+    "--protocol",
+    "A",
+    "--batch",
+    "4",
+    "--counters",
+    "disjoint",
+    "--full-writes",
+    "--non-head-pct",
+    "10"
+  ],
+  "exit_status": 0,
+  "result": {
+    "argv": [
+      "/home/ccheever/projects/sb4-s1b/snapback4/experiments/postgres-commit-path/target/release/snapback4-postgres-commit-path",
+      "model",
+      "--protocol",
+      "A",
+      "--batch",
+      "4",
+      "--counters",
+      "disjoint",
+      "--full-writes",
+      "--non-head-pct",
+      "10",
+      "--net",
+      "tunnels"
+    ],
+    "batch": 4,
+    "cell": "model",
+    "counter_check": {
+      "acknowledged": 8970,
+      "counter_sum": 8970,
+      "ok": true
+    },
+    "counters": "disjoint",
+    "finished": "2026-10-20T17:04:21Z",
+    "full_write_check": {
+      "footprints": 9968,
+      "ok": true,
+      "pin": 2000004407,
+      "receipts": 9968,
+      "revision": 9968,
+      "sessions": 998
+    },
+    "full_writes": true,
+    "label": "UPPER BOUND: commit stage of (a) only; execution, snapshot reads, validation and reruns omitted",
+    "loadavg_after": [
+      2.16,
+      2.87,
+      4.16
+    ],
+    "loadavg_before": [
+      2.33,
+      2.95,
+      4.21
+    ],
+    "net": {
+      "added_rtt_us": null,
+      "label": "tunnels",
+      "one_ssh_stream_per_connection": true,
+      "proxy": false
+    },
+    "non_head_pct": 10,
+    "profile": "release",
+    "protocol": "A",
+    "runs": [
+      {
+        "calls_per_op": 1.0,
+        "commits": 2488,
+        "commits_per_s": 621.9909147342062,
+        "committer": {
+          "batch_size_histogram": [
+            [
+              4,
+              787
+            ]
+          ],
+          "batches": 787,
+          "max_pin": 4147,
+          "non_head_ops": 315
+        },
+        "errors": [],
+        "mean_ms": 12.862796248794208,
+        "p50_ms": 11.703115,
+        "p99_ms": 51.500710999999995,
+        "per_writer_commits": [
+          311,
+          311,
+          311,
+          311,
+          311,
+          311,
+          311,
+          311
+        ],
+        "pg_stat_wal_delta": {
+          "wal_bytes": 3646715,
+          "wal_fpi": 0,
+          "wal_records": 34075,
+          "wal_sync": 781,
+          "wal_write": 783
+        },
+        "seconds": 4.000058427,
+        "status": "complete",
+        "total_ops": 3148,
+        "wait_events": {
+          "samples": 1447,
+          "session_states": {
+            "CPU:-:active": 270,
+            "CPU:-:idle": 13,
+            "CPU:-:idle in transaction": 9,
+            "Client:ClientRead:idle": 145,
+            "Client:ClientRead:idle in transaction": 444,
+            "IO:DataFileExtend:active": 3,
+            "IO:WALSync:active": 560,
+            "LWLock:WALWrite:active": 3
+          }
+        },
+        "wal_bytes_per_commit": 1281.1157556270095
+      },
+      {
+        "calls_per_op": 1.0,
+        "commits": 2752,
+        "commits_per_s": 687.9899558626369,
+        "committer": {
+          "batch_size_histogram": [
+            [
+              4,
+              853
+            ]
+          ],
+          "batches": 853,
+          "max_pin": 1000004411,
+          "non_head_ops": 342
+        },
+        "errors": [],
+        "mean_ms": 11.628123911700621,
+        "p50_ms": 10.430802,
+        "p99_ms": 51.28952400000001,
+        "per_writer_commits": [
+          344,
+          344,
+          344,
+          344,
+          344,
+          344,
+          344,
+          344
+        ],
+        "pg_stat_wal_delta": {
+          "wal_bytes": 3907123,
+          "wal_fpi": 0,
+          "wal_records": 36473,
+          "wal_sync": 843,
+          "wal_write": 843
+        },
+        "seconds": 4.000058397,
+        "status": "complete",
+        "total_ops": 3412,
+        "wait_events": {
+          "samples": 1445,
+          "session_states": {
+            "CPU:-:active": 154,
+            "CPU:-:idle": 9,
+            "CPU:-:idle in transaction": 13,
+            "Client:ClientRead:idle": 162,
+            "Client:ClientRead:idle in transaction": 474,
+            "IO:WALSync:active": 630,
+            "IO:WALWrite:active": 2,
+            "IO:WALWrite:idle in transaction": 1
+          }
+        },
+        "wal_bytes_per_commit": 1181.8197674418604
+      },
+      {
+        "calls_per_op": 1.0,
+        "commits": 2744,
+        "commits_per_s": 685.9895520361276,
+        "committer": {
+          "batch_size_histogram": [
+            [
+              4,
+              852
+            ]
+          ],
+          "batches": 852,
+          "max_pin": 2000004407,
+          "non_head_ops": 341
+        },
+        "errors": [],
+        "mean_ms": 11.661026266399388,
+        "p50_ms": 10.493209,
+        "p99_ms": 51.166252,
+        "per_writer_commits": [
+          343,
+          343,
+          343,
+          343,
+          343,
+          343,
+          343,
+          343
+        ],
+        "pg_stat_wal_delta": {
+          "wal_bytes": 3906168,
+          "wal_fpi": 0,
+          "wal_records": 36414,
+          "wal_sync": 844,
+          "wal_write": 844
+        },
+        "seconds": 4.000060922,
+        "status": "complete",
+        "total_ops": 3408,
+        "wait_events": {
+          "samples": 1448,
+          "session_states": {
+            "CPU:-:active": 139,
+            "CPU:-:idle": 12,
+            "CPU:-:idle in transaction": 9,
+            "Client:ClientRead:idle": 161,
+            "Client:ClientRead:idle in transaction": 478,
+            "IO:DataFileExtend:active": 1,
+            "IO:WALSync:active": 645,
+            "IO:WALWrite:active": 1,
+            "LWLock:WALWrite:active": 2
+          }
+        },
+        "wal_bytes_per_commit": 1185.6588921282798
+      }
+    ],
+    "schema": "sb4_eval_cpmod_3740647_18d927b161f6895f",
+    "started": "2026-10-20T17:03:59Z",
+    "summary": {
+      "calls_per_op_median": 1.0,
+      "commits_per_s_max": 687.9899558626369,
+      "commits_per_s_median": 685.9895520361276,
+      "commits_per_s_min": 621.9909147342062,
+      "p50_ms_median": 10.493209,
+      "p99_ms_median": 51.28952400000001,
+      "status": "complete",
+      "wal_bytes_per_commit_median": 1185.6588921282798
+    },
+    "tail": null,
+    "timing_ms": {
+      "measure": 4000,
+      "warmup": 1000
+    },
+    "txn": "explicit",
+    "writers": 8
+  }
+}
