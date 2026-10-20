@@ -1,0 +1,21 @@
+{
+  "beforeSource": "ad0309c8cd420779430e508cfbfee30f46c5463c",
+  "changes": [
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide/rules.md",
+      "beforeLines": 378,
+      "afterLines": 374,
+      "paragraphTextAndFencedProgramsIdentical": true,
+      "beforeSha256": "2755a7b6d032b933808ad784b8fbd99c53b07947369fed01f2d7adfc8e27c960",
+      "afterSha256": "8de05d97750a7352334732a7382498d20e20c2a2597a6d1f257583ca2dc3c0ee"
+    },
+    {
+      "file": "snapback4/crates/snapback4-lang/src/guide/deploy.md",
+      "beforeLines": 284,
+      "afterLines": 280,
+      "paragraphTextAndFencedProgramsIdentical": true,
+      "beforeSha256": "6ba27dc79c313f806d9cfb986b19520fef9eca2fb7ed2b42e10c5818885de28a",
+      "afterSha256": "039c7df57e5f499c9476504565cc403a27e569aa974b79abeeba8f7a2dbbf2d0"
+    }
+  ]
+}

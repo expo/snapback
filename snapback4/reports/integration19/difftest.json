@@ -1,0 +1,237 @@
+{
+  "source": "a3f0274d4ed0f8e92a18097cb5443d03d2c6d3e1",
+  "binarySha256": "83339b5e1b2ffbb8bc40c70a4aa7bdb660663f2bd9fd06d3d3c43999fe01acfb",
+  "campaigns": {
+    "native": {
+      "command": [
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-difftest/release/snapback4-difftest",
+        "run",
+        "--seed",
+        "0",
+        "--cases",
+        "20000",
+        "--workers",
+        "8",
+        "--out",
+        "/home/ccheever/sb4-loop/integ19/difftest-native-r13"
+      ],
+      "reportSha256": "235f06a87ee95c6b60f7c4a1ac6da3bca3c584443245de3f4b4c138125ca0f48",
+      "generated": 20000,
+      "compiled": 20000,
+      "executed": 1222111,
+      "byOracle": {
+        "meter": {
+          "passed": 67880,
+          "unsupported": {
+            "examined-opening-no-position": 15543,
+            "heap_bytes-unwind-no-continuation": 148381,
+            "mutation-not-a-read": 3663,
+            "output_bytes-refusal-no-continuation": 13966,
+            "return-not-pageable": 43615,
+            "rule_probes-opening-no-position": 1573,
+            "steps-refusal-no-continuation": 217750,
+            "steps-unwind-no-continuation": 31032,
+            "timed-search-no-continuation": 410,
+            "uncut-refusal": 1961
+          },
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "repeat": {
+          "passed": 20000,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "rewrite-commute": {
+          "passed": 3160,
+          "unsupported": {
+            "rewrite-not-applicable": 16840
+          },
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "rewrite-declarations": {
+          "passed": 20000,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "rewrite-identity": {
+          "passed": 2751,
+          "unsupported": {
+            "rewrite-not-applicable": 17249
+          },
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "rewrite-lazy-and": {
+          "passed": 1145,
+          "unsupported": {
+            "rewrite-not-applicable": 18855
+          },
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "rewrite-lazy-or": {
+          "passed": 1250,
+          "unsupported": {
+            "rewrite-not-applicable": 18750
+          },
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "rewrite-let": {
+          "passed": 20000,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "timed-search-future-absence": {
+          "passed": 415,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {}
+        }
+      }
+    },
+    "devices": {
+      "command": [
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-difftest/release/snapback4-difftest",
+        "run-devices",
+        "--seed",
+        "0",
+        "--cases",
+        "1000",
+        "--workers",
+        "8",
+        "--out",
+        "/home/ccheever/sb4-loop/integ19/difftest-devices-r13"
+      ],
+      "reportSha256": "b21a52e2e8c9ac2b56068865cf31c0203ae928021751a03876acf58c452bad3d",
+      "generated": 1000,
+      "compiled": 1000,
+      "executed": 27922,
+      "byOracle": {
+        "device-memory-converge": {
+          "passed": 40,
+          "unsupported": {
+            "converge-observe-online-only-unknown-incomplete": 137
+          },
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "device-memory-cut": {
+          "passed": 5700,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "device-memory-read": {
+          "passed": 448,
+          "unsupported": {
+            "online-only-unavailable": 75,
+            "online-only-unknown-incomplete": 300
+          },
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "device-memory-write": {
+          "passed": 32,
+          "unsupported": {
+            "prediction-declined": 12,
+            "unpredictable-unsynced-table": 133
+          },
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "device-sqlite-converge": {
+          "passed": 40,
+          "unsupported": {
+            "converge-observe-online-only-unknown-incomplete": 137
+          },
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "device-sqlite-cut": {
+          "passed": 5700,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "device-sqlite-read": {
+          "passed": 448,
+          "unsupported": {
+            "online-only-unavailable": 75,
+            "online-only-unknown-incomplete": 300
+          },
+          "disagreeing": 0,
+          "signatures": {}
+        },
+        "device-sqlite-write": {
+          "passed": 32,
+          "unsupported": {
+            "prediction-declined": 12,
+            "unpredictable-unsynced-table": 133
+          },
+          "disagreeing": 0,
+          "signatures": {}
+        }
+      }
+    },
+    "lean": {
+      "command": [
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-difftest/release/snapback4-difftest",
+        "run-lean",
+        "--seed",
+        "0",
+        "--cases",
+        "20000",
+        "--workers",
+        "8",
+        "--out",
+        "/home/ccheever/sb4-loop/integ19/difftest-lean-r13"
+      ],
+      "reportSha256": "81fc2dc4eaff49acdaec1b49bb06ca6eca8fccef825f6a5da9c93570ce3a8045",
+      "generated": 20000,
+      "compiled": 20000,
+      "executed": 56917,
+      "byOracle": {
+        "lean": {
+          "passed": 16697,
+          "unsupported": {
+            "call-max": 319,
+            "call-min": 276,
+            "call-sum": 286,
+            "index-computed-or-words": 556,
+            "input-null": 2,
+            "loop": 449,
+            "now": 99,
+            "page-compound-where-branches": 22,
+            "page-static-key-expression": 12,
+            "prelude-now": 151,
+            "shape": 1001
+          },
+          "disagreeing": 130,
+          "signatures": {
+            "lean--code--E_RULE~NOT_FOUND": 3,
+            "lean--continuation-next--next~no-next": 35,
+            "lean--next--next~no-next": 67,
+            "lean--prelude-code--E_RULE~NOT_FOUND": 25
+          }
+        }
+      }
+    }
+  },
+  "leanBaseline": {
+    "source": "8b1b6881901b3fb2f2439d9334ad6a0253d1eb3b",
+    "reportSha256": "5abb8f1dee7c3dbd880364c1ab203f398326cfb1d20464fdfddf5b193b372342",
+    "signatures": {
+      "lean--code--E_RULE~NOT_FOUND": 3,
+      "lean--continuation-next--next~no-next": 35,
+      "lean--next--next~no-next": 67,
+      "lean--prelude-code--E_RULE~NOT_FOUND": 25
+    }
+  },
+  "newLeanSignatures": 0
+}

@@ -1,0 +1,468 @@
+{
+  "source": "a3f0274d4ed0f8e92a18097cb5443d03d2c6d3e1",
+  "expo": {
+    "status": "passed",
+    "baselineRegistry": "https://registry.npmjs.org",
+    "before": {
+      "snapback4": "0.4.33",
+      "snapback4-expo": "0.4.33"
+    },
+    "after": {
+      "snapback4": "0.4.35",
+      "snapback4-expo": "0.4.35"
+    },
+    "installedVersion": "snapback4 0.4.35",
+    "warnings": [
+      "startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:[\"--memory\"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/frontend-proof.mjs"
+    ],
+    "binarySha256": "90eb77fdd50f59ba1069b657b59fa564c5585b5fdfc2dece23d5ca5e4dbebe27",
+    "artifacts": {
+      "snapback4": {
+        "path": "/home/ccheever/sb4-loop/integ19/fresh-final-r13/snapback4-0.4.35.tgz",
+        "sha256": "b207d5b516529d49658ef579e25cc9bbaf04f95f1795db4feea31cf2df3d4e26"
+      },
+      "snapback4-expo": {
+        "path": "/home/ccheever/sb4-loop/integ19/fresh-final-r13/snapback4-expo-0.4.35.tgz",
+        "sha256": "e7f03ce579d2bc4a951a2b2d881ed16a228af662da2b963ee4b1849a7e62b903"
+      },
+      "snapback4-linux-x64": {
+        "path": "/home/ccheever/sb4-loop/integ19/fresh-final-r13/snapback4-linux-x64-0.4.35.tgz",
+        "sha256": "8f78cd0a1910abbb76bc906c792d0ae5dd2a9aeb8330331906d1e93b1f771aa8"
+      }
+    },
+    "commands": [
+      {
+        "label": "platform-pack",
+        "command": [
+          "timeout",
+          "600",
+          "npm",
+          "pack",
+          "--ignore-scripts",
+          "--pack-destination",
+          "/home/ccheever/sb4-loop/integ19/fresh-final-r13"
+        ],
+        "cwd": "/home/ccheever/sb4-loop/integ19/upgrade-linux035-r13",
+        "exit": 0,
+        "seconds": 1.818
+      },
+      {
+        "label": "upgrade",
+        "command": [
+          "timeout",
+          "600",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/x86_64-unknown-linux-musl/production/snapback4",
+          "upgrade",
+          "0.4.35",
+          "--json"
+        ],
+        "cwd": "/home/ccheever/sb4-loop/integ19/upgrade033/expo-app-r13",
+        "exit": 0,
+        "seconds": 8.637
+      },
+      {
+        "label": "check",
+        "command": [
+          "timeout",
+          "600",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/x86_64-unknown-linux-musl/production/snapback4",
+          "check",
+          "--json"
+        ],
+        "cwd": "/home/ccheever/sb4-loop/integ19/upgrade033/expo-app-r13",
+        "exit": 0,
+        "seconds": 1.567
+      },
+      {
+        "label": "typecheck",
+        "command": [
+          "timeout",
+          "600",
+          "npm",
+          "run",
+          "typecheck"
+        ],
+        "cwd": "/home/ccheever/sb4-loop/integ19/upgrade033/expo-app-r13",
+        "exit": 0,
+        "seconds": 0.966
+      },
+      {
+        "label": "installed-version",
+        "command": [
+          "timeout",
+          "600",
+          "/home/ccheever/sb4-loop/integ19/upgrade033/expo-app-r13/node_modules/.bin/snapback4",
+          "--version"
+        ],
+        "cwd": "/home/ccheever/sb4-loop/integ19/upgrade033/expo-app-r13",
+        "exit": 0,
+        "seconds": 0.064
+      }
+    ],
+    "proxyRequests": [
+      "/snapback4",
+      "/snapback4-expo",
+      "/snapback4-expo",
+      "/expo",
+      "/snapback4",
+      "/playwright-core",
+      "/react",
+      "/snapback4-expo",
+      "/expo",
+      "/@expo%2fmetro-runtime",
+      "/react-dom",
+      "/react-native",
+      "/@react-native%2fjest-preset",
+      "/@types%2freact",
+      "/react-native-web",
+      "/react-native-webview",
+      "/expo-modules-core",
+      "/react-native-worklets",
+      "/@babel%2fcore",
+      "/@react-native%2fmetro-config",
+      "/snapback4-darwin-arm64",
+      "/snapback4-linux-x64",
+      "/lightningcss-linux-x64-musl/-/lightningcss-linux-x64-musl-1.33.0.tgz"
+    ]
+  },
+  "expoPublic033Baseline": {
+    "commands": [
+      {
+        "label": "install",
+        "command": [
+          "timeout",
+          "600",
+          "npm",
+          "install",
+          "--save-exact",
+          "snapback4@0.4.33",
+          "snapback4-expo@0.4.33",
+          "--registry",
+          "https://registry.npmjs.org",
+          "--no-audit",
+          "--no-fund"
+        ],
+        "cwd": "/home/ccheever/sb4-loop/integ19/upgrade033/expo-app-r13",
+        "exit": 0,
+        "seconds": 15.951
+      },
+      {
+        "label": "version",
+        "command": [
+          "timeout",
+          "600",
+          "/home/ccheever/sb4-loop/integ19/upgrade033/expo-app-r13/node_modules/.bin/snapback4",
+          "--version"
+        ],
+        "cwd": "/home/ccheever/sb4-loop/integ19/upgrade033/expo-app-r13",
+        "exit": 0,
+        "seconds": 0.064
+      },
+      {
+        "label": "check",
+        "command": [
+          "timeout",
+          "600",
+          "/home/ccheever/sb4-loop/integ19/upgrade033/expo-app-r13/node_modules/.bin/snapback4",
+          "check",
+          "--json"
+        ],
+        "cwd": "/home/ccheever/sb4-loop/integ19/upgrade033/expo-app-r13",
+        "exit": 0,
+        "seconds": 0.715
+      }
+    ],
+    "manifest": {
+      "dependencies": {
+        "expo": "57.0.30",
+        "expo-dev-client": "57.0.20",
+        "expo-modules-core": "57.0.23",
+        "expo-secure-store": "57.0.4",
+        "expo-sqlite": "57.0.4",
+        "expo-status-bar": "57.0.1",
+        "react": "19.2.3",
+        "react-dom": "19.2.3",
+        "react-native": "0.86.3",
+        "react-native-web": "0.21.0",
+        "snapback4": "0.4.33",
+        "snapback4-expo": "0.4.33"
+      },
+      "devDependencies": {
+        "@expo/fingerprint": "0.20.14",
+        "@types/react": "~19.2.4",
+        "babel-preset-expo": "57.0.16",
+        "playwright-core": "1.55.1",
+        "typescript": "~6.0.3"
+      },
+      "main": "index.js",
+      "name": "snapback4-expo-starter",
+      "overrides": {
+        "xcode": {
+          "uuid": "11.1.1"
+        }
+      },
+      "private": true,
+      "scripts": {
+        "backend": "node scripts/launch.mjs backend",
+        "build:web": "expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist",
+        "export:ios": "snapback4-export-ios",
+        "frontend:proof": "node scripts/frontend-proof.mjs",
+        "ios": "expo run:ios",
+        "ios:dev": "expo run:ios",
+        "native:smoke": "node scripts/launch.mjs native-smoke",
+        "proof:web": "node scripts/frontend-proof.mjs",
+        "start": "node scripts/launch.mjs expo",
+        "typecheck": "tsc -p tsconfig.json --noEmit",
+        "web": "node scripts/launch.mjs expo-web"
+      },
+      "snapback4": {
+        "starter": {
+          "day2": false
+        }
+      },
+      "version": "0.0.1"
+    },
+    "status": "passed"
+  },
+  "store": {
+    "status": "passed",
+    "source": "/home/ccheever/sb4-loop/wave19/apps/039-snapback-countertop-slab-layouts",
+    "initialRelease": 15,
+    "initialEvents": 30,
+    "upgradedRelease": 1,
+    "cycles": 2,
+    "dormantInspection": {
+      "columns": [
+        "_snapback_state",
+        "COUNT(*)"
+      ],
+      "header": "sql: developer's own store /home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy/store.sqlite \u2014 dormant retained records; read-only, not rule-filtered",
+      "inspection": "dormant retained records",
+      "limit": 200,
+      "more": false,
+      "rows": [
+        [
+          "dormant-row",
+          52
+        ]
+      ],
+      "ruleFiltered": false
+    },
+    "commands": [
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/sb4-loop/integ19/upgrade033/node_modules/.bin/snapback4",
+          "--version"
+        ],
+        "exit": 0,
+        "stdoutSha256": "ba30571d24fc2c605d9ecb72cf70a262549e0d4e0e95830e13e68d633b1c6e0e"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/sb4-loop/integ19/upgrade033/node_modules/.bin/snapback4",
+          "rollback",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--to",
+          "1"
+        ],
+        "exit": 0,
+        "stdoutSha256": "7464c13e4afed34e480f36d4c30b3501443f1905884e3e94cb2b1fbdc3cf8d2d"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/sb4-loop/integ19/upgrade033/node_modules/.bin/snapback4",
+          "releases",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--json"
+        ],
+        "exit": 0,
+        "stdoutSha256": "3e1bb63f64d8cd04d3d306b452463275e170745d9d8c2ecd444e2384391fd4d7"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "--version"
+        ],
+        "exit": 0,
+        "stdoutSha256": "b956d216262e6d7fc929214cb7b6c8760920846f0e2a73b7d8b7bf40fcbcb156"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "releases",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--json"
+        ],
+        "exit": 0,
+        "stdoutSha256": "3e1bb63f64d8cd04d3d306b452463275e170745d9d8c2ecd444e2384391fd4d7"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "rollback",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--to",
+          "latest",
+          "--check",
+          "--json"
+        ],
+        "exit": 0,
+        "stdoutSha256": "50f319468ef4fcd035032774895d228dd05e3ffe9007d4680ec827aad6b7d206"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "rollback",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--to",
+          "latest"
+        ],
+        "exit": 0,
+        "stdoutSha256": "ca77ac4b497e04ddac629666442beb329e5397b1c5cba18a8e8fecdac3d95b21"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "rollback",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--to",
+          "1",
+          "--check",
+          "--json"
+        ],
+        "exit": 0,
+        "stdoutSha256": "6da2e1190601b660ac192f1608fd4f806e2cb6b49a44871e01b554487e265bc9"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "rollback",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--to",
+          "1"
+        ],
+        "exit": 0,
+        "stdoutSha256": "0ca8f17dfe5e7373bfc4e57a06fa091fb2e5c7b7a70c50de293a56cff69a6137"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "sql",
+          "SELECT _snapback_state,COUNT(*) FROM jobReviews GROUP BY _snapback_state",
+          "--release",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--dormant",
+          "--json"
+        ],
+        "exit": 0,
+        "stdoutSha256": "bc4c92e4770e6f36239a346e1fd05eff2280fd00aeef371b10723f2fdcf829ce"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "rollback",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--to",
+          "latest",
+          "--check",
+          "--json"
+        ],
+        "exit": 0,
+        "stdoutSha256": "9b82539b841c3ea5d68300dd777e91fbc4d8fc67a5b527e7fbbba369bff43721"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "rollback",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--to",
+          "latest"
+        ],
+        "exit": 0,
+        "stdoutSha256": "f0b14e3159d31766cca09f5b580b2236680235203c66b5e8bf22db527639438e"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "rollback",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--to",
+          "1",
+          "--check",
+          "--json"
+        ],
+        "exit": 0,
+        "stdoutSha256": "043f2c77c7ce33892f0387c511d677c0612c4be01f290752a5939d3e258b9815"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "rollback",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--to",
+          "1"
+        ],
+        "exit": 0,
+        "stdoutSha256": "0a2befd1ebd5e62a8303387ed609d3239ec89131cf878fc422a3989984f3fd93"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "sql",
+          "SELECT _snapback_state,COUNT(*) FROM jobReviews GROUP BY _snapback_state",
+          "--release",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--dormant",
+          "--json"
+        ],
+        "exit": 0,
+        "stdoutSha256": "bc4c92e4770e6f36239a346e1fd05eff2280fd00aeef371b10723f2fdcf829ce"
+      },
+      {
+        "command": [
+          "timeout",
+          "180",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+          "rollback",
+          "/home/ccheever/sb4-loop/integ19/upgrade-store-r13/deploy",
+          "--to",
+          "latest"
+        ],
+        "exit": 0,
+        "stdoutSha256": "f6bc5dac3e9c0659d69d6309e5fcdf578a2d70a92f0de65508048a09c62c1fcd"
+      }
+    ],
+    "public033": true
+  },
+  "driverCorrection": "Initial driver merged stderr warnings into JSON stdout; repeat from a fresh public-registry 0.4.33 install separates streams. Product source unchanged."
+}

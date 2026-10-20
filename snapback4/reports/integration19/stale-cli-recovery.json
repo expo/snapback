@@ -1,0 +1,7 @@
+{
+  "original": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/release/snapback4",
+  "preservedAs": "/home/ccheever/sb4-loop/integ19/initial-cli-0.4.28",
+  "version": "snapback4 0.4.28",
+  "sha256": "33a49ae257a44b57cc072d6d0056f2e530919d71686ed37981898ccb0314c15d",
+  "reason": "SDK resolver preferred this original stale release artifact over the merged debug build; preserve recoverably and allow default checkout fallback to the current build"
+}

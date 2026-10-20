@@ -1,0 +1,225 @@
+{
+  "commands": [
+    {
+      "label": "synced-install",
+      "command": [
+        "timeout",
+        "300",
+        "npm",
+        "install",
+        "--ignore-scripts",
+        "--omit=optional",
+        "--no-audit",
+        "--no-fund",
+        "/home/ccheever/sb4-loop/integ19/fresh-final-r13/snapback4-0.4.35.tgz"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave19/synced",
+      "exit": 0,
+      "seconds": 0.916
+    },
+    {
+      "label": "synced-snapback",
+      "command": [
+        "timeout",
+        "1800",
+        "bun",
+        "exact.mjs",
+        "snapback",
+        "--port",
+        "26990"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave19/synced/app",
+      "exit": 0,
+      "seconds": 3.273
+    },
+    {
+      "label": "synced-migrate",
+      "command": [
+        "timeout",
+        "1800",
+        "bun",
+        "exact.mjs",
+        "contract",
+        "migrate",
+        "app.contract"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave19/synced/app",
+      "exit": 0,
+      "seconds": 0.315
+    },
+    {
+      "label": "synced-types",
+      "command": [
+        "timeout",
+        "1800",
+        "bun",
+        "exact.mjs",
+        "contract",
+        "types",
+        "app.contract",
+        "-o",
+        "app.contract.d.ts"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave19/synced/app",
+      "exit": 0,
+      "seconds": 0.265
+    },
+    {
+      "label": "synced-web",
+      "command": [
+        "timeout",
+        "1800",
+        "bun",
+        "exact.mjs",
+        "test",
+        "web",
+        "--backend",
+        "http://127.0.0.1:26990"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave19/synced/app",
+      "exit": 0,
+      "seconds": 8.231
+    },
+    {
+      "label": "online-install",
+      "command": [
+        "timeout",
+        "300",
+        "npm",
+        "install",
+        "--ignore-scripts",
+        "--omit=optional",
+        "--no-audit",
+        "--no-fund",
+        "/home/ccheever/sb4-loop/integ19/fresh-final-r13/snapback4-0.4.35.tgz"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave19/online",
+      "exit": 0,
+      "seconds": 0.816
+    },
+    {
+      "label": "online-snapback",
+      "command": [
+        "timeout",
+        "1800",
+        "bun",
+        "exact.mjs",
+        "snapback",
+        "--port",
+        "26991"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave19/online/app",
+      "exit": 0,
+      "seconds": 0.114
+    },
+    {
+      "label": "online-migrate",
+      "command": [
+        "timeout",
+        "1800",
+        "bun",
+        "exact.mjs",
+        "contract",
+        "migrate",
+        "app.contract"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave19/online/app",
+      "exit": 0,
+      "seconds": 0.265
+    },
+    {
+      "label": "online-types",
+      "command": [
+        "timeout",
+        "1800",
+        "bun",
+        "exact.mjs",
+        "contract",
+        "types",
+        "app.contract",
+        "-o",
+        "app.contract.d.ts"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave19/online/app",
+      "exit": 0,
+      "seconds": 0.264
+    },
+    {
+      "label": "online-web",
+      "command": [
+        "timeout",
+        "1800",
+        "bun",
+        "exact.mjs",
+        "test",
+        "web",
+        "--backend",
+        "http://127.0.0.1:26991"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave19/online/app",
+      "exit": 0,
+      "seconds": 7.829
+    }
+  ],
+  "results": [
+    {
+      "mode": "synced",
+      "status": "passed",
+      "backendPort": 26990,
+      "serverPid": 1904236
+    },
+    {
+      "mode": "online",
+      "status": "passed",
+      "backendPort": 26991,
+      "serverPid": 1910996
+    }
+  ],
+  "exactSource": "bacf31a8e0160908c9fd84b44bf8ac5b28f60683",
+  "binarySha256": "8452b2aad2f021d38ddecdab4d0603f2e2200f9377ae5b70829fe7a129600b66",
+  "clientSha256": "b207d5b516529d49658ef579e25cc9bbaf04f95f1795db4feea31cf2df3d4e26",
+  "clone": "https://github.com/ccheever/exact2.git",
+  "cloneRef": "origin/main",
+  "localAdaptation": "Only snapback4/Cargo.toml core/device/lang dependency URLs redirected to merged local 0.4.35 paths, plus regenerated Cargo.lock",
+  "binaryProfile": "fixed copy of test-profile build",
+  "mergeIntegrationSource": "a3f0274d4ed0f8e92a18097cb5443d03d2c6d3e1",
+  "cargoManifestDiff": "diff --git a/snapback4/Cargo.toml b/snapback4/Cargo.toml\nindex d34b13a..e202473 100644\n--- a/snapback4/Cargo.toml\n+++ b/snapback4/Cargo.toml\n@@ -12,9 +12,9 @@ license = \"MIT\"\n # Snapback4 0.4.29 release source: 59fb4ead1ba18569369523bba55b56713cc275e9.\n # Match the published CLI and browser device, without a mutable sibling checkout.\n [workspace.dependencies]\n-snapback4-core = { git = \"https://github.com/expo/snapback.git\", rev = \"59fb4ead1ba18569369523bba55b56713cc275e9\", version = \"=0.4.29\", default-features = false }\n-snapback4-device = { git = \"https://github.com/expo/snapback.git\", rev = \"59fb4ead1ba18569369523bba55b56713cc275e9\", version = \"=0.4.29\", default-features = false }\n-snapback4-lang = { git = \"https://github.com/expo/snapback.git\", rev = \"59fb4ead1ba18569369523bba55b56713cc275e9\", version = \"=0.4.29\" }\n+snapback4-core = { path = \"/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core\", version = \"=0.4.35\" , default-features = false }\n+snapback4-device = { path = \"/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-device\", version = \"=0.4.35\" , default-features = false }\n+snapback4-lang = { path = \"/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang\", version = \"=0.4.35\" }\n \n [patch.crates-io]\n taffy = { path = \"../vendor/taffy\" }\n",
+  "cargoLockSha256": "6c66b6bf8b6636a7a20ae8ce72bbd59b1ce8b2c5635ffb69324d69bacf15d340",
+  "verificationEnv": {
+    "SNAPBACK4_BIN": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+    "CHROME": "/home/ccheever/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "12"
+  },
+  "backendCommands": [
+    {
+      "command": [
+        "timeout",
+        "2400",
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+        "dev",
+        "--port",
+        "26990",
+        "--no-watch"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave19/synced",
+      "logSha256": "cab2c8768a373652c4d3678fe0f13585ee538441b60e2661cb9ca84ee0113b96"
+    },
+    {
+      "command": [
+        "timeout",
+        "2400",
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ19-pinned-r13/snapback4",
+        "dev",
+        "--port",
+        "26991",
+        "--no-watch"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave19/online",
+      "logSha256": "ac5fe634d716d196e5b1f66ff96f412121fa0e07038459601d5d74268037dc8c"
+    }
+  ],
+  "driverSha256": "aeb9dc3fc36baeec233b3003a83ff8822c4c67471fc457789fe5a2027d5019c3"
+}

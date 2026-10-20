@@ -1,0 +1,15 @@
+{
+  "source": "a3f0274d4ed0f8e92a18097cb5443d03d2c6d3e1",
+  "command": [
+    "timeout",
+    "500",
+    "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/deps/readauth-a90e050a736de3e6",
+    "authoring_census",
+    "--nocapture"
+  ],
+  "exit": 0,
+  "items": 872,
+  "bytes": 72262,
+  "byteIdentical": true,
+  "sha256": "2c5b14233ea0744571e705346d9ce2976038490740765076914bea4ad4fc95b9"
+}

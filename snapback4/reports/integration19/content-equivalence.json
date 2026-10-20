@@ -1,0 +1,28 @@
+{
+  "reviewedProductSource": "8f68ff23e0da156ab404c65a6cb991c12e57b2cc",
+  "qualificationSource": "ad0309c8cd420779430e508cfbfee30f46c5463c",
+  "allInterveningChangesAreWitnessesOrReviewArtifacts": true,
+  "changedPaths": [
+    "llp/reviews/integration19/r11-brief.txt",
+    "llp/reviews/integration19/r11-codex.txt",
+    "llp/reviews/integration19/r11-muse.txt",
+    "llp/reviews/integration19/r11-provenance.json",
+    "snapback4/packages/snapback4/test/delivery-await-boundary.json",
+    "snapback4/packages/snapback4/test/delivery-fault-instrument.mjs",
+    "snapback4/packages/snapback4/test/headless-registration.test.mjs",
+    "snapback4/packages/snapback4/test/qualify-linux.test.mjs",
+    "snapback4/packages/snapback4/test/wave11-narration.test.mjs",
+    "snapback4/packages/snapback4/test/wave12-clauses.test.mjs",
+    "snapback4/packages/snapback4/test/wave13-previews.test.mjs"
+  ],
+  "unchangedTrees": {
+    "snapback4/crates": "17df2b8f5a7c9ecd5349f42344a553d0c14b6f8b",
+    "snapback4/scripts": "3ae570c0f8251a76eca7712428ab75574e71a3a0",
+    "snapback4/packages/snapback4/src": "60d796b9024af750b16b3f8ef2fe559151ef52a3",
+    "snapback4/packages/snapback4-expo": "b05643f09eb1194d1ba97f940330bbdf7b1174f8"
+  },
+  "preparedPacks": {
+    "snapback4": "b207d5b516529d49658ef579e25cc9bbaf04f95f1795db4feea31cf2df3d4e26",
+    "snapback4-expo": "e7f03ce579d2bc4a951a2b2d881ed16a228af662da2b963ee4b1849a7e62b903"
+  }
+}
