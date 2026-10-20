@@ -5,6 +5,7 @@
 //! digest the store keeps; the token itself is never stored. `serve`
 //! refuses personas; `dev` admits them.
 
+use crate::metadata::MetadataReader;
 use crate::error::RuntimeError;
 use crate::authority::{self, AuthorityTransaction};
 use crate::store::{Store, Tx};
@@ -186,15 +187,15 @@ pub(crate) fn current_service_tx(tx: &Tx<'_>, token: &str, sample: ServiceSample
 
 // All authenticated doors use the same family fence, in their session snapshot.
 // @ref LLP 3000.009#5.3 — failed retirement cannot preserve query authority.
-pub(crate) fn supervisor_current(tx: &Tx<'_>, family: &str, revision: usize) -> Result<bool, RuntimeError> {
-    let supervised_family = tx.meta("worker:session-family")?;
+pub(crate) fn supervisor_current(tx: &impl MetadataReader, family: &str, revision: usize) -> Result<bool, RuntimeError> {
+    let supervised_family = tx.worker_session_family()?;
     if supervised_family.as_deref() == Some(family)
-        && tx.meta("worker:session-revision")?.as_deref() != Some(revision.to_string().as_str())
+        && tx.worker_session_revision()?.as_deref() != Some(revision.to_string().as_str())
     {
         return Ok(false);
     }
     // @ref LLP 3000.009#5.3 — each named worker has an independently revoked family.
-    if let Some(stored_revision) = tx.meta(&format!("worker:family:{}", family))? {
+    if let Some(stored_revision) = tx.worker_family_revision(family)? {
         if stored_revision != revision.to_string() { return Ok(false); }
     }
     Ok(true)

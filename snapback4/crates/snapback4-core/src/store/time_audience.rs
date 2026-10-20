@@ -6,7 +6,7 @@
 
 use super::*;
 
-const CLOCK_KEY: &str = "time_audience_clock";
+pub(super) const CLOCK_KEY: &str = "time_audience_clock";
 pub(crate) const PUBLICATION_STATE_KEY: &str = "time_audience_publications_v1";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -214,5 +214,11 @@ impl Tx<'_> {
         drop(publish);
         self.set_meta(PUBLICATION_STATE_KEY, "1")?;
         Ok(())
+    }
+}
+
+impl Store {
+    pub fn time_audience_clock(&self) -> Result<i64, RuntimeError> {
+        Ok(self.meta(CLOCK_KEY)?.and_then(|value| value.parse::<i64>().ok()).unwrap_or(i64::MIN))
     }
 }

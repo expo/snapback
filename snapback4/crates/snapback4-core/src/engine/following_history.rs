@@ -423,7 +423,7 @@ impl Reader {
             });
         }
         let identity = (
-            engine.store.meta("store_id")?.unwrap_or_default(),
+            engine.store.store_identity()?.unwrap_or_default(),
             engine.generation,
         );
         let digest = argument_digest(&context.args);
@@ -550,7 +550,7 @@ impl Reader {
         let key = (context.viewer.clone(), request.opening.clone());
         let token = request.token.as_ref().unwrap_or(&request.opening);
         let tx = engine.store.read_transaction()?;
-        let store = tx.meta("store_id")?.unwrap_or_default();
+        let store = tx.store_identity()?.unwrap_or_default();
         let head = tx.next_seq()?.saturating_sub(1);
         let Some(timeline) = engine
             .schema
@@ -772,7 +772,7 @@ impl Reader {
         };
         super::validate::validate_inputs(&engine.schema, program, &mut context.args)?;
         let tx = engine.store.read_transaction()?;
-        let store = tx.meta("store_id")?.unwrap_or_default();
+        let store = tx.store_identity()?.unwrap_or_default();
         let key = (context.viewer.clone(), opening.to_owned());
         let matches = if let Some(o) = self.openings.get(&key) {
             o.projection.as_deref() == Some(operation)

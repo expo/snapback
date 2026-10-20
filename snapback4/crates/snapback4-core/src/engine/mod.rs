@@ -4,6 +4,8 @@
 //! with a refusal, and applies at most once per client-minted id.
 
 #[cfg(feature = "sqlite")]
+use crate::activation::ActivationReader;
+#[cfg(feature = "sqlite")]
 pub mod actions;
 #[cfg(feature = "sqlite")]
 mod activation;
@@ -450,12 +452,9 @@ impl Engine {
 
     fn open_selected_at(mut store: Store, now: i64, expected_release: Option<u64>) -> Result<Self, RuntimeError> {
         let tx = store.opening_transaction()?;
-        Store::check_selected_release(tx.conn(), expected_release)?;
-        let (generation, schema, programs): (i64, String, String) = tx.conn().query_row(
-            "SELECT g.generation, g.schema, g.programs FROM _generations g JOIN _meta m ON m.key = 'generation' AND g.generation = CAST(m.value AS INTEGER)",
-            [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
-            .map_err(|e| RuntimeError::Store(format!("no readable activated backend in this store: {e}")))?;
-        let kept = crate::store::opening::Backend(generation, schema.clone(), programs.clone());
+        tx.check_selected_release(expected_release)?;
+        let crate::activation::Backend(generation, schema, programs) = tx.opening_backend()?;
+        let kept = crate::activation::Backend(generation, schema.clone(), programs.clone());
         let generation = u64::try_from(generation).map_err(|_| RuntimeError::Store("negative stored generation".into()))?;
         let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("invalid stored schema: {e}"))))?;
         crate::schema::timeline::check_version(&schema)?;
@@ -471,12 +470,12 @@ impl Engine {
         // backend, never a caller's source. The repair logs its row changes.
         // @ref LLP 3000.007#20.9.3 — expiry index adoption is required even without physical cap counters.
         let (generation, metadata) = if stored_schema_hash == schema_hash
-            && tx.meta("live_sum_candidates")?.as_deref() == Some("1")
+            && tx.schema_marker(crate::metadata::SchemaMarker::LiveSumCandidates)?.as_deref() == Some("1")
             && (!schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
-                || tx.meta(crate::schema::MAINTAINED_ID_META)?.as_deref() == Some(crate::schema::MAINTAINED_ID_VERSION))
-            && (!crate::rows::caps::required(&schema) || tx.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash))
+                || tx.schema_marker(crate::metadata::SchemaMarker::MaintainedIds)?.as_deref() == Some(crate::schema::MAINTAINED_ID_VERSION))
+            && (!crate::rows::caps::required(&schema) || tx.schema_marker(crate::metadata::SchemaMarker::CapCounts)?.as_deref() == Some(&schema_hash))
             && (!schema.tables.values().any(|table| table.not_before.is_some())
-                || tx.meta(crate::store::time_audience::PUBLICATION_STATE_KEY)?.as_deref() == Some("1")) { (generation, Store::finish_open(tx)?) }
+                || tx.schema_marker(crate::metadata::SchemaMarker::TimePublications)?.as_deref() == Some("1")) { (generation, Store::finish_open(tx)?) }
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))? };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
@@ -568,7 +567,7 @@ impl Engine {
 
     /// Counts shortened by the last schema activation, committed with its generation.
     pub fn read_through_shortened(&self) -> Result<BTreeMap<String,u64>,RuntimeError> {
-        self.store.meta("read_through_shortened")?.map(|s| {
+        self.store.schema_marker(crate::metadata::SchemaMarker::ReadThroughShortened)?.map(|s| {
                 crate::json_codec::from_text(&s).map_err(|e|RuntimeError::Store(e.to_string()))
             }).transpose().map(Option::unwrap_or_default)
     }
@@ -761,7 +760,7 @@ impl Engine {
         let touches = self.schema.operations.get(name).is_some_and(|f| !f.ephemeral_reads.is_empty());
         let mut hub = if touches { Some(self.ephemeral.lock()?) } else { None };
         if let Some(hub) = &mut hub {
-            hub.bind(&tx.meta("store_id")?.unwrap_or_default(), self.generation, &self.schema)?;
+            hub.bind(&tx.store_identity()?.unwrap_or_default(), self.generation, &self.schema)?;
         }
         let version = hub.as_ref().map(|h| h.version());
         let layered = hub.as_ref().map(|h| ephemeral::Layered::new(&tx, &h.rows, &self.schema, false));
@@ -1336,7 +1335,7 @@ pub use row_views::ViewChunk;
 mod receipts;
 
 #[cfg(feature = "sqlite")]
-mod dev_reset;
+pub(crate) mod dev_reset;
 #[cfg(feature = "sqlite")]
 pub use dev_reset::DevReset;
 

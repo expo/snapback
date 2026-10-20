@@ -120,7 +120,7 @@ impl Reader {
             || now.saturating_sub(s.touched) >= IDLE_MS
             || s.projection.as_deref() != Some(operation)
             || s.arguments != context.args
-            || s.store != tx.meta("store_id")?.unwrap_or_default()
+            || s.store != tx.store_identity()?.unwrap_or_default()
             || s.generation != engine.generation
             || head < s.head
         {

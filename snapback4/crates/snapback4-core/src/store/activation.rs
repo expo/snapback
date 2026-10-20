@@ -79,7 +79,7 @@ impl Store {
         self.activate_transaction(schema, programs, reset, now, true, build)
     }
 
-    pub(crate) fn activate_at_with_launch<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl Fn(&Connection, &super::release::ReleaseCheck<'_>) -> Result<(), RuntimeError>, mut build: impl FnMut(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl Fn(&Tx<'_>) -> Result<R, RuntimeError>,
+    pub(crate) fn activate_at_with_launch<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl Fn(&super::release::ReleaseCheck<'_>) -> Result<(), RuntimeError>, mut build: impl FnMut(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl Fn(&Tx<'_>) -> Result<R, RuntimeError>,
     ) -> Result<(u64, R), RuntimeError> {
         let budget = if programs.is_some() { super::activation_cache::configured_mib()? } else { 0 };
         // The server builder owns only transaction-local work. Recreate all of
@@ -90,10 +90,10 @@ impl Store {
     }
 
     pub(super) fn activate_transaction(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
-        self.activate_transaction_with(schema, programs, reset, now, allow_launch, |_, _| Ok(()), build, |_| Ok(())).map(|(generation, ())| generation)
+        self.activate_transaction_with(schema, programs, reset, now, allow_launch, |_| Ok(()), build, |_| Ok(())).map(|(generation, ())| generation)
     }
 
-    fn activate_transaction_with<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl FnOnce(&Connection, &super::release::ReleaseCheck<'_>) -> Result<(), RuntimeError>, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>,
+    fn activate_transaction_with<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl FnOnce(&super::release::ReleaseCheck<'_>) -> Result<(), RuntimeError>, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>,
     ) -> Result<(u64, R), RuntimeError> {
         // @ref LLP 3000.000.000.002#4-staging-clock — a removed opening boundary cannot lower durable source retirement time.
         let now=if self.server {now.max(self.meta("time_audience_clock")?.and_then(|s|s.parse().ok()).unwrap_or(i64::MIN))}else{now};
@@ -115,7 +115,7 @@ impl Store {
         Self::check_version(&sql)?;
         let before = identity(&sql)?;
         if before != self.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
-        check(&sql, &super::release::ReleaseCheck(&sql))?;
+        check(&super::release::ReleaseCheck(&sql))?;
         // @ref LLP 3000.033#1.3 — physical upgrades roll back with adoption.
         // Rollback restores schema/rows and freelist count. It may leave
         // changed free-page contents or journal/WAL residue, not committed data.

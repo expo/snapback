@@ -1,5 +1,7 @@
 //! Server activation builder; all fallible work precedes commit.
 use super::*;
+use crate::activation::{ActivationReader, ActivationTransaction, ActivationPreparation};
+use crate::metadata::RestoredPopulation;
 impl Engine {
     pub(super) fn activate(
         store: &mut Store,
@@ -9,7 +11,7 @@ impl Engine {
         now: i64,
         allow_feed_adoption: bool,
         expected_release: Option<u64>,
-        expected_backend: Option<&crate::store::opening::Backend>,
+        expected_backend: Option<&crate::activation::Backend>,
     ) -> Result<(u64, crate::store::opening::Metadata), RuntimeError> {
         schema.validate_column_owners()?;
         for program in programs.values() {
@@ -69,50 +71,47 @@ impl Engine {
         }
         let prior_items = std::cell::RefCell::new(Vec::new());
         let population=std::cell::Cell::new(None);
-        let outcome=store.activate_at_with_launch(schema, Some(programs), false, now, allow_feed_adoption, |conn, release_check| {
-            Store::check_selected_release(conn, expected_release)?;
-            if let Some(backend) = expected_backend { backend.check(conn)?; }
+        let outcome=store.activate_at_with_launch(schema, Some(programs), false, now, allow_feed_adoption, |release_check| {
+            release_check.check_selected_release(expected_release)?;
+            if let Some(backend) = expected_backend { release_check.check_backend(backend)?; }
             if let Some(options)=release {
                 release_check.check_release_activation(options)?;
-                *prior_items.borrow_mut()=crate::store::release_history::inventory(conn,None,usize::MAX)?;
-                crate::store::dormant::enable(conn)?;
-                conn.execute("INSERT INTO _meta(key,value) VALUES('release_native_digest',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[options.native_digest.as_deref().unwrap_or("")])?;
-                conn.execute("INSERT INTO _meta(key,value) VALUES('activation_restore',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[if options.restore_dormant {"true"}else{"false"}])?;
+                *prior_items.borrow_mut()=release_check.activation_inventory()?;
+                release_check.enable_dormant()?;
+                release_check.prepare_release_metadata(options.native_digest.as_deref().unwrap_or(""), options.restore_dormant)?;
             }
             Ok(())
         }, |tx, changed, report| {
             let now=now.max(tx.time_audience_clock()?);
-            if let Some(options)=release {tx.set_meta("release",&options.release.to_string())?;}
-            use rusqlite::OptionalExtension;
-            let repair_live_sums = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'live_sum_candidates'", [], |row| row.get::<_, String>(0)).optional()?.as_deref() != Some("1");
-            let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
+            if let Some(options)=release {tx.set_active_release(options.release)?;}
+            let repair_live_sums = tx.live_sum_marker()?.as_deref() != Some("1");
+            let previous: Option<String> = tx.previous_schema()?;
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;
             let needs_maintained_id_marker = (schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
                 || previous.as_ref().is_some_and(|old| old.maintains.iter().any(|maintain| maintain.row_key.is_none())))
-                && tx.meta(crate::schema::MAINTAINED_ID_META)?.as_deref() != Some(crate::schema::MAINTAINED_ID_VERSION);
+                && tx.schema_marker(crate::metadata::SchemaMarker::MaintainedIds)?.as_deref() != Some(crate::schema::MAINTAINED_ID_VERSION);
             if !changed && !repair_live_sums && !needs_maintained_id_marker { return Ok(()); }
             let repair_maintained_ids = needs_maintained_id_marker
                 && previous.as_ref().is_some_and(|old| old.maintains.iter().any(|maintain| maintain.row_key.is_none()));
             if changed {
                 let epoch = tx.next_seq()?;
                 for table in partition::changed_group_audiences(previous.as_ref(), schema) {
-                    tx.set_meta(&partition::audience_epoch_key(&table), &epoch.to_string())?;
-                    tx.set_meta(&partition::audience_epoch_time_key(&table), &now.to_string())?;
+                    tx.set_audience_epoch(&table, epoch, now)?;
                 }
             }
-            let population_changed=tx.meta("activation_population")?.as_deref()==Some("true");
+            let population_changed=tx.activation_population()?.as_deref()==Some("true");
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
                 (changed && (population_changed || previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m))))
                     || (repair_maintained_ids && m.row_key.is_none())
                     || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.is_expiring()))
             }).collect();
-            tx.set_meta("live_sum_candidates", "1")?;
+            tx.mark_live_sum_candidates()?;
             if needs_maintained_id_marker {
                 // This write is inside the activation transaction: a failed
                 // rebuild leaves both old rows and the old/missing marker. A
                 // first aggregate has no legacy target identity to rewrite,
                 // but records the current address function for later opens.
-                tx.set_meta(crate::schema::MAINTAINED_ID_META, crate::schema::MAINTAINED_ID_VERSION)?;
+                tx.mark_maintained_ids()?;
             }
             let attribution = recorded::paths_changed(schema, previous.as_ref());
             let columns = column_activation::changed_parents(schema, if population_changed {None} else {previous.as_ref()});
@@ -165,7 +164,7 @@ impl Engine {
         }, |tx| {
             if let Some(options)=release {
                 crate::store::release_history::finalize_restorations(tx)?;
-                let mut items=crate::store::release_history::inventory(tx.conn(),None,usize::MAX)?;
+                let mut items=tx.activation_inventory()?;
                 let dormant_items=items.len();
                 let mut restored_items=0usize;
                 for item in &mut items {
@@ -174,27 +173,27 @@ impl Engine {
                     item.before_rows=Some(count);item.after_rows=Some(item.rows);
                     item.before_sample_ids=Some(before.map_or_else(Vec::new,|i|i.sample_ids));
                     let restored=if item.kind=="rows" {
-                        tx.meta(&format!("activation_narrowed_restored:{}",item.path))?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)
-                    } else if item.kind=="column" {tx.meta(&format!("activation_column_restored:{}",item.path))?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)} else {0};
+                        tx.restored_population(RestoredPopulation::Rows, &item.path)?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)
+                    } else if item.kind=="column" {tx.restored_population(RestoredPopulation::Column, &item.path)?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)} else {0};
                     item.restored_rows=Some(restored);
                     if restored>0 {item.action="partially restored".into();restored_items+=1;}
                 }
                 let remaining:std::collections::BTreeSet<_>=items.iter().map(|i|i.key.clone()).collect();
                 for mut item in prior_items.borrow().iter().filter(|i|!remaining.contains(&i.key)).cloned() {
                     let restored=if matches!(item.kind.as_str(),"rows"|"column") {
-                        let prefix=if item.kind=="rows" {"activation_narrowed_restored"} else {"activation_column_restored"};
-                        tx.meta(&format!("{prefix}:{}",item.path))?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)
+                        let kind=if item.kind=="rows" {RestoredPopulation::Rows} else {RestoredPopulation::Column};
+                        tx.restored_population(kind, &item.path)?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)
                     } else if item.kind=="table" {
-                        tx.meta(&format!("activation_table_restored:{}",item.path))?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)
+                        tx.restored_population(RestoredPopulation::Table, &item.path)?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)
                     } else {item.rows};
                     item.action=if restored>0 || item.definition_only {"restored"} else {"removed without restoration"}.into();
                     item.before_rows=Some(item.rows);item.after_rows=Some(0);item.restored_rows=Some(restored);item.before_sample_ids=Some(item.sample_ids.clone());
                     if restored>0 || item.definition_only {restored_items+=1;}
                     items.push(item);
                 }
-                population.set(Some((tx.meta("activation_narrowed_retained")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),tx.meta("activation_narrowed_restored")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0))));
-                crate::store::release_history::event(tx,&options.operation,Some(options.release),options.expected_previous,serde_json::json!({"dormant_items":dormant_items,"restored_items":restored_items,"native_digest":options.native_digest,"narrowed_retained":tx.meta("activation_narrowed_retained")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),"narrowed_restored":tx.meta("activation_narrowed_restored")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)}),&items)?;
-                tx.conn().execute("DELETE FROM _meta WHERE key IN ('activation_restore','activation_population','activation_narrowed_retained','activation_narrowed_restored') OR key LIKE 'activation_narrowed_restored:%' OR key LIKE 'activation_column_restored:%' OR key LIKE 'activation_table_restored:%' OR key LIKE 'activation_table_restored_ids:%' OR key LIKE 'activation_narrowed_restored_ids:%' OR key LIKE 'activation_column_restored_ids:%'",[])?;
+                population.set(Some((tx.narrowed_retained()?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),tx.narrowed_restored()?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0))));
+                crate::store::release_history::event(tx,&options.operation,Some(options.release),options.expected_previous,serde_json::json!({"dormant_items":dormant_items,"restored_items":restored_items,"native_digest":options.native_digest,"narrowed_retained":tx.narrowed_retained()?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),"narrowed_restored":tx.narrowed_restored()?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)}),&items)?;
+                tx.clear_activation_metadata()?;
             }
             crate::store::opening::Metadata::read(tx)
         });

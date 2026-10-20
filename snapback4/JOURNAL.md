@@ -97222,3 +97222,51 @@ disclosure suites and doctests. No product-test failure was found. Clippy's
 two base-reproduced errors above are the only unresolved required-check
 failures. `scripts/test.sh` was not run. No design uncertainty remains. The
 lane commits locally with the commissioned author/committer and does not push.
+
+## 2026-10-20 — P0-S6: core activation, ordered reset and typed metadata
+
+`activation.rs` now owns the stored-backend record and crate-private opening,
+activation preparation, retirement and timeline-count access traits.
+`store/activation_access.rs` implements SQLite access; release selection,
+restoration accounting, timeline retirement predicates and activation policy
+stay in the engine. Retirement still streams images and stops at the first
+survivor. SQL literals, decoder/error order and transaction boundaries remain
+unchanged. `store/opening.rs` keeps the exact backend comparison under the
+activation lock.
+
+`store/dev_reset.rs` owns the ordered reset transaction, with engine callbacks
+for clock pinning, the pending asset inventory, schedule priming and
+commit/seeding policy at their original statement boundaries. The `_assets`
+read stays intact in its callback for P0-S5. Reset's schedule writes now use
+P0-S4b's typed jobs family. Continuations and ephemeral identity still change
+only after commit.
+
+`metadata.rs` and `store/metadata.rs` add typed key families with crate-private
+access traits and public Store/Tx forwarding methods for the independent host
+migration. Values stay textual so callers keep their existing missing,
+malformed and empty-value policy, and Store reads retain ownership checks.
+Core callers are migrated except the two generic identity reads in P0-S5's
+`engine/asset_uploads.rs`. The generic API remains available. The report lists
+remaining callers, including DeviceStore's SQLite forwarding boundary; later
+privacy work must account for that boundary too. No host source, Postgres
+adapter or pending effects/assets implementation changes. P1 gaps are marked.
+
+Shared cases cover metadata isolation, worker revision fences, textual values,
+streaming retirement and retired names, with SQLite metadata rollback coverage.
+The final build, complete core suite including doctests, and complete host suite
+(`--no-fail-fast`) pass. Ratchet regeneration passes: production **194 → 168**,
+tests **103 → 103**, total **297 → 271**. `ref-check --verbose` passes.
+
+The first core attempt exposed a new fixture's stale captured generation;
+corrected its setup and repeated the complete suite. The first host attempt
+stopped at two clock tests (expiry socket timeout and large-report output
+length). The exact-base clock target and the lane's complete rerun both pass
+all 45 clock tests with unchanged bounds; these are not classified as
+pre-existing failures. Required Clippy still stops on
+`clippy::while_immutable_condition` (`engine/read.rs:780`) and
+`clippy::never_loop` (`engine/row_views.rs:1010`). The exact base `98de657`
+reproduces both in a second detached worktree; final warning messages/counts
+match the base, with no additions. No `scripts/test.sh` or push.
+
+Full scope, validation and generic-caller census:
+[`reports/20261020-p0-s6-store-port.md`](reports/20261020-p0-s6-store-port.md).

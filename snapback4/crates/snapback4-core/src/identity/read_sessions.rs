@@ -23,8 +23,8 @@ pub fn narrow_session(store: &mut Store, token: &str, sample: impl FnOnce() -> S
     let parent = authority::live_session(&tx, &digest(token), sample.now)?
         .ok_or_else(|| RuntimeError::Auth("this session is not live; sign in again".into()))?;
     if parent.scope != SessionScope::Full || matches!(parent.kind.as_str(), "service" | "action")
-        || tx.meta("worker:session-family")?.as_deref() == Some(parent.family.as_str())
-        || tx.meta(&format!("worker:family:{}", parent.family))?.is_some()
+        || tx.worker_session_family()?.as_deref() == Some(parent.family.as_str())
+        || tx.worker_family_revision(&parent.family)?.is_some()
         || !supervisor_current(&tx, &parent.family, sample.supervisor_revision)? {
         return Err(RuntimeError::Auth("only an ordinary full session can narrow; service, action and supervised sessions cannot".into()));
     }

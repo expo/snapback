@@ -8,7 +8,7 @@ impl Engine {
         }
         if self.presence.is_some(){return Err(RuntimeError::Schema("fixture fork needs an isolated external presence snapshot".into()));}
         let store=self.store.fork_memory()?;
-        let identity=store.meta("store_id")?.ok_or_else(||RuntimeError::Store("fixture store has no identity".into()))?;
+        let identity=store.store_identity()?.ok_or_else(||RuntimeError::Store("fixture store has no identity".into()))?;
         Ok(Self {
             timeline_schedule:timeline::Schedule::default(),
             ephemeral:std::sync::Arc::new(ephemeral::Hub::new(identity,self.generation,&self.schema)),

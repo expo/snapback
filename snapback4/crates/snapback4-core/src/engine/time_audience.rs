@@ -70,9 +70,7 @@ impl Engine {
         if self.store.is_read_only()? {
             let floor = self
                 .store
-                .meta("time_audience_clock")?
-                .and_then(|value| value.parse::<i64>().ok())
-                .unwrap_or(i64::MIN);
+                .time_audience_clock()?;
             return Ok(requested.max(floor));
         }
         let tx = self.store.transaction()?;
@@ -105,9 +103,7 @@ impl Engine {
         if self.store.is_read_only()? {
             let floor = self
                 .store
-                .meta("time_audience_clock")?
-                .and_then(|value| value.parse::<i64>().ok())
-                .unwrap_or(i64::MIN);
+                .time_audience_clock()?;
             return Ok(requested.max(floor));
         }
 

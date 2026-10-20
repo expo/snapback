@@ -391,7 +391,7 @@ impl Engine {
     /// Engine replacement calls this under its owner mutex, before it is published.
     pub fn share_ephemeral_hub(&mut self, hub: Arc<Hub>) -> Result<(), RuntimeError> {
         hub.clear_and_rebind(
-            self.store.meta("store_id")?.unwrap_or_default(),
+            self.store.store_identity()?.unwrap_or_default(),
             self.generation,
             &self.schema,
         )?;
@@ -437,9 +437,9 @@ impl Engine {
             context.now.unwrap(),
         )?;
         context.now = Some(now);
-        let identity = tx.meta("store_id")?.unwrap_or_default();
+        let identity = tx.store_identity()?.unwrap_or_default();
         let generation = tx
-            .meta("generation")?
+            .generation_value()?
             .and_then(|n| n.parse().ok())
             .unwrap_or(0);
         let seq = tx.next_seq()? - 1;
