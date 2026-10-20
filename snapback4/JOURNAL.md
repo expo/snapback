@@ -97676,3 +97676,39 @@ instrumentation. Corrected the RFC's convenience-deletion note:
 close_identity_session has two autocommit deletes, but public logout_session
 invalidates its family in one IMMEDIATE transaction. The RFC keeps one
 Revised line, with P1-ID fix round 2 prepended. Final verification follows.
+
+### 2026-10-21 — P1-ID fix round 2 verification
+
+Fix commit: bd5018abc4. All work stayed in this worktree, with no additional
+worker, clone, remote-machine command, stash or push. The five rebased lane
+commits remain intact. Every Cargo invocation used the supplied target,
+incremental/debug settings and at most 24 build jobs.
+
+- Build first: cargo build --features snapback4-core/postgres passes.
+- cargo test -p snapback4-core passes every target, including all 17
+  doctests. The new legacy SQLite fixtures and shared NUL, family-tie and
+  rollback-versus-empty-commit witnesses pass.
+- cargo test -p snapback4 --no-fail-fast passes every target. All five
+  store-port ratchet tests pass; neither allowlist changed. No test failure
+  needs an exemption against main 6db797f530.
+- The unmodified full scripts/test-postgres.sh run passes: 138 passed,
+  0 failed, 0 ignored (58 evaluation, 61 core adapter, 19 corpus tests).
+  Both the barrier race and all incompatible attach fixtures execute and
+  pass. The only cluster started for this round was
+  /tmp/sb4-pg-eval.HfNOJx. Its cleanup completed, and an independent pg_ctl
+  status returned 3 (no server running); data/postmaster.pid is absent.
+- The requested Clippy command still fails on the inherited
+  while_immutable_condition in engine/read.rs:780 and never_loop in
+  engine/row_views.rs:1010. Those files and device/ffi.rs are unchanged
+  from 6db797f530. A full follow-up allowing only those two known lint
+  classes and the previously recorded not_unsafe_ptr_arg_deref class
+  completes with no new warnings in the changed code. No source lint
+  suppressions were added.
+- Root ref-check passes: 564 LLP documents, 11,511 references, 0 errors,
+  0 unchecked. The RFC still has exactly one Revised line.
+
+The required behaviors have witnesses on the relevant stores; no identity
+fix remains deferred. PostgreSQL host wiring, the internal migration runner
+and the owner lease fence remain outside this lane, as before. The retained
+SQLite lazy-install exception is a deliberate LLP 3000.033 compatibility
+constraint, not a new Postgres per-operation DDL path.
