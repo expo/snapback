@@ -28,8 +28,7 @@ impl DevResetStore for Store {
         prime_schedules: impl FnOnce(&Tx<'_>, i64) -> Result<(), RuntimeError>,
         seed: impl FnOnce(&Tx<'_>, u64, i64) -> Result<u64, RuntimeError>,
     ) -> Result<Committed<ResetState>, RuntimeError> {
-        Committer::run(Member::new(Kind::Administrative, |commit| {
-            let tx = commit.open(self)?;
+        Committer::run_committed(self, Member::new(Kind::Administrative, |tx| {
             // @ref LLP 3000.000.000.000.000#2-fixture-semantics — a new identity cannot inherit the retired store's future clock.
             tx.conn()
                 .execute("DELETE FROM _meta WHERE key = 'time_audience_clock'", [])?;
@@ -69,14 +68,13 @@ impl DevResetStore for Store {
             tx.changes.borrow_mut().widen();
             let seeded = seed(&tx, head, now)?;
             let seq = tx.next_seq()?.saturating_sub(1);
-            commit.commit(tx)?;
-            Ok(commit.committed(ResetState {
+            tx.commit(ResetState {
                 previous_store_id,
                 store_id,
                 seq,
                 seeded,
                 assets,
-            }))
+            })
         }))
     }
 }

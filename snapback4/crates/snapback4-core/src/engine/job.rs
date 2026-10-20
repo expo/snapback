@@ -256,14 +256,13 @@ impl Engine {
     pub fn run_job_chunk_for(&mut self, now: i64, budget: std::time::Duration) -> Result<Option<JobRun>, RuntimeError> {
         let started = std::time::Instant::now();
         let presence = self.presence.clone();
-        Committer::run(Member::new(Kind::Engine, |commit| {
-            let tx = commit.open(&mut self.store)?;
+        let id = Committer::run(&mut self.store, Member::new(Kind::Engine, |tx| {
             // @ref LLP 3000.036.003#3.2 — a job's
             // runner, partition events and commit share the floor pinned inside
             // their writer transaction, for Quarry and native chunks alike.
             let now = super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
             let head = tx.head_job()?;
-            let Some(mut head) = head else { return Ok(None) };
+            let Some(mut head) = head else { return Ok(tx.abort(None)) };
             let program = self.programs.get(&head.run.name).cloned();
             #[cfg(feature = "native")]
             let current_hash = program.as_ref().map(|program| job_admission_hash(program, self.native.as_deref().map(super::native::Module::digest)));
@@ -271,16 +270,15 @@ impl Engine {
             let current_hash = program.as_ref().map(|program| job_admission_hash(program, None));
             let Some(program) = program.filter(|_| current_hash.as_deref() == Some(&head.program_hash)) else {
                 tx.park_job(&head.run.id, &format!("E_JOB_GENERATION: job {} or its native module changed (or the run predates module binding) since this run was queued; queue it again", head.run.name), now)?;
-                commit.commit(tx)?;
-                return commit.after_commit(|| self.job(&head.run.id));
+                return tx.commit(Some(head.run.id));
             };
             if program.native {
                 let id = head.run.id.clone();
                 #[cfg(feature = "native")]
-                native_chunk((commit, tx), &self.schema, self.native.as_deref(), &mut self.native_logs, self.minter.clone(), head, &program, now, self.dev_effects)?;
+                let outcome = native_chunk(tx, &self.schema, self.native.as_deref(), &mut self.native_logs, self.minter.clone(), head, &program, now, self.dev_effects);
                 #[cfg(not(feature = "native"))]
-                native_chunk((commit, tx), head, &program, now)?;
-                return commit.after_commit(|| self.job(&id));
+                let outcome = native_chunk(tx, head, &program, now);
+                return outcome.map(|disposition| disposition.map(|()| Some(id)));
             }
             let mut sweeps = Vec::new();
             let mut setup_start = 0;
@@ -306,13 +304,11 @@ impl Engine {
                     |(position, binding)| format!("has an unsupported top-level loop at statement {position} (`for {binding}`)"));
                 tx.park_job(&head.run.id,
                     &format!("E_JOB_SWEEP: job {} {reason}; bind its work as `for row in table:` and put optional filters inside the loop", program.name), now)?;
-                commit.commit(tx)?;
-                return commit.after_commit(|| self.job(&head.run.id));
+                return tx.commit(Some(head.run.id));
             }
             if sweep >= sweeps.len() {
                 tx.finish_job_sweeps(&head.run.id, sweeps.len(), now)?;
-                commit.commit(tx)?;
-                return commit.after_commit(|| self.job(&head.run.id));
+                return tx.commit(Some(head.run.id));
             }
             let (binding, domain, body, setup) = sweeps[sweep];
             let adaptive = domain.take == crate::ir::Bound::Meter;
@@ -325,7 +321,7 @@ impl Engine {
                 let mut context = Context::system().at(now).with_presence(presence.clone()).with_minter(self.minter.clone());
                 context.args = head.args.clone();
                 context = context.with_generation(self.generation);
-                let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
+                let mut runner = Runner::new(&*tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
                 runner.job_read_scope = 1;
                 runner.insert_uses = Some(crate::ir::effects::Effects::variable_uses(&program.body));
 
@@ -376,8 +372,8 @@ impl Engine {
                     Ok((chunk, upper)) => {
                         if rows_written > 0 || !events.is_empty() || !outbox.is_empty() {
                             tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &tables, rows_written)?;
-                            partition::append(&tx, seq, &events)?;
-                            super::effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
+                            partition::append(&*tx, seq, &events)?;
+                            super::effects::record(&*tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
                         }
                         let (next_sweep, cursor, upper) = if chunk.finished { (sweeps.len(), None, None) } else if chunk.ended { (sweep + 1, None, None) } else { (sweep, chunk.last_key, upper) };
                         let state = if next_sweep >= sweeps.len() { JobState::Done } else { JobState::Running };
@@ -387,8 +383,7 @@ impl Engine {
                             size, retries: head.run.retries, heap_peak: head.run.heap_peak,
                             domain: if next_sweep == sweep { frozen.as_ref() } else { None },
                         })?;
-                        commit.commit(tx)?;
-                        return commit.after_commit(|| Ok(self.job(&head.run.id)?));
+                        return tx.commit(Some(head.run.id));
                     }
                     Err(error) if error.is_refusal() => {
                         tx.rollback_to("job_chunk")?;
@@ -400,16 +395,19 @@ impl Engine {
                         }
                         let refusal = error.refusal();
                         tx.park_job_chunk(&head.run.id, &format!("{}: {}", refusal.code, refusal.message), now, size, head.run.retries, head.run.heap_peak)?;
-                        commit.commit(tx)?;
-                        return commit.after_commit(|| self.job(&head.run.id));
+                        return tx.commit(Some(head.run.id));
                     }
                     Err(error) => {
-                        tx.rollback()?;
+                        tx.rollback(())?;
                         return Err(error);
                     }
                 }
             }
-        }))
+        }))?;
+        match id {
+            Some(id) => self.job(&id),
+            None => Ok(None),
+        }
     }
 
     /// Queue the job of every schedule whose period boundary the clock has
@@ -508,13 +506,13 @@ impl Engine {
 /// it, a trap parks it with the reason. Over the engine's fields, not the
 /// engine, because the transaction borrows its store.
 #[cfg(feature = "native")]
-fn native_chunk((commit, tx): (&mut super::committer::Committer, crate::store::Tx<'_>), schema: &crate::schema::Schema, module: Option<&super::native::Module>, logs: &mut super::native::Logs, minter: crate::ids::Mint, head: Head, program: &crate::ir::Program, now: i64, dev: bool) -> Result<(), RuntimeError> {
+fn native_chunk(tx: super::committer::MemberTx<'_, '_>, schema: &crate::schema::Schema, module: Option<&super::native::Module>, logs: &mut super::native::Logs, minter: crate::ids::Mint, head: Head, program: &crate::ir::Program, now: i64, dev: bool) -> Result<super::committer::Disposition<()>, RuntimeError> {
     use super::native::{self, Step};
     tx.savepoint("job_chunk")?;
     let seq = tx.next_seq()?;
     let mut context = Context::system().at(now).with_minter(minter);
     context.args = head.args.clone();
-    let runner = Runner::new(&tx, schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
+    let runner = Runner::new(&*tx, schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
     let state: Option<serde_json::Value> = head.cursor.as_deref().and_then(|bytes| serde_json::from_slice(bytes).ok());
     let outcome = match module {
         Some(module) => native::run_chunk(module, runner, &program.name, &head.args, state, now),
@@ -525,24 +523,24 @@ fn native_chunk((commit, tx): (&mut super::committer::Committer, crate::store::T
         Ok(step) => {
             if outcome.rows_written > 0 || !outcome.events.is_empty() {
                 tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &outcome.tables, outcome.rows_written)?;
-                partition::append(&tx, seq, &outcome.events)?;
-                super::effects::record(&tx, &outcome.outbox, seq, now, dev, schema)?;
+                partition::append(&*tx, seq, &outcome.events)?;
+                super::effects::record(&*tx, &outcome.outbox, seq, now, dev, schema)?;
             }
             let (state, cursor) = match step {
                 Step::Done => (JobState::Done, None),
                 Step::Again(state) => (JobState::Running, Some(state.to_string().into_bytes())),
             };
             tx.record_native_job_chunk(&head.run.id, state, cursor.as_deref(), outcome.rows_written, now)?;
-            commit.commit(tx)
+            tx.commit(())
         }
         Err(error) if error.is_refusal() => {
             tx.rollback_to("job_chunk")?;
             let refusal = error.refusal();
             tx.park_job(&head.run.id, &format!("{}: {}", refusal.code, refusal.message), now)?;
-            commit.commit(tx)
+            tx.commit(())
         }
         Err(error) => {
-            tx.rollback()?;
+            tx.rollback(())?;
             Err(error)
         }
     }
@@ -550,9 +548,9 @@ fn native_chunk((commit, tx): (&mut super::committer::Committer, crate::store::T
 
 /// Built without native jobs: a native job parks, saying so.
 #[cfg(not(feature = "native"))]
-fn native_chunk((commit, tx): (&mut super::committer::Committer, crate::store::Tx<'_>), head: Head, program: &crate::ir::Program, now: i64) -> Result<(), RuntimeError> {
+fn native_chunk(tx: super::committer::MemberTx<'_, '_>, head: Head, program: &crate::ir::Program, now: i64) -> Result<super::committer::Disposition<()>, RuntimeError> {
     tx.park_job(&head.run.id, &format!("E_NATIVE: job {} is native and this server was built without native jobs", program.name), now)?;
-    commit.commit(tx)
+    tx.commit(())
 }
 
 /// Adapter-neutral cases: each adapter supplies its own transaction lifecycle.

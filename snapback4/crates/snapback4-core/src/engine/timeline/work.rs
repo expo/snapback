@@ -193,16 +193,15 @@ impl Engine {
         for offset in 0..count {
             let index = if rotate { (self.timeline_schedule.next + offset) % count } else { offset };
             let timeline = self.schema.timelines[index].clone();
-            let chunk = Committer::run(Member::new(Kind::Engine, |commit| {
-                let tx = commit.open(&mut self.store)?;
+            let chunk = Committer::run(&mut self.store, Member::new(Kind::Engine, |tx| {
                 let now = super::super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
                 tx.savepoint("timeline_chunk")?;
                 let seq = tx.next_seq()?;
-                let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now).with_minter(self.minter.clone()), Meter::new(Ceilings::job(), Cut::Abort), seq);
+                let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now).with_minter(self.minter.clone()), Meter::new(Ceilings::job(), Cut::Abort), seq);
                 let mut runner = runner.timeline_scope(super::super::timeline_authority::Authority::Transition(timeline.name.clone()));
                 let pending = vec![Value::String("pending".into())];
                 let (mut rows, _) = runner.timeline_page(&timeline.table("Work"), "byStatusTime", pending, 1, false, None)?;
-                let Some(work) = rows.pop() else { return Ok(None); };
+                let Some(work) = rows.pop() else { return Ok(tx.abort(None)); };
                 let outcome = runner.timeline_work(&timeline, &work, started, budget, rotate).and_then(|()| runner.check_final_exists());
                 let events = runner.events.take();
                 let tables: Vec<_> = runner.written_tables.iter().cloned().collect();
@@ -211,17 +210,13 @@ impl Engine {
                 match outcome {
                     Ok(()) => {
                         tx.record_commit(seq, now, &format!("{}:delivery", timeline.name), crate::SYSTEM_PRINCIPAL, "job", &tables, metered.rows_written)?;
-                        partition::append(&tx, seq, &events)?;
-                        commit.commit(tx)?;
-                        commit.after_commit(|| {
-                            if rotate { self.timeline_schedule.next = (index + 1) % count; }
-                        });
-                        Ok(Some(metered))
+                        partition::append(&*tx, seq, &events)?;
+                        tx.commit(Some(metered))
                     }
                     Err(error) if error.is_refusal() => {
                         tx.rollback_to("timeline_chunk")?;
                         let seq = tx.next_seq()?;
-                        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now).with_minter(self.minter.clone()), Meter::new(Ceilings::job(), Cut::Abort), seq);
+                        let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now).with_minter(self.minter.clone()), Meter::new(Ceilings::job(), Cut::Abort), seq);
                         let mut guard = runner.timeline_scope(super::super::timeline_authority::Authority::Transition(timeline.name.clone()));
                         let message: String = error.to_string().chars().take(4000).collect();
                         guard.update(&timeline.table("Work"), &field(&work, "id")?, object([("status", Value::String("parked".into())), ("error", Value::String(message))]).timeline_input(&super::TimelineInput(())))?;
@@ -230,17 +225,16 @@ impl Engine {
                         let metered = guard.meter.used;
                         drop(guard); drop(runner);
                         tx.record_commit(seq, now, &format!("{}:delivery", timeline.name), crate::SYSTEM_PRINCIPAL, "job", &tables, metered.rows_written)?;
-                        partition::append(&tx, seq, &events)?;
-                        commit.commit(tx)?;
-                        commit.after_commit(|| {
-                            if rotate { self.timeline_schedule.next = (index + 1) % count; }
-                        });
-                        Ok(Some(metered))
+                        partition::append(&*tx, seq, &events)?;
+                        tx.commit(Some(metered))
                     }
                     Err(error) => Err(error),
                 }
             }))?;
-            if chunk.is_some() { return Ok(chunk); }
+            if chunk.is_some() {
+                if rotate { self.timeline_schedule.next = (index + 1) % count; }
+                return Ok(chunk);
+            }
         }
         Ok(None)
     }

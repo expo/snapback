@@ -75,11 +75,9 @@ impl Engine {
                 .time_audience_clock()?;
             return Ok(requested.max(floor));
         }
-        Committer::run(Member::new(Kind::Direct, |commit| {
-            let tx = commit.open(&mut self.store)?;
+        Committer::run(&mut self.store, Member::new(Kind::Direct, |tx| {
             let now = tx.pin_time_audience_clock(requested)?;
-            commit.commit(tx)?;
-            Ok(now)
+            tx.commit(now)
         }))
     }
 
@@ -111,13 +109,11 @@ impl Engine {
             return Ok(requested.max(floor));
         }
 
-        Committer::run(Member::new(Kind::Publication, |commit| {
-            let tx = commit.open(&mut self.store)?;
+        Committer::run(&mut self.store, Member::new(Kind::Publication, |tx| {
             let now = tx.pin_time_audience_clock(requested)?;
             let opening = match selected { Some((table, id)) => tx.selected_time_audience(table, id, now)?, None => tx.due_time_audience(now)? };
             let Some(opening) = opening else {
-                commit.commit(tx)?;
-                return Ok(now);
+                return tx.commit(now);
             };
 
             let row = tx.get(&opening.table, &opening.id)?;
@@ -137,13 +133,12 @@ impl Engine {
                 // Stale/rescheduled/deleted and never-live rows advance only the
                 // private ledger and clock, with no public commit or invalidation.
                 tx.set_time_audience_published(&opening.table, &opening.id, false)?;
-                commit.commit(tx)?;
-                return Ok(now);
+                return tx.commit(now);
             };
 
             let seq = tx.next_seq()?;
             let mut runner = Runner::new(
-                &tx,
+                &*tx,
                 &self.schema,
                 Context::system().at(now),
                 // Structural admission proves one opening fits the ordinary
@@ -184,9 +179,8 @@ impl Engine {
                 &tables,
                 0,
             )?;
-            partition::append(&tx, seq, &events)?;
-            commit.commit(tx)?;
-            Ok(now)
+            partition::append(&*tx, seq, &events)?;
+            tx.commit(now)
         }))
     }
 }

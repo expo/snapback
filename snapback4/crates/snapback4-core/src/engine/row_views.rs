@@ -1011,8 +1011,7 @@ impl super::Engine {
             .collect::<Vec<_>>()
         {
             loop {
-                let chunk = Committer::run(Member::new(Kind::Engine, |commit| {
-                    let tx = commit.open(&mut self.store)?;
+                let chunk = Committer::run(&mut self.store, Member::new(Kind::Engine, |tx| {
                     let now = super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
                     let Some((work, _)) = tx
                         .scan(
@@ -1025,12 +1024,12 @@ impl super::Engine {
                         )?
                         .pop()
                     else {
-                        return Ok(None);
+                        return Ok(tx.abort(None));
                     };
                     let private = m.row_count_needs_live_basis(&self.schema);
                     let seq = if private { 0 } else { tx.next_seq()? };
                     let mut runner = Runner::new(
-                        &tx,
+                        &*tx,
                         &self.schema,
                         Context::system().at(now),
                         Meter::new(Ceilings::job(), Cut::Abort),
@@ -1065,7 +1064,7 @@ impl super::Engine {
                     // Expiring values are already certified from the live basis at
                     // every public read. Advance the private cache by one bounded durable
                     // chunk without manufacturing redundant sequence/log activity.
-                    if private { commit.commit(tx)?; return Ok(Some(ViewChunk::Private)); }
+                    if private { return tx.commit(Some(ViewChunk::Private)); }
                     tx.record_commit(
                         seq,
                         now,
@@ -1075,9 +1074,8 @@ impl super::Engine {
                         &tables,
                         metered.rows_written,
                     )?;
-                    partition::append(&tx, seq, &events)?;
-                    commit.commit(tx)?;
-                    Ok(Some(ViewChunk::Published(metered)))
+                    partition::append(&*tx, seq, &events)?;
+                    tx.commit(Some(ViewChunk::Published(metered)))
                 }))?;
                 if chunk.is_some() { return Ok(chunk); }
                 break;

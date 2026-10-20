@@ -5,7 +5,7 @@
 pub(super) use super::activation_walk::walk;
 use super::activation_walk::walk_metered;
 use super::*;
-use crate::engine::committer::{Committed, Committer, Kind, Member};
+use crate::engine::committer::{Committed, Committer, Kind};
 use crate::ir::Program;
 use crate::schema::{Constraint, materialize_optional_fields};
 use crate::value::digest;
@@ -109,9 +109,9 @@ impl Store {
             for estimate in estimates.iter().filter(|e| e.sources != 0) { crate::diagnostic!("snapback4: atomic feed adoption: {}", estimate.summary()); }
         }
         report.phase("read-only advice", &mut phase);
-        Committer::run(Member::new(Kind::Administrative, |commit| {
+        Committer::run_solo(Kind::Administrative, |commit| {
             self.check_ownership()?;
-            let sql = commit.open_with(|| Ok(self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?))?;
+            let sql = commit.open_solo_with(|| Ok(self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?))?;
             // Low-level preparation may precede a writer-lock wait. Recheck all
             // opening admission under the lock that owns the upgrades.
             Self::check_version(&sql)?;
@@ -501,7 +501,7 @@ impl Store {
                 self.accept_open();
             });
             Ok(commit.committed((generation, result)))
-        }))
+        })
     }
 }
 

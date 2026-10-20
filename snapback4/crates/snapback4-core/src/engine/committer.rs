@@ -1,5 +1,6 @@
-//! Reference committer: one in-place member and its original transaction.
+//! Reference committer: a physical transaction with one savepoint-scoped member.
 use crate::{RuntimeError, Store, store::Tx};
+use std::{cell::Cell, ops::Deref};
 
 // @ref LLP 3000.009.001.000.000#3.2 — kinds describe durable units, including writes that publish no sequence.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -11,9 +12,6 @@ pub(crate) enum Kind {
     Administrative,
 }
 
-/// The body carries its post-commit continuations as calls to `after_commit`.
-/// The reference runs those hooks inline in submission order, after releasing
-/// the transaction borrow. This also permits a hook to rebind engine/store state.
 pub(crate) struct Member<F> {
     kind: Kind,
     run: F,
@@ -22,14 +20,79 @@ pub(crate) struct Member<F> {
 impl<F> Member<F> {
     pub(crate) fn new<T>(kind: Kind, run: F) -> Self
     where
-        F: FnOnce(&mut Committer) -> Result<T, RuntimeError>,
+        F: FnOnce(MemberTx<'_, '_>) -> Result<Disposition<T>, RuntimeError>,
     {
         Self { kind, run }
     }
 }
 
-/// A successful commit's continuation, kept across adapter/engine layers so
-/// their hooks can run at the original point without holding a writer borrow.
+/// Selected by the body, independently of whether its caller-facing result is Ok.
+pub(crate) enum Disposition<T> {
+    Complete(T),
+    Abort(T),
+}
+impl<T> Disposition<T> {
+    pub(crate) fn map<R>(self, map: impl FnOnce(T) -> R) -> Disposition<R> {
+        match self {
+            Self::Complete(value) => Disposition::Complete(map(value)),
+            Self::Abort(value) => Disposition::Abort(map(value)),
+        }
+    }
+}
+
+/// Borrows the committer's transaction; it cannot consume or commit that owner.
+/// Deref preserves the existing Tx read/write surface and nested savepoints.
+// @ref LLP 3000.009.001.000.000#3.7 — rollback/drop undo only this member, never a preceding member.
+pub(crate) struct MemberTx<'member, 'store> {
+    tx: &'member Tx<'store>,
+    active: Cell<bool>,
+}
+impl<'member, 'store> Deref for MemberTx<'member, 'store> {
+    type Target = Tx<'store>;
+    fn deref(&self) -> &Self::Target {
+        self.tx
+    }
+}
+impl MemberTx<'_, '_> {
+    /// Release this member; the driver still owes the physical COMMIT.
+    pub(crate) fn commit<T>(self, value: T) -> Result<Disposition<T>, RuntimeError> {
+        if !self.active.get() {
+            return Err(RuntimeError::Store(
+                "member transaction already ended".into(),
+            ));
+        }
+        self.tx.release("member")?;
+        self.active.set(false);
+        Ok(Disposition::Complete(value))
+    }
+
+    /// Explicit rollback keeps its fallible contract, including replay paths.
+    pub(crate) fn rollback<T>(self, value: T) -> Result<Disposition<T>, RuntimeError> {
+        self.abandon()?;
+        Ok(Disposition::Abort(value))
+    }
+
+    /// A normal early return used to drop Tx and ignore rollback errors.
+    pub(crate) fn abort<T>(&self, value: T) -> Disposition<T> {
+        Disposition::Abort(value)
+    }
+
+    /// Match Tx's borrowed rollback surface without escaping the member frame.
+    pub(crate) fn abandon(&self) -> Result<(), RuntimeError> {
+        if self.active.get() {
+            self.tx.rollback_to("member")?;
+            self.active.set(false);
+        }
+        Ok(())
+    }
+}
+impl Drop for MemberTx<'_, '_> {
+    fn drop(&mut self) {
+        let _ = self.abandon();
+    }
+}
+
+/// A successful physical commit's acknowledgement across adapter/engine layers.
 pub(crate) struct Committed<T>(T);
 impl<T> Committed<T> {
     pub(crate) fn after_commit<R>(self, hook: impl FnOnce(T) -> R) -> Committed<R> {
@@ -40,64 +103,105 @@ impl<T> Committed<T> {
     }
 }
 
+pub(crate) struct Committer;
+impl Committer {
+    pub(crate) fn run<T>(
+        store: &mut Store,
+        member: Member<impl FnOnce(MemberTx<'_, '_>) -> Result<Disposition<T>, RuntimeError>>,
+    ) -> Result<T, RuntimeError> {
+        let tx = store.transaction()?;
+        match Self::execute(&tx, member)? {
+            Disposition::Complete(value) => {
+                tx.commit()?;
+                Ok(value)
+            }
+            Disposition::Abort(value) => {
+                // Tx's drop issues ROLLBACK, as on the old normal early returns.
+                drop(tx);
+                Ok(value)
+            }
+        }
+    }
+
+    fn execute<T>(
+        tx: &Tx<'_>,
+        member: Member<impl FnOnce(MemberTx<'_, '_>) -> Result<Disposition<T>, RuntimeError>>,
+    ) -> Result<Disposition<T>, RuntimeError> {
+        let Member { kind, run } = member;
+        // No production batching, queue, revision allocation or retries in K0b.
+        let _kind = kind;
+        *tx.changes.borrow_mut() = Default::default();
+        tx.savepoint("member")?;
+        run(MemberTx {
+            tx,
+            active: Cell::new(true),
+        })
+    }
+
+    /// Reset has no normal abort result; acknowledge only after physical COMMIT.
+    pub(crate) fn run_committed<T>(
+        store: &mut Store,
+        member: Member<impl FnOnce(MemberTx<'_, '_>) -> Result<Disposition<T>, RuntimeError>>,
+    ) -> Result<Committed<T>, RuntimeError> {
+        Self::run(
+            store,
+            Member::new(member.kind, |tx| match (member.run)(tx)? {
+                Disposition::Complete(value) => Ok(Disposition::Complete(value)),
+                Disposition::Abort(_) => Err(RuntimeError::Store(
+                    "commit acknowledgement requires completion".into(),
+                )),
+            }),
+        )
+        .map(Committed)
+    }
+
+    /// Activation and Following prepare one raw IMMEDIATE transaction over a
+    /// candidate catalog. This administrative escape is explicitly solo.
+    pub(crate) fn run_solo<T>(
+        kind: Kind,
+        run: impl FnOnce(&mut Solo) -> Result<T, RuntimeError>,
+    ) -> Result<T, RuntimeError> {
+        assert_eq!(
+            kind,
+            Kind::Administrative,
+            "raw transactions are solo administrative members"
+        );
+        run(&mut Solo {
+            opened: false,
+            committed: false,
+        })
+    }
+}
+
 pub(crate) trait CommitTransaction {
     fn commit_transaction(self) -> Result<(), RuntimeError>;
 }
-
 impl CommitTransaction for Tx<'_> {
     fn commit_transaction(self) -> Result<(), RuntimeError> {
         self.commit()
     }
 }
 
-/// A member-scoped boundary. The body selects the original commit point and
-/// retains ownership of the handle so explicit rollback errors and implicit
-/// drop paths keep their existing behavior, including normal refusal returns.
-pub(crate) struct Committer {
+pub(crate) struct Solo {
     opened: bool,
     committed: bool,
 }
-
-impl Committer {
-    pub(crate) fn run<T>(
-        member: Member<impl FnOnce(&mut Self) -> Result<T, RuntimeError>>,
-    ) -> Result<T, RuntimeError> {
-        let Member { kind, run } = member;
-        // K0a deliberately has no kind-dependent scheduling, queue, batching,
-        // revision allocation or retries. Every member runs in place, alone.
-        let _kind = kind;
-        run(&mut Self {
-            opened: false,
-            committed: false,
-        })
-    }
-
-    pub(crate) fn open<'a>(&mut self, store: &'a mut Store) -> Result<Tx<'a>, RuntimeError> {
-        self.open_with(|| store.transaction())
-    }
-
-    /// Activation must prepare its raw transaction before constructing a Tx
-    /// over the candidate catalog. Invoke its adapter's original opener.
-    pub(crate) fn open_with<X>(
+impl Solo {
+    pub(crate) fn open_solo_with<X>(
         &mut self,
         open: impl FnOnce() -> Result<X, RuntimeError>,
     ) -> Result<X, RuntimeError> {
-        assert!(!self.opened, "one transaction per reference member");
+        assert!(!self.opened, "one transaction per solo member");
         let tx = open()?;
         self.opened = true;
         Ok(tx)
     }
-
     pub(crate) fn commit(&mut self, tx: impl CommitTransaction) -> Result<(), RuntimeError> {
-        assert!(
-            self.opened && !self.committed,
-            "one commit per reference member"
-        );
+        assert!(self.opened && !self.committed, "one commit per solo member");
         tx.commit_transaction()?;
         self.committed = true;
         Ok(())
     }
-
     pub(crate) fn committed<T>(&self, value: T) -> Committed<T> {
         assert!(
             self.committed,
@@ -105,9 +209,6 @@ impl Committer {
         );
         Committed(value)
     }
-
-    /// Register and run the next post-commit hook. Inline execution preserves
-    /// today's ordering relative to subsequent reads, wakeups and fallible work.
     pub(crate) fn after_commit<T>(&self, hook: impl FnOnce() -> T) -> T {
         assert!(
             self.committed,
@@ -116,6 +217,10 @@ impl Committer {
         hook()
     }
 }
+
+#[cfg(test)]
+#[path = "../store/committer_tests.rs"]
+mod sqlite_tests;
 
 #[cfg(test)]
 mod tests {
@@ -135,10 +240,10 @@ mod tests {
     }
 
     #[test]
-    fn reference_opens_runs_commits_then_runs_hooks_in_order() {
+    fn solo_opens_runs_commits_then_runs_hooks_in_order() {
         let events = RefCell::new(Vec::new());
-        let value = Committer::run(Member::new(Kind::Program, |commit| {
-            let tx = commit.open_with(|| {
+        let value = Committer::run_solo(Kind::Administrative, |commit| {
+            let tx = commit.open_solo_with(|| {
                 events.borrow_mut().push("open");
                 Ok(Transaction(&events, true))
             })?;
@@ -147,7 +252,7 @@ mod tests {
             commit.after_commit(|| events.borrow_mut().push("first"));
             commit.after_commit(|| events.borrow_mut().push("second"));
             Ok(commit.committed(7))
-        }))
+        })
         .unwrap();
         let value = value
             .after_commit(|value| {
@@ -175,11 +280,11 @@ mod tests {
     }
 
     #[test]
-    fn no_hooks_on_drop_body_error_open_error_or_failed_commit() {
+    fn solo_has_no_hooks_on_drop_body_error_open_error_or_failed_commit() {
         for mode in 0..4 {
             let events = RefCell::new(Vec::new());
-            let result = Committer::run(Member::new(Kind::Direct, |commit| {
-                let tx = commit.open_with(|| {
+            let result = Committer::run_solo(Kind::Administrative, |commit| {
+                let tx = commit.open_solo_with(|| {
                     if mode == 2 {
                         return Err(RuntimeError::Store("open failed".into()));
                     }
@@ -194,7 +299,7 @@ mod tests {
                 commit.commit(tx)?;
                 commit.after_commit(|| events.borrow_mut().push("hook"));
                 Ok(())
-            }));
+            });
             assert_eq!(result.is_ok(), mode == 0);
             assert!(!events.borrow().contains(&"hook"));
         }

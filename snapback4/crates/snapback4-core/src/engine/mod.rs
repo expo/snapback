@@ -629,11 +629,10 @@ impl Engine {
         if expiring.is_empty() {
             return Ok(0);
         }
-        Committer::run(Member::new(Kind::Engine, |commit| {
-            let tx = commit.open(&mut self.store)?;
+        let (expiry_after, now, removed) = Committer::run(&mut self.store, Member::new(Kind::Engine, |tx| {
             let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
             let seq = tx.next_seq()?;
-            let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
             let mut removed = 0_u64;
             let mut visited = 0_usize;
             let mut expiry_after = self.expiry_after.clone();
@@ -688,15 +687,13 @@ impl Engine {
             drop(runner);
             if written > 0 {
                 tx.record_commit(seq, now, "expire", crate::SYSTEM_PRINCIPAL, "sweep", &tables, written)?;
-                partition::append(&tx, seq, &events)?;
+                partition::append(&*tx, seq, &events)?;
             }
-            commit.commit(tx)?;
-            commit.after_commit(|| {
-                self.expiry_after = expiry_after;
-                self.advance_time_audience(now)?;
-                Ok(removed)
-            })
-        }))
+            tx.commit((expiry_after, now, removed))
+        }))?;
+        self.expiry_after = expiry_after;
+        self.advance_time_audience(now)?;
+        Ok(removed)
     }
 
     /// The schema generation the store serves; a device holds a partition
@@ -942,17 +939,15 @@ impl Engine {
                 Err(error) => Err(error),
             };
         }
-        Committer::run(Member::new(Kind::Program, |commit| {
-            let tx = commit.open(&mut self.store)?;
+        let (outcome, entropy) = Committer::run(&mut self.store, Member::new(Kind::Program, |tx| {
             if let Some(op) = op
                 && let Some(outcome) = tx.replay_bound(&context.viewer, op, name, &wire_args)?
             {
                 // Applied between the check above and this transaction.
                 let outcome = MutationOutcome::from_receipt(&outcome)?;
-                tx.rollback()?;
-                return Ok(outcome);
+                return tx.rollback((outcome, None));
             }
-            if let Some(op)=op{assets::require_placement(&tx,&context.viewer,op,name,&wire_args)?;}
+            if let Some(op)=op{assets::require_placement(&*tx,&context.viewer,op,name,&wire_args)?;}
             context.now = Some(time_audience::pin_writer_time(
                 &self.schema,
                 &tx,
@@ -970,7 +965,7 @@ impl Engine {
                 return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
             }
             if let Err(error) = validate::validate_inputs(&self.schema, &program, &mut context.args) {
-                return Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
+                return Ok(tx.abort((MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }, None)));
             }
             if context.presence.is_none() {
                 context.presence = self.presence.clone();
@@ -1001,13 +996,13 @@ impl Engine {
                     if (asset.kind == AssetKind::File) != matches!(inner, crate::ir::ArgType::File { .. }) {
                         let wanted = if matches!(inner, crate::ir::ArgType::File { .. }) { "a file" } else { "an image or video" };
                         let error = RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("{name} takes {wanted} and {id} is {}; upload it as {wanted}", asset.kind.word()) };
-                        return Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
+                        return Ok(tx.abort((MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }, None)));
                     }
                     context.args.insert(name.clone(), asset.column_value());
                 }
             }
             tx.savepoint("program")?;
-            let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
+            let mut runner = Runner::new(&*tx, &self.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
             let ran = runner.run(&program).and_then(|value| {
                 runner.charge_output(&value)?;
                 Ok(value)
@@ -1024,7 +1019,7 @@ impl Engine {
             let outbox = std::mem::take(&mut runner.outbox);
             let rows_written = runner.rows_written;
             let mut read_tables = runner.read_tables.clone();
-            self.entropy = runner.context.entropy;
+            let entropy = runner.context.entropy;
             drop(runner);
             let outcome = match ran {
                 Ok(result) => {
@@ -1037,8 +1032,8 @@ impl Engine {
                     read_tables.extend(tables.iter().cloned());
                     if !receipt_only {
                         tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
-                        partition::append(&tx, seq, &events)?;
-                        effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
+                        partition::append(&*tx, seq, &events)?;
+                        effects::record(&*tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
                     }
                     MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events, &action_tables), replayed: false }
                 }
@@ -1046,7 +1041,7 @@ impl Engine {
                     tx.rollback_to("program")?;
                     let current = match &error {
                         RuntimeError::Conflict { current } => {
-                            let mut probe = Runner::new(&tx, &self.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
+                            let mut probe = Runner::new(&*tx, &self.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
                             let value = probe.get(current).ok();
                             value
                         }
@@ -1056,7 +1051,7 @@ impl Engine {
                     MutationOutcome { receipt_only: false, state: WriteState::Failed { why, current }, metered, tables: Vec::new(), events: 0, replayed: false }
                 }
                 Err(error) => {
-                    tx.rollback()?;
+                    tx.rollback(())?;
                     return Err(error);
                 }
             };
@@ -1068,9 +1063,11 @@ impl Engine {
                 tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.receipt(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
                 tx.bind_applied(&viewer, op, name, &wire_args, now)?;
             }
-            commit.commit(tx)?;
-            Ok(outcome)
-        }))
+            tx.commit((outcome, Some(entropy)))
+        }))?;
+        // @ref LLP 3000.009.001.000.000#3.7 — entropy follows the durable COMMIT, not the member savepoint release.
+        if let Some(entropy) = entropy { self.entropy = entropy; }
+        Ok(outcome)
     }
 
     /// Write rows as the system principal: rules are bypassed, validation,
@@ -1082,12 +1079,10 @@ impl Engine {
     /// Development hosts supply their clock so seed commits share operation and stream time.
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
         let now = self.advance_time_audience(now)?;
-        Committer::run(Member::new(Kind::Administrative, |commit| {
-            let tx = commit.open(&mut self.store)?;
+        Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
             let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
             let count = seed_rows(&self.schema, &tx, rows, now)?;
-            commit.commit(tx)?;
-            Ok(count)
+            tx.commit(count)
         }))
     }
 
@@ -1101,11 +1096,10 @@ impl Engine {
         self.schema.refuse_ephemeral_import(table)?;
         timeline::check_import(&self.schema, table)?;
         let now = self.advance_time_audience(now)?;
-        Committer::run(Member::new(Kind::Administrative, |commit| {
-            let tx = commit.open(&mut self.store)?;
+        Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
             let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
             let seq = tx.next_seq()?;
-            let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(if crate::schema::live::has_live(&self.schema) {Ceilings::job()}else{Ceilings::unbounded()}, Cut::Abort), seq);
+            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(if crate::schema::live::has_live(&self.schema) {Ceilings::job()}else{Ceilings::unbounded()}, Cut::Abort), seq);
             if crate::schema::live::has_live(&self.schema) {runner.reserve_bulk_source(table)?;}
             let removed = match runner.delete(table, id) {
                 Ok(()) => 1,
@@ -1117,10 +1111,9 @@ impl Engine {
             drop(runner);
             if removed > 0 {
                 tx.record_commit(seq, now, "seed", crate::SYSTEM_PRINCIPAL, "seed", &tables, removed)?;
-                partition::append(&tx, seq, &events)?;
+                partition::append(&*tx, seq, &events)?;
             }
-            commit.commit(tx)?;
-            Ok(removed)
+            tx.commit(removed)
         }))
     }
 
@@ -1142,11 +1135,10 @@ impl Engine {
         if mode == LoadMode::Import && self.schema.tables.values().any(|t| t.through.is_some()) { return self.seed(rows); }
         if mode == LoadMode::Restore || self.schema.tables.values().all(|table| table.recorded.is_empty() && table.maintained.is_empty()) { return self.load_stored_rows(rows, mode); }
         let now = self.advance_time_audience(crate::now_ms())?;
-        Committer::run(Member::new(Kind::Administrative, |commit| {
-            let tx = commit.open(&mut self.store)?;
+        Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
             let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
             let seq = tx.next_seq()?;
-            let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
             let mut imported = BTreeMap::new();
             let mut count = 0;
             for (name, row) in rows {
@@ -1197,10 +1189,9 @@ impl Engine {
             drop(runner);
             if count > 0 {
                 tx.record_commit(seq, now, "load", crate::SYSTEM_PRINCIPAL, "load", &tables, count)?;
-                partition::append(&tx, seq, &events)?;
+                partition::append(&*tx, seq, &events)?;
             }
-            commit.commit(tx)?;
-            Ok(count)
+            tx.commit(count)
         }))
     }
 
@@ -1209,21 +1200,19 @@ impl Engine {
     fn load_stored_rows(&mut self, rows: impl IntoIterator<Item = (String, Value)>, mode: LoadMode) -> Result<u64, RuntimeError> {
         if crate::schema::live::has_live(&self.schema) {
             let now=self.advance_time_audience(crate::now_ms())?;
-            return Committer::run(Member::new(Kind::Administrative, |commit| {
-                let tx=commit.open(&mut self.store)?;
+            return Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
                 let now=time_audience::pin_writer_time(&self.schema,&tx,now)?;
                 let seq=tx.next_seq()?;
-                let (count,events,tables,seq)=live_bulk::restore(&tx,&self.schema,rows,seq,now)?;
-                if count>0 {tx.record_commit(seq,now,"restore",crate::SYSTEM_PRINCIPAL,"restore",&tables,count)?;partition::append(&tx,seq,&events)?;}
-                commit.commit(tx)?;Ok(count)
+                let (count,events,tables,seq)=live_bulk::restore(&*tx,&self.schema,rows,seq,now)?;
+                if count>0 {tx.record_commit(seq,now,"restore",crate::SYSTEM_PRINCIPAL,"restore",&tables,count)?;partition::append(&*tx,seq,&events)?;}
+                tx.commit(count)
             }));
         }
         let now = self.advance_time_audience(crate::now_ms())?;
-        Committer::run(Member::new(Kind::Administrative, |commit| {
-            let tx = commit.open(&mut self.store)?;
+        Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
             let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
             let mut seq = tx.next_seq()?;
-            let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
             let mut count = 0;
             for (table_name, mut row) in rows {
                 self.schema.refuse_ephemeral_import(&table_name)?;
@@ -1249,16 +1238,15 @@ impl Engine {
                 if self.schema.visible(&table_name) { runner.written_tables.insert(table_name); }
                 count += 1;
             }
-            through_activation::validate_restore(&tx,&self.schema,now)?;
+            through_activation::validate_restore(&*tx,&self.schema,now)?;
             let events = runner.events.take();
             let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
             drop(runner);
             if count > 0 {
                 tx.record_commit(seq, now, "load", crate::SYSTEM_PRINCIPAL, "load", &tables, count)?;
-                partition::append(&tx, seq, &events)?;
+                partition::append(&*tx, seq, &events)?;
             }
-            commit.commit(tx)?;
-            Ok(count)
+            tx.commit(count)
         }))
     }
 

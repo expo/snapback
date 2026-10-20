@@ -98018,3 +98018,64 @@ Exactly one private Postgres cluster was started:
 `/tmp/sb4-pg-eval.bVtGOc/data`. Its script cleanup stopped it; an independent
 `pg_ctl status` returned 3 (no server running), and `postmaster.pid` is absent.
 No push was made and no pre-existing lane commit was rewritten.
+
+
+## 2026-10-21 — K0b: member savepoints and explicit disposition
+
+The reference committer owns the original fenced `BEGIN IMMEDIATE` transaction.
+Its body receives a borrowing `MemberTx` under `SAVEPOINT member`, retaining the
+existing Tx surface through dereference. `commit(value)` releases only that
+savepoint and selects Complete; `rollback(value)` selects Abort and rolls back
+that frame. Normal early returns select Abort, and facade drop rolls back the
+frame. Only the committer physically commits; Abort/error drops its owning Tx
+and rolls back. Activation and Following keep the explicitly administrative
+`run_solo` / `Solo::open_solo_with` path with their original shared transaction.
+
+Mutation replay and input/asset refusals, empty job/timeline/view attempts, and
+errors discard every provisional write, including the clock and metadata pins.
+Program refusals retain their original receipt commit after `program` rollback;
+job/timeline parking, private row-view chunks, clock-only/stale publication,
+expiry, seed/deletion, load/restore, orphan repair, reset and the smoke barrier
+retain their original commit points. All string literal multisets (including
+SQL and error text) match the base in the nine changed producer/adapter files.
+No host metadata caller, Postgres implementation or census allowance changes.
+
+Job status reads, expiry continuation and its follow-on publication, and
+timeline rotation run after the driver's physical COMMIT. Mutation's entropy
+assignment also moves behind COMMIT; the current runner never mutates that
+field, so its value is unchanged. Reset acknowledges only a Complete physical
+commit. Activation's existing hooks and all downstream engine hooks still run
+after COMMIT, including catalog/identity acceptance, narration, expiry state
+clearing and ephemeral rebind. A sweep's fallible follow-on can still start its
+own transaction and report failure after the sweep has durably committed.
+
+Four SQLite witnesses beside the adapter cover two members in one physical
+transaction, with member 1 completing and member 2 rolling back, dropping or
+erroring; member 1 survives and member 2's writes and clock do not. Every nested
+frame name is exercised, including lazy sequence-table rollback and member-local
+change recording. Other cases distinguish normal Ok/Abort from Complete,
+exercise a follow-on writer after COMMIT, and inject a deferred constraint
+failure after successful savepoint release: no acknowledgement or hook runs.
+The two solo hook tests remain. There is no production batching, continuation
+protocol, queue or retry in this slice.
+
+The required binary build and complete core run pass, including integrations
+and all 17 doctests. The six final seam tests pass. The complete host run
+executes every target with exactly the three expected inherited failures:
+`w11r1c_toolchain_why_explains_node_start_failure_too` and
+`farm2_typescript_7_is_refused_by_version_not_crashed_on` need TypeScript;
+`web_witness_help_and_invalid_input` needs the built client JS. Both ratchets
+pass with unchanged allowances (49 production openers; seven production and
+95 test store-port sites). No allowance was raised or raise override used.
+
+The required Clippy run retains the two errors reproduced at `94a91c9294` in
+a second local detached worktree: `while_immutable_condition` in
+`engine/read.rs` and `never_loop` in `engine/row_views.rs`. There are no new
+warning sites/categories; redundant facade dereferences were removed. The
+inherited native-helper argument-count lint falls from ten bindings to nine,
+and its redundant Ok/question-mark lint disappears. No inherited lint was
+suppressed or repaired. `ref-check` and `git diff --check` pass. Commands used
+the supplied Cargo target, incremental-off and line-table debug settings, with
+at most `-j 32`. No sub-agent, clone, remote machine, stash, push or
+`scripts/test.sh` was used. Continuations and batching remain later K0 slices;
+there is no unresolved functional concern from this slice.
