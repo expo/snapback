@@ -1,0 +1,20 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=13d8adb9-8da6-4be9-bb0c-6daa769fc73a]: Subscription quota exhausted. Your usage window resets at 2026-10-19T12:47:06Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+No material soundness issue found in the SEC4 amendment (§§13/13.5/13.6), the round-3/4 fixes, or the round-6 delta. I reviewed the full diff against `068a57f578` (committed plus working tree) and executed the gates.
+
+What I verified in code:
+
+- Common final-exists validation is real and central: `validate_fixture` in `challenges.rs` (typed/default/unique/final-exists/text-minimum over committed readback) runs on every `engine_on_store` build, the generated fallback path (fail-closed to `Err`, never a failing fixture), every column-pair world before observation, and now — round-6 delta — immediately after `seed_delete_at` in history absence worlds including the ledger re-fork. The new cross-table text-key regression (`history_absence_world_preserves_final_exists_in_other_tables`) pins exactly the invalid true/false witness and passes.
+- Shared 512 work budget is charged before generated worlds, fallback rows, history steps, absence/ledger forks, column pairs, paired observers and repeats; exhaustion names remaining paths unproved and never awards proof. Kernel memoization stores only exact implication input pairs (bounded 4096, process-local); no operation/policy judgment cache exists.
+- Fair tuples: `fixture_cases` takes the whole program, pins authored comparison literals and int bounds first, then gives every actor the same first tuple before diagonal variation. Independent principals: population is `max(people, 2^n)` with per-column bit variation; both regressions pass.
+- Origins stay distinct (`AuthoredFixtureTrace` vs `GeneratedFixtureTrace`, `is_reachable`, shortest-trace-per-origin preference, empty-start keeps authored). Intent lint/draft: two-direction kernel equivalence per effect with owner/update gates, bypass-aware exclusions; draft emits only non-equivalent alternatives as questions. Update-only grammar, media coupled-ledger witnesses, compact top-5 ranked notes, neutral advisory header, exit 1 with `failed` (never pass/ok) all match §§13.5/13.6. Paired observers still reject incomplete pages; only compiler-typed payload witnesses accept incomplete pages that actually contain the row, with repeatability retained. No `snapback4-core` runtime file changed, so QRY's ownership of read semantics is untouched. Preview capture runs only on the VACUUM INTO disposable snapshot.
+
+Observed results: `security_sec4` 18/18, `security_observers` 13/13, `note_rank` 5/5, CLI refusal test with the new `check passed` assertion all pass. Every shell command used `timeout`.
+
+Non-blocking observations, not readiness drivers: `WORKSTREAM-REPORT.md` was rewritten in this branch, deleting the Integration-18 verification record — restore or relocate it before any merge to main. Full principal combinations are guaranteed only up to 3 principal columns (higher columns ride limited bits); that is an unnamed coverage gap, not a soundness hole, since campaigns never prove. The 11-lane survey sits at 3 lanes with corrected specs only; per §13.6 both original-contradiction outcomes must still be recorded when qualification completes — pending qualification, excluded from this verdict by the brief.

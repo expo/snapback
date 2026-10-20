@@ -194,8 +194,9 @@ fn live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_rele
         let before = Instant::now();
         let out = p.run(&["test"]);
         let error = String::from_utf8(out.stderr).unwrap();
-        assert!(!out.status.success());
-        assert!(error.contains("E_STORE_BUSY") && error.contains(&address) && error.contains("store.sqlite") && error.contains("rerun"), "{error}");
+        assert!(out.status.success(), "fixture-free test is isolated from the live developer store: {error}");
+        assert!(!error.contains("E_STORE_BUSY"), "{error}");
+        assert!(String::from_utf8_lossy(&out.stdout).contains("generated-fixture only"));
         assert!(before.elapsed() < Duration::from_secs(5), "must not enter SQLite's writer wait");
         assert_eq!(p.jobs(), 1); assert_eq!(p.generation(), generation);
         let minted = p.run(&["token", "--service", "any"]);

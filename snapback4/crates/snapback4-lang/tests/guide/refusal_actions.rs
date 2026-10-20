@@ -13,6 +13,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_SECURITY_INTENT", &["Declare policy from the spec", "inspect `audit`"]),
     ("N_BROAD_READ", &["Confirm the intended audience", "inspect `audit`"]),
     ("N_GRANT_OUTLIVES_ROLE", &["Recheck the current reader role", "inspect `audit`"]),
+    ("N_INVARIANT_RESTATES_RULE", &["Check the original requirement before rewriting", "an equivalent policy may be correct"]),
+    ("N_ROLE_WIDE_READ", &["Use a board/projection table", "private notes, principals, images and files separately"]),
     ("N_ARGUMENT_GRANT", &["Validate the recipient role and relationship", "inspect `audit`"]),
     ("N_PRIVILEGE_ESCALATION", &["compare each note with the specification", "operator first-admin setup"]),
     ("N_OPTIONAL_EVIDENCE", &["Declare required media when the spec requires it", "inspect `audit`"]),

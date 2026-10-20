@@ -1,0 +1,2304 @@
+[
+  {
+    "lane": "004-snapback-mass-spec-sample-queue",
+    "originalSha256": "18fadf22eb88efe7700bd78e00091238404c1891aac650e1b5cf9afd3e96d80b",
+    "briefSha256": "bdc860e0e32844050eee215b36ed596b4f4d76b8ba7f8c4cc9963d212c8602c9",
+    "intent": "-- Careful-builder intent from the spec (repro only).\ninvariant batches.coc read only exists memberships[principal = viewer, group = .group] or exists memberships[principal = viewer, role = 'technician'] or exists memberships[principal = viewer, role = 'director']\ninvariant batches.detail read only exists memberships[principal = viewer, group = .group] or exists memberships[principal = viewer, role = 'technician'] or exists memberships[principal = viewer, role = 'director']\ninvariant samples.read only exists memberships[principal = viewer, group = .group] or exists memberships[principal = viewer, role = 'technician'] or exists memberships[principal = viewer, role = 'director']\ninvariant results.read only exists memberships[principal = viewer, group = .group] or exists memberships[principal = viewer, role = 'technician'] or exists memberships[principal = viewer, role = 'director']\n",
+    "check": {
+      "exit": 0,
+      "seconds": 1.428,
+      "notes": [
+        {
+          "code": "N_INVARIANT_RESTATES_RULE",
+          "message": "samples.read: this invariant restates the rule and can't catch a mistake in it; state the spec's intent instead"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "batches is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required"
+        },
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "message": "results.report permits omitted or empty media evidence"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "3 tables have access rules and no security invariants: charges, events, memberships; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "provision writes argument principal straight into reader-grant column memberships.principal"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "batches.coc read",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addSample may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addSample: authored refusal observations are not reduced to this read policy",
+            "batchResults: authored refusal observations are not reduced to this read policy",
+            "batchResults: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "batchSamples: authored refusal observations are not reduced to this read policy",
+            "batchSamples: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "completeRun: authored refusal observations are not reduced to this read policy",
+            "editBatch: authored refusal observations are not reduced to this read policy",
+            "failRun may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "failRun: authored refusal observations are not reduced to this read policy",
+            "groupBatches: authored refusal observations are not reduced to this read policy",
+            "groupBatches: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "queue: authored refusal observations are not reduced to this read policy",
+            "queue: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "releaseResults may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "releaseResults: authored refusal observations are not reduced to this read policy",
+            "reorderBatch may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "reorderBatch: authored refusal observations are not reduced to this read policy",
+            "rerunCharge may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "rerunCharge: authored refusal observations are not reduced to this read policy",
+            "startRun: authored refusal observations are not reduced to this read policy",
+            "submitBatch: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer"
+          ]
+        },
+        {
+          "target": "batches.detail read",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addSample may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addSample: authored refusal observations are not reduced to this read policy",
+            "batchResults: authored refusal observations are not reduced to this read policy",
+            "batchResults: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "batchSamples: authored refusal observations are not reduced to this read policy",
+            "batchSamples: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "completeRun: authored refusal observations are not reduced to this read policy",
+            "editBatch: authored refusal observations are not reduced to this read policy",
+            "failRun may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "failRun: authored refusal observations are not reduced to this read policy",
+            "groupBatches: authored refusal observations are not reduced to this read policy",
+            "groupBatches: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "queue: authored refusal observations are not reduced to this read policy",
+            "queue: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "releaseResults may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "releaseResults: authored refusal observations are not reduced to this read policy",
+            "reorderBatch may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "reorderBatch: authored refusal observations are not reduced to this read policy",
+            "rerunCharge may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "rerunCharge: authored refusal observations are not reduced to this read policy",
+            "startRun: authored refusal observations are not reduced to this read policy",
+            "submitBatch: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer"
+          ]
+        },
+        {
+          "target": "samples. read",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "addSample: authored refusal observations are not reduced to this read policy",
+            "batchSamples: authored refusal observations are not reduced to this read policy",
+            "batchSamples: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference"
+          ]
+        },
+        {
+          "target": "results. read",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "batchResults: authored refusal observations are not reduced to this read policy",
+            "batchResults: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "releaseResults may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "releaseResults: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference"
+          ]
+        }
+      ],
+      "coverage": [
+        "addSample: generated-id/opaque column observer declined",
+        "batches.detail: column pair needs a second typed value and, for media, a coupled verified fixture ledger",
+        "check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign",
+        "completeRun: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "editBatch: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "failRun: generated-id/opaque column observer declined",
+        "generated fixture campaign unavailable: generated fixture world not reserved; remaining initialization uncovered",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "releaseResults: generated-id/opaque column observer declined",
+        "reorderBatch: generated-id/opaque column observer declined",
+        "rerunCharge: generated-id/opaque column observer declined",
+        "startRun: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "submitBatch: generated-id/opaque column observer declined",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    },
+    "audit": {
+      "exit": 1,
+      "seconds": 40.014,
+      "notes": [
+        {
+          "code": "N_INVARIANT_RESTATES_RULE",
+          "message": "samples.read: this invariant restates the rule and can't catch a mistake in it; state the spec's intent instead"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "batches is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required"
+        },
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "message": "results.report permits omitted or empty media evidence"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "3 tables have access rules and no security invariants: charges, events, memberships; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "provision writes argument principal straight into reader-grant column memberships.principal"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "batches.coc read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "queue",
+          "viewer": "account:security-memberships-researcher-1",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addSample may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addSample: authored refusal observations are not reduced to this read policy",
+            "batchResults: authored refusal observations are not reduced to this read policy",
+            "batchResults: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "batchSamples: authored refusal observations are not reduced to this read policy",
+            "batchSamples: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "completeRun: authored refusal observations are not reduced to this read policy",
+            "editBatch: authored refusal observations are not reduced to this read policy",
+            "failRun may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "failRun: authored refusal observations are not reduced to this read policy",
+            "groupBatches: authored refusal observations are not reduced to this read policy",
+            "groupBatches: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "queue: authored refusal observations are not reduced to this read policy",
+            "queue: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "releaseResults may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "releaseResults: authored refusal observations are not reduced to this read policy",
+            "reorderBatch may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "reorderBatch: authored refusal observations are not reduced to this read policy",
+            "rerunCharge may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "rerunCharge: authored refusal observations are not reduced to this read policy",
+            "startRun: authored refusal observations are not reduced to this read policy",
+            "submitBatch: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        },
+        {
+          "target": "batches.detail read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "queue",
+          "viewer": "account:security-memberships-researcher-1",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addSample may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addSample: authored refusal observations are not reduced to this read policy",
+            "batchResults: authored refusal observations are not reduced to this read policy",
+            "batchResults: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "batchSamples: authored refusal observations are not reduced to this read policy",
+            "batchSamples: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "completeRun: authored refusal observations are not reduced to this read policy",
+            "editBatch: authored refusal observations are not reduced to this read policy",
+            "failRun may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "failRun: authored refusal observations are not reduced to this read policy",
+            "groupBatches: authored refusal observations are not reduced to this read policy",
+            "groupBatches: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "queue: authored refusal observations are not reduced to this read policy",
+            "queue: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "releaseResults may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "releaseResults: authored refusal observations are not reduced to this read policy",
+            "reorderBatch may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "reorderBatch: authored refusal observations are not reduced to this read policy",
+            "rerunCharge may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "rerunCharge: authored refusal observations are not reduced to this read policy",
+            "startRun: authored refusal observations are not reduced to this read policy",
+            "submitBatch: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        },
+        {
+          "target": "samples. read",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "addSample: authored refusal observations are not reduced to this read policy",
+            "batchSamples: authored refusal observations are not reduced to this read policy",
+            "batchSamples: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference"
+          ]
+        },
+        {
+          "target": "results. read",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "batchResults: authored refusal observations are not reduced to this read policy",
+            "batchResults: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "releaseResults may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "releaseResults: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference"
+          ]
+        }
+      ],
+      "coverage": [
+        "addSample: generated-id/opaque column observer declined",
+        "batches.detail: column pair needs a second typed value and, for media, a coupled verified fixture ledger",
+        "column observers capped at 16384 call/world reservations; remaining value worlds not covered",
+        "completeRun: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "editBatch: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "failRun: generated-id/opaque column observer declined",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "history read observers capped at 32768 calls; remaining disclosure combinations not covered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "provision: history candidate actors/arguments capped at 512",
+        "releaseResults: generated-id/opaque column observer declined",
+        "reorderBatch: generated-id/opaque column observer declined",
+        "rerunCharge: generated-id/opaque column observer declined",
+        "results: paired fixture asset identities are not coupled",
+        "samples: paired fixture asset identities are not coupled",
+        "startRun: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "submitBatch: generated-id/opaque column observer declined",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  },
+  {
+    "lane": "013-snapback-drawbridge-opening-log",
+    "originalSha256": "766a117100df69d3c60d721438a5d0e5e0c5ce47b455e99e549a5fd67ffffb91",
+    "briefSha256": "552840fc4cb724dc50289335df31a15dec14a2b22b2ef4ba0d743b240808bf92",
+    "intent": "-- Careful-builder intent from the spec (repro only).\ninvariant roles.role write only viewer = 'service:operator' or exists roles[viewer, role = 'supervisor']\ninvariant spanEvents.note read only exists roles[viewer, role = 'tender'] or exists roles[viewer, role = 'supervisor']\n",
+    "check": {
+      "exit": 1,
+      "seconds": 1.458,
+      "notes": [
+        {
+          "code": "N_BROAD_READ",
+          "message": "queueEntries is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "spanEvents is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "supervisorSeat is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "4 tables have access rules and no security invariants: openings, queueEntries, requests, supervisorSeat; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "claimFirstSupervisor: roles.role assignment to 'supervisor' is not established by the independent delegation intent for a caller without a role; review the grant's delegation policy"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "grantRole writes argument who straight into reader-grant column roles.principal"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "roles.role write",
+          "status": "refuted",
+          "origin": "authored-fixture-trace",
+          "operation": "claimFirstSupervisor",
+          "viewer": "account:security-no-role",
+          "history": [
+            {
+              "args": {},
+              "operation": "claimFirstSupervisor",
+              "result": {
+                "result": {
+                  "Row": {
+                    "id": {
+                      "Id": "01MCC5RM001MRC3Y4YY01028AW"
+                    },
+                    "principal": {
+                      "Id": "account:security-no-role"
+                    },
+                    "role": {
+                      "String": "supervisor"
+                    }
+                  }
+                },
+                "seq": 1,
+                "state": "sent"
+              },
+              "viewer": "account:security-no-role"
+            }
+          ],
+          "reasons": [
+            "insert admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "update admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        },
+        {
+          "target": "spanEvents.note read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "spanHistory",
+          "viewer": "account:security-no-role",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "logOpening may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "logOpening: authored refusal observations are not reduced to this read policy",
+            "lowerSpan: authored refusal observations are not reduced to this read policy",
+            "spanHistory: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "spanStatus: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign",
+        "generated fixture supervisorSeat: some related rows declined by ordinary validation: E_UNIQUE: supervisorSeat: unique seat already has a row where seat = {\"Int\":1} (supervisorSeat: unique seat already has a row where seat = {\"Int\":1})",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "spanEvents.note: column pair needs a second typed value and, for media, a coupled verified fixture ledger",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    },
+    "audit": {
+      "exit": 1,
+      "seconds": 14.347,
+      "notes": [
+        {
+          "code": "N_BROAD_READ",
+          "message": "queueEntries is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "spanEvents is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "supervisorSeat is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "4 tables have access rules and no security invariants: openings, queueEntries, requests, supervisorSeat; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "claimFirstSupervisor: roles.role assignment to 'supervisor' is not established by the independent delegation intent for a caller without a role; review the grant's delegation policy"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "grantRole writes argument who straight into reader-grant column roles.principal"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "roles.role write",
+          "status": "refuted",
+          "origin": "authored-fixture-trace",
+          "operation": "claimFirstSupervisor",
+          "viewer": "account:security-no-role",
+          "history": [
+            {
+              "operation": "claimFirstSupervisor",
+              "viewer": "account:security-no-role",
+              "args": {},
+              "result": {
+                "result": {
+                  "Row": {
+                    "id": {
+                      "Id": "01MCC5RM00ET434BCQ1FS7GFV1"
+                    },
+                    "principal": {
+                      "Id": "account:security-no-role"
+                    },
+                    "role": {
+                      "String": "supervisor"
+                    }
+                  }
+                },
+                "seq": 1,
+                "state": "sent"
+              }
+            }
+          ],
+          "reasons": [
+            "insert admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "update admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        },
+        {
+          "target": "spanEvents.note read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "spanHistory",
+          "viewer": "account:security-no-role",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "logOpening may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "logOpening: authored refusal observations are not reduced to this read policy",
+            "lowerSpan: authored refusal observations are not reduced to this read policy",
+            "spanHistory: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "spanStatus: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "generated fixture supervisorSeat: some related rows declined by ordinary validation: E_UNIQUE: supervisorSeat: unique seat already has a row where seat = {\"Int\":1} (supervisorSeat: unique seat already has a row where seat = {\"Int\":1})",
+        "grantRole: history candidate actors/arguments capped at 512",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "logOpening / roles.write: multiple or implicit writes require executed-effect tracing",
+        "lowerSpan / roles.write: multiple or implicit writes require executed-effect tracing",
+        "markArrived / roles.write: multiple or implicit writes require executed-effect tracing",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "requestOpening / roles.write: multiple or implicit writes require executed-effect tracing",
+        "spanEvents.note: column pair needs a second typed value and, for media, a coupled verified fixture ledger",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  },
+  {
+    "lane": "015-snapback-substation-switching-orders",
+    "originalSha256": "94c11c391c60349592a7b634c4b468656edc595cc8bbfa3d89a248fe827c78f8",
+    "briefSha256": "68496bbc70b7fb0e0c0b05ffc8f3a2d80796df67b809b124eeee795c48232db7",
+    "intent": "-- Careful-builder intent from the spec (repro only).\ninvariant clearances.equipment read only not exists roster[viewer, role = 'contractor'] or exists roster[viewer, area = .area]\ninvariant clearances.title read only not exists roster[viewer, role = 'contractor'] or exists roster[viewer, area = .area]\n",
+    "check": {
+      "exit": 1,
+      "seconds": 1.49,
+      "notes": [
+        {
+          "code": "N_GRANT_OUTLIVES_ROLE",
+          "message": "clearances.read: `exists clearanceMembers[.id, viewer]` trusts retained clearanceMembers grants while current role in roster can change"
+        },
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "message": "steps.photo permits omitted or empty media evidence"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "4 tables have access rules and no security invariants: clearanceMembers, equipment, roster, steps; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "enroll writes argument who straight into reader-grant column roster.principal"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "addCrewMember writes argument who straight into reader-grant column clearanceMembers.principal"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "clearances.equipment read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "clearanceDetail",
+          "viewer": "account:security-roster-contractor-0",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addCrewMember may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addCrewMember: authored refusal observations are not reduced to this read policy",
+            "addStep may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addStep: authored refusal observations are not reduced to this read policy",
+            "approveSkip may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "approveSkip: authored refusal observations are not reduced to this read policy",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "clearanceMembersOf: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "clearanceSteps: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "confirmStep may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "confirmStep: authored refusal observations are not reduced to this read policy",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "issueClearance: authored refusal observations are not reduced to this read policy",
+            "myClearances: authored refusal observations are not reduced to this read policy",
+            "myClearances: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "renewClearance: authored refusal observations are not reduced to this read policy",
+            "reorderStep may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "reorderStep: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        },
+        {
+          "target": "clearances.title read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "clearanceDetail",
+          "viewer": "account:security-roster-contractor-0",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addCrewMember may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addCrewMember: authored refusal observations are not reduced to this read policy",
+            "addStep may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addStep: authored refusal observations are not reduced to this read policy",
+            "approveSkip may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "approveSkip: authored refusal observations are not reduced to this read policy",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "clearanceMembersOf: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "clearanceSteps: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "confirmStep may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "confirmStep: authored refusal observations are not reduced to this read policy",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "issueClearance: authored refusal observations are not reduced to this read policy",
+            "myClearances: authored refusal observations are not reduced to this read policy",
+            "myClearances: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "renewClearance: authored refusal observations are not reduced to this read policy",
+            "reorderStep may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "reorderStep: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign",
+        "clearances.equipment: column pair needs a second typed value and, for media, a coupled verified fixture ledger",
+        "generated fixture steps: some related rows declined by ordinary validation: SEQ_TAKEN: the program refused with SEQ_TAKEN (steps: unique clearance, seq already has a row where clearance, seq = 'security-clearances-1', {\"Int\":1})",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    },
+    "audit": {
+      "exit": 1,
+      "seconds": 82.14,
+      "notes": [
+        {
+          "code": "N_GRANT_OUTLIVES_ROLE",
+          "message": "clearances.read: `exists clearanceMembers[.id, viewer]` trusts retained clearanceMembers grants while current role in roster can change"
+        },
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "message": "steps.photo permits omitted or empty media evidence"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "4 tables have access rules and no security invariants: clearanceMembers, equipment, roster, steps; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "enroll writes argument who straight into reader-grant column roster.principal"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "addCrewMember writes argument who straight into reader-grant column clearanceMembers.principal"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "clearances.equipment read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "clearanceDetail",
+          "viewer": "account:security-roster-contractor-0",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addCrewMember may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addCrewMember: authored refusal observations are not reduced to this read policy",
+            "addStep may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addStep: authored refusal observations are not reduced to this read policy",
+            "approveSkip may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "approveSkip: authored refusal observations are not reduced to this read policy",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "clearanceMembersOf: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "clearanceSteps: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "confirmStep may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "confirmStep: authored refusal observations are not reduced to this read policy",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "issueClearance: authored refusal observations are not reduced to this read policy",
+            "myClearances: authored refusal observations are not reduced to this read policy",
+            "myClearances: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "renewClearance: authored refusal observations are not reduced to this read policy",
+            "reorderStep may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "reorderStep: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        },
+        {
+          "target": "clearances.title read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "clearanceDetail",
+          "viewer": "account:security-roster-contractor-0",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addCrewMember may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addCrewMember: authored refusal observations are not reduced to this read policy",
+            "addStep may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addStep: authored refusal observations are not reduced to this read policy",
+            "approveSkip may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "approveSkip: authored refusal observations are not reduced to this read policy",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "clearanceMembersOf: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "clearanceSteps: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "confirmStep may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "confirmStep: authored refusal observations are not reduced to this read policy",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "issueClearance: authored refusal observations are not reduced to this read policy",
+            "myClearances: authored refusal observations are not reduced to this read policy",
+            "myClearances: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "renewClearance: authored refusal observations are not reduced to this read policy",
+            "reorderStep may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "reorderStep: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "addCrewMember: generated-id/opaque column observer declined",
+        "addCrewMember: history candidate actors/arguments capped at 512",
+        "addStep: generated-id/opaque column observer declined",
+        "approveSkip: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "clearances.equipment: column pair needs a second typed value and, for media, a coupled verified fixture ledger",
+        "column observers capped at 16384 call/world reservations; remaining value worlds not covered",
+        "confirmStep: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "enroll: history candidate actors/arguments capped at 512",
+        "generated fixture steps: some related rows declined by ordinary validation: SEQ_TAKEN: the program refused with SEQ_TAKEN (steps: unique clearance, seq already has a row where clearance, seq = 'security-clearances-1', {\"Int\":1})",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "issueClearance: generated-id/opaque column observer declined",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "renewClearance: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  },
+  {
+    "lane": "019-snapback-chimney-sweep-reports",
+    "originalSha256": "8ab8cf7fdc337841a4d3d88084f13ccc461e3c2cdb64f6713e162dfc9259984a",
+    "briefSha256": "be9bc1f1ee7b865a036ac43fd394129090b217fc63610384ccd0af7b2b0a02d0",
+    "intent": "-- Careful-builder intent from the spec (repro only).\ninvariant reports.notes read only .homeowner = viewer or .author = viewer or exists rentalUnits[chimney = .chimney, landlord = viewer] or exists assignments[chimney = .chimney, sweep = viewer] or exists roles[viewer, role = 'master']\ninvariant reports.photos read only .homeowner = viewer or .author = viewer or exists rentalUnits[chimney = .chimney, landlord = viewer] or exists assignments[chimney = .chimney, sweep = viewer] or exists roles[viewer, role = 'master']\n",
+    "check": {
+      "exit": 0,
+      "seconds": 1.539,
+      "notes": [
+        {
+          "code": "N_ROLE_WIDE_READ",
+          "message": "reports.read: role-wide branch `exists roles[viewer, role = 'sweep'] and .rating = 'do-not-use'` returns private or media columns for every matching row"
+        },
+        {
+          "code": "N_GRANT_OUTLIVES_ROLE",
+          "message": "reports.read: principal branch `.landlord = viewer` does not recheck the declared mutable current role"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "7 tables have access rules and no security invariants: amendments, assignments, chimneys, office, quotes, rentalUnits, roles; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "claimMaster: roles can confer 'master', which adds amendments.read authority not held by a caller without a role; review the grant's delegation policy"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "provision writes argument principal straight into reader-grant column roles.principal"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "grantRole writes argument who straight into reader-grant column roles.principal"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "addChimney writes argument owner straight into reader-grant column chimneys.owner"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "reports.notes read",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "amendRating may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "amendRating: authored refusal observations are not reduced to this read policy",
+            "amendmentsFor: authored refusal observations are not reduced to this read policy",
+            "amendmentsFor: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "chimneyReports: authored refusal observations are not reduced to this read policy",
+            "chimneyReports: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "fileReport: authored refusal observations are not reduced to this read policy",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "issueQuote may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "issueQuote: authored refusal observations are not reduced to this read policy",
+            "myReports: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "officeBoard: authored refusal observations are not reduced to this read policy",
+            "officeBoard: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "quotesFor: authored refusal observations are not reduced to this read policy",
+            "quotesFor: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "raw rule probe/reference from amendments can observe reports independently of its read rule",
+            "unitReports: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer"
+          ]
+        },
+        {
+          "target": "reports.photos read",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "amendRating may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "amendRating: authored refusal observations are not reduced to this read policy",
+            "amendmentsFor: authored refusal observations are not reduced to this read policy",
+            "amendmentsFor: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "chimneyReports: authored refusal observations are not reduced to this read policy",
+            "chimneyReports: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "fileReport: authored refusal observations are not reduced to this read policy",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "issueQuote may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "issueQuote: authored refusal observations are not reduced to this read policy",
+            "myReports: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "officeBoard: authored refusal observations are not reduced to this read policy",
+            "officeBoard: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "quotesFor: authored refusal observations are not reduced to this read policy",
+            "quotesFor: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "raw rule probe/reference from amendments can observe reports independently of its read rule",
+            "unitReports: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer"
+          ]
+        }
+      ],
+      "coverage": [
+        "check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign",
+        "generated fixture amendments: full Cartesian combinations above three principal columns remain uncovered",
+        "generated fixture office: some related rows declined by ordinary validation: OFFICE_TAKEN: The office already has a master sweep. (office: unique slot already has a row where slot = {\"Int\":1})",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "photos: history needs a typed asset argument",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    },
+    "audit": {
+      "exit": 1,
+      "seconds": 39.024,
+      "notes": [
+        {
+          "code": "N_ROLE_WIDE_READ",
+          "message": "reports.read: role-wide branch `exists roles[viewer, role = 'sweep'] and .rating = 'do-not-use'` returns private or media columns for every matching row"
+        },
+        {
+          "code": "N_GRANT_OUTLIVES_ROLE",
+          "message": "reports.read: principal branch `.landlord = viewer` does not recheck the declared mutable current role"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "7 tables have access rules and no security invariants: amendments, assignments, chimneys, office, quotes, rentalUnits, roles; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "claimMaster: roles can confer 'master', which adds amendments.read authority not held by a caller without a role; review the grant's delegation policy"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "provision writes argument principal straight into reader-grant column roles.principal"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "grantRole writes argument who straight into reader-grant column roles.principal"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "addChimney writes argument owner straight into reader-grant column chimneys.owner"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "reports.notes read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "reportDetail",
+          "viewer": "account:security-roles-sweep-0",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "amendRating may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "amendRating: authored refusal observations are not reduced to this read policy",
+            "amendmentsFor: authored refusal observations are not reduced to this read policy",
+            "amendmentsFor: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "chimneyReports: authored refusal observations are not reduced to this read policy",
+            "chimneyReports: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "fileReport: authored refusal observations are not reduced to this read policy",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "issueQuote may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "issueQuote: authored refusal observations are not reduced to this read policy",
+            "myReports: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "officeBoard: authored refusal observations are not reduced to this read policy",
+            "officeBoard: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "quotesFor: authored refusal observations are not reduced to this read policy",
+            "quotesFor: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "raw rule probe/reference from amendments can observe reports independently of its read rule",
+            "unitReports: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        },
+        {
+          "target": "reports.photos read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "reportDetail",
+          "viewer": "account:security-roles-sweep-0",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "amendRating may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "amendRating: authored refusal observations are not reduced to this read policy",
+            "amendmentsFor: authored refusal observations are not reduced to this read policy",
+            "amendmentsFor: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "chimneyReports: authored refusal observations are not reduced to this read policy",
+            "chimneyReports: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "fileReport: authored refusal observations are not reduced to this read policy",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "issueQuote may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "issueQuote: authored refusal observations are not reduced to this read policy",
+            "myReports: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "officeBoard: authored refusal observations are not reduced to this read policy",
+            "officeBoard: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "quotesFor: authored refusal observations are not reduced to this read policy",
+            "quotesFor: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "raw rule probe/reference from amendments can observe reports independently of its read rule",
+            "unitReports: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "addChimney: history candidate actors/arguments capped at 512",
+        "amendRating: generated-id/opaque column observer declined",
+        "amendRating: history candidate actors/arguments capped at 512",
+        "assignJob: history candidate actors/arguments capped at 512",
+        "column observers capped at 16384 call/world reservations; remaining value worlds not covered",
+        "fileReport: generated-id/opaque column observer declined",
+        "generated fixture amendments: full Cartesian combinations above three principal columns remain uncovered",
+        "generated fixture office: some related rows declined by ordinary validation: OFFICE_TAKEN: The office already has a master sweep. (office: unique slot already has a row where slot = {\"Int\":1})",
+        "grantRole: history candidate actors/arguments capped at 512",
+        "history arguments capped at 512 combinations",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "history read observers capped at 32768 calls; remaining disclosure combinations not covered",
+        "issueQuote: generated-id/opaque column observer declined",
+        "linkUnit: history candidate actors/arguments capped at 512",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "photos: history needs a typed asset argument",
+        "provision: history candidate actors/arguments capped at 512",
+        "reports.notes: column pair needs a second typed value and, for media, a coupled verified fixture ledger",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts",
+        "updateContact: history candidate actors/arguments capped at 512",
+        "updateJob: history candidate actors/arguments capped at 512"
+      ]
+    }
+  },
+  {
+    "lane": "021-snapback-storage-lien-auctions",
+    "originalSha256": "b376ad9bd068d18d57cd9ad373e0ac35f3f6438159775b81901ea01fad844bcc",
+    "briefSha256": "8d35bc07a9062dd7a6c5bf635c209d45074326b16889ee1f994999194d36c329",
+    "intent": "-- Careful-builder intent from the spec (repro only).\ninvariant inventoryItems.read only exists listings[.listing, status = 'open'] or exists accounts[viewer, role = 'frontdesk'] or exists accounts[viewer, role = 'manager']\n",
+    "check": {
+      "exit": 1,
+      "seconds": 1.497,
+      "notes": [
+        {
+          "code": "N_BROAD_READ",
+          "message": "bids is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "inventoryItems is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "listings is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "message": "units.lockPhoto permits omitted or empty media evidence"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "8 tables have access rules and no security invariants: accounts, bids, listings, managerSeal, notices, paymentCards, units, waivers; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_SWEEP_ONLY_DEADLINE",
+          "message": "addInventory gates on listings.status while clock job lienSweep changes that status; writes can run between the deadline and sweep"
+        },
+        {
+          "code": "N_SWEEP_ONLY_DEADLINE",
+          "message": "stopSale gates on listings.status while clock job lienSweep changes that status; writes can run between the deadline and sweep"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "bootstrapManager: accounts can confer 'manager', which adds accounts.read authority not held by a caller without a role; review the grant's delegation policy"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "assignRole: accounts can confer 'frontdesk', which adds inventoryItems.insert authority not held by a caller without a role; review the grant's delegation policy"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "assignRole writes argument who straight into reader-grant column accounts.principal"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "createUnit writes argument tenant straight into reader-grant column units.tenant"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "inventoryItems. read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "inventoryFor",
+          "viewer": "account:security-no-role",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addInventory: authored refusal observations are not reduced to this read policy",
+            "inventoryFor: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign",
+        "generated fixture managerSeal: some related rows declined by ordinary validation: E_CONSTRAINT: managerSeal holds at most 1 rows",
+        "generated fixture paymentCards: some related rows declined by ordinary validation: E_UNIQUE: paymentCards: unique owner already has a row where owner = 'dev:security-b' (paymentCards: unique owner already has a row where owner = 'dev:security-b')",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    },
+    "audit": {
+      "exit": 1,
+      "seconds": 10.08,
+      "notes": [
+        {
+          "code": "N_BROAD_READ",
+          "message": "bids is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "inventoryItems is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "listings is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "message": "units.lockPhoto permits omitted or empty media evidence"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "8 tables have access rules and no security invariants: accounts, bids, listings, managerSeal, notices, paymentCards, units, waivers; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_SWEEP_ONLY_DEADLINE",
+          "message": "addInventory gates on listings.status while clock job lienSweep changes that status; writes can run between the deadline and sweep"
+        },
+        {
+          "code": "N_SWEEP_ONLY_DEADLINE",
+          "message": "stopSale gates on listings.status while clock job lienSweep changes that status; writes can run between the deadline and sweep"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "bootstrapManager: accounts can confer 'manager', which adds accounts.read authority not held by a caller without a role; review the grant's delegation policy"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "assignRole: accounts can confer 'frontdesk', which adds inventoryItems.insert authority not held by a caller without a role; review the grant's delegation policy"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "assignRole writes argument who straight into reader-grant column accounts.principal"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "createUnit writes argument tenant straight into reader-grant column units.tenant"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "inventoryItems. read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "inventoryFor",
+          "viewer": "account:security-no-role",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addInventory: authored refusal observations are not reduced to this read policy",
+            "inventoryFor: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "assignRole: history candidate actors/arguments capped at 512",
+        "createUnit: history candidate actors/arguments capped at 512",
+        "generated fixture managerSeal: some related rows declined by ordinary validation: E_CONSTRAINT: managerSeal holds at most 1 rows",
+        "generated fixture paymentCards: some related rows declined by ordinary validation: E_UNIQUE: paymentCards: unique owner already has a row where owner = 'dev:security-b' (paymentCards: unique owner already has a row where owner = 'dev:security-b')",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  },
+  {
+    "lane": "026-snapback-extinguisher-service-tags",
+    "originalSha256": "9a4d1f3214bfefa2ececf85af17c1a84ec4ecdf7a7fb57b496c85729a5ff9035",
+    "briefSha256": "9384fa05d3c4789a758d13a87cd531f2175e5acccc6f2daf8ed1938165e0bbb4",
+    "intent": "-- Careful-builder intent from the spec (repro only).\ninvariant buildings.read only (.manager = viewer and exists roles[viewer, role = 'building_manager']) or (exists routes[technician = viewer, building = .id] and exists roles[viewer, role = 'technician']) or exists roles[viewer, role = 'dispatcher'] or exists roles[viewer, role = 'service_manager']\ninvariant units.location read only (.building.manager = viewer and exists roles[viewer, role = 'building_manager']) or (exists routes[technician = viewer, building = .building] and exists roles[viewer, role = 'technician']) or exists roles[viewer, role = 'dispatcher'] or exists roles[viewer, role = 'service_manager']\n",
+    "check": {
+      "exit": 0,
+      "seconds": 1.171,
+      "notes": [
+        {
+          "code": "N_GRANT_OUTLIVES_ROLE",
+          "message": "buildings.read: principal branch `.manager = viewer` does not recheck the declared mutable current role"
+        },
+        {
+          "code": "N_GRANT_OUTLIVES_ROLE",
+          "message": "units.read: principal branch `.$building.manager = viewer` does not recheck the declared mutable current role"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "3 tables have access rules and no security invariants: inspections, roles, routes; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "grantRole writes argument who straight into reader-grant column roles.principal"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "addBuilding writes argument manager straight into reader-grant column buildings.manager"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "assignRoute writes argument technician straight into reader-grant column routes.technician"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "buildings. read",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addBuilding: authored refusal observations are not reduced to this read policy",
+            "addUnit may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addUnit: authored refusal observations are not reduced to this read policy",
+            "assignRoute may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "assignRoute: authored refusal observations are not reduced to this read policy",
+            "buildingsAll: authored refusal observations are not reduced to this read policy",
+            "buildingsAll: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "buildingsAssigned: authored refusal observations are not reduced to this read policy",
+            "buildingsAssigned: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "buildingsManaged: authored refusal observations are not reduced to this read policy",
+            "buildingsManaged: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "routeList: authored refusal observations are not reduced to this read policy",
+            "routeList: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "unassignRoute may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "unassignRoute: authored refusal observations are not reduced to this read policy",
+            "unitsOf: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer"
+          ]
+        },
+        {
+          "target": "units.location read",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addUnit: authored refusal observations are not reduced to this read policy",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "inherited/captured or live-parent authority requires a separate reduction (RULES5 owns live-parent semantics)",
+            "inspectionsOf: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "logInspection may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "logInspection: authored refusal observations are not reduced to this read policy",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "raw rule probe/reference from inspections can observe units independently of its read rule",
+            "recentInspections: authored refusal observations are not reduced to this read policy",
+            "recentInspections: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "returnToService: authored refusal observations are not reduced to this read policy",
+            "routeList: authored refusal observations are not reduced to this read policy",
+            "routeList: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "setOutOfService: authored refusal observations are not reduced to this read policy",
+            "unitsOf: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer"
+          ]
+        }
+      ],
+      "coverage": [
+        "buildings: history paired absence needs a referentially valid closure",
+        "buildings: paired absence needs a referentially valid world closure",
+        "check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign",
+        "generated fixture campaign unavailable: generated fixture world not reserved; remaining initialization uncovered",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    },
+    "audit": {
+      "exit": 1,
+      "seconds": 39.9,
+      "notes": [
+        {
+          "code": "N_GRANT_OUTLIVES_ROLE",
+          "message": "buildings.read: principal branch `.manager = viewer` does not recheck the declared mutable current role"
+        },
+        {
+          "code": "N_GRANT_OUTLIVES_ROLE",
+          "message": "units.read: principal branch `.$building.manager = viewer` does not recheck the declared mutable current role"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "3 tables have access rules and no security invariants: inspections, roles, routes; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "grantRole writes argument who straight into reader-grant column roles.principal"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "addBuilding writes argument manager straight into reader-grant column buildings.manager"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "assignRoute writes argument technician straight into reader-grant column routes.technician"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "buildings. read",
+          "status": "refuted",
+          "origin": "synthetic-operation",
+          "operation": "$security.buildings.read",
+          "viewer": "dev:security-b",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addBuilding: authored refusal observations are not reduced to this read policy",
+            "addUnit may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "addUnit: authored refusal observations are not reduced to this read policy",
+            "assignRoute may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "assignRoute: authored refusal observations are not reduced to this read policy",
+            "buildingsAll: authored refusal observations are not reduced to this read policy",
+            "buildingsAll: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "buildingsAssigned: authored refusal observations are not reduced to this read policy",
+            "buildingsAssigned: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "buildingsManaged: authored refusal observations are not reduced to this read policy",
+            "buildingsManaged: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "routeList: authored refusal observations are not reduced to this read policy",
+            "routeList: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "unassignRoute may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "unassignRoute: authored refusal observations are not reduced to this read policy",
+            "unitsOf: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        },
+        {
+          "target": "units.location read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "unitsOf",
+          "viewer": "dev:security-a",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "addUnit: authored refusal observations are not reduced to this read policy",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "inherited/captured or live-parent authority requires a separate reduction (RULES5 owns live-parent semantics)",
+            "inspectionsOf: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "logInspection may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "logInspection: authored refusal observations are not reduced to this read policy",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "raw rule probe/reference from inspections can observe units independently of its read rule",
+            "recentInspections: authored refusal observations are not reduced to this read policy",
+            "recentInspections: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "returnToService: authored refusal observations are not reduced to this read policy",
+            "routeList: authored refusal observations are not reduced to this read policy",
+            "routeList: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "setOutOfService: authored refusal observations are not reduced to this read policy",
+            "unitsOf: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "addUnit: generated-id/opaque column observer declined",
+        "assignRoute: history candidate actors/arguments capped at 512",
+        "buildings: history paired absence needs a referentially valid closure",
+        "column observers capped at 16384 call/world reservations; remaining value worlds not covered",
+        "grantRole: history candidate actors/arguments capped at 512",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "history read observers capped at 32768 calls; remaining disclosure combinations not covered",
+        "logInspection: generated-id/opaque column observer declined",
+        "logInspection: history candidate actors/arguments capped at 512",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "returnToService: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "setOutOfService: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "unassignRoute: history candidate actors/arguments capped at 512",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts",
+        "units.location read: policy reference/coverage judgment is unknown; never a refutation"
+      ]
+    }
+  },
+  {
+    "lane": "032-snapback-squash-ladder-challenges",
+    "originalSha256": "57b1d725be3094184c3970edc13fe41b94619db6ed45a346e3c8f4ed575c5225",
+    "briefSha256": "e822cd27b083c320b16f8964e2950e52db6e5da9cfb6a54ee767dd78f9afb5f7",
+    "intent": "invariant challenges.read only .challenger = viewer or .challenged = viewer or exists roles[principal = viewer, role = 'captain'] or (.playAt != null and exists roles[principal = viewer, role = 'staff'])\n",
+    "check": {
+      "exit": 1,
+      "seconds": 1.511,
+      "notes": [
+        {
+          "code": "N_BROAD_READ",
+          "message": "club is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "profiles is readable by any signed-in user with a matching roles row; no particular role or row ownership is required"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "ranks is readable by any signed-in user with a matching roles row; no particular role or row ownership is required"
+        },
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "message": "results.photo permits omitted or empty media evidence"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "8 tables have access rules and no security invariants: auditLog, club, duels, privateProfiles, profiles, ranks, results, roles; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "claimCaptain: roles can confer 'captain', which adds auditLog.read authority not held by a caller without a role; review the grant's delegation policy"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "grantRole writes argument who straight into reader-grant column roles.principal"
+        },
+        {
+          "code": "N_EXISTENCE_ORACLE",
+          "message": "bookMatch: lookup absence NOT_FOUND, later denial NOT_OPEN; row readership is broader than declared private-existence intent"
+        },
+        {
+          "code": "N_EXISTENCE_ORACLE",
+          "message": "reportResult: lookup absence NOT_FOUND, later denial NOT_OPEN; row readership is broader than declared private-existence intent"
+        },
+        {
+          "code": "N_EXISTENCE_ORACLE",
+          "message": "voidResult: lookup absence NOT_FOUND, later denial NOT_DECIDED; row readership is broader than declared private-existence intent"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "provision writes argument who straight into reader-grant column roles.principal"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "provision writes argument who straight into reader-grant column privateProfiles.principal"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "challenges. read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "allChallenges",
+          "viewer": "account:security-roles-staff-0",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "allChallenges: authored refusal observations are not reduced to this read policy",
+            "allChallenges: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "bookMatch: authored refusal observations are not reduced to this read policy",
+            "challengesAgainstMe: authored refusal observations are not reduced to this read policy",
+            "challengesAgainstMe: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "forfeitOverdue may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "forfeitOverdue: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "issueChallenge may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "issueChallenge: authored refusal observations are not reduced to this read policy",
+            "myChallenges: authored refusal observations are not reduced to this read policy",
+            "myChallenges: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "reportResult may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "reportResult: authored refusal observations are not reduced to this read policy",
+            "system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed",
+            "voidResult may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "voidResult: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "challenges: history paired absence needs a referentially valid closure",
+        "check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign",
+        "generated fixture club: some related rows declined by ordinary validation: E_CONSTRAINT: club holds at most 1 rows",
+        "generated fixture duels: some related rows declined by ordinary validation: E_UNIQUE: duels: unique challenger, challenged already has a row where challenger, challenged = 'dev:security-a', 'dev:security-b' (duels: unique challenger, challenged already has a row where challenger, challenged = 'dev:security-a', 'dev:security-b')",
+        "generated fixture privateProfiles: some related rows declined by ordinary validation: E_UNIQUE: privateProfiles: unique principal already has a row where principal = 'dev:security-b' (privateProfiles: unique principal already has a row where principal = 'dev:security-b')",
+        "generated fixture ranks: some related rows declined by ordinary validation: E_UNIQUE: ranks: unique rung already has a row where rung = {\"Int\":1} (ranks: unique rung already has a row where rung = {\"Int\":1})",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    },
+    "audit": {
+      "exit": 1,
+      "seconds": 11.196,
+      "notes": [
+        {
+          "code": "N_BROAD_READ",
+          "message": "club is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "profiles is readable by any signed-in user with a matching roles row; no particular role or row ownership is required"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "ranks is readable by any signed-in user with a matching roles row; no particular role or row ownership is required"
+        },
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "message": "results.photo permits omitted or empty media evidence"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "8 tables have access rules and no security invariants: auditLog, club, duels, privateProfiles, profiles, ranks, results, roles; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "claimCaptain: roles can confer 'captain', which adds auditLog.read authority not held by a caller without a role; review the grant's delegation policy"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "grantRole writes argument who straight into reader-grant column roles.principal"
+        },
+        {
+          "code": "N_EXISTENCE_ORACLE",
+          "message": "bookMatch: lookup absence NOT_FOUND, later denial NOT_OPEN; row readership is broader than declared private-existence intent"
+        },
+        {
+          "code": "N_EXISTENCE_ORACLE",
+          "message": "reportResult: lookup absence NOT_FOUND, later denial NOT_OPEN; row readership is broader than declared private-existence intent"
+        },
+        {
+          "code": "N_EXISTENCE_ORACLE",
+          "message": "voidResult: lookup absence NOT_FOUND, later denial NOT_DECIDED; row readership is broader than declared private-existence intent"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "provision writes argument who straight into reader-grant column roles.principal"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "provision writes argument who straight into reader-grant column privateProfiles.principal"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "challenges. read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "allChallenges",
+          "viewer": "account:security-roles-staff-0",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "allChallenges: authored refusal observations are not reduced to this read policy",
+            "allChallenges: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "bookMatch: authored refusal observations are not reduced to this read policy",
+            "challengesAgainstMe: authored refusal observations are not reduced to this read policy",
+            "challengesAgainstMe: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "forfeitOverdue may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "forfeitOverdue: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "issueChallenge may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "issueChallenge: authored refusal observations are not reduced to this read policy",
+            "myChallenges: authored refusal observations are not reduced to this read policy",
+            "myChallenges: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "reportResult may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "reportResult: authored refusal observations are not reduced to this read policy",
+            "system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed",
+            "voidResult may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "voidResult: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "challenges: history paired absence needs a referentially valid closure",
+        "generated fixture club: some related rows declined by ordinary validation: E_CONSTRAINT: club holds at most 1 rows",
+        "generated fixture duels: some related rows declined by ordinary validation: E_UNIQUE: duels: unique challenger, challenged already has a row where challenger, challenged = 'dev:security-a', 'dev:security-b' (duels: unique challenger, challenged already has a row where challenger, challenged = 'dev:security-a', 'dev:security-b')",
+        "generated fixture privateProfiles: some related rows declined by ordinary validation: E_UNIQUE: privateProfiles: unique principal already has a row where principal = 'dev:security-b' (privateProfiles: unique principal already has a row where principal = 'dev:security-b')",
+        "generated fixture ranks: some related rows declined by ordinary validation: E_UNIQUE: ranks: unique rung already has a row where rung = {\"Int\":1} (ranks: unique rung already has a row where rung = {\"Int\":1})",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "history read observers capped at 32768 calls; remaining disclosure combinations not covered",
+        "issueChallenge: history candidate actors/arguments capped at 512",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "reportResult: history candidate actors/arguments capped at 512",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  },
+  {
+    "lane": "033-snapback-fencing-bout-pools",
+    "originalSha256": "0bda7139813d4f861fa6616f72ad68308501f7e4e85e1fe66735eeaf69477302",
+    "briefSha256": "6d35bcd0d477272afa61dbc11eaa8aa2aedb781d9cd12205391a5547fbc29cdd",
+    "intent": "invariant bouts.scoreA update only not exists appeals[bout = .id, decision = 'upheld'] or exists roles[viewer, role = 'chair']\ninvariant bouts.scoreB update only not exists appeals[bout = .id, decision = 'upheld'] or exists roles[viewer, role = 'chair']\n",
+    "check": {
+      "exit": 0,
+      "seconds": 1.342,
+      "notes": [
+        {
+          "code": "N_BROAD_READ",
+          "message": "appeals is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "bouts is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "checks is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "message": "checks.photo permits omitted or empty media evidence"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "entries is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "pools is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "6 tables have access rules and no security invariants: appeals, checks, entries, medicalNotes, pools, roles; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "provision writes argument who straight into reader-grant column roles.principal"
+        },
+        {
+          "code": "N_SWEEP_ONLY_DEADLINE",
+          "message": "recordBout gates on entries.status while clock job withdrawUnchecked changes that status; writes can run between the deadline and sweep"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "bouts.scoreA update",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "update admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "incoming cascade/set-null changes bypass this table's ordinary rules",
+            "system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed"
+          ]
+        },
+        {
+          "target": "bouts.scoreB update",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "update admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "incoming cascade/set-null changes bypass this table's ordinary rules",
+            "system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed"
+          ]
+        }
+      ],
+      "coverage": [
+        "check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign",
+        "generated fixture bouts: some related rows declined by ordinary validation: ALREADY_FENCED: the program refused with ALREADY_FENCED (bouts: unique pool, entryA, entryB already has a row where pool, entryA, entryB = 'security-pools-1', 'security-entries-1', 'security-entries-1')",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "provision / bouts.update: multiple or implicit writes require executed-effect tracing",
+        "provision: history candidate actors/arguments capped at 512",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    },
+    "audit": {
+      "exit": 1,
+      "seconds": 9.221,
+      "notes": [
+        {
+          "code": "N_BROAD_READ",
+          "message": "appeals is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "bouts is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "checks is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "message": "checks.photo permits omitted or empty media evidence"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "entries is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "pools is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "6 tables have access rules and no security invariants: appeals, checks, entries, medicalNotes, pools, roles; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_ARGUMENT_GRANT",
+          "message": "provision writes argument who straight into reader-grant column roles.principal"
+        },
+        {
+          "code": "N_SWEEP_ONLY_DEADLINE",
+          "message": "recordBout gates on entries.status while clock job withdrawUnchecked changes that status; writes can run between the deadline and sweep"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "bouts.scoreA update",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "correctBout",
+          "viewer": "account:security-roles-referee-0",
+          "history": [
+            {
+              "operation": "correctBout",
+              "viewer": "account:security-roles-referee-0",
+              "args": {
+                "bout": {
+                  "Id": "security-bouts-0"
+                },
+                "scoreA": {
+                  "Int": 0
+                },
+                "scoreB": {
+                  "Int": 0
+                }
+              },
+              "result": {
+                "result": "Null",
+                "seq": 34,
+                "state": "sent"
+              }
+            }
+          ],
+          "reasons": [
+            "update admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "incoming cascade/set-null changes bypass this table's ordinary rules",
+            "system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        },
+        {
+          "target": "bouts.scoreB update",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "correctBout",
+          "viewer": "account:security-roles-referee-0",
+          "history": [
+            {
+              "operation": "correctBout",
+              "viewer": "account:security-roles-referee-0",
+              "args": {
+                "bout": {
+                  "Id": "security-bouts-0"
+                },
+                "scoreA": {
+                  "Int": 0
+                },
+                "scoreB": {
+                  "Int": 0
+                }
+              },
+              "result": {
+                "result": "Null",
+                "seq": 34,
+                "state": "sent"
+              }
+            }
+          ],
+          "reasons": [
+            "update admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "incoming cascade/set-null changes bypass this table's ordinary rules",
+            "system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "correctBout: history candidate actors/arguments capped at 512",
+        "createPool / bouts.update: multiple or implicit writes require executed-effect tracing",
+        "decideAppeal: history candidate actors/arguments capped at 512",
+        "generated fixture bouts: some related rows declined by ordinary validation: ALREADY_FENCED: the program refused with ALREADY_FENCED (bouts: unique pool, entryA, entryB already has a row where pool, entryA, entryB = 'security-pools-1', 'security-entries-1', 'security-entries-1')",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "provision / bouts.update: multiple or implicit writes require executed-effect tracing",
+        "provision: history candidate actors/arguments capped at 512",
+        "recordBout: history candidate actors/arguments capped at 512",
+        "registerEntry: history candidate actors/arguments capped at 512",
+        "setPoolStatus / bouts.update: multiple or implicit writes require executed-effect tracing",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts",
+        "writeMedicalNote / bouts.update: multiple or implicit writes require executed-effect tracing",
+        "writeMedicalNote: history candidate actors/arguments capped at 512"
+      ]
+    }
+  },
+  {
+    "lane": "041-snapback-fire-watch-patrols",
+    "originalSha256": "3fba82cfeca32c237d48efffa053f69ff9bde27e800487d515bae625bd85a8fd",
+    "briefSha256": "f2b88b05adcd11bc4b9cb618926b1336efc618a798e3cd9baf03e0d7957c0be3",
+    "intent": "invariant users.role write only viewer = 'service:operator' or exists users[viewer, role = 'manager']\ninvariant users.building update only viewer = 'service:operator' or exists users[viewer, role = 'manager']\n",
+    "check": {
+      "exit": 1,
+      "seconds": 1.38,
+      "notes": [
+        {
+          "code": "N_BROAD_READ",
+          "message": "buildings is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "message": "watches.report permits omitted or empty media evidence"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "6 tables have access rules and no security invariants: assignments, buildings, floors, hazards, scans, watches; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "setProfile: users.role assignment to 'guard' is not established by the independent delegation intent for a caller without a role; review the grant's delegation policy"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "users.role write",
+          "status": "refuted",
+          "origin": "authored-fixture-trace",
+          "operation": "setProfile",
+          "viewer": "account:security-no-role",
+          "history": [
+            {
+              "args": {
+                "building": "Null",
+                "role": {
+                  "String": "guard"
+                }
+              },
+              "operation": "setProfile",
+              "result": {
+                "result": {
+                  "Row": {
+                    "building": "Null",
+                    "id": {
+                      "Id": "01MCC5RM00GJEGVC1R2SMTBAN3"
+                    },
+                    "principal": {
+                      "Id": "account:security-no-role"
+                    },
+                    "role": {
+                      "String": "guard"
+                    }
+                  }
+                },
+                "seq": 1,
+                "state": "sent"
+              },
+              "viewer": "account:security-no-role"
+            }
+          ],
+          "reasons": [
+            "insert admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "update admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        },
+        {
+          "target": "users.building update",
+          "status": "unproved",
+          "origin": null,
+          "operation": null,
+          "viewer": null,
+          "history": [],
+          "reasons": [
+            "update admission does not imply intent over independent predicates; a concrete replay is required for refutation"
+          ]
+        }
+      ],
+      "coverage": [
+        "check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    },
+    "audit": {
+      "exit": 1,
+      "seconds": 9.62,
+      "notes": [
+        {
+          "code": "N_BROAD_READ",
+          "message": "buildings is readable by every signed-in user: public"
+        },
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "message": "watches.report permits omitted or empty media evidence"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "6 tables have access rules and no security invariants: assignments, buildings, floors, hazards, scans, watches; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "setProfile: users.role assignment to 'guard' is not established by the independent delegation intent for a caller without a role; review the grant's delegation policy"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "users.role write",
+          "status": "refuted",
+          "origin": "authored-fixture-trace",
+          "operation": "setProfile",
+          "viewer": "account:security-no-role",
+          "history": [
+            {
+              "operation": "setProfile",
+              "viewer": "account:security-no-role",
+              "args": {
+                "building": "Null",
+                "role": {
+                  "String": "guard"
+                }
+              },
+              "result": {
+                "result": {
+                  "Row": {
+                    "building": "Null",
+                    "id": {
+                      "Id": "01MCC5RM00A8EZG6AZ0580NJNR"
+                    },
+                    "principal": {
+                      "Id": "account:security-no-role"
+                    },
+                    "role": {
+                      "String": "guard"
+                    }
+                  }
+                },
+                "seq": 1,
+                "state": "sent"
+              }
+            }
+          ],
+          "reasons": [
+            "insert admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "update admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        },
+        {
+          "target": "users.building update",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "setProfile",
+          "viewer": "account:security-users-guard-1",
+          "history": [
+            {
+              "operation": "setProfile",
+              "viewer": "account:security-users-guard-1",
+              "args": {
+                "building": "Null",
+                "role": {
+                  "String": "guard"
+                }
+              },
+              "result": {
+                "result": {
+                  "Row": {
+                    "building": "Null",
+                    "id": {
+                      "Id": "security-users-1"
+                    },
+                    "principal": {
+                      "Id": "account:security-users-guard-1"
+                    },
+                    "role": {
+                      "String": "guard"
+                    }
+                  }
+                },
+                "seq": 2,
+                "state": "sent"
+              }
+            }
+          ],
+          "reasons": [
+            "update admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "addFloor / users.update: multiple or implicit writes require executed-effect tracing",
+        "addFloor / users.write: multiple or implicit writes require executed-effect tracing",
+        "assignGuard: history candidate actors/arguments capped at 512",
+        "createBuilding / users.update: multiple or implicit writes require executed-effect tracing",
+        "createBuilding / users.write: multiple or implicit writes require executed-effect tracing",
+        "endWatch / users.update: multiple or implicit writes require executed-effect tracing",
+        "endWatch / users.write: multiple or implicit writes require executed-effect tracing",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "recordScan / users.update: multiple or implicit writes require executed-effect tracing",
+        "recordScan / users.write: multiple or implicit writes require executed-effect tracing",
+        "reportHazard / users.update: multiple or implicit writes require executed-effect tracing",
+        "reportHazard / users.write: multiple or implicit writes require executed-effect tracing",
+        "startWatch / users.update: multiple or implicit writes require executed-effect tracing",
+        "startWatch / users.write: multiple or implicit writes require executed-effect tracing",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  },
+  {
+    "lane": "044-snapback-prison-book-mailings",
+    "originalSha256": "01cea263bce6244952144cccf18cd3f0f703ef436b851cd4550db5197acd7c96",
+    "briefSha256": "9cab1c21dbdb283bd5621bbf3ddf2294d031e889418c27b035150ce44575037d",
+    "intent": "invariant packages.scan read only .claimedBy = viewer or exists members[viewer, role = 'coordinator']\n",
+    "check": {
+      "exit": 1,
+      "seconds": 1.5,
+      "notes": [
+        {
+          "code": "N_BROAD_READ",
+          "message": "booksSent is readable by every signed-in user: allow"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "8 tables have access rules and no security invariants: booksSent, facilities, facilityRuleAudits, members, readerBlocks, readers, rejections, requestPrivate; declare the spec's privacy rules as invariants (`guide security`)"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "packages.scan read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "board",
+          "viewer": "account:security-members-letter_reader-0",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "board: authored refusal observations are not reduced to this read policy",
+            "board: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "claimPackage may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "claimPackage: authored refusal observations are not reduced to this read policy",
+            "heldQueue: authored refusal observations are not reduced to this read policy",
+            "heldQueue: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "logRequest may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "logRequest: authored refusal observations are not reduced to this read policy",
+            "mailPackage: authored refusal observations are not reduced to this read policy",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "rejectPackage may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "rejectPackage: authored refusal observations are not reduced to this read policy",
+            "releasePackage: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "maintained Count: packages -> booksSent: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign",
+        "generated fixture requestPrivate: some related rows declined by ordinary validation: E_UNIQUE: requestPrivate: unique package already has a row where package = 'security-packages-3' (requestPrivate: unique package already has a row where package = 'security-packages-3')",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    },
+    "audit": {
+      "exit": 1,
+      "seconds": 36.187,
+      "notes": [
+        {
+          "code": "N_BROAD_READ",
+          "message": "booksSent is readable by every signed-in user: allow"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "8 tables have access rules and no security invariants: booksSent, facilities, facilityRuleAudits, members, readerBlocks, readers, rejections, requestPrivate; declare the spec's privacy rules as invariants (`guide security`)"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "packages.scan read",
+          "status": "refuted",
+          "origin": "generated-fixture-trace",
+          "operation": "board",
+          "viewer": "account:security-members-letter_reader-0",
+          "history": [],
+          "reasons": [
+            "read admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved",
+            "board: authored refusal observations are not reduced to this read policy",
+            "board: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "claimPackage may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "claimPackage: authored refusal observations are not reduced to this read policy",
+            "heldQueue: authored refusal observations are not reduced to this read policy",
+            "heldQueue: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction",
+            "insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority",
+            "logRequest may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "logRequest: authored refusal observations are not reduced to this read policy",
+            "mailPackage: authored refusal observations are not reduced to this read policy",
+            "parent deletion/referential refusal can observe this child (including default restrict and transitive closures)",
+            "rejectPackage may copy protected data into another table; cross-table disclosure reduction is unproved",
+            "rejectPackage: authored refusal observations are not reduced to this read policy",
+            "releasePackage: authored refusal observations are not reduced to this read policy",
+            "wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference",
+            "server point/scan/planned view/count/sum/exists payload: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "maintained Count: packages -> booksSent: observer authority does not imply the source policy; retain the privacy fields as bare group keys and apply the source privacy policy to this observer",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "claimPackage: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "column observers capped at 16384 call/world reservations; remaining value worlds not covered",
+        "generated fixture requestPrivate: some related rows declined by ordinary validation: E_UNIQUE: requestPrivate: unique package already has a row where package = 'security-packages-3' (requestPrivate: unique package already has a row where package = 'security-packages-3')",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "history read observers capped at 32768 calls; remaining disclosure combinations not covered",
+        "logRequest: generated-id/opaque column observer declined",
+        "mailPackage: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "provision: history candidate actors/arguments capped at 512",
+        "rejectPackage: generated-id/opaque column observer declined",
+        "releasePackage: column mutation can change protected row/policy before disclosure; boundary tracing required",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    }
+  },
+  {
+    "lane": "047-snapback-hyperbaric-chamber-log",
+    "originalSha256": "4b9a0d7e2d1dd04550b20fbae03ddc3717427eaef45af8bc34f19ffe02f2aa9b",
+    "briefSha256": "1b2c11cfd152c912663dfba4d374ed1acc6ec479b22d3503726ace5be2573061",
+    "intent": "invariant staff.role write only viewer = 'service:operator' or exists staff[viewer, role = 'physician']\n",
+    "check": {
+      "exit": 1,
+      "seconds": 1.535,
+      "notes": [
+        {
+          "code": "N_VACUOUS_RULE",
+          "message": "staff: `created unit` can bootstrap authority trusted globally by a viewer-only probe; a caller may create their own global administrator grant"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "unit is readable by every signed-in user: allow"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "10 tables have access rules and no security invariants: consents, diagnoses, patients, physician_claims, planExtras, plan_extensions, plans, sessionCounts, treatments, unit; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "foundUnit: staff.role assignment to 'physician' is not established by the independent delegation intent for a caller without a role; review the grant's delegation policy"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "registerStaff: staff.role assignment to 'operator' is not established by the independent delegation intent for a caller without a role; review the grant's delegation policy"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "staff.role write",
+          "status": "refuted",
+          "origin": "authored-fixture-trace",
+          "operation": "foundUnit",
+          "viewer": "account:security-no-role",
+          "history": [
+            {
+              "args": {
+                "name": {
+                  "String": "z"
+                }
+              },
+              "operation": "foundUnit",
+              "result": {
+                "result": {
+                  "Row": {
+                    "id": {
+                      "Id": "01MCC5RM00CJP9JEN3EJYPVZ0X"
+                    },
+                    "name": {
+                      "String": "z"
+                    },
+                    "principal": {
+                      "Id": "account:security-no-role"
+                    },
+                    "role": {
+                      "String": "physician"
+                    }
+                  }
+                },
+                "seq": 1,
+                "state": "sent"
+              },
+              "viewer": "account:security-no-role"
+            }
+          ],
+          "reasons": [
+            "insert admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "update admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign",
+        "claimPhysicianSeat / staff.write: multiple or implicit writes require executed-effect tracing",
+        "createPatientProfile / staff.write: multiple or implicit writes require executed-effect tracing",
+        "generated fixture patients: some related rows declined by ordinary validation: E_UNIQUE: patients: unique principal already has a row where principal = 'dev:security-b' (patients: unique principal already has a row where principal = 'dev:security-b')",
+        "generated fixture physician_claims: some related rows declined by ordinary validation: E_UNIQUE: physician_claims: unique claimant already has a row where claimant = 'dev:security-b' (physician_claims: unique claimant already has a row where claimant = 'dev:security-b')",
+        "generated fixture unit: some related rows declined by ordinary validation: E_CONSTRAINT: unit holds at most 1 rows",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts"
+      ]
+    },
+    "audit": {
+      "exit": 1,
+      "seconds": 11.309,
+      "notes": [
+        {
+          "code": "N_VACUOUS_RULE",
+          "message": "staff: `created unit` can bootstrap authority trusted globally by a viewer-only probe; a caller may create their own global administrator grant"
+        },
+        {
+          "code": "N_BROAD_READ",
+          "message": "unit is readable by every signed-in user: allow"
+        },
+        {
+          "code": "N_SECURITY_INTENT",
+          "message": "10 tables have access rules and no security invariants: consents, diagnoses, patients, physician_claims, planExtras, plan_extensions, plans, sessionCounts, treatments, unit; declare the spec's privacy rules as invariants (`guide security`)"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "foundUnit: staff.role assignment to 'physician' is not established by the independent delegation intent for a caller without a role; review the grant's delegation policy"
+        },
+        {
+          "code": "N_PRIVILEGE_ESCALATION",
+          "message": "registerStaff: staff.role assignment to 'operator' is not established by the independent delegation intent for a caller without a role; review the grant's delegation policy"
+        }
+      ],
+      "invariants": [
+        {
+          "target": "staff.role write",
+          "status": "refuted",
+          "origin": "authored-fixture-trace",
+          "operation": "foundUnit",
+          "viewer": "account:security-no-role",
+          "history": [
+            {
+              "operation": "foundUnit",
+              "viewer": "account:security-no-role",
+              "args": {
+                "name": {
+                  "String": "z"
+                }
+              },
+              "result": {
+                "result": {
+                  "Row": {
+                    "id": {
+                      "Id": "01MCC5RM00XQGMXJC44DDH5KGQ"
+                    },
+                    "name": {
+                      "String": "z"
+                    },
+                    "principal": {
+                      "Id": "account:security-no-role"
+                    },
+                    "role": {
+                      "String": "physician"
+                    }
+                  }
+                },
+                "seq": 1,
+                "state": "sent"
+              }
+            }
+          ],
+          "reasons": [
+            "insert admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "update admission does not imply intent over independent predicates; a concrete replay is required for refutation",
+            "concrete policy-false snapshot admitted by the actual engine; fixture origin is explicit, not an empty-state reachability theorem"
+          ]
+        }
+      ],
+      "coverage": [
+        "beginTreatment / staff.write: multiple or implicit writes require executed-effect tracing",
+        "claimPhysicianSeat / staff.write: multiple or implicit writes require executed-effect tracing",
+        "completeTreatment / staff.write: multiple or implicit writes require executed-effect tracing",
+        "createPatientProfile / staff.write: multiple or implicit writes require executed-effect tracing",
+        "createPlan / staff.write: multiple or implicit writes require executed-effect tracing",
+        "extendPlan / staff.write: multiple or implicit writes require executed-effect tracing",
+        "generated fixture patients: some related rows declined by ordinary validation: E_UNIQUE: patients: unique principal already has a row where principal = 'dev:security-b' (patients: unique principal already has a row where principal = 'dev:security-b')",
+        "generated fixture physician_claims: some related rows declined by ordinary validation: E_UNIQUE: physician_claims: unique claimant already has a row where claimant = 'dev:security-b' (physician_claims: unique claimant already has a row where claimant = 'dev:security-b')",
+        "generated fixture unit: some related rows declined by ordinary validation: E_CONSTRAINT: unit holds at most 1 rows",
+        "history breadth/pairs bounded to 512; unvisited and longer traces remain uncovered",
+        "logTreatment / staff.write: multiple or implicit writes require executed-effect tracing",
+        "logTreatment: history candidate actors/arguments capped at 512",
+        "offline/revoked-device access and retained history require device boundary qualification",
+        "paired observations exclude wire sequences/receipts, physical timing and resource/meter differences; HTTP and device histories require separate qualification",
+        "recordDiagnosis / staff.write: multiple or implicit writes require executed-effect tracing",
+        "reportCold / staff.write: multiple or implicit writes require executed-effect tracing",
+        "unauthenticated HTTP attempts require a live server; engine principals are authenticated contexts",
+        "updatePatientStatus / staff.write: multiple or implicit writes require executed-effect tracing",
+        "updatePatientStatus: history candidate actors/arguments capped at 512"
+      ]
+    }
+  }
+]

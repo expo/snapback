@@ -35,7 +35,10 @@ fn reads(schema: &Schema, program: &ir::Program) -> BTreeSet<String> {
 }
 
 pub(super) fn capture(store: &Store) -> Result<(), String> {
-    store.conn().execute_batch("CREATE TEMP TABLE preview_active AS SELECT c.name,r.t,r.id,r.data FROM r JOIN _catalog c ON c.num=r.t; CREATE INDEX preview_active_id ON preview_active(t,id);").map_err(|e|e.to_string())
+    // Only the disposable preview snapshot reaches this function. Live restoration
+    // changes SQLite temp_store and clears TEMP tables; retain the before-image
+    // in that private snapshot so live read-through previews remain comparable.
+    store.conn().execute_batch("CREATE TABLE preview_active AS SELECT c.name,r.t,r.id,r.data FROM r JOIN _catalog c ON c.num=r.t; CREATE INDEX preview_active_id ON preview_active(t,id);").map_err(|e|e.to_string())
 }
 fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String,String)>) {
     match (kind,value) {

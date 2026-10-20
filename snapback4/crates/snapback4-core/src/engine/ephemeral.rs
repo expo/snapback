@@ -106,7 +106,7 @@ impl Count {
         self.bytes -= bytes;
     }
 }
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct Accounting {
     owners: BTreeMap<(String, String), (String, u64)>,
     principals: BTreeMap<String, Count>,
@@ -327,6 +327,12 @@ impl HubState {
     }
 }
 impl Hub {
+    // @ref LLP 3000.036.004#137-wave-19-correction-admissible-starts-and-persistent-refutations — campaign copies preserve deadlines, quotas and epochs without retaining the live publisher.
+    pub(super) fn fork_fixture(&self,identity:&str,generation:u64)->Result<Self,RuntimeError>{
+        let state=self.lock()?;
+        if state.identity!=identity||state.generation!=generation{return Err(RuntimeError::Schema("fixture fork needs a hub bound to the selected store generation".into()));}
+        Ok(Self{limits:self.limits,state:Mutex::new(HubState{rows:state.rows.fork_fixture(),identity:state.identity.clone(),generation:state.generation,tables:state.tables.clone(),accounting:state.accounting.clone(),version:state.version.clone(),ring:state.ring.clone(),preserved:state.preserved.clone(),publisher:None})})
+    }
     pub fn new(identity: String, generation: u64, schema: &Schema) -> Self {
         Self::with_limits(identity, generation, schema, Limits::default())
     }

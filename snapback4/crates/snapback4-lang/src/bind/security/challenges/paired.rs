@@ -2,7 +2,7 @@
 // @ref LLP 3000.036.004#101-separate-observer-obligations — two valid worlds and repeatable observations are required.
 use super::*;
 
-#[derive(Clone,Debug,Serialize)]
+#[derive(Clone,Debug,Serialize,serde::Deserialize)]
 pub struct Observations {
     pub present: serde_json::Value,
     pub absent: serde_json::Value,
@@ -10,6 +10,7 @@ pub struct Observations {
 }
 
 pub(super) fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>)->Result<serde_json::Value,String>{
+    if p.kind==ProgramKind::Mutation&&engine.schema().operations.get(&p.name).is_some_and(|f|f.ephemeral){return Err("ephemeral mutation observer is outside the durable campaign".into());}
     let context=Context::new(viewer,args).at(NOW);
     if p.kind==ProgramKind::Query {
         match engine.query(&p.name,context) {
@@ -64,6 +65,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
             out.unsupported.insert(format!("{}: paired absence needs a referentially valid world closure",inv.table));continue;
         }
         for variant in 0..8 {
+            if !out.reserve(1){return;}
             let Ok(present)=snapshot(bound,inv,variant)else{continue;};
             if present.keys().any(|name|bound.schema.tables[name].columns.values().any(C::contains_asset)) {
                 out.unsupported.insert(format!("{}: paired fixture asset identities are not coupled",inv.table));continue;
@@ -83,6 +85,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
             for viewer in [VIEWER,OTHER,"account:security-no-role","service:security"] {
                 for bp in &bound.programs {
                     let p=&bp.program;
+                    if ephemeral_operation(bound,p,out){continue;}
                     if !matches!(p.kind,ProgramKind::Query|ProgramKind::Mutation)||p.native {continue;}
                     let writes=ir::write_tables(p);
                     let deps=inv.policy.as_ref().map(kernel::dependencies).unwrap_or_default();
@@ -100,10 +103,11 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                         serde_json::Value::Array(xs)=>xs.iter().any(opaque),_=>false,
                     }}
                     if opaque(&json){out.unsupported.insert(format!("{}: generated-id/opaque effects excluded from paired determinism",p.name));continue;}
-                    let cases=histories::fixture_cases(&p.args,&present,&[VIEWER.into(),OTHER.into()],out);
+                    let cases=histories::fixture_cases(p,&present,&[VIEWER.into(),OTHER.into()],out);
                     if cases.len()>32{out.unsupported.insert(format!("{}: paired observer arguments capped at 32; remaining combinations not covered",p.name));}
                     for args in cases.into_iter().take(32){
-                    if out.paired_observer_calls+4>8192{out.unsupported.insert("paired observers capped at 8192 call reservations; remaining worlds not covered".into());return;}
+                    if !out.reserve(12){return;}
+                        if out.paired_observer_calls+4>8192{out.unsupported.insert("paired observers capped at 8192 call reservations; remaining worlds not covered".into());return;}
                     out.paired_observer_calls+=4;
                     let execute=|seeds:&BTreeMap<String,Vec<Value>>|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>),String>{
                         if let Err(why)=&prepared{return Err(why.clone());}

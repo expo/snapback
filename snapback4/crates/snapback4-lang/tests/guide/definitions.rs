@@ -148,6 +148,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_SECURITY_INTENT", "access rules lack independent declared intent"),
     ("N_BROAD_READ", "universal or roster-wide readership"),
     ("N_GRANT_OUTLIVES_ROLE", "a stored grant may survive a later role change"),
+    ("N_INVARIANT_RESTATES_RULE", "intent and the effective rule admit the same cases"),
+    ("N_ROLE_WIDE_READ", "a role-wide branch gated by a row value exposes every column"),
     ("N_ARGUMENT_GRANT", "an argument becomes a reader-grant column"),
     ("N_PRIVILEGE_ESCALATION", "identifies role assignments trusted by later rules without independent delegation"),
     ("N_OPTIONAL_EVIDENCE", "optional media permits omitted evidence"),

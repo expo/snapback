@@ -8,6 +8,7 @@ impl Parser {
             let mut field = self.word()?.value;
             while self.maybe(".") {field.push('.');field.push_str(&self.word()?.value);}
             if self.maybe("write") { ("write".into(), Some(field)) }
+            else if self.maybe("update") { ("update".into(), Some(field)) }
             else if self.maybe("read") { ("read".into(), Some(field)) }
             else { (field, None) }
         } else { (self.take("always")?.value, None) };

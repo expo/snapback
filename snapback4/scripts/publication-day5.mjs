@@ -22,7 +22,7 @@ assert.equal(readFileSync(join(cwd,'bridge/schema.q'),'utf8'),source);
 assert.match(readFileSync(join(cwd,'bridge/ROLLBACK-CHECKLIST.md'),'utf8'),/release 1/);
 assert.equal((await testSource('versions/v1',{cwd})).casesRun,1);
 writeFileSync(join(cwd,'fixtures/test.cases.jsonl'),'');
-assert.notEqual((await cli(['test','--fixture','fixtures'],{cwd})).code,0);
+const generated=await cli(['test','--fixture','fixtures'],{cwd});assert.equal(generated.code,0,generated.stdout+generated.stderr);assert.match(generated.stdout,/generated-fixture only/);
 assert.equal((await cli(['test','--fixture','fixtures','--fixture-only'],{cwd})).code,0);
 assert.notEqual((await cli(['test','--residency'],{cwd})).code,0);
 assert.equal((await cli(['test','--residency','--fixture-only','--fixture','fixtures','--as','alice'],{cwd})).code,0);

@@ -199,7 +199,8 @@ const v2 = v1
   .replace("{owner:viewer, body, weight, length}", "{owner:viewer, body, weight, length, vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}")
   + `backfill tickets vehicleClass(weight: int, length: int):
   {vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}
-invariant tickets.read only .owner = viewer
+-- Spec: only the ticket owner may revise its weight.
+invariant tickets.revise only .owner = viewer
 `;
 for (const [version, source] of [["v1", v1], ["v2", v2]]) {
   mkdirSync(`versions/${version}`, { recursive: true });
@@ -269,3 +270,9 @@ try {
 ```
 
 Storage, users and rows survive. Resolve reported conflicts through a truthful bridge.
+
+When table rules change, deploy and deploy --check print a short security
+exposure summary. Without a matching completed security campaign they demand
+`snapback4 test` for the selected source and fixtures (saved-source previews name
+`test --source`). Known refutations and coverage gaps remain visible; a finite
+campaign is not proof. This reminder does not change activation authority.

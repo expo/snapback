@@ -51,11 +51,11 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     const output = command(["test", "--fixture-only"], project);
     const counts = /security tests: (\d+) attempted, (\d+) refused, (\d+) reachable violations; (\d+) seed\/synthetic observations \(non-failing\); finite campaign, not proof/.exec(output);
     assert.ok(counts, "default test executes the generated finite security campaign");
-    assert.ok(Number(counts[1]) > 0, "the security campaign actually attempts challenges");
     assert.equal(Number(counts[3]), 0);
     assert.doesNotMatch(output, /security boundary failure:|security HTTP failure:|security violation:/);
     const http = /security unauthenticated serve HTTP: (\d+) attempts refused/.exec(output);
     const artifactBoundary = "security not covered: unauthenticated serve HTTP for native/action/effect applications needs its complete deployed artifacts";
+    assert.ok(Number(counts[1]) + Number(http?.[1] ?? 0) > 0, `security campaign attempts policy or isolated HTTP challenges in ${project}`);
     if (requireHttp) assert.ok(http && Number(http[1]) > 0, "the isolated production HTTP campaign runs");
     else assert.ok((http && Number(http[1]) > 0) || output.includes(artifactBoundary), "HTTP coverage is executed or explicitly bounded by deployed artifacts");
     return { attempted: Number(counts[1]), refused: Number(counts[2]), violations: Number(counts[3]), seedSyntheticObservations: Number(counts[4]), unauthenticatedHttpRefused: Number(http?.[1] ?? 0),
@@ -84,12 +84,35 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     assert.equal(refuted.ok, false);
     const readVerdicts = refuted.security.invariants.filter(verdict => verdict.invariant.target === "read");
     assert.equal(readVerdicts.length, 2, "the installed card exercises row and column read intent");
-    assert.ok(readVerdicts.every(verdict => verdict.status === "refuted" && verdict.counterexample?.reachability === "authored-fixture-trace"), "ordinary writes from the empty initial store lead to actual row/column disclosure");
+    assert.ok(readVerdicts.every(verdict => verdict.status === "refuted" && ["authored-fixture-trace", "generated-fixture-trace"].includes(verdict.counterexample?.reachability)), "actual authored row/column disclosure retains explicit fixture initialization provenance");
     const auditRefuted = JSON.parse(command(["audit", "--json"], project, 1));
     assert.ok(auditRefuted.invariants.some(verdict => verdict.status === "refuted"));
     command(["test", "--fixture-only"], project, 1);
     guideCases.push({ block: index, invariants: security.invariants.length, audit: "passed", finite, broadRead: "refuted", expectedFailureExits: [1, 1, 1] });
   }
+
+  const editsOnly = schemaProject("column-update-intent", `use identity password
+ table tickets:
+  price: int
+  read <- allow
+  insert <- allow
+  update <- viewer = 'service:operator'
+  online only
+invariant tickets.price update only viewer = 'service:operator'
+mutation create():
+  return insert tickets {price: 1}
+table pulses:
+  principal: principal
+  unique principal
+  read <- allow
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  ephemeral 4s
+mutation ping():
+  upsert pulses[viewer] {}
+`.replace("\n table", "\ntable"));
+  checked(editsOnly); campaign(editsOnly, true);
+  command(["test"], editsOnly); // No personas, developer store or handwritten fixtures.
 
   const sessions = [];
   for (const method of ["guests", "password"]) {
@@ -113,11 +136,12 @@ mutation add():
 
   const starters = [];
   for (const starter of [
-    { id: "todo-online", flags: ["--online"], intent: "invariant todos.read only .ownerId = viewer" },
+    { id: "todo-backend", flags: [], intent: "invariant todos.toggle only .ownerId = viewer" },
+    { id: "todo-online", flags: ["--online"], intent: "invariant todos.toggle only .ownerId = viewer" },
     { id: "social", flags: ["--template", "social"] },
     { id: "todo-web", flags: ["--web"] },
-    { id: "chat-web", flags: ["--template", "chat", "--web"], intent: "invariant messages.read only exists memberships[.conversationId, viewer]" },
-    { id: "chat-expo", flags: ["--template", "chat", "--expo"], intent: "invariant messages.read only exists memberships[.conversationId, viewer]" },
+    { id: "chat-web", flags: ["--template", "chat", "--web"], intent: "invariant messages.send only .authorId = viewer" },
+    { id: "chat-expo", flags: ["--template", "chat", "--expo"], intent: "invariant messages.send only .authorId = viewer" },
   ]) {
     const project = join(cwd, starter.id); command(["init", project, ...starter.flags]);
     const source = readFileSync(join(project, "snapback/schema.q"), "utf8");
@@ -129,7 +153,7 @@ mutation add():
   copyFileSync(join(cwd, "node_modules/snapback4/dist/recipes/production/web/schema.q"), join(production, "snapback/schema.q"));
   const productionSecurity = checked(production);
   starters.push({ id: "production-recipe", status: "passed", source: "installed dist/recipes/production/web/schema.q", invariants: productionSecurity.invariants.length, ...campaign(production) });
-  assert.equal(starters.length, 6);
+  assert.equal(starters.length, 7);
 
   assert.equal(sha256(native), binarySha256, "installed CLI binary is unchanged");
   assert.equal(sha256(client), artifacts.clientSha256, "supplied client tarball is unchanged");

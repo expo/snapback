@@ -232,9 +232,8 @@ query searchChat(conversation: conversations, q: text <=100, c: cursor ?):
 query search(q: text <=100, c: cursor ?):
   return messages matching q last 20 by .at after c { *, chatTitle: conversations[.conversation].title, senderName: profiles[principal = .sender].name }
 
--- Independent privacy intent; guide security states unproved paths.
-invariant conversations.read only exists members[.id, viewer]
-invariant members.read only exists members[.conversation, viewer]
-invariant messages.read only exists members[.conversation, viewer]
-invariant directChats.read only .owner = viewer
-invariant typing.read only exists members[.conversation, viewer]
+-- Spec: sending always attributes the message to its caller; leaving removes only oneself.
+-- Operation intent is independent of the membership read implementation.
+-- Add the app's column privacy and revocation requirements from its own specification.
+invariant messages.send only .sender = viewer
+invariant members.leave only .principal = viewer

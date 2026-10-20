@@ -1,0 +1,49 @@
+{
+  "semanticSource": "27ee015f192af39a30c582d7d4980da6ccbdbd1e",
+  "baseline": {
+    "lanes": 50,
+    "medianSeconds": 28.789,
+    "lanesWithInvariants": 37,
+    "invariantMedianSeconds": 39.44,
+    "failures": 0
+  },
+  "finalDev": {
+    "lanes": 50,
+    "medianSeconds": 1.2115,
+    "lanesWithInvariants": 37,
+    "invariantMedianSeconds": 1.624,
+    "failures": 0
+  },
+  "shipping": {
+    "lanes": 50,
+    "medianSeconds": 0.9235,
+    "lanesWithInvariants": 37,
+    "invariantMedianSeconds": 1.242,
+    "failures": 0
+  },
+  "shippingCorpus": {
+    "lanes": 200,
+    "falseRefusals": 0,
+    "allDefaultChecksExit0": true
+  },
+  "fixtureFree": {
+    "lanes": 50,
+    "exit0": 46,
+    "refusals": [
+      "011-snapback-gem-lab-certificates",
+      "025-snapback-wheelchair-repair-loaners",
+      "026-snapback-extinguisher-service-tags",
+      "045-snapback-honor-guard-details"
+    ],
+    "handWrittenFixtures": 0
+  },
+  "shipping-bin": {
+    "sha256": "f0afbac1c53c5b486d846b6ed7d126cf744753de5436a86b2a6ccc1b0da50acf",
+    "bytes": 31754976
+  },
+  "final-dev-bin": {
+    "sha256": "8f5f8754c4dbdec10c80c43a972279650b8a28599bcbec60a8eae2af2d9c22d6",
+    "bytes": 130490624
+  },
+  "timingMethod": "source-only copies; check --json includes process, compilation and report; dev baseline/final unoptimized opt-level=0; final dev single worker, shipping corpus 4 workers; same host; discarded intermediate test-profile 0.624s number"
+}

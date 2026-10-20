@@ -96959,3 +96959,51 @@ updated. SEC4 retains security/check semantics; QRY retains query semantics;
 MIG's staging clock is unchanged. WORKSTREAM-REPORT.md binds exact test,
 packed Linux, assigned Mac Studio and copied-upgrade evidence and its limits.
 No version bump, publication or push.
+
+## 2026-10-19 — SEC4 independent intent and default verification
+
+LLP 3000.036.004 §13/13.5 has Muse and fresh Codex READY design reviews.
+SEC4 replaces taught rule copies with spec action/role intent, advises equivalent
+invariants, synthesizes typed per-role initial fixtures, labels generated origins,
+and adds update-only column intent. Check has a compact note block and bounded
+concrete work; test/audit retain full campaigns. Source evidence is read-only;
+per-lane measurements and qualification are in reports/20261019-sec4.
+DX4 owns staging/upload/dev papercuts; QRY owns read return and hidden lookups.
+
+## 2026-10-19 — SEC4 wave-19 correction
+
+Merged origin/main before changes. Coordinator wave-19 addendum supersedes the
+seed-only demotion: authored fixture read/integrity violations fail. Empty
+fixtures generate; payload initialization executes authored creators, preserving
+requires, principal-role checks and copied values. Exact-source/fixture/CLI
+positive evidence carries test refutations into bounded check without cached
+proof. Escalation notes bypass the summary cap, exposure counts are separate,
+and rule-changing deployment prints a matching-campaign demand. Real role and
+relationship transitions retain their committed history. LLP 3000.036.004 §13.7
+and wave-19 evidence/report record reviews, qualification and remaining gaps.
+Column read rules remain outside SEC4; release visibility belongs to its owner.
+
+Wave-19 follow-up: distinct equal-length histories exposed both real linkUnit
+and grantRole → read paths. Counterfactual column mutation must not break an
+immutable creator copy; actual typed payloads remain observable. Independent
+review reproduced source-change-during-test and followed-symlink fingerprint
+bugs. Tests now consume captured source strings and private fixture snapshots,
+including symlink target bytes; changed originals prevent persistence. Those
+exact regressions pass. Optional role columns retain two active actors per role.
+
+Wave19 independent implementation review also reproduced a post-insert require
+through the returned row alias. Paired column independence now follows alias
+dependencies into require/check/if guards and declines unresolved coupling;
+the exact safe transaction has a regression. Saved refutation records deduplicate
+initial observations while retaining complete supporting rows, including the
+600-row regression. Packed policy qualification counts actual native or HTTP
+challenges separately and retains the existing ephemeral-fork coverage gap.
+
+Packed social follow-up supersedes the earlier ephemeral-fork limitation:
+fixture copies now retain independent hub rows/indexes, deadlines, quota
+accounting/limits and epoch/ring state under the hub lock, without a publisher.
+A mismatched store generation refuses. Durable campaigns run in mixed schemas;
+ephemeral mutation histories and external presence are still explicit gaps.
+The core regression verifies copied rows, deadlines, global capacity, independent
+delete/write/sweep, unchanged live publisher and generation mismatch refusal.
+The exact social starter also has a native campaign regression.

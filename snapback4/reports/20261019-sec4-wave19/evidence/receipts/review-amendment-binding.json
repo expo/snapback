@@ -1,0 +1,11 @@
+{
+  "amendmentFile": "llp/3000.036.004-security-invariants-and-exposure.rfc.md",
+  "sha256": "ca65d6ba8cef7a9f21b19b7f086dd905234cfd342b1b41d16d752bb61ef85df6",
+  "museWholeAmendmentReviewCommit": "4249ef8357",
+  "finalCodeReviewCommit": "c4a21db85a",
+  "amendmentBytesIdentical": true,
+  "museVerdict": "READY",
+  "codexVerdict": "READY",
+  "codeScope": "4be5ffa59e..c4a21db85a",
+  "publicationQualified": false
+}

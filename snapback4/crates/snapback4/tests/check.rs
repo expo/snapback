@@ -222,8 +222,9 @@ fn notes_stay_short_and_verbose_explains_each_code_once() {
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8(output.stdout).unwrap();
             // Repeats of a code share one line naming each query (wave 6 #25).
-            assert_eq!(text.matches("note: ").count(), if verbose { count + 1 } else { 2 }, "{text}");
-            if !verbose && count > 1 { assert!((1..count).all(|i| text.contains(&format!("query page{i} ("))), "{text}"); }
+            if verbose { assert_eq!(text.matches("note: ").count(), count + 1, "{text}"); }
+            else { assert!(text.matches("note: ").count() <= 5 && text.contains("N_NO_CURSOR"), "{text}"); }
+            if !verbose && count > 2 { assert!(text.contains("more actionable notes"), "{text}"); }
             assert_eq!(text.matches("  guide: reads").count(), if verbose { count } else { 0 });
             assert_eq!(text.matches("  why: snapback4 why N_NO_CURSOR").count(), if verbose { count } else { 0 });
             let excerpts = usize::from(verbose);
@@ -237,7 +238,7 @@ fn notes_stay_short_and_verbose_explains_each_code_once() {
         }
         let output = p.run(&["check", "--json"]);
         assert!(output.status.success());
-        assert_eq!(parsed(&output)["notes"].as_array().unwrap().iter().filter(|n| n["code"] != "N_NO_PRODUCTION_WRITER").count(), count);
+        assert_eq!(parsed(&output)["notes"].as_array().unwrap().iter().filter(|n| n["code"] == "N_NO_CURSOR").count(), count);
         assert!(output.stderr.is_empty());
     }
 }

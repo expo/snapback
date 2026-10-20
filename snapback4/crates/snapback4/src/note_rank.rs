@@ -18,11 +18,19 @@ pub(crate) fn tier(code: &str) -> Tier {
     match code {
         "N_IMMUTABLE_PATCH" | "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_QUERY_FILTERED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_SWEEP_DEADLINE" | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
-        | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" => Tier::Review,
+        | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" | "N_PRIVILEGE_ESCALATION" | "N_ROLE_WIDE_READ" | "N_INVARIANT_RESTATES_RULE" | "N_ARGUMENT_GRANT" | "N_BROAD_READ" | "N_SECURITY_INTENT" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
         "N_SYNC_ORDER" | "N_NO_HORIZON" | "N_MAINTAIN_SYNCED" | "N_TIMELINE_COMPAT" | "N_NO_CURSOR" => Tier::Design,
         _ => Tier::Performance,
     }
+}
+
+/// Security findings that can grant authority stay ahead of repeated advice.
+pub(crate) fn summary_order(code:&str)->(Tier,u8){
+    (tier(code),match code{
+        "N_PRIVILEGE_ESCALATION"=>0,"N_ROLE_WIDE_READ"=>1,
+        "N_INVARIANT_RESTATES_RULE"=>3,"N_BROAD_READ"=>4,"N_SECURITY_INTENT"=>5,_=>2,
+    })
 }
 
 /// The first words of a note's line: what to do about it, or that nothing
@@ -111,7 +119,7 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
     let first_seen = |code: &str, unique: &[(Note, usize)]| unique.iter().position(|(n, _)| n.code == code).unwrap();
     let mut order: Vec<usize> = (0..unique.len()).collect();
     order.sort_by_key(|&i| (tier(&unique[i].0.code), first_seen(&unique[i].0.code, &unique), i));
-    let mut lines = vec![format!("{total} advisory note{} — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):",
+    let mut lines = vec![format!("{total} advisory note{} — notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):",
         if total == 1 { "" } else { "s" })];
     let mut current = None;
     let mut shown_codes = Vec::new();
@@ -286,7 +294,7 @@ mod tests {
             note("schema.q:104:1", "N_WRITE_DENIED", "mutation rangers inserts rows no caller may insert"),
             note("schema.q:104:1", "N_WRITE_DENIED", "mutation rangers inserts rows no caller may insert"),
         ]);
-        assert!(lines[0].starts_with("5 advisory notes — check passed; notes never block"), "{lines:?}");
+        assert!(lines[0].starts_with("5 advisory notes — notes never block"), "{lines:?}");
         let body: Vec<&str> = lines[1..].iter().map(String::as_str).collect();
         assert_eq!(body, [
             "review — can cost correctness or completeness:",

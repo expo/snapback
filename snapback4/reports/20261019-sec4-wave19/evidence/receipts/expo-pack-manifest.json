@@ -1,0 +1,7 @@
+{
+  "error": {
+    "code": "ENOENT",
+    "summary": "Could not read package.json: Error: ENOENT: no such file or directory, open '/home/ccheever/projects/sb4-b18-sec4/snapback4/packages/expo-snapback4/package.json'",
+    "detail": "This is related to npm not being able to find a file."
+  }
+}

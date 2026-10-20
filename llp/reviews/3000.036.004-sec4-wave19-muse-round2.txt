@@ -1,0 +1,28 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — the §13.7 wave-19 correction is sound and usable as a proposal.
+
+This reviews the amended design only, not implementation. Implementation qualification (§13.4: pinned before/after, 50 fixture-free campaigns, 11 high-lane outcomes, 200-schema no-false-refusal survey, packed-CLI and suite evidence) remains pending and separate.
+
+What §13.7 gets right, against the wave-19 evidence:
+
+- Authored seed fails. It supersedes the supplemental-only rule explicitly: authored fixture assertions and admitted row-read witnesses fail even without an initialization trace, as trusted starting assumptions. The controlling clarification honors the coordinator ruling directly: an authored stale seed fails and is never credited as a role-change or transfer. This restores the four 0.4.33 failing seed catches that SEC3 regressed to non-failing (019 F3, 021 F5, 026 F2, 032 F2).
+- Starting state vs transfer credit stays distinct. 019 transition credit requires the committed role/relationship mutation in the same trace followed by the forbidden observer. Arranging stale fields in a generated start never earns it. Historical grants are not silently repaired.
+- Empty-fixture fallback is fixed. Absent or row-empty selection uses generated populations; an empty directory is not an authored population. Invalid nonempty fixtures still refuse. This addresses the wave-19 bug 1 that suppressed 032 F2 and 047.
+- Generated initialization is admissible, not randomized. Bootstrap and creator-less tables need an insert-admitted actor in the pre-insert world; a candidate cannot authorize its own bootstrap. Where creators exist, payloads are built by executing them with real typed arguments, requires, coupled fields, and media. No independent randomization of creator-coupled values. Text literals include bound require comparisons (047 `role='operator'`). Unsupported populations name their gap. This targets the false-positive family (041, 044 assignee, 034 overlap, 047 cold-approval, 019 owner).
+- Bounded check evidence is scoped. `test` records concrete refutations plus completion metadata keyed to selected source bytes, fixture bytes, and exact executable. `check` incorporates matching refutations and never loads a passing verdict as proof. Only failure-eligible origins persist; supplemental is never promoted. Later witness-free runs merge rather than erase. Saved-source selections bind separately and cannot borrow the working-source record; the demand names the matching `test --source <candidate> --fixture ...`. The fixed campaign is the full-default security campaign with its envelope, caps, and clock, with attempted/sequence/coverage counts. Completion means finite phases returned, not proof.
+- Escalation stays visible. Every escalation note shows in short output beyond the five-note cap, with most-privileged naming by admitted-gate count rather than role names. The short exposure line is independent of `N_` rendering, so `grep -v "^N_"` cannot remove it. This addresses bug 3 (041/047 hidden pointers).
+- Deploy preview demand is actionable. A rule-changing `deploy --check` demands `snapback4 test` when no matching completed campaign exists, even with zero invariants, prints the exposure summary, and never implies tested rules or vetoes activation. Changed/new/deleted table rules compare all four bound gates against the selected release. This addresses the never-ran loop (0 audits, 1 test).
+- Real histories are covered without overclaim. Committed role/relationship steps keep their origin, paired stable-policy worlds stay separate from history traces, and the weakened-necessary-component reduction is kernel-checked with full stability closure. 033-style ambiguous or unstable cases stay unproved, never proved.
+
+Material soundness or usability blockers: none. Conservative rejection is permitted; false proof is not, and none is introduced.
+
+Needed clarifications for the implementer (non-blocking):
+
+- Executable key format: digest vs version string for the record key and merge identity.
+- Campaign clock binding: whether the fixed NOW value is part of the key or a pinned constant.
+- Record layout for multiple selections: one keyed file vs per-selection entries under `generated/security-test.json`.
+- Whether a new operation with unchanged table gates counts as a rule change for preview demand.
+- Mechanical meaning of row-empty (zero loaded rows regardless of stray files).
+
+These do not change the verdict because only refutations persist, passes never do, and gaps stay explicit unproved coverage.

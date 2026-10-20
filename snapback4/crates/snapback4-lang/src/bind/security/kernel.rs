@@ -59,9 +59,19 @@ fn formula(rule: &R, atoms: &mut Vec<String>, nodes: &mut usize) -> Result<Formu
             if atoms.len()>MAX_ATOMS {return Err(format!("more than {MAX_ATOMS} independent predicates"));} Formula::Atom(n) }
     })
 }
-/// `Ok(true)` is a proof; `Ok(false)` is only an abstract countermodel.
-/// Neither limit exhaustion nor a countermodel is a concrete refutation.
+// @ref LLP 3000.036.004#133-coverage-and-bounded-checking — exact inputs only; no fixture assumptions.
+thread_local! {
+    static IMPLICATIONS: std::cell::RefCell<std::collections::BTreeMap<String,Result<bool,String>>> = const { std::cell::RefCell::new(std::collections::BTreeMap::new()) };
+}
+/// Only exact kernel implication results are reused, never concrete judgments.
 pub fn implies(admission: &R, policy: &R) -> Result<bool,String> {
+    let key=serde_json::to_string(&(admission,policy)).unwrap();
+    if let Some(result)=IMPLICATIONS.with(|cache|cache.borrow().get(&key).cloned()){return result;}
+    let result=uncached(admission,policy);
+    IMPLICATIONS.with(|cache|{let mut cache=cache.borrow_mut();if cache.len()>=4096{cache.clear();}cache.insert(key,result.clone());});
+    result
+}
+fn uncached(admission: &R, policy: &R) -> Result<bool,String> {
     let (mut atoms,mut nodes)=(Vec::new(),0);
     let a=formula(admission,&mut atoms,&mut nodes)?;
     let p=formula(policy,&mut atoms,&mut nodes)?;

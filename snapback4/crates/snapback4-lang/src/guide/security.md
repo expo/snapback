@@ -8,9 +8,12 @@ are not proofs.
 table privateNotes:
   patient: principal
   body: text 1..2000
-  read <- .patient = viewer
-  insert <- .patient = viewer
+  sealed: bool default false
+  read <- .patient = viewer and .sealed = false
+  insert <- .patient = viewer and .sealed = false
   online only
+-- Spec: a patient may see only their own note; sealing may narrow availability.
+-- Removing an accidental broad branch from the rule must not change this intent.
 invariant privateNotes.read only .patient = viewer
 invariant privateNotes.body read only .patient = viewer
 invariant privateNotes.insert only .patient = viewer
@@ -20,13 +23,26 @@ mutation writePrivateNote(body: text 1..2000):
   return insert privateNotes { patient: viewer, body }
 ```
 
-Run `snapback4 check`, `snapback4 audit` (or `check --audit`), then
-`snapback4 test`. `audit --json` lists conditional row predicates, operations,
-columns, inherited grants and grant writers. Its final section lists conditional role/row/effect exposures with no matching invariant; declaring one effect does not cover the others. `check` names broad signed-in
-reads and missing intent, once per check for the project. Review `snapback/generated/security-invariants.q.draft` against the specification; it mirrors existing rules and can repeat the same mistakes. Confirm or correct each candidate and copy chosen declarations into an authored `.q` file. The draft is never compiled or auto-accepted. The test command runs isolated schema-derived
-challenges automatically. Replayed authored observations from trusted fixtures fail acceptance; seed-only and synthetic witnesses carry separate reachability labels, remain in JSON, and are shown in text with `--all`. They do not fail check/test. Coverage
-that needs a live HTTP server, fixture assets, operation sequences or a device
-is named as not covered; zero violations alone does not qualify an app secure.
+Run `snapback4 check` → `snapback4 test` → `snapback4 audit`. Check reports
+invariant counts and five actionable notes; `--verbose` retains every reason.
+A mirror invariant cannot catch a wrong rule: the advisory asks
+for the spec's audience, resource relationship and lifecycle condition instead.
+A legitimate simple owner policy can be equivalent; the advisory never refuses it.
+Review `snapback/generated/security-invariants.q.draft`: it offers unconfirmed
+per-role/per-column alternatives and questions, never auto-accepted policy.
+
+Test synthesizes two users per discovered role/seat and related ownership rows
+without fixture files, including password-only apps. These private in-memory
+fixtures never open dev doors. Every failure labels its initial fixture origin:
+`generated-fixture-trace` means an authored observation from a validated generated
+initial state, not proof that app operations created that state. Author-supplied
+fixtures retain `authored-fixture-trace`. Both fail acceptance on actual observed
+violations; seed-only/synthetic table probes remain non-failing supplemental evidence.
+Fixture-free tests report that no authored business cases ran. Finite passing
+campaigns never prove security. Check bounds concrete exploration to 512 call/world
+reservations and 1500 ms; exhaustion stays unproved and points to the full test.
+`audit --json` retains all column audiences, grant writers, exclusions and uncovered
+role/row/effect exposures. Declaring one effect does not cover the others.
 
 ## Reference
 
@@ -34,7 +50,9 @@ is named as not covered; zero violations alone does not qualify an app secure.
 
 `invariant table.read only P` protects read intent; insert, update and delete
 name authority. `invariant table.column write only P` covers writes to a
-column (both insert and update). `invariant table always P` states row integrity.
+column (both insert and update). `invariant table.column update only P` checks
+only edits, retaining old-and-next-image semantics; use it when creation is permitted
+to a different role (for example counter staff creating a ticket price). `invariant table always P` states row integrity.
 An update policy over `.field` constrains **both old and next images**.
 A policy saying status must not be override therefore also restricts editing
 a row that was already override, even when changing it away from that status.
@@ -44,7 +62,11 @@ cross-operation transition assertions still need a separate reduction.
 Predicates use the existing rule vocabulary: `.field`, `viewer`, `exists`,
 comparisons, `and`, `or`, `not`. For a role write use the complete roster probe,
 for example `invariant members.role write only exists roles[viewer, role = 'owner']`
-in a schema declaring those tables. A declaration never grants authority.
+in a schema declaring those tables. A declaration never grants authority. Whole-row read intent also protects logical
+existence: when occupancy totals are intentionally public but roster identities
+are private, declare column read intent for those identities instead. Include
+a service seat explicitly when the spec permits it; seats are ordinary checked
+viewers, never implicitly exempt.
 
 The implemented proof fragment exhaustively checks independent three-valued
 rule predicates. A failed implication is unproved until an engine replay
@@ -187,3 +209,32 @@ window. Wait that interval before retrying identity requests.
 
 REL5 owns release transitions/old-client compatibility; MIG owns backfills and
 staging clock control for day-two qualification.
+
+### N_INVARIANT_RESTATES_RULE
+
+N_INVARIANT_RESTATES_RULE means intent and the effective rule admit the same cases
+in the bounded predicate kernel. Check the original requirement before rewriting; an equivalent policy
+may be correct, but cannot detect a mistake copied into both declarations.
+
+### N_ROLE_WIDE_READ
+
+N_ROLE_WIDE_READ means a role-wide branch gated by a row value exposes every column
+on matching rows.
+Use a board/projection table for a public rating; declare intent for the private
+notes, principals, images and files separately.
+
+`test` uses generation when fixtures are absent or contain no rows, including
+an empty starter fixtures directory. Populated authored fixtures stay selected;
+seeded read and integrity violations fail under that explicit starting-state
+assumption. Generated payloads run authored creation mutations, preserving
+requires, immutable copies and recipient-role checks; declined populations are
+coverage gaps. A recorded role change or relationship transfer is shown in the
+counterexample history; a stale starting snapshot is not such a history.
+
+A completed `test` records concrete refutations under
+`snapback/generated/security-test.json`. The next `check` reports matching
+failures even when its short campaign cannot rediscover them. Exact source,
+fixture bytes and CLI identity bind the record; edits invalidate it. No cached
+passing result proves security. Every escalation note stays visible in short
+output. Rule-changing deploy previews print exposure counts and demand a test
+for the selected source/fixtures when a matching full finite campaign is absent.

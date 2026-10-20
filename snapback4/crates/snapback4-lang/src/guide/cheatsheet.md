@@ -187,3 +187,9 @@ password users and `probe:serve` use `npx snapback4 deploy staging --staging`
 and `npx snapback4 serve staging`. Run `npx snapback4 guide staging` for the
 complete `startServe({seedUsers})` setup and replayable first-admin recipe.
 Staging time travel: `guide time` (MIG). Security campaigns: SEC4 owns `guide security`.
+
+Default verification loop: `npx snapback4 check` → `npx snapback4 test` →
+`npx snapback4 audit`. State invariants from the spec's roles, resource relationships
+and private columns; copying a rule cannot catch its mistake. Test needs no hand-written
+fixtures and works with password-only apps. Check keeps full reasons behind `--verbose`.
+See `guide staging` for real-user provisioning and staging proofs.

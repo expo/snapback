@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Amendment reviewed at commit `4249ef8357`: the six added sentences at the end of §13.7 in `llp/3000.036.004-security-invariants-and-exposure.rfc.md`, with its three code/test files, all read via `git show`.
+
+What the amendment says: bootstrap proposals are admitted only through an ordinary insert in an isolated fixture fork, with supplied-field ownership, sequence authority, defaults, recorded fields, table gates, and final constraints enforced. The probe program is removed after execution and never adopted or served. Rejections stay uncovered. No system actor or seeding bypass admits rows.
+
+Consistency, checked against the committed code:
+
+- `insert_fixture` (new in `fixture.rs`) refuses `SYSTEM_PRINCIPAL`, refuses on probe-name collision, inserts a temporary `$security.generated-insert` mutation, runs `mutate`, and removes the probe unconditionally on every return path.
+- The `generated.rs` loop forks via the pre-existing `fork_fixture`, attempts the insert per actor in the pre-insert world, and adopts the fork only on `WriteState::Sent`. First-admitting actor wins; anything else stays in retry and ends as a named `population uncovered` gap.
+- Plain `Stmt::Insert` reaches `insert_attempt` with `upsert_index: None`, which enforces each listed item: `refuse_recorded`, sequence `refuse_fields`, `with_defaults`, `authorize_fields` (supplied-field ownership), sequence authorization plus read authority, `check_rule` insert gate, `check_constraints`, and commit-end `check_final_exists` in `mutate`.
+- The added test pins both directions: a non-owner-supplied `mark: 1` is refused and the population goes uncovered with no violations, while the owner-admitted variant still produces a `GeneratedFixtureTrace` violation. Probe removal, unchanged generation, and system-actor refusal are asserted.
+- No contradiction with the section's standing claims: rejected rows are never persisted, origins and finite-coverage/non-proof language are untouched, check/deploy behavior is untouched, and ephemeral populations stay excluded because the shaping stage still goes through `seed_at`, which refuses ephemeral imports. The final fixture engine is built from empty plus ordinary inserts only.
+
+Two non-material notes. "No trusted seeding bypass is used for admission" is true of admission into the final fixture world; the candidate-shaping stage still uses `seed_at`, whose output is re-gated through ordinary inserts. "Sequence authority" is implementation jargon for the reserve plus read-authority checks in `insert_attempt`. Neither changes the verdict.

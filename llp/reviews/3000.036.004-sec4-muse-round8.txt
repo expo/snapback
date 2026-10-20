@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=078c196f-a32f-45bf-9f90-289f9711d8e8]: Subscription quota exhausted. Your usage window resets at 2026-10-19T12:47:06Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+The two-site `expire.is_some()` → `is_expiring()` fix is sound and matches the new §13.6 paragraph. No material concerns.
+
+What I checked:
+
+- Closure in [stability.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-lang/src/bind/security/challenges/stability.rs): `removed` seeds from explicit deletes plus expiring writes; on-delete edges fire only from `removed` parents; `Cascade` continues the deletion closure while set-null propagates writes plus expiry via `t.is_expiring()`. `writes()` covers only `Cascade | SetNull` ([references.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-core/src/schema/references.rs)), and `write_tables` effects are insert/update/upsert/delete, so the `e == "delete"` seed is exact.
+- `is_expiring()` in [through.rs](/home/ccheever/projects/sb4-b18-sec4/snapback4/crates/snapback4-core/src/schema/through.rs:31) covers direct `expire`, inherited `through.expiring`, and `ephemeral`; the validator pins `t.expiring == expire.is_some() || parent.is_expiring()`. The regression asserts `slots.expire.is_none() && slots.is_expiring()`, pinning the inherited case Codex flagged.
+- New regression: pre-expiry fixture (slot captured from expired root), same-ID insert under the live root retires the predecessor and cascades approvals, guard then updates doc. Observed `inherited_expiry_replacement_cannot_refute_a_guarded_post_retirement_write ... ok`. Campaign asserts zero violations, so no false pre-state refusal. With the old direct-`expire` seed, slots would not seed `removed`, approvals would stay out of the changed set, and the `not exists approvals` predicate would be wrongly treated as stable.
+- Preserved closure: ordinary update on a non-expiring parent never enters `removed`, so the unrelated upheld-appeal cascade stays out of the stability closure; deletes, maintains, and live read-through retirement still propagate `removed` conservatively per §13.6. Over-approximation direction is safe (fewer stable claims, no new false refusals).
+- No runtime change: `git diff 068a57f578 -- snapback4/crates/snapback4-core/` is empty. Only the new test uses expiry/through among the 20, so the 2-line delta is behavior-identical on the other 19 (round 7 observed 19/19). Full 20-test suite re-run is still in flight; pending qualification remains separate from design readiness as briefed.
+
+READY — corroborated: full `security_sec4` suite now observed 20 passed, 0 failed, including the new inherited-expiry regression and the upheld-appeal stability test. No change to the verdict.

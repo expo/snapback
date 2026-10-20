@@ -48,18 +48,43 @@ fn mutable_role(bound:&Bound,name:&str)->bool {
 }
 fn recipient_role(bound:&Bound,name:&str,branch:&RuleExpr,grant:Option<&str>,roster:&str,effect:&str)->bool{
     if bound.invariants.iter().any(|i|i.table==*name&&(i.target==effect||i.target=="write"&&matches!(effect,"insert"|"update"))&&i.policy.as_ref().is_some_and(|p|kernel::dependencies(p).contains(roster)&&role_test(bound,p)&&kernel::implies(branch,p)!=Ok(true))){return true;}
-    let _=(branch,grant,roster);
-    // Field names cannot establish a current-role contract. Without independent
-    // intent, retained access may be deliberate, so lifetime advice stays silent.
-    false
+    // This is conditional lifetime advice, not an inferred current-role
+    // contract: the retained grant does not itself consult this mutable roster.
+    grant.is_some()&&!kernel::dependencies(branch).contains(roster)
 }
 pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
     let mut notes=Vec::new();
+    // @ref LLP 3000.036.004#131-intent-and-diagnostics — equivalence is advice, never refusal.
+    for inv in &bound.invariants {
+        if inv.operation.is_some()||inv.target=="always" {continue;}
+        let Some(policy)=&inv.policy else{continue;};
+        let table=&bound.schema.tables[&inv.table];
+        let restates=super::effects(inv).iter().all(|word|{
+            if matches!(*word,"insert"|"update")&&!table.written_by.is_empty(){return false;}
+            let gate=if *word=="read"{super::columns::admission(table,inv.column.as_deref())}else if *word=="update"{super::images::stable(table,&table.update_rule_judged())}else{table.rules.for_effect(super::effect(word)).clone()};
+            let intent=if *word=="update"{super::images::stable(table,&policy.old_and_next())}else{policy.clone()};
+            kernel::implies(&gate,&intent)==Ok(true)&&kernel::implies(&intent,&gate)==Ok(true)
+        });
+        if restates {note(&mut notes,&inv.site,"N_INVARIANT_RESTATES_RULE",format!("{}: this invariant restates the rule and can't catch a mistake in it; state the spec's intent instead",inv.target_label()),"rewrite from the spec: who may see/do what, for which resource and lifecycle state? Declare sensitive-column intent and current-role/relationship conditions independently; review security-invariants.q.draft");}
+    }
     for (name,t) in bound.schema.visible_tables(){
-        if t.rules.read.is_uniformly_readable(){note(&mut notes,&Site::default(),"N_BROAD_READ",format!("{name} is readable by every signed-in user: {}",t.rules.read.quarry()),"confirm the spec permits these columns and declare read intent; snapback4 audit lists inherited grants and their writers");}
+        if t.rules.read.is_uniformly_readable(){note(&mut notes,&Site::default(),"N_BROAD_READ",format!("{name} is readable by every signed-in user: {}",t.rules.read.quarry()),"confirm the spec permits these columns always, or only while a lifecycle condition holds, and declare read intent; snapback4 audit lists inherited grants and their writers");}
         if let RuleExpr::Exists{table:roster,key,equalities,..}=&t.rules.read
             && equalities.is_empty()&&key.iter().any(|k|matches!(k,RuleTerm::Viewer)) {
             note(&mut notes,&Site::default(),"N_BROAD_READ",format!("{name} is readable by any signed-in user with a matching {roster} row; no particular role or row ownership is required"),"confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit");
+        }
+        // A role-wide board branch returns the entire row, including private payload.
+        if t.columns.values().any(|kind|kind.contains_asset())||bound.invariants.iter().any(|i|i.table==*name&&i.target=="read"&&i.column.is_some()) {
+            for branch in t.rules.read.disjuncts() {
+                let parts=rule_parts(branch);
+                let role=parts.iter().any(|part|role_test(bound,part));
+                let row_filter=parts.iter().any(|part|matches!(part,RuleExpr::Eq(RuleTerm::Field(_),RuleTerm::Literal(_))|RuleExpr::Ne(RuleTerm::Field(_),RuleTerm::Literal(_))|RuleExpr::Eq(RuleTerm::Literal(_),RuleTerm::Field(_))|RuleExpr::Ne(RuleTerm::Literal(_),RuleTerm::Field(_))));
+                let unscoped=parts.iter().all(|part|match part{
+                    RuleExpr::Exists{key,equalities,..}=>key.iter().chain(equalities.iter().map(|(_,t)|t)).all(|t|matches!(t,RuleTerm::Viewer|RuleTerm::Literal(_))),
+                    _=>!part.has_reference(),
+                })&&reader_columns(branch).is_empty();
+                if role&&row_filter&&unscoped {note(&mut notes,&Site::default(),"N_ROLE_WIDE_READ",format!("{name}.read: role-wide branch `{}` returns private or media columns for every matching row",branch.quarry()),"publish a board/projection table containing only intended public fields; protect private columns with independent column-read intent");break;}
+            }
         }
         for (column,kind) in &t.columns {
             use snapback4_core::schema::ColumnType as C;
@@ -79,7 +104,7 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
             for dep in kernel::dependencies(branch){if let Some(g)=bound.schema.table(&dep) {
                 let rosters=[&g.rules.insert,&g.rules.update].into_iter().flat_map(kernel::dependencies).filter(|r|r!=&dep&&mutable_role(bound,r)).collect::<BTreeSet<_>>();
                 if rosters.iter().any(|r|recipient_role(bound,name,branch,Some(&dep),r,effect))&&(role_test(bound,&g.rules.insert)||role_test(bound,&g.rules.update)){
-                    note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{effect}: `{}` trusts retained {dep} grants while current role in {} can change",branch.quarry(),rosters.into_iter().collect::<Vec<_>>().join(", ")),"recheck the current role in this branch or revoke every derived grant transactionally on role changes; guide security");
+                    note(&mut notes,&Site::default(),"N_GRANT_OUTLIVES_ROLE",format!("{name}.{effect}: `{}` trusts retained {dep} grants that can survive role changes in {}; confirm whether current-role intent is required",branch.quarry(),rosters.into_iter().collect::<Vec<_>>().join(", ")),"recheck the current role in this branch or revoke every derived grant transactionally on role changes; guide security");
                 }
             }}
             let declared=bound.invariants.iter().filter(|i|i.table==*name&&(i.target==effect||i.target=="write"&&matches!(effect,"insert"|"update"))).filter_map(|i|i.policy.as_ref()).flat_map(kernel::dependencies).filter(|r|mutable_role(bound,r)).collect::<BTreeSet<_>>();
@@ -134,6 +159,13 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                     let dynamic=chosen.map_or(targets.is_empty(),|f|!matches!(f.value,Some(Expr::Literal{..})));
                     if let Some(field)=chosen {
                         if let Some(Expr::Name{name:argument,..})=&field.value&&let Some(arg)=p.args.iter().find(|a|a.name==*argument)&&let ast::TypeKind::Enum{variants}= &arg.type_.kind {targets=variants.clone();}
+                    }
+                    // Restrict the actual assigned argument by dominating literal guards.
+                    // Never narrow a literal assignment using a same-named unrelated argument.
+                    if let Some(Expr::Name{name:argument,..})=chosen.and_then(|f|f.value.as_ref()) {
+                        if targets.is_empty(){targets=super::privilege::role_values(bound,table,column);}
+                        targets.retain(|target|context.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(condition)}else{None}).all(|condition|argument_guard(condition,argument,target)!=Some(false)));
+                        if targets.is_empty(){continue;}
                     }
                     let requirements=catalog.tables.get(table).map(|info|super::operation::requirements(&catalog,info,&context)).unwrap_or_default();
                     let effective_op=if chosen.is_none()&&*op==ast::WriteOp::Upsert{ast::WriteOp::Insert}else{*op};
@@ -207,4 +239,19 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
         }
     }
     out
+}
+
+fn argument_guard(expr:&Expr,argument:&str,target:&str)->Option<bool>{
+    match expr {
+        Expr::Binary{op,left,right,..} if op=="="||op=="!="=>{
+            let pair=match (left.as_ref(),right.as_ref()){
+                (Expr::Name{name,..},Expr::Literal{value:ast::Literal::Str(value),..})|(Expr::Literal{value:ast::Literal::Str(value),..},Expr::Name{name,..}) if name==argument=>Some(value),_=>None,
+            }?;Some((pair==target)==(op=="="))
+        },
+        Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{
+            let (a,b)=(argument_guard(left,argument,target),argument_guard(right,argument,target));
+            if op=="and"{if a==Some(false)||b==Some(false){Some(false)}else if a==Some(true)&&b==Some(true){Some(true)}else{None}}
+            else if a==Some(true)||b==Some(true){Some(true)}else if a==Some(false)&&b==Some(false){Some(false)}else{None}
+        },Expr::Unary{op,value,..} if op=="not"=>argument_guard(value,argument,target).map(|v|!v),_=>None,
+    }
 }

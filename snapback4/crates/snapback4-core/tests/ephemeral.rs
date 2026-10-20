@@ -407,3 +407,41 @@ fn expired_points_skip_rules_and_durable_queries_do_not_lock_the_hub() {
     let _held = hub.lock().unwrap();
     assert!(e.query("durable", ctx("bob", 5001, &[])).unwrap().ephemeral.is_none());
 }
+
+#[test]
+fn campaign_fork_preserves_ephemeral_rows_quotas_and_deadlines_without_publishing(){
+    use std::sync::atomic::{AtomicUsize,Ordering};
+    let mut original=engine(SOURCE);seed(&mut original);
+    limits(&mut original,Limits{rows:1,..Limits::default()});
+    let published=Arc::new(AtomicUsize::new(0));let count=published.clone();
+    original.ephemeral_hub().set_publisher(move |_|{count.fetch_add(1,Ordering::SeqCst);}).unwrap();
+    original.mutate_ephemeral("setTyping",ctx("alice",1000,&args("r"))).unwrap();
+    let before=published.load(Ordering::SeqCst);let durable=counts(&original);
+    let mut fork=original.fork_fixture().unwrap();
+    assert_eq!(page(&mut fork,"bob",1001).data,page(&mut original,"bob",1001).data);
+    assert_eq!(page(&mut fork,"bob",1001).next_expiry,Some(5000));
+    assert_eq!(fork.mutate_ephemeral("setTyping",ctx("bob",1001,&args("r"))).err().unwrap().code(),"E_EPHEMERAL_FULL");
+    fork.mutate_ephemeral("stopTyping",ctx("alice",1002,&[("roomId",id("r"))])).unwrap();
+    assert_eq!(page(&mut fork,"bob",1003).data.as_array().unwrap().len(),0);
+    assert_eq!(page(&mut original,"bob",1003).data.as_array().unwrap().len(),1);
+    fork.mutate_ephemeral("setTyping",ctx("bob",1004,&args("r"))).unwrap();
+    assert_eq!(page(&mut fork,"alice",1005).data.as_array().unwrap()[0].field("principal").unwrap(),&id("bob"));
+    assert_eq!(page(&mut original,"bob",1005).data.as_array().unwrap()[0].field("principal").unwrap(),&id("alice"));
+    assert_eq!(published.load(Ordering::SeqCst),before);assert_eq!(counts(&original),durable);
+    assert_eq!(page(&mut fork,"alice",5004).data.as_array().unwrap().len(),0);
+    original.ephemeral_hub().clear_and_rebind("different-store".into(),original.generation(),original.schema()).unwrap();
+    assert!(original.fork_fixture().is_err());
+}
+
+#[test]
+fn campaign_fork_keeps_per_principal_accounting_independent(){
+    let mut original=engine(SOURCE);seed(&mut original);
+    original.seed_at([("rooms".into(),object([("id",id("r2")),("title",Value::String("Other".into()))])),("members".into(),object([("id",id("a2")),("roomId",id("r2")),("principal",id("alice"))]))],1000).unwrap();
+    limits(&mut original,Limits{principal_rows:1,..Limits::default()});
+    original.mutate_ephemeral("setTyping",ctx("alice",1000,&args("r"))).unwrap();
+    let mut fork=original.fork_fixture().unwrap();
+    assert_eq!(fork.mutate_ephemeral("setTyping",ctx("alice",1001,&args("r2"))).err().unwrap().code(),"E_EPHEMERAL_FULL");
+    fork.mutate_ephemeral("stopTyping",ctx("alice",1002,&[("roomId",id("r"))])).unwrap();
+    fork.mutate_ephemeral("setTyping",ctx("alice",1003,&args("r2"))).unwrap();
+    assert_eq!(original.mutate_ephemeral("setTyping",ctx("alice",1003,&args("r2"))).err().unwrap().code(),"E_EPHEMERAL_FULL");
+}

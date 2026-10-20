@@ -331,7 +331,7 @@ pub fn check(options: &Options) -> i32 {
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
     }
-    let security = security::report(&project, &bound, options);
+    let security = security::report(&project, &bound, &compiled_sources, options);
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
     match adoption::diagnostics(&project, &bound.schema, options.flags.get("store"), options.json || options.flags.contains_key("verbose")) {
         Ok((problems, notes)) => { bound.diagnostics.extend(problems); bound.notes.extend(notes); },
@@ -434,13 +434,17 @@ pub fn check(options: &Options) -> i32 {
             for report in note_reports(&ranked, true) { println!("{}", present(&report)); }
         } else {
             // Notes are advisory: ranked and grouped after the ok line, repeats shortened (note_rank).
-            let notes = reviewed.new.iter().map(|note| {
+            let mut notes = reviewed.new.iter().chain(&security.notes).map(|note| {
                 let compact = completeness_note(note);
                 crate::note_rank::Note { site: note.site.to_string(), code: note.code.clone(), summary: present(&note_summary(note)),
                     form: compact.is_none().then(|| crate::note_rank::compiled_form(&note.code, &note.rewrite)).flatten().map(|(lead, code)| (lead, present(&code))), compact }
             })
                 .chain(certificates.iter().flat_map(|certificate| &certificate.search).map(|search| crate::note_rank::Note { site: search.site.to_string(), code: search.code.to_string(), summary: present(search.summary), form: None, compact: None }))
-                .collect();
+                .collect::<Vec<_>>();
+            notes.sort_by_key(|note|(crate::note_rank::summary_order(&note.code),note.site.clone(),note.code.clone(),note.summary.clone()));
+            let cap=5.max(notes.iter().filter(|n|n.code=="N_PRIVILEGE_ESCALATION").count());
+            let remaining=notes.len().saturating_sub(cap);notes.truncate(cap);
+            if remaining>0 {println!("{remaining} more actionable notes in check --verbose/JSON");}
             for line in crate::note_rank::render(notes) { println!("{}", crate::presentation::abbreviate_quoted(&line)); }
         }
     }
@@ -484,7 +488,7 @@ pub fn check(options: &Options) -> i32 {
             if options.json { eprintln!("{report}"); } else { println!("{report}"); }
         }
     }
-    if !options.json { security::summary(&security,options.flags.contains_key("all")); }
+    if !options.json { security::summary(&security,options.flags.contains_key("verbose")||options.flags.contains_key("all")); }
     // @ref LLP 3000.011.003.000#7.2 — init-first projects keep the todo starter's files; name them and the one command that fits them.
     if !options.json && let Some(report) = init::starter_leftovers(&project.root) { println!("{report}"); }
     if security.refuted() { 1 } else { 0 }

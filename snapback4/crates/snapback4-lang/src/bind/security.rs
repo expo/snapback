@@ -93,12 +93,12 @@ pub struct Report {
     pub campaign_coverage: BTreeSet<String>,
 }
 impl Report {
-    pub fn refuted(&self)->bool {self.invariants.iter().any(|v|v.status==Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability==challenges::Reachability::AuthoredFixtureTrace))}
+    pub fn refuted(&self)->bool {self.invariants.iter().any(|v|v.status==Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable()))}
     pub fn text(&self)->String {self.text_with_all(false)}
     pub fn text_with_all(&self,all:bool)->String {
         let mut out=format!("security: {}\n",self.scope);
         for v in &self.invariants {
-            if !all&&v.status==Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability!=challenges::Reachability::AuthoredFixtureTrace){out.push_str(&format!("  {}: seed/synthetic refutation only (non-failing; --all for details)\n",v.invariant.target_label()));continue;}
+            if !all&&v.status==Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|!c.reachability.is_reachable()){out.push_str(&format!("  {}: seed/synthetic refutation only (non-failing; --all for details)\n",v.invariant.target_label()));continue;}
             out.push_str(&format!("  {:?}: {}.{} {} — direct rule {:?}\n",v.status,v.invariant.table,format!("{}{}",v.invariant.column.as_ref().map(|c|format!("{c} ")).unwrap_or_default(),v.invariant.target),v.invariant.predicate,v.direct_rule));
             for reason in &v.reasons {out.push_str(&format!("    {reason}\n"));}
             for o in &v.obligations {out.push_str(&format!("    {:?}: {} — {}\n",o.status,o.path,o.reason));if let Some(repair)=&o.repair{out.push_str(&format!("      repair: {repair}\n"));}}

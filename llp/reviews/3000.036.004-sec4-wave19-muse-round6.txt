@@ -1,0 +1,20 @@
+muse: workspace root: /home/ccheever/projects/sb4-b18-sec4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material source blockers at the bound commit.
+
+Bound commit: `392ba790ad99d4412084b0fcda1276c9f01d23d1` ("Respect post-insert guard aliases in paired security checks"). All inspection was against that committed tree; no files modified, no prior reviews or `WORKSTREAM-REPORT.md` read.
+
+What I checked against §13.7 (`llp/3000.036.004-security-invariants-and-exposure.rfc.md:1257-1420`) and bakeoff-day2 §3 (lines 263–369):
+
+- Authored seed/fixture catches fail: `trusted_reads` in `snapback4/crates/snapback4-lang/src/bind/security/challenges.rs` emits one failing `AuthoredFixtureTrace` witness per read declaration with no history claimed; `always` fixture assertions are now `AuthoredFixtureTrace`, not supplemental. Regression `authored_seed_read_and_integrity_refutations_fail_without_an_initialization_history` passes.
+- Synthetic stays supplemental: `remember` in `snapback4/crates/snapback4/src/verbs/security/record.rs` persists only `is_reachable()` witnesses; unit test `a_witness_free_later_run_keeps_failures_and_does_not_promote_synthetic_evidence` passes, and witness-free runs merge prior failures rather than erasing them.
+- Empty fixtures generate: `populated_fixture` gating in `verbs/testing.rs` and `verbs/security.rs`; empty-dir and absent-dir CLI cases both generate and record.
+- Generated starts preserve insertion/creator coupling: bootstrap requires an insert-admitted actor that is never the candidate itself; creator mutations run through the real interpreter. All 12 `security_wave19` lang tests pass, including creator copies, cold-approval, recipient-role guards, impossible insert gate, two-active-principals for nullable roles, and the copied-owner alternate-world non-attribution case.
+- Post-insert guard aliases: `column_reads.rs:67-82` resolves `Const`/`Let` aliases, treats `Assign`/reassigned and any `Get`/`Exists` re-read of the written table as guard-dependent (conservative uncovered direction). The `r.homeowner = h.owner` post-insert-require regression passes with no false disclosure and an explicit coupling gap.
+- Check/report binding: `capture` hashes captured source strings (pre-compile), snapshot-copied fixture bytes (symlink-following, same as loader), and the exact executable; `remember` refuses to persist on mid-run source change; `check` reloads only fingerprint-matching records, still runs static analysis, names skipped resampling, and fails. Symlink-target-change and mid-run-edit CLI regressions cover invalidation; the 600-row regression retains all rows in a sub-megabyte record and `check` still fails.
+- Escalation/deploy: short-output cap lifts for all `N_PRIVILEGE_ESCALATION` notes, most-privileged-first ranking, exposure line, and rule-change `deploy --check` demand naming the exact `test --source/--fixture` selection — all present and matching §13.7 wording.
+- Histories: distinct operation/viewer-path dedup via `trace_key`, relationship-candidate prioritization of admitted principal transfers, committed role-change regression passing; stale seeds fail as trusted-start admissions, never as transfer histories.
+
+Focused regressions run (all green): `snapback4-lang --test security_wave19` (12/12), `security_sec4 dominating_argument_guard` (1/1), `snapback4 --bin snapback4 a_witness_free` (1/1), `snapback4 --test security_wave19 populated_seed_failures` (1/1). Per instruction I did not run the full ~10-minute histories target; full renewed cross-platform qualification is separately pending and is the only remaining gate — this READY covers source correctness only, not that qualification receipt.
+
+Two non-blocking notes: my first test invocation omitted the mandated `CARGO_*` env prefix (semantics unaffected; all later invocations carried it); and `observe()` returns silently when no authored queries exist, with no per-invariant unsupported line on that path — worth a named gap if a later pass wants it, but not a §13.7 violation.

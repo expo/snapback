@@ -385,6 +385,10 @@ pub struct MemoryRows {
 }
 
 impl MemoryRows {
+    // @ref LLP 3000.036.004#137-wave-19-correction-admissible-starts-and-persistent-refutations — isolated campaign hubs copy rows and index/sequence state together.
+    pub(crate) fn fork_fixture(&self)->Self {
+        Self{sequences:self.sequences.clone(),rows:self.rows.clone(),entries:self.entries.clone()}
+    }
     pub fn new() -> Self {
         Self::default()
     }

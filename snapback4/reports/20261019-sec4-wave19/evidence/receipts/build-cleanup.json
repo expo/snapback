@@ -1,0 +1,15 @@
+{
+  "removed": [
+    "snapback4/target",
+    "snapback4/reports/20261019-sec4-wave19/qualified-c4a",
+    "snapback4/reports/20261019-sec4-wave19/diagnostic4-bin",
+    "snapback4/reports/20261019-sec4-wave19/diagnostic3-bin",
+    "snapback4/reports/20261019-sec4-wave19/shipping-bin",
+    "snapback4/reports/20261019-sec4-wave19/shipping-final-bin",
+    "snapback4/reports/20261019-sec4-wave19/shipping-reviewed-bin",
+    "snapback4/reports/20261019-sec4-wave19/superseded-nonqualifying"
+  ],
+  "retainedMuslBinary": "shipping-c4a-bin",
+  "retainedPackages": "packs-approved",
+  "macTargetRemoved": true
+}

@@ -45,6 +45,8 @@ const APP_FILES: &[&str] = &[
     "snapback/workers/notifications.mjs", "/durable/path/effects.sqlite",
     "snapback/generated/api.ts", "snapback/generated/server.ts",
     "snapback/generated/security-invariants.q.draft",
+    // Exact-source finite campaign output, created by the installed CLI.
+    "snapback/generated/security-test.json",
     "snapback/generated/native.rs", "snapback/generated/native.wasm",
     "snapback/generated/package.json", "snapback/generated/residency.json",
     "snapback/native/Cargo.toml", ".snapback4/store.sqlite",

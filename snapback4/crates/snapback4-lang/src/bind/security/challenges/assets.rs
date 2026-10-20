@@ -18,6 +18,7 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     }
     for bp in bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native){
         let p=&bp.program;
+        if ephemeral_operation(bound,p,out){continue;}
         for (arg,kind) in &p.args{
             if !matches!(kind,ir::ArgType::Image{..}|ir::ArgType::File{..}){continue;}
             for mode in ["foreign upload","non-image photo"]{

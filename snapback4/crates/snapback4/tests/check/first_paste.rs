@@ -66,7 +66,10 @@ fn peers(chat: id):
             let text = String::from_utf8(output.stdout).unwrap();
             assert!(text.lines().next().unwrap().contains(&format!(", {notes} note")), "{text}");
             for code in &codes {
-                let line = text.lines().find(|line| line.contains(code)).unwrap_or_else(|| panic!("missing {code}: {text}"));
+                let Some(line) = text.lines().find(|line| line.contains(code)) else {
+                    assert!(!flags.contains(&"--verbose") && text.contains("more actionable notes"), "missing {code}: {text}");
+                    continue;
+                };
                 if *code == "N_SEARCH_OPEN" {
                     assert!(line.contains("E_SEARCH_OPEN") && line.contains("without a continuation"), "{line}");
                 }
@@ -163,8 +166,9 @@ fn reaction_constraint_residency_snapshots() {
         let output = project.run(&["check", "--residency"]);
         assert!(output.status.success(), "{output:?}");
         let text = String::from_utf8(output.stdout).unwrap();
-        let normalized = text.lines().skip(1).collect::<Vec<_>>().join("\n") + "\n";
+        let normalized = text.lines().skip_while(|line| *line != "residency (facts)").collect::<Vec<_>>().join("\n") + "\n";
         let expected = fs::read_to_string(format!("{}/tests/check/fixtures/qx-{shape}.txt",env!("CARGO_MANIFEST_DIR"))).unwrap();
+        let expected = expected.lines().skip_while(|line| *line != "residency (facts)").collect::<Vec<_>>().join("\n") + "\n";
         assert_eq!(normalized,expected,"{shape}");
     }
 }

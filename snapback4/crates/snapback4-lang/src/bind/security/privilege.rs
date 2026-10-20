@@ -71,14 +71,7 @@ pub(super) fn risk(bound:&Bound,roster:&str,column:&str,operation:&str,targets:&
     if op==ast::WriteOp::Upsert{return risk(bound,roster,column,operation,targets,ast::WriteOp::Insert,requirements,dynamic,fields).or_else(||risk(bound,roster,column,operation,targets,ast::WriteOp::Update,requirements,dynamic,fields));}
     let table=bound.schema.table(roster)?;
     if requirements.iter().any(|r|!r.disjuncts().is_empty()&&r.disjuncts().iter().all(|b|b.service_grant().is_some())){return None;}
-    let roles=match table.columns.get(column)?.required(){snapback4_core::schema::ColumnType::Enum{variants}=>variants.clone(),snapback4_core::schema::ColumnType::Text{..}=>{
-        let mut roles=BTreeSet::new();
-        fn collect(bound:&Bound,rule:&RuleExpr,roster:&str,column:&str,roles:&mut BTreeSet<String>){match rule{
-            RuleExpr::Exists{table,index,key,equalities,..} if table==roster=>for (c,t) in &probe_pairs(bound,table,index,key,equalities){if c==column&&let RuleTerm::Literal(snapback4_core::Value::String(s))=t{roles.insert(s.clone());}},
-            RuleExpr::And(xs)|RuleExpr::Or(xs)=>for r in xs{collect(bound,r,roster,column,roles)},RuleExpr::Not(r)=>collect(bound,r,roster,column,roles),_=>{}
-        }}
-        for t in bound.schema.tables.values(){for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete]{collect(bound,r,roster,column,&mut roles);}}roles.into_iter().collect()
-    },_=>return None};
+    let roles=role_values(bound,roster,column);
     let intents=bound.invariants.iter().filter(|i|i.table==roster&&i.column.as_deref().is_none_or(|c|c==column)&&(i.operation.as_deref()==Some(operation)||i.operation.is_none()&&(i.target=="write"||i.target==if op==ast::WriteOp::Insert{"insert"}else{"update"}))).filter_map(|i|i.policy.as_ref()).collect::<Vec<_>>();
     fn role_guards(bound:&Bound,rule:&RuleExpr,out:&mut Vec<RuleExpr>){match rule{
         RuleExpr::Exists{table,index,key,equalities,..} if key.iter().chain(equalities.iter().map(|(_,v)|v)).any(|k|matches!(k,RuleTerm::Viewer))&&probe_pairs(bound,table,index,key,equalities).iter().any(|(c,v)|role_columns(bound,table).contains(c)&&matches!(v,RuleTerm::Literal(snapback4_core::Value::String(_))))=>out.push(rule.clone()),
@@ -88,7 +81,10 @@ pub(super) fn risk(bound:&Bound,roster:&str,column:&str,operation:&str,targets:&
     if op==ast::WriteOp::Update&&kernel::implies(&admission,&RuleExpr::Eq(RuleTerm::OldField(column.into()),RuleTerm::Field(column.into())))==Ok(true){return None;}
     let mut guards=Vec::new();role_guards(bound,&admission,&mut guards);
     let independent=kernel::implies(&substitute(bound,&admission,"$no-roster",column,None,None),&RuleExpr::Or(guards))==Ok(true);
-    for target in roles.iter().filter(|r|targets.is_empty()||targets.contains(r)){
+    let mut ranked=roles.iter().filter(|r|targets.is_empty()||targets.contains(r)).collect::<Vec<_>>();
+    let score=|role:&&String|bound.schema.visible_tables().flat_map(|(_,t)|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete]).filter(|rule|kernel::implies(&RuleExpr::Allow,&substitute(bound,rule,roster,column,Some(role.as_str()),None))==Ok(true)).count();
+    ranked.sort_by_key(|role|(std::cmp::Reverse(score(role)),role.as_str()));
+    for target in ranked{
         for caller in std::iter::once(None).chain(roles.iter().map(|s|Some(s.as_str()))){
             if caller==Some(target.as_str()){continue;}
             let admitted=substitute(bound,&admission,roster,column,caller,Some(target));
@@ -128,4 +124,17 @@ pub(super) fn role_columns(bound:&Bound,table:&str)->BTreeSet<String>{
     }));
     if global{for t in bound.schema.tables.values(){for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete]{collect(bound,r,table,&mut columns);}}}else{columns.clear();}
     columns
+}
+
+pub(super) fn role_values(bound:&Bound,roster:&str,column:&str)->Vec<String>{
+    let Some(table)=bound.schema.table(roster)else{return Vec::new();};
+    let Some(kind)=table.columns.get(column)else{return Vec::new();};
+    match kind.required(){snapback4_core::schema::ColumnType::Enum{variants}=>variants.clone(),snapback4_core::schema::ColumnType::Text{..}=>{
+        let mut roles=BTreeSet::new();
+        fn collect(bound:&Bound,rule:&RuleExpr,roster:&str,column:&str,roles:&mut BTreeSet<String>){match rule{
+            RuleExpr::Exists{table,index,key,equalities,..} if table==roster=>for (c,t) in &probe_pairs(bound,table,index,key,equalities){if c==column&&let RuleTerm::Literal(snapback4_core::Value::String(s))=t{roles.insert(s.clone());}},
+            RuleExpr::And(xs)|RuleExpr::Or(xs)=>for r in xs{collect(bound,r,roster,column,roles)},RuleExpr::Not(r)=>collect(bound,r,roster,column,roles),_=>{}
+        }}
+        for t in bound.schema.tables.values(){for r in [&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete]{collect(bound,r,roster,column,&mut roles);}}roles.into_iter().collect()
+    },_=>Vec::new()}
 }
