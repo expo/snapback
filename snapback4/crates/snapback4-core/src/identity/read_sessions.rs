@@ -40,9 +40,13 @@ pub fn narrow_session(store: &mut Store, token: &str, sample: impl FnOnce() -> S
 // this family. A live at-cap credential may explicitly rotate without extending.
 pub(super) fn rotate(store: &impl IdentityStore, token: &str, now: i64) -> Result<Option<Session>, RuntimeError> {
     store.rotate_read_session(&digest(token), now, |record| {
+        if record.expires_at <= now || record.cap_expires_at <= now
+            || record.principal_generation < record.current_generation {
+            return Ok(None);
+        }
         let mut session = scoped_session(&record.principal, &record.kind, now, SessionScope::Read)?;
-        session.cap_expires_at = Some(record.cap);
-        session.expires_at = session.expires_at.min(record.cap);
-        Ok(session)
+        session.cap_expires_at = Some(record.cap_expires_at);
+        session.expires_at = session.expires_at.min(record.cap_expires_at);
+        Ok(Some(session))
     })
 }

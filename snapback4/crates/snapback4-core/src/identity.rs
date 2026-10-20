@@ -35,8 +35,10 @@ pub(crate) struct ReadRotationRecord {
     pub principal: String,
     pub kind: String,
     pub family: String,
-    pub cap: i64,
-    pub generation: i64,
+    pub expires_at: i64,
+    pub cap_expires_at: i64,
+    pub principal_generation: i64,
+    pub current_generation: i64,
 }
 
 /// Identity access within a caller-owned transaction.
@@ -103,11 +105,13 @@ pub(crate) trait IdentityStore {
         now: i64,
         validate: impl FnOnce(Option<String>) -> Result<(), RuntimeError>,
     ) -> Result<(), RuntimeError>;
+    /// Read raw facts and run policy before replacing the family, under one writer lock.
+    /// `None` from policy leaves the family untouched. Missing storage is an absent row.
     fn rotate_read_session(
         &self,
         digest: &str,
         now: i64,
-        mint: impl FnOnce(&ReadRotationRecord) -> Result<Session, RuntimeError>,
+        mint: impl FnOnce(&ReadRotationRecord) -> Result<Option<Session>, RuntimeError>,
     ) -> Result<Option<Session>, RuntimeError>;
     fn revoke_identity_principal(&self, principal: &str) -> Result<u64, RuntimeError>;
     fn identity_session_expiry(&self, digest: &str) -> Result<Option<i64>, RuntimeError>;

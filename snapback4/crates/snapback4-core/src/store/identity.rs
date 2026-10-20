@@ -296,7 +296,7 @@ impl IdentityStore for Store {
         &self,
         digest: &str,
         now: i64,
-        mint: impl FnOnce(&ReadRotationRecord) -> Result<Session, RuntimeError>,
+        mint: impl FnOnce(&ReadRotationRecord) -> Result<Option<Session>, RuntimeError>,
     ) -> Result<Option<Session>, RuntimeError> {
         let tx = rusqlite::Transaction::new_unchecked(
             &self.conn,
@@ -306,14 +306,14 @@ impl IdentityStore for Store {
             return Ok(None);
         }
         let found = tx.query_row(
-            "SELECT principal, kind, family, cap_expires_at, principal_generation FROM _read_sessions r
-         WHERE token_digest = ?1 AND expires_at > ?2 AND cap_expires_at > ?2
-         AND principal_generation >= COALESCE((SELECT generation FROM _principal_generations WHERE principal = r.principal), 0)",
-            params![digest, now], |r| Ok(ReadRotationRecord { principal: r.get(0)?, kind: r.get(1)?, family: r.get(2)?, cap: r.get(3)?, generation: r.get(4)? })).optional()?;
+            "SELECT principal, kind, family, expires_at, cap_expires_at, principal_generation,
+         COALESCE((SELECT generation FROM _principal_generations WHERE principal = r.principal), 0)
+         FROM _read_sessions r WHERE token_digest = ?1",
+            params![digest], |r| Ok(ReadRotationRecord { principal: r.get(0)?, kind: r.get(1)?, family: r.get(2)?, expires_at: r.get(3)?, cap_expires_at: r.get(4)?, principal_generation: r.get(5)?, current_generation: r.get(6)? })).optional()?;
         let Some(record) = found else {
             return Ok(None);
         };
-        let session = mint(&record)?;
+        let Some(session) = mint(&record)? else { return Ok(None); };
         tx.execute(
             "DELETE FROM _read_sessions WHERE family = ?1 AND principal = ?2",
             params![record.family, record.principal],
@@ -322,7 +322,7 @@ impl IdentityStore for Store {
             &tx,
             &session,
             now,
-            Some((&record.family, record.generation)),
+            Some((&record.family, record.principal_generation)),
         )?;
         tx.commit()?;
         Ok(Some(session))
@@ -439,6 +439,23 @@ mod tests {
     use crate::identity::test_cases;
 
     #[test]
+    fn shared_read_rotation_expired_refusal() {
+        test_cases::assert_read_rotation_refusal(&Store::memory().unwrap(), test_cases::RotationRefusal::Expired);
+    }
+    #[test]
+    fn shared_read_rotation_cap_expired_refusal() {
+        test_cases::assert_read_rotation_refusal(&Store::memory().unwrap(), test_cases::RotationRefusal::CapExpired);
+    }
+    #[test]
+    fn shared_read_rotation_stale_generation_refusal() {
+        test_cases::assert_read_rotation_refusal(&Store::memory().unwrap(), test_cases::RotationRefusal::StaleGeneration);
+    }
+    #[test]
+    fn shared_read_rotation_missing_table_refusal() {
+        test_cases::assert_read_rotation_refusal(&Store::memory().unwrap(), test_cases::RotationRefusal::MissingTable);
+    }
+
+    #[test]
     fn shared_refresh_rollback_cases_run_on_sqlite() {
         test_cases::assert_refresh_rollback(&Store::memory().unwrap());
     }
@@ -452,4 +469,15 @@ mod tests {
     fn shared_worker_family_cases_run_on_sqlite() {
         test_cases::assert_worker_families(&Store::memory().unwrap());
     }
+}
+
+#[cfg(test)]
+impl crate::identity::test_cases::RotationFixture for Store {
+    fn seed_read_family(&self, session: &Session, generation: i64) {
+        insert_read(&self.conn, session, 1_000, Some((&digest(&session.token), generation))).unwrap();
+    }
+    fn drop_read_sessions(&self) {
+        self.conn.execute_batch("DROP TABLE IF EXISTS _read_sessions").unwrap();
+    }
+    fn read_sessions_present(&self) -> bool { present(&self.conn).unwrap() }
 }

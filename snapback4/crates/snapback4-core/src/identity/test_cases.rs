@@ -83,7 +83,7 @@ pub(crate) fn assert_credential_policy(store: &impl IdentityStore) {
     // family and the unrelated read credential must survive the rollback.
     assert!(
         store
-            .rotate_read_session(&digest(&read.token), 1_004, |_| Ok(foreign.clone()))
+            .rotate_read_session(&digest(&read.token), 1_004, |_| Ok(Some(foreign.clone())))
             .is_err()
     );
     assert_eq!(
@@ -168,4 +168,43 @@ pub(crate) fn assert_worker_families(store: &impl IdentityStore) {
             .unwrap()
             .is_some()
     );
+}
+
+/// Adapter-only fixture operations; policy cases below use no SQL.
+pub(crate) trait RotationFixture: IdentityStore {
+    fn seed_read_family(&self, session: &Session, generation: i64);
+    fn drop_read_sessions(&self);
+    fn read_sessions_present(&self) -> bool;
+}
+
+pub(crate) enum RotationRefusal { Expired, CapExpired, StaleGeneration, MissingTable }
+
+pub(crate) fn assert_read_rotation_refusal(store: &impl RotationFixture, refusal: RotationRefusal) {
+    if matches!(refusal, RotationRefusal::MissingTable) {
+        store.drop_read_sessions();
+        assert!(read_sessions::rotate(store, "ro.missing", 2_000).unwrap().is_none());
+        assert!(!store.read_sessions_present(), "refusal must not install storage");
+        return;
+    }
+    let mut session = read_sessions::scoped_session("member:refused", "member", 1_000, SessionScope::Read).unwrap();
+    match refusal {
+        RotationRefusal::Expired => session.expires_at = 2_000,
+        RotationRefusal::CapExpired => session.cap_expires_at = Some(2_000),
+        RotationRefusal::StaleGeneration => { store.revoke_identity_principal(&session.principal).unwrap(); }
+        RotationRefusal::MissingTable => unreachable!(),
+    }
+    store.seed_read_family(&session, 0);
+    let before = store.identity_session_expiry(&digest(&session.token)).unwrap();
+    let mut saw_facts = false;
+    assert!(store.rotate_read_session(&digest(&session.token), 2_000, |record| {
+        saw_facts = true;
+        assert_eq!(record.expires_at, session.expires_at);
+        assert_eq!(record.cap_expires_at, session.cap_expires_at.unwrap());
+        assert_eq!(record.principal_generation, 0);
+        assert_eq!(record.current_generation, i64::from(matches!(refusal, RotationRefusal::StaleGeneration)));
+        Ok(None)
+    }).unwrap().is_none());
+    assert!(saw_facts, "the adapter must return refused rows as raw facts");
+    assert!(read_sessions::rotate(store, &session.token, 2_000).unwrap().is_none());
+    assert_eq!(store.identity_session_expiry(&digest(&session.token)).unwrap(), before, "refused rotation must retain the old row");
 }

@@ -97413,3 +97413,28 @@ ratchet targets (eight), the final build and `ref-check --verbose` pass. The
 second worktree was removed after comparison. No sub-agent, clone, remote
 machine, stash, push or `scripts/test.sh` run was used. K0a is an extraction;
 K0's queued stream and batching remain later work.
+## 2026-10-20 — P1-ID step 1: shared read-rotation policy
+
+Scoped LLP orientation: LLP 3000 §1 decision 4 permits this commissioned core
+lane; LLP 3000.009.001.000 §3.1–3.3 requires policy above the adapter and §10
+requires one family suite on both stores; LLP 3000.033 §1.3 governs immutable
+read caps, captured generations, no foreign sweep and missing-table refusal.
+The root is in `foundation/`; the port RFC is in `current/`. The read-only and
+services guide cards agree with these constraints. No new design question or
+LLP hand-off is needed.
+
+Read rotation now returns raw expiry, cap and captured/current generation facts
+to shared Rust while holding the existing SQLite IMMEDIATE transaction. The
+shared callback can refuse with `None` before deletion or minting. The SQL
+change removes only the validity predicates, selecting their operands instead;
+missing principal generations still become zero. Refusals retain the old row
+and do not install absent read storage. Shared cases separately cover expired,
+cap-expired, stale-generation and missing-table refusals, and assert invalid
+rows are actually returned as facts. Existing collision/token-generation
+rollback cases retain their behavior. This step changes only SQLite and shared
+policy, before implementing the Postgres family.
+
+Validation for this step: all 23 identity-filtered unit tests pass, including
+the seven shared SQLite cases. `ref-check --verbose` passes with zero errors
+and zero unchecked references. The complete SQLite core suite is running;
+its final result will be recorded with the lane's closing checks.
