@@ -98079,3 +98079,26 @@ the supplied Cargo target, incremental-off and line-table debug settings, with
 at most `-j 32`. No sub-agent, clone, remote machine, stash, push or
 `scripts/test.sh` was used. Continuations and batching remain later K0 slices;
 there is no unresolved functional concern from this slice.
+
+## 2026-10-20 — P1-JB task 1: Postgres jobs and schedules storage
+
+Added the job family adapter behind JobStore/JobTransaction, including native
+continuations. Attach creates missing jobs/metadata tables under the existing
+head lock, with catalog guards; per-operation writers contain no DDL. Each
+write reuses the serialized-head requirement already used by authority.
+Inspection uses generation-checked read snapshots; the internal trait permits
+mutable driver access while SQLite's public inspection remains shared.
+
+SQLite's jobs list had implicit rowid tie ordering, distinct from the head's
+explicit id ordering. Made its rowid tie explicit and retained it on Postgres
+with an adapter-owned insertion ordinal. Canonical JSON stays text and binary
+continuations stay bytes. BIGINT fields preserve widths and SQLite casts;
+summaries preserve the existing character-prefix/byte-flag rule. No execution
+path is wired: PostgresEngine still refuses job/schedule programs (P1b).
+The local llp-orient link points into an uninitialized vendor submodule; no
+clone was made. Orientation used the governing RFC, current jobs/native guide
+cards and implementation directly. Task 2 supplies real-Postgres conformance
+and the complete requested checks.
+
+Task 1 validation: the postgres/default-native build and the three existing
+SQLite job adapter tests pass; ref-check passes (564 LLPs, zero errors).

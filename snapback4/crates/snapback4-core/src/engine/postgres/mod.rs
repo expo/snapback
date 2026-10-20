@@ -11,6 +11,7 @@ mod authority;
 mod identity;
 mod identity_schema;
 mod requests;
+mod jobs;
 mod prefetch;
 mod tail;
 mod through;
@@ -145,6 +146,7 @@ impl PostgresEngine {
         tx.batch(store::READ_SESSIONS_DDL)?;
         tx.batch(identity::DDL)?;
         requests::initialize(&tx)?;
+        jobs::initialize(&tx)?;
         tx.batch("DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;")?;
         caps::install(&tx, &schema)?;
         let generation = contribution_upgrade::install(&tx, &mut schema)?;

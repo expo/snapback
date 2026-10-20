@@ -174,8 +174,8 @@ impl JobTransaction for Tx<'_> {
     }
 }
 
-impl JobStore for Store {
-    fn job(&self, id: &str) -> Result<Option<JobRun>, RuntimeError> {
+impl Store {
+    pub fn job(&self, id: &str) -> Result<Option<JobRun>, RuntimeError> {
         Ok(self
             .conn()
             .query_row(
@@ -187,9 +187,9 @@ impl JobStore for Store {
             .map(|head| head.run))
     }
 
-    fn jobs(&self, limit: usize) -> Result<Vec<JobRun>, RuntimeError> {
+    pub fn jobs(&self, limit: usize) -> Result<Vec<JobRun>, RuntimeError> {
         let mut statement = self.conn().prepare(&format!(
-            "SELECT {COLUMNS} FROM _jobs ORDER BY created_at DESC LIMIT ?1"
+            "SELECT {COLUMNS} FROM _jobs ORDER BY created_at DESC, rowid LIMIT ?1"
         ))?;
         let rows = statement.query_map([limit as i64], read_head)?;
         Ok(rows
@@ -198,20 +198,19 @@ impl JobStore for Store {
     }
 
     /// Saved schedule identity, with the same ownership check as metadata reads.
-    // P1: implement schedule inspection for the Postgres store.
-    fn schedule_shape(&self, name: &str) -> Result<Option<String>, RuntimeError> {
+    pub fn schedule_shape(&self, name: &str) -> Result<Option<String>, RuntimeError> {
         self.meta(&format!("schedule-shape:{name}"))
     }
 
     /// Unparsable saved boundaries are absent, as at schedule admission.
-    fn schedule_boundary(&self, name: &str) -> Result<Option<i64>, RuntimeError> {
+    pub fn schedule_boundary(&self, name: &str) -> Result<Option<i64>, RuntimeError> {
         Ok(self
             .meta(&format!("schedule:{name}"))?
             .and_then(|value| value.parse().ok()))
     }
 
     /// Greatest parsable saved boundary; malformed rows keep their old skip behavior.
-    fn latest_schedule_boundary(&self) -> Result<Option<i64>, RuntimeError> {
+    pub fn latest_schedule_boundary(&self) -> Result<Option<i64>, RuntimeError> {
         let mut statement = self
             .conn()
             .prepare("SELECT value FROM _meta WHERE key LIKE 'schedule:%'")?;
@@ -223,7 +222,7 @@ impl JobStore for Store {
     }
 
     /// At most 64 summaries; does not load arguments, cursors or full errors.
-    fn job_summaries(&self, error_bytes: usize) -> Result<Vec<JobSummary>, RuntimeError> {
+    pub fn job_summaries(&self, error_bytes: usize) -> Result<Vec<JobSummary>, RuntimeError> {
         let mut statement = self.conn().prepare(
             "SELECT name, state, rows_written, substr(error, 1, ?1), octet_length(error) > ?1, id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 64")?;
         let mut rows = statement.query([error_bytes as i64])?;
@@ -252,29 +251,36 @@ impl JobStore for Store {
     }
 
     /// Number of retained job runs, including completed and parked runs.
-    fn job_count(&self) -> Result<i64, RuntimeError> {
+    pub fn job_count(&self) -> Result<i64, RuntimeError> {
         Ok(self
             .conn()
             .query_row("SELECT COUNT(*) FROM _jobs", [], |row| row.get(0))?)
     }
 }
 
-// Public host inspection delegates to the same typed adapter capability.
-impl Store {
-    pub fn schedule_shape(&self, name: &str) -> Result<Option<String>, RuntimeError> {
-        JobStore::schedule_shape(self, name)
+// The mutable contract can open a driver snapshot; SQLite's public inspection
+// remains available through a shared reference.
+impl JobStore for Store {
+    fn job(&mut self, id: &str) -> Result<Option<JobRun>, RuntimeError> {
+        Store::job(self, id)
     }
-    pub fn schedule_boundary(&self, name: &str) -> Result<Option<i64>, RuntimeError> {
-        JobStore::schedule_boundary(self, name)
+    fn jobs(&mut self, limit: usize) -> Result<Vec<JobRun>, RuntimeError> {
+        Store::jobs(self, limit)
     }
-    pub fn latest_schedule_boundary(&self) -> Result<Option<i64>, RuntimeError> {
-        JobStore::latest_schedule_boundary(self)
+    fn schedule_shape(&mut self, name: &str) -> Result<Option<String>, RuntimeError> {
+        Store::schedule_shape(self, name)
     }
-    pub fn job_summaries(&self, error_bytes: usize) -> Result<Vec<JobSummary>, RuntimeError> {
-        JobStore::job_summaries(self, error_bytes)
+    fn schedule_boundary(&mut self, name: &str) -> Result<Option<i64>, RuntimeError> {
+        Store::schedule_boundary(self, name)
     }
-    pub fn job_count(&self) -> Result<i64, RuntimeError> {
-        JobStore::job_count(self)
+    fn latest_schedule_boundary(&mut self) -> Result<Option<i64>, RuntimeError> {
+        Store::latest_schedule_boundary(self)
+    }
+    fn job_summaries(&mut self, error_bytes: usize) -> Result<Vec<JobSummary>, RuntimeError> {
+        Store::job_summaries(self, error_bytes)
+    }
+    fn job_count(&mut self) -> Result<i64, RuntimeError> {
+        Store::job_count(self)
     }
 }
 
@@ -289,7 +295,7 @@ mod tests {
         let tx = store.transaction().unwrap();
         test_cases::queue_and_continue(&tx);
         tx.commit().unwrap();
-        test_cases::assert_committed(&store);
+        test_cases::assert_committed(&mut store);
     }
 
     #[test]
@@ -317,7 +323,7 @@ mod tests {
         tx.park_job_chunk("a", "E_BOUND: fixture", 30, 1, 4, 4096)
             .unwrap();
         tx.commit().unwrap();
-        let run = JobStore::job(&store, "a").unwrap().unwrap();
+        let run = JobStore::job(&mut store, "a").unwrap().unwrap();
         assert_eq!(run.state, JobState::Parked);
         assert_eq!(
             (

@@ -99,21 +99,23 @@ pub struct JobSummary {
 }
 
 /// Snapshot inspection of the work family. No policy or presentation lives here.
-// P1: implement every JobStore operation for the Postgres adapter.
+// @ref LLP 3000.009.001.000#10 — one jobs contract on SQLite and Postgres.
+// Inspection may open a driver snapshot; SQLite retains shared public accessors.
+#[allow(dead_code)] // P1a conformance seam; the mutable Postgres host joins in P1b.
 pub(crate) trait JobStore {
-    fn job(&self, id: &str) -> Result<Option<JobRun>, RuntimeError>;
-    fn jobs(&self, limit: usize) -> Result<Vec<JobRun>, RuntimeError>;
-    fn schedule_shape(&self, name: &str) -> Result<Option<String>, RuntimeError>;
-    fn schedule_boundary(&self, name: &str) -> Result<Option<i64>, RuntimeError>;
-    fn latest_schedule_boundary(&self) -> Result<Option<i64>, RuntimeError>;
-    fn job_summaries(&self, error_bytes: usize) -> Result<Vec<JobSummary>, RuntimeError>;
-    fn job_count(&self) -> Result<i64, RuntimeError>;
+    fn job(&mut self, id: &str) -> Result<Option<JobRun>, RuntimeError>;
+    fn jobs(&mut self, limit: usize) -> Result<Vec<JobRun>, RuntimeError>;
+    fn schedule_shape(&mut self, name: &str) -> Result<Option<String>, RuntimeError>;
+    fn schedule_boundary(&mut self, name: &str) -> Result<Option<i64>, RuntimeError>;
+    fn latest_schedule_boundary(&mut self) -> Result<Option<i64>, RuntimeError>;
+    fn job_summaries(&mut self, error_bytes: usize) -> Result<Vec<JobSummary>, RuntimeError>;
+    fn job_count(&mut self) -> Result<i64, RuntimeError>;
 }
 
 /// Access to job continuations and schedule watermarks in the caller's writer.
 /// Policy decides state, refusal text, chunk size and the order of these calls.
 // @ref LLP 3000.009.001.000#3.3 — the boundary and admitted job stay in one transaction.
-// P1: implement every JobTransaction operation for the Postgres adapter.
+// Postgres writes require the existing serialized shared-head fence.
 pub(crate) trait JobTransaction {
     fn insert_job(&self, id: &str, name: &str, args: &BTreeMap<String, Value>, program_hash: &str, now: i64) -> Result<(), RuntimeError>;
     fn head_job(&self) -> Result<Option<Head>, RuntimeError>;
@@ -228,12 +230,12 @@ impl Engine {
     }
 
     pub fn job(&self, id: &str) -> Result<Option<JobRun>, RuntimeError> {
-        JobStore::job(&self.store, id)
+        self.store.job(id)
     }
 
     /// The most recent runs, newest first.
     pub fn jobs(&self, limit: usize) -> Result<Vec<JobRun>, RuntimeError> {
-        JobStore::jobs(&self.store, limit)
+        self.store.jobs(limit)
     }
 
     /// One chunk of the head job (queued or running, oldest first): one
@@ -597,7 +599,7 @@ pub(crate) mod test_cases {
         assert!(tx.head_job().unwrap().is_none());
     }
 
-    pub(crate) fn assert_committed(store: &impl JobStore) {
+    pub(crate) fn assert_committed(store: &mut impl JobStore) {
         assert_eq!(store.job_count().unwrap(), 2);
         let runs = store.jobs(2).unwrap();
         assert_eq!(runs.len(), 2);
