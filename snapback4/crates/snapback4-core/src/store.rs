@@ -37,6 +37,7 @@ mod adoption_tests;
 mod assets;
 mod partition;
 pub(crate) mod steps;
+mod requests;
 mod change_evidence;
 mod release;
 mod authority;
@@ -348,7 +349,7 @@ impl Store {
                 conn.execute_batch(&format!("ALTER TABLE _ops DROP COLUMN {column};"))?;
             }
         }
-        crate::engine::actions::initialize(&conn)?;
+        requests::initialize(&conn)?;
         // The outbox grew a worker protocol (leases, backoff, results); a
         // store from before it gains the columns in place, once.
         let outbox_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_outbox')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;

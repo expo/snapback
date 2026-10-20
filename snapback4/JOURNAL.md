@@ -97015,3 +97015,66 @@ tests, doctests and the new shared receipt cases. The existing ignored tests
 remain ignored. No product-test failures were found. The only failed required
 check is the base-reproduced Clippy result above. The lane commits locally
 with the commissioned identity and does not push.
+## 2026-10-20 — P0-S4a: request storage behind typed access
+
+The request family now has `RequestsTransaction`/`RequestsStore` contracts and
+plain insertion/settlement records in `engine/actions/requests.rs`, implemented
+for SQLite `Tx`/`Store` in `store/requests.rs`. The adapter owns request DDL and
+upgrades, row decoding, insertion, due/expired selection, claim/finish/requeue,
+settlement, cancellation and counts. `actions.rs` keeps admission authority,
+lease and attempt rules, validation, transition selection and refusal order;
+`routes.rs` reads through the same typed method. The step adapter still calls
+the shared finish policy, which invalidates the delegated session before the
+typed request update and retains the cooperative claim fence. All 15 moved SQL
+literals match the base verbatim; initialization and transaction boundaries
+retain their original order. No host request SQL exists outside inspection,
+so `verbs/work_records.rs` stays for that slice. No Postgres or P0-S2-owned
+files changed.
+
+Scoped LLP orientation: LLP 3000 §1 decision 4 (the lead owns the core; this is
+an explicitly commissioned lane), LLP 3000.009.001.000 §3.1–3.3 (typed access,
+policy above the adapter, extraction without behavioral changes), LLP 3000.009
+§5.1 (authority, leases, results and route identity), LLP 3000.007 §9.2 (durable
+action admission). The governing work documents remain in `llp/current/`;
+none is in `foundation/`. The current action/route guide cards agree with the
+retained lifecycle. Updated the port RFC's extraction record; no public
+surface or new design decision needs documentation. Shared adapter-neutral
+cases check finish-time credential invalidation and fence retention, ordinary
+settlement/requeue fence clearing, due ordering/name filters, lease expiry and
+rollback. The existing action/route suites cover the public policy. No open
+design question or LLP hand-off.
+
+Ratchet regeneration passes: production sites 273 → 237 (actions 34 → 0,
+routes 2 → 0), test sites unchanged at 104; combined 377 → 341. The required
+build and `ref-check --verbose` pass (zero reference errors/unchecked refs).
+The required Clippy command fails on `clippy::while_immutable_condition`
+(`engine/read.rs:780`) and `clippy::never_loop` (`engine/row_views.rs:1010`).
+The exact command reproduces both failures on untouched base
+`a8460f7abb27acc6c99589bd492c7adbee22f381` in a second detached local worktree.
+The distinct warning message/source-file signatures match the base exactly,
+with no additions. No inherited lint was changed or suppressed.
+
+The initial full host run hit three socket read timeouts (`WouldBlock`) in
+`serve::tests::release_lifecycle_tests`:
+`authentication_and_metadata_stamp_the_engine_after_intake_switch`,
+`following_reply_stamps_the_engine_selected_after_request_intake`, and
+`action_reply_stamps_admission_after_switch_during_request_intake`. Checked the
+release-lifecycle group on the untouched base: it passes (12 passed, 1 ignored),
+so this scoped comparison does not reproduce the timeouts. Reran the lane's
+entire binary target with `cargo test -p snapback4 --bin snapback4 --
+--test-threads=4`: 494 passed, 5 ignored, including all three original failures.
+No source or timeout was changed. These are recorded as transient failures in
+the first run, not as reproduced base failures.
+
+The full `cargo test -p snapback4 --no-fail-fast` run completed every target.
+Every target other than the initial binary target passes, including the normal
+ratchet run and web witness. The only failing target is the three initial
+binary timeouts above, all covered by the successful full binary retry.
+`scripts/test.sh` was not run.
+
+The complete `cargo test -p snapback4-core` passes, including all integration
+and doc tests. Together with the required build, ratchet regeneration/normal
+run, completed full host run and full binary retry, this completes the lane's
+affected checks. Clippy's two base-reproduced errors remain the only unresolved
+check failures. No design uncertainty remains; the original parallel socket
+timeouts are recorded above with the scope and limits of the base comparison.

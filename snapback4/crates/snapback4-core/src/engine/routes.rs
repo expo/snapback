@@ -2,6 +2,7 @@
 //! durable work. Private route handlers then use exactly the action machinery.
 use super::{Context, Engine, actions::{self, ActionRequest}};
 use crate::{RuntimeError, identity, schema::{RouteSpec, routes::{ACTION_PREFIX, RouteRequest}}, wire};
+use super::actions::requests::RequestsTransaction;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
@@ -66,7 +67,7 @@ impl Engine {
         let body_digest = format!("{:x}", Sha256::digest(&body));
         let id = format!("{ID_PREFIX}{}", crate::value::digest(&(name, scope, body_digest)));
         let program = route.program(name);
-        if let Some(run) = actions::request(tx.conn(), &id)? {
+        if let Some(run) = tx.request(&id)? {
             if run.action != program.name || run.contract.as_deref() != Some(contract) { return Err(generation()); }
             if run.principal != context.viewer || actions::authority_expiry(&tx, &run, now)?.is_none() { return Err(unknown()); }
             // Headers (e.g. fresh signatures/timestamps) are authentication
@@ -87,7 +88,7 @@ impl Engine {
             return Err(refused("E_ROUTE_INPUT", "the route envelope exceeds the engine heap bound"));
         }
         actions::insert_spec(&tx, &program, &id, &context, &raw, service_generation.is_some(), &route.action_spec(), contract, now)?;
-        let run = actions::request(tx.conn(), &id)?.ok_or_else(unknown)?;
+        let run = tx.request(&id)?.ok_or_else(unknown)?;
         tx.commit()?;
         Ok((run, false))
     }
