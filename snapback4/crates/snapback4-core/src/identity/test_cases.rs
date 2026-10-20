@@ -285,14 +285,12 @@ pub(crate) fn assert_nul_inputs_refused(store: &impl IdentityFixture) {
     for (error, message) in [
         (prepare_signup("a\0b@example.com", "correct horse").err().unwrap(), "an email address is needed"),
         (finish_signup_in(store, PreparedSignup { email: "a\0b@example.com".into(), hash: "unused".into() }, 2_000, &mut crate::ids::Mint::default(), SessionScope::Full).unwrap_err(), "an email address is needed"),
-        (credential_in(store, "a\0b@example.com").err().unwrap(), "an email address is needed"),
         (validate_custom_session("member:\0x", "member").unwrap_err(), principal_message),
         (validate_custom_session("member:x", "mem\0ber").unwrap_err(), kind_message),
         (open_session_for(store, "member:\0x", "member", 2_000, 7).unwrap_err(), principal_message),
         (open_session_for(store, "member:x", "mem\0ber", 2_000, 7).unwrap_err(), kind_message),
         (read_sessions::scoped_session("member:\0x", "member", 2_000, SessionScope::Read).unwrap_err(), principal_message),
-        (revoke_principal_in(store, "member:\0x").unwrap_err(), principal_message),
-        (revoke_worker_family_in(store, Some("family\0x")).unwrap_err(), "a session family cannot contain U+0000"),
+        (validate_bound_worker("service:worker\0x").unwrap_err(), "a worker principal cannot contain U+0000"),
     ] {
         assert_eq!(error.code(), "E_AUTH", "malformed identity must never reach a driver");
         assert_eq!(error.to_string(), format!("E_AUTH: {message}"));
@@ -347,6 +345,30 @@ pub(crate) fn assert_digest_in_both_session_tables_refused(store: &impl Identity
         assert!(refusal.retryable);
         tx.invalidate_session(&digest(&full.token))?;
         assert!(tx.session_by_digest(&digest(&full.token))?.is_none());
+        Ok(())
+    }).unwrap();
+}
+
+pub(crate) fn assert_latest_family_ties(store: &impl IdentityFixture) {
+    let first = Session { principal: "member:ties".into(), kind: "member".into(),
+        token: "tie-a".into(), expires_at: 9_000, scope: SessionScope::Full, cap_expires_at: None };
+    let second = Session { token: "tie-b".into(), ..first.clone() };
+    let mut tied = [first, second];
+    tied.sort_by_key(|s| digest(&s.token));
+    store.with_identity_tx(|tx| {
+        // Reverse insertion order must not decide the winner.
+        for session in tied.iter().rev() {
+            tx.insert_identity_session(session, 1_000)?;
+            tx.set_identity_session_family(&digest(&session.token), "ties")?;
+        }
+        assert_eq!(tx.latest_live_family_member("member:ties", "ties", 2_000)?.unwrap().digest, digest(&tied[0].token));
+        // Even a digest collision across the two tables has a total order:
+        // the final scope discriminator orders full before read.
+        let read = Session { scope: SessionScope::Read, cap_expires_at: Some(10_000), ..tied[0].clone() };
+        tx.insert_read_session(&read, 1_000, Some(("ties", 0)))?;
+        let selected = tx.latest_live_family_member("member:ties", "ties", 2_000)?.unwrap();
+        assert_eq!(selected.digest, digest(&tied[0].token));
+        assert_eq!(selected.scope, SessionScope::Full);
         Ok(())
     }).unwrap();
 }
@@ -868,4 +890,11 @@ pub(crate) fn assert_diagnostics(store: &impl IdentityFixture) {
             .contains("unknown to this store")
     );
     assert!(!store.read_sessions_present());
+}
+
+/// Exact final authority state after the race's observed order.
+#[cfg(feature = "postgres")]
+pub(crate) fn rotation_revoke_state(store: &impl IdentityFixture, principal: &str, old: &str, next: &str) -> (i64, bool, bool) {
+    store.with_identity_tx(|tx| Ok((tx.principal_generation(principal)?,
+        tx.session_by_digest(old)?.is_some(), tx.session_by_digest(next)?.is_some()))).unwrap()
 }

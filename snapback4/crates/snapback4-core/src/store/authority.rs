@@ -57,6 +57,7 @@ impl AuthorityTransaction for Tx<'_> {
             }).optional()?)
     }
 
+    // @ref LLP 3000.009.001.000#91-adapter-parity-rules — digest and scope break expiry ties across both tables.
     fn latest_live_family_member(
         &self,
         principal: &str,
@@ -65,9 +66,9 @@ impl AuthorityTransaction for Tx<'_> {
     ) -> Result<Option<SessionRecord>, RuntimeError> {
         // Missing read-session storage carries no authority and never creates it.
         let sql = if read_sessions::present(self.conn())? {
-            "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL, NULL FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE principal = ?1 AND family = ?2 AND expires_at > ?3 ORDER BY expires_at DESC LIMIT 1"
+            "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL, NULL FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE principal = ?1 AND family = ?2 AND expires_at > ?3 ORDER BY expires_at DESC, token_digest ASC, 6 ASC LIMIT 1"
         } else {
-            "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL, NULL FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3 ORDER BY expires_at DESC LIMIT 1"
+            "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL, NULL FROM _sessions WHERE principal = ?1 AND COALESCE(family, token_digest) = ?2 AND expires_at > ?3 ORDER BY expires_at DESC, token_digest ASC, 6 ASC LIMIT 1"
         };
         Ok(self.tx.query_row(
             sql,
@@ -100,7 +101,7 @@ impl AuthorityTransaction for Tx<'_> {
         Ok(self
             .tx
             .query_row(
-                &format!("SELECT {WORK_COLUMNS} FROM _requests WHERE session_digest = ?1"),
+                &format!("SELECT {WORK_COLUMNS} FROM _requests WHERE session_digest = ?1 ORDER BY id LIMIT 1"),
                 [digest],
                 read_work,
             )

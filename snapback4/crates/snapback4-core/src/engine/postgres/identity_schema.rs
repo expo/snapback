@@ -85,6 +85,21 @@ pub(super) fn verify_existing(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     ] {
         verify_table(tx, table, columns, primary)?;
     }
+    for (table, index, columns) in [
+        ("_sessions", "_sessions_expiry", &["expires_at"][..]),
+        (
+            "_sessions",
+            "_sessions_family",
+            &["principal", "family", "expires_at"][..],
+        ),
+        (
+            "_read_sessions",
+            "_read_sessions_family",
+            &["principal", "family", "expires_at"][..],
+        ),
+    ] {
+        verify_index(tx, table, index, columns)?;
+    }
     Ok(())
 }
 
@@ -135,9 +150,17 @@ fn verify_table(
         "SELECT c.contype::text, ARRAY(SELECT a.attname::text
          FROM unnest(c.conkey) WITH ORDINALITY k(attnum, ord)
          JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum ORDER BY k.ord)
-         FROM pg_constraint c WHERE c.conrelid = to_regclass($1) AND c.contype IN ('p','u')",
+         , c.condeferrable FROM pg_constraint c WHERE c.conrelid = to_regclass($1) AND c.contype IN ('p','u')",
         &[&table],
     )?;
+    // ON CONFLICT cannot arbitrate a deferrable constraint, even INITIALLY
+    // IMMEDIATE. Extra uniqueness also changes insert-ignore/conflict outcomes.
+    if keys.iter().any(|r| r.get::<_, bool>(2)) {
+        return Err(incompatible(table, "deferrable primary/unique constraint"));
+    }
+    if keys.len() != if table == "_credentials" { 2 } else { 1 } {
+        return Err(incompatible(table, "unexpected primary/unique constraints"));
+    }
     if !keys
         .iter()
         .any(|r| r.get::<_, &str>(0) == "p" && r.get::<_, Vec<String>>(1) == primary)
@@ -150,6 +173,66 @@ fn verify_table(
             .any(|r| r.get::<_, &str>(0) == "u" && r.get::<_, Vec<String>>(1) == ["email"])
     {
         return Err(incompatible(table, "missing unique email constraint"));
+    }
+    let extra_unique = tx.query(
+        "SELECT EXISTS(SELECT 1 FROM pg_index i WHERE i.indrelid = to_regclass($1)
+         AND i.indisunique AND NOT EXISTS(SELECT 1 FROM pg_constraint c
+         WHERE c.conindid = i.indexrelid AND c.contype IN ('p','u')))",
+        &[&table],
+    )?[0]
+        .get::<_, bool>(0);
+    if extra_unique {
+        return Err(incompatible(table, "unexpected unique index"));
+    }
+    if table == "_session_mint_bindings" {
+        let default = tx.query(
+            "SELECT pg_get_expr(d.adbin,d.adrelid) FROM pg_attrdef d
+             JOIN pg_attribute a ON a.attrelid = d.adrelid AND a.attnum = d.adnum
+             WHERE d.adrelid = to_regclass($1) AND a.attname = 'scope'",
+            &[&table],
+        )?;
+        if default.first().map(|r| r.get::<_, String>(0)).as_deref() != Some("'full'::text") {
+            return Err(incompatible(table, "scope must default to 'full'"));
+        }
+    }
+    Ok(())
+}
+
+fn verify_index(
+    tx: &Tx<'_>,
+    table: &str,
+    index: &str,
+    columns: &[&str],
+) -> Result<(), RuntimeError> {
+    let rows = tx.query(
+        "SELECT i.indrelid = to_regclass($1), am.amname::text,
+         i.indisunique, i.indisvalid AND i.indisready,
+         i.indpred IS NULL AND i.indexprs IS NULL AND i.indnatts = i.indnkeyatts,
+         ARRAY(SELECT pg_get_indexdef(i.indexrelid,k,true) FROM generate_series(1,i.indnkeyatts) k),
+         NOT EXISTS(SELECT 1 FROM unnest(i.indkey,i.indcollation,i.indoption) k(attnum,coll,opts)
+             JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.attnum
+             WHERE k.coll <> a.attcollation OR k.opts <> 0)
+         FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+         JOIN pg_am am ON am.oid = c.relam WHERE i.indexrelid = to_regclass($2)",
+        &[&table, &index],
+    )?;
+    let Some(row) = rows.first() else {
+        // Missing indexes are installed at attach; a same-name non-index must
+        // not survive CREATE INDEX IF NOT EXISTS either.
+        if tx.query("SELECT to_regclass($1) IS NOT NULL", &[&index])?[0].get::<_, bool>(0) {
+            return Err(incompatible(table, &format!("{index} is not an index")));
+        }
+        return Ok(());
+    };
+    if !row.get::<_, bool>(0)
+        || row.get::<_, &str>(1) != "btree"
+        || row.get::<_, bool>(2)
+        || !row.get::<_, bool>(3)
+        || !row.get::<_, bool>(4)
+        || row.get::<_, Vec<String>>(5) != columns
+        || !row.get::<_, bool>(6)
+    {
+        return Err(incompatible(table, &format!("incompatible index {index}")));
     }
     Ok(())
 }

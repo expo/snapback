@@ -71,7 +71,7 @@ pub(super) fn present(conn: &Connection) -> Result<bool, RuntimeError> {
     Ok(conn.prepare_cached("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = '_read_sessions')")?.query_row([], |r| r.get(0))?)
 }
 
-// @ref LLP 3000.033#1.3 — separate storage and captured generations prevent downgrade resurrection.
+// @ref LLP 3000.033#1.3 — first mint installs storage; opening and refused operations preserve its absence.
 fn initialize_read(conn: &Connection) -> Result<(), RuntimeError> {
     conn.execute_batch("CREATE TABLE IF NOT EXISTS _read_sessions (
         token_digest TEXT PRIMARY KEY, principal TEXT NOT NULL, kind TEXT NOT NULL,
@@ -97,7 +97,7 @@ fn insert_read(
     now: i64,
     family: Option<(&str, i64)>,
 ) -> Result<(), RuntimeError> {
-    initialize_read(conn)?;
+    if !present(conn)? { initialize_read(conn)?; }
     let digest = digest(&session.token);
     let generation: i64 = match family {
         Some((_, generation)) => generation,
@@ -491,24 +491,46 @@ mod tests {
 
     #[test]
     fn shared_read_rotation_expired_refusal() {
-        test_cases::assert_read_rotation_refusal(&Store::memory().unwrap(), test_cases::RotationRefusal::Expired);
+        refusal_rolls_back(test_cases::RotationRefusal::Expired);
     }
     #[test]
     fn shared_read_rotation_cap_expired_refusal() {
-        test_cases::assert_read_rotation_refusal(&Store::memory().unwrap(), test_cases::RotationRefusal::CapExpired);
+        refusal_rolls_back(test_cases::RotationRefusal::CapExpired);
     }
     #[test]
     fn shared_read_rotation_stale_generation_refusal() {
-        test_cases::assert_read_rotation_refusal(&Store::memory().unwrap(), test_cases::RotationRefusal::StaleGeneration);
+        refusal_rolls_back(test_cases::RotationRefusal::StaleGeneration);
     }
     #[test]
     fn shared_read_rotation_missing_table_refusal() {
-        test_cases::assert_read_rotation_refusal(&Store::memory().unwrap(), test_cases::RotationRefusal::MissingTable);
+        refusal_rolls_back(test_cases::RotationRefusal::MissingTable);
     }
 
     #[test]
     fn shared_diagnostics() {
         test_cases::assert_diagnostics(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_latest_family_ties() {
+        test_cases::assert_latest_family_ties(&Store::memory().unwrap());
+    }
+
+    fn refusal_rolls_back(refusal: test_cases::RotationRefusal) {
+        use rusqlite::hooks::{AuthAction, AuthContext, Authorization, TransactionOperation};
+        use std::sync::{Arc, Mutex};
+        let store = Store::memory().unwrap();
+        let endings = Arc::new(Mutex::new(Vec::new()));
+        let observed = endings.clone();
+        store.conn.authorizer(Some(move |ctx: AuthContext<'_>| {
+            if let AuthAction::Transaction { operation } = ctx.action {
+                observed.lock().unwrap().push(operation);
+            }
+            Authorization::Allow
+        })).unwrap();
+        test_cases::assert_read_rotation_refusal(&store, refusal);
+        assert_eq!(endings.lock().unwrap().last(), Some(&TransactionOperation::Rollback),
+            "a refused rotation must ROLLBACK, including an unchanged transaction");
     }
 
     #[test]
@@ -556,3 +578,6 @@ mod tests {
         test_cases::assert_worker_families(&Store::memory().unwrap());
     }
 }
+
+#[cfg(test)]
+mod legacy_tests;

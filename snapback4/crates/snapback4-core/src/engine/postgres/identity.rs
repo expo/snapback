@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS _session_mint_bindings (
     scope TEXT NOT NULL DEFAULT 'full', PRIMARY KEY(invocation, intent)
 );
 CREATE TABLE IF NOT EXISTS _meta (key TEXT COLLATE "C" PRIMARY KEY, value TEXT NOT NULL);
+CREATE INDEX IF NOT EXISTS _sessions_expiry ON _sessions(expires_at);
+CREATE INDEX IF NOT EXISTS _sessions_family ON _sessions(principal, family, expires_at);
 "#;
 
 fn read_sessions_present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
@@ -61,11 +63,8 @@ impl IdentityTransaction for Tx<'_> {
         family: Option<(&str, i64)>,
     ) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("insert read session")?;
-        // Normally installed at attach; also permits minting into absent storage,
-        // while lookups and refused rotations never create it.
-        if !read_sessions_present(self)? {
-            self.batch(super::store::READ_SESSIONS_DDL)?;
-        }
+        // Attach owns installation. Missing storage after attach is corruption,
+        // so the INSERT fails instead of taking DDL locks in this writer.
         let digest = digest(&session.token);
         let generation = match family {
             Some((_, generation)) => generation,

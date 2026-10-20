@@ -194,7 +194,7 @@ shared_case!(shared_worker_markers, assert_worker_markers);
 shared_case!(shared_digest_in_both_session_tables_refused, assert_digest_in_both_session_tables_refused);
 shared_case!(shared_nul_inputs_refused, assert_nul_inputs_refused);
 shared_case!(shared_convenience_insert_conflict, assert_convenience_insert_conflict);
-shared_case!(shared_missing_read_storage_created_on_insert, assert_missing_read_storage_created_on_insert);
+shared_case!(shared_latest_family_ties, assert_latest_family_ties);
 
 macro_rules! refusal_case {
     ($name:ident, $refusal:ident) => {
@@ -242,7 +242,7 @@ fn identity_attach_installs_missing_tables_and_reopens_without_changing_rows() {
         .store
         .transaction(Some(WriteMode::Serialized))
         .unwrap();
-    tx.batch("DROP TABLE _principals, _credentials, _session_mint_bindings, _meta")
+    tx.batch("DROP TABLE _principals, _credentials, _session_mint_bindings, _meta; DROP INDEX _sessions_expiry, _sessions_family")
         .unwrap();
     tx.commit().unwrap();
     let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private test-postgres.sh database");
@@ -370,6 +370,14 @@ fn identity_attach_refuses_incompatible_existing_tables() {
         ("_session_mint_bindings", "ALTER TABLE _session_mint_bindings DROP COLUMN scope"),
         ("_read_sessions", "ALTER TABLE _read_sessions DROP COLUMN cap_expires_at"),
         ("_credentials", "ALTER TABLE _credentials DROP CONSTRAINT _credentials_email_key"),
+        ("_principals", "ALTER TABLE _principals DROP CONSTRAINT _principals_pkey; ALTER TABLE _principals ADD PRIMARY KEY(id) DEFERRABLE INITIALLY IMMEDIATE"),
+        ("_credentials", "ALTER TABLE _credentials DROP CONSTRAINT _credentials_email_key; ALTER TABLE _credentials ADD UNIQUE(email) DEFERRABLE INITIALLY DEFERRED"),
+        ("_principals", "ALTER TABLE _principals ADD UNIQUE(kind)"),
+        ("_principals", "CREATE UNIQUE INDEX unexpected_unique ON _principals(kind)"),
+        ("_session_mint_bindings", "ALTER TABLE _session_mint_bindings ALTER COLUMN scope SET DEFAULT 'read'"),
+        ("_sessions", "DROP INDEX _sessions_expiry; CREATE INDEX _sessions_expiry ON _sessions(principal)"),
+        ("_sessions", "DROP INDEX _sessions_family; CREATE UNIQUE INDEX _sessions_family ON _sessions(principal,family,expires_at)"),
+        ("_read_sessions", "DROP INDEX _read_sessions_family; CREATE INDEX _read_sessions_family ON _read_sessions(principal COLLATE \"default\",family,expires_at)"),
     ] {
         let mut engine = authority_engine();
         let name: String = engine.store.client.query_one("SELECT current_schema()", &[]).unwrap().get(0);
@@ -384,4 +392,82 @@ fn identity_attach_refuses_incompatible_existing_tables() {
         assert!(matches!(&error, crate::RuntimeError::Store(_)), "{error}");
         assert!(error.to_string().contains(&format!("SNAPBACK_IDENTITY_SCHEMA: {table}:")), "{error}");
     }
+}
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn identity_rotation_races_revoke_through_the_head_fence() {
+    use std::sync::{Arc, Barrier};
+    use std::time::{Duration, Instant};
+    let mut owner = authority_engine();
+    let name: String = owner.store.client.query_one("SELECT current_schema()", &[]).unwrap().get(0);
+    let owner_pid: i32 = owner.store.client.query_one("SELECT pg_backend_pid()", &[]).unwrap().get(0);
+    let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let mut peer = super::super::PostgresEngine::open(
+        postgres::Client::connect(&url, postgres::NoTls).unwrap(), &name,
+    ).unwrap();
+    peer.store.client.batch_execute("SET statement_timeout = '10s'").unwrap();
+    let peer_pid: i32 = peer.store.client.query_one("SELECT pg_backend_pid()", &[]).unwrap().get(0);
+    // This third connection only observes locks; both competing writes use
+    // IdentityStore operations, with no harness SQL holding a writer lock.
+    let mut observer = postgres::Client::connect(&url, postgres::NoTls).unwrap();
+    let old = Session { principal: "member:race".into(), kind: "member".into(),
+        token: "ro.race-old".into(), expires_at: 9_000, scope: SessionScope::Read, cap_expires_at: Some(10_000) };
+    let next = Session { token: "ro.race-next".into(), ..old.clone() };
+    let old_digest = digest(&old.token);
+    let next_digest = digest(&next.token);
+    RefCell::new(&mut owner.store).insert_identity_session_atomic(&old, 1_000).unwrap();
+    let overlap = Arc::new(Barrier::new(2));
+    let peer_overlap = overlap.clone();
+    let principal = old.principal.clone();
+    let revoked = std::thread::spawn(move || {
+        peer_overlap.wait();
+        RefCell::new(&mut peer.store).revoke_identity_principal(&principal).unwrap()
+    });
+    let rotated = RefCell::new(&mut owner.store).rotate_read_session(&old_digest, 2_000, |record| {
+        assert_eq!(record.principal, old.principal);
+        overlap.wait();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            let blockers: Vec<i32> = observer.query_one("SELECT pg_blocking_pids($1)", &[&peer_pid]).unwrap().get(0);
+            if blockers.contains(&owner_pid) { break; }
+            assert!(Instant::now() < deadline, "peer revoke never overlapped the adapter rotation");
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        let query: String = observer.query_one("SELECT query FROM pg_stat_activity WHERE pid = $1", &[&peer_pid]).unwrap().get(0);
+        assert!(query.contains("FROM _head WHERE singleton FOR UPDATE"), "wrong fence: {query}");
+        Ok(Some(next.clone()))
+    }).unwrap().unwrap();
+    assert_eq!(rotated.token, next.token);
+    let pg_removed = revoked.join().unwrap();
+    let pg_state = test_cases::rotation_revoke_state(&RefCell::new(&mut owner.store), &old.principal, &old_digest, &next_digest);
+    // Compare with SQLite executing the witnessed order: rotation then revoke.
+    let sqlite = crate::Store::memory().unwrap();
+    sqlite.insert_identity_session_atomic(&old, 1_000).unwrap();
+    sqlite.rotate_read_session(&old_digest, 2_000, |_| Ok(Some(next))).unwrap().unwrap();
+    let sqlite_removed = sqlite.revoke_identity_principal(&old.principal).unwrap();
+    let sqlite_state = test_cases::rotation_revoke_state(&sqlite, &old.principal, &old_digest, &next_digest);
+    assert_eq!((pg_removed, pg_state), (sqlite_removed, sqlite_state));
+    assert_eq!((pg_removed, pg_state), (1, (1, false, false)));
+}
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn identity_missing_read_storage_requires_reattach_without_writer_ddl() {
+    let mut engine = authority_engine();
+    let name: String = engine.store.client.query_one("SELECT current_schema()", &[]).unwrap().get(0);
+    let store = RefCell::new(&mut engine.store);
+    store.drop_read_sessions();
+    let read = Session { principal: "member:attach".into(), kind: "member".into(), token: "ro.attach".into(),
+        expires_at: 9_000, scope: SessionScope::Read, cap_expires_at: Some(10_000) };
+    assert!(store.insert_identity_session_atomic(&read, 1_000).is_err());
+    assert!(!store.read_sessions_present(), "ordinary writes must not install schema");
+    assert!(store.principal_facts(&read.principal).is_none(), "failed insert must roll back its principal");
+    let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let mut reopened = super::super::PostgresEngine::open(
+        postgres::Client::connect(&url, postgres::NoTls).unwrap(), &name,
+    ).unwrap();
+    let store = RefCell::new(&mut reopened.store);
+    store.insert_identity_session_atomic(&read, 1_000).unwrap();
+    assert_eq!(store.identity_session_expiry(&digest(&read.token)).unwrap(), Some(read.expires_at));
 }

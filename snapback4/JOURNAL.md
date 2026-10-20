@@ -97636,3 +97636,43 @@ This cleanup did not run during any test suite and touched no other lane.
 The RFC retains its single Revised line with P1-ID fix round 1 prepended.
 All corrections are new commits above d46f2a4ea5; the three rebased lane
 commits are unchanged. No push was performed.
+
+### 2026-10-21 — P1-ID fix round 2
+
+Continued the rebased sb4-pg/p1-identity lane above e2fc359151; built with
+snapback4-core/postgres before editing. Governing context: LLP 3000's fence,
+LLP 3000.009.001.000 §3.3 and §9.1 (current working set), and LLP 3000.033
+§1.3's legacy authority and lazy SQLite storage guarantees. No new design
+LLP, host wiring, owner-fence protocol or publication claim is introduced.
+
+New identity admission refuses NUL; stored SQLite identities remain exact
+through lookup/sign-in, full/read rotation, narrowing, family logout,
+worker-family retirement and principal-wide revoke/logout-all. The direct
+SQLite legacy fixtures seed a NUL principal, kind and family, authenticate
+it, revoke both scopes, check the generation advances twice, and prove the
+bearers no longer authenticate. The shared NUL test still pins pre-write
+refusal and now names the malformed worker principal; a bound-mint entry
+point test proves it refuses before sampling the clock.
+
+Attach rejects deferrable primary/unique constraints, extra UNIQUE
+constraints/standalone indexes, an incorrect scope default, and wrong-shaped
+same-name identity indexes. The drift fixture covers each category. Required
+index checks include table, keys, uniqueness, collation, direction, access
+method, predicate and included columns. Missing indexes are attach work.
+
+| §9.1 rule | Identity disposition and witness |
+| --- | --- |
+| 1 NUL | Fixed at admission boundaries; shared_nul_inputs_refused and legacy_nul_* SQLite fixtures. |
+| 2 total LIMIT ordering | Fixed: expiry DESC, digest ASC, scope ASC; shared_latest_family_ties includes reverse insertion and a cross-table digest tie. Claimed-session work lookup also orders by unique request id. |
+| 3 explicit projections | Compliant: no SELECT * in identity/authority statements on either adapter. |
+| 4 terminal statement errors | Compliant: atomic adapter errors abandon/roll back; principal insert-ignore expresses its conflict in SQL. Existing convenience-write atomicity exception remains explicit. |
+| 5 typed arguments/counts | Compliant: scalar text/integer inputs and optional family/generation pair; deletion counts u64; only fixed LIMIT 1, no signed caller limit or JSON-parsed list. |
+| 6 attach DDL | Fixed on Postgres: missing storage requires reattach; identity_missing_read_storage_requires_reattach_without_writer_ddl. SQLite retains first read mint and first bound-mint installation under LLP 3000.033 §1.3; changing it would change missing-table/refused-open schema behavior. Its existing-table read inserts now skip DDL. |
+| 7 adapter race | Fixed: identity_rotation_races_revoke_through_the_head_fence holds the adapter rotation callback at a barrier until a catalog observer proves the peer adapter revoke is blocked by that connection's head fence. Final deletion count, generation and both bearer absences equal SQLite's rotation-then-revoke order. |
+
+The four SQLite shared rotation-refusal tests now observe ROLLBACK with the
+authorizer, distinguishing it from an empty COMMIT without production
+instrumentation. Corrected the RFC's convenience-deletion note:
+close_identity_session has two autocommit deletes, but public logout_session
+invalidates its family in one IMMEDIATE transaction. The RFC keeps one
+Revised line, with P1-ID fix round 2 prepended. Final verification follows.

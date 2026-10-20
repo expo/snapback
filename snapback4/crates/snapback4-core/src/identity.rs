@@ -134,7 +134,6 @@ pub(crate) trait IdentityStore {
 
 /// Whether a bearer belongs to a host-supervised family (manual seats survive).
 pub fn is_supervised_family(store: &Store, token_digest: &str) -> Result<bool, RuntimeError> {
-    refuse_nul(token_digest, "a session digest cannot contain U+0000")?;
     store.is_supervised_family(token_digest)
 }
 
@@ -147,7 +146,6 @@ pub fn revoke_worker_family(store: &Store, family: Option<&str>) -> Result<(), R
 }
 
 fn revoke_worker_family_in(store: &impl IdentityStore, family: Option<&str>) -> Result<(), RuntimeError> {
-    if let Some(family) = family { validate_family(family)?; }
     store.revoke_worker_family(family)
 }
 
@@ -288,9 +286,9 @@ pub(crate) fn digest(token: &str) -> String {
     format!("{:x}", Sha256::digest(token.as_bytes()))
 }
 
+// Existing stored identities may contain NUL on legacy SQLite stores. Token
+// replacement preserves them; admission boundaries validate new identities.
 fn new_session(principal: &str, kind: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
-    refuse_nul(principal, "a principal is 1–128 printable characters")?;
-    refuse_nul(kind, "a session kind is 1–64 letters, digits, _ or -")?;
     Ok(Session {
         principal: principal.to_owned(),
         kind: kind.to_owned(),
@@ -304,6 +302,7 @@ fn new_session(principal: &str, kind: &str, now: i64, days: i64) -> Result<Sessi
 /// Mint a session for a principal; returns the token exactly once.
 pub fn open_session(store: &Store, principal: &str, kind: &str, now: i64,
 ) -> Result<Session, RuntimeError> {
+    validate_new_identity(principal, kind)?;
     let session = new_session(principal, kind, now, SESSION_DAYS)?;
     store.insert_identity_session(&session, now)?;
     Ok(session)
@@ -385,7 +384,6 @@ fn rotate_session_in(store: &impl IdentityStore, old_token: &str, now: i64) -> R
         store.delete_expired_identity_session(&old_digest, now)?;
         return Ok(None);
     };
-    validate_family(&family)?;
     if kind == "action" {
         return Err(RuntimeError::Auth("an action session lasts only for its claim and cannot be refreshed".into()));
     }
@@ -422,8 +420,13 @@ fn refuse_nul(value: &str, message: &str) -> Result<(), RuntimeError> {
     Ok(())
 }
 
-fn validate_family(family: &str) -> Result<(), RuntimeError> {
-    refuse_nul(family, "a session family cannot contain U+0000")
+fn validate_new_identity(principal: &str, kind: &str) -> Result<(), RuntimeError> {
+    refuse_nul(principal, "a principal is 1–128 printable characters")?;
+    refuse_nul(kind, "a session kind is 1–64 letters, digits, _ or -")
+}
+
+fn validate_bound_worker(worker: &str) -> Result<(), RuntimeError> {
+    refuse_nul(worker, "a worker principal cannot contain U+0000")
 }
 pub fn password_bound(password: &str) -> Result<(), RuntimeError> {
     if password.len() > PASSWORD_MAX_BYTES {
@@ -504,7 +507,6 @@ pub fn credential(store: &Store, email: &str) -> Result<Option<Credential>, Runt
 }
 
 fn credential_in(store: &impl IdentityStore, email: &str) -> Result<Option<Credential>, RuntimeError> {
-    refuse_nul(email, "an email address is needed")?;
     store.identity_credential(&normalized_email(email))
 }
 
@@ -536,7 +538,7 @@ pub fn finish_login_scoped(store: &Store, checked: Credential, now: i64, scope: 
 }
 
 fn finish_login_in(store: &impl IdentityStore, checked: Credential, now: i64, scope: SessionScope) -> Result<Session, RuntimeError> {
-    let session = read_sessions::scoped_session(&checked.principal, "user", now, scope)?;
+    let session = read_sessions::existing_scoped_session(&checked.principal, "user", now, scope)?;
     store.login_identity(&checked.principal, &session, now, |current| {
         if current.as_deref() != Some(checked.hash.as_str()) { return Err(bad_login()); }
         Ok(())
@@ -697,6 +699,7 @@ pub fn validate_custom_session(principal: &str, kind: &str) -> Result<(), Runtim
 }
 
 fn open_session_for(store: &impl IdentityStore, principal: &str, kind: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
+    validate_new_identity(principal, kind)?;
     let session = new_session(principal, kind, now, days)?;
     store.insert_identity_session(&session, now)?;
     Ok(session)
@@ -749,7 +752,7 @@ pub fn bound_custom_session(
 ) -> Result<Session, RuntimeError> {
     validate_custom_session(principal, kind)?;
     validate_mint_binding(binding)?;
-    refuse_nul(worker, "the service credential is no longer live for this action claim")?;
+    validate_bound_worker(worker)?;
     // @ref LLP 3000.033#1.3 — scope is bound separately; preserve legacy input digests for recoverable full mints.
     let input = serde_json::json!({ "principal": principal, "kind": kind, "days": days });
     let input_digest = crate::store::payload_digest(&input);
@@ -787,7 +790,6 @@ pub fn bound_custom_session(
             if !binding.replace_lost_delivery {
                 return Err(RuntimeError::Input("this action intent already minted a session; delivery is ambiguous, so recover it explicitly".into()));
             }
-            validate_family(&previous.family)?;
             if previous.expires_at <= now || previous.principal_generation != target_generation {
                 return Err(session_mint_authority_error("the bound session authority expired or was revoked and cannot be recreated"));
             }
@@ -815,7 +817,6 @@ pub fn revoke_principal(store: &Store, principal: &str) -> Result<u64, RuntimeEr
 }
 
 fn revoke_principal_in(store: &impl IdentityStore, principal: &str) -> Result<u64, RuntimeError> {
-    refuse_nul(principal, "a principal is 1–128 printable characters")?;
     store.revoke_identity_principal(principal)
 }
 
