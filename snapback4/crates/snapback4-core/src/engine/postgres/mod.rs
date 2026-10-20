@@ -8,6 +8,7 @@ mod caps;
 mod contribution_upgrade;
 mod maintained_identity_upgrade;
 mod authority;
+mod identity;
 mod prefetch;
 mod tail;
 mod through;
@@ -139,6 +140,7 @@ impl PostgresEngine {
         }
         tx.batch("CREATE TABLE IF NOT EXISTS _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value BIGINT NOT NULL, PRIMARY KEY(parent, id));")?;
         tx.batch(store::READ_SESSIONS_DDL)?;
+        tx.batch(identity::DDL)?;
         tx.batch("DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;")?;
         caps::install(&tx, &schema)?;
         let generation = contribution_upgrade::install(&tx, &mut schema)?;

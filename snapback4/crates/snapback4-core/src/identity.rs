@@ -42,7 +42,6 @@ pub(crate) struct ReadRotationRecord {
 }
 
 /// Identity access within a caller-owned transaction.
-// P1: Postgres implements AuthorityTransaction today; this identity extension awaits family parity.
 pub(crate) trait IdentityTransaction {
     fn insert_identity_session(&self, session: &Session, now: i64) -> Result<(), RuntimeError>;
     fn insert_read_session(
@@ -68,7 +67,6 @@ pub(crate) trait IdentityTransaction {
 
 /// Composite operations own their transaction explicitly. Validation and token
 /// creation callbacks run at their original point within that transaction.
-// P1: these store operations have no Postgres implementation yet.
 pub(crate) trait IdentityStore {
     fn insert_identity_session(&self, session: &Session, now: i64) -> Result<(), RuntimeError>;
     fn insert_identity_session_atomic(

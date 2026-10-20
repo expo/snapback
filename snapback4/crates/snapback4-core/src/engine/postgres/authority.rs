@@ -104,7 +104,7 @@ impl AuthorityTransaction for Tx<'_> {
 impl Tx<'_> {
     // @ref LLP 3000.009#4.4 — every durable authority mutation joins the
     // shared commit order; read-only and optimistic serializable walks cannot mutate it.
-    fn require_serialized_head_fence(&self) -> Result<(), RuntimeError> {
+    pub(super) fn require_serialized_head_fence(&self) -> Result<(), RuntimeError> {
         if !self.serialized_head.get() {
             return Err(RuntimeError::Store(
                 "Postgres authority invalidation requires the serialized shared-head fence".into(),

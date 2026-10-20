@@ -97438,3 +97438,31 @@ Validation for this step: all 23 identity-filtered unit tests pass, including
 the seven shared SQLite cases. `ref-check --verbose` passes with zero errors
 and zero unchecked references. The complete SQLite core suite is running;
 its final result will be recorded with the lane's closing checks.
+
+## 2026-10-20 — P1-ID step 2: Postgres identity access
+
+The Postgres adapter implements `IdentityTransaction` on its existing `Tx` and
+`IdentityStore` on a borrowed `RefCell<&mut Store>` family view. This keeps the
+port's shared-reference contract while the driver keeps exclusive connection
+custody for transaction creation. Signup/login credential checks, full/read
+replacement, principal revocation and supervised-worker mint/clear/revoke use
+the existing serialized shared-head transaction. Transaction-level identity
+writes reuse authority's fence guard and refuse read-only/optimistic walks.
+Read-only credential and diagnostic expiry queries use ordinary snapshots.
+
+Attach adds principals, credentials, mint bindings (including scope) and worker
+metadata with `CREATE TABLE IF NOT EXISTS` after taking the existing head
+lock. Text lookup keys use `COLLATE "C"`; integer facts use `BIGINT`. Existing
+sessions, generations and read-session storage are reused. SQL preserves the
+SQLite statement order, NULL family fallback, principal insert-ignore and
+worker marker behavior. The versioned migration runner and P1b owner fence
+remain separate work; no new fence or production-host capability is claimed.
+
+Validation: `cargo check -p snapback4-core --features postgres` passes. Two
+Postgres smoke/fence tests are gated with the existing named isolated-database
+skip; their real-cluster result follows below. The shared-family parity suite
+is the next separately committed step.
+
+The two Postgres smoke/fence tests pass on the private PostgreSQL 16.15 cluster
+(2 passed, 0 skipped); that owned cluster was stopped by its exit trap. The
+first round trip includes an expiry beyond 32-bit integer range.
