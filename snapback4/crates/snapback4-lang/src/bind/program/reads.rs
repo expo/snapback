@@ -57,6 +57,9 @@ impl<'a> Binder<'a> {
         self.record_selection(&location, read, &index, if mode == ReadMode::Exists { "exists" } else if info.maintained.is_some() { "scalar" } else { "row or null" }, &selection);
         self.sources.insert(location.clone(), (read.site.clone(), print::read_expr(read)));
         let mut point = Read { site: location, table: read.table.clone(), index: index.name, key, provenance: KeyProvenance::Shape };
+        if mode == ReadMode::FilteredPoint && info.maintained.is_none() {
+            self.optional_lookup_note(read, &point);
+        }
         // @ref LLP 3000.028#3.4 — only a caller-proved existence read may use the whole owner partition.
         if mode == ReadMode::Exists && equalities.is_empty() {
             super::super::own_keys::existence(self.schema, &mut point);

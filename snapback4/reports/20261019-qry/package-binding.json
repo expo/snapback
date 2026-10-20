@@ -1,0 +1,16 @@
+{
+  "source": "2a3876cfdaf32bbcf3b01575592b7855ff03587a",
+  "version": "0.4.34",
+  "target_version": "0.4.35",
+  "note": "No version bump; consumer-only qualification cannot authorize publication. The wasm budget reason was recorded in JOURNAL.md and metrics/wasm-budget.json in f1546d5080 with its increase; no history rewrite is necessary.",
+  "tarballs": {
+    "snapback4-expo-0.4.34.tgz": {
+      "sha256": "eeb1a900105666165030350ca38a2218185eec72e3be9ac31dcde2257b75ee33",
+      "bytes": 22238
+    },
+    "snapback4-0.4.34.tgz": {
+      "sha256": "3cbcc4cf4a2d3fd62efaf6a8cf7a19151bb09a8571472f0cae9966bdb37967a3",
+      "bytes": 1304772
+    }
+  }
+}

@@ -13,6 +13,7 @@ use snapback4_core::value::Value;
 use std::collections::BTreeMap;
 
 mod control;
+mod read_diagnostics;
 mod job_reads;
 mod pure_calls;
 mod point_facts;
@@ -115,6 +116,7 @@ pub struct Binder<'a> {
     /// Only direct scanned-row columns get false-on-null ordering in where.
     in_predicate: bool,
     returned_data: bool,
+    optional_lookups: BTreeMap<String, String>,
     shape_field: Option<(String, Site)>,
     variants: Vec<(String, bool)>,
     temps: u32,
@@ -182,7 +184,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { viewer_depth: None, maintenance_scopes: BTreeMap::new(), pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), receipt_sources: Vec::new(), receipt_returns: Vec::new(), implicit_write_results: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, returned_data: false, shape_field: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, loop_transfers: Vec::new(), caller_loops: 0, in_prelude: false, total: None, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), may_have_written: false, errors: Vec::new(), pending_totals: Vec::new() };
+        let mut binder = Binder { viewer_depth: None, maintenance_scopes: BTreeMap::new(), pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), receipt_sources: Vec::new(), receipt_returns: Vec::new(), implicit_write_results: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, returned_data: false, optional_lookups: BTreeMap::new(), shape_field: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, loop_transfers: Vec::new(), caller_loops: 0, in_prelude: false, total: None, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), may_have_written: false, errors: Vec::new(), pending_totals: Vec::new() };
         binder.call_chain.push((super::operation_name(module, &decl.name), decl.site.clone()));
         binder.declare(pure_calls::CONSTANTS, Ty::Null);
         let mut args = BTreeMap::new();
@@ -292,6 +294,9 @@ impl<'a> Binder<'a> {
         // that observable path in the generated result type; a return nested
         // in one branch or in a possibly-empty loop does not cover it.
         if !control::exits(&body) {
+            if decl.kind == ProgramKind::Query {
+                binder.notes.push(read_diagnostics::fallthrough(decl));
+            }
             binder.returns.push((Ty::Null, A::Literal { value: Literal::Null, site: decl.site.clone() }));
         }
         let result = match binder.return_type() {
@@ -307,6 +312,15 @@ impl<'a> Binder<'a> {
         let ownership = body.ownership;
         let returned_shapes = returned_shapes::marks(&body.code, &full_name, &shape_candidates);
         let program = Program { name: full_name, kind, args, read_time_granularity_ms: None, body: body.code, native: false, returned_shapes };
+        if kind == ir::ProgramKind::Query
+            && let Some((work, allowance)) = snapback4_core::engine::rules::bounded_query_work(schema, &program)
+            && work >= allowance {
+            binder.notes.push(Diagnostic::new(&decl.site, "N_QUERY_RESERVATION",
+                format!("query {}: one executable path reserves {work} physical authorization reads, leaving no room in the {allowance}-read allowance; its bounded pages return an empty partial answer before opening", decl.name),
+                "reduce the declared population caps or split independent reads into separate queries; mutually exclusive returning branches already share a reservation; loops retain the sum of their static reads").guide("reads"));
+        }
+        let written = ir::write_tables(&program);
+        binder.notes.retain(|note| note.code != "N_LOOKUP_FILTERED" || binder.optional_lookups.get(&note.site.to_string()).is_none_or(|table| !written.iter().any(|(written, _)| written == table)));
         // @ref LLP 3000.036#17.8 — a total behind its grant's guard is the holder's whole total, as the server computes it.
         let mut refused = false;
         for (site, diagnostic) in std::mem::take(&mut binder.pending_totals) {

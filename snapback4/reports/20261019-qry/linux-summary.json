@@ -1,0 +1,53 @@
+{
+  "source": "2a3876cfdaf32bbcf3b01575592b7855ff03587a",
+  "mode": "consumer-only",
+  "version": "0.4.34",
+  "publicationQualified": false,
+  "distributions": [
+    {
+      "base": "ubuntu:24.04",
+      "status": "passed",
+      "route": "proot",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    },
+    {
+      "base": "alpine",
+      "status": "passed",
+      "route": "proot",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    }
+  ],
+  "clientIntegrity": "sha512-/oHqXJB5FeE3BPFBzOugxACAdADCms7eWALcMWvfP6aJf5MDW00O2HuKlqG7l6fRcQ3DIFhBBSlVRUR1dgTdnQ==",
+  "expoIntegrity": "sha512-y4nWpkBVNzHazo2kbwxrjE4PkC0OPYqAn7oKAfzl0eU1NUtm6r//HaWNQ87E9EhmxFXpqzLyQBz2SLmZoa+QLg==",
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.34",
+    "filename": "snapback4-linux-x64-0.4.34.tgz",
+    "integrity": "sha512-EZTHpq1K8Sb5EartU0rgwkAIQR1W0gd1Cc8gCS+LINEfa5u2wqyYb3Bf6I3Tk1tzMF7Xsy7FgY9jCv+Glb3Kkg==",
+    "bytes": 13321069
+  },
+  "tarballs": {
+    "snapback4-expo-0.4.34.tgz": {
+      "sha256": "eeb1a900105666165030350ca38a2218185eec72e3be9ac31dcde2257b75ee33",
+      "bytes": 22238
+    },
+    "snapback4-0.4.34.tgz": {
+      "sha256": "3cbcc4cf4a2d3fd62efaf6a8cf7a19151bb09a8571472f0cae9966bdb37967a3",
+      "bytes": 1304772
+    },
+    "snapback4-linux-x64-0.4.34.tgz": {
+      "sha256": "b13488f0299e0da5f3b8053b7abacb1e4c3c5a8926a5532378c048eba2991b1f",
+      "bytes": 13321069
+    }
+  }
+}

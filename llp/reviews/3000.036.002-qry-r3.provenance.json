@@ -1,0 +1,13 @@
+{
+  "date": "2026-10-19T10:40:21.801730+00:00",
+  "amendment_sha256": "4cf3c84ba9bd8f27492597c98306a440c78a7fd13265a234a067b2278bba348a",
+  "brief_sha256": "1c2b7e70a3423257429f56deb7400eea6575b5ce32b55a39ecd781e88e40fb38",
+  "independence": "Fresh separate Codex and Muse CLI sessions; mutually blind; read-only.",
+  "codex_command": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief",
+  "muse_command": "~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file brief",
+  "verdicts": {
+    "muse": "READY",
+    "codex": "NOT READY"
+  },
+  "disposition": "Normalize rule constants before injecting lexical keys; seal unpinned target-row fields against caller focal capture; add regression and quiet caller-key-name witness. Fresh round 4."
+}

@@ -20,7 +20,7 @@ query recentTotal(roomId: rooms, start: time, end: time):
 `one` returns a row/null; `must` refuses missing/hidden rows.
 `roster` reads the capped room; `member`/`admin` test membership.
 `newest` pages newest-first; `recentTotal` counts under the meter.
-Repeated `where` clauses combine with `and` in order.
+Repeated `where` combines using ordered `and`.
 
 ## Limits
 
@@ -32,7 +32,7 @@ Repeated `where` clauses combine with `and` in order.
 
 ## Details
 
-Unreadable query references act absent: null points or complete empty pages. Mutation references refuse; ids grant no authority.
+Optional query/mutation points return null for hidden/missing/expired rows; `! else CODE` refuses.
 
 Reads select authorized rows by id, predicate or search text.
 Add an order, page size and cursor to browse a population.
@@ -50,6 +50,8 @@ The rules run before any projection, count or order reaches the caller.
 Declare `c: cursor ?`, read `after c`, pass each answer's `next` as `c`; `usePage` does that.
 
 ### Completeness
+
+N_QUERY_RESERVATION: reduce caps/split reads.
 
 Pinned-parent guards are caller-dependent (`N_CONDITIONAL_COMPLETE`; `guide recipes`).
 `T[]` requests a complete fitting group: `return children[] where .parent = parent`.

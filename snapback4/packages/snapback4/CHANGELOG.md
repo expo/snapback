@@ -1,5 +1,9 @@
 # Snapback 4 behavior changes
 
+## 0.4.35
+
+- Read semantics: mutually exclusive query return paths share their maximum physical reservation, fixing silent empty partial results from capped branches. Sequential work and loop occurrences remain bounded. `check` names query fallthrough paths (N_QUERY_FALLTHROUGH), oversized physical reservations (N_QUERY_RESERVATION), and optional private side-table mutation lookups without proved read authority (N_LOOKUP_FILTERED). Optional points return null for hidden/missing/expired rows; asserted points keep their authored refusal. Existing stores and query result types are unchanged; re-run `check` to review the new notes.
+
 ## 0.4.34
 
 - Deploy reactivates matching retained source under its existing release id after rollback, validates privately and removes definitively refused candidates. Deploy and rollback share `--restore-dormant`; previews report current and future rollback hazards with bridge commands. Old-client reports compare operation inputs, results and refusals. Literal query/mutation defaults, validated ignored deprecated arguments and same-module aliases preserve existing callers; required inputs remain required in generated types.

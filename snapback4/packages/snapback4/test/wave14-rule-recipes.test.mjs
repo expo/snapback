@@ -58,7 +58,7 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     const end=performance.now()+15000;
     while(!predicate()) { assert.ok(performance.now()<end,label);await new Promise(r=>setTimeout(r,25)); }
   }
-  async function project(t, marker, sourceBlocks = recipes, {schedules = false} = {}) {
+  async function project(t, marker, sourceBlocks = recipes, {schedules = false, expectedNotes = []} = {}) {
     const source = sourceBlocks.find(s=>s.includes(marker)); assert.ok(source, marker);
     const cwd = join(dir, marker.replace(/\W/g,'_')); mkdirSync(join(cwd,'snapback'),{recursive:true});
     writeFileSync(join(cwd,'snapback/schema.q'), source);
@@ -70,7 +70,7 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
       assert.doesNotMatch(JSON.stringify(notes),/last 500/);
     } else if(source.includes('query canReadLadderGrant(')) {
       assert.equal(notes.length,1);assert.equal(notes[0].code,'N_UNREADABLE_PROBE');
-    } else assert.deepEqual(notes,[]);
+    } else assert.deepEqual(notes.map(note=>note.code), expectedNotes);
     const host = await startDev({cwd,env:{SNAPBACK4_BIN:'',PORT_LO:'47000',PORT_HI:'47999'},args:['--no-memory','--port','0','--no-watch',...(schedules ? [] : ['--hold-schedules'])],timeoutMs:30000});
     t.after(()=>host.stop());
     const post = async (path, who, body) => {
@@ -85,6 +85,70 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     const read = async (op,who,args={})=>{const reply=await query(op,who,args);assert.ok('data' in reply,JSON.stringify(reply));return reply.data;};
     return {cwd,host,post,seed,mutate,sent,failed,query,read};
   }
+  await t.test('query return paths and optional lookups preserve packed read semantics', async t=>{
+    const source = `use personas alice, bob, charlie
+table queryPathRoles:
+  principal: principal
+  role: enum('staff', 'captain', 'officer', 'lead')
+  unique principal
+  cap 100
+  read <- .principal = viewer or exists queryPathRoles[viewer, role = 'lead']
+  online only
+table queryPathRows:
+  owner: principal
+  at: time
+  cap 1000
+  read <- .owner = viewer or exists queryPathRoles[viewer, role = 'staff'] or exists queryPathRoles[viewer, role = 'captain'] or exists queryPathRoles[viewer, role = 'officer'] or exists queryPathRoles[viewer, role = 'lead']
+  online only
+table queryPathFunding:
+  owner: principal
+  limit: int
+  expires: time ?
+  unique owner
+  read <- .owner = viewer
+  expire at .expires
+  online only
+query branch(c: cursor ?):
+  if exists queryPathRoles[viewer, role = 'staff'] or exists queryPathRoles[viewer, role = 'captain'] or exists queryPathRoles[viewer, role = 'officer'] or exists queryPathRoles[viewer, role = 'lead']:
+    return queryPathRows last 50 by .at after c
+  return queryPathRows where .owner = viewer last 50 by .at after c
+query direct(c: cursor ?):
+  return queryPathRows last 50 by .at after c
+query optional(owner: principal):
+  return queryPathFunding[owner]
+query asserted(owner: principal):
+  row = queryPathFunding[owner] ! else NOT_FOUND
+  require row.limit > 1 else TOO_LOW
+  return row.limit
+query missing(flag: bool):
+  if flag:
+    return []
+query oversized(c: cursor ?):
+  a = queryPathRows last 50 by .at after c
+  return queryPathRows last 50 by .at after c
+`;
+    const p=await project(t,'table queryPathRoles:',[source], {expectedNotes:['N_QUERY_FALLTHROUGH','N_QUERY_RESERVATION']});
+    const consoleCheck=invoke(process.execPath,[cliPath,'check'],p.cwd,env);
+    assert.match(consoleCheck,/N_QUERY_FALLTHROUGH/);assert.match(consoleCheck,/is false.*end/);
+    await p.seed([
+      {table:'queryPathRoles',row:{id:'role',principal:'dev:alice',role:'staff'}},
+      {table:'queryPathRows',row:{id:'row',owner:'dev:bob',at:1}},
+      {table:'queryPathFunding',row:{id:'f',owner:'dev:alice',limit:3,expires:null}},
+      {table:'queryPathFunding',row:{id:'expired',owner:'dev:bob',limit:3,expires:1}},
+    ]);
+    for(const who of ['alice','bob','charlie']) {
+      const branch=await p.query('branch',who,{c:null}), direct=await p.query('direct',who,{c:null});
+      assert.deepEqual(branch.data,direct.data); assert.equal(branch.complete,true);
+      assert.equal(branch.data.length,who==='charlie'?0:1);
+    }
+    for(const owner of ['dev:alice','absent','dev:bob']) {
+      assert.equal(await p.read('optional','bob',{owner}),null);
+      const result=await p.query('asserted','bob',{owner});assert.equal(result.denied?.code,'NOT_FOUND');
+    }
+    assert.equal(await p.read('asserted','alice',{owner:'dev:alice'}),3);
+    const oversized=await p.query('oversized','alice',{c:null});assert.deepEqual(oversized.data,[]);assert.equal(oversized.complete,false);
+    assert.equal(await p.read('missing','alice',{flag:false}),null);
+  });
   await t.test('the compact opening recipe grants only its owner', async t=>{
     const p=await project(t,'table ownRuleRecords:');
     await p.sent('ownRuleRecord','alice');

@@ -30,6 +30,7 @@ pub mod local;
 #[cfg(feature = "wasm-host")]
 pub mod native;
 mod pages;
+mod bounded_plans;
 pub mod prediction;
 #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
 mod read_only;

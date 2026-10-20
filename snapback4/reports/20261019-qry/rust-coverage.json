@@ -1,0 +1,3553 @@
+{
+  "description": "Complete Cargo default unit/integration target census. Bounded workspace/language commands resumed with the remaining target inventory; original timeouts are not reported as successful commands. Diagnostic-only final refinements covered by full language rerun; final max implementation also covered by focused core/device tests.",
+  "logs": {
+    "cargo-final": {
+      "sha256": "655da5adc852cc3ffb3b33ed679801b9c3277c769e2a9f04864e2d2f0431f21c",
+      "path": "logs/cargo-final.log.gz"
+    },
+    "lang-final": {
+      "sha256": "01e1e31cec0ab9f69fe585237d136feddeb3138e0606ca12866f6b1581536a9e",
+      "path": "logs/lang-final.log.gz"
+    },
+    "lang-resume-0": {
+      "sha256": "9b735f7dbc4634a378bfd2aa8730af204131bb681c7798af598d39c00d25b6c8",
+      "path": "logs/lang-resume-0.log.gz"
+    },
+    "lang-resume-1": {
+      "sha256": "1aa2329ca237dbdba02e50b86f25f75a08648afe75c46b359342f84cb35e7b0e",
+      "path": "logs/lang-resume-1.log.gz"
+    },
+    "lang-resume-2": {
+      "sha256": "60422571e35c61f9c969c4bbcacc44fc60f8a383e04f84a43016f3c183dfaee4",
+      "path": "logs/lang-resume-2.log.gz"
+    },
+    "sim-difftest-final": {
+      "sha256": "0f2677f3c9365c9e614ee6f4a7a150df3ab25cf78b61426c44ae63bacc0e8c35",
+      "path": "logs/sim-difftest-final.log.gz"
+    },
+    "native-final": {
+      "sha256": "1cd9d57f35713c5e412d5d05656eef294c808da0ba67b0e0fc7f5e5ba92d5297",
+      "path": "logs/native-final.log.gz"
+    }
+  },
+  "summary": {
+    "snapback4": {
+      "expected": 54,
+      "completed": 54,
+      "missing": [],
+      "tests_passed": 860,
+      "tests_failed": 0,
+      "tests_ignored": 10
+    },
+    "snapback4-core": {
+      "expected": 43,
+      "completed": 43,
+      "missing": [],
+      "tests_passed": 381,
+      "tests_failed": 0,
+      "tests_ignored": 2
+    },
+    "snapback4-lang": {
+      "expected": 171,
+      "completed": 171,
+      "missing": [],
+      "tests_passed": 2304,
+      "tests_failed": 0,
+      "tests_ignored": 14
+    },
+    "snapback4-device": {
+      "expected": 102,
+      "completed": 102,
+      "missing": [],
+      "tests_passed": 1570,
+      "tests_failed": 0,
+      "tests_ignored": 4
+    },
+    "snapback4-difftest": {
+      "expected": 11,
+      "completed": 11,
+      "missing": [],
+      "tests_passed": 96,
+      "tests_failed": 0,
+      "tests_ignored": 0
+    },
+    "snapback4-native": {
+      "expected": 1,
+      "completed": 1,
+      "missing": [],
+      "tests_passed": 0,
+      "tests_failed": 0,
+      "tests_ignored": 0
+    },
+    "snapback4-sim": {
+      "expected": 44,
+      "completed": 44,
+      "missing": [],
+      "tests_passed": 749,
+      "tests_failed": 0,
+      "tests_ignored": 7
+    }
+  },
+  "targets": {
+    "snapback4": {
+      "crates/snapback4/src/main.rs": {
+        "log": "cargo-final",
+        "binary": "snapback4-c2f24ad67bb7c161",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/aggregate_identity_upgrade.rs": {
+        "log": "cargo-final",
+        "binary": "aggregate_identity_upgrade-f5ac7bee61c5d544",
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 4
+      },
+      "crates/snapback4/tests/check.rs": {
+        "log": "cargo-final",
+        "binary": "check-a09b05c1e3d5e86f",
+        "status": "ok",
+        "passed": 105,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/check_cost_source.rs": {
+        "log": "cargo-final",
+        "binary": "check_cost_source-a383a5b78df8557b",
+        "status": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/check_notes.rs": {
+        "log": "cargo-final",
+        "binary": "check_notes-36c4f320353d2dc8",
+        "status": "ok",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/cli_friction.rs": {
+        "log": "cargo-final",
+        "binary": "cli_friction-83778b5b20748517",
+        "status": "ok",
+        "passed": 40,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/clock.rs": {
+        "log": "cargo-final",
+        "binary": "clock-a01b8561f76508c8",
+        "status": "ok",
+        "passed": 45,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/column_commit.rs": {
+        "log": "cargo-final",
+        "binary": "column_commit-fd8be9060cfde8e1",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/day3.rs": {
+        "log": "cargo-final",
+        "binary": "day3-34c30112be208858",
+        "status": "ok",
+        "passed": 20,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/day4.rs": {
+        "log": "cargo-final",
+        "binary": "day4-92d9102bbe96bbea",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/day5_evidence.rs": {
+        "log": "cargo-final",
+        "binary": "day5_evidence-8866b6efe733e64f",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/day5_previews.rs": {
+        "log": "cargo-final",
+        "binary": "day5_previews-b21b96fdfbd88dc4",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/day5_starters.rs": {
+        "log": "cargo-final",
+        "binary": "day5_starters-fb43afa64c9c6ed2",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/delivery_page.rs": {
+        "log": "cargo-final",
+        "binary": "delivery_page-4de4e8cd6af4021d",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/dev_refusals.rs": {
+        "log": "cargo-final",
+        "binary": "dev_refusals-0381affd2833c98d",
+        "status": "ok",
+        "passed": 27,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/dev_reset.rs": {
+        "log": "cargo-final",
+        "binary": "dev_reset-cd37bfc546b98294",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/expiry_writes.rs": {
+        "log": "cargo-final",
+        "binary": "expiry_writes-130eefabf40b6c0d",
+        "status": "ok",
+        "passed": 41,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/familiar.rs": {
+        "log": "cargo-final",
+        "binary": "familiar-21442af7f25c1580",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/feed_bridge.rs": {
+        "log": "cargo-final",
+        "binary": "feed_bridge-57650c96b4ce2d1a",
+        "status": "ok",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/fix.rs": {
+        "log": "cargo-final",
+        "binary": "fix-1ca0dbd9f3565f7e",
+        "status": "ok",
+        "passed": 27,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/following_view.rs": {
+        "log": "cargo-final",
+        "binary": "following_view-0759be3e055306b7",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/http.rs": {
+        "log": "cargo-final",
+        "binary": "http-29d2a9e11ea32134",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/http_emfile.rs": {
+        "log": "cargo-final",
+        "binary": "http_emfile-f6f44e908a856fc3",
+        "status": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/init.rs": {
+        "log": "cargo-final",
+        "binary": "init-2f08eef3f2b9f604",
+        "status": "ok",
+        "passed": 51,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/init_dx3.rs": {
+        "log": "cargo-final",
+        "binary": "init_dx3-d8486ec247c81d81",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/init_production.rs": {
+        "log": "cargo-final",
+        "binary": "init_production-83f3e935ee4f6892",
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/intent_issue_tracker.rs": {
+        "log": "cargo-final",
+        "binary": "intent_issue_tracker-0b400db9d57a1df9",
+        "status": "ok",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/latency.rs": {
+        "log": "cargo-final",
+        "binary": "latency-01b09702cf5ec856",
+        "status": "ok",
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/lifecycle.rs": {
+        "log": "cargo-final",
+        "binary": "lifecycle-bce9cdacba6fa1c8",
+        "status": "ok",
+        "passed": 29,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/maintenance_chunks.rs": {
+        "log": "cargo-final",
+        "binary": "maintenance_chunks-1c84647becd22cf9",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/maintenance_latency.rs": {
+        "log": "cargo-final",
+        "binary": "maintenance_latency-3fc362e69702a32a",
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 4
+      },
+      "crates/snapback4/tests/overload.rs": {
+        "log": "cargo-final",
+        "binary": "overload-466b3c97fe8e9351",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/read_latency.rs": {
+        "log": "cargo-final",
+        "binary": "read_latency-df317c6120228922",
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 2
+      },
+      "crates/snapback4/tests/replay.rs": {
+        "log": "cargo-final",
+        "binary": "replay-2ed2fb6fc29f4469",
+        "status": "ok",
+        "passed": 24,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/run_admission.rs": {
+        "log": "cargo-final",
+        "binary": "run_admission-0f2b5f008749573b",
+        "status": "ok",
+        "passed": 28,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/scale.rs": {
+        "log": "cargo-final",
+        "binary": "scale-c0039e75aaeb4e99",
+        "status": "ok",
+        "passed": 29,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/scale_curves.rs": {
+        "log": "cargo-final",
+        "binary": "scale_curves-4e40aedffc9c0501",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/scale_extremum_expressions.rs": {
+        "log": "cargo-final",
+        "binary": "scale_extremum_expressions-7d7c9d6ceb93fc60",
+        "status": "ok",
+        "passed": 22,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/scale_intent.rs": {
+        "log": "cargo-final",
+        "binary": "scale_intent-8e718fe9adad028f",
+        "status": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/scale_row_ranges.rs": {
+        "log": "cargo-final",
+        "binary": "scale_row_ranges-2eaf9fcc4b11d82c",
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/scale_variants.rs": {
+        "log": "cargo-final",
+        "binary": "scale_variants-362c7a0f4a10e5c3",
+        "status": "ok",
+        "passed": 36,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/scale_windows_expiry.rs": {
+        "log": "cargo-final",
+        "binary": "scale_windows_expiry-a9b0574800cc4abf",
+        "status": "ok",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/surf4.rs": {
+        "log": "cargo-final",
+        "binary": "surf4-2e51dcad0fd84d55",
+        "status": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/timeline.rs": {
+        "log": "cargo-final",
+        "binary": "timeline-3c3cbf570ea4e9e3",
+        "status": "ok",
+        "passed": 23,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/timeline_adoption.rs": {
+        "log": "cargo-final",
+        "binary": "timeline_adoption-90537bb52ecba1a5",
+        "status": "ok",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/timeline_delivery.rs": {
+        "log": "cargo-final",
+        "binary": "timeline_delivery-dc456e6d3ebbf14e",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/timeline_delivery_counterexample.rs": {
+        "log": "cargo-final",
+        "binary": "timeline_delivery_counterexample-022e6b777e314dc2",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/timeline_design.rs": {
+        "log": "cargo-final",
+        "binary": "timeline_design-3fae0b7b7da861ae",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/token_live.rs": {
+        "log": "cargo-final",
+        "binary": "token_live-193de373362f14d1",
+        "status": "ok",
+        "passed": 22,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/wave13_rules.rs": {
+        "log": "cargo-final",
+        "binary": "wave13_rules-50de42c2f5e996fc",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/witness.rs": {
+        "log": "cargo-final",
+        "binary": "witness-6c50830996e04601",
+        "status": "ok",
+        "passed": 34,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/witness_web.rs": {
+        "log": "cargo-final",
+        "binary": "witness_web-02386b39594f7090",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/work_records.rs": {
+        "log": "cargo-final",
+        "binary": "work_records-3c1e67a84dc8ce44",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4/tests/written_by.rs": {
+        "log": "cargo-final",
+        "binary": "written_by-83af6907b89e41b7",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "snapback4-core": {
+      "crates/snapback4-core/src/lib.rs": {
+        "log": "cargo-final",
+        "binary": "snapback4_core-48212f2264c7493d",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/action_context.rs": {
+        "log": "cargo-final",
+        "binary": "action_context-f81ef9028bc5c085",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/adoption_scale.rs": {
+        "log": "cargo-final",
+        "binary": "adoption_scale-647b380d168bb035",
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 1
+      },
+      "crates/snapback4-core/tests/asset_lists.rs": {
+        "log": "cargo-final",
+        "binary": "asset_lists-938216b4bb650a6f",
+        "status": "ok",
+        "passed": 28,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/born_perf.rs": {
+        "log": "cargo-final",
+        "binary": "born_perf-2378c6f168613936",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/bound_session.rs": {
+        "log": "cargo-final",
+        "binary": "bound_session-5ffa66ef3d77568a",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/corpus.rs": {
+        "log": "cargo-final",
+        "binary": "corpus-02f9af6ca4c836a3",
+        "status": "ok",
+        "passed": 19,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/delivery_bounds.rs": {
+        "log": "cargo-final",
+        "binary": "delivery_bounds-a27be6874319bdc5",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/dev_reset.rs": {
+        "log": "cargo-final",
+        "binary": "dev_reset-9060322f085ecf4a",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/disclosure.rs": {
+        "log": "cargo-final",
+        "binary": "disclosure-c827af2f4afb7727",
+        "status": "ok",
+        "passed": 32,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/effect_policy.rs": {
+        "log": "cargo-final",
+        "binary": "effect_policy-a32c694d34afe67d",
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/ephemeral.rs": {
+        "log": "cargo-final",
+        "binary": "ephemeral-fdff96441559a606",
+        "status": "ok",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/event_slot_snapshot.rs": {
+        "log": "cargo-final",
+        "binary": "event_slot_snapshot-c9904a5e047393cb",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/expiring_adoption.rs": {
+        "log": "cargo-final",
+        "binary": "expiring_adoption-194a98a4ce57542d",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/file_assets.rs": {
+        "log": "cargo-final",
+        "binary": "file_assets-fce80759f074e892",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/identity.rs": {
+        "log": "cargo-final",
+        "binary": "identity-96f7c44499175133",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/job_time_audiences.rs": {
+        "log": "cargo-final",
+        "binary": "job_time_audiences-292b1c98076b3497",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/lane_source.rs": {
+        "log": "cargo-final",
+        "binary": "lane_source-446990364cb6b89f",
+        "status": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/maintained_columns_review.rs": {
+        "log": "cargo-final",
+        "binary": "maintained_columns_review-7a5dbb4e24413c2c",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/membership_discovery_steps.rs": {
+        "log": "cargo-final",
+        "binary": "membership_discovery_steps-b3fc2884852811c1",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/meter.rs": {
+        "log": "cargo-final",
+        "binary": "meter-d44cd86fd9a39d80",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/pending_metadata_heap.rs": {
+        "log": "cargo-final",
+        "binary": "pending_metadata_heap-6310fee028f79534",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/read_sessions.rs": {
+        "log": "cargo-final",
+        "binary": "read_sessions-1112f98f6afbaab8",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/refused_open.rs": {
+        "log": "cargo-final",
+        "binary": "refused_open-f0d6218673ea5fef",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/review_walk.rs": {
+        "log": "cargo-final",
+        "binary": "review_walk-0bf266d85e388a14",
+        "status": "ok",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/revocation_history.rs": {
+        "log": "cargo-final",
+        "binary": "revocation_history-65ab10e7ecda1874",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 1
+      },
+      "crates/snapback4-core/tests/routes.rs": {
+        "log": "cargo-final",
+        "binary": "routes-550b586469b7b27e",
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/row_view_accounting.rs": {
+        "log": "cargo-final",
+        "binary": "row_view_accounting-53c9edfa2e54d2c4",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/row_view_disclosure.rs": {
+        "log": "cargo-final",
+        "binary": "row_view_disclosure-a4d67f081461fdd9",
+        "status": "ok",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/row_view_legacy.rs": {
+        "log": "cargo-final",
+        "binary": "row_view_legacy-dd495afba87fbf48",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/row_view_witness.rs": {
+        "log": "cargo-final",
+        "binary": "row_view_witness-c20e915336849fb8",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/rows.rs": {
+        "log": "cargo-final",
+        "binary": "rows-9c9f2a47333f2f4a",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/schema_capabilities.rs": {
+        "log": "cargo-final",
+        "binary": "schema_capabilities-80611fdb9ac13cf2",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/schema_capabilities_legacy.rs": {
+        "log": "cargo-final",
+        "binary": "schema_capabilities_legacy-91d32beac953292a",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/sequence_by.rs": {
+        "log": "cargo-final",
+        "binary": "sequence_by-bf48027ca081c9cc",
+        "status": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/sequence_disclosure.rs": {
+        "log": "cargo-final",
+        "binary": "sequence_disclosure-2064dc5b0c07f205",
+        "status": "ok",
+        "passed": 29,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/stream_receipts.rs": {
+        "log": "cargo-final",
+        "binary": "stream_receipts-b3f9da592f6045d5",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/sync_count_batch.rs": {
+        "log": "cargo-final",
+        "binary": "sync_count_batch-12bd291bb0c19fb2",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/time_audiences.rs": {
+        "log": "cargo-final",
+        "binary": "time_audiences-4f4a21466333e6d0",
+        "status": "ok",
+        "passed": 22,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/unicode_fold.rs": {
+        "log": "cargo-final",
+        "binary": "unicode_fold-fd6660acf111f000",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/update_rule_images.rs": {
+        "log": "cargo-final",
+        "binary": "update_rule_images-93bfbff1964b3cd7",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/upload_intents.rs": {
+        "log": "cargo-final",
+        "binary": "upload_intents-aa843e34c29b5163",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-core/tests/work_records.rs": {
+        "log": "cargo-final",
+        "binary": "work_records-1ad651fbbd6398a7",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "snapback4-lang": {
+      "crates/snapback4-lang/src/lib.rs": {
+        "log": "lang-final",
+        "binary": "snapback4_lang-d15b4e2a058bccd1",
+        "status": "ok",
+        "passed": 35,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/actions.rs": {
+        "log": "lang-final",
+        "binary": "actions-415a34e7b7589c48",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/aggregate_copies.rs": {
+        "log": "lang-final",
+        "binary": "aggregate_copies-a85df96efd0ac0cf",
+        "status": "ok",
+        "passed": 64,
+        "failed": 0,
+        "ignored": 4
+      },
+      "crates/snapback4-lang/tests/attribution_guide.rs": {
+        "log": "lang-final",
+        "binary": "attribution_guide-50a6cc140b231771",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/audience_bounds.rs": {
+        "log": "lang-final",
+        "binary": "audience_bounds-e1fff09e81a0bc7d",
+        "status": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/audience_bounds_runtime.rs": {
+        "log": "lang-final",
+        "binary": "audience_bounds_runtime-c21a3593872b5249",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 1
+      },
+      "crates/snapback4-lang/tests/bounded_calendar_caps.rs": {
+        "log": "lang-final",
+        "binary": "bounded_calendar_caps-07be1f5e283c2ee1",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/bounded_following.rs": {
+        "log": "lang-final",
+        "binary": "bounded_following-a60a909ca6b04c44",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/branch_merge.rs": {
+        "log": "lang-final",
+        "binary": "branch_merge-ada397162be05fce",
+        "status": "ok",
+        "passed": 57,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/builder_guidance.rs": {
+        "log": "lang-final",
+        "binary": "builder_guidance-a6191b47a00cb95e",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/chat.rs": {
+        "log": "lang-final",
+        "binary": "chat-5cbf13cebcd60871",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/clique_03.rs": {
+        "log": "lang-final",
+        "binary": "clique_03-552a1cb079452fd3",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/components.rs": {
+        "log": "lang-final",
+        "binary": "components-945c5675bf708f86",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/constraint_diagnostics.rs": {
+        "log": "lang-final",
+        "binary": "constraint_diagnostics-ca5e3024af4ad8dd",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/control_flow.rs": {
+        "log": "lang-final",
+        "binary": "control_flow-b4a484888f47f209",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/cursor_advice.rs": {
+        "log": "lang-final",
+        "binary": "cursor_advice-102954d5d7841036",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/declarative_receipts.rs": {
+        "log": "lang-final",
+        "binary": "declarative_receipts-47300cc793989bd5",
+        "status": "ok",
+        "passed": 211,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/delivery.rs": {
+        "log": "lang-final",
+        "binary": "delivery-98979287fc2e0a43",
+        "status": "ok",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/delivery_clause.rs": {
+        "log": "lang-final",
+        "binary": "delivery_clause-708e869aa8cd9eef",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/delivery_integration.rs": {
+        "log": "lang-final",
+        "binary": "delivery_integration-605631a0fa5a839a",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/delivery_replay_conversion.rs": {
+        "log": "lang-final",
+        "binary": "delivery_replay_conversion-a47cf1d8f2e3a562",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 1
+      },
+      "crates/snapback4-lang/tests/denied_writes.rs": {
+        "log": "lang-final",
+        "binary": "denied_writes-3341100fba15d987",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/derived_maintains.rs": {
+        "log": "lang-final",
+        "binary": "derived_maintains-f178649bda96b61d",
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/effect_reads.rs": {
+        "log": "lang-final",
+        "binary": "effect_reads-bb2232fb7f8e25a2",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/emit_compatibility.rs": {
+        "log": "lang-final",
+        "binary": "emit_compatibility-136e26cd47316a9b",
+        "status": "ok",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/ephemeral.rs": {
+        "log": "lang-final",
+        "binary": "ephemeral-e75a50d6bf02089f",
+        "status": "ok",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/ephemeral_compat.rs": {
+        "log": "lang-final",
+        "binary": "ephemeral_compat-1ff6dd6eb98ec424",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/ergonomics.rs": {
+        "log": "lang-final",
+        "binary": "ergonomics-e7a323a39fef2f7e",
+        "status": "ok",
+        "passed": 25,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/expiring_mutations.rs": {
+        "log": "lang-final",
+        "binary": "expiring_mutations-0454209fbfc5ed57",
+        "status": "ok",
+        "passed": 19,
+        "failed": 0,
+        "ignored": 1
+      },
+      "crates/snapback4-lang/tests/extrema.rs": {
+        "log": "lang-final",
+        "binary": "extrema-bea7d69534081436",
+        "status": "ok",
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/extremum_expressions.rs": {
+        "log": "lang-final",
+        "binary": "extremum_expressions-9db131b509d899c5",
+        "status": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/familiar_guesses.rs": {
+        "log": "lang-final",
+        "binary": "familiar_guesses-346dbc35804e4297",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/familiar_predicates.rs": {
+        "log": "lang-final",
+        "binary": "familiar_predicates-3f13eed71cee66c8",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/familiar_repairs.rs": {
+        "log": "lang-final",
+        "binary": "familiar_repairs-5d49895acee1ae17",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/familiar_source_repairs.rs": {
+        "log": "lang-final",
+        "binary": "familiar_source_repairs-338fedaaf219615b",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/familiar_verified_repairs.rs": {
+        "log": "lang-final",
+        "binary": "familiar_verified_repairs-1c9011acf3611236",
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/feed_forms.rs": {
+        "log": "lang-final",
+        "binary": "feed_forms-0022575d33d49771",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/file_assets.rs": {
+        "log": "lang-final",
+        "binary": "file_assets-a2623ddec390ca44",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/first_paste.rs": {
+        "log": "lang-final",
+        "binary": "first_paste-fb6513226a86e7e9",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/following_adoption_research.rs": {
+        "log": "lang-final",
+        "binary": "following_adoption_research-848c9b2b2acbecc7",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 2
+      },
+      "crates/snapback4-lang/tests/following_atomic_launch.rs": {
+        "log": "lang-final",
+        "binary": "following_atomic_launch-37d364ec48ee8c3c",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 2
+      },
+      "crates/snapback4-lang/tests/following_history.rs": {
+        "log": "lang-final",
+        "binary": "following_history-5db6ef2aba2d76f0",
+        "status": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/following_history_research.rs": {
+        "log": "lang-final",
+        "binary": "following_history_research-ed5e0a08f7b52e7c",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 2
+      },
+      "crates/snapback4-lang/tests/following_view.rs": {
+        "log": "lang-final",
+        "binary": "following_view-62282b157d1aa7b2",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/front_semantics.rs": {
+        "log": "lang-final",
+        "binary": "front_semantics-32468ba8b0b9114a",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/frontend_regressions.rs": {
+        "log": "lang-final",
+        "binary": "frontend_regressions-faa25618352e39d9",
+        "status": "ok",
+        "passed": 40,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/guide.rs": {
+        "log": "lang-final",
+        "binary": "guide-eee34b0d9c9aebae",
+        "status": "ok",
+        "passed": 126,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/held_unknown.rs": {
+        "log": "lang-final",
+        "binary": "held_unknown-4f9d9575a90a7a55",
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/helper_placement.rs": {
+        "log": "lang-final",
+        "binary": "helper_placement-5ef19fe601c24b1f",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/intent_aggregate_safety.rs": {
+        "log": "lang-final",
+        "binary": "intent_aggregate_safety-819af1ff289984a5",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/intent_delta10.rs": {
+        "log": "lang-final",
+        "binary": "intent_delta10-d2cd0d618c8577f4",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/intent_followup.rs": {
+        "log": "lang-final",
+        "binary": "intent_followup-c27133acab4665a4",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/intent_nulls.rs": {
+        "log": "lang-final",
+        "binary": "intent_nulls-4c321b57f897b181",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/intent_order.rs": {
+        "log": "lang-final",
+        "binary": "intent_order-2daede87dd57383a",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/intent_predicates.rs": {
+        "log": "lang-final",
+        "binary": "intent_predicates-3bd404087ee451b0",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/intent_review.rs": {
+        "log": "lang-final",
+        "binary": "intent_review-976bedad8f4f2f09",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/intent_target.rs": {
+        "log": "lang-final",
+        "binary": "intent_target-5008f1fa9a778ddd",
+        "status": "ok",
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/intent_variants.rs": {
+        "log": "lang-final",
+        "binary": "intent_variants-9e2bafd238eaf7eb",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/intent_variants_review.rs": {
+        "log": "lang-final",
+        "binary": "intent_variants_review-4a4976455b24463a",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/job_viewer.rs": {
+        "log": "lang-final",
+        "binary": "job_viewer-5d417acada86e861",
+        "status": "ok",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/joined_shapes.rs": {
+        "log": "lang-final",
+        "binary": "joined_shapes-2070e6e024eabf94",
+        "status": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/lane_domains.rs": {
+        "log": "lang-final",
+        "binary": "lane_domains-8a48caa3678876f9",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/lean_emit.rs": {
+        "log": "lang-final",
+        "binary": "lean_emit-8261e0f4dea388ac",
+        "status": "ok",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/list_expressions.rs": {
+        "log": "lang-final",
+        "binary": "list_expressions-7e636ae058fc97c3",
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/list_lower_bounds.rs": {
+        "log": "lang-final",
+        "binary": "list_lower_bounds-e0d418e382810096",
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/list_reference_repair.rs": {
+        "log": "lang-final",
+        "binary": "list_reference_repair-945f13a3f26f4358",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/list_widening.rs": {
+        "log": "lang-final",
+        "binary": "list_widening-ecfde9ab9c46ecc1",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/live_parent.rs": {
+        "log": "lang-final",
+        "binary": "live_parent-004f91050aa1fd4b",
+        "status": "ok",
+        "passed": 48,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/live_parent_admission.rs": {
+        "log": "lang-final",
+        "binary": "live_parent_admission-f0e6829a559296b8",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/lookup_selection.rs": {
+        "log": "lang-final",
+        "binary": "lookup_selection-032a664c02f4b8f8",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/lowering.rs": {
+        "log": "lang-final",
+        "binary": "lowering-25cf03487a584b6a",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/maintained_columns.rs": {
+        "log": "lang-final",
+        "binary": "maintained_columns-21c0432678302ef6",
+        "status": "ok",
+        "passed": 42,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/maintained_result_types.rs": {
+        "log": "lang-final",
+        "binary": "maintained_result_types-653dd1873f74da08",
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/maintains.rs": {
+        "log": "lang-final",
+        "binary": "maintains-b3b43404b7b16082",
+        "status": "ok",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/matching_order.rs": {
+        "log": "lang-final",
+        "binary": "matching_order-2d87f83121a7afaa",
+        "status": "ok",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/membership_nullable_authorization.rs": {
+        "log": "lang-final",
+        "binary": "membership_nullable_authorization-ffc6341c2f0b10eb",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/membership_paths.rs": {
+        "log": "lang-final",
+        "binary": "membership_paths-40d00df4ceba92f2",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/mixed_keys.rs": {
+        "log": "lang-final",
+        "binary": "mixed_keys-6ba9baf99186f808",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/mp_reproduction.rs": {
+        "log": "lang-final",
+        "binary": "mp_reproduction-098c3cef23190534",
+        "status": "ok",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/mutation_result_types.rs": {
+        "log": "lang-final",
+        "binary": "mutation_result_types-f4914db8a4cbcb0f",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/natural_forms.rs": {
+        "log": "lang-final",
+        "binary": "natural_forms-32aba7f20f052219",
+        "status": "ok",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/operation_evolution.rs": {
+        "log": "lang-final",
+        "binary": "operation_evolution-d9180115a768b7d1",
+        "status": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/optional_lookup_notes.rs": {
+        "log": "lang-final",
+        "binary": "optional_lookup_notes-ae24fbd681ba5d7e",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/own_keys.rs": {
+        "log": "lang-final",
+        "binary": "own_keys-dacc5547d97e1a61",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/page2_membership.rs": {
+        "log": "lang-final",
+        "binary": "page2_membership-9f3f2439c48a3e91",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/page3.rs": {
+        "log": "lang-final",
+        "binary": "page3-122dc390b6aa5500",
+        "status": "ok",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/page4.rs": {
+        "log": "lang-final",
+        "binary": "page4-244370069e27314c",
+        "status": "ok",
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/papercuts.rs": {
+        "log": "lang-final",
+        "binary": "papercuts-231c493eb2d0fccc",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/prefix_reads.rs": {
+        "log": "lang-final",
+        "binary": "prefix_reads-18cef15f9e8a41cc",
+        "status": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/presence.rs": {
+        "log": "lang-final",
+        "binary": "presence-3617c31cb9b93786",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/printed_rewrites.rs": {
+        "log": "lang-final",
+        "binary": "printed_rewrites-6d313ccf54bda089",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/pure_call_narrowing.rs": {
+        "log": "lang-final",
+        "binary": "pure_call_narrowing-5219716ddcf082a8",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/qe2_ergonomics.rs": {
+        "log": "lang-final",
+        "binary": "qe2_ergonomics-fadf8b177a5ae34d",
+        "status": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/query_read_paths.rs": {
+        "log": "lang-final",
+        "binary": "query_read_paths-a031a4a1c9e52490",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/query_settlement.rs": {
+        "log": "lang-final",
+        "binary": "query_settlement-a4d1587d29a767d2",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/read_through.rs": {
+        "log": "lang-final",
+        "binary": "read_through-eaacf4d6d14dd8e7",
+        "status": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/read_through_provenance.rs": {
+        "log": "lang-final",
+        "binary": "read_through_provenance-2625a9145bbbffc3",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/read_through_review.rs": {
+        "log": "lang-final",
+        "binary": "read_through_review-3e592be8546922f9",
+        "status": "ok",
+        "passed": 35,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/read_through_sync.rs": {
+        "log": "lang-final",
+        "binary": "read_through_sync-5b9eb3ff97188546",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/read_through_transactions.rs": {
+        "log": "lang-final",
+        "binary": "read_through_transactions-53edc96c7b83fc46",
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/receipt_gaps.rs": {
+        "log": "lang-final",
+        "binary": "receipt_gaps-6ca6ce1562c03518",
+        "status": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/recorded_round1.rs": {
+        "log": "lang-final",
+        "binary": "recorded_round1-80bf3e2962abf4df",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/reference_actions.rs": {
+        "log": "lang-final",
+        "binary": "reference_actions-0e5bb2e897d3aef1",
+        "status": "ok",
+        "passed": 32,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/repairs.rs": {
+        "log": "lang-final",
+        "binary": "repairs-7560b8a4adfb28dc",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/reservation_app_headroom.rs": {
+        "log": "lang-final",
+        "binary": "reservation_app_headroom-60f4ab75fe23a09b",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/residency_notes.rs": {
+        "log": "lang-final",
+        "binary": "residency_notes-b55ef422f2fdaae4",
+        "status": "ok",
+        "passed": 44,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/revocation_soundness.rs": {
+        "log": "lang-final",
+        "binary": "revocation_soundness-a19b0eb14ac180d3",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/routes.rs": {
+        "log": "lang-final",
+        "binary": "routes-c24cfda83f226fe8",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/row_keyed_views.rs": {
+        "log": "lang-final",
+        "binary": "row_keyed_views-1d7988f2dec0761a",
+        "status": "ok",
+        "passed": 46,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/rx_legacy_identity.rs": {
+        "log": "lang-final",
+        "binary": "rx_legacy_identity-0a75405ae1da56c2",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/rx_rule_enforcement.rs": {
+        "log": "lang-final",
+        "binary": "rx_rule_enforcement-e7aa1f541ae4e5c6",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/rx_rule_hops.rs": {
+        "log": "lang-final",
+        "binary": "rx_rule_hops-d030ad5dd90a8a0f",
+        "status": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/schedule_durations.rs": {
+        "log": "lang-final",
+        "binary": "schedule_durations-bdec2dba1e18804f",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/search_guidance.rs": {
+        "log": "lang-final",
+        "binary": "search_guidance-431067d875fa87ea",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/security.rs": {
+        "log": "lang-final",
+        "binary": "security-4c61381d04f5f343",
+        "status": "ok",
+        "passed": 46,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/security_custody.rs": {
+        "log": "lang-final",
+        "binary": "security_custody-28c7d8abf19322dc",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/security_histories.rs": {
+        "log": "lang-resume-0",
+        "binary": "security_histories-3618e1b4cb04a764",
+        "status": "ok",
+        "passed": 28,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/selected_prefix.rs": {
+        "log": "lang-resume-0",
+        "binary": "selected_prefix-10125067b753b9e8",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/sequence_by.rs": {
+        "log": "lang-resume-0",
+        "binary": "sequence_by-2f96f9c1434d12a2",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/shape_overrides.rs": {
+        "log": "lang-resume-0",
+        "binary": "shape_overrides-855c55ec561d35d6",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/surf4_guide.rs": {
+        "log": "lang-resume-0",
+        "binary": "surf4_guide-72279c5eabe6eded",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/system_principal.rs": {
+        "log": "lang-resume-0",
+        "binary": "system_principal-210030e7e292bf50",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/timeline_background.rs": {
+        "log": "lang-resume-0",
+        "binary": "timeline_background-266d521a6006e471",
+        "status": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/timeline_guide.rs": {
+        "log": "lang-resume-0",
+        "binary": "timeline_guide-924ade64da70c9b3",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/typed_positional_sync.rs": {
+        "log": "lang-resume-0",
+        "binary": "typed_positional_sync-fa42c85c895d9a9e",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave10_guard_notes.rs": {
+        "log": "lang-resume-0",
+        "binary": "wave10_guard_notes-046133147faaf5f7",
+        "status": "ok",
+        "passed": 23,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave11_docs.rs": {
+        "log": "lang-resume-0",
+        "binary": "wave11_docs-6ea4ab8275d463f2",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave12_diagnostics.rs": {
+        "log": "lang-resume-0",
+        "binary": "wave12_diagnostics-b8e3f3bc6b91eec9",
+        "status": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave12_semantics.rs": {
+        "log": "lang-resume-0",
+        "binary": "wave12_semantics-9f48a0014eea5bfa",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave14_authorization.rs": {
+        "log": "lang-resume-0",
+        "binary": "wave14_authorization-bf336223c1e1912a",
+        "status": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave14_snapshot_ir.rs": {
+        "log": "lang-resume-0",
+        "binary": "wave14_snapshot_ir-c9e194cc1b9e5c6d",
+        "status": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave2_rule_language.rs": {
+        "log": "lang-resume-0",
+        "binary": "wave2_rule_language-071ec98446325bfb",
+        "status": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave5_rule_language.rs": {
+        "log": "lang-resume-0",
+        "binary": "wave5_rule_language-dc6156033072226f",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave8_rule_language.rs": {
+        "log": "lang-resume-0",
+        "binary": "wave8_rule_language-806f5eb0dac502bd",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/written_by.rs": {
+        "log": "lang-resume-0",
+        "binary": "written_by-ae210b18dafce559",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/security_observers.rs": {
+        "log": "lang-resume-1",
+        "binary": "security_observers-c5d15571e928c5ef",
+        "status": "ok",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/selected_prefix_cursors.rs": {
+        "log": "lang-resume-1",
+        "binary": "selected_prefix_cursors-eb864b3d08d0c571",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/server_opt_in.rs": {
+        "log": "lang-resume-1",
+        "binary": "server_opt_in-5befb022ad6f35d4",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/sparse_filter.rs": {
+        "log": "lang-resume-1",
+        "binary": "sparse_filter-df1356ac14d8b1d3",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/sync_audiences.rs": {
+        "log": "lang-resume-1",
+        "binary": "sync_audiences-d47a14fde81f1465",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/time_audiences.rs": {
+        "log": "lang-resume-1",
+        "binary": "time_audiences-3b969d0e6222125d",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/timeline_epoch_counterexample.rs": {
+        "log": "lang-resume-1",
+        "binary": "timeline_epoch_counterexample-c5fbc83ffde97d19",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/timeline_live_latency.rs": {
+        "log": "lang-resume-1",
+        "binary": "timeline_live_latency-7462d1ea9faa3e39",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/union_limits.rs": {
+        "log": "lang-resume-1",
+        "binary": "union_limits-8423b0db4c368965",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave10_rules_expressiveness.rs": {
+        "log": "lang-resume-1",
+        "binary": "wave10_rules_expressiveness-1f043b1b14805c2f",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave11_qdiag.rs": {
+        "log": "lang-resume-1",
+        "binary": "wave11_qdiag-786480216faaa0f5",
+        "status": "ok",
+        "passed": 19,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave12_rule_composition.rs": {
+        "log": "lang-resume-1",
+        "binary": "wave12_rule_composition-eed59a174269ee61",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave13_lang2.rs": {
+        "log": "lang-resume-1",
+        "binary": "wave13_lang2-1622571eaa61871f",
+        "status": "ok",
+        "passed": 43,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave14_client_docs.rs": {
+        "log": "lang-resume-1",
+        "binary": "wave14_client_docs-7d7a65465cbb9a35",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave15_notes.rs": {
+        "log": "lang-resume-1",
+        "binary": "wave15_notes-8cfbbb508499417f",
+        "status": "ok",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave3_rule_language.rs": {
+        "log": "lang-resume-1",
+        "binary": "wave3_rule_language-c3329fba728b48b0",
+        "status": "ok",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave6_rule_language.rs": {
+        "log": "lang-resume-1",
+        "binary": "wave6_rule_language-590e6f1611119c41",
+        "status": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 1
+      },
+      "crates/snapback4-lang/tests/wave9_completeness_notes.rs": {
+        "log": "lang-resume-1",
+        "binary": "wave9_completeness_notes-a5448456cf6271f4",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/security_wave16.rs": {
+        "log": "lang-resume-2",
+        "binary": "security_wave16-9894ce4f51710b7c",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/selected_prefix_regressions.rs": {
+        "log": "lang-resume-2",
+        "binary": "selected_prefix_regressions-4df1a1bb199c41f1",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/shape_meter.rs": {
+        "log": "lang-resume-2",
+        "binary": "shape_meter-eb432e2adea757f5",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/spelling.rs": {
+        "log": "lang-resume-2",
+        "binary": "spelling-1349ecc02db31a95",
+        "status": "ok",
+        "passed": 19,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/sync_windows.rs": {
+        "log": "lang-resume-2",
+        "binary": "sync_windows-31b4322e0c431a4c",
+        "status": "ok",
+        "passed": 40,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/time_indexes.rs": {
+        "log": "lang-resume-2",
+        "binary": "time_indexes-77fc78628de8baf1",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/timeline_fairness.rs": {
+        "log": "lang-resume-2",
+        "binary": "timeline_fairness-9d829ada79eb607f",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/typed_positional_keys.rs": {
+        "log": "lang-resume-2",
+        "binary": "typed_positional_keys-c44c46ee4038cedc",
+        "status": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/verified_index_repairs.rs": {
+        "log": "lang-resume-2",
+        "binary": "verified_index_repairs-796d38b1f4761700",
+        "status": "ok",
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave10_runtime_diagnostics.rs": {
+        "log": "lang-resume-2",
+        "binary": "wave10_runtime_diagnostics-10db76947b8d3965",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave11_runtime.rs": {
+        "log": "lang-resume-2",
+        "binary": "wave11_runtime-737f2e100596867d",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave12_rule_recipes.rs": {
+        "log": "lang-resume-2",
+        "binary": "wave12_rule_recipes-079f1937728270da",
+        "status": "ok",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave13_rules.rs": {
+        "log": "lang-resume-2",
+        "binary": "wave13_rules-2d04918bc0c434bf",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave14_lang3.rs": {
+        "log": "lang-resume-2",
+        "binary": "wave14_lang3-41feb9a8c4f6ee7a",
+        "status": "ok",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave1_rule_language.rs": {
+        "log": "lang-resume-2",
+        "binary": "wave1_rule_language-5f7cd0ab83462ef2",
+        "status": "ok",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave4_rule_language.rs": {
+        "log": "lang-resume-2",
+        "binary": "wave4_rule_language-9f46a45b22e967af",
+        "status": "ok",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave7_rule_language.rs": {
+        "log": "lang-resume-2",
+        "binary": "wave7_rule_language-d071cce97e9ef0a7",
+        "status": "ok",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-lang/tests/wave9_rule_diagnostic_rewrites.rs": {
+        "log": "lang-resume-2",
+        "binary": "wave9_rule_diagnostic_rewrites-8851bddf9cabf976",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "snapback4-device": {
+      "crates/snapback4-device/src/lib.rs": {
+        "log": "cargo-final",
+        "binary": "snapback4_device-dd1097061274a077",
+        "status": "ok",
+        "passed": 64,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/acquisition_crash.rs": {
+        "log": "cargo-final",
+        "binary": "acquisition_crash-dda699407941121c",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/adoption.rs": {
+        "log": "cargo-final",
+        "binary": "adoption-6dae574d266371d6",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/asset_lists.rs": {
+        "log": "cargo-final",
+        "binary": "asset_lists-15331ee44957d140",
+        "status": "ok",
+        "passed": 22,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/background_durability.rs": {
+        "log": "cargo-final",
+        "binary": "background_durability-2180a3d0be315cf3",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/bounded_calendar_caps.rs": {
+        "log": "cargo-final",
+        "binary": "bounded_calendar_caps-b129f84196ea0034",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/bounded_following.rs": {
+        "log": "cargo-final",
+        "binary": "bounded_following-7de4a8ef1ac8fc83",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/branch_merge.rs": {
+        "log": "cargo-final",
+        "binary": "branch_merge-f999e2cc8ba7b272",
+        "status": "ok",
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/codec.rs": {
+        "log": "cargo-final",
+        "binary": "codec-34445489bac7d744",
+        "status": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/column_activation.rs": {
+        "log": "cargo-final",
+        "binary": "column_activation-efdf7021acab0ebc",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/components.rs": {
+        "log": "cargo-final",
+        "binary": "components-9de315bd937713ba",
+        "status": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/cut.rs": {
+        "log": "cargo-final",
+        "binary": "cut-f326ae81aa18a131",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/delivery.rs": {
+        "log": "cargo-final",
+        "binary": "delivery-53ab1ec297ef083f",
+        "status": "ok",
+        "passed": 30,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/device.rs": {
+        "log": "cargo-final",
+        "binary": "device-41afaeb002fb6ebd",
+        "status": "ok",
+        "passed": 440,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/device_diet.rs": {
+        "log": "cargo-final",
+        "binary": "device_diet-31c79445344bf228",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/diet_timing.rs": {
+        "log": "cargo-final",
+        "binary": "diet_timing-e8d8f13d0e77129f",
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 1
+      },
+      "crates/snapback4-device/tests/disclosure.rs": {
+        "log": "cargo-final",
+        "binary": "disclosure-35b28f97123d4e95",
+        "status": "ok",
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/ephemeral.rs": {
+        "log": "cargo-final",
+        "binary": "ephemeral-b4b99b72992583ce",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/event_slots.rs": {
+        "log": "cargo-final",
+        "binary": "event_slots-7825d444b459d8db",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/event_slots_trace.rs": {
+        "log": "cargo-final",
+        "binary": "event_slots_trace-b38b50edf0838fd6",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/expiring_counts.rs": {
+        "log": "cargo-final",
+        "binary": "expiring_counts-65af09d979e5fdeb",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 1
+      },
+      "crates/snapback4-device/tests/expiring_counts_probe.rs": {
+        "log": "cargo-final",
+        "binary": "expiring_counts_probe-b47a4d2b158744e0",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/expiring_counts_upgrade.rs": {
+        "log": "cargo-final",
+        "binary": "expiring_counts_upgrade-a1bd9c389e81b217",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/expiring_mutations.rs": {
+        "log": "cargo-final",
+        "binary": "expiring_mutations-4efa0f303b8277ff",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/expiry_maintained_columns.rs": {
+        "log": "cargo-final",
+        "binary": "expiry_maintained_columns-9418c01bf600437c",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/extrema.rs": {
+        "log": "cargo-final",
+        "binary": "extrema-2c978135355281b7",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/extremum_expressions.rs": {
+        "log": "cargo-final",
+        "binary": "extremum_expressions-ab3234836ecb5f2e",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/file_assets.rs": {
+        "log": "cargo-final",
+        "binary": "file_assets-59a1bcdcd6283099",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/first_instinct.rs": {
+        "log": "cargo-final",
+        "binary": "first_instinct-b7f539c56ae41331",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/first_paste.rs": {
+        "log": "cargo-final",
+        "binary": "first_paste-7038dec2cd00dacf",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/following_meters.rs": {
+        "log": "cargo-final",
+        "binary": "following_meters-4ab32bef606bd64f",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/following_model.rs": {
+        "log": "cargo-final",
+        "binary": "following_model-8d8fae57c6b49e65",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/following_view.rs": {
+        "log": "cargo-final",
+        "binary": "following_view-9b7e3ce0b0f1acf4",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/heavy_acquisition.rs": {
+        "log": "cargo-final",
+        "binary": "heavy_acquisition-e740deed2d251c1f",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/helper_pages.rs": {
+        "log": "cargo-final",
+        "binary": "helper_pages-38cd390a10e0f118",
+        "status": "ok",
+        "passed": 90,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/index_key_bound.rs": {
+        "log": "cargo-final",
+        "binary": "index_key_bound-b917dfa5630b413a",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/intent_variants.rs": {
+        "log": "cargo-final",
+        "binary": "intent_variants-692a501b19ce2aa6",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/intent_views.rs": {
+        "log": "cargo-final",
+        "binary": "intent_views-e3b16722c388c0a8",
+        "status": "ok",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/list_lower_bounds.rs": {
+        "log": "cargo-final",
+        "binary": "list_lower_bounds-69c8eb90ec6772f2",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/live_parent.rs": {
+        "log": "cargo-final",
+        "binary": "live_parent-c674c0b6a8e723c3",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/matching_order.rs": {
+        "log": "cargo-final",
+        "binary": "matching_order-cb6863f1ff365cfa",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/mixed_keys.rs": {
+        "log": "cargo-final",
+        "binary": "mixed_keys-e99d4ea8f6278b85",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/monotonic_ids.rs": {
+        "log": "cargo-final",
+        "binary": "monotonic_ids-83ddc1911273b84a",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/mp_builder.rs": {
+        "log": "cargo-final",
+        "binary": "mp_builder-36f34b8e5e2763c8",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/named_key_lookup.rs": {
+        "log": "cargo-final",
+        "binary": "named_key_lookup-5ad9adc59229fd5f",
+        "status": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/native.rs": {
+        "log": "cargo-final",
+        "binary": "native-e03fa11abe448ba7",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/native_following.rs": {
+        "log": "cargo-final",
+        "binary": "native_following-771ae9c9e36e2dd3",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/native_reads.rs": {
+        "log": "cargo-final",
+        "binary": "native_reads-51b332a63bfd64fd",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/natural_forms.rs": {
+        "log": "cargo-final",
+        "binary": "natural_forms-e96048860ebad6f4",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/nl_qe2_integration.rs": {
+        "log": "cargo-final",
+        "binary": "nl_qe2_integration-e8f95c05202dded4",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/own_keys.rs": {
+        "log": "cargo-final",
+        "binary": "own_keys-80fba74d9ac8a8fa",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/own_keys_cost.rs": {
+        "log": "cargo-final",
+        "binary": "own_keys_cost-a34f44b6620fa6c1",
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 2
+      },
+      "crates/snapback4-device/tests/point_probe_admission.rs": {
+        "log": "cargo-final",
+        "binary": "point_probe_admission-c5c6b94e0e8ffc5a",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/prediction_write_set.rs": {
+        "log": "cargo-final",
+        "binary": "prediction_write_set-8f747a39420cdc8a",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/qe2_allocations.rs": {
+        "log": "cargo-final",
+        "binary": "qe2_allocations-ba6ee543b9fdd659",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/qe2_ergonomics.rs": {
+        "log": "cargo-final",
+        "binary": "qe2_ergonomics-61a858200e392de6",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/query_unavailable.rs": {
+        "log": "cargo-final",
+        "binary": "query_unavailable-aea0eb66a01ff9dc",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/read_through.rs": {
+        "log": "cargo-final",
+        "binary": "read_through-cab9c39b17063945",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/read_through_review.rs": {
+        "log": "cargo-final",
+        "binary": "read_through_review-6808220abcad051b",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/readauth.rs": {
+        "log": "cargo-final",
+        "binary": "readauth-444b15c6e2593cbd",
+        "status": "ok",
+        "passed": 88,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/recorded_coverage.rs": {
+        "log": "cargo-final",
+        "binary": "recorded_coverage-b3cd18df59036083",
+        "status": "ok",
+        "passed": 24,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/reference_actions.rs": {
+        "log": "cargo-final",
+        "binary": "reference_actions-972e23533a3bd4cc",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/repair_b.rs": {
+        "log": "cargo-final",
+        "binary": "repair_b-cfd444ade6a22340",
+        "status": "ok",
+        "passed": 110,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/repair_b_boundaries.rs": {
+        "log": "cargo-final",
+        "binary": "repair_b_boundaries-2659433393c544d2",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/repair_b_counterexample.rs": {
+        "log": "cargo-final",
+        "binary": "repair_b_counterexample-638470f7af9e259a",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/repair_b_legacy_r6.rs": {
+        "log": "cargo-final",
+        "binary": "repair_b_legacy_r6-4b164a99d93122e0",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/repair_b_round2_counterexample.rs": {
+        "log": "cargo-final",
+        "binary": "repair_b_round2_counterexample-5803b55ae884ad90",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/repair_b_round3_counterexample.rs": {
+        "log": "cargo-final",
+        "binary": "repair_b_round3_counterexample-1e98092052adaa00",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/residency.rs": {
+        "log": "cargo-final",
+        "binary": "residency-33037a6b9085c8c2",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/retained_history.rs": {
+        "log": "cargo-final",
+        "binary": "retained_history-56bce47625f049de",
+        "status": "ok",
+        "passed": 20,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/retained_release.rs": {
+        "log": "cargo-final",
+        "binary": "retained_release-c8cc0a3bfff6e3e5",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/review_parent_floor.rs": {
+        "log": "cargo-final",
+        "binary": "review_parent_floor-b66183fde70b4f51",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/row_keyed_views.rs": {
+        "log": "cargo-final",
+        "binary": "row_keyed_views-402e4ea94a15b086",
+        "status": "ok",
+        "passed": 24,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/row_view_disclosure.rs": {
+        "log": "cargo-final",
+        "binary": "row_view_disclosure-d8c740a73eba52cb",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/row_view_expiry.rs": {
+        "log": "cargo-final",
+        "binary": "row_view_expiry-1d802b65d58f2f4f",
+        "status": "ok",
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/rx_rule_hops.rs": {
+        "log": "cargo-final",
+        "binary": "rx_rule_hops-23a9edd4593f5324",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/schema_capabilities.rs": {
+        "log": "cargo-final",
+        "binary": "schema_capabilities-dc927186c865026d",
+        "status": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/schema_capabilities_legacy.rs": {
+        "log": "cargo-final",
+        "binary": "schema_capabilities_legacy-1f1e40aa446ac28c",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/search_exists.rs": {
+        "log": "cargo-final",
+        "binary": "search_exists-bea1d2f81bb1da25",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/sequence_by.rs": {
+        "log": "cargo-final",
+        "binary": "sequence_by-16375553dd267a45",
+        "status": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/sequence_disclosure.rs": {
+        "log": "cargo-final",
+        "binary": "sequence_disclosure-e73691e10b437e5e",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/server_clock.rs": {
+        "log": "cargo-final",
+        "binary": "server_clock-e65d69874f1d6a46",
+        "status": "ok",
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/shape_overrides.rs": {
+        "log": "cargo-final",
+        "binary": "shape_overrides-086a809900e67ad1",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/spread_metadata.rs": {
+        "log": "cargo-final",
+        "binary": "spread_metadata-a94690b829d3ca1a",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/spread_pending_union.rs": {
+        "log": "cargo-final",
+        "binary": "spread_pending_union-f030c11685a64f25",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/sqlite_bulk.rs": {
+        "log": "cargo-final",
+        "binary": "sqlite_bulk-b0929729def54bfb",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/sync_windows.rs": {
+        "log": "cargo-final",
+        "binary": "sync_windows-4ca483b93daeef8c",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/time_audiences.rs": {
+        "log": "cargo-final",
+        "binary": "time_audiences-69e96b556cad1d37",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/timed_search.rs": {
+        "log": "cargo-final",
+        "binary": "timed_search-9ca212bed5697c29",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/timeline.rs": {
+        "log": "cargo-final",
+        "binary": "timeline-8132ed558bece9ac",
+        "status": "ok",
+        "passed": 26,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/topn_complete.rs": {
+        "log": "cargo-final",
+        "binary": "topn_complete-6ed2b47fe36fbe21",
+        "status": "ok",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/unicode.rs": {
+        "log": "cargo-final",
+        "binary": "unicode-8427f22328930e36",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/unread_range.rs": {
+        "log": "cargo-final",
+        "binary": "unread_range-f7369d03443fd19f",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/upload_intents.rs": {
+        "log": "cargo-final",
+        "binary": "upload_intents-854bafcfb4348990",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/upload_receipts.rs": {
+        "log": "cargo-final",
+        "binary": "upload_receipts-67426218b26f917d",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/upsert_constraints.rs": {
+        "log": "cargo-final",
+        "binary": "upsert_constraints-1824a01b7ab0b6d6",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/w13g_probe.rs": {
+        "log": "cargo-final",
+        "binary": "w13g_probe-19054863d297a33e",
+        "status": "ok",
+        "passed": 142,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/wave11_qdiag.rs": {
+        "log": "cargo-final",
+        "binary": "wave11_qdiag-0219748220ac6e92",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/wave12_language.rs": {
+        "log": "cargo-final",
+        "binary": "wave12_language-1365a6310186e5a8",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/wave13_lang2.rs": {
+        "log": "cargo-final",
+        "binary": "wave13_lang2-916067d35c2f6254",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/write_authority.rs": {
+        "log": "cargo-final",
+        "binary": "write_authority-ff1aab440293fbe0",
+        "status": "ok",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-device/tests/written_by.rs": {
+        "log": "cargo-final",
+        "binary": "written_by-07a0606693992f75",
+        "status": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "snapback4-difftest": {
+      "crates/snapback4-difftest/src/lib.rs": {
+        "log": "sim-difftest-final",
+        "binary": "snapback4_difftest-d631829d9cac16c0",
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-difftest/src/main.rs": {
+        "log": "sim-difftest-final",
+        "binary": "snapback4_difftest-e899f603f833a452",
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-difftest/tests/devices.rs": {
+        "log": "sim-difftest-final",
+        "binary": "devices-10c8fc5c5c9ec1ea",
+        "status": "ok",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-difftest/tests/lang2.rs": {
+        "log": "sim-difftest-final",
+        "binary": "lang2-3a1f8cdcdebab384",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-difftest/tests/lean.rs": {
+        "log": "sim-difftest-final",
+        "binary": "lean-9f5a62646e0f338e",
+        "status": "ok",
+        "passed": 45,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-difftest/tests/smoke.rs": {
+        "log": "sim-difftest-final",
+        "binary": "smoke-400f0cda6f707b95",
+        "status": "ok",
+        "passed": 29,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-difftest/tests/stores.rs": {
+        "log": "sim-difftest-final",
+        "binary": "stores-35cdd36bdcb285c5",
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-difftest/tests/wave11_qdiag.rs": {
+        "log": "sim-difftest-final",
+        "binary": "wave11_qdiag-ff0e534d40a77fac",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-difftest/tests/wave12_expiry_actions_generated.rs": {
+        "log": "sim-difftest-final",
+        "binary": "wave12_expiry_actions_generated-40853fca69aa3190",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-difftest/tests/wave12_generated_semantics.rs": {
+        "log": "sim-difftest-final",
+        "binary": "wave12_generated_semantics-8fb53fda5c2d8163",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-difftest/tests/wave13_lang2.rs": {
+        "log": "sim-difftest-final",
+        "binary": "wave13_lang2-88611be95db780a3",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "snapback4-native": {
+      "crates/snapback4-native/src/lib.rs": {
+        "log": "native-final",
+        "binary": "snapback4_native-01073dd004e8011f",
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "snapback4-sim": {
+      "crates/snapback4-sim/src/lib.rs": {
+        "log": "sim-difftest-final",
+        "binary": "snapback4_sim-f4484b1e2f69442e",
+        "status": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/adoption.rs": {
+        "log": "sim-difftest-final",
+        "binary": "adoption-e275862bc7666dc5",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/clique.rs": {
+        "log": "sim-difftest-final",
+        "binary": "clique-57525c0a99b44428",
+        "status": "ok",
+        "passed": 254,
+        "failed": 0,
+        "ignored": 1
+      },
+      "crates/snapback4-sim/tests/condition_authority.rs": {
+        "log": "sim-difftest-final",
+        "binary": "condition_authority-ce0052f3b9481277",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/decorated_search.rs": {
+        "log": "sim-difftest-final",
+        "binary": "decorated_search-d9f3f4963beaafc3",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/device.rs": {
+        "log": "sim-difftest-final",
+        "binary": "device-0fe0a34a5d2bc8a4",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/digest_count.rs": {
+        "log": "sim-difftest-final",
+        "binary": "digest_count-77f6fa9276eb1676",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/exhaustive.rs": {
+        "log": "sim-difftest-final",
+        "binary": "exhaustive-7fc77d90e54c8d00",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 1
+      },
+      "crates/snapback4-sim/tests/expiry_reference_actions.rs": {
+        "log": "sim-difftest-final",
+        "binary": "expiry_reference_actions-d7e723892a99ab33",
+        "status": "ok",
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/filters.rs": {
+        "log": "sim-difftest-final",
+        "binary": "filters-22465a1dd686562a",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/helper_pages.rs": {
+        "log": "sim-difftest-final",
+        "binary": "helper_pages-2522d261bb2eae4a",
+        "status": "ok",
+        "passed": 43,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/helper_sweep.rs": {
+        "log": "sim-difftest-final",
+        "binary": "helper_sweep-c4caf9cbbc40cd6e",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/intent_integration.rs": {
+        "log": "sim-difftest-final",
+        "binary": "intent_integration-339593e83255c024",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/loopbar.rs": {
+        "log": "sim-difftest-final",
+        "binary": "loopbar-85a5d8752fd8498b",
+        "status": "ok",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/maintain_measurement.rs": {
+        "log": "sim-difftest-final",
+        "binary": "maintain_measurement-6fa03cb2b4f0cedc",
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 2
+      },
+      "crates/snapback4-sim/tests/maintains.rs": {
+        "log": "sim-difftest-final",
+        "binary": "maintains-6f6684fea7e2694e",
+        "status": "ok",
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/maintains_recorded.rs": {
+        "log": "sim-difftest-final",
+        "binary": "maintains_recorded-dd42f9c7f753412c",
+        "status": "ok",
+        "passed": 19,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/maintains_review.rs": {
+        "log": "sim-difftest-final",
+        "binary": "maintains_review-8431a54bd77c5eb7",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/membership.rs": {
+        "log": "sim-difftest-final",
+        "binary": "membership-e2e974cb384a760c",
+        "status": "ok",
+        "passed": 29,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/membership_search.rs": {
+        "log": "sim-difftest-final",
+        "binary": "membership_search-324579339edf4303",
+        "status": "ok",
+        "passed": 24,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/native.rs": {
+        "log": "sim-difftest-final",
+        "binary": "native-071e5687835c4d86",
+        "status": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 1
+      },
+      "crates/snapback4-sim/tests/ordinary_search.rs": {
+        "log": "sim-difftest-final",
+        "binary": "ordinary_search-1b1b37cad41c2539",
+        "status": "ok",
+        "passed": 19,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/page_admission.rs": {
+        "log": "sim-difftest-final",
+        "binary": "page_admission-0983f5f568b60942",
+        "status": "ok",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/reference_exhaustive.rs": {
+        "log": "sim-difftest-final",
+        "binary": "reference_exhaustive-171084306872a60c",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/residency.rs": {
+        "log": "sim-difftest-final",
+        "binary": "residency-34ed14d9befe0ad7",
+        "status": "ok",
+        "passed": 17,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/retained_release.rs": {
+        "log": "sim-difftest-final",
+        "binary": "retained_release-f257f8644db7d8ed",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/review_corrections.rs": {
+        "log": "sim-difftest-final",
+        "binary": "review_corrections-5e3a89025e511ebb",
+        "status": "ok",
+        "passed": 32,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/reviews.rs": {
+        "log": "sim-difftest-final",
+        "binary": "reviews-dff51895fd4e47f2",
+        "status": "ok",
+        "passed": 30,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/roster.rs": {
+        "log": "sim-difftest-final",
+        "binary": "roster-51ec92c09e234577",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/search_merge.rs": {
+        "log": "sim-difftest-final",
+        "binary": "search_merge-7feac5132b181974",
+        "status": "ok",
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/security.rs": {
+        "log": "sim-difftest-final",
+        "binary": "security-e3d4527abec2abe2",
+        "status": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/time_audiences.rs": {
+        "log": "sim-difftest-final",
+        "binary": "time_audiences-1819fa044a2066d3",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/timed_search.rs": {
+        "log": "sim-difftest-final",
+        "binary": "timed_search-6011f0bfcd5e59ac",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/topn_complete.rs": {
+        "log": "sim-difftest-final",
+        "binary": "topn_complete-9dda73f3300bea92",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/union.rs": {
+        "log": "sim-difftest-final",
+        "binary": "union-91daffca3302620f",
+        "status": "ok",
+        "passed": 29,
+        "failed": 0,
+        "ignored": 2
+      },
+      "crates/snapback4-sim/tests/wave11_qdiag.rs": {
+        "log": "sim-difftest-final",
+        "binary": "wave11_qdiag-0ba78c171a5aa722",
+        "status": "ok",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/wave12_language.rs": {
+        "log": "sim-difftest-final",
+        "binary": "wave12_language-45ec9a1392eebfd9",
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/wave13_lang2.rs": {
+        "log": "sim-difftest-final",
+        "binary": "wave13_lang2-822af563106bae5f",
+        "status": "ok",
+        "passed": 43,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/work_intent.rs": {
+        "log": "sim-difftest-final",
+        "binary": "work_intent-996ea4bfe0740eab",
+        "status": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/work_intent_review.rs": {
+        "log": "sim-difftest-final",
+        "binary": "work_intent_review-f329aa653e6178f3",
+        "status": "ok",
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/work_intent_review2.rs": {
+        "log": "sim-difftest-final",
+        "binary": "work_intent_review2-c44d6f594f78db90",
+        "status": "ok",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/work_intent_review3.rs": {
+        "log": "sim-difftest-final",
+        "binary": "work_intent_review3-eac40833a0d59b14",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/work_intent_review4.rs": {
+        "log": "sim-difftest-final",
+        "binary": "work_intent_review4-3e9dee15d857f0eb",
+        "status": "ok",
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      "crates/snapback4-sim/tests/write_authority.rs": {
+        "log": "sim-difftest-final",
+        "binary": "write_authority-4fcb18347ec29776",
+        "status": "ok",
+        "passed": 35,
+        "failed": 0,
+        "ignored": 0
+      }
+    }
+  },
+  "doctests": {
+    "snapback4_core": {
+      "status": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0
+    },
+    "snapback4_device": {
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    "snapback4_difftest": {
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    "snapback4_lang": {
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    "snapback4_native": {
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    "snapback4_sim": {
+      "status": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    }
+  }
+}

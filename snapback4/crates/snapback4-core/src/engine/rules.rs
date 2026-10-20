@@ -675,6 +675,12 @@ pub(super) fn bounded_walk_price(schema: &Schema, lane: &crate::ir::MergeLane) -
         .saturating_mul(1 + rule_probes(&table.rules.read)))
 }
 
+/// Static physical work reserved before a query's private probes run.
+pub fn bounded_query_work(schema: &Schema, program: &crate::ir::Program) -> Option<(u64, u64)> {
+    super::bounded_plans::price(schema, &program.body)
+        .map(|price| (price, super::authorized_scan::AUTHORIZATION_WALK_LIMIT as u64))
+}
+
 pub fn legacy_vacancy_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
     if lane.source.is_some() || lane.scan.filter.is_some() || !lane.scan.prefix.is_empty() { return false; }
     let Some(outer) = schema.table(&lane.scan.table) else { return false };

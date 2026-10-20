@@ -774,6 +774,12 @@ pub fn body_merges(body: &[Stmt]) -> Vec<&Merge> {
     merges
 }
 
+pub(crate) fn expression_merges(expr: &Expr) -> Vec<&Merge> {
+    let mut merges = Vec::new();
+    expr_scans(expr, &mut Vec::new(), &mut merges);
+    merges
+}
+
 pub(crate) fn read_structure(program: &Program) -> (Vec<&Scan>, bool) {
     body_read_structure(&program.body)
 }
