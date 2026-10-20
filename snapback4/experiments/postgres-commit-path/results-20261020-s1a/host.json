@@ -1,0 +1,19 @@
+{
+  "uname": {
+    "system": "Linux",
+    "node": "expose-builder-pixel",
+    "release": "6.8.0-142-generic",
+    "version": "#142-Ubuntu SMP PREEMPT_DYNAMIC Wed Sep  2 14:24:27 UTC 2026",
+    "machine": "x86_64",
+    "processor": "x86_64"
+  },
+  "base_commit": "7e09edae4c3ed46ceac226bff0cad70c2564d10a",
+  "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+  "uptime": "17:00:46 up 14 days,  6:15, 17 users,  load average: 6.12, 9.92, 14.66",
+  "disk": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/nvme0n1p4  1.7T  1.6T   88G  95% /\n",
+  "timing_ms": {
+    "warmup": 1000,
+    "measure": 4000
+  },
+  "cluster_env": "/tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7-917c-2880afdea35c/scratchpad/s1a/pgdata.XzR3gw/env.sh"
+}

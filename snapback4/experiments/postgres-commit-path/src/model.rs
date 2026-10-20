@@ -129,6 +129,29 @@ impl Conn {
         Ok(())
     }
 
+    // @ref LLP 3000.009.001.002#9-phases — S1a bounds execution without an overlay
+    pub fn execution(&mut self, counter: &str, op: &str) -> Result<u64, String> {
+        let before = self.calls;
+        self.simple("START TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")?;
+        // Every read-only SELECT from the capture, in order. The head's
+        // FOR UPDATE is a commit-side reservation, not an execution read.
+        self.q(Q_GEN_HEAD, &[])?;
+        self.q(Q_OPS, &[&"alice", &op])?;
+        self.q(Q_GEN, &[])?;
+        self.q(Q_OPS, &[&"alice", &op])?;
+        let lo = key::encode(&[Value::Id(counter.into())]);
+        let hi = key::upper_bound(&lo);
+        for _ in 0..2 {
+            let sizes = self.q(Q_SIZES, &[&"counters", &"byId", &lo, &hi, &1i64])?;
+            let data = self.q(Q_DATA, &[&"counters", &"byId", &lo, &hi, &1i64])?;
+            if sizes.len() != 1 || data.len() != 1 {
+                return Err("execution counter missing".into());
+            }
+        }
+        self.simple("ROLLBACK")?;
+        Ok(self.calls - before)
+    }
+
     /// The program's reads and write, as the engine issues them: the scan
     /// preflight and fetch twice (the `!` read and the update's read), then
     /// the row image update. Returns the new row image.

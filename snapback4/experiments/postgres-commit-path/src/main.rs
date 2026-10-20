@@ -1,6 +1,7 @@
 //! S0 commit-path cells (LLP 3000.009.001.002 §9). Each subcommand runs one
 //! cell at one setting, three times, and prints one JSON line. See README.md.
 mod common;
+mod execution;
 mod model;
 mod proxy;
 mod raw;
@@ -160,6 +161,7 @@ fn main() {
         "engine" => engine(&args),
         "model" => model::run(&args),
         "raw" => raw::run(&args),
+        "pg-execution" => execution::run(&args),
         "sqlite-serve" => sqlite::serve(&args),
         "sqlite-four-connections" => sqlite::four_connections(&args),
         "sqlite-exec-flush" => sqlite::exec_flush(&args),

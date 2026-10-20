@@ -595,3 +595,74 @@ ms RTT and its best measured batch size, is below 1,000 commits/s, or below
   proxy 0) and the 0.5 ms decision cells and SQLite rerun at lower load.
 - `results-20261019-pass4-lowrtt/`: the low-RTT recheck of the reference
   calibration.
+
+## S1a: sizing (a)
+
+This extends S0 with **models of two separate stages**, governed by
+[the sizing rule, §8](../../../llp/3000.009.001.002-scale-limits-against-postgres-controls.rfc.md#8-decision-rules).
+The prediction is `min(execution at C=32, best full-write-set commit stage
+with write p99 <= 100 ms)`. At 0.5 ms the 2× margin requires both **2,000/s**
+and **50% of raw Postgres at C=32**, with the disjoint control fixed as the
+W4 denominator. The 1% hot-key control is reported separately.
+
+The execution model runs the capture's eight read-only SELECTs, in order,
+inside one `REPEATABLE READ READ ONLY` transaction: generation/head,
+receipt, generation, receipt, then the two size/fetch pairs. Each execution
+makes ten round trips including START and ROLLBACK. It retains the duplicate
+reads; it excludes `SELECT ... FOR UPDATE` (the commit-side reservation),
+savepoints and writes. C separate connections execute back to back on
+disjoint counters. This is a statement model, with no interpreter or overlay.
+The shared S0 timer calls completed operations `commits` even for this
+read-only cell; `executions_per_s` is also recorded explicitly.
+
+The raw control is S0's durable typed-table autocommit increment, now at
+32 writers. `hot1` sends exactly every hundredth operation of each writer
+to one shared counter, with writer-specific offsets; all other operations
+use that writer's own row. Counter sums check every acknowledged update,
+including warm-up and drain.
+
+### Reproduction and measurement custody
+
+From this experiment directory, build only this harness, then start a
+private cluster (choose a free high port):
+
+```sh
+cargo build --release --locked -j 4
+export LD_LIBRARY_PATH="$HOME/tools/pg16/usr/lib/x86_64-linux-gnu"
+S1A_SCRATCH=/tmp/claude-1000/-home-ccheever-projects-snapback/3d04fc0c-0698-42a7-917c-2880afdea35c/scratchpad/s1a
+S1A_ENV=$(scripts/cluster.sh start "$S1A_SCRATCH" 56431)
+source "$S1A_ENV"
+export SQLITE_DIR="$S1A_SCRATCH/sqlite"
+```
+
+One command per cell family (each command sweeps the requested settings;
+individual invocations below run three repetitions):
+
+| Cell | Complete sweep into a new results directory | One setting |
+| --- | --- | --- |
+| 3, raw C=32 | `python3 scripts/s1a.py <new-results> raw` | `target/release/snapback4-postgres-commit-path raw --net rtt500 --writers 32 --counters hot1` |
+| 1, execution C=8/16/32/64 | `python3 scripts/s1a.py <new-results> execution` | `target/release/snapback4-postgres-commit-path pg-execution --net rtt500 --connections 32` |
+| Proxy calibration | `python3 scripts/s1a.py <new-results> ping` | `target/release/snapback4-postgres-commit-path ping --net rtt500 --n 3000` |
+
+Default timing is S0's 1 s warm-up and 4 s measurement, three runs per
+setting, medians with all runs retained. `NETS` can select a subset of
+`rtt200 rtt500 rtt1000`. `scripts/s1a.py` treats each setting's three runs
+as one measurement block and records `uptime` and `vmstat 1 5` before and
+after it. It gates at one-minute load <= 8 and samples that load each second;
+a block exceeding 8 is kept as rejected evidence and rerun in fresh files.
+A quiet failed product cell is retained as failed, without a success retry.
+The runner never changes durability, the existing 5 s timeouts, or retry
+limits. Repeating a sweep skips accepted settings and uses new attempt files
+for rejected ones. Do not reuse its directory for different parameters.
+
+Raw evidence: [`results-20261020-s1a/`](./results-20261020-s1a/), including
+host/version/durability records, JSON with every run and load sample, stdout,
+stderr, and before/after host snapshots. Nothing in S0's results is replaced.
+The harness lockfile's three local crate versions were refreshed from
+0.4.33 to this checkout's 0.4.34; no registry dependency was changed.
+
+Stop only the private cluster started above and remove its socket directory:
+
+```sh
+scripts/cluster.sh stop "$S1A_ENV"
+```

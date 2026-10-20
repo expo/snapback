@@ -10,14 +10,18 @@ use std::sync::Arc;
 pub fn run(args: &Args) -> Json {
     let net = Arc::new(Net::parse(args.req("--net")));
     let writers = args.num("--writers", 4);
-    let disjoint = args.req("--counters") == "disjoint";
+    let counters = args.req("--counters").to_string();
+    assert!(["disjoint", "same", "hot1"].contains(&counters.as_str()));
+    let disjoint = counters != "same";
+    let hot = counters == "hot1";
     assert!(writers <= 256);
     let timing = Timing::from_env();
     let schema = format!("cp_raw_{}_{:x}", std::process::id(), snapback4_core::ids::seed() & 0xffff_ffff);
     let mut a = admin();
     a.batch_execute(&format!(
         "CREATE SCHEMA {schema}; CREATE TABLE {schema}.counters (id text COLLATE \"C\" PRIMARY KEY, n bigint NOT NULL);
-         INSERT INTO {schema}.counters SELECT 'c' || g, 0 FROM generate_series(0, 255) g; ANALYZE {schema}.counters;"
+         INSERT INTO {schema}.counters SELECT 'c' || g, 0 FROM generate_series(0, 255) g;
+         INSERT INTO {schema}.counters VALUES ('hot', 0); ANALYZE {schema}.counters;"
     ))
     .unwrap();
     let mut runs = Vec::new();
@@ -34,8 +38,10 @@ pub fn run(args: &Args) -> Json {
                 let st = c.prepare(&format!("UPDATE {s2}.counters SET n = n + 1 WHERE id = $1")).unwrap();
                 (c, st)
             },
-            move |(c, st), w, _| {
-                let n = c.execute(st, &[&slot(disjoint, w)]).map_err(|e| format!("{e:?}"))?;
+            move |(c, st), w, i| {
+                // Exactly 1 in 100 per writer, staggered across writers.
+                let counter = if hot && (i + w as u64 * 37) % 100 == 0 { "hot".into() } else { slot(disjoint, w) };
+                let n = c.execute(st, &[&counter]).map_err(|e| format!("{e:?}"))?;
                 if n != 1 {
                     return Err("row missing".into());
                 }
@@ -47,7 +53,7 @@ pub fn run(args: &Args) -> Json {
     }
     let sum: i64 = a.query_one(&format!("SELECT sum(n)::bigint FROM {schema}.counters"), &[]).unwrap().get(0);
     json!({"cell": "raw", "label": "raw Postgres control: typed table, autocommit UPDATE n = n + 1",
-        "net": net.describe(), "writers": writers, "counters": if disjoint {"disjoint"} else {"same"}, "schema": schema,
+        "net": net.describe(), "writers": writers, "counters": counters, "hot_key_fraction": if hot {0.01} else {0.0}, "schema": schema,
         "counter_check": {"acknowledged": total, "counter_sum": sum, "ok": total == sum},
         "summary": aggregate(&runs), "runs": runs})
 }
