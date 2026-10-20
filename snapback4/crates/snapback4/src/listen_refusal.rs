@@ -27,7 +27,12 @@ fn describe(address: SocketAddr) -> (String, Option<u64>) {
             let store = if status.get("temporary") == Some(&Json::Bool(true)) { "a temporary store" } else { "its project store" };
             (format!("a running snapback4 dev{} serving {project} on {store}", pid.map(|p| format!(" (pid {p})")).unwrap_or_default()), pid)
         }
-        Ok((status, _)) => (format!("a server that is not a snapback4 dev (GET /dev/status answered {status}; a snapback4 serve refuses that door)"), None),
-        Err(_) => ("a process that does not answer GET /dev/status (not a snapback4 dev)".into(), None),
+        Ok((status, _)) => {
+            match crate::verbs::run_forward::exchange(address, "GET", "/auth/config", None, "", Duration::from_secs(2)) {
+                Ok((200, config)) if config["development"] == true => ("a running snapback4 dev with closed inspection doors; use /auth/config for identity capabilities".into(), None),
+                _ => (format!("a server with GET /dev/status unavailable ({status}); inspect /auth/config or the listener PID"), None),
+            }
+        },
+        Err(_) => ("a process that does not answer GET /dev/status".into(), None),
     }
 }

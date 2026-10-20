@@ -17,6 +17,7 @@ import { proveDay5 } from "./publication-day5.mjs";
 import { proveProduction } from "./publication-production.mjs";
 import { proveProofKit } from "./publication-proof-kit.mjs";
 import { proveMigrations } from "./publication-migrations.mjs";
+import { proveDX4 } from "./publication-dx4.mjs";
 import { proveStaging } from "./publication-staging.mjs";
 import { proveSecurity } from "./publication-security.mjs";
 import { proveClientRecipes } from "./publication-client-recipes.mjs";
@@ -106,6 +107,7 @@ export async function qualify(args = process.argv.slice(2)) {
     // browser proof; both execute the same retained client/platform bytes.
     const day2Proof = await proveDay2(client, tarball, out);
     save(join(out, "day2-proof.json"), day2Proof);
+    save(join(out, "dx4-proof.json"), await proveDX4(day2Proof.directory));
     const regressions = await proveExpoUpgrades(client, tarball, expo, out);
     save(join(out, "regressions.json"), regressions);
     const day4Proof = await proveDay4(day2Proof.directory);

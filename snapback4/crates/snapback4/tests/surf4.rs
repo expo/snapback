@@ -195,7 +195,7 @@ fn administrative_release_consumers_can_inspect_damaged_retained_source() {
     fs::write(app.0.join("snapback/schema.q"),"table notes:\n  body: text <=50\n  public 'test'\n  online only\n").unwrap();
     success(app.run(&["deploy","deployment"]));
     fs::write(app.0.join("deployment/releases/1/snapback/schema.q"),"broken retained source\n").unwrap();
-    assert_eq!(success(app.run(&["data","notes","--release","deployment","--json"])).trim(),"[]");
+    assert_eq!(success(app.run(&["data","notes","--release","deployment","--json"])).trim(),"{\"limit\":50,\"more\":false,\"rows\":[]}");
     success(app.run(&["token","--release","deployment","--service","ops","--quiet"]));
     let doctor=app.run(&["doctor","--release","deployment","--json"]);
     assert!(!doctor.status.success());
@@ -217,4 +217,51 @@ fn failed_seed_discovery_does_not_open_a_legacy_store_or_create_sidecars() {
     let before=snapshot();let result=app.run(&["seed","seed.json"]);
     assert!(!result.status.success(),"{result:?}");assert!(String::from_utf8_lossy(&result.stderr).contains("no running dev discovered"),"{result:?}");
     assert_eq!(snapshot(),before);
+}
+
+#[test]
+fn data_json_reports_default_truncation_empty_and_explicit_limits() {
+    let app=App::new();fs::create_dir(app.0.join("snapback")).unwrap();
+    fs::write(app.0.join("snapback/schema.q"),"use personas alice\ntable notes:\n  body: text <=50\n  public 'test'\n  insert <- allow\nmutation add():\n  return insert notes {body: 'row'}\n").unwrap();
+    success(app.run(&["run","add","--as","alice"]));
+    for _ in 1..51 {success(app.run(&["run","add","--as","alice"]));}
+    for (flags,count,more,limit) in [(vec![],50,true,50),(vec!["--limit","51"],51,false,51),(vec!["--limit","0"],0,true,0)] {
+        let mut args=vec!["data","notes","--json"];args.extend(flags);
+        let output=success(app.run(&args));let page:serde_json::Value=serde_json::from_str(&output).unwrap();
+        assert_eq!(page["rows"].as_array().unwrap().len(),count);assert_eq!(page["more"],more);assert_eq!(page["limit"],limit);
+    }
+}
+
+#[test]
+fn wait_stopped_is_read_only_and_flags_refuse_before_project_work() {
+    let app=App::new();let missing=app.0.join("missing");
+    let out=app.run(&["serve","missing","--wait-stopped"]);assert!(!out.status.success());assert!(!missing.exists());
+    let out=app.run(&["serve","missing","--wait-stopped","--worker","worker.mjs"]);assert_eq!(out.status.code(),Some(2));assert!(!missing.exists());
+    fs::create_dir(app.0.join("snapback")).unwrap();fs::write(app.0.join("snapback/schema.q"),"query alive():\n  return true\n").unwrap();
+    success(app.run(&["deploy","deployment"]));
+    let dir=app.0.join("deployment");let names=||{let mut files=fs::read_dir(&dir).unwrap().map(|e|e.unwrap().file_name()).collect::<Vec<_>>();files.sort();files};
+    let before=names();let db=fs::read(dir.join("store.sqlite")).unwrap();
+    success(app.run(&["serve","deployment","--wait-stopped"]));assert_eq!(names(),before);assert_eq!(fs::read(dir.join("store.sqlite")).unwrap(),db);
+}
+
+#[cfg(unix)]
+#[test]
+fn deploy_and_rollback_wait_before_admission_even_with_a_closing_listener_hint() {
+    use std::{thread,time::Duration,process::Stdio};
+    let app=App::new();fs::create_dir(app.0.join("snapback")).unwrap();
+    let source=app.0.join("snapback/schema.q");fs::write(&source,"query version():\n  return 1\n").unwrap();success(app.run(&["deploy","deployment"]));
+    fs::write(&source,"query version():\n  return 2\n").unwrap();success(app.run(&["deploy","deployment"]));
+    for (n,args) in [(3,vec!["rollback","deployment","--to","1"]),(4,vec!["deploy","deployment"])] {
+        fs::write(&source,format!("query version():\n  return {n}\n")).unwrap();
+        let database=app.0.join("deployment/store.sqlite");let lock=snapback4_core::private_fs::owner_file(&database).unwrap();lock.try_lock().unwrap();
+        // A TCP listener can still be open after its private control endpoint
+        // goes away. It is a hint, never permission to replay activation.
+        let listener=std::net::TcpListener::bind("127.0.0.1:0").unwrap();let address=listener.local_addr().unwrap();
+        fs::write(app.0.join("deployment/serve.lock"),format!("{}\nhttp://{address}\n",address.port())).unwrap();
+        let child=Command::new(BIN).current_dir(&app.0).args(args).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+        thread::sleep(Duration::from_millis(150));drop(lock);
+        let output=child.wait_with_output().unwrap();success(output);drop(listener);
+    }
+    let status:serde_json::Value=serde_json::from_str(&success(app.run(&["releases","deployment","--json"]))).unwrap();
+    assert_eq!(status["generation"],4); // exactly one activation per command
 }

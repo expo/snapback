@@ -1,0 +1,93 @@
+{
+  "date": "2026-10-19",
+  "base": "eecdbb054d",
+  "finalImplementationCommit": "30a8f2a2f14a8f63cfde90100737d345917d3af0",
+  "qualificationCommit": "7239e705c7f4cf3b4873983a8104b9420243d8e1",
+  "qualificationDelta": "Full consumer matrix at ed0abcf8ca; final native guide catalog/prose at ebc41801f2, editorial pins and packed witness follow-through at 7239e705c7. SDK tarball bytes identical; reviewed auth/release/owner/data implementation and amendment inputs unchanged.",
+  "finalVerdicts": {
+    "muse": "READY",
+    "codex": "READY"
+  },
+  "inputs": {
+    "llp/3000.000.000.001-staging-with-real-users.rfc.md": "03f62f8be9546c05885e5578ace8b00cb69427737483fc50c5b3c47feff413e8",
+    "snapback4/packages/snapback4/src/identity-request.ts": "8e30ebba5dab26c26620bde003adbfcf0325ea9734ecdfedf7f41aeda611d62c",
+    "snapback4/packages/snapback4/src/auth.ts": "baf35ed944fd79cf6f7e27fa22acf33a4b0c6c72c8f8d2a03abd571d38426362",
+    "snapback4/packages/snapback4/src/proof-accounts.ts": "ce3d638f9b385b36f4567b716648e063d15523c5848ae9cd51fd366e448aea18",
+    "snapback4/packages/snapback4/src/proof.ts": "bd45020a6fc63e9c316741fba8bcfe6b39cefbbe97a8f9baf4d2bbf066639268",
+    "snapback4/packages/snapback4/src/proof-process.ts": "de16803e1be5aac27f0900ecc7ad93c3007fb2e24ecd88acb8e316586609bc27",
+    "snapback4/packages/snapback4/src/http-response.ts": "63b70e1f344dcf52b21bfab54c893062d96d0fdda1f0f5b2f8480e93c0d880a5",
+    "snapback4/packages/snapback4/src/contract.ts": "0e9d4b2079f3be81bbb8875f9367dacb6477a811a18469bdf89865ad3acef778",
+    "snapback4/crates/snapback4/src/store_owner.rs": "0f1648f1e5b858404e1501e84e1093f3a4a600f19ed99151513430a9e9444dc9",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "b19ba0c30f5bd8625c9a06bf48b1eb32544a1371ecf8efe6e7d0ee52054b081c",
+    "snapback4/crates/snapback4/src/verbs.rs": "51ba99777e7b4e56f761132307b8ce33b3c646423320de6323b27f498fda96e0",
+    "snapback4/crates/snapback4/src/cli_flags.rs": "289a0b82ca6e6a99d90cda3922f78fa3d871f5fab9546fed961f344b402d7144",
+    "snapback4/crates/snapback4/src/verb_help.rs": "8d9327ca3301f76a1d50708021e37d87b680dfdaf64afce12a7881ff084ed35b"
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "brief": "r1-brief.txt",
+      "muse": {
+        "command": "timeout 1800 /home/ccheever/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file /home/ccheever/projects/sb4-b18-dx4/llp/reviews/dx4-wave19/r1-brief.txt",
+        "stdout": "r1-muse.txt",
+        "stderr": "r1-muse.stderr"
+      },
+      "codex": {
+        "command": "timeout 1800 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < llp/reviews/dx4-wave19/r1-brief.txt",
+        "stdout": "r1-codex.txt",
+        "stderr": "r1-codex.stderr",
+        "freshSession": true
+      }
+    },
+    {
+      "round": 2,
+      "brief": "r2-brief.txt",
+      "muse": {
+        "command": "timeout 1800 /home/ccheever/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file /home/ccheever/projects/sb4-b18-dx4/llp/reviews/dx4-wave19/r2-brief.txt",
+        "stdout": "r2-muse.txt",
+        "stderr": "r2-muse.stderr"
+      },
+      "codex": {
+        "command": "timeout 1800 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < llp/reviews/dx4-wave19/r2-brief.txt",
+        "stdout": "r2-codex.txt",
+        "stderr": "r2-codex.stderr",
+        "freshSession": true
+      }
+    },
+    {
+      "round": 3,
+      "brief": "r3-brief.txt",
+      "muse": {
+        "command": "timeout 1800 /home/ccheever/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file /home/ccheever/projects/sb4-b18-dx4/llp/reviews/dx4-wave19/r3-brief.txt",
+        "stdout": "r3-muse.txt",
+        "stderr": "r3-muse.stderr"
+      },
+      "codex": {
+        "command": "timeout 1800 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < llp/reviews/dx4-wave19/r3-brief.txt",
+        "stdout": "r3-codex.txt",
+        "stderr": "r3-codex.stderr",
+        "freshSession": true
+      }
+    }
+  ],
+  "artifacts": {
+    "r1-muse.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "r3-muse.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "r1-codex.txt": "ea5b43f4651fdab901efb88d44017d6eaf47ee8487b8a119e763f9dba1b5aa2f",
+    "r3-brief.txt": "6f85f11a2c3be43b22b9be851c89680568ebacd4b7d95d64b79820b77fc6e999",
+    "r1-brief.txt": "980687b3015fe4d1b6b9a1e7347817cbc6f5d7901b15c2706c8cf5a6dc6f37c0",
+    "r2-muse.txt": "f789356483ca593be1ff9822a98a011cca16b683c0fef2dea5a5229d698b4df2",
+    "r2-brief.txt": "c8fbc1648e09caacb3a30c69bf0d269a7c93b0a5253377ea774ffc4b678d4913",
+    "r3-codex.stderr": "2a7abc38b89dc1c6f4b4e44fe268b92fd24526f762537936b7f5ff55e1f58c5a",
+    "r2-codex.stderr": "d23fb86cf75cdd30a9ea2a2c9f1b3387b9e82336700dae41b827ef11ade07b2e",
+    "r1-muse.txt": "e933423c6eca4e6eb9f5e6165a2360053d3773f83f6d09627f15f1dee43dc7be",
+    "r2-codex.txt": "89bf3234b9f8202f0abaeee1df806768d058a04d545f4a2ad6aa120bcfce4ec9",
+    "r3-muse.txt": "6ea29ea0a5e82d668a4cea5520743e8b291ce609be69e9734fe0ca94ddc87558",
+    "r3-codex.txt": "bdeeddd560efbc80b36f580983560277eac116e65295fe8c87591cb9a8869358",
+    "r1-codex.stderr": "5270120d8eb1ea3960091a642097d7fe91d45fbdbec4dde38c98bcb5996c92fc",
+    "r2-muse.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "initialQualificationCommit": "ed0abcf8ca97baa8748d3eee8f143ef7316b5e2a",
+  "finalNativeSourceCommit": "ebc41801f2f8a5c77ad0667eb0416fdb3949d30a",
+  "reviewedInputsUnchangedAtFinalQualification": true
+}

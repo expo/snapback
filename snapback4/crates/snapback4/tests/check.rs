@@ -1439,7 +1439,7 @@ fn maintained_column_inspection_is_public_and_missing_storage_reads_zero() {
     assert_eq!(parsed(&sql)["rows"],json!([[0,0,0]]));
     let data=p.run(&["data","posts","--json"]);
     assert!(data.status.success(),"{data:?}");
-    let data_json=parsed(&data);
+    let data_json=parsed(&data)["rows"].clone();
     for result in [&data,&sql] {assert!(!String::from_utf8_lossy(&result.stdout).contains(&private));}
     assert_eq!(data_json.as_array().unwrap().len(),1);
     assert_eq!(data_json[0]["id"],json!("p"));

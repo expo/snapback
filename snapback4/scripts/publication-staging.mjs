@@ -28,6 +28,7 @@ export async function proveStaging(client, platform, directory) {
   await run(process.execPath, ["staging.mjs", "--once"]);
   await run(process.execPath, [cli, "deploy", "production"]);
   await run(process.execPath, ["first-admin.mjs"], { FIRST_ADMIN_EMAIL: "chosen-admin@example.test", FIRST_ADMIN_PASSWORD: "explicit-production-password" });
+  await run(process.execPath, ["first-admin.mjs"], { FIRST_ADMIN_EMAIL: "chosen-admin@example.test", FIRST_ADMIN_PASSWORD: "explicit-production-password" });
   writeFileSync(join(cwd, "verify.mjs"), verify);
   await run(process.execPath, ["verify.mjs"]);
   return { status: "passed", guide: "staging", recipes: "verbatim installed card", roles: { admin: 2, member: 2 },

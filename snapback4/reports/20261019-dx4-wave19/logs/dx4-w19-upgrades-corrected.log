@@ -1,0 +1,186 @@
+BEGIN 18 004-snapback-mass-spec-sample-queue
+
+added 34 packages in 1s
+upgrade status 0
+project 004-snapback-mass-spec-sample-queue: upgrade warning: password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. No matching dev-door scripts found.
+project 004-snapback-mass-spec-sample-queue: upgrade warning: startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:["--memory"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs
+END 18 004-snapback-mass-spec-sample-queue
+BEGIN 18 015-snapback-substation-switching-orders
+
+added 513 packages in 6s
+upgrade status 0
+project snapback4-expo-starter: upgrade warning: password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. No matching dev-door scripts found.
+project snapback4-expo-starter: upgrade warning: startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:["--memory"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs, scripts/frontend-proof.mjs
+END 18 015-snapback-substation-switching-orders
+BEGIN 18 019-snapback-chimney-sweep-reports
+
+added 34 packages in 947ms
+upgrade status 0
+project 019-snapback-chimney-sweep-reports: upgrade warning: password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. Review: scripts/acceptance.mjs
+project 019-snapback-chimney-sweep-reports: upgrade warning: startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:["--memory"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs, scripts/frontend-proof.mjs
+END 18 019-snapback-chimney-sweep-reports
+BEGIN 18 033-snapback-fencing-bout-pools
+
+added 38 packages in 1s
+upgrade status 0
+project 033-snapback-fencing-bout-pools: upgrade warning: startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:["--memory"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.ts, scripts/frontend-proof.ts
+END 18 033-snapback-fencing-bout-pools
+BEGIN 18 045-snapback-honor-guard-details
+
+added 516 packages in 6s
+upgrade status 0
+project snapback4-expo-starter: upgrade warning: password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. Review: scripts/acceptance.mjs
+project snapback4-expo-starter: upgrade warning: startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:["--memory"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs, scripts/frontend-proof.mjs
+END 18 045-snapback-honor-guard-details
+BEGIN 17 005-snapback-kiln-firing-queue
+
+added 34 packages in 843ms
+upgrade status 0
+project 005-snapback-kiln-firing-queue: upgrade warning: password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. Review: scripts/acceptance.mjs, scripts/hardened.mjs, scripts/probe-smoke.mjs
+project 005-snapback-kiln-firing-queue: upgrade warning: startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:["--memory"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs
+END 17 005-snapback-kiln-firing-queue
+BEGIN 17 010-snapback-allotment-water-turns
+
+added 513 packages in 5s
+upgrade status 0
+project 010-snapback-allotment-water-turns: upgrade warning: password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. Review: dist-v1/_expo/static/js/web/index-f6b144a24cc69add59508930b7cd316e.js, scripts/acceptance.mjs
+project 010-snapback-allotment-water-turns: upgrade warning: startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:["--memory"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/runtime.mjs
+END 17 010-snapback-allotment-water-turns
+BEGIN 17 019-snapback-apiary-hive-inspections
+
+added 516 packages in 5s
+upgrade status 0
+project 019-snapback-apiary-hive-inspections: upgrade warning: startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:["--memory"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs, scripts/frontend-proof.mjs
+END 17 019-snapback-apiary-hive-inspections
+BEGIN 17 033-snapback-compounding-dual-check
+
+added 34 packages in 920ms
+upgrade status 0
+project compounding-dual-check: upgrade warning: password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. Review: dist-v1/assets/index-Om22RmpA.js, scripts/acceptance.ts, scripts/day2-proof.ts, scripts/probe-proof.ts, scripts/runtime.ts
+END 17 033-snapback-compounding-dual-check
+BEGIN 17 045-snapback-instrument-loan-bank
+
+added 34 packages in 858ms
+upgrade status 0
+project 045-snapback-instrument-loan-bank: upgrade warning: password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. Review: scripts/acceptance.mjs, scripts/frontend-proof.mjs, scripts/probe-serve.mjs
+project 045-snapback-instrument-loan-bank: upgrade warning: startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:["--memory"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs, scripts/frontend-proof.mjs
+END 17 045-snapback-instrument-loan-bank
+[
+  {
+    "wave": 18,
+    "lane": "004-snapback-mass-spec-sample-queue",
+    "from": "0.4.33",
+    "status": 0,
+    "warnings": [
+      "password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. No matching dev-door scripts found.",
+      "startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:[\"--memory\"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs"
+    ],
+    "check": "passed",
+    "transcript": "/home/ccheever/dx4-wave19-final-upgrades/wave18-004.json"
+  },
+  {
+    "wave": 18,
+    "lane": "015-snapback-substation-switching-orders",
+    "from": "0.4.33",
+    "status": 0,
+    "warnings": [
+      "password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. No matching dev-door scripts found.",
+      "startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:[\"--memory\"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs, scripts/frontend-proof.mjs"
+    ],
+    "check": "passed",
+    "transcript": "/home/ccheever/dx4-wave19-final-upgrades/wave18-015.json"
+  },
+  {
+    "wave": 18,
+    "lane": "019-snapback-chimney-sweep-reports",
+    "from": "0.4.33",
+    "status": 0,
+    "warnings": [
+      "password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. Review: scripts/acceptance.mjs",
+      "startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:[\"--memory\"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs, scripts/frontend-proof.mjs"
+    ],
+    "check": "passed",
+    "transcript": "/home/ccheever/dx4-wave19-final-upgrades/wave18-019.json"
+  },
+  {
+    "wave": 18,
+    "lane": "033-snapback-fencing-bout-pools",
+    "from": "0.4.33",
+    "status": 0,
+    "warnings": [
+      "startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:[\"--memory\"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.ts, scripts/frontend-proof.ts"
+    ],
+    "check": "passed",
+    "transcript": "/home/ccheever/dx4-wave19-final-upgrades/wave18-033.json"
+  },
+  {
+    "wave": 18,
+    "lane": "045-snapback-honor-guard-details",
+    "from": "0.4.33",
+    "status": 0,
+    "warnings": [
+      "password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. Review: scripts/acceptance.mjs",
+      "startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:[\"--memory\"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs, scripts/frontend-proof.mjs"
+    ],
+    "check": "passed",
+    "transcript": "/home/ccheever/dx4-wave19-final-upgrades/wave18-045.json"
+  },
+  {
+    "wave": 17,
+    "lane": "005-snapback-kiln-firing-queue",
+    "from": "0.4.31",
+    "status": 0,
+    "warnings": [
+      "password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. Review: scripts/acceptance.mjs, scripts/hardened.mjs, scripts/probe-smoke.mjs",
+      "startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:[\"--memory\"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs"
+    ],
+    "check": "passed",
+    "transcript": "/home/ccheever/dx4-wave19-final-upgrades/wave17-005.json"
+  },
+  {
+    "wave": 17,
+    "lane": "010-snapback-allotment-water-turns",
+    "from": "0.4.31",
+    "status": 0,
+    "warnings": [
+      "password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. Review: dist-v1/_expo/static/js/web/index-f6b144a24cc69add59508930b7cd316e.js, scripts/acceptance.mjs",
+      "startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:[\"--memory\"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/runtime.mjs"
+    ],
+    "check": "passed",
+    "transcript": "/home/ccheever/dx4-wave19-final-upgrades/wave17-010.json"
+  },
+  {
+    "wave": 17,
+    "lane": "019-snapback-apiary-hive-inspections",
+    "from": "0.4.31",
+    "status": 0,
+    "warnings": [
+      "startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:[\"--memory\"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs, scripts/frontend-proof.mjs"
+    ],
+    "check": "passed",
+    "transcript": "/home/ccheever/dx4-wave19-final-upgrades/wave17-019.json"
+  },
+  {
+    "wave": 17,
+    "lane": "033-snapback-compounding-dual-check",
+    "from": "0.4.31",
+    "status": 0,
+    "warnings": [
+      "password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. Review: dist-v1/assets/index-Om22RmpA.js, scripts/acceptance.ts, scripts/day2-proof.ts, scripts/probe-proof.ts, scripts/runtime.ts"
+    ],
+    "check": "passed",
+    "transcript": "/home/ccheever/dx4-wave19-final-upgrades/wave17-033.json"
+  },
+  {
+    "wave": 17,
+    "lane": "045-snapback-instrument-loan-bank",
+    "from": "0.4.31",
+    "status": 0,
+    "warnings": [
+      "password-only dev doors are CLOSED since 0.4.33: /seed, /dev/* and persona headers refuse. Use deploy staging --staging plus serve staging for real users (guide staging); local fixtures explicitly opt into dev --unsafe-dev-doors. Review: scripts/acceptance.mjs, scripts/frontend-proof.mjs, scripts/probe-serve.mjs",
+      "startDev() persists since 0.4.33: reruns see old rows and share the dev store. For disposable acceptance use startDev({args:[\"--memory\"]}); keep persistence for continuity. Review (check each call for explicit memory): scripts/acceptance.mjs, scripts/frontend-proof.mjs"
+    ],
+    "check": "passed",
+    "transcript": "/home/ccheever/dx4-wave19-final-upgrades/wave17-045.json"
+  }
+]

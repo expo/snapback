@@ -1,0 +1,20 @@
+✔ guest waits for the server delay and preserves scope without sending retry options (47.875375ms)
+✔ signup waits for the server delay and preserves scope without sending retry options (41.867916ms)
+✔ login waits for the server delay and preserves scope without sending retry options (41.697709ms)
+✔ header-only identity refusals retry; legacy fetch argument still works (43.574667ms)
+✔ identity refusals have bounded attempts and wait budget (6.095333ms)
+✔ abort cancels an identity wait without a late signup (30.625334ms)
+✔ identity does not replay ambiguous, malformed, non-rate or permanent refusals (1.443584ms)
+✔ proof seedAccounts shares identity delay and retries the same account only (43.584334ms)
+✔ proof seeding respects the remaining setup budget and never retries lost signup replies (2.047917ms)
+✔ zero and elapsed date Retry-After headers fit a short identity deadline (3.168416ms)
+✔ an active signup deadline names partial staging setup and never replays (229.66425ms)
+✔ early timer delivery preserves staging timeout classification with budget remaining (2.789458ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 552.541583

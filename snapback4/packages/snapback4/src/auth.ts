@@ -1,3 +1,4 @@
+import { identityRequest, type IdentityRetryOptions } from "./identity-request.ts";
 import { browserAdmission, synchronousSessionStore } from "./admission.ts";
 import { indexedDbSessionStore } from "./session-authority.ts";
 import { defaultFetch } from "#fetch";
@@ -19,10 +20,9 @@ const isSession = (value: unknown, now = Date.now()): value is Session => {
   return Boolean(found && typeof found.principal === "string" && found.principal.length > 0 && typeof found.kind === "string" && typeof found.token === "string" && found.token.length > 0 && typeof found.expiresAt === "number" && Number.isFinite(found.expiresAt) && found.expiresAt > now);
 };
 
-async function post(url: string, path: string, body: unknown, doFetch: typeof fetch): Promise<SignIn> {
+async function post(url: string, path: string, body: unknown, doFetch: typeof fetch, options: SignInOptions): Promise<SignIn> {
   try {
-    const response = await doFetch(`${url.replace(/\/$/, "")}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-    const json = (await readResponse(response)) as { session?: Session; denied?: Refusal };
+    const { response, json } = await identityRequest(`${url.replace(/\/$/, "")}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, doFetch, options) as { response: Response; json: {session?:Session; denied?:Refusal} };
     if (response.ok && isSession(json.session, Number(response.headers.get("x-snapback-time") ?? Date.now()))) return { ok: true, session: json.session };
     return { ok: false, why: json.denied ?? refused("sign-in was refused") };
   } catch (error) {
@@ -30,24 +30,24 @@ async function post(url: string, path: string, body: unknown, doFetch: typeof fe
   }
 }
 
-export interface SignInOptions { readonly scope?: "full" | "read"; }
+export interface SignInOptions extends IdentityRetryOptions { readonly scope?: "full" | "read"; }
 const signInArgs = (options: SignInOptions | typeof fetch, doFetch: typeof fetch) => typeof options === "function" ? { options: {}, doFetch: options } : { options, doFetch };
 
 /** A guest principal, when the schema says `use identity guests`. */
 export function guest(url: string, options: SignInOptions | typeof fetch = {}, fetcher: typeof fetch = defaultFetch): Promise<SignIn> {
   const args = signInArgs(options, fetcher);
-  return post(url, "/auth/guest", args.options, args.doFetch);
+  return post(url, "/auth/guest", {scope: args.options.scope}, args.doFetch, args.options);
 }
 
 /** A new password account, when the schema says `use identity password`. */
 export function signup(url: string, email: string, password: string, options: SignInOptions | typeof fetch = {}, fetcher: typeof fetch = defaultFetch): Promise<SignIn> {
   const args = signInArgs(options, fetcher);
-  return post(url, "/auth/signup", { email, password, ...args.options }, args.doFetch);
+  return post(url, "/auth/signup", { email, password, scope: args.options.scope }, args.doFetch, args.options);
 }
 
 export function login(url: string, email: string, password: string, options: SignInOptions | typeof fetch = {}, fetcher: typeof fetch = defaultFetch): Promise<SignIn> {
   const args = signInArgs(options, fetcher);
-  return post(url, "/auth/login", { email, password, ...args.options }, args.doFetch);
+  return post(url, "/auth/login", { email, password, scope: args.options.scope }, args.doFetch, args.options);
 }
 
 /** Replace one live full-session bearer token. The server invalidates `token` before it

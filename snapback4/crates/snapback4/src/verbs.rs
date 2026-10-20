@@ -880,7 +880,7 @@ pub fn data(options: &Options) -> i32 {
     match inspected {
         Ok((rows, more)) => {
             if options.json {
-                println!("{}", serde_json::Value::Array(rows.iter().map(wire::to_json).collect()));
+                println!("{}", serde_json::json!({"rows":rows.iter().map(wire::to_json).collect::<Vec<_>>(), "more":more, "limit":limit}));
             } else {
                 for row in &rows { println!("{}", wire::to_json(row)); }
             }
@@ -1329,62 +1329,8 @@ pub use releases::{deploy, prune, releases, rollback, serve_release};
 pub(crate) use releases::existing_deployment;
 pub(crate) use releases::release_bind;
 
-/// `token --service <name> [--days N] [--release <dir>]`: a bearer session
-/// for a service principal, printed once. A service is a worker's seat: it
-/// claims effects, mints sessions for the accounts the application
-/// authenticates itself, and is admitted by rules as `service:<name>`.
-pub fn token(options: &Options) -> i32 {
-    let Some(name) = options.flags.get("service").filter(|name| !name.is_empty()) else {
-        eprintln!("usage: {}", crate::cli_flags::synopsis("token"));
-        return 2;
-    };
-    let days: i64 = options.flags.get("days").and_then(|d| d.parse().ok()).unwrap_or(365);
-    let path = match options.flags.get("release") {
-        Some(dir) => match releases::existing_deployment(Path::new(dir)) {
-            Ok(dir) => dir.join("store.sqlite"),
-            Err(error) => { eprintln!("token: {error}"); return 2; }
-        },
-        None => project_or_exit().store_path(),
-    };
-    if !options.flags.contains_key("release") && !path.is_file() {
-        eprintln!("cannot open the store: no store at {}; run `snapback4 dev` first", path.display());
-        return 2;
-    }
-    let _owner = match crate::store_owner::command(&path) {
-        Ok(owner) => Some(owner),
-        Err(error) if error.starts_with("E_STORE_BUSY ") => None,
-        Err(error) => { eprintln!("{error}"); return 2; }
-    };
-    let store_path = &path;
-    let session = if let Some(owner) = &_owner {
-        let store = match owner.open_store(std::time::Duration::from_secs(5)) {
-            Ok(store) => store,
-            Err(error) => { eprintln!("cannot open the store: {error}"); return 2; }
-        };
-        snapback4_core::identity::service_session(&store, name, snapback4_core::now_ms(), days)
-            .map_err(|error| (1, format!("token: {error}")))
-    } else {
-        crate::serve::token::mint_live(&path, name, days)
-    };
-    match session {
-        Ok(session) => {
-            if options.json {
-                println!("{}", json!({"token":session.token,"principal":session.principal,"expiresAt":session.expires_at,"store":store_path}));
-            } else {
-                println!("{}", session.token);
-                if !options.flags.contains_key("quiet") {
-                    eprintln!("token: a session for {} until {}; printed once; keep it where the worker keeps secrets", session.principal, session.expires_at);
-                    eprintln!("store: {}; this token belongs only to this store; each isolated store needs its own", store_path.display());
-                }
-            }
-            0
-        }
-        Err((status, error)) => {
-            eprintln!("{error}");
-            status
-        }
-    }
-}
+mod token;
+pub use token::token;
 
 // @ref LLP 3000.020#3.1 — report the same normalized candidates execution chooses between.
 fn row_view_range(schema: &snapback4_core::schema::Schema, m: &snapback4_core::schema::Maintain) -> Option<serde_json::Value> {

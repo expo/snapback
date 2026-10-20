@@ -160,6 +160,13 @@ schedule closer every 1m: closeDeparted
 
 ## The dev clock
 
+Clock replies include sessionNotice: large jumps expire ordinary seven-day
+password sessions and collect unplaced uploads after one hour. Sign in again
+and upload after the jump. Reset replaces accounts and sessions: discard cached
+credentials/localStorage, sign up and reprovision. Password-only dev requires
+`--unsafe-dev-doors`; shared real-user tests use the MIG staging clock above.
+
+
 - CLI clock durations use one positive whole number and `ms`, `s`, `m`, `h`, `d` or `w`, optionally prefixed `+`: use `90m`, not `1h30m`. Quarry uses `7d` instead of `1w`.
 - Classified staging uses `serve <dir> --clock-offset +25h` and `clock advance 2h --release <dir>` with the same duration and drain semantics. `startServe(dir, {clockOffset: "+25h"})` exposes `now()` and `advance("2h")`; both use local operator authority. Production, legacy, account and read-only sessions refuse clock control. Offset is process-local; restart drops it, while persisted disclosure floors never retreat. Ordinary user sessions retain their normal expiry; sign in again after large advances. Staging clock control admits no persona, fixture, reset or dev-job authority.
 - `snapback4 dev --clock-offset +25h` starts the dev server 25 hours ahead; mutations stamp `now` from it.

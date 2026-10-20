@@ -1,0 +1,7 @@
+NOT READY — one MATERIAL issue.
+
+[proof-accounts.ts:49](/home/ccheever/projects/sb4-b18-dx4/snapback4/packages/snapback4/src/proof-accounts.ts:49) classifies signup deadline failures by rechecking `remaining()`. The identity timer can fire slightly early, leaving a positive remainder and propagating bare `identity deadline exceeded` without `E_STAGING_TIMEOUT` or the required partial-accounts warning.
+
+A read-only source probe reproduced this in 2/50 calls with valid `timeoutMs:10`; subsequent samples passed, confirming intermittency. Signup’s outcome may be unknown at cancellation, so the recovery warning matters. Identify deadline errors explicitly and translate them unconditionally; add a deterministic regression covering early timer delivery.
+
+No other MATERIAL issues found in the scoped retry, ownership, activation non-replay, stop-barrier, or pagination changes. No files modified or other review artifacts read. Full qualification remains separate.

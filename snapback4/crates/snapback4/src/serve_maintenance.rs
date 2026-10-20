@@ -444,11 +444,11 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     match drained.map_err(|error| error.refusal()).and_then(|work| completed_drain(work, crate::lifecycle::stopping())) {
         Ok(work) => {
             let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, shared.hold_schedules, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
-            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules}))
+            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":crate::dev_clock::SESSION_NOTICE, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules}))
         }
         // Time remains advanced if maintenance fails; callers must not
         // retry the advance blindly. The normal tick retries pending work.
-        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "denied":refusal_json(&error)})),
+        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":crate::dev_clock::SESSION_NOTICE, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "denied":refusal_json(&error)})),
     }
 }
 

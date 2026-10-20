@@ -54,6 +54,8 @@ card/assets/5:captureEvidence | never
 card/assets/5:removeEvidence | never
 card/assets/5:removeSnapshot | never
 card/assets/5:shareSnapshot | never
+card/assets/6:place | never
+card/assets/6:reference | never
 card/cheatsheet/1:addItem | eligible
 card/cheatsheet/1:addItem | items/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/cheatsheet/1:addItem | openItems/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule

@@ -208,3 +208,31 @@ fn address_cleanup_preserves_replacements_and_the_ownership_sidecar() {
     assert_eq!(fs::read_to_string(record).unwrap(), "replacement");
     fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn release_barrier_waits_for_the_real_lock_without_changing_files() {
+    let dir=std::env::temp_dir().join(format!("snapback4-owner-barrier-{}",std::process::id()));
+    let path=dir.join("store.sqlite");
+    let owner=command(&path).unwrap();
+    let record=dir.join("serve.lock");let before=fs::read(&record).unwrap();
+    let error=wait_released(&path,Duration::from_millis(50)).unwrap_err();assert!(error.contains("E_STORE_BUSY"),"{error}");
+    assert_eq!(fs::read(&record).unwrap(),before);
+    let release=std::thread::spawn(move||{std::thread::sleep(Duration::from_millis(120));drop(owner);});
+    let start=std::time::Instant::now();wait_released(&path,Duration::from_secs(2)).unwrap();
+    assert!(start.elapsed()>=Duration::from_millis(100));release.join().unwrap();
+    // A barrier neither clears the retained address nor opens SQLite.
+    let names=||{let mut names=fs::read_dir(&dir).unwrap().map(|f|f.unwrap().file_name()).collect::<Vec<_>>();names.sort();names};
+    let before=names();wait_released(&path,Duration::ZERO).unwrap();assert_eq!(names(),before);
+    let missing=dir.join("missing/store.sqlite");assert!(wait_released(&missing,Duration::ZERO).is_err());assert!(!missing.parent().unwrap().exists());
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn release_command_waits_for_an_unannounced_owner_then_acquires_exclusively() {
+    let dir=std::env::temp_dir().join(format!("snapback4-owner-release-wait-{}",std::process::id()));
+    let path=dir.join("store.sqlite");let owner=command(&path).unwrap();
+    let release=std::thread::spawn(move||{std::thread::sleep(Duration::from_millis(120));drop(owner);});
+    let start=std::time::Instant::now();let next=release_command(&path).unwrap();
+    assert!(start.elapsed()>=Duration::from_millis(100));assert!(command(&path).is_err());
+    release.join().unwrap();drop(next);fs::remove_dir_all(dir).unwrap();
+}

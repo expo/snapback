@@ -1,0 +1,168 @@
+✔ a failed local rotation save is not silently repeated by its notification (628.798588ms)
+✔ a local query retries its consumed predecessor after the owned rotation arrives (695.739944ms)
+▶ HTTP admission, encoding, slow readers and idle changes polls
+  ✔ the liveness probe requires credentials and has an explicit success body (27.847979ms)
+  ✔ catalog, generated API, native module, and change activity refuse anonymous callers (5.166526ms)
+  ✔ declared/chunked oversize, truncation and invalid UTF-8 do not execute a write (21.46501ms)
+  ✔ seed and upload retain their separate larger request ceilings (41.668929ms)
+  ✔ one-view assets finalize only after a complete non-range response (91.728386ms)
+  ✔ eight idle polls leave health/schema/query work free and commits wake subscribers (48.985077ms)
+  ✔ oversized sync JSON is refused and a smaller page remains valid (469.303467ms)
+  ✔ Wasm and process clients acquire wide snapshots by shrinking the same cursor (2666.361616ms)
+  ✔ a paused large response releases the engine before network progress (61.848081ms)
+✔ HTTP admission, encoding, slow readers and idle changes polls (3637.391847ms)
+✔ guest waits for the server delay and preserves scope without sending retry options (53.631273ms)
+✔ signup waits for the server delay and preserves scope without sending retry options (40.463812ms)
+✔ login waits for the server delay and preserves scope without sending retry options (41.364212ms)
+✔ header-only identity refusals retry; legacy fetch argument still works (40.697322ms)
+✔ identity refusals have bounded attempts and wait budget (4.407247ms)
+✔ abort cancels an identity wait without a late signup (31.008838ms)
+✔ identity does not replay ambiguous, malformed, non-rate or permanent refusals (2.222562ms)
+✔ proof seedAccounts shares identity delay and retries the same account only (43.853473ms)
+✔ proof seeding respects the remaining setup budget and never retries lost signup replies (2.585656ms)
+✔ zero and elapsed date Retry-After headers fit a short identity deadline (3.633447ms)
+✔ an active signup deadline names partial staging setup and never replays (209.819846ms)
+✔ early timer delivery preserves staging timeout classification with budget remaining (0.923214ms)
+✔ cleanup: mark, resume child cleanup, then remove empty parents (169.830495ms)
+✔ active-reference: refuse retired or absent targets and preserve history (89.578293ms)
+✔ H9 renderedText opts into substring matching for a row with more than the needle (2691.330699ms)
+✔ KIT4 substring advice stays inside explicit scope and timeout names the visible screen (651.905338ms)
+✔ H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise (1650.778411ms)
+✔ KIT3 explicit form claim survives slow uploads and never grants an unrelated callback (7467.921416ms)
+✔ KIT3 starter SVG box click and scoped text recipe run literally (962.869218ms)
+✔ KIT3 dev.now reads the current served clock across advance and reset (161.426977ms)
+✔ KIT4 stale online client names dev reset and a newly opened client works (223.561728ms)
+✔ KIT4 waitForClock observes the page client instead of the proof driver clock (1275.69576ms)
+✔ KIT4 generated proof API table agrees with every source export (1502.492758ms)
+✔ loadFixtures resolves only typed leaves at one dev clock and returns reset-ready rows (39.392025ms)
+✔ loadFixtures refuses bad clocks, durations and bounded catalog failure (0.535833ms)
+✔ loadFixtures sends persona on catalog and clock reads (6.473696ms)
+✔ loadFixtures sends headers on catalog and clock reads (4.192996ms)
+✔ loadFixtures preserves auth refusals (3003.142098ms)
+✔ KIT4 missing URL refuses before URL parsing (0.754071ms)
+✔ KIT4 fixture auth errors identify persona or token fingerprint without leaking bearer bytes (3011.727559ms)
+✔ runtime port range is inclusive, validated, and never cached (1.74769ms)
+✔ proof hosts select the binary from their explicit environment (57.561575ms)
+✔ native and static bind beyond an occupied port; identity and independent logs (170.604546ms)
+✔ exhausted range and missing export fail with bounded cleanup (243.231435ms)
+✔ static host serves wasm correctly and refuses escaped symlink assets (103.071822ms)
+✔ saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes (862.050281ms)
+✔ cli awaits close, separates output and returns refusal status (66.204762ms)
+✔ ANSI and blank ready lines, early exit, stalled readiness and TERM escalation (167.224539ms)
+✔ cleanup bounds stalled actions and continues after errors (41.874007ms)
+✔ exit sweep kills registered child, not a neighboring child (60.707141ms)
+✔ Vite uses the project's config and bound identity (235.955959ms)
+✔ browser helpers use fresh text, stable values and RN keystrokes (646.276431ms)
+✔ SIGKILLed driver closes frontend liveness and sweeps its whole private group (209.650702ms)
+✔ saved schemas typecheck server companions against private candidate API without replacing working types (5078.312578ms)
+✔ ready PID and served marker mismatches refuse instead of adopting another identity (123.900979ms)
+✔ secret stdout stays in memory; token CLI automatically selects secret capture (82.458199ms)
+✔ startDev explicit --memory preserves isolation with custom arguments (296.961637ms)
+✔ waitForServer waits for authoritative projection and diagnoses unchanged truth (151.900185ms)
+✔ proof browser navigation arms witness before application registration (376.209373ms)
+✔ --no-memory is consumed by the kit and retains dev rows across restarts (289.26635ms)
+✔ proof witness injection survives HTTP redirect destinations (245.248139ms)
+✔ secret capture releases its pipe when an exited tool leaves a descendant holding stdout (6103.832332ms)
+✔ KIT4 missing static output names the app build script (108.707191ms)
+✔ KIT4 missing browser peer refuses before logs or the proof callback (78.234908ms)
+✔ serve stop waits for delayed worker cleanup before resolving and is replayable (1091.380419ms)
+▶ online: each dev/serve refusal survives terminal cleanup and the online arm
+  ✔ dev unknown (58.3591ms)
+  ✔ dev expired (8.616057ms)
+  ✔ dev revoked (7.644801ms)
+  ✔ serve unknown (5.212995ms)
+  ✔ serve expired (5.290662ms)
+  ✔ serve revoked (7.885992ms)
+✔ online: each dev/serve refusal survives terminal cleanup and the online arm (233.516051ms)
+▶ local: each dev/serve refusal survives terminal cleanup and the online arm
+  ✔ dev unknown (511.554578ms)
+  ✔ dev expired (447.893649ms)
+  ✔ dev revoked (435.383645ms)
+  ✔ serve unknown (575.75743ms)
+  ✔ serve expired (570.559277ms)
+  ✔ serve revoked (576.892792ms)
+✔ local: each dev/serve refusal survives terminal cleanup and the online arm (3254.224404ms)
+▶ app-online: each dev/serve refusal survives terminal cleanup and the online arm
+  ✔ dev unknown (31.898591ms)
+  ✔ dev expired (16.457883ms)
+  ✔ dev revoked (15.968429ms)
+  ✔ serve unknown (16.380858ms)
+  ✔ serve expired (16.064804ms)
+  ✔ serve revoked (15.992145ms)
+✔ app-online: each dev/serve refusal survives terminal cleanup and the online arm (243.612177ms)
+▶ app-device: each dev/serve refusal survives terminal cleanup and the online arm
+  ✔ dev unknown (496.332318ms)
+  ✔ dev expired (413.337474ms)
+  ✔ dev revoked (483.982153ms)
+  ✔ serve unknown (415.812595ms)
+  ✔ serve expired (562.594356ms)
+  ✔ serve revoked (561.398734ms)
+✔ app-device: each dev/serve refusal survives terminal cleanup and the online arm (3073.953066ms)
+✔ ordinary signed-out client and app online arm still say sign in (0.843524ms)
+✔ real dev unknown-store bearer keeps the repair through online query and saved local startup (275.315246ms)
+✔ device app restoring a foreign-store token keeps its refusal on the signed-out online facade (1607.091828ms)
+✔ ordinary never-signed-in app stays generic (device: false) (2.132618ms)
+✔ ordinary never-signed-in app stays generic (device: true) (1.112438ms)
+✔ the default session store stays in memory and browser persistence is explicit (1.589352ms)
+✔ the local client rotates near expiry and keeps every protected request on the current bearer (45.475696ms)
+✔ a stale-token mutation refusal remains durable and retries after rotation (279.159037ms)
+✔ an online-only watch retries a stale-token refusal after rotation (23.676495ms)
+✔ a current-token sign-out cannot reclassify a stale write refusal (25.138547ms)
+✔ an authenticated change-feed refusal signs the online client out (13.013299ms)
+✔ worker, effect inspection, and service-session calls always carry the service bearer (1.350434ms)
+✔ staging accepts the generated handle of a qualified mutation module (424.516073ms)
+✔ staging accounts are real password users; service grants obey rules; marker survives release switches (1093.669099ms)
+✔ production cannot be relabelled; bulk setup refuses before token mint or account creation; first admin uses explicit operator (635.362518ms)
+snapback4: password-only development doors CLOSED (/seed, /dev/*, personas). For shared previews and probe:serve run snapback4 deploy staging --staging, then startServe("staging"); see snapback4 guide staging. Local fixtures require dev --unsafe-dev-doors.
+snapback4: password-only development doors CLOSED (/seed, /dev/*, personas). For shared previews and probe:serve run snapback4 deploy staging --staging, then startServe("staging"); see snapback4 guide staging. Local fixtures require dev --unsafe-dev-doors.
+✔ password dev closes fixture and persona doors; explicit opt-in, declared cast, and persistent defaults (601.122406ms)
+✔ adopting password-only identity closes existing dev doors and declared personas (566.208044ms)
+snapback4: Time travel also advances session expiry and unplaced-upload collection: seven-day password sessions may now be expired. Sign in again after the jump and upload unplaced bytes after it; never replay an ambiguous clock advance. Password-only dev clock tools require --unsafe-dev-doors; for real-user previews use guide staging (MIG staging clock).
+✔ MIG staging clock is operator-only and production never accepts an offset (1193.437529ms)
+✔ MIG hot adoption and exact previews use both signs of the staging clock (2226.039188ms)
+✔ DX4 custom provisioning merges principal/role and chooses its authorized service seat (346.21775ms)
+{"boundary":232,"oldOrdinaryLineBytes":8171,"oldMaxIdLineBytes":31835,"postLineBytes":19,"postOrdinaryBodyBytes":6794,"postBodyBytes":30458}
+{"boundary":233,"oldOrdinaryLineBytes":8206,"oldMaxIdLineBytes":31972,"postLineBytes":19,"postOrdinaryBodyBytes":6823,"postBodyBytes":30589}
+{"boundary":256,"oldOrdinaryLineBytes":9011,"oldMaxIdLineBytes":35123,"postLineBytes":19,"postOrdinaryBodyBytes":7490,"postBodyBytes":33602}
+✔ sync request-line boundaries and a deliberate body ceiling (202.000073ms)
+{"store":"wasm","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ wasm: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (1570.551938ms)
+{"store":"wasm","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ wasm: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (1527.055149ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (1719.94165ms)
+{"store":"wasm","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ wasm: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (2179.696942ms)
+{"store":"native","pendingBoundary":232,"recovery":"automatic","syncAcknowledged":232,"ordinaryAcknowledged":0,"terminalWrites":232,"snapshotCursors":5}
+✔ native: maximum pending ids (232), cursor batches and every terminal acknowledgement (automatic) (1029.911776ms)
+{"store":"native","pendingBoundary":233,"recovery":"automatic","syncAcknowledged":233,"ordinaryAcknowledged":0,"terminalWrites":233,"snapshotCursors":5}
+✔ native: maximum pending ids (233), cursor batches and every terminal acknowledgement (automatic) (1003.142274ms)
+{"store":"native","pendingBoundary":256,"recovery":"automatic","syncAcknowledged":256,"ordinaryAcknowledged":17,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (automatic) (1110.709085ms)
+{"store":"native","pendingBoundary":256,"recovery":"explicit sync","syncAcknowledged":273,"ordinaryAcknowledged":0,"terminalWrites":273,"snapshotCursors":5}
+✔ native: maximum pending ids (256), cursor batches and every terminal acknowledgement (explicit sync) (1649.790491ms)
+{"store":"wasm","offsetMs":500,"requestStartMs":13525.082296,"cutMs":14025.386759,"rejectionMs":17530.479902,"notificationMs":17531.331398,"detectionMs":3505.9446389999976}
+{"store":"native","offsetMs":500,"requestStartMs":13545.092384,"cutMs":14045.102637,"rejectionMs":17546.315882,"notificationMs":17546.949322,"detectionMs":3501.8466850000004}
+{"store":"wasm","offsetMs":5000,"requestStartMs":13530.644064,"cutMs":18530.004993,"rejectionMs":21534.629387,"notificationMs":21535.206062,"detectionMs":3005.2010690000025}
+{"store":"native","offsetMs":5000,"requestStartMs":13545.56287,"cutMs":18545.756477,"rejectionMs":21548.963607,"notificationMs":21549.469846,"detectionMs":3003.713369000001}
+{"store":"wasm","offsetMs":15000,"requestStartMs":13528.07996,"cutMs":28528.637192,"rejectionMs":31530.116313,"notificationMs":31530.529002,"detectionMs":3001.891810000001}
+{"store":"native","offsetMs":15000,"requestStartMs":13544.010322,"cutMs":28544.877109,"rejectionMs":31547.308147,"notificationMs":31547.9303,"detectionMs":3003.053190999999}
+✔ idle polls detect packet silence at 0.5, 5 and 15 seconds on both stores (21618.250016ms)
+✔ healthy heartbeat polls, buffered native fetch and browser connectivity hints (11164.151146ms)
+✔ E_STREAMS degrades the change feed to paced unheld polls, never offline (5458.592799ms)
+✔ a streaming poll rechecks a revoked bearer before its final JSON (1054.527482ms)
+✔ H1/H4/H5 help agrees and ignored flags refuse before filesystem work (148.89516ms)
+✔ token quiet/JSON and empty/nonempty data JSON have machine-readable output; releases preserve provenance (113.111874ms)
+✔ startServe names its directory argument and witness disabled errors expose code (1.520499ms)
+✔ proof browser prefers caller-installed @playwright/test (4.687176ms)
+✔ guide topic aliases select sections and full long cards carry a section index (47.67359ms)
+✔ helper help shares the command table and web-shell needs no native binary (171.330203ms)
+✔ explicit persona on a system job refuses before creating a store (5.79658ms)
+ℹ tests 135
+ℹ suites 0
+ℹ pass 135
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 51478.562539

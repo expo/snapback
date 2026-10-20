@@ -190,6 +190,7 @@ impl FreshDirectory {
         snapback4_core::private_fs::directory(&owned.0).map_err(|e| e.to_string())?;
         Ok(owned)
     }
+    pub(super) fn path(&self) -> std::path::PathBuf { self.0.join("store.db") }
     pub(super) fn store(&self) -> Result<snapback4_core::Store, snapback4_core::RuntimeError> {
         snapback4_core::Store::open(&self.0.join("store.db"))
     }

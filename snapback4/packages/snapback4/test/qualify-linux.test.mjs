@@ -25,6 +25,7 @@ function qualify(t, scenario = {}) {
   writeFileSync(join(root, "scripts/publication-release-transitions.mjs"), `export async function proveReleaseTransitions(){if (${JSON.stringify(scenario.releaseTransitionsFail ?? false)}) throw Error('deliberately failing packed release transitions');return {status:'passed'};}`);
   writeFileSync(join(root, "scripts/publication-migrations.mjs"), `export async function proveMigrations(){if (${JSON.stringify(scenario.migrationsFail ?? false)}) throw Error('deliberately failing packed migrations');return {status:'passed'};}`);
   writeFileSync(join(root, "scripts/publication-proof-kit.mjs"), `export async function proveProofKit(){if (${JSON.stringify(scenario.proofKitFail ?? false)}) throw Error('deliberately failing packed proof kit');return {status:'passed'};}`);
+  writeFileSync(join(root, "scripts/publication-dx4.mjs"), `export async function proveDX4(){if (${JSON.stringify(scenario.dx4Fail ?? false)}) throw Error('deliberately failing packed DX4 guide');return {status:"passed"};}`);
   writeFileSync(join(root, "scripts/publication-staging.mjs"), `export async function proveStaging(){return {status:"passed"};}`);
   writeFileSync(join(root, "scripts/publication-security.mjs"), `export async function proveSecurity(){return {status:"passed"};}`);
   writeFileSync(join(root, "scripts/publication-day5.mjs"), `export async function proveDay5() {if (${JSON.stringify(scenario.day5Fail ?? false)}) throw Error('deliberately failing packed DAY5 guide'); return { status: "passed" }; }`);
@@ -491,4 +492,11 @@ for (const consumerOnly of [false, true]) test(`packed proof-kit failure blocks 
   assert.match(r.stderr, /deliberately failing packed proof kit/);
   assert.equal(r.receipt, null);
   assert.equal(existsSync(join(r.root, 'out/consumer.json')), false);
+});
+
+
+for (const consumerOnly of [false, true]) test(`packed DX4 failure blocks ${consumerOnly ? 'consumer' : 'full'} qualification`, t => {
+  const r=qualify(t,{consumerOnly,dx4Fail:true});
+  assert.notEqual(r.status,0);assert.match(r.stderr,/deliberately failing packed DX4 guide/);
+  assert.equal(r.receipt,null);assert.equal(existsSync(join(r.root,'out/consumer.json')),false);
 });

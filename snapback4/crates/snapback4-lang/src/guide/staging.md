@@ -81,13 +81,16 @@ try {
 ```
 
 `host.seedAccounts({roles, provision, args?})` performs additional batches; an
-optional `args(account)` maps principal/role/email to your mutation's arguments.
+optional `args(account)` merges over `{principal, role}` (explicit keys win).
+Use `service: "ops"` for a provisioning mutation authorized as `service:ops`.
 Each call creates new random email/password pairs and returns role arrays of
 `{role,email,password,principal,token,expiresAt}`. Ordinary sessions last seven
 days; sign in again with `login` from snapback4/auth when needed. Setup is
 sequential and bounded (default five minutes, timeoutMs overrides it, max 100
-accounts). Only explicit identity throttling refusals retry; ambiguous writes
-do not. Partial failure can leave accounts/grants: inspect or discard this
+accounts). Identity 429 refusals wait for retryAfterMs (Retry-After on older
+servers), at most four attempts per account within the remaining setup budget.
+SDK guest/signup/login share this policy (timeoutMs defaults to three minutes;
+signal cancels a request or wait). Ambiguous writes never retry. Partial failure can leave accounts/grants: inspect or discard this
 disposable deployment before retrying. Returned credentials never enter helper
 logs. Print them only to a private operator destination, as above.
 
@@ -126,6 +129,13 @@ E_STAGING_PROVISION means the operator mutation refused or returned an invalid
 reply. Repair its arguments and operator-only rules; partial accounts/grants
 may exist, so inspect or discard the disposable deployment before retrying.
 
+### Identity request deadline
+
+E_IDENTITY_TIMEOUT is the internal sign-in deadline cause (SDK E_OFFLINE).
+Signup outcome may be unknown: inspect before retrying. Increase timeoutMs to
+allow server retryAfterMs waits. seedAccounts maps it to E_STAGING_TIMEOUT
+with the partial-account recovery guidance above.
+
 ## First admin on production
 
 Deploy the same schema with `npx snapback4 deploy production` (omit --staging).
@@ -143,8 +153,9 @@ const email = process.env.FIRST_ADMIN_EMAIL, password = process.env.FIRST_ADMIN_
 if (!email || !password) throw Error("Set FIRST_ADMIN_EMAIL and FIRST_ADMIN_PASSWORD privately");
 const host = await startServe("production");
 try {
-  // Set FIRST_ADMIN_EXISTING=1 only for an account you already created.
-  const account = await (process.env.FIRST_ADMIN_EXISTING === "1" ? login : signup)(host.url, email, password);
+  // Login first so rerunning this script preserves the existing account and grant.
+  let account = await login(host.url, email, password);
+  if (!account.ok) account = await signup(host.url, email, password);
   if (!account.ok) throw Error(account.why.message);
   const token = await host.operatorToken();
   const response = await fetch(host.url + "/m/provision", {
@@ -157,7 +168,8 @@ try {
 } finally { await host.stop(); }
 ```
 
-No first-user race or self-promotion mutation is needed. Subsequent grants use
+Reruns authenticate the same email/password and upsert the same roster row.
+A wrong password refuses without changing an existing grant. No first-user race or self-promotion mutation is needed. Subsequent grants use
 the same operator process or an explicitly authorized admin policy. Invite codes
 must be server-validated, single-use grants issued by an authorized operator;
 an arbitrary caller-supplied code or role is not authority.

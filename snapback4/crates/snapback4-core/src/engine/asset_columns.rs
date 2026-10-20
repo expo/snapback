@@ -71,7 +71,7 @@ impl Runner<'_> {
         };
         let Some(id) = asset_id(Some(value)) else { return Ok(value.clone()) };
         if let Some(retained) = before.get(id) { return Ok((*retained).clone()); }
-        let unknown = || RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: format!("{table}.{column} names an upload {id} that is not yours or does not exist; upload the bytes first (POST /assets) and place the id it returns") };
+        let unknown = || RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: format!("{table}.{column} names an upload {id} that is not yours, absent or collected; only the uploading principal may place it. Upload fresh bytes as the viewer calling this mutation and place the returned id (file columns require the file hint). Unplaced uploads are collected after one hour, including time travel") };
         let Some(asset) = self.tx.asset(id)? else {
             if self.context.is_system() {
                 let mut map = value.as_object()?.clone();

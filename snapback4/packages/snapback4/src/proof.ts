@@ -33,6 +33,7 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
     }, timeout);
     const { response, body } = await fetchIdentity(`${url}/auth/config`, timeout);
     if (!response.ok || body.proof_id !== id) throw Error("proof served identity mismatch");
+    if (verb === "dev" && body.devDoors === false) process.stderr.write("snapback4: password-only development doors CLOSED (/seed, /dev/*, personas). For shared previews and probe:serve run snapback4 deploy staging --staging, then startServe(\"staging\"); see snapback4 guide staging. Local fixtures require dev --unsafe-dev-doors.\n");
     let personas: string[] = [];
     if (verb === "dev" && body.devDoors !== false) {
       const status = await fetchIdentity(`${url}/dev/status`, timeout);
@@ -74,7 +75,8 @@ export interface ServeHost extends ProofHost {
 }
 export interface ServeOptions extends ProofOptions { seedUsers?: SeedAccountsOptions; clockOffset?: string }
 // @ref LLP 3000.000.000.001#2-real-staging-accounts — operator authority stays in the existing local store proof; bulk setup refuses production.
-/** @throws E_PROOF_USAGE for missing deployment directory; child exit, readiness deadline or served identity mismatch. */
+/** Starts a release. stop() awaits native exit and kernel store release.
+ * @throws E_PROOF_USAGE for missing deployment directory; child exit, readiness deadline or served identity mismatch. stop() rejects bounded cleanup failure. */
 export async function startServe(deployDir: string, options: ServeOptions | readonly string[] = {}): Promise<ServeHost> {
   if (typeof deployDir !== "string" || !deployDir.trim()) throw Object.assign(new TypeError("E_PROOF_USAGE: startServe(deployDir, options) requires a deployment directory as its first argument"), { code: "E_PROOF_USAGE" });
   const opts: ServeOptions = Array.isArray(options) ? { args: options } : options as ServeOptions;
@@ -87,11 +89,20 @@ export async function startServe(deployDir: string, options: ServeOptions | read
     if (!config.response.ok || config.body.environment !== "staging") throw Error("E_CLOCK_DEV_ONLY: clock controls require a deploy --staging store");
     const clockToken = served.operatorToken("clock");
     const response = await fetch(`${host.url}/dev/clock/${body ? "advance" : "status"}`, { method: body ? "POST" : "GET", headers: { Authorization: `Bearer ${await clockToken}`, "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(deadline(opts.timeoutMs, 60_000)) });
-    const result = await response.json() as { now?: number; denied?: { code?: string; message?: string } };
+    const result = await response.json() as { now?: number; sessionNotice?: string; denied?: { code?: string; message?: string } };
+    if (result.sessionNotice) process.stderr.write(`snapback4: ${result.sessionNotice}\n`);
     if (!response.ok || result.denied || !Number.isSafeInteger(result.now)) throw Error(`staging clock refused or reply unavailable; inspect clock and queued work before retrying: ${result.denied?.code ?? response.status} ${result.denied?.message ?? ""}`);
     return result.now!;
   };
-  const served: ServeHost = { ...host,
+  // Exit can precede inherited watchdog flock release. The private local
+  // barrier observes the same canonical ownership sidecar without writing data.
+  let stopping: Promise<void> | undefined;
+  const stop = () => stopping ??= (async () => {
+    await host.stop();
+    const result = await cli(["serve", directory, "--wait-stopped"], {...opts, timeoutMs:6000});
+    if (result.code !== 0) throw Error(`proof serve store release failed: ${result.stderr}`);
+  })().catch(error => { stopping = undefined; throw error; });
+  const served: ServeHost = { ...host, stop,
     now: () => clockCall(),
     advance: (duration, options = {}) => {
       if (typeof duration !== "string" || !/^\+?\d+(ms|s|m|h|d|w)$/.test(duration)) throw new TypeError("E_PROOF_USAGE: advance requires a positive whole duration");

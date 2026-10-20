@@ -1,0 +1,150 @@
+{
+  "recordedAt": "2026-10-19T11:45:40.645939+00:00",
+  "source": "6578745b85ff6f8e5f4b58d8b4c0d4956810ce95",
+  "base": "068a57f5780e11b2f107bba2731edc4ce329a729",
+  "reviews": "../../../llp/reviews/dx4/provenance.json",
+  "cargo": {
+    "index": "cargo-coverage.json",
+    "completeTargets": 430,
+    "passedTests": 6896,
+    "defaultIgnored": 45,
+    "watchdogs": "Initial workspace 2400s and remaining-crates 1800s timed out; unfinished targets resumed, affected reds repaired and complete target reruns retained."
+  },
+  "clients": {
+    "passed": 171,
+    "log": "logs/dx4-client-final.log"
+  },
+  "mac": {
+    "host": "macstudio-charlie-apt101-a",
+    "directory": "~/sb4-ws-dx4",
+    "finalNativePassed": 125,
+    "earlierLifecyclePassed": 29,
+    "earlierClientPassed": 36,
+    "log": "logs/dx4-mac-final-tests.log"
+  },
+  "fullLinuxConsumers": {
+    "source": "29f7b91e81be4da8fa9c0509fcd0efe1f70ea477",
+    "path": "linux/consumer.json",
+    "route": "proot",
+    "platforms": [
+      "ubuntu:24.04",
+      "alpine"
+    ],
+    "frontendProofs": 12,
+    "hostStarters": 6,
+    "publicationQualified": false
+  },
+  "finalPacked": {
+    "path": "packed/proof.json",
+    "source": "6578745b85ff6f8e5f4b58d8b4c0d4956810ce95",
+    "explanation": "Final delta: guide discovery/order/budget, tests, refs and exact token-body extraction. Final staging and DX4 recipes rerun; unchanged shared starter matrices use retained complete qualification."
+  },
+  "clientIntegrity": "sha512-UA6iB0JcehA3/jcQasCyePG9eeRlm6kLNdptLgFKI09m86NuvipJ7qbQsiMVh8LJ1G86q1ZwTCSEqoSbyEbMJw==",
+  "platformIntegrity": "sha512-A3jP4wI4fuZqMrIpx2Z9vy0UAzOKarPrrnzB63K/P0cX77GMWtTJ183wNfc1nugEF5W0QdcNzruHv0aFKl2HTA==",
+  "binarySha256": "48b073e5f803ad5f1af6e620c94ed96398e17a1f528c4850e953102ae97050ff",
+  "tenUpgrades": {
+    "path": "upgrades/summary.json",
+    "passed": 10,
+    "warnings": 17,
+    "warningText": "upgrades/UPGRADE-WARNINGS.md",
+    "exactSameClientBytes": true
+  },
+  "rootChecks": {
+    "frozenInstall": true,
+    "hoist": true,
+    "generatedArtifacts": true,
+    "inventories": true,
+    "guide": true
+  },
+  "referenceCheck": {
+    "errors": 0,
+    "unchecked": 0,
+    "refs": 12102,
+    "documents": 556,
+    "files": 43518,
+    "log": "logs/dx4-ref-handoff.log"
+  },
+  "docsBudget": {
+    "actual": 319,
+    "limit": 320,
+    "namedTest": "passed"
+  },
+  "artifactsOutsideGit": {
+    "client": "/home/ccheever/dx4-rendered-final-client/snapback4-0.4.34.tgz",
+    "platform": "/home/ccheever/dx4-packed-final/snapback4-linux-x64-0.4.34.tgz"
+  },
+  "publicationQualified": false,
+  "filesSHA256": {
+    "cargo-coverage.json": "786790304dd6707f901f08818d176c24f5d412fcafa84144a755f7d26fa05e63",
+    "linux/client-recipes.json": "89ae07d17471ef2f1e3433415cbb2335c3ce3ace8a8df84141992da6525d9984",
+    "linux/consumer.json": "5800cc6b1f181acbbe0a03c9757e02910ecd6c4cabb107affd6b3b12ce1b7dcb",
+    "linux/day2-proof.json": "81f5edfb8d9fe9bcffd8d0ef1d992b9bcbe6780325ff633d277f8e3b9197255d",
+    "linux/day4-proof.json": "d97db2d4414d9f316beaaf8b0a7aeaad0efaac29438657d474eabc1d7cc35686",
+    "linux/day5-proof.json": "839a781790b9b1859883f4d95cf7d3b44ab775d54a13a7680d8f315229062fe4",
+    "linux/dx4-proof.json": "68d5056bb0d8427d4b5a2b8eacfe3bb5459923c0465a8901a7b5ad0424fbd671",
+    "linux/frontend-proofs.json": "7c63860cf81dcd0207e6dfe5ed85eee5e4da07af4d171405751c73f2e145b126",
+    "linux/migrations.json": "ad760c01d05efdb75b1720a346d7a95aad28f6bcc980b994e14993db6f070706",
+    "linux/production-proofs.json": "185cd077ccb7771bb3baca07b65618dda2e5bdc1bdee41b72da8d7691b36e8e1",
+    "linux/proofs.json": "51d8fa0a7570deeac2be081c96607b8145d70092bf2723a5bc0e3593b3f31653",
+    "linux/regressions.json": "92fdded4592ff8b3d35947fe6433ee8bd9bf472fd145646c8952e28fc3bf5fd2",
+    "linux/release-transitions.json": "318097a6728762a06b77b3cc06b1818391e526103698076d204c138ef75a4ce0",
+    "linux/rule-recipes.json": "5daf91b480243ce4881a68efe2c3fdb9577c4fa76bca3a0f69fcf9785f20ab6e",
+    "linux/rule-recipes.log": "f631772f8522c844520eb1f90bc290c40755d997bb3a55a81b266957cae2bc7b",
+    "linux/security.json": "087d99ae7d3546808a4bad8e90ce54772cc3f20e60181cffdfe6b0e1f0f15319",
+    "linux/staging.json": "8aed7cc86038dcef7899b1dbbe7193b398b2added5f08077227f4531201acd92",
+    "linux/starter-proofs.json": "d08191a6ba7d08b5a26d198d78a6a0ec57c3d10dccb1557ebf6e53860a2f276f",
+    "logs/dx4-cargo-final.log": "9d1ed9dcca4db15b061ff50d56f6bf4b5a979d93f1910aec00aa72cf9d8cd80b",
+    "logs/dx4-client-final.log": "a3ef7c89f4018e015b878dee92eb4361e69569a40a9c202ae66127cc9cee3c5a",
+    "logs/dx4-device-resume-plan.json": "351ef7c6bc028bc082668a011440e09e9f6a3296c5c9ed73017a7804babb0c13",
+    "logs/dx4-device-resume.log": "ffc9cf9d44b44acf4b68d308ec9f3b2a0f81262080564c95f690ccc6f1b6f40d",
+    "logs/dx4-docs-rendered-final.log": "5ddb5531298c610ca5f4a0fe5b07c2238228b1dc7082707ff923008ec8d84226",
+    "logs/dx4-guide-corrected.log": "56b0dbfad359cca5146c83cfea682f7e156a48f54bb7ef9df707fcef683af09d",
+    "logs/dx4-guide-rendered-final.log": "a4e622ba5b9b5bdf1d0c902c45868beb489869a75f026fc0aae1f088e8959b6d",
+    "logs/dx4-inventories.log": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+    "logs/dx4-linux-corrections.log": "1a882a514477b2e10387dc451abe99c5b876bf3e40febe14bd834bc6db46ae02",
+    "logs/dx4-mac-final-tests.json": "a1a4b9dc3d99dabe4aa73ad87dae9bd24bc5e71f4cf314f1c3d3a2772c2c84f1",
+    "logs/dx4-mac-final-tests.log": "a24675137ad328a4195442dbe31872dd662b4ee76bb62ac692d5e758ff70ff23",
+    "logs/dx4-mac-tests.json": "0d34f46d99aad29579a934f1dbac0d68fea760309719f11a5f38b781e3380555",
+    "logs/dx4-mac-tests.log": "891e0f54b5b74f8bf211ff0eb2da1380e438443687d84956ef4820732772fcdc",
+    "logs/dx4-mac-token-final.log": "20608a31cf4036a2979dcb10b9ebbd1412c5ef73f0b1e19c8b34b0fac2ef154b",
+    "logs/dx4-musl-rendered-final.log": "0b8d42c513cb055188682c0739b25d0248df900f2f610ce82feba3f7fdf438cf",
+    "logs/dx4-native-final.log": "5d4944a72dea3c7bf436d5a1a2b7370e4716b45716a63f58ad179fd91c9a7987",
+    "logs/dx4-packed-default-view-failure.log": "c93f316c9f445464900d2cc68b9d49df4f383f8ecd97ba17e1f58b67665726f9",
+    "logs/dx4-packed-final.log": "128eb0836bd135f80934659cd5272f17c82ec6743bec17445ba080782d6a0245",
+    "logs/dx4-qualify-final.log": "bcd423c087dc01d33089ae366f1cef357305b9c57799ceb835cbeaf591760cfc",
+    "logs/dx4-ref-complete.log": "a2e495112edfb6792b3e790fa6b9736968c435bd176f8f46d4710e0044e71609",
+    "logs/dx4-ref-handoff.log": "3886db49a22129d526a659432bda24dbe119ac95cc1d4c38f054a31e80f5674b",
+    "logs/dx4-remaining-crates.log": "74407a57f1bde027b082cd570bad56dd87a6259c6cf8448a7e2e617673555d77",
+    "logs/dx4-rendered-final-prepare.log": "cafb607ddb1217dbbb5b6273b342fe20b63bbe96132cac10928c281a28de29a5",
+    "logs/dx4-root-artifacts-final.log": "a018051461f2d99e538f1d317d7d7636c30f28bd0549f77de3248e0fd1162fae",
+    "logs/dx4-root-guide.log": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+    "logs/dx4-root-setup-retry.log": "4a1fbdfc24aa0964cd2cf0d2ff43c211dd3eaf9fc35919534e1ea837e282c5f0",
+    "logs/dx4-tail-resume-plan.json": "3101bbd763993be1189803a48178f2fe01ba36fa5ecbe72196b9b11267195bf9",
+    "logs/dx4-tail-resume.log": "aab8ec33950188196dfd333b27542e03e12e411cdcd308cb33f5e2869948ad9a",
+    "packed/proof.json": "6af4ce423d2e2ef4f592a1cfbbfca68da1c258d7b92bc60494d639968964a213",
+    "prepare-client.json": "e42e95fc3b31833f5bd63e9e3c7ec80c8317dcf2c6568fe5029b31116642f119",
+    "upgrades/UPGRADE-WARNINGS.md": "8b25e2dca54a96da480b4335184f15445a351699589c43cb5760208df4421364",
+    "upgrades/summary.json": "ac1ed3966644e372e3eedce856ac292aa50e03c8718d1a3c1ecccd9c3bdf0887",
+    "upgrades/wave17-005.json": "b1770b6592bbc30cc7b835cce3a8833dfd381b8c3449e09568ba6ad7398613d0",
+    "upgrades/wave17-010.json": "bcab90a43c3c054f798f87ea556cc459befa50c4fbb3fea1a274c79d47d7d02f",
+    "upgrades/wave17-019.json": "da79ecec3d798adad22cef48c642a616356d2841db0c2118aad974dd712cac63",
+    "upgrades/wave17-033.json": "b2c3de727d2c1fabab4bb09228c72f84af1e5e443f769eae3fb1d4a9e889bd1f",
+    "upgrades/wave17-045.json": "c51c3ac32675b9ef9507520d180f6f211f37f8156a79708876cd731b38dac75e",
+    "upgrades/wave18-004.json": "efe4e7e5fa5d5af932057bdb68d0c47653179982604b4f799a89ede1fb791979",
+    "upgrades/wave18-015.json": "4441481c41f5d59a4071f1930435b59c171eb9678c5e77a34fd367642623c798",
+    "upgrades/wave18-019.json": "395bd08ceceb24446a226a2b654221f4fdbfb60332b2115ffdca71640814e4e7",
+    "upgrades/wave18-033.json": "1c4d820018e5addf4cfa190dee314381120c2915b0119a345c11bec16bb872f9",
+    "upgrades/wave18-045.json": "c1a7a609315e40daf4fc92e64f825c190a0fed7e2dfef77d0670a814557b47b7"
+  },
+  "cleanup": {
+    "cargoTargetRemoved": true,
+    "scratchRemoved": true,
+    "macTargetAndDependenciesRemoved": true,
+    "copiedAppsAndDisposableConsumersRemoved": true,
+    "oldOwnedMemoryFixtureRemnantsRemoved": {
+      "linux": 1,
+      "mac": 1
+    },
+    "otherWorktreesModified": false
+  }
+}

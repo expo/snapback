@@ -92,10 +92,11 @@ fn host_with_legacy(project: &Project, options: &super::Options, legacy: bool) -
     }
     if options.flags.contains_key("release") {return Ok(None);}
     let mut hosts=std::collections::BTreeMap::new();
+    let mut closed = false;
     for identity in crate::dev_hosts::live(&root)? {
         if let Some(mut status)=request(identity.address,"GET","/dev/status").filter(|s|identity.matches(s)) {
             status["address"]=serde_json::json!(identity.address.to_string());hosts.insert(identity.address,status);
-        }
+        } else if request(identity.address,"GET","/auth/config").is_some_and(|c|c["development"]==true && c["devDoors"]==false) { closed = true; }
     }
     // Older persisted hosts still publish their address through store ownership.
     let path=project.store_path();
@@ -106,6 +107,7 @@ fn host_with_legacy(project: &Project, options: &super::Options, legacy: bool) -
             }
         }
     }
+    if hosts.is_empty() && closed { return Err("password-only dev doors are closed; clock/fixture tools require explicit dev --unsafe-dev-doors. Shared previews use deploy staging --staging plus serve staging (guide staging)".into()); }
     if hosts.len()>1 {return Err(format!("multiple live dev hosts for this project: {}; select one explicitly with --port N for clock/reset/seed or --url http://ADDRESS for doctor",hosts.keys().map(|a|a.to_string()).collect::<Vec<_>>().join(", ")));}
     Ok(hosts.into_values().next())
 }

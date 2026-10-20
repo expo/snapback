@@ -61,7 +61,7 @@ export async function cleanup(...steps: Array<(() => unknown | Promise<unknown>)
 export async function stopChild(child: ChildProcess | Pick<ProofHost, "url" | "stop">, graceMs = 5000): Promise<void> {
   deadline(graceMs, 5000);
   if (child && "url" in child && typeof child.url === "string" && typeof child.stop === "function") {
-    await bounded(Promise.resolve().then(() => child.stop()), graceMs + 5000, "host stop"); return;
+    await bounded(Promise.resolve().then(() => child.stop()), graceMs + 10_000, "host stop"); return;
   }
   if (!child || !("kill" in child) || typeof child.kill !== "function" || typeof child.once !== "function"
       || !(child.exitCode === null || typeof child.exitCode === "number")

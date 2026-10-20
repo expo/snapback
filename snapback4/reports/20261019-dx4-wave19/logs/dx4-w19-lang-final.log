@@ -1,0 +1,1395 @@
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-lang v0.4.34 (/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4-lang)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: constant `INDEX` is never used
+ --> crates/snapback4-lang/tests/repairs.rs:3:7
+  |
+3 | const INDEX: &str = include_str!("fixtures/repair-index.q");
+  |       ^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-lang/tests/bounded_calendar_caps.rs:184:9
+    |
+184 |     let mut fire = |e: &mut Engine, now: i64| {
+    |         ----^^^^
+    |         |
+    |         help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: constant `PROBE` is never used
+ --> crates/snapback4-lang/tests/repairs.rs:4:7
+  |
+4 | const PROBE: &str = include_str!("fixtures/repair-probe.q");
+  |       ^^^^^
+
+warning: unnecessary parentheses around closure body
+  --> crates/snapback4-lang/tests/wave7_rule_language.rs:23:29
+   |
+23 |     b.notes.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
+   |                             ^                                                                                  ^
+   |
+   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+   |
+23 -     b.notes.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
+23 +     b.notes.iter().find(|n| n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")
+   |
+
+warning: unnecessary parentheses around closure body
+  --> crates/snapback4-lang/tests/wave7_rule_language.rs:27:35
+   |
+27 |     b.diagnostics.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
+   |                                   ^                                                                                  ^
+   |
+help: remove these parentheses
+   |
+27 -     b.diagnostics.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
+27 +     b.diagnostics.iter().find(|n| n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")
+   |
+
+warning: function `without_grouped_shape_note` is never used
+ --> crates/snapback4-lang/tests/guide/context.rs:6:8
+  |
+6 | pub fn without_grouped_shape_note<'a>(bound: &'a snapback4_lang::Bound, query: &str) -> Vec<&'a snapback4_lang::Diagnostic> {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `handle_index`
+   --> crates/snapback4-lang/tests/guide.rs:629:9
+    |
+629 |     let handle_index = bound.schema.tables["profiles"].indexes.iter().find(|(_, index)| index.unique && index.columns() == ["handle...
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_index`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unnecessary parentheses around closure body
+  --> crates/snapback4-lang/tests/wave6_rule_language.rs:19:29
+   |
+19 |     b.notes.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
+   |                             ^                                                                                  ^
+   |
+   = note: `#[warn(unused_parens)]` (part of `#[warn(unused)]`) on by default
+help: remove these parentheses
+   |
+19 -     b.notes.iter().find(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE"))
+19 +     b.notes.iter().find(|n| n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")
+   |
+
+warning: unnecessary parentheses around closure body
+  --> crates/snapback4-lang/tests/wave6_rule_language.rs:23:31
+   |
+23 |     b.notes.iter().filter(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")).collect()
+   |                               ^                                                                                  ^
+   |
+help: remove these parentheses
+   |
+23 -     b.notes.iter().filter(|n| (n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE")).collect()
+23 +     b.notes.iter().filter(|n| n.code == code || code == "N_NEVER_COMPLETE" && n.code == "N_CONDITIONAL_COMPLETE").collect()
+   |
+
+warning: `snapback4-lang` (test "bounded_calendar_caps") generated 1 warning (run `cargo fix --test "bounded_calendar_caps" -p snapback4-lang` to apply 1 suggestion)
+warning: `snapback4-lang` (test "wave7_rule_language") generated 2 warnings (run `cargo fix --test "wave7_rule_language" -p snapback4-lang` to apply 2 suggestions)
+warning: `snapback4-lang` (test "repairs") generated 2 warnings
+warning: `snapback4-lang` (test "wave6_rule_language") generated 2 warnings (run `cargo fix --test "wave6_rule_language" -p snapback4-lang` to apply 2 suggestions)
+warning: `snapback4-lang` (test "revocation_soundness") generated 1 warning (1 duplicate)
+warning: `snapback4-lang` (test "aggregate_copies") generated 1 warning
+warning: `snapback4-lang` (test "guide") generated 1 warning (run `cargo fix --test "guide" -p snapback4-lang` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 31.40s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_lang-d15b4e2a058bccd1)
+
+running 35 tests
+test bind::complete_form::tests::two_parties_and_a_grant_need_the_grant_in_each_query ... ok
+test bind::intent_aggregates::tests::aggregate_lone_range_uses_the_one_sided_fallback ... ok
+test bind::program::flow::tests::only_falling_paths_reach_later_statements_and_loops_own_their_transfers ... ok
+test bind::key_bound::tests::bound_diagnostic_survives_an_independent_schema_error_and_links_indexes ... ok
+test bind::rule_operator::tests::fields_move_into_the_mutation ... ok
+test bind::program::flow::tests::transfers_and_termination_keep_their_statement_order ... ok
+test bind::complete_form::tests::a_form_that_drops_a_party_narrows_and_one_that_keeps_every_disjunct_passes ... ok
+test bind::security::kernel::tests::kleene_unknown_is_neither_true_nor_false ... ok
+test bind::intent_aggregates::tests::aggregate_range_choice_is_canonical_and_prefers_finite_windows ... ok
+test bind::key_bound::tests::declared_bounds_cover_unicode_composites_and_unbounded_text ... ok
+test bind::security::kernel::tests::no_boolean_assignment_is_a_concrete_refutation ... ok
+test bind::timeline::tests::reserved_follower_index_requires_its_exact_definition ... ok
+test diag::tests::suggests_the_nearest_name ... ok
+test emit::compat::tests::value_unions_deduplicate_through_optional_and_string_domains ... ok
+test bind::intent_aggregates::tests::aggregate_planning_preserves_observable_and_authored_order ... ok
+test bind::intent_aggregates::tests::digest_aggregate_seek_plan_is_independent_of_cap_admission ... ok
+test bind::schema::tests::quarry_refuses_nullable_target_sync_group_keys ... ok
+test emit::rust::tests::names_follow_rust_conventions ... ok
+test lexer::tests::lexes_blocks_and_words ... ok
+test emit::rust::tests::a_table_becomes_a_struct_and_its_names_constants ... ok
+test parser::repairs::tests::invalid_or_overlapping_repair_offsets_have_no_rewrite ... ok
+test parser::tests::refuses_with_a_rewrite ... ok
+test release_changes::tests::prerelease_intervals_include_the_later_stable_entry ... ok
+test repair::tests::fallback_probe_cannot_collide_with_authored_operations_or_modules ... ok
+test repair::tests::key_page_fallback_preserves_total_and_nullable_populations ... ok
+test repair::tests::count_star_prose_is_not_a_verified_replacement ... ok
+test source::tests::canonical_backend_sites_do_not_replace_authored_diagnostic_spelling ... ok
+test repair::tests::uncalled_helpers_still_need_a_checked_probe ... ok
+test bind::schema::tests::e_sync_quotes_the_source_rule_and_names_the_split ... ok
+test source::tests::explicit_index_search_sites_retain_authored_spelling ... ok
+test parser::tests::parses_the_chat_schema ... ok
+test repair::tests::broken_syntax_names_and_types_are_suppressed_before_offering ... ok
+test repair::tests::compiling_repairs_that_change_point_or_page_class_are_suppressed ... ok
+test bind::generated::tests::all_receipt_expression_sites_belong_to_the_author_clause ... ok
+test emit::rust::tests::colliding_and_reserved_quarry_names_emit_compilable_unique_rust ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/actions.rs (target/debug/deps/actions-415a34e7b7589c48)
+
+running 11 tests
+test empty_handler_maps_cannot_accept_undeclared_functions ... ok
+test legacy_unknown_and_empty_object_contracts_are_distinct ... ok
+test qualified_action_names_and_proto_properties_are_preserved ... ok
+test generated_effect_declaration_contract_binds_exact_name_secrets_and_policy ... ok
+test invalid_action_does_not_overwrite_an_existing_operation_or_valid_spec ... ok
+test malformed_results_never_acquire_metadata ... ok
+test clauses_refuse_duplicates_invalid_policy_and_reserved_secrets ... ok
+test result_contract_types_refs_as_ids_and_optional_fields_as_required_nullable ... ok
+test work_settings_bind_for_actions_and_effects_with_legacy_defaults ... ok
+test scheduled_actions_require_service_authority_and_clock_only_arguments ... ok
+test schedule_checks_the_same_static_service_rule_as_runtime_activation ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/aggregate_copies.rs (target/debug/deps/aggregate_copies-a85df96efd0ac0cf)
+
+running 68 tests
+test aggregate_copy_claim_is_reached_from_the_orientation ... ok
+test aggregate_copy_card_section_is_verbatim_and_discoverable ... ok
+test l26_a_constant_helper_called_in_a_read_loop_has_no_read_data ... ignored, L29: loops prefer silence
+test every_write_from_reads_including_prior_image_reports_once ... ok
+test l29_unconditional_reset_precision ... ignored, L29: loops prefer silence
+test a_native_writer_makes_the_all_writers_proof_unknown ... ok
+test a_named_upsert_key_is_a_written_value_on_insert ... ok
+test a_loop_carried_table_row_count_is_derived ... ok
+test copies_of_sums_and_repeated_cross_file_writes_are_not_name_heuristics ... ok
+test a_public_write_of_a_widened_recursive_value_is_silent ... ok
+test append_only_derived_insertions_are_silent ... ok
+test l26_optional_shape_presence_selects_a_read_derived_field ... ok
+test l26_control_alone_does_not_manufacture_read_data ... ok
+test l26_conditional_delta_is_control_and_toggle_message_names_both_arms ... ok
+test loop_carried_recursive_shapes_have_a_finite_provenance ... ok
+test l26_statement_constants_and_read_loop_counts_choose_deltas_without_supplying_data ... ok
+test review_f15_helper_increment_over_read_rows_should_supply_cardinality_evidence ... ignored, F15: helper-mediated carried increments do not yet receive READ cardinality evidence
+test l26_break_chooses_how_many_read_values_are_summed ... ok
+test ordinals_receipts_ambient_edits_and_denied_jobs_are_silent ... ok
+test argument_or_ambient_writer_disqualifies_across_the_catalog ... ok
+test l26_slice_positions_choose_ambient_deltas_without_supplying_data ... ok
+test provenance_flows_through_helpers_shapes_aliases_sums_and_jobs ... ok
+test review_f12_upsert_id_keeps_argument_data_through_helpers_and_cache ... ok
+test literal_birth_defaults_and_instantiated_helpers_preserve_the_column_proof ... ok
+test review_f16_exact_shaped_count_review_program_stays_silent ... ok
+test aggregate_only_restricted_private_immutable_and_ambient_writes_stay_silent ... ok
+test malformed_helper_calls_never_panic_or_supply_read_evidence ... ok
+test review_f14_rewrite_only_offers_maintains_for_supported_value_types ... ok
+test ranking_guard_checks_bound_rules_for_both_upsert_arms ... ok
+test review_f13_different_conditions_of_the_same_arguments_name_both_arms ... ok
+test review_f19_conditional_reset_cannot_hide_argument_cardinality ... ok
+test review_f12_read_and_minted_upsert_ids_keep_distinct_data ... ok
+test review_f17_implicit_prefix_projection_is_unknown_until_its_collection_shape_is_known ... ok
+test review_f17_opaque_shapes_and_unmodelled_recurrences_stay_unknown ... ok
+test review_control_does_not_turn_ambient_writes_into_read_evidence ... ok
+test l26_selected_argument_fields_still_supply_data ... ok
+test survey_retained_calibration_schemas ... ignored, requires the retained calibration packets; set SNAPBACK4_CALIBRATION_PACKETS to their parent
+test review_thirty_branching_called_helper_is_bounded ... ok
+test review_f19_inner_argument_loop_survives_a_read_loop_join ... ok
+test review_f17_tokens_and_stored_lists_preserve_both_provenances ... ok
+test review_unknown_forms_stay_silent ... ok
+test review_f17_appended_and_write_returned_lists_keep_cardinality ... ok
+test review_f16_read_and_literal_collections_keep_cardinality_separate_from_items ... ok
+test review_f17_collection_choices_cache_keys_and_consumers_keep_cardinality ... ok
+test review_expansion_and_total_budget_abandon_read_proofs ... ok
+test review_f16_accumulations_consume_argument_read_and_literal_cardinality ... ok
+test round6_helpers_named_like_syntactic_builtins_are_unknown_where_the_binder_bypasses_them ... ok
+test three_calibration_write_shapes_report_the_copied_column_once ... ok
+test review_scalar_selection_and_projection_keep_dependence ... ok
+test provenance_joins_thirty_nested_fields_with_an_unrelated_branch ... ok
+test review_thirty_branching_unused_helper_is_bounded ... ok
+test round6_seek_bounds_and_matching_text_shape_a_pages_cardinality_but_keys_only_select ... ok
+test review_f17_text_length_and_filter_cardinality_use_the_consumed_channel ... ok
+test l26_sort_and_group_keys_choose_elements_without_supplying_their_fields ... ok
+test review_f19_read_cardinality_still_notes_and_outside_assignments_stay_precise ... ok
+test review_f16_shaped_argument_cardinality_is_supplied_even_when_every_item_is_read ... ok
+test review_f17_loop_recurrence_aliases_helpers_and_nonadditive_forms_stay_unknown ... ok
+test published_pinning_rule_accepts_zero_and_true_count_and_refuses_forgery ... ok
+test l26_statement_helper_and_loop_control_choose_read_derived_writes ... ok
+test unrestricted_rule_spellings_and_public_online_tables_are_covered ... ok
+test templates_and_apps_census ... ok
+test review_f19_every_nested_assignment_consumes_argument_cardinality ... ok
+test installable_recipes_have_no_aggregate_copy_note ... ok
+test provenance_scales_with_two_thousand_bindings_and_sibling_branches ... ok
+test repeated_helper_provenance_is_cached_without_losing_writes ... ok
+test corpus_aggregate_copy_sites_are_pinned ... ok
+test every_card_and_published_quarry_block_has_no_aggregate_copy_note ... ok
+test no_published_indexed_int_table_has_unrestricted_writes ... ok
+
+test result: ok. 64 passed; 0 failed; 4 ignored; 0 measured; 0 filtered out; finished in 1.00s
+
+     Running tests/attribution_guide.rs (target/debug/deps/attribution_guide-50a6cc140b231771)
+
+running 2 tests
+test nested_credit_follows_immediate_targets_and_surviving_contributions ... ok
+test explicit_reference_backfill_precedes_capture_and_doctor_distinguishes_missing_credit ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/audience_bounds.rs (target/debug/deps/audience_bounds-e1fff09e81a0bc7d)
+
+running 10 tests
+test guide_and_why_keep_the_replica_and_partial_total_consequences ... ok
+test parser_refusal_resolves_later_source_in_another_file_and_read_after_sync ... ok
+test query_only_helper_gets_the_generic_prefix_repair ... ok
+test generic_view_sync_refusal_does_not_claim_coverage_from_an_unsynced_source ... ok
+test job_bound_helpers_require_a_query_ineligible_prefix ... ok
+test completed_sibling_helper_is_not_part_of_the_refused_caller_chain ... ok
+test helper_refusal_finds_a_transitive_job_caller ... ok
+test query_replacement_points_at_declaration_with_helper_loop_and_job_context ... ok
+test owner_key_rewrite_from_each_narrowing_diagnostic_compiles_verbatim ... ok
+test builder_public_aggregate_refuses_both_edits_and_explains_each_repair ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+
+     Running tests/audience_bounds_runtime.rs (target/debug/deps/audience_bounds_runtime-c21a3593872b5249)
+
+running 3 tests
+test copied_calibration_store_job_and_preview_match_independent_oracle ... ignored, full calibration store: DG_STORE must name a worktree-owned writable copy
+test unchanged_builder_job_is_complete_and_preview_requires_all_chat_pages ... ok
+test oversized_recipient_parks_without_a_partial_digest_or_emission_key ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 5.42s
+
+     Running tests/bounded_calendar_caps.rs (target/debug/deps/bounded_calendar_caps-07be1f5e283c2ee1)
+
+running 11 tests
+test a_total_of_bounded_values_is_an_unbounded_int ... ok
+test calendar_schedule_boundaries_are_exact_at_the_edges ... ok
+test calendar_builtins_are_typed ... ok
+test bounded_columns_and_arguments_bind_print_and_emit ... ok
+test bound_and_cap_changes_classify_by_what_stored_rows_can_violate ... ok
+test constants_defaults_and_helpers_meet_the_bound_at_check ... ok
+test calendar_schedules_parse_anchor_at_the_epoch_and_keep_fixed_bytes ... ok
+test the_monthly_billing_recipe_catches_up_once ... ok
+test whole_table_cap_adoption_counts_the_table ... ok
+test seeded_rows_meet_the_bound ... ok
+test raw_int_range_metadata_is_validated ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/bounded_following.rs (target/debug/deps/bounded_following-a60a909ca6b04c44)
+
+running 6 tests
+test per_transition_inputs_and_kind_specific_ordinary_reads ... ok
+test time_floor_uses_mapped_columns_and_explicit_index_spelling_still_works ... ok
+test synced_event_aggregate_fences_only_event_changing_writes ... ok
+test public_follows_admit_each_residency_and_slots_are_hidden_engine_columns ... ok
+test other_orders_private_sources_and_expiry_still_refuse ... ok
+test acquisition_combinations_preserve_event_log_and_private_inbox_floor ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/branch_merge.rs (target/debug/deps/branch_merge-ada397162be05fce)
+
+running 57 tests
+test a_mutation_page_is_unchanged ... ok
+test a_merge_inside_a_returned_shape_requires_the_branch_merge_capability ... ok
+test a_decided_false_membership_source_commits_no_speculative_indexes ... ok
+test a_merged_plan_requires_the_branch_merge_capability ... ok
+test an_oversized_emitted_branch_index_label_keeps_the_original_scan ... ok
+test a_reference_member_is_not_total ... ok
+test a_fallible_predicate_or_an_order_on_the_party_keeps_the_single_read ... ok
+test clock_arithmetic_is_not_total ... ok
+test oversized_existence_branch_indexes_keep_the_original_scan ... ok
+test oversized_membership_discovery_index_keeps_the_incomplete_single_scan ... ok
+test membership_source_with_a_true_pinned_disjunct_still_merges ... ok
+test shapes_the_merge_does_not_cover_keep_the_note ... ok
+test the_plan_is_a_lazy_merge_of_one_lane_per_branch ... ok
+test residual_alternatives_do_not_multiply_party_ranges ... ok
+test same_typed_positional_membership_keys_remain_ambiguous ... ok
+test a_branch_cursor_is_scoped_to_its_lanes_pins ... ok
+test a_cut_inside_filter_rejects_continues_from_the_frontier ... ok
+test membership_page_with_its_parent_already_pinned_completes_without_discovery ... ok
+test exists_over_the_branches_answers_false ... ok
+test a_cursor_of_another_plan_restarts_the_read ... ok
+test a_discovery_cut_emits_no_owner_rows_and_no_cursor ... ok
+test a_cut_while_draining_continues_and_a_cut_while_opening_ends ... ok
+test fixed_source_id_expiry_removes_only_its_membership_lane ... ok
+test a_denied_fixed_source_id_commits_no_speculative_indexes ... ok
+test a_read_through_membership_source_keeps_parent_authorization ... ok
+test a_capped_fixed_probe_remains_an_ordinary_static_grant ... ok
+test reordered_named_membership_key_walks_the_same_complete_cursor ... ok
+test branch_key_bytes_that_exceed_the_portable_bound_keep_the_original_scan ... ok
+test membership_page_with_parent_pinned_in_each_alternative_keeps_the_original_scan ... ok
+test a_grant_the_caller_cannot_read_keeps_the_single_read ... ok
+test oldest_first_and_a_cursorless_top_n ... ok
+test owner_or_staff_is_one_query_complete_for_everyone ... ok
+test staff_and_a_where_disjunction ... ok
+test fixed_source_id_point_can_join_where_branches ... ok
+test an_order_column_pin_a_guard_needs_keeps_the_guarded_single_read ... ok
+test membership_cap_may_exceed_the_static_branch_limit ... ok
+test three_parties_and_a_where_alternative_each ... ok
+test positional_membership_key_is_selected_by_its_argument_types ... ok
+test the_read_rule_supplies_the_branches ... ok
+test a_cursor_over_wide_lane_prefixes_fits_its_token ... ok
+test the_two_party_query_is_complete_and_walks_the_union_once ... ok
+test the_system_reads_every_row_of_a_merged_page ... ok
+test repeated_long_index_names_have_a_bounded_cursor_descriptor ... ok
+test owner_or_capped_membership_walks_one_complete_cursor ... ok
+test branches_over_group_probes_are_decided_by_each_pin ... ok
+test a_residual_conjunct_applies_to_every_branch ... ok
+test an_older_engine_reads_the_plan_as_an_eager_merge ... ok
+test membership_lanes_borrow_the_compiled_scan_and_obey_the_heap_boundary ... ok
+test overwide_membership_discovery_index_keeps_the_ordinary_scan ... ok
+test fixed_source_id_residual_scopes_a_complete_owner_membership_page ... ok
+test a_pinned_parent_guard_is_a_branch_beside_its_party ... ok
+test escaped_membership_parent_uses_a_prepaid_canonical_key_buffer ... ok
+test negative_fixed_source_literal_scopes_a_complete_owner_membership_page ... ok
+test membership_merge_prices_all_sixteen_target_buffers_before_payload_allocation ... ok
+test an_empty_membership_frontier_prices_its_actual_continuation_key ... ok
+test covering_grants_share_boolean_prefix_normalization ... ok
+test an_unfinished_first_shape_retries_its_row_inclusively ... ok
+
+test result: ok. 57 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.06s
+
+     Running tests/builder_guidance.rs (target/debug/deps/builder_guidance-a6191b47a00cb95e)
+
+running 5 tests
+test capture_existing_three_builder_cases ... ok
+test presence_guidance_connects_the_existing_origin_to_the_consuming_read ... ok
+test same_table_row_helpers_and_explicit_author_choices_still_compile ... ok
+test scope_guidance_uses_existing_index_and_preserves_the_message_equality ... ok
+test wave11_discovery_opens_schema_principals_and_every_exported_hook ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/chat.rs (target/debug/deps/chat-5cbf13cebcd60871)
+
+running 4 tests
+test cursor_notes_follow_returned_query_pages_through_aliases_and_shapes ... ok
+test consumed_pages_and_engine_owned_loops_do_not_need_caller_cursors ... ok
+test the_chat_api_types_are_inferred ... ok
+test the_chat_schema_compiles_and_runs ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/clique_03.rs (target/debug/deps/clique_03-552a1cb079452fd3)
+
+running 3 tests
+test admission ... ok
+test clique_03::probes::review_lifecycle_probe ... ok
+test application_fixture ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.54s
+
+     Running tests/components.rs (target/debug/deps/components-945c5675bf708f86)
+
+running 8 tests
+test escaped_nested_local_has_no_plan ... ok
+test inline_cross_read_aggregate_has_no_plan ... ok
+test nested_sinks_and_every_cursor_position_are_ineligible ... ok
+test independent_fields_and_transitive_scalars_have_plans ... ok
+test equal_counts_guard_cannot_mix_two_satisfying_observations ... ok
+test reading_guards_have_no_plan ... ok
+test excluded_source_shapes_keep_no_plan ... ok
+test expression_extrema_scope_rows_but_keep_external_dependencies ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/constraint_diagnostics.rs (target/debug/deps/constraint_diagnostics-ca5e3024af4ad8dd)
+
+running 9 tests
+test inlined_helper_keeps_the_domain_site_and_names_the_calling_mutation ... ok
+test constraint_wording_does_not_infer_booking_intent_from_column_names ... ok
+test capped_scope_that_decides_the_rule_keeps_the_existing_rewrite ... ok
+test sum_domain_in_book_gets_the_hidden_constraint_explanation ... ok
+test hidden_booking_exists_and_count_name_the_constraint_and_both_rewrites ... ok
+test writes_card_two_guests_get_taken_and_the_whole_conflicting_booking_rolls_back ... ok
+test a_hidden_night_collision_stays_e_rule_even_with_a_named_unique_code ... ok
+test per_night_pattern_retains_write_meter_and_atomic_rollback ... ok
+test writes_card_refuses_a_stranger_inserting_a_night_without_creating_the_booking ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/control_flow.rs (target/debug/deps/control_flow-b4a484888f47f209)
+
+running 1 test
+test random_clean_programs_never_fail_with_a_runtime_type_error ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.95s
+
+     Running tests/cursor_advice.rs (target/debug/deps/cursor_advice-102954d5d7841036)
+
+running 2 tests
+test composed_first_and_last_previews_have_no_cursor_note ... ok
+test cursor_advice_preserves_the_top_n_and_offers_only_continuation ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/declarative_receipts.rs (target/debug/deps/declarative_receipts-47300cc793989bd5)
+
+running 211 tests
+test allocation::dependencies::derived_prediction::receipt_prediction_capability_is_required_on_the_wire ... ok
+test allocation::dependencies::captured_public_memory ... ok
+test allocation::dependencies::derived_prediction::round3::round4::current_client_chat_fixture_exports_complete_prices ... ok
+test allocation::dependencies::derived_prediction::calibration_29_compiles_with_predicting_writers ... ok
+test allocation::dependencies::derived_prediction::maintenance_refusals_stay_static_and_readers_cannot_consume_frozen_values ... ok
+test allocation::dependencies::derived_prediction::derived_empty_id_memory ... ok
+test administrative_removal_drops_requirement_and_runs ... ok
+test allocation::dependencies::aggregate_live_source_memory ... ok
+test allocation::dependencies::aggregate_source_memory ... ok
+test allocation::dependencies::captured_followup_memory ... ok
+test allocation::dependencies::aggregate_live_member_memory ... ok
+test allocation::dependencies::aggregate_member_memory ... ok
+test allocation::dependencies::derived_prediction::round3::round4::hidden_once_memory ... ok
+test allocation::dependencies::derived_prediction::derived_overflow_memory ... ok
+test allocation::dependencies::derived_prediction::derived_live_boundary_memory ... ok
+test allocation::dependencies::generated::round4::schema_closure_is_transitive_and_survives_projection ... ok
+test allocation::dependencies::derived_prediction::round1::derived_recipient_cap_memory ... ok
+test allocation::dependencies::derived_prediction::round2::derived_stripped_schema_memory ... ok
+test allocation::dependencies::derived_prediction::round1::derived_group_pending_memory ... ok
+test allocation::dependencies::derived_prediction::round2::derived_canceled_groups_memory ... ok
+test allocation::dependencies::direct_count_memory ... ok
+test allocation::dependencies::derived_prediction::round1::derived_column_reservations_memory ... ok
+test allocation::dependencies::final_exists_memory ... ok
+test allocation::dependencies::generated::round4::ordinary_controls_memory ... ok
+test allocation::dependencies::derived_prediction::round1::derived_ordinary_reservations_memory ... ok
+test allocation::dependencies::derived_prediction::round3::round4::documented_payload_gap_memory ... ok
+test allocation::dependencies::private_receipt_capture_is_rejected_by_the_compiler ... ok
+test allocation::dependencies::generated::touched_refusal_memory ... ok
+test allocation::dependencies::derived_prediction::round1::authentic_predecessor_stores_open_install_and_converge ... ok
+test allocation::dependencies::captured_followup_sqlite ... ok
+test allocation::dependencies::group_memory ... ok
+test allocation::dependencies::maintained_filter_memory ... ok
+test allocation::dependencies::derived_prediction::round3::round4::once_keys_unknown_on_memory ... ok
+test allocation::dependencies::maintained_sum_memory ... ok
+test allocation::dependencies::derived_prediction::derived_empty_id_sqlite ... ok
+test allocation::dependencies::derived_prediction::derived_live_boundary_sqlite ... ok
+test allocation::dependencies::next_count_rule_memory ... ok
+test allocation::dependencies::derived_prediction::derived_overflow_sqlite ... ok
+test allocation::dependencies::derived_prediction::round3::reservation_legacy_unrelated_memory ... ok
+test allocation::dependencies::derived_prediction::round2::derived_online_reservations_memory ... ok
+test allocation::dependencies::old_count_rule_memory ... ok
+test allocation::dependencies::ordinal_delete_memory ... ok
+test allocation::dependencies::derived_prediction::round1::derived_recipient_cap_sqlite ... ok
+test allocation::dependencies::static_prediction::clean_fields_and_helpers_stay_eligible ... ok
+test allocation::dependencies::generated::round4::generated_conditions_memory ... ok
+test allocation::dependencies::ordinal_update_memory ... ok
+test allocation::dependencies::captured_public_sqlite ... ok
+test allocation::dependencies::aggregate_live_source_sqlite ... ok
+test allocation::dependencies::derived_prediction::round1::derived_column_reservations_sqlite ... ok
+test allocation::dependencies::derived_prediction::round3::round4::documented_payload_gap_sqlite ... ok
+test allocation::dependencies::derived_prediction::derived_convergence_memory ... ok
+test allocation::dependencies::derived_prediction::round1::derived_ordinary_reservations_sqlite ... ok
+test allocation::dependencies::aggregate_member_sqlite ... ok
+test allocation::dependencies::final_exists_sqlite ... ok
+test allocation::dependencies::aggregate_live_member_sqlite ... ok
+test allocation::dependencies::aggregate_source_sqlite ... ok
+test allocation::dependencies::direct_count_sqlite ... ok
+test allocation::dependencies::static_prediction::first_reason_location_assertions_and_transitive_helpers ... ok
+test allocation::dependencies::derived_prediction::round6::documented_receipt_payload_gap_memory ... ok
+test allocation::dependencies::derived_prediction::round1::derived_group_pending_sqlite ... ok
+test allocation::dependencies::derived_prediction::round2::derived_canceled_groups_sqlite ... ok
+test allocation::dependencies::generated::round4::ordinary_controls_sqlite ... ok
+test allocation::dependencies::derived_prediction::round2::derived_plain_asset_reservations_memory ... ok
+test allocation::dependencies::derived_prediction::derived_inherited_count_memory ... ok
+test allocation::dependencies::generated::touched_refusal_sqlite ... ok
+test allocation::unsafe_accounting_declarations_refuse_at_the_clause ... ok
+test allocation::dependencies::derived_prediction::round3::round4::once_keys_unknown_on_sqlite ... ok
+test client_binding::descriptor_defaults_and_namespace_collisions ... ok
+test client_binding::descriptor_refuses_action_only_module_namespace_collision ... ok
+test client_binding::descriptor_refuses_bare_action_namespace_collision ... ok
+test client_binding::descriptor_preserves_explicit_names_fields_modules_and_hygienic_arguments ... ok
+test allocation::dependencies::receipt_followup_memory ... ok
+test allocation::dependencies::residual_rule_memory ... ok
+test allocation::dependencies::same_transaction_memory ... ok
+test allocation::dependencies::derived_prediction::round3::round4::hidden_once_sqlite ... ok
+test allocation::dependencies::member_followup_memory ... ok
+test allocation::dependencies::scalar_max_memory ... ok
+test names::fingerprint_covers_compact ... ok
+test names::fingerprint_covers_delivered ... ok
+test allocation::dependencies::scalar_sum_memory ... ok
+test allocation::dependencies::derived_prediction::round1::derived_reservations_memory ... ok
+test allocation::dependencies::sort_memory ... ok
+test names::fingerprint_covers_progress ... ok
+test names::fingerprint_covers_receipt_member ... ok
+test names::unsupported_generated_fields_refuse_at_receipts_declaration ... ok
+test receipts_remains_a_legal_ordinary_column_name ... ok
+test allocation::dependencies::group_sqlite ... ok
+test names::fingerprint_covers_receipt ... ok
+test names::fingerprint_covers_seen ... ok
+test allocation::dependencies::static_prediction::allocator_bound_memory ... ok
+test allocation::dependencies::generated::round4::generated_whole_values_memory ... ok
+test allocation::dependencies::static_prediction::heap_boundary_memory ... ok
+test round1::self_only_membership_cannot_promise_complete_receipts ... ok
+test allocation::dependencies::generated::generated_maintenance_memory ... ok
+test allocation::dependencies::progress_followup_memory ... ok
+test allocation::dependencies::maintained_sum_sqlite ... ok
+test allocation::dependencies::maintained_filter_sqlite ... ok
+test allocation::dependencies::terminal_control_memory ... ok
+test allocation::failed_noop_and_metered_sends_preserve_counter ... ok
+test allocation::ownership_initialization_results_and_scope_authority ... ok
+test allocation::offline_two_devices_memory ... ok
+test allocation::prediction::refused_offline_send_memory ... ok
+test allocation::dependencies::ordinal_update_sqlite ... ok
+test allocation::dependencies::ordinal_delete_sqlite ... ok
+test allocation::prediction::scope_and_join_predictions_memory ... ok
+test allocation::dependencies::next_count_rule_sqlite ... ok
+test allocation::dependencies::old_count_rule_sqlite ... ok
+test allocation::sequence_counters_and_other_groups_cannot_consume_receipt_positions ... ok
+test round3::generated_expression_and_delivery_diagnostics_name_the_receipts_clause ... ok
+test declaration_refusals_and_device_delivery_queue ... ok
+test device_queues_progress_and_removal_without_changing_settled_receipts ... ok
+test device_round1::partial_acquisition_adoption_and_replay_memory ... ok
+test allocation::dependencies::compound_values::review_share_consumer_memory ... ok
+test gaps_skip_only_absent_rows_and_covered_runs_are_noops ... ok
+test manual_store_adopts_without_losing_receipts ... ok
+test round1::compaction_retires_runs_already_behind_prefix ... ok
+test allocation::dependencies::derived_prediction::round2::derived_online_reservations_sqlite ... ok
+test allocation::dependencies::same_transaction_sqlite ... ok
+test allocation::dependencies::receipt_followup_sqlite ... ok
+test allocation::dependencies::residual_rule_sqlite ... ok
+test round1::distinct_families_map_membership_identity_and_keep_ownership_separate ... ok
+test round1::family_mappings_operations_and_semantics_are_explicit ... ok
+test round2::app_cannot_update_runs_even_when_the_generated_fold_can ... ok
+test round2::compact_requires_its_familys_fingerprint ... ok
+test allocation::dependencies::generated::round4::generated_hooks_memory ... ok
+test allocation::dependencies::static_prediction::allocator_bound_sqlite ... ok
+test allocation::dependencies::member_followup_sqlite ... ok
+test allocation::dependencies::scalar_max_sqlite ... ok
+test allocation::dependencies::scalar_sum_sqlite ... ok
+test round3::extra_member_keys_and_caps_keep_receipts_and_delivery_named ... ok
+test round3::duplicate_report_cannot_capture_authored_max_and_invent_delivery ... ok
+test round3::extra_keys_and_caps_on_both_tables_keep_receipts_and_delivery_named ... ok
+test allocation::dependencies::terminal_control_sqlite ... ok
+test allocation::dependencies::static_prediction::heap_boundary_sqlite ... ok
+test allocation::dependencies::sort_sqlite ... ok
+test allocation::prediction::refused_offline_send_sqlite ... ok
+test allocation::recipient_capture_never_prices_another_members_private_payload ... ok
+test round3::extra_message_keys_and_caps_keep_receipts_and_delivery_named ... ok
+test allocation::prediction::scope_and_join_predictions_sqlite ... ok
+test allocation::simultaneous_writers_allocate_without_gaps_or_duplicates ... ok
+test allocation::dependencies::derived_prediction::round3::reservation_legacy_unrelated_sqlite ... ok
+test allocation::dependencies::derived_prediction::round2::derived_stripped_schema_sqlite ... ok
+test allocation::dependencies::generated::round4::generated_conditions_sqlite ... ok
+test round3::receipt_specific_coverage_guard_memory ... ok
+test allocation::dependencies::derived_prediction::round6::documented_receipt_payload_gap_sqlite ... ok
+test round4::unique_creator_id_on_scope_keeps_receipts_and_delivery_named ... ok
+test allocation::dependencies::progress_followup_sqlite ... ok
+test round1::service_removal_retires_exact_members_runs_and_rejoin_has_room ... ok
+test round4::unique_slug_on_scope_keeps_receipts_and_delivery_named ... ok
+test round1::saturated_deleted_holes_compact_all_covered_runs_before_cap ... ok
+test starter_compiles_and_rejects_owned_progress_and_unallocated_reports ... ok
+test round2::compaction_beyond_blocker_rolls_back_meter_refusal ... ok
+test allocation::dependencies::derived_prediction::round1::derived_overlay_cost_memory ... ok
+test allocation::dependencies::derived_prediction::derived_inherited_count_sqlite ... ok
+test round2::live_blocker_labels_survive_compaction_and_a_deleted_hole ... ok
+test device_round1::partial_acquisition_adoption_and_replay_sqlite ... ok
+test allocation::runtime_prediction_guard_memory ... ok
+test allocation::dependencies::derived_prediction::round2::derived_plain_asset_reservations_sqlite ... ok
+test round3::receipt_specific_coverage_guard_sqlite ... ok
+test allocation::offline_two_devices_sqlite ... ok
+test round2::partial_run_coverage_queues_removal_without_deleting_the_member ... ok
+test allocation::dependencies::derived_prediction::round1::derived_reservations_sqlite ... ok
+test allocation::dependencies::generated::round4::generated_whole_values_sqlite ... ok
+test allocation::dependencies::generated::generated_maintenance_sqlite ... ok
+test allocation::dependencies::derived_prediction::round3::reservation_round3_regressions_memory ... ok
+test round2::delivery_compacts_beyond_live_blocker_before_enforcing_cap ... ok
+test round2::compaction_merges_deleted_and_expired_gaps_beyond_live_blocker ... ok
+test allocation::dependencies::compound_values::review_composites_memory ... ok
+test allocation::dependencies::derived_prediction::round2::derived_asset_reservations_memory ... ok
+test allocation::dependencies::derived_prediction::derived_convergence_sqlite ... ok
+test allocation::dependencies::compound_values::review_share_consumer_sqlite ... ok
+test allocation::dependencies::generated::round4::generated_aliases_memory ... ok
+test allocation::runtime_prediction_guard_sqlite ... ok
+test allocation::dependencies::generated::round4::generated_hooks_sqlite ... ok
+test allocation::dependencies::derived_prediction::round1::derived_overlay_cost_sqlite ... ok
+test allocation::prediction::provisional_accounting_model_memory ... ok
+test allocation::dependencies::derived_prediction::round3::reservation_round3_regressions_sqlite ... ok
+test allocation::dependencies::compound_values::review_composites_sqlite ... ok
+test allocation::dependencies::derived_prediction::round2::derived_asset_reservations_sqlite ... ok
+test allocation::dependencies::generated::other_owned_targets_memory ... ok
+test allocation::dependencies::generated::round4::generated_columns_memory ... ok
+test allocation::dependencies::generated::round4::generated_aliases_sqlite ... ok
+test allocation::allocation_model_memory ... ok
+test generated_schedules_memory_devices ... ok
+test allocation::dependencies::derived_prediction::round3::reservation_wasm_corpus_matches_engine ... ok
+test round1::unswept_long_expiry_hole_records_coverage_and_resumes_bounded_compaction ... ok
+test round1::full_runs_behind_long_expiry_hole_converge_without_acknowledging_refused_input ... ok
+test allocation::dependencies::derived_prediction::round3::round4::reservation_round4_regressions_memory ... ok
+test round2::long_gap_after_live_blocker_makes_bounded_persistent_progress ... ok
+test round3::authored_template_call_names_do_not_change_receipts_or_delivery ... ok
+test allocation::dependencies::generated::other_owned_targets_sqlite ... ok
+test allocation::dependencies::derived_prediction::round3::round4::reservation_round4_wasm_corpus_matches_engine ... ok
+test allocation::dependencies::generated::round4::generated_columns_sqlite ... ok
+test allocation::prediction::provisional_accounting_model_sqlite ... ok
+test allocation::dependencies::derived_prediction::round3::round4::reservation_round4_regressions_sqlite ... ok
+test generated_schedules_sqlite_devices ... ok
+test allocation::dependencies::generated::generated_ordinal_targets_memory ... ok
+test allocation::allocation_model_sqlite has been running for over 60 seconds
+test allocation::dependencies::derived_prediction::round3::reservation_differential_memory has been running for over 60 seconds
+test allocation::dependencies::derived_prediction::round3::reservation_differential_sqlite has been running for over 60 seconds
+test allocation::dependencies::generated::generated_ordinal_targets_sqlite has been running for over 60 seconds
+test allocation::dependencies::generated::generated_reads_memory has been running for over 60 seconds
+test allocation::dependencies::generated::generated_reads_sqlite has been running for over 60 seconds
+test allocation::dependencies::generated::round4::generated_loops_memory has been running for over 60 seconds
+test allocation::dependencies::generated::round4::generated_loops_sqlite has been running for over 60 seconds
+test schedules::full_state_schedules_memory ... ok
+test allocation::dependencies::generated_value_taint::generated_values_memory has been running for over 60 seconds
+test allocation::dependencies::generated_value_taint::generated_values_sqlite has been running for over 60 seconds
+test allocation::allocation_model_sqlite ... ok
+test names::generated_field_and_scope_names_compile_and_run has been running for over 60 seconds
+test round3::every_mapping_position_supports_names_or_refuses_at_the_clause has been running for over 60 seconds
+test schedules::full_state_schedules_sqlite has been running for over 60 seconds
+test allocation::dependencies::generated::generated_reads_memory ... ok
+test allocation::dependencies::generated::generated_ordinal_targets_sqlite ... ok
+test allocation::dependencies::generated::round4::generated_loops_memory ... ok
+test allocation::dependencies::generated::generated_reads_sqlite ... ok
+test schedules::full_state_schedules_sqlite ... ok
+test allocation::dependencies::generated::round4::generated_loops_sqlite ... ok
+test allocation::dependencies::derived_prediction::round3::reservation_differential_memory ... ok
+test names::generated_field_and_scope_names_compile_and_run ... ok
+test allocation::dependencies::derived_prediction::round3::reservation_differential_sqlite ... ok
+test round3::every_mapping_position_supports_names_or_refuses_at_the_clause ... ok
+test allocation::dependencies::generated_value_taint::generated_values_memory ... ok
+test allocation::dependencies::generated_value_taint::generated_values_sqlite ... ok
+
+test result: ok. 211 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 252.02s
+
+     Running tests/delivery.rs (target/debug/deps/delivery-98979287fc2e0a43)
+
+running 16 tests
+test two_bindings_have_separate_rows_and_self_describing_names ... ok
+test owner_field_origin_survives_optional_access_and_successive_aliases ... ok
+test exact_output_reservation_admits_a_fitting_binding_and_row ... ok
+test colliding_ids_do_not_turn_foreign_fields_into_own_images ... ok
+test manifest_tracks_only_qualifying_surviving_images ... ok
+test report_noop_keeps_receipt_at_head_and_replays_before_body_lookup ... ok
+test unsafe_positions_are_not_reported_and_safe_endpoints_are_exact ... ok
+test reopening_an_installed_reporter_preserves_its_manifest ... ok
+test map_backed_authorized_source_images_are_tracked_too ... ok
+test per_source_lookup_exhausts_steps_after_the_index_fits ... ok
+test many_bindings_exhaust_metadata_work_before_further_source_stamping ... ok
+test supplemental_overflow_never_changes_answer_or_its_meter ... ok
+test row_and_effect_reports_still_commit_but_empty_reports_do_not ... ok
+test step_heap_and_read_cuts_remain_the_answers_own ... ok
+test partial_preserves_rows_so_far_and_bounds_stamping_heap ... ok
+test unrelated_reads_pay_nothing_even_when_the_binding_index_cannot_fit ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+
+     Running tests/delivery_clause.rs (target/debug/deps/delivery_clause-708e869aa8cd9eef)
+
+running 6 tests
+test binding_decoder_rejects_incomplete_or_duplicate_fields ... ok
+test manual_delivery_accepts_extra_message_and_member_unique_keys_and_caps ... ok
+test fingerprint_names_every_component_and_is_independent_of_wire_order ... ok
+test ephemeral_mutations_cannot_promise_durable_replay ... ok
+test clause_binds_argument_names_and_survives_schema_serialization ... ok
+test every_clause_check_has_a_located_diagnostic_and_concrete_rewrite ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/delivery_integration.rs (target/debug/deps/delivery_integration-605631a0fa5a839a)
+
+running 3 tests
+test admitted_expiring_scans_keep_query_delivery_out_of_mutations_and_replay ... ok
+test cursorless_page_stamps_its_exact_bound_without_lookahead ... ok
+test compact_membership_search_reports_only_authorized_emitted_images ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/delivery_replay_conversion.rs (target/debug/deps/delivery_replay_conversion-a47cf1d8f2e3a562)
+
+running 3 tests
+test measure_ephemeral_receipt_lookup_cost ... ignored, measurement: run explicitly with --ignored --nocapture
+test a_delivery_receipt_must_survive_conversion_of_the_name_to_ephemeral ... ok
+test stale_fingerprints_refuse_removed_or_rebound_reporters_before_body ... ok
+
+test result: ok. 2 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/denied_writes.rs (target/debug/deps/denied_writes-3341100fba15d987)
+
+running 3 tests
+test each_denied_effect_and_upsert_arm_is_noted_with_its_clause ... ok
+test admitted_writes_jobs_and_owned_field_patches_are_not_noted ... ok
+test generated_receipt_operations_are_exempt_in_any_module ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/derived_maintains.rs (target/debug/deps/derived_maintains-f178649bda96b61d)
+
+running 14 tests
+test failed_maintain_generation_does_not_infer_a_rule_on_an_ordinary_table ... ok
+test disclosure::rule_fields_in_extra_probe_equalities_are_not_lost ... ok
+test maintain_authorization_notes_distinguish_lexicals_from_rule_constants ... ok
+test read_derivation_refuses_lost_fields_and_preserves_explicit_policy ... ok
+test disclosure::derived_membership_is_identical_to_explicit_rules_and_keeps_residency ... ok
+test dotted_keys_and_explicit_defaults_produce_the_same_schema_and_programs ... ok
+test expiring_source_and_system_misses_use_the_same_maintain_authorization_as_hits ... ok
+test inferred_column_reference_handles_sums_optional_refs_and_ambiguity ... ok
+test dotted_sum_column_matches_legacy_spelling_and_runs ... ok
+test uniformly_readable_rules_derive_allow_and_return_nonzero_totals ... ok
+test disclosure::private_aggregates_never_reach_nonmembers_online_or_on_a_device ... ok
+test keyed_maintain_hides_hits_and_misses_without_turning_them_into_zero ... ok
+test clique_nine_aggregates_and_inferred_columns_run_against_contributions ... ok
+test disclosure::column_audience_rules_survive_calendar_grouping_and_service_grants ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests/effect_reads.rs (target/debug/deps/effect_reads-bb2232fb7f8e25a2)
+
+running 9 tests
+test effect_presence_survives_the_slice_without_binder_source_metadata ... ok
+test nested_coalescing_keeps_all_fallback_work_in_the_effect_slice ... ok
+test query_and_non_effect_point_reads_keep_their_residency ... ok
+test clique_send_in_prediction_card_is_eligible_without_hoisting ... ok
+test data_dependent_payload_reads_keep_the_real_read_path ... ok
+test total_text_payloads_keep_guarded_and_unguarded_mutations_eligible ... ok
+test infallible_effect_payload_reads_are_server_only_with_source_sites ... ok
+test shared_reads_and_fallible_payload_work_still_cost_prediction ... ok
+test expiring_sum_point_reads_are_fallible_even_in_a_payload ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/emit_compatibility.rs (target/debug/deps/emit_compatibility-136e26cd47316a9b)
+
+running 16 tests
+test plain_text_conditional_retains_concatenation ... ok
+test declared_optional_arguments_stay_optional_without_baseline_or_since_label ... ok
+test baseline_retains_old_enum_domains_and_new_operation_required_arguments ... ok
+test enum_text_builtins_do_not_launder_forbidden_control_characters ... ok
+test spanning_domains_deduplicate_enum_variants_and_equal_ts_values ... ok
+test baseline_nominal_results_survive_removed_tables_and_nested_return_shapes ... ok
+test field_hidden_in_either_release_remains_optional_in_spanning_rows ... ok
+test unrepresentable_enum_text_selections_never_gain_unknown_assignment_authority ... ok
+test conditional_enum_projections_keep_literal_and_nullable_domains ... ok
+test opt_in_optional_fields_and_arguments_without_changing_default_requiredness ... ok
+test inferred_locals_join_enum_domains_without_weakening_declared_arguments ... ok
+test precise_conditional_domains_keep_string_comparisons ... ok
+test enum_precision_compares_and_rebinds_shapes_with_opposing_field_bounds ... ok
+test precise_enum_domains_keep_nested_value_comparisons ... ok
+test nested_nullable_enum_ordering_keeps_existing_total_order ... ok
+test finite_conditional_domains_keep_all_present_text_operations ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/ephemeral.rs (target/debug/deps/ephemeral-e75a50d6bf02089f)
+
+running 15 tests
+test renewal_keys_account_for_later_loop_iterations ... ok
+test renewal_keys_do_not_retain_stability_after_write_results_or_divmod_sinks ... ok
+test expression_block_effects_cannot_hide_a_mixed_write ... ok
+test a_clock_controlled_key_assignment_is_not_a_renewal ... ok
+test changing_ephemeral_tables_is_additive_but_losing_durable_rows_is_destructive ... ok
+test life_bounds_and_missing_life ... ok
+test declaration_classification_facts_and_emission ... ok
+test minimum_written_life_sets_renewal_and_helpers_extend_read_closure ... ok
+test durable_job_action_and_held_reads_refuse ... ok
+test renews_only_with_stable_update_or_upsert_keys ... ok
+test no_durable_dependents_or_rule_probes ... ok
+test forbidden_table_clauses ... ok
+test mixed_writes_and_emit_refuse_including_inlined_helper ... ok
+test following_action_and_schedule_refusals_name_ephemeral_boundary ... ok
+test renewal_requires_one_write_without_read_derived_values_or_a_result ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/ephemeral_compat.rs (target/debug/deps/ephemeral_compat-1ff6dd6eb98ec424)
+
+running 1 test
+test durable_schema_and_types_keep_base_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/ergonomics.rs (target/debug/deps/ergonomics-e7a323a39fef2f7e)
+
+running 25 tests
+test s09_recovery_clears_a_reassigned_bindings_error_type ... ok
+test index_repair_does_not_offer_an_unspellable_planner_token ... ok
+test s09_failed_bindings_in_nested_blocks_and_tuples_keep_independent_errors ... ok
+test s09_recovery_does_not_duplicate_a_relocated_helper_error ... ok
+test s09_a_poisoned_field_does_not_hide_an_independent_sibling ... ok
+test enum_widening_respects_text_character_domain ... ok
+test s11_token_expectations_explain_the_required_spelling ... ok
+test s09_failed_bindings_keep_the_cause_and_independent_errors ... ok
+test s12_profiles_range_pins_the_whole_unique_key ... ok
+test w16h_a_bool_optional_condition_is_not_told_to_compare_against_null ... ok
+test s12_text_handle_is_not_a_conversation_id ... ok
+test w16h_a_scalar_field_access_is_told_to_drop_the_field_not_to_read_a_row ... ok
+test s11_emit_spread_compiles_the_original_builder_payload ... ok
+test s10_time_scaling_names_the_actual_expression_and_conversion ... ok
+test s10_s11_evidence_already_repaired_at_the_base_keeps_positive_cases ... ok
+test fully_pinned_range_only_offers_an_admitted_point ... ok
+test alternative_point_indexes_must_pass_admission ... ok
+test s09_s10_l10a_order_helper_and_mark_keep_only_independent_causes ... ok
+test s10_enum_widens_totally_to_bounded_text ... ok
+test s07_l12 ... ok
+test s07_valid_predicate_shapes_keep_their_meaning ... ok
+test s07_r9 ... ok
+test s07_l10a ... ok
+test s09_s10_l12_pure_optional_calls_now_narrow_without_a_temporary ... ok
+test enum_text_helpers_storage_indexes_and_wire_keep_the_same_domain ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/expiring_mutations.rs (target/debug/deps/expiring_mutations-0454209fbfc5ed57)
+
+running 20 tests
+test backlog_measurements ... ignored, lane ER instrument, explicit only
+test hoisted_helper_condition_keeps_its_enclosing_emit_boundary ... ok
+test final_return_helper_keeps_its_untaken_write_boundary ... ok
+test hoisted_helper_read_keeps_its_untaken_write_boundary ... ok
+test final_return_insert_keeps_its_source_statement_boundary ... ok
+test hoisted_insert_payload_keeps_its_source_statement_boundary ... ok
+test hoisted_insert_if_absent_keeps_its_source_statement_boundary ... ok
+test refuses_effects_including_serialized_ir_and_site_aliases ... ok
+test helper_expansion_cannot_hide_the_first_effect ... ok
+test separate_read_only_helpers_and_payload_bindings_remain_admitted ... ok
+test removing_only_the_expiry_guard_discloses_a_retained_ordinal ... ok
+test expiry_refusals_name_the_statement_boundary_and_never_selected_ids ... ok
+test expired_is_absent_and_denied_prefix_cost_is_population_independent ... ok
+test expiry_count_cut_never_reports_partial_total ... ok
+test native_entries_refuse_mutations_and_jobs_before_module_or_body_execution ... ok
+test expiry_exists_cut_never_reports_absence ... ok
+test admission_matrix_and_live_cap ... ok
+test calibration_delivered_rewrite_compiles_and_advances_over_expired_messages ... ok
+test backlog_bound_sweeps_fresh_id_recovers_and_lost_response_replays ... ok
+test delivered_backlog_then_full_slots_refuses_until_interval_can_be_recorded ... ok
+
+test result: ok. 19 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.14s
+
+     Running tests/extrema.rs (target/debug/deps/extrema-bea7d69534081436)
+
+running 21 tests
+test ambiguous_order_comma_has_a_compiling_rewrite ... ok
+test competing_focal_scopes_are_refused_and_binary_collection_members_survive ... ok
+test direct_and_bound_authorized_pages_agree_and_neither_masks_a_cut ... ok
+test expiring_maintained_values_scan_live_totals_and_refuse_stale_order ... ok
+test nonuniform_rule_runs_before_the_residual_predicate ... ok
+test bare_table_and_typed_nullable_columns ... ok
+test extrema_seek_skips_expired_rows_and_respects_filter_cuts ... ok
+test optional_variants_remain_streaming_and_do_not_change_null_semantics ... ok
+test one_large_json_winner_fits_the_default_heap ... ok
+test domain_extrema_skip_nulls_and_hidden_rows_and_preserve_empty_null ... ok
+test list_and_binary_overloads_keep_types_and_meaning ... ok
+test replacing_a_large_json_winner_fits_eighteen_mib ... ok
+test streamed_json_winners_exhaust_the_retained_heap ... ok
+test binary_calls_over_cap_bounded_reads_keep_their_row_order ... ok
+test examined_steps_and_heap_cuts_are_unavailable_even_with_a_default ... ok
+test binary_maintained_point_extrema_keep_their_scalar_overload ... ok
+test replacing_a_json_winner_releases_its_full_retained_charge ... ok
+test streaming_text_keeps_only_one_selected_value_charged ... ok
+test ordered_index_reuses_permuted_pins_and_extra_tie_columns ... ok
+test seek_skips_ten_thousand_null_keys_without_spending_the_scan_meter ... ok
+test ordered_index_seeks_one_row_among_ten_thousand_and_fallback_scans ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.80s
+
+     Running tests/extremum_expressions.rs (target/debug/deps/extremum_expressions-9db131b509d899c5)
+
+running 12 tests
+test nested_read_sites_remain_visible_to_residency_and_ir_walks ... ok
+test non_scalar_row_projections_are_type_errors ... ok
+test ambiguity_refusal_has_a_compiling_helper_rewrite ... ok
+test constants_helpers_all_nulls_and_empty_sources ... ok
+test expression_encoding_is_distinct_and_column_encoding_and_seek_survive ... ok
+test authorization_precedes_the_value_expression ... ok
+test optional_filters_and_inferred_lanes_remain_whole_domains ... ok
+test null_source_rows_still_evaluate_the_projection ... ok
+test binary_collection_expressions_keep_the_original_order ... ok
+test projection_read_cuts_withhold_even_after_a_previous_winner ... ok
+test row_expressions_match_a_loop_with_nulls_and_named_outer_values ... ok
+test expression_cuts_never_become_a_partial_or_default_scalar ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+     Running tests/familiar_guesses.rs (target/debug/deps/familiar_guesses-346dbc35804e4297)
+
+running 6 tests
+test qualification_checks_the_declaration_file_and_cannot_change_placement ... ok
+test nullable_helper_argument_and_duplicate_sync_have_local_repairs ... ok
+test foreign_spellings_are_refused_and_canonical_repairs_compile ... ok
+test self_equalities_are_refused_in_predicate_scopes_only ... ok
+test nested_roster_binds_the_enclosing_conversation_and_repeated_where_is_and ... ok
+test repeated_where_keeps_precedence_short_circuiting_and_other_modifier_refusals ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/familiar_predicates.rs (target/debug/deps/familiar_predicates-3f13eed71cee66c8)
+
+running 6 tests
+test repairs_use_late_and_other_module_column_types_and_preserve_quoted_tails ... ok
+test count_star_names_the_scoped_table_and_each_concrete_repair_compiles ... ok
+test no_argument_repairs_add_a_typed_argument_without_losing_the_body ... ok
+test nested_read_keys_keep_the_enclosing_predicate_scope ... ok
+test aggregates_columns_views_and_timelines_share_the_refusal_and_repairs_compile ... ok
+test every_self_comparison_refuses_in_top_level_and_nested_filters_and_repairs_paste ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/familiar_repairs.rs (target/debug/deps/familiar_repairs-5d49895acee1ae17)
+
+running 6 tests
+test ambiguous_count_star_refuses_without_prose_in_the_replacement ... ok
+test seek_operands_are_checked_in_the_enclosing_predicate_scope ... ok
+test multiline_repair_uses_tokens_and_preserves_the_whole_declaration ... ok
+test projected_view_repairs_use_inferred_field_types ... ok
+test nested_key_repairs_keep_conjuncts_bounds_and_order ... ok
+test optional_inclusive_comparisons_preserve_presence_in_early_late_and_other_modules ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/familiar_source_repairs.rs (target/debug/deps/familiar_source_repairs-338fedaaf219615b)
+
+running 4 tests
+test same_named_columns_with_different_types_use_the_argument_fallback ... ok
+test fresh_parameters_consider_nested_bindings_only_in_the_current_declaration ... ok
+test argument_repairs_splice_only_the_comparison_and_keep_nested_source_and_results ... ok
+test nested_key_repair_preserves_the_reviewers_two_row_answer ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/familiar_verified_repairs.rs (target/debug/deps/familiar_verified_repairs-1c9011acf3611236)
+
+running 14 tests
+test a_remaining_error_in_the_affected_declaration_suppresses_the_repair ... ok
+test invalid_helper_body_cannot_offer_a_local_predicate_repair ... ok
+test independent_declaration_errors_do_not_hide_a_checked_repair ... ok
+test nullable_unique_repair_keeps_an_existing_page_bound ... ok
+test failed_key_candidates_have_neither_rewrite_nor_named_key_advice ... ok
+test nullable_unique_aggregate_keeps_tied_null_rows ... ok
+test nullable_population_repair_does_not_accept_a_guarded_bare_point ... ok
+test a_capped_nonunique_aggregate_keeps_its_whole_page ... ok
+test nullable_unique_shape_repair_keeps_the_population_or_offers_no_rewrite ... ok
+test sole_predicates_preserve_point_and_explicit_page_results ... ok
+test grouped_reads_and_trailing_comma_keys_keep_source_and_answers ... ok
+test delete_only_the_bad_conjunct_at_any_position_or_where_clause ... ok
+test aggregates_retry_point_keys_as_verified_single_row_pages_and_execute ... ok
+test named_equality_precedes_all_seek_operators_and_retains_other_operands ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+
+     Running tests/feed_forms.rs (target/debug/deps/feed_forms-0022575d33d49771)
+
+running 8 tests
+test named_table_merge_requires_the_same_columns_and_index ... ok
+test w13h_only_canonical_returned_shapes_are_marked_and_round_trip ... ok
+test filtered_merge_without_cursor_is_complete_at_its_bound ... ok
+test whole_table_cap_is_enforced_across_different_owners ... ok
+test filtered_matching_merge_uses_the_same_predicate_and_bool_check ... ok
+test named_table_merge_pages_both_sources_and_keeps_cursor_scope ... ok
+test filtered_merge_engine_withholds_cut_predicates ... ok
+test filtered_merge_header_admits_metered_predicates ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/file_assets.rs (target/debug/deps/file_assets-a2623ddec390ca44)
+
+running 6 tests
+test once_does_not_apply_to_files ... ok
+test script_bearing_and_unverifiable_types_are_refused_at_the_column ... ok
+test a_table_named_file_is_still_a_reference ... ok
+test a_file_is_not_an_image ... ok
+test file_fields_are_the_servers_facts ... ok
+test the_type_compiles_with_and_without_an_allow_list ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/first_paste.rs (target/debug/deps/first_paste-fb6513226a86e7e9)
+
+running 9 tests
+test cal24_shape_on_rewrite_replaces_the_reported_tokens_verbatim ... ok
+test name_lookups_keep_duplicates_and_print_a_complete_held_operation ... ok
+test cal24_complete_job_is_preserved_by_pasting_the_unused_preview_replacement ... ok
+test cal25_parent_traversal_repair_is_the_entire_redundant_rule_and_preserves_authority ... ok
+test comparative_public_view_and_cal24_effect_helper_first_attempts_execute ... ok
+test count_alias_orders_aggregate_rows_before_index_planning ... ok
+test cal25_parent_pinned_first_attempt_already_works_and_count_shorthand_matches ... ok
+test cal24_length_guesses_share_unicode_list_and_meter_semantics ... ok
+test count_alias_predicates_and_keys_keep_real_group_column_precedence ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+     Running tests/following_adoption_research.rs (target/debug/deps/following_adoption_research-848c9b2b2acbecc7)
+
+running 6 tests
+test crash_child ... ignored, child of committed_checkpoint_survives_process_exit
+test staged_replay_measurement ... ignored, research measurement: FA_SCALE=1 or 10, FA_DIR is an isolated output directory
+
+running 1 test
+test identical_feed_with_unrelated_literal_default_is_not_an_incarnation_fence ... ok
+test undiscovered_reader_is_pending_even_without_edge_work ... ok
+test committed_checkpoint_survives_process_exit ... ok
+snapback4: atomic feed adoption: view following: 2 source rows, 1 events, 1 follows; 2 rows to copy; estimated writer lock 0.00 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+test counterexamples_and_planned_escape ... ok
+
+test result: ok. 4 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 2.46s
+
+     Running tests/following_atomic_launch.rs (target/debug/deps/following_atomic_launch-37d364ec48ee8c3c)
+
+running 11 tests
+test calibration_atomic_launch_measurement ... ignored, release-profile measurement: FA_SCALE=1 or 10, FA_ATOMIC_DIR is a fresh directory
+test crash_before_launch_commit ... ignored, process-death child
+snapback4: atomic feed adoption: view following: 3 source rows, 2 events, 0 follows; 2 rows to copy; estimated writer lock 0.00 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+snapback4: atomic feed adoption: view following: 4 source rows, 3 events, 1 follows; 6 rows to copy; estimated writer lock 0.00 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+
+running 1 test
+test retained_repost_of_a_filtered_card_survives_launch ... ok
+snapback4: atomic feed adoption: view following: 22 source rows, 20 events, 2 follows; 60 rows to copy; estimated writer lock 0.02 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+test predecessor_query_snapshot_and_log_normalization_are_isolated_until_commit ... ok
+snapback4: atomic feed adoption: view following: 22 source rows, 20 events, 2 follows; 60 rows to copy; estimated writer lock 0.02 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+test process_death_before_commit_preserves_predecessor_and_retry_succeeds ... ok
+snapback4: atomic feed adoption: view following: 1002 source rows, 1001 events, 1 follows; 2001 rows to copy; estimated writer lock 0.71 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+snapback4: atomic feed adoption: view following: 1007 source rows, 1003 events, 3 follows; 3005 rows to copy; estimated writer lock 0.86 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+test aggregate_copy_ceiling_refuses_two_individually_admissible_launches_before_writes ... ok
+test copy_ceiling_rechecks_a_follow_committed_between_estimate_and_writer_lock ... ok
+test launch_uses_event_id_tiebreaks_and_builds_dependent_aggregates ... ok
+snapback4: atomic feed adoption: view following: 3 source rows, 2 events, 1 follows; 4 rows to copy; estimated writer lock 0.00 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+test copy_ceiling_and_release_permission_refuse_before_candidate_writes ... ok
+test launch_is_all_own_and_newest_thousand_per_follow_without_refill ... ok
+snapback4: atomic feed adoption: view following: 1003 source rows, 1001 events, 1 follows; 2001 rows to copy; estimated writer lock 0.72 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+snapback4: atomic feed adoption: view following: 1003 source rows, 1002 events, 1 follows; 2002 rows to copy; estimated writer lock 0.72 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+snapback4: atomic feed adoption: view second: 1003 source rows, 1001 events, 1 follows; 2001 rows to copy; estimated writer lock 0.72 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+test fresh_launch_can_include_older_events_and_uses_new_repost_identity ... ok
+
+test result: ok. 9 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 2.35s
+
+     Running tests/following_history.rs (target/debug/deps/following_history-5db6ef2aba2d76f0)
+
+running 10 tests
+test shaped_unit_arguments_are_bound_without_consuming_the_original_token ... ok
+test opening_binds_operation_and_viewer ... ok
+test generated_following_projection ... ok
+test live_prepend_uses_post_bound_births_without_restarting_history ... ok
+test hidden_private_fields_do_not_create_false_replay_revocations ... ok
+test replay_pins_card_bytes_while_rechecking_only_current_authority ... ok
+test oversized_card_is_a_consumed_named_omission_and_all_meters_stay_bounded ... ok
+test maps_of_small_fields_shorten_pages_under_heap_without_omitting_fitting_cards ... ok
+test refresh_slices_wide_authority_at_the_allowance_boundary_and_reports_refused_work ... ok
+test retained_live_preview_requires_a_copy_in_the_current_follow_epoch ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+
+     Running tests/following_history_research.rs (target/debug/deps/following_history_research-ed5e0a08f7b52e7c)
+
+running 3 tests
+test sparse_history_and_existing_indexed_control ... ignored, FH scale evidence; run explicitly with --ignored --nocapture --test-threads=1
+test unbounded_follows_exhaust_existing_merge_discovery ... ignored, FH scale evidence; run explicitly with --ignored --nocapture --test-threads=1
+snapback4: atomic feed adoption: view feed: 1104 source rows, 1102 events, 2 follows; 2103 rows to copy; estimated writer lock 0.77 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+test one_global_tail_cannot_join_per_actor_windows ... ok
+
+test result: ok. 1 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running tests/following_view.rs (target/debug/deps/following_view-62282b157d1aa7b2)
+
+running 9 tests
+test unsupported_feed_read_order_has_a_located_rewrite ... ok
+test branch_and_predicate_order_do_not_choose_the_strategy ... ok
+test private_mutable_horizon_and_wrong_structures_refuse_at_the_declaration ... ok
+test removal_flag_is_optional_and_immutable_filters_still_apply ... ok
+test recognition_uses_structure_including_renamed_projected_fields ... ok
+test upsert_insert_stamps_following_event_slot ... ok
+test settled_own_burst_is_complete_and_ordered_without_background_delivery ... ok
+test viewer_pages_map_event_fields_then_apply_shapes_and_keep_pending_completeness ... ok
+test refollow_view_pages_exclude_old_epochs_before_cleanup ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+
+     Running tests/front_semantics.rs (target/debug/deps/front_semantics-32468ba8b0b9114a)
+
+running 5 tests
+test sweep_notes_follow_qualified_job_targets_in_modules ... ok
+test security_and_completeness_advice_share_the_same_sweep_finding ... ok
+test a_confirmation_guard_cannot_replace_the_deadline_used_by_its_overdue_sweep ... ok
+test sweep_deadline_names_the_exact_row_and_does_not_invent_guard_direction ... ok
+test utc_clock_hour_uses_existing_ir_for_negative_times_and_i53_extremes ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/frontend_regressions.rs (target/debug/deps/frontend_regressions-faa25618352e39d9)
+
+running 40 tests
+test generated_array_elements_preserve_union_precedence ... ok
+test a_helper_cannot_capture_or_refine_a_callers_local ... ok
+test actions_declare_typed_admission_and_unknown_results_without_a_quarry_body ... ok
+test declaration_failures_are_diagnostic_instead_of_being_dropped_or_overwritten ... ok
+test operation_uniqueness_uses_the_qualified_name_and_preserves_both_sites ... ok
+test module_schedule_diagnostic_names_the_canonical_job ... ok
+test numeric_rule_literals_use_the_same_checked_domain_as_program_literals ... ok
+test structural_population_refusals_surface_during_authored_compilation ... ok
+test sync_inversion_and_hoisted_chunk_checks_keep_their_specific_diagnostics ... ok
+test self_witness_notes_name_only_the_unpinned_deciding_columns ... ok
+test named_probe_equalities_need_only_a_total_unique_key ... ok
+test else_if_selects_one_branch_and_elif_names_the_exact_rewrite ... ok
+test accumulated_lists_append_in_place_and_can_be_iterated ... ok
+test expression_ranges_evaluate_bounds_once_and_stop_at_the_step_meter ... ok
+test asset_metadata_narrowing_matches_nullable_server_facts ... ok
+test sha256_hashes_exact_utf8_and_infers_one_fixed_text_bound ... ok
+test guessed_spellings_are_mechanical_refusals_with_exact_rewrites ... ok
+test grouping_preserves_first_seen_order_and_list_selection_is_nullable ... ok
+test duplicate_named_keys_are_located_diagnostics_for_reads_ranges_and_rules ... ok
+test reassignment_carries_locals_through_branches_and_loops_and_resets_refinements ... ok
+test accumulated_values_write_under_runtime_column_bounds ... ok
+test null_refinements_join_only_continuing_paths ... ok
+test result_types_include_null_when_control_can_reach_the_end ... ok
+test division_and_remainder_share_divmods_results_precedence_and_zero_refusal ... ok
+test text_operations_use_characters_and_meter_new_results ... ok
+test loop_carried_types_include_continued_paths_and_reject_recursive_accumulation ... ok
+test range_seeks_type_the_next_column_and_continue_in_both_directions ... ok
+test continue_advances_the_nearest_for_or_chunk ... ok
+test boolean_lowering_keeps_refusals_and_writes_in_the_selected_branch ... ok
+test where_filters_after_rules_and_meters_lazy_predicate_reads ... ok
+test upsert_patches_existing_rows_and_validates_absent_rows_as_inserts ... ok
+test job_prelude_meter_refusal_parks_before_writing_a_chunk ... ok
+test job_preludes_rerun_for_each_chunk_and_each_sweep ... ok
+test helper_bodies_return_values_without_returning_from_the_caller ... ok
+test references_allow_absent_ids_and_explicit_guards_require_visible_targets ... ok
+test every_list_builtin_accepts_pages_and_shaped_collections ... ok
+test helpers_have_lexical_bindings_and_snapshot_arguments_once_in_source_order ... ok
+test null_checks_narrow_snapshot_fields_and_surviving_paths ... ok
+test generated_typescript_preserves_strings_and_typechecks_with_the_real_contract ... ok
+test generated_nullable_arrays_typecheck_with_the_real_contract ... ok
+
+test result: ok. 40 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.69s
+
+     Running tests/guide.rs (target/debug/deps/guide-eee34b0d9c9aebae)
+
+running 127 tests
+test client::connection_presence_keeps_its_card ... ok
+test client::loading_or_absent_opens_client ... ok
+test client::missing_row_question_opens_client ... ok
+test client::membership_wording_covers_pending_predictions_and_withdrawals ... ok
+test client::published::client_teaches_sdk_delivery_and_screen_seen ... ok
+test client::unknown_membership_offline_opens_interactions ... ok
+test bounded_discovery_never_prints_a_partial_quarry_fence ... ok
+test client::witness_card_explains_scene_adoption_and_product_toolchain ... ok
+test calibration_effects_jobs_and_seed_cards_explain_replay_flags ... ok
+test composition_card_is_reachable_and_keeps_the_routing_boundary ... ok
+test definitions::expiring_cap_why_states_live_occupancy_and_bounded_recount ... ok
+test definitions::expiring_mutation_programs_card_states_prediction_class ... ok
+test client::native_smoke_is_the_milestone_path_with_honest_limits ... ok
+test definitions::expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal ... ok
+test client::existence_card_and_starters_teach_the_sdk_words ... ok
+test definitions::delivery_bound_rfc_acceptance_requires_start_only_recovery ... ok
+test definitions::assets_once_contract_retains_metadata_and_renders_opened ... ok
+test definitions::heaviest_account_aliases_reach_the_executable_acquisition_recipe ... ok
+test definitions::search_membership_heading_is_a_separate_output_line ... ok
+test definitions::receipts_migrates_the_history_walking_hook_that_does_not_scale ... ok
+test definitions::receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook ... ok
+test definitions::why_rule_carries_the_target_visibility_contract ... ok
+test definitions::w11_every_registered_code_quotes_its_definition ... FAILED
+test definitions::why_bound_defines_the_ceiling_and_withheld_count ... ok
+test definitions::delivery_bound_guidance_requires_start_only_recovery ... ok
+test client::published::published_path_guard_rejects_astras_counterexample_and_unlisted_files ... ok
+test expire_card_explains_maintained_value_order_refusal_and_rewrites ... ok
+test familiar::check_output_guidance_distinguishes_summaries_from_verbose_details ... ok
+test familiar::the_rosetta_card_is_reachable_and_covers_the_requested_idioms ... ok
+test definitions::every_card_separates_headings_from_prose ... ok
+test feeds::builder_path_precedes_internals_and_older_spellings ... ok
+test familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block ... ok
+test feeds::older_spelling_exemption_respects_headings_and_fenced_samples ... ok
+test feeds::owner_key_sign_out_preserves_the_replica_without_lending_its_proof ... ok
+test client::w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes ... ok
+test following_cards_pin_examinations ... ok
+test following_cards_scope_older_recipe_measurements ... ok
+test host_unicode_refusal_explains_the_repair_and_search_contract ... ok
+test feeds_card_states_background_contract_and_keeps_recipe_refusals ... ok
+test natural_words_find_their_cards ... ok
+test a_piped_card_shows_its_first_section_and_truncation_hint ... ok
+test guessed_section_words_land_on_one_section_even_in_another_card ... ok
+test recovery::cancellation_definition_reconciles_recorded_step_keys ... ok
+test client::headless_password_recipe_stays_on_auth_and_seed_without_growing_the_card ... ok
+test digest_recipe_is_atomic_bounded_and_reachable_from_the_orientation ... ok
+test rollback::every_packaged_card_has_consistent_release_rollback_claims ... ok
+test feeds::retirement_census_rejects_installers_helpers_and_projection_examples ... ok
+test language_following_uses_the_declaration ... ok
+test client::client_aliases_keep_typing_on_ephemeral ... ok
+test prediction_card_compiles_clean ... ok
+test calibration_guide_words_and_replay_holds_are_discoverable ... ok
+test start::openings_fit_without_growing_the_eight_reference_cards ... ok
+test start::every_card_introduces_the_feature_before_examples_and_reference_details ... ok
+test start::start_is_the_same_eight_openings_in_order_with_registered_mistakes ... ok
+test start::staging_is_visible_in_the_default_builder_cards ... ok
+test surf::surf_cards_match_current_auth_rules_assets_and_protocol ... ok
+test structural_admission_cards_name_every_host_and_the_web_trust_boundary ... ok
+test w10a_readme_opening_is_one_way_into_the_published_surface ... ok
+test the_keywords_are_one_list ... ok
+test w11r1c_residency_fact_cards_require_verbose ... ok
+test the_cards_state_the_engines_numbers_and_families ... ok
+test surf::farm_conceptual_section_words_land_without_a_miss ... ok
+test w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation ... ok
+test w11r2_native_boundary_sentence_matches_both_published_copies ... ok
+test w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards ... ok
+test w9a_held_search_leads_with_coverage_then_cost_then_refusal ... ok
+test w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership ... ok
+test writes_card_explains_the_whole_upsert_insert_proof ... ok
+test w11r1c_first_screen_generates_types_and_starts_the_backend ... ok
+test wave10_dx::docs_use_engine_file_types_period_boundaries_and_projection_identity ... ok
+test time_waiting_cards_point_to_cli_and_http_clock_controls ... ok
+test w9r1b_diagnostic_card_overrides_the_code_default ... ok
+test the_template_compiles_clean ... ok
+test w10r2_common_refusal_examples_have_clean_repairs ... ok
+test client::published_text_needs_no_checkout_or_lane_reports ... ok
+test password_policy_and_guest_choice_are_on_the_card ... ok
+test terminal_and_compatibility_overviews_carry_the_first_nonempty_section ... ok
+test w14b_first_account_screen_is_self_contained ... ok
+test client::published::published_file_references_resolve_against_package_contents ... ok
+test every_alias_targets_a_keyword_and_nearest_uses_aliases ... ok
+test w11r2_recipe_refusals_have_reserved_names_and_dedicated_sections ... ok
+test the_listing_fits_a_screen_and_aliases_have_their_own_command ... ok
+test every_guide_keyword_a_diagnostic_names_is_a_card ... ok
+test w9b_every_code_has_bounded_card_context_and_a_full_card_command ... ok
+test w11_every_registered_code_has_a_dedicated_section ... ok
+test the_language_card_also_compiles_as_a_module_with_qualified_schedules ... ok
+test w9a_expiry_cards_explain_and_select_the_readers_deadline ... ok
+test feeds::refusal_and_usage_sources_do_not_recommend_the_retired_installer ... ok
+test the_readme_quarry_compiles_clean ... ok
+test every_emitted_code_is_explained ... ok
+test every_alias_is_a_section_or_find_word_inside_its_card ... ok
+test familiar::every_moved_fact_has_its_why_or_details_home ... ok
+test feeds::cards_readmes_and_templates_do_not_teach_the_retired_recipe ... ok
+test arrival_recipe_orders_ties_and_retries_then_pages ... ok
+test deploy::deploy_recipe_bootstraps_an_admin_without_a_public_privilege_race ... ok
+test onboarding_recipe_recovers_a_taken_handle_for_the_same_principal ... ok
+test direct_and_merged_cursor_generation_contracts_are_distinct ... ok
+test set_state_recipe_predicts_first_like_and_repeated_set_and_clear ... ok
+test recovery::asset_placement_requires_upload_ownership ... ok
+test w10a_effect_and_job_names_are_explained_where_a_module_declares_both ... ok
+test feeds::followups::published_global_filters_originals_and_preserves_independent_reposts ... ok
+test recovery::cancelled_effect_keeps_distinct_stored_step_keys ... ok
+test wave10_dx::upgrade_card_version_and_nullable_count_are_bound_to_the_emitted_surface ... ok
+test wave9_dx::jobs_catch_up_sweep_includes_rows_before_the_latest_period_and_repeats ... ok
+test feeds::published_following_unrepost_hides_the_delivered_event ... ok
+test intent::rules_opening_inherits_message_authority_lifetime_and_sync ... ok
+test feeds::published_following_unrepost_uses_the_reposting_viewer ... ok
+test w10b_typing_card_compiles_and_expires_at_the_deadline ... ok
+test intent::language_intent_views_predicates_search_and_durations_run ... ok
+test the_language_card_compiles_and_runs ... ok
+test intent::published_digest_streams_past_the_old_limit_and_once_survives_reopen ... ok
+test every_card_compiles_clean ... ok
+test feeds::followups::every_rolling_rank_page_matches_sort_filter_oracle ... ok
+test rules::missing_update_and_incomplete_upsert ... ok
+test rules::insert_rule_refusals ... ok
+test rules::admitted_hidden_updates ... ok
+test feeds::followups::legacy_global_projection_retries_removal_and_rollback_are_atomic ... ok
+test maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates ... ok
+test rules::update_rule_refusals ... ok
+test rules::insert_collision_visibility ... ok
+test rules::update_conditions ... ok
+test rules::delete_rule_refusals ... ok
+test rules::declared_unique_refusal_does_not_disclose_hidden_collision ... ok
+test rules::update_collision_visibility ... ok
+test feeds::legacy_complete_feeds_program_runs_at_clique_size ... ok
+test feeds::published_following_matches_the_builder_contract ... ok
+test receipts_card_ticks_follow_the_recipient_set ... ok
+
+failures:
+
+---- definitions::w11_every_registered_code_quotes_its_definition stdout ----
+
+thread 'definitions::w11_every_registered_code_quotes_its_definition' (3414472) panicked at crates/snapback4-lang/tests/guide/definitions.rs:113:5:
+assertion `left == right` failed: review a defining fact for each registered code
+  left: {"DIGEST_CHAT_BOUND", "EMPTY_READ", "E_ACTION_ATTEMPTS", "E_ACTION_AUTHORITY", "E_ACTION_CANCELLATION", "E_ACTION_CANCELLED", "E_ACTION_CLOSED", "E_ACTION_DEADLINE", "E_ACTION_FAILED", "E_ACTION_GENERATION", "E_ACTION_LEASE", "E_ACTION_PENDING", "E_ACTION_RESULT", "E_ACTION_UNKNOWN", "E_ADDRINUSE", "E_ADMISSION", "E_ADMISSION_STORE", "E_ADMISSION_TIMEOUT", "E_ADOPT", "E_ASSET_BOUNDS", "E_ASSET_INTENT_EXPIRED", "E_ASSET_INTENT_REUSE", "E_ASSET_PLACED", "E_ASSET_RANGE", "E_ASSET_READ_ONLY", "E_ASSET_TOO_LARGE", "E_ASSET_TYPE", "E_ASSET_UNKNOWN", "E_ASSET_VIEWED", "E_ASSET_WAIT", "E_AUTH", "E_BOUND", "E_CANCELLED", "E_CASCADE_BOUND", "E_CHECK_NOTES", "E_CLIENT", "E_CLOCK_DEV_ONLY", "E_CLOCK_INPUT", "E_CLOCK_INTERRUPTED", "E_CLOSED", "E_CONFLICT", "E_CONSTRAINT", "E_CURSOR_INDEX", "E_DELIVERY_BINDING", "E_DELIVERY_CLAUSE", "E_DEVICE_VERSION", "E_DEV_RESET", "E_DIV_ZERO", "E_EFFECT_ATTEMPTS", "E_EFFECT_CANCELLATION", "E_EFFECT_CANCELLED", "E_EFFECT_CLOSED", "E_EFFECT_DEADLINE", "E_EFFECT_GENERATION", "E_EFFECT_LEASE", "E_EFFECT_UNKNOWN", "E_EMIT_IN_QUERY", "E_EPHEMERAL_FULL", "E_EXPIRY_ORPHAN", "E_FANOUT", "E_FIELD", "E_FIELD_AUTHORITY", "E_FIXTURE_ALIAS", "E_FIXTURE_TIME", "E_FOLLOWING_DECLARATION", "E_FOLLOWING_INPUT", "E_FOLLOWING_PAGE_SIZE", "E_FOLLOWING_QUOTA", "E_FOLLOWING_REQUEST_TOO_SMALL", "E_FOLLOWING_ROW_TOO_LARGE", "E_GENERATION", "E_HOST_UNICODE", "E_HTTP_LIMIT", "E_HTTP_LISTENER", "E_HTTP_RESPONSE", "E_IDENTITY_TIMEOUT", "E_ID_REUSED", "E_INDEX_KEY_BYTES", "E_INIT_CONFLICT", "E_INPUT", "E_INTERNAL", "E_JOB_CURSOR_INDEX", "E_JOB_GENERATION", "E_JOB_SWEEP", "E_JOB_VIEWER_CONTEXT", "E_JOB_VIEWER_FLOW", "E_JOB_VIEWER_PRINCIPAL", "E_JOB_VIEWER_QUERY", "E_JOB_VIEWER_READ", "E_JOB_VIEWER_READ_ONLY", "E_MAINTAINED_COLUMN", "E_MAINTAINED_COLUMN_PRIVATE", "E_MAINTAINED_COLUMN_REFERENCE", "E_MAINTAINED_COLUMN_RESULT", "E_MAINTAIN_READ_EXPIRE", "E_MAINTAIN_READ_RULE", "E_NATIVE", "E_NATIVE_BUILD", "E_NATIVE_TOOLCHAIN", "E_NATIVE_TRAP", "E_NOT_PREDICTABLE", "E_OFFLINE", "E_OIDC_BINDING", "E_OIDC_CALLBACK", "E_OIDC_CONFIG", "E_OIDC_EXCHANGE", "E_OIDC_HANDOFF", "E_OIDC_MINT", "E_OIDC_PROVIDER", "E_OIDC_RECIPE", "E_OIDC_REPLAY", "E_OIDC_TRANSACTION", "E_OP", "E_OP_RESERVED", "E_OVERFLOW", "E_PARENT_HAS_CHILDREN", "E_POSTGRES_MAINTAINED_COLUMN", "E_PREDICT", "E_PROOF_BROWSER", "E_PROOF_USAGE", "E_QUARRY_AMBIGUOUS", "E_QUARRY_BOUND", "E_QUARRY_DUPLICATE_FIELD", "E_QUARRY_DUPLICATE_RULE", "E_QUARRY_EPHEMERAL", "E_QUARRY_FANOUT", "E_QUARRY_IDENTITY_DUPLICATE", "E_QUARRY_IMMUTABLE", "E_QUARRY_JOB_SCHEDULE", "E_QUARRY_KEY_ORDER", "E_QUARRY_LIVE_MAINTAIN_PROBE", "E_QUARRY_MAINTAIN", "E_QUARRY_MAINTAIN_EXPIRE", "E_QUARRY_MATCHING_INDEX", "E_QUARRY_MODIFIER_SCOPE", "E_QUARRY_NULL_KEY", "E_QUARRY_PLACEMENT", "E_QUARRY_POINT_KEY", "E_QUARRY_POSITIONAL_SCAN", "E_QUARRY_RESERVED", "E_QUARRY_RETAIN", "E_QUARRY_RULE_HOP", "E_QUARRY_RULE_OPERATOR", "E_QUARRY_RULE_SPELLING", "E_QUARRY_SELF_EQUALITY", "E_QUARRY_SHAPE_JOIN", "E_QUARRY_SPREAD", "E_QUARRY_STATEMENT", "E_QUARRY_SYNTAX", "E_QUARRY_TYPE", "E_QUARRY_UNKNOWN", "E_QUARRY_UNSUPPORTED", "E_QUARRY_WRITE_TESTS", "E_QUERY_HELD", "E_QUERY_RETRY", "E_RATE_LIMIT", "E_READ_ONLY", "E_READ_ONLY_CREDENTIAL", "E_READ_ONLY_DEVICE", "E_READ_ONLY_REFRESH", "E_READ_ONLY_UNSUPPORTED", "E_READ_THROUGH", "E_READ_THROUGH_ADOPT", "E_READ_THROUGH_SCAN", "E_RECEIPTS_CLAUSE", "E_RECEIPTS_OWNED", "E_RECIPE_RETIRED", "E_RECORDED_FIELD", "E_REDUNDANT_RULE", "E_REFERENCED", "E_REFERENCE_ACTION", "E_REPLAY_DEV_ONLY", "E_ROUTE_DECLARATION", "E_ROUTE_GENERATION", "E_ROUTE_INPUT", "E_ROUTE_LEASE", "E_ROUTE_PENDING", "E_ROUTE_PRIVATE", "E_ROUTE_REFUSED", "E_ROUTE_RESULT", "E_ROUTE_UNKNOWN", "E_ROUTE_VERIFY", "E_RULE", "E_RUN_BUSY", "E_RUN_SOURCE_CHANGED", "E_SCHEDULE", "E_SCHEMA", "E_SCHEMA_CAPABILITY", "E_SCHEMA_CONSTRAINT", "E_SEARCH_OPEN", "E_SECRET_MISSING", "E_SECURITY_TARGET", "E_SEQUENCE_EXHAUSTED", "E_SEQUENCE_PARENT", "E_SEQUENCE_SUPPLIED", "E_SERVER_CONFIG", "E_SERVER_HANDLERS", "E_SERVER_REQUIRED", "E_SERVER_TOOLCHAIN", "E_SERVER_TYPECHECK", "E_SHAPE_EXCEEDS_METER", "E_SQL_INTERNAL", "E_SQL_READ_ONLY", "E_STAGING", "E_STAGING_INPUT", "E_STAGING_PROVISION", "E_STAGING_SIGNUP", "E_STAGING_TIMEOUT", "E_STEP_BUSY", "E_STEP_INPUT", "E_STEP_PARKED", "E_STEP_RESULT", "E_STEP_UNKNOWN", "E_STORE", "E_STORE_BUSY", "E_STORE_MEMORY", "E_STORE_REPLACED", "E_STORE_RESTORE", "E_STREAMS", "E_STRUCTURAL_FANOUT", "E_SYNC", "E_SYNC_GENERATION", "E_SYSTEM_PRINCIPAL_WRITE", "E_TIMELINE_ACTIVATE", "E_TIMELINE_FILTER", "E_TIMELINE_FOLLOWS", "E_TIMELINE_IMPORT", "E_TIMELINE_OWNED", "E_TIMELINE_READ", "E_TIMELINE_REDEFINE", "E_TIMELINE_REMOVAL", "E_TIMELINE_SERVER", "E_TIMELINE_SHAPE", "E_TIMELINE_SIZE", "E_TIME_AUDIENCE_PENDING", "E_TYPE", "E_UNBOUND_LOOP", "E_UNBOUND_SCAN", "E_UNIQUE", "E_UPGRADE", "E_UPLOAD", "E_UPLOAD_ARGUMENT", "E_UPLOAD_BYTES", "E_UPLOAD_CANCELLED", "E_UPLOAD_DEVICE", "E_UPLOAD_DISPATCHED", "E_UPLOAD_INTENT", "E_UPLOAD_PENDING", "E_UPLOAD_QUOTA", "E_VIEW_FEED_SHAPE", "E_VIEW_KEY", "E_WITNESS_APP", "E_WITNESS_ARGUMENT", "E_WITNESS_ARTIFACT", "E_WITNESS_AUTH", "E_WITNESS_BACKEND", "E_WITNESS_BROWSER", "E_WITNESS_BUILD", "E_WITNESS_DISABLED", "E_WITNESS_EXPORT", "E_WITNESS_HERMES", "E_WITNESS_INPUT", "E_WITNESS_INTERRUPTED", "E_WITNESS_MUTATION", "E_WITNESS_NATIVE_COMPAT", "E_WITNESS_NO_WRITE", "E_WITNESS_ORIGIN", "E_WITNESS_PLATFORM", "E_WITNESS_PORT", "E_WITNESS_PROCESS", "E_WITNESS_PROOF", "E_WITNESS_READY", "E_WITNESS_RECEIPT", "E_WITNESS_SCENE_LIFECYCLE", "E_WITNESS_SENT", "E_WITNESS_SIMULATOR", "E_WITNESS_STEP", "E_WITNESS_TIMEOUT", "E_WITNESS_UNCLAIMED", "E_WITNESS_WEB", "E_WORKER_REFRESH", "E_WRITE_ID", "E_WRITE_ID_REUSE", "E_WRITE_LABEL", "E_WRITE_RECEIPT_EXPIRED", "FEED_APP_EVENT", "FEED_APP_NOT_FOUND", "FEED_APP_OWNER", "FEED_AUTHOR_NOT_FOUND", "FEED_CANNOT_FOLLOW_SELF", "FEED_EVENT_REMOVED", "FEED_NOT_AUTHOR", "FEED_ORIGINAL_REQUIRED", "FEED_POST_NOT_FOUND", "FEED_PROMOTION_PULL_CAP", "FEED_PULL_CAP", "FEED_PULL_COUNT_MISSING", "NOT_FOUND", "N_ADOPTION_PAUSE", "N_ARGUMENT_GRANT", "N_BROAD_READ", "N_CASCADE_DORMANT", "N_CLOCK_STORE_AHEAD", "N_CONDITIONAL_COMPLETE", "N_DELETE_NEEDS_READ", "N_DELETE_RESTRICTED", "N_EPHEMERAL_SERVER", "N_EXISTENCE_ORACLE", "N_FIXTURE_ARGUMENT_DRIFT", "N_GRANT_OUTLIVES_ROLE", "N_HELD_UNKNOWN", "N_HORIZON_GUARD", "N_IMMUTABLE_PATCH", "N_LIVE_PARENT_COST", "N_LOOKUP_HIDDEN", "N_LOOKUP_NEVER_VISIBLE", "N_MAINTAINED_COLUMN_DISCLOSURE", "N_MAINTAINED_COLUMN_STREAM", "N_MAINTAIN_AUTHORIZATION", "N_MAINTAIN_DELTA", "N_MAINTAIN_SYNCED", "N_NEVER_COMPLETE", "N_NOT_PREDICTABLE", "N_NOW_SERVER", "N_NO_CURSOR", "N_NO_HORIZON", "N_NO_PRODUCTION_WRITER", "N_OPTIONAL_EVIDENCE", "N_OPTIONAL_FILTER_LIMIT", "N_PATCH_CLEARS", "N_PERSONA_PRINCIPAL", "N_PRIVILEGE_ESCALATION", "N_PROBE_ONLY_READ", "N_PUBLIC_AGGREGATE_COPY", "N_QUERY_FILTERED", "N_READ_DENIED", "N_RECEIPT_PREDICTION", "N_REFERENCE_UNCHECKED", "N_REQUIRE_HIDDEN", "N_REQUIRE_REFUSED", "N_SEARCH_OPEN", "N_SEARCH_SHAPE", "N_SEARCH_UNSCOPED", "N_SEARCH_WORDS", "N_SECURITY_INTENT", "N_SEEK", "N_SEQUENCE_READ", "N_SHAPE_METER", "N_SPARSE_FILTER", "N_SWEEP_DEADLINE", "N_SWEEP_ONLY_DEADLINE", "N_SYNC_EMPTY", "N_SYNC_ORDER", "N_SYNC_WINDOW_SIZE", "N_TIMELINE_ADOPT", "N_TIMELINE_COMPAT", "N_TIMELINE_PROFILE_CAP", "N_UNREADABLE_PROBE", "N_VACUOUS_RULE", "N_WIDE_MERGE", "N_WRITE_DENIED", "RUNS_FULL", "SNAPBACK4_EXIT", "SNAPBACK4_PANIC", "SNAPBACK4_SIGNAL", "SNAPBACK4_THREAD_EXIT"}
+ right: {"DIGEST_CHAT_BOUND", "EMPTY_READ", "E_ACTION_ATTEMPTS", "E_ACTION_AUTHORITY", "E_ACTION_CANCELLATION", "E_ACTION_CANCELLED", "E_ACTION_CLOSED", "E_ACTION_DEADLINE", "E_ACTION_FAILED", "E_ACTION_GENERATION", "E_ACTION_LEASE", "E_ACTION_PENDING", "E_ACTION_RESULT", "E_ACTION_UNKNOWN", "E_ADDRINUSE", "E_ADMISSION", "E_ADMISSION_STORE", "E_ADMISSION_TIMEOUT", "E_ADOPT", "E_ASSET_BOUNDS", "E_ASSET_INTENT_EXPIRED", "E_ASSET_INTENT_REUSE", "E_ASSET_PLACED", "E_ASSET_RANGE", "E_ASSET_READ_ONLY", "E_ASSET_TOO_LARGE", "E_ASSET_TYPE", "E_ASSET_UNKNOWN", "E_ASSET_VIEWED", "E_ASSET_WAIT", "E_AUTH", "E_BOUND", "E_CANCELLED", "E_CASCADE_BOUND", "E_CHECK_NOTES", "E_CLIENT", "E_CLOCK_DEV_ONLY", "E_CLOCK_INPUT", "E_CLOCK_INTERRUPTED", "E_CLOSED", "E_CONFLICT", "E_CONSTRAINT", "E_CURSOR_INDEX", "E_DELIVERY_BINDING", "E_DELIVERY_CLAUSE", "E_DEVICE_VERSION", "E_DEV_RESET", "E_DIV_ZERO", "E_EFFECT_ATTEMPTS", "E_EFFECT_CANCELLATION", "E_EFFECT_CANCELLED", "E_EFFECT_CLOSED", "E_EFFECT_DEADLINE", "E_EFFECT_GENERATION", "E_EFFECT_LEASE", "E_EFFECT_UNKNOWN", "E_EMIT_IN_QUERY", "E_EPHEMERAL_FULL", "E_EXPIRY_ORPHAN", "E_FANOUT", "E_FIELD", "E_FIELD_AUTHORITY", "E_FIXTURE_ALIAS", "E_FIXTURE_TIME", "E_FOLLOWING_DECLARATION", "E_FOLLOWING_INPUT", "E_FOLLOWING_PAGE_SIZE", "E_FOLLOWING_QUOTA", "E_FOLLOWING_REQUEST_TOO_SMALL", "E_FOLLOWING_ROW_TOO_LARGE", "E_GENERATION", "E_HOST_UNICODE", "E_HTTP_LIMIT", "E_HTTP_LISTENER", "E_HTTP_RESPONSE", "E_ID_REUSED", "E_INDEX_KEY_BYTES", "E_INIT_CONFLICT", "E_INPUT", "E_INTERNAL", "E_JOB_CURSOR_INDEX", "E_JOB_GENERATION", "E_JOB_SWEEP", "E_JOB_VIEWER_CONTEXT", "E_JOB_VIEWER_FLOW", "E_JOB_VIEWER_PRINCIPAL", "E_JOB_VIEWER_QUERY", "E_JOB_VIEWER_READ", "E_JOB_VIEWER_READ_ONLY", "E_MAINTAINED_COLUMN", "E_MAINTAINED_COLUMN_PRIVATE", "E_MAINTAINED_COLUMN_REFERENCE", "E_MAINTAINED_COLUMN_RESULT", "E_MAINTAIN_READ_EXPIRE", "E_MAINTAIN_READ_RULE", "E_NATIVE", "E_NATIVE_BUILD", "E_NATIVE_TOOLCHAIN", "E_NATIVE_TRAP", "E_NOT_PREDICTABLE", "E_OFFLINE", "E_OIDC_BINDING", "E_OIDC_CALLBACK", "E_OIDC_CONFIG", "E_OIDC_EXCHANGE", "E_OIDC_HANDOFF", "E_OIDC_MINT", "E_OIDC_PROVIDER", "E_OIDC_RECIPE", "E_OIDC_REPLAY", "E_OIDC_TRANSACTION", "E_OP", "E_OP_RESERVED", "E_OVERFLOW", "E_PARENT_HAS_CHILDREN", "E_POSTGRES_MAINTAINED_COLUMN", "E_PREDICT", "E_PROOF_BROWSER", "E_PROOF_USAGE", "E_QUARRY_AMBIGUOUS", "E_QUARRY_BOUND", "E_QUARRY_DUPLICATE_FIELD", "E_QUARRY_DUPLICATE_RULE", "E_QUARRY_EPHEMERAL", "E_QUARRY_FANOUT", "E_QUARRY_IDENTITY_DUPLICATE", "E_QUARRY_IMMUTABLE", "E_QUARRY_JOB_SCHEDULE", "E_QUARRY_KEY_ORDER", "E_QUARRY_LIVE_MAINTAIN_PROBE", "E_QUARRY_MAINTAIN", "E_QUARRY_MAINTAIN_EXPIRE", "E_QUARRY_MATCHING_INDEX", "E_QUARRY_MODIFIER_SCOPE", "E_QUARRY_NULL_KEY", "E_QUARRY_PLACEMENT", "E_QUARRY_POINT_KEY", "E_QUARRY_POSITIONAL_SCAN", "E_QUARRY_RESERVED", "E_QUARRY_RETAIN", "E_QUARRY_RULE_HOP", "E_QUARRY_RULE_OPERATOR", "E_QUARRY_RULE_SPELLING", "E_QUARRY_SELF_EQUALITY", "E_QUARRY_SHAPE_JOIN", "E_QUARRY_SPREAD", "E_QUARRY_STATEMENT", "E_QUARRY_SYNTAX", "E_QUARRY_TYPE", "E_QUARRY_UNKNOWN", "E_QUARRY_UNSUPPORTED", "E_QUARRY_WRITE_TESTS", "E_QUERY_HELD", "E_QUERY_RETRY", "E_RATE_LIMIT", "E_READ_ONLY", "E_READ_ONLY_CREDENTIAL", "E_READ_ONLY_DEVICE", "E_READ_ONLY_REFRESH", "E_READ_ONLY_UNSUPPORTED", "E_READ_THROUGH", "E_READ_THROUGH_ADOPT", "E_READ_THROUGH_SCAN", "E_RECEIPTS_CLAUSE", "E_RECEIPTS_OWNED", "E_RECIPE_RETIRED", "E_RECORDED_FIELD", "E_REDUNDANT_RULE", "E_REFERENCED", "E_REFERENCE_ACTION", "E_REPLAY_DEV_ONLY", "E_ROUTE_DECLARATION", "E_ROUTE_GENERATION", "E_ROUTE_INPUT", "E_ROUTE_LEASE", "E_ROUTE_PENDING", "E_ROUTE_PRIVATE", "E_ROUTE_REFUSED", "E_ROUTE_RESULT", "E_ROUTE_UNKNOWN", "E_ROUTE_VERIFY", "E_RULE", "E_RUN_BUSY", "E_RUN_SOURCE_CHANGED", "E_SCHEDULE", "E_SCHEMA", "E_SCHEMA_CAPABILITY", "E_SCHEMA_CONSTRAINT", "E_SEARCH_OPEN", "E_SECRET_MISSING", "E_SECURITY_TARGET", "E_SEQUENCE_EXHAUSTED", "E_SEQUENCE_PARENT", "E_SEQUENCE_SUPPLIED", "E_SERVER_CONFIG", "E_SERVER_HANDLERS", "E_SERVER_REQUIRED", "E_SERVER_TOOLCHAIN", "E_SERVER_TYPECHECK", "E_SHAPE_EXCEEDS_METER", "E_SQL_INTERNAL", "E_SQL_READ_ONLY", "E_STAGING", "E_STAGING_INPUT", "E_STAGING_PROVISION", "E_STAGING_SIGNUP", "E_STAGING_TIMEOUT", "E_STEP_BUSY", "E_STEP_INPUT", "E_STEP_PARKED", "E_STEP_RESULT", "E_STEP_UNKNOWN", "E_STORE", "E_STORE_BUSY", "E_STORE_MEMORY", "E_STORE_REPLACED", "E_STORE_RESTORE", "E_STREAMS", "E_STRUCTURAL_FANOUT", "E_SYNC", "E_SYNC_GENERATION", "E_SYSTEM_PRINCIPAL_WRITE", "E_TIMELINE_ACTIVATE", "E_TIMELINE_FILTER", "E_TIMELINE_FOLLOWS", "E_TIMELINE_IMPORT", "E_TIMELINE_OWNED", "E_TIMELINE_READ", "E_TIMELINE_REDEFINE", "E_TIMELINE_REMOVAL", "E_TIMELINE_SERVER", "E_TIMELINE_SHAPE", "E_TIMELINE_SIZE", "E_TIME_AUDIENCE_PENDING", "E_TYPE", "E_UNBOUND_LOOP", "E_UNBOUND_SCAN", "E_UNIQUE", "E_UPGRADE", "E_UPLOAD", "E_UPLOAD_ARGUMENT", "E_UPLOAD_BYTES", "E_UPLOAD_CANCELLED", "E_UPLOAD_DEVICE", "E_UPLOAD_DISPATCHED", "E_UPLOAD_INTENT", "E_UPLOAD_PENDING", "E_UPLOAD_QUOTA", "E_VIEW_FEED_SHAPE", "E_VIEW_KEY", "E_WITNESS_APP", "E_WITNESS_ARGUMENT", "E_WITNESS_ARTIFACT", "E_WITNESS_AUTH", "E_WITNESS_BACKEND", "E_WITNESS_BROWSER", "E_WITNESS_BUILD", "E_WITNESS_DISABLED", "E_WITNESS_EXPORT", "E_WITNESS_HERMES", "E_WITNESS_INPUT", "E_WITNESS_INTERRUPTED", "E_WITNESS_MUTATION", "E_WITNESS_NATIVE_COMPAT", "E_WITNESS_NO_WRITE", "E_WITNESS_ORIGIN", "E_WITNESS_PLATFORM", "E_WITNESS_PORT", "E_WITNESS_PROCESS", "E_WITNESS_PROOF", "E_WITNESS_READY", "E_WITNESS_RECEIPT", "E_WITNESS_SCENE_LIFECYCLE", "E_WITNESS_SENT", "E_WITNESS_SIMULATOR", "E_WITNESS_STEP", "E_WITNESS_TIMEOUT", "E_WITNESS_UNCLAIMED", "E_WITNESS_WEB", "E_WORKER_REFRESH", "E_WRITE_ID", "E_WRITE_ID_REUSE", "E_WRITE_LABEL", "E_WRITE_RECEIPT_EXPIRED", "FEED_APP_EVENT", "FEED_APP_NOT_FOUND", "FEED_APP_OWNER", "FEED_AUTHOR_NOT_FOUND", "FEED_CANNOT_FOLLOW_SELF", "FEED_EVENT_REMOVED", "FEED_NOT_AUTHOR", "FEED_ORIGINAL_REQUIRED", "FEED_POST_NOT_FOUND", "FEED_PROMOTION_PULL_CAP", "FEED_PULL_CAP", "FEED_PULL_COUNT_MISSING", "NOT_FOUND", "N_ADOPTION_PAUSE", "N_ARGUMENT_GRANT", "N_BROAD_READ", "N_CASCADE_DORMANT", "N_CLOCK_STORE_AHEAD", "N_CONDITIONAL_COMPLETE", "N_DELETE_NEEDS_READ", "N_DELETE_RESTRICTED", "N_EPHEMERAL_SERVER", "N_EXISTENCE_ORACLE", "N_FIXTURE_ARGUMENT_DRIFT", "N_GRANT_OUTLIVES_ROLE", "N_HELD_UNKNOWN", "N_HORIZON_GUARD", "N_IMMUTABLE_PATCH", "N_LIVE_PARENT_COST", "N_LOOKUP_HIDDEN", "N_LOOKUP_NEVER_VISIBLE", "N_MAINTAINED_COLUMN_DISCLOSURE", "N_MAINTAINED_COLUMN_STREAM", "N_MAINTAIN_AUTHORIZATION", "N_MAINTAIN_DELTA", "N_MAINTAIN_SYNCED", "N_NEVER_COMPLETE", "N_NOT_PREDICTABLE", "N_NOW_SERVER", "N_NO_CURSOR", "N_NO_HORIZON", "N_NO_PRODUCTION_WRITER", "N_OPTIONAL_EVIDENCE", "N_OPTIONAL_FILTER_LIMIT", "N_PATCH_CLEARS", "N_PERSONA_PRINCIPAL", "N_PRIVILEGE_ESCALATION", "N_PROBE_ONLY_READ", "N_PUBLIC_AGGREGATE_COPY", "N_QUERY_FILTERED", "N_READ_DENIED", "N_RECEIPT_PREDICTION", "N_REFERENCE_UNCHECKED", "N_REQUIRE_HIDDEN", "N_REQUIRE_REFUSED", "N_SEARCH_OPEN", "N_SEARCH_SHAPE", "N_SEARCH_UNSCOPED", "N_SEARCH_WORDS", "N_SECURITY_INTENT", "N_SEEK", "N_SEQUENCE_READ", "N_SHAPE_METER", "N_SPARSE_FILTER", "N_SWEEP_DEADLINE", "N_SWEEP_ONLY_DEADLINE", "N_SYNC_EMPTY", "N_SYNC_ORDER", "N_SYNC_WINDOW_SIZE", "N_TIMELINE_ADOPT", "N_TIMELINE_COMPAT", "N_TIMELINE_PROFILE_CAP", "N_UNREADABLE_PROBE", "N_VACUOUS_RULE", "N_WIDE_MERGE", "N_WRITE_DENIED", "RUNS_FULL", "SNAPBACK4_EXIT", "SNAPBACK4_PANIC", "SNAPBACK4_SIGNAL", "SNAPBACK4_THREAD_EXIT"}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    definitions::w11_every_registered_code_quotes_its_definition
+
+test result: FAILED. 126 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.16s
+
+error: test failed, to rerun pass `-p snapback4-lang --test guide`

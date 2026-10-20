@@ -96913,3 +96913,49 @@ Integration 18); artifact budget 728,080 = measurement + exactly 500 B.
 The 567 B budget increase carries max-path reservation accounting; no runtime
 ceiling is raised. Review/test/pack evidence is indexed by the workstream report;
 strict family/absence results are recorded separately, never inferred from size.
+
+## 2026-10-19 — DX4: find staging before opening dev doors
+
+Wave-18 fixes #3/#4/#7/#8 put real-user staging in the default start, cheatsheet
+and personas loop. Password-only proof hosts echo closed-door guidance to the
+caller. Role provisioning accepts a service seat and merges custom arguments;
+first-admin is replayable. Per-project upgrades identify closed-door scripts and
+persistent startDev calls. Store ownership, clock/reset and identity refusals
+explain the recovery action. Memory dev hosts support the same private mutual
+proof as persistent hosts; live service tokens use the host clock. No public
+fixture/token door or weaker staging identity policy was added.
+
+Uploads now point document callers at explicit file verification and explain
+uploader ownership, collection and one home. The complete installed guide
+recipe exercises a PDF, refusals, references and downloads. The packed DX4 hook
+also checks default guide output, custom provisioning, memory tokens, clock
+recovery and upgrade scans. The new recipe's mutations are online-only; its
+authoring census adds two `never` entries and no predicted private write sites.
+
+LLP 3000.000.000.001 §8 and LLP 3000.038 §12 preserve the decisions. Muse and
+a fresh Codex session both returned READY in round 2; verbatim evidence is in
+`llp/reviews/dx4/`. MIG owns the staging clock, SEC4 the security checks and
+QRY read semantics. Final qualification, copied-app warning transcripts and
+limits are recorded in the root WORKSTREAM-REPORT.md. No bump or push.
+
+
+### 2026-10-19 — DX4 wave-19 identity retry and local production lifecycle
+
+Coordinator's day-two fixes #6/#7: SDK guest/signup/login and proof account
+setup now share bounded retries of delivered auth-429 refusals, honoring the
+server retryAfterMs (older Retry-After), with cancellation and explicit setup
+deadline recovery. No ambiguous signup, token rotation, provisioning or release
+activation is replayed. Refusal gains the optional existing-wire retryAfterMs
+field for this commissioned SDK change; it adds no authority. LLP
+3000.000.000.001 §9 records the semantic amendment and independent Muse/fresh
+Codex READY reviews are under llp/reviews/dx4-wave19/.
+
+Deploy/rollback wait for the actual store owner before admission during local
+shutdown. Proof startServe stop reaps its retained child and awaits a bounded
+read-only owner-sidecar barrier, including worker watchdog cleanup; failed
+cleanup rejects. data --json returns {rows, more, limit}, exposing default
+50-row truncation. All existing CLI consumers and guide changes 0.4.35 are
+updated. SEC4 retains security/check semantics; QRY retains query semantics;
+MIG's staging clock is unchanged. WORKSTREAM-REPORT.md binds exact test,
+packed Linux, assigned Mac Studio and copied-upgrade evidence and its limits.
+No version bump, publication or push.

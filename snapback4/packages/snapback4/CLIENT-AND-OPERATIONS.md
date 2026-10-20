@@ -4196,3 +4196,26 @@ export function recordPrice(client) {
   return client.mutate(api.money.recordPrice, { amount: 1234 });
 }
 ```
+
+
+### Bounded identity retries and local production shutdown (0.4.35)
+
+SDK `guest`, `signup`, and `login` accept `timeoutMs` (default 180000) and
+`signal` alongside `scope`. Only an explicit HTTP 429 auth E_RATE_LIMIT refusal
+retries, at most four attempts, waiting `retryAfterMs` or an older server's
+Retry-After header. Requests preserve credentials/scope; lost replies and session
+rotation are never replayed. Proof `seedAccounts` uses the same retry path and
+its remaining five-minute setup budget. A too-long wait returns the refusal
+(or E_STAGING_TIMEOUT for setup), preserving the server delay.
+
+`startServe().stop()` resolves after its retained native child exits and the
+kernel store lock is released, including worker cleanup. Concurrent/repeated
+stops coalesce. Cleanup failure rejects. `serve DIR --wait-stopped` exposes the
+five-second read-only lock barrier; it never signals a PID or initializes a
+store. Deploy/rollback also wait before admission for a shutting-down owner;
+live serve still uses authenticated control. Ambiguous activation is not retried.
+
+`data TABLE --json` now returns `{rows, more, limit}` including empty results.
+The default limit is 50. Check `more` before interpreting a row count; increase
+`--limit N` for a larger inspection. Text output stays JSON lines. This replaces
+the previous bare JSON array so stdout-only callers can detect truncation.

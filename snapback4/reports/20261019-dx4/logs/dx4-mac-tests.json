@@ -1,0 +1,84 @@
+[
+  {
+    "command": [
+      "node",
+      "-v"
+    ],
+    "code": 0,
+    "seconds": 0.77
+  },
+  {
+    "command": [
+      "bun",
+      "install",
+      "--frozen-lockfile"
+    ],
+    "code": 0,
+    "seconds": 1.27
+  },
+  {
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "snapback4"
+    ],
+    "code": 0,
+    "seconds": 21.85
+  },
+  {
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "build"
+    ],
+    "code": 0,
+    "seconds": 1.47
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--test",
+      "token_live",
+      "--test",
+      "clock",
+      "--test",
+      "cli_friction",
+      "--test",
+      "lifecycle",
+      "--no-fail-fast"
+    ],
+    "code": 101,
+    "seconds": 80.7
+  },
+  {
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "store_owner::tests"
+    ],
+    "code": 101,
+    "seconds": 4.07
+  },
+  {
+    "command": [
+      "node",
+      "--test",
+      "packages/snapback4/test/staging.test.mjs",
+      "packages/snapback4/test/reg-upgrade.test.mjs",
+      "packages/snapback4/test/asset-files.test.mjs",
+      "packages/snapback4/test/proof-contract.test.mjs"
+    ],
+    "code": 0,
+    "seconds": 14.91
+  }
+]

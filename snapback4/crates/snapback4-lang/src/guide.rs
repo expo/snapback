@@ -135,7 +135,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("auth", "personas"), ("signin", "deploy"), ("login", "deploy"), ("session", "personas"),
     ("fixture test", "testing"), ("fixture tests", "testing"), ("cross row", "rules"),
     ("headless", "personas"), ("signup", "deploy"), ("sign-up", "deploy"), ("register", "deploy"),
-    ("upload", "assets"), ("timeline", "feeds"), ("timelines", "feeds"),
+    ("upload", "assets"), ("uploads", "assets"), ("timeline", "feeds"), ("timelines", "feeds"),
     ("media", "assets"), ("image", "assets"), ("video", "assets"),
     ("realtime", "reads"), ("live", "reads"), ("subscribe", "reads"),
     ("order", "writes"), ("ordinal", "writes"), ("arrival", "writes"),
@@ -746,6 +746,8 @@ for a second home. Fetch a once asset without Range; a consumed view cannot be
 retried by that principal. For an unknown asset on download, use the intended
 viewer's live session; a placed asset also needs a live, readable home row.
 Missing and hidden stay indistinguishable. On placement, use your own upload and the id it returned;
+E_ASSET_UNKNOWN never discloses another uploader or a hidden home. Unplaced
+uploads expire after one hour, including clock jumps: upload after time travel.
 a readable home row does not grant upload ownership.
 
 `once` is a bytes-once contract. The handle and metadata (id, type, dimensions,
@@ -923,6 +925,8 @@ document, sheet and presentation types. HTML, SVG, XML and JavaScript are
 never files: `check` refuses them (upload such text as `text/plain`).
 `once` does not apply to a file.
 
+**A document requires the file hint**, even for a browser File whose MIME type
+is application/pdf. Without it upload uses media sniffing.
 `client.upload(file, { file: {} })` posts `/assets?as=file&name=<name>`
 with the File's type as `Content-Type` (`{ file: { type, name } }`
 overrides). The server checks the declared type against the bytes (`%PDF-`,
@@ -1063,7 +1067,7 @@ or choose a new id. A declaration cannot be changed or reused for another row.
 
 `E_ASSET_INTENT_EXPIRED`: the original asset was collected after settlement;
 the same upload id cannot create another asset. Select a new capture/id.
-"##, include_str!("guide/asset_sharing.md")),
+"##, include_str!("guide/asset_sharing.md"), include_str!("guide/upload_recipe.md")),
         "read-only" => include_str!("guide/read_only.md"),
         "client" => include_str!("guide/client.md"),
         "social" => social::CARD,

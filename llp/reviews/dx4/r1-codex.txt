@@ -1,0 +1,9 @@
+Two material findings remain:
+
+- **P2 — Explicit invalid ports silently select another store.** [verbs.rs:1354](/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4/src/verbs.rs:1354) converts parse failures to `None`, disabling host filtering. Reproduced `--port not-a-port`, `65536`, and `-1`: all exited successfully and minted against the sole live host. Reject invalid ports before discovery; an explicit selection must never become implicit.
+
+- **P2 — Migration scanning can abort upgrades instead of reporting incomplete coverage.** [upgrade-warnings.js:11](/home/ccheever/projects/sb4-b18-dx4/snapback4/packages/snapback4/bin/upgrade-warnings.js:11) leaves directory reads and file stats unguarded. An unreadable project subdirectory reproducibly throws `EACCES`, propagating through `upgrade` before installation. Handle these failures as incomplete scans and preserve the migration warnings.
+
+Four DX4-focused tests, the upload guide recipe, and `git diff --check` passed. No files edited.
+
+NOT READY

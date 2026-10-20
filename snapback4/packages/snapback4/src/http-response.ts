@@ -5,6 +5,7 @@ export function refusal(value: unknown): Refusal | undefined {
   if (!value || typeof value !== 'object') return;
   const r = value as Record<string, unknown>;
   if (!['code', 'family', 'message'].every(key => typeof r[key] === 'string' && r[key] !== '')) return;
+  if (r.retryAfterMs !== undefined && (!Number.isSafeInteger(r.retryAfterMs) || Number(r.retryAfterMs) < 0)) return;
   if (r.retryable !== undefined && typeof r.retryable !== 'boolean') return;
   if (!['detail', 'site', 'rewrite', 'guide', 'rule'].every(key => r[key] === undefined || typeof r[key] === 'string')) return;
   return value as Refusal;

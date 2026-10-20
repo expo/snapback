@@ -338,3 +338,19 @@ assert.equal(called,false);assert.equal(existsSync('logs'),false);
   const result=await command(process.execPath,['peer.mjs'],{cwd,logsDir:join(cwd,'driver-logs'),env:{NODE_PATH:''}});
   assert.equal(result.code,0,result.stdout+result.stderr);
 });
+
+test("serve stop waits for delayed worker cleanup before resolving and is replayable", async t => {
+  const cwd=fixture(t), worker=join(cwd,"snapback/worker.mjs");
+  writeFileSync(worker, `import {writeFileSync} from 'node:fs'; const root=${JSON.stringify(cwd)}; process.on('SIGTERM',()=>setTimeout(()=>{writeFileSync(root+'/worker-released','yes');process.exit(0);},700)); writeFileSync(root+'/worker-ready','yes');setInterval(()=>{},1000);`);
+  assert.equal((await deploy("deploy","snapback",{cwd})).code,0);
+  const host=await startServe("deploy",{cwd,args:["--worker",worker]});
+  try {
+    for(let n=0;n<200;n++){try{readFileSync(join(cwd,"worker-ready"));break;}catch{await new Promise(r=>setTimeout(r,25));}}
+    assert.equal(readFileSync(join(cwd,"worker-ready"),"utf8"),"yes");
+    await Promise.all([host.stop(),host.stop()]);
+    assert.equal(readFileSync(join(cwd,"worker-released"),"utf8"),"yes");
+    const barrier=await cli(["serve","deploy","--wait-stopped"],{cwd});assert.equal(barrier.code,0,barrier.stderr);
+    const switched=await rollback("deploy",1,{cwd});assert.equal(switched.code,0,switched.stderr);
+    await host.stop();
+  } finally {await host.stop();}
+});

@@ -212,3 +212,16 @@ query readReport(id: reports):
   }finally{await host.stop();}
  }
 });
+
+
+test("DX4 custom provisioning merges principal/role and chooses its authorized service seat", {timeout:60000}, async t => {
+  const cwd=fixture(t);
+  writeFileSync(join(cwd,"snapback/schema.q"), schema.replaceAll("service:operator","service:ops").replace("role: enum('admin', 'member')):","role: enum('admin', 'member'), label: text <=100):"));
+  await deploy("staging","snapback",{cwd,args:["--staging"]});
+  const host=await startServe("staging",{cwd,seedUsers:{roles:{member:1},provision:{name:"provision"},service:"ops",args:()=>({label:"custom-only",role:"admin"})}});
+  try {
+    const user=host.sessions.member[0];
+    assert.equal((await post(host,"/q/myRole",user.token)).data.role,"admin","custom keys override defaults; principal remains merged");
+    await assert.rejects(host.seedAccounts({roles:{member:1},provision:{name:"provision"},service:"bad:seat"}),/E_STAGING_INPUT/);
+  } finally {await host.stop();}
+});

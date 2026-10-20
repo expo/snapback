@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "log": "/home/ccheever/dx4-wave19-linux/rule-recipes.log",
+  "client": "/home/ccheever/dx4-wave19-qualified-client/snapback4-0.4.34.tgz",
+  "platform": "/tmp/snapback4-linux-baZmhF/snapback4-linux-x64-0.4.34.tgz"
+}

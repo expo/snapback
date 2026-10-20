@@ -1,0 +1,309 @@
+    Blocking waiting for file lock on build directory
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-lang v0.4.34 (/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.34 (/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.34 (/home/ccheever/projects/sb4-b18-dx4/snapback4/crates/snapback4)
+warning: unused import: `start::serve_requests`
+   --> crates/snapback4/src/serve.rs:327:5
+    |
+327 | use start::serve_requests;
+    |     ^^^^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:138:30
+    |
+138 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: function `check` is never used
+   --> crates/snapback4/src/exact_device.rs:413:8
+    |
+413 | pub fn check(root: &Path, schema: &Schema, json: bool) -> bool {
+    |        ^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `work` is never used
+  --> crates/snapback4/src/serve_maintenance.rs:66:4
+   |
+66 | fn work(shared: &Shared, drain: bool, tick: u64) -> Result<Work, RuntimeError> {
+   |    ^^^^
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:908:4
+    |
+908 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: function `wave14_native_smoke` is never used
+   --> crates/snapback4/src/verbs/init/starter.rs:429:15
+    |
+429 | pub(super) fn wave14_native_smoke(password: bool) -> String {
+    |               ^^^^^^^^^^^^^^^^^^^
+
+warning: function `run` is never used
+  --> crates/snapback4/src/verbs/test_cases.rs:71:8
+   |
+71 | pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64) -> Result<(usize, usize), Stri...
+   |        ^^^
+
+warning: `snapback4` (bin "snapback4") generated 9 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 3 suggestions)
+    Finished `test` profile [optimized] target(s) in 1m 08s
+     Running tests/check.rs (target/debug/deps/check-f568cb7d2e6cda6b)
+
+running 105 tests
+test b2_why_fanout_keeps_its_example_with_bounded_card_context ... ok
+test w13b_near_ceiling_requires_more_than_half_and_reports_each_counter ... ok
+test w10r1_multiple_job_prelude_statements_keep_the_independent_repair ... ok
+test w10r2_why_syntax_has_its_own_section ... ok
+test w10r1_empty_job_keeps_its_independent_repair ... ok
+test guide_prediction_is_a_stdout_card ... ok
+test w10r2_why_emit_in_query_has_its_own_section ... ok
+test check_explains_held_dispatch_and_generates_the_client_marker ... ok
+test first_paste::failing_check_keeps_the_terse_prediction_reason ... ok
+test w10r2_repeated_unknown_prints_its_section_under_the_first_site ... ok
+test w10r2_why_placement_has_its_own_section ... ok
+test b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied ... ok
+test w10r2_why_unknown_has_its_own_section ... ok
+test w10c_check_keeps_independent_errors_and_other_operations ... ok
+test w9b_why_operation_keeps_residency_and_cost_output ... ok
+test first_paste::no_fix_silently_removes_a_preview_or_changes_query_residency ... ok
+test w13cr1_cost_keeps_differently_grouped_range_expressions_dynamic ... ok
+test w14_conditional_completeness_default_names_the_query_and_missing_pin ... ok
+test w13c2_cost_folds_range_widths_and_keeps_unknown_lanes_meter_bounded ... ok
+test production_writer_notes_cover_seed_only_and_bootstrap_cycles ... ok
+test guide_unknown_word_suggests_cards_on_stdout ... ok
+test why_rule_distinguishes_readable_and_unreadable_collision_targets ... ok
+test fixture_arguments_are_checked_without_execution_and_saved_values_are_unknown ... ok
+test b2_l12_final_ranked_writes_and_entry_counts_remain_visible_in_json_and_text ... ok
+test w13c_cost_reports_meter_domains_and_prefix_existence_as_scans ... ok
+test first_paste::reaction_constraint_residency_snapshots ... ok
+test w10r1b_unscoped_cursor_note_never_proposes_a_whole_table_cap ... ok
+test production_readiness_follows_positive_cycles_and_read_through_parents ... ok
+test upsert_insert_proof_and_service_grants_reach_check_and_why ... ok
+test w10a_inline_sections_have_a_check_wide_bound_and_stable_order ... ok
+test w10r1_nested_job_prelude_keeps_its_independent_repair ... ok
+test emit_lean_prints_one_checked_file_as_the_models_case_json ... ok
+test w9b_why_prints_a_codes_card_paragraph ... ok
+test r3_cost_and_why_name_uniform_meter_and_nonuniform_word_bounds ... ok
+test w14_cascade_product_rewrite_precedes_verbose_reservation_evidence ... ok
+test w11r2_generic_application_refusals_do_not_claim_the_feed_recipe ... ok
+test w11_expiry_synthesizes_sweep_indexes_without_source_repairs ... ok
+test wave10_diagnostics::fixture_constraints_keep_the_column_and_code_instead_of_not_found ... ok
+test first_paste::cal25_check_is_verdict_first_and_ephemeral_indexes_are_presented ... ok
+test column_trending_cost_has_one_merge_and_derived_bounds ... ok
+test w9c_check_validates_unique_refusal_codes_like_require ... ok
+test er_expiry_cost_names_backlog_attempt_and_atomic_refusal ... ok
+test audience_bounds::job_cost_advice_uses_the_pinned_groups_query_ceiling ... ok
+test w10c_check_hides_only_the_redundant_operation_cascade ... ok
+test compatibility_baselines_preserve_module_identities_for_directories_and_single_modules ... ok
+test b2_every_check_summarizes_zero_one_and_three_never_mutations ... ok
+test w10a_repeated_refusals_explain_once_and_preserve_json ... ok
+test w9r1b_why_wide_merge_opens_the_notes_card ... ok
+test w10r1b_missing_fixture_refuses_instead_of_measuring_an_empty_store ... ok
+test client_compatibility_configuration_refuses_invalid_baselines_without_rewriting_api ... ok
+test w10r1_correcting_equality_still_requires_a_job_chunk ... ok
+test audience_bounds::unrelated_job_costs_keep_visibility_without_digest_advice ... ok
+test first_paste::read_through_upsert_has_no_obsolete_server_only_note ... ok
+test first_paste::first_attempt_unambiguous_rule_and_shape_repairs_apply_in_check_fix ... ok
+test guide_lists_aliases_and_resolves_them_on_stdout ... ok
+test wave10_diagnostics::production_readiness_groups_dependents_and_collapses_persona_identity ... ok
+test notes_stay_short_and_verbose_explains_each_code_once ... ok
+test w9a_check_states_held_source_coverage_only_without_horizons ... ok
+test w13c_check_fix_parenthesizes_an_inner_matching_read ... ok
+test check_adoption::w8c_doctor_names_live_generation_mismatch_even_when_source_matches_store ... ok
+test natural_forms_diagnostics_are_authored_in_plain_verbose_and_json ... ok
+test w11c_residency_cost_order_and_bounded_reconciled_totals_on_both_verbs ... ok
+test audience_bounds::builder_why_names_inherited_horizon_and_the_jobs_actual_meter ... ok
+test w11_repeated_quarry_refusals_show_sections_and_their_repairs_check_clean ... ok
+test w8r1b_release_from_a_used_dev_store_never_returns_read_meters ... ok
+test horizon_check_and_why_keep_the_same_advice_across_checks ... ok
+test w11r1c_help_describes_residency_without_query_meters ... ok
+test first_paste::terse_check_counts_and_explains_search_behavior_warnings ... ok
+test first_paste::membership_paths_keep_check_residency_output ... ok
+test fixture_test_reports_cursorless_top_n_complete ... ok
+test wave10_diagnostics::intentional_input_cases_and_later_operations_are_not_fixture_drift ... ok
+test w13b_cut_log_suppresses_per_operation_and_site_with_a_count ... ok
+test a_long_card_prints_its_opening_and_index_and_full_prints_it_all ... ok
+test w9b_new_maintains_share_one_note_without_pre_adoption_counts ... ok
+test wave8_check_and_inherited_capped_cases_name_the_new_complete_parent_verdict ... ok
+test b2_maintain_note_points_to_the_measured_cold_snapshot ... ok
+test check_accepts_contextual_defaults_for_an_empty_dev_table ... ok
+test sync_window::sync_window_population_note_is_read_only_and_quiet_after_adoption ... ok
+test changed_default_rechecks_unchanged_cap ... ok
+test sync_window::sync_window_advice_leaves_unadopted_and_missing_stores_alone ... ok
+test changed_default_rechecks_unchanged_unique_index ... ok
+test check_reports_all_narrowing_sites_in_text_and_json_without_adopting ... ok
+test check_adoption::populated_adoption_preview_is_read_only_and_names_its_measured_rate ... ok
+test check_without_a_store_and_additive_or_fitting_adoption_are_quiet ... ok
+test check_uses_explicit_store_and_locates_index_and_table_refusals ... ok
+test changed_default_that_still_fits_existing_groups_is_adoptable ... ok
+test check_preserves_database_and_wal_bytes_with_live_and_stopped_dev ... ok
+test maintained_column_inspection_is_public_and_missing_storage_reads_zero ... ok
+test w11c_check_acquisition_uses_active_schema_read_only_and_fixture_uses_current_schema ... ok
+test check_adoption::check_child_retirement_and_rewrite_advice_is_read_only_with_live_and_stopped_store ... ok
+test check_adoption::check_warns_about_removed_rows_and_removed_indexes_without_build_work ... ok
+test sql_objects::inspection_materializes_required_literals_but_not_optional_defaults ... ok
+test r2_n4_inspection_defaults_equal_stored_values_and_group_together ... ok
+test row_view_check_matches_engine_chunk_size_and_commit_count ... ok
+test w11r1c_toolchain_why_explains_node_start_failure_too ... ok
+test w8r1b_test_names_held_queries_without_failing_other_queries_or_residency ... ok
+test farm2_typescript_7_is_refused_by_version_not_crashed_on ... ok
+test guide_prints_a_cards_heading_index_and_one_section ... ok
+test w11_why_every_registered_code_returns_its_dedicated_section ... ok
+test w13b_test_names_reads_past_half_a_ceiling_and_bounds_the_summary ... ok
+test the_recipes_cards_cases_pass_against_their_schemas ... ok
+test check_adoption::w8c_watching_host_reopens_after_external_adoption_while_cli_refuses ... ok
+test w13b_starter_has_no_near_ceiling_summary ... ok
+test check_adoption::w8c_startup_waits_for_the_adoption_lock_to_clear ... ok
+test check_adoption::w8c_adoption_lock_failure_repeats_on_sweep_and_retries_without_another_save ... ok
+
+test result: ok. 105 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.61s
+
+     Running tests/surf4.rs (target/debug/deps/surf4-48b4222ec195faec)
+
+running 20 tests
+test runtime_error_code_is_printed_once ... ok
+test clock_release_help_describes_staging_and_missing_store_stays_read_only ... ok
+test init_redirected_output_has_no_ansi ... ok
+test web_shell_help_includes_base_and_upgrade_includes_positional_version ... ok
+test discovery_names_directory_roles_seed_and_current_release ... ok
+test run_clock_reset_port_help_describes_only_supported_ports ... ok
+test init_port_note_is_conditional_and_preview_rules_are_indented ... ok
+test new_help_is_about_templates_and_social_dry_run_writes_nothing ... ok
+test guide_testing_index_selects_the_exact_numbered_heading ... ok
+test failed_seed_discovery_does_not_open_a_legacy_store_or_create_sidecars ... ok
+test releases_json_uses_the_documented_field_names ... ok
+test current_selector_keeps_legacy_pointer_fallback ... ok
+test wait_stopped_is_read_only_and_flags_refuse_before_project_work ... ok
+test administrative_release_consumers_can_inspect_damaged_retained_source ... ok
+test release_consumers_refuse_without_creating_any_files ... ok
+test release_preflight_uses_database_selection_without_convenience_pointer ... ok
+test release_consumers_refuse_a_development_store_without_new_sidecars ... ok
+test data_json_reports_default_truncation_empty_and_explicit_limits ... ok
+test deploy_and_rollback_wait_before_admission_even_with_a_closing_listener_hint ... ok
+test every_public_verb_help_matches_the_shared_parser_table_and_wrapper_synopsis ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s
+
