@@ -973,3 +973,10 @@ at C=2: baseline 295/s, k1 20/s, k2 547/s, k3p 25/s, and k3 822/s
 (k3 p50 2.42 ms, p99 2.81 ms). These are 0.1 s warm-up / 0.4 s windows for
 validation and protocol diagnosis, not sizing evidence. Full-window results
 and same-host §8 verdicts follow separately.
+
+The first full-sweep startup (`results-20261020-s1b`) hit a local port bind
+collision at 56034 before database creation. All 35 recorded tunnels were
+stopped. That failed setup is retained. The runner now defaults to local
+ports 62000–62143, outside this host's ephemeral range (32768–60999);
+`S1B_TUNNEL_BASE` may select another free range. This changes no server,
+transport, timeout, durability or workload setting.

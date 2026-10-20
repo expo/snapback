@@ -1,0 +1,26 @@
+{
+  "database": "sb4_s1b_20261020_164332_3646064",
+  "client_host": "expo-build-450b",
+  "database_host": "expo-build-450a",
+  "mode": "all",
+  "timing_ms": {
+    "warmup": 1000,
+    "measure": 4000
+  },
+  "source_commit": "53f744725eecdda0b4a4843479813603a7403f20",
+  "binary_sha256": "e7eaa1a774f87f67c0c32617831833213da5376a73bd39e5b3138a9649d609b0",
+  "harness_sha256": {
+    "Cargo.lock": "1f1b269238aec1e6ee404ece80940a19977bcd956bc0b9f02a4bc1c2827c0095",
+    "Cargo.toml": "d902f4c2a7e6e31872f74bcb5716f00db467df429e7eab75442adabe0e2861d4",
+    "scripts/s1b.py": "c5a326ae28924e91a52ccd5989bdee3853c7a5a508df44ddbfb23830f85070e4",
+    "src/common.rs": "d723ac2d26702fbd446f6a133a695ff152bbd8dd43db2169aacf8ae18ea181f9",
+    "src/execution.rs": "940992d67dd048259e94fe641fca36f54c503acc5c43314385cbf5b40bc613ae",
+    "src/execution_network.rs": "91837cff23e60ba7e15b019bb9220b0be080528a315d316c0a4ccc84fef5f031",
+    "src/main.rs": "a6460abb65af74c60c797eea10324f3903e534018bbb6bfbe46a927c426e8ad4",
+    "src/model.rs": "3c488ec6ff32c2e85444931ee7942013725b181b2aa33cae241a5895e67ce580",
+    "src/proxy.rs": "448b9984b8716e85875c4dcf1715fe14f6bb3477fb5e4eaa4a8915e38291bae8",
+    "src/raw.rs": "361172738ba5d5074131aa660f3481a878562490034a7af46371ad46447685da",
+    "src/sqlite.rs": "5a4f81d4dccda309953d2f20f08320e3f1a09d4cf1df8bf7e18cb73ab955dd7f",
+    "src/sqlite_optimistic.rs": "6999e76c39b7185c56186c50441fc2663f7e80b015b9e5ceccea461151f39be8"
+  }
+}

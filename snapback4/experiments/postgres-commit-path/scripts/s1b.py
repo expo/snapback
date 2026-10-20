@@ -72,9 +72,10 @@ class Run:
         self.tunnels = []
         self.db = 'sb4_s1b_' + time.strftime('%Y%m%d_%H%M%S',time.gmtime()) + '_' + str(os.getpid())
         self.created = False
+        self.base_port = int(os.environ.get('S1B_TUNNEL_BASE','62000'))
         pw = Path.home() / 'sb4bench/pw'
         assert stat.S_IMODE(pw.stat().st_mode) == 0o600
-        self.env = dict(os.environ, PGPASSWORD=pw.read_text().strip(), PGUSER='postgres', PGHOST='127.0.0.1', PGPORT='56000')
+        self.env = dict(os.environ, PGPASSWORD=pw.read_text().strip(), PGUSER='postgres', PGHOST='127.0.0.1', PGPORT=str(self.base_port))
         self.env['LD_LIBRARY_PATH'] = str(Path.home() / 'tools/pg16/usr/lib/x86_64-linux-gnu')
         self.env['PGDATABASE'] = self.db
         self.env.setdefault('CP_WARMUP_MS','1000')
@@ -93,7 +94,7 @@ class Run:
               'harness_sha256':{str(p.relative_to(HERE)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(list((HERE/'src').glob('*.rs'))+[HERE/'Cargo.toml',HERE/'Cargo.lock',Path(__file__).resolve()])}})
         count = 16 if self.mode == 'smoke' else 144
         for i in range(count):
-            port = 56000+i
+            port = self.base_port+i
             log = (self.out/f'tunnel-{port}.stderr').open('x')
             process = sp.Popen(SSH + ['-o','ExitOnForwardFailure=yes','-o','Compression=no','-N','-L',f'127.0.0.1:{port}:100.84.186.119:55433',REMOTE], stdin=sp.DEVNULL, stdout=sp.DEVNULL, stderr=log)
             self.tunnels.append((process,port,log))
