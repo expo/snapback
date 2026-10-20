@@ -192,7 +192,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
         .programs
         .iter()
         .find(|p| p.program.name == op)
-        .map(|p| p.program.args.clone());
+        .map(|p| p.program.clone());
     let Some(signature) = signature else {
         return failed(
             request,
@@ -201,33 +201,11 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     };
     let empty = json!({});
     let args_json = payload.get("args").unwrap_or(&empty);
-    if let Some(why)=super::dev_doors::persona_argument(shared,&signature,args_json) {return failed(request,why);}
-    let Some(fields) = args_json.as_object() else {
-        return failed(
-            request,
-            Refusal::new("E_INPUT", "input", "args must be an object"),
-        );
+    if let Some(why)=super::dev_doors::persona_argument(shared,&signature.args,args_json) {return failed(request,why);}
+    let args = match wire::arguments_from_json(&signature, args_json) {
+        Ok(args) => args,
+        Err(error) => return failed(request, error.refusal()),
     };
-    let mut args = BTreeMap::new();
-    for (name, value) in fields {
-        let Some(kind) = signature.get(name) else {
-            return failed(
-                request,
-                Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")),
-            );
-        };
-        match wire::from_json(kind, value) {
-            Ok(value) => {
-                args.insert(name.clone(), value);
-            }
-            Err(why) => {
-                return failed(
-                    request,
-                    Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")),
-                );
-            }
-        }
-    }
     #[cfg(test)]
     test_work(&shared.mutation_wait);
     let (reader, sites) = {

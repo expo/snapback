@@ -1,0 +1,28 @@
+{
+  "cleanup": {
+    "recentOwnedSnapbackScratch": 0,
+    "snapback4CliProcesses": 0
+  },
+  "client": {
+    "files": [
+      "wire-first.test.mjs",
+      "argument-aliases.test.mjs"
+    ],
+    "log": "mac-compat-client.log",
+    "snapback4Bin": "/Users/ccheever/sb4-ws-dorm/snapback4/target/debug/snapback4",
+    "status": "passed",
+    "tests": 2
+  },
+  "sourceCommit": "a9fd8169bb",
+  "sourceSha256": {
+    "crates/snapback4-core/src/wire.rs": "0c4ab113bc7ed7df9f2e6ee6063b0e855c4013a3d23f6e9476e11aed9156078d",
+    "crates/snapback4/src/serve.rs": "4ccdab090e46e74eb699de438afd2cb4e7663bdfd800e395735ecfb897458ba3",
+    "scripts/argument-alias-cases.mjs": "11c5ecb3ebedbdbc9e6c26c017e59c63da85cd4469b40cf1143478278f85fed9"
+  },
+  "sourceSync": "exact compatibility patch files after broad sync encountered one transient generated-artifact disappearance",
+  "standaloneCliBuild": {
+    "log": "mac-compat-build.log",
+    "status": "passed"
+  },
+  "status": "passed"
+}

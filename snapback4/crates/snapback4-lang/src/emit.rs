@@ -94,7 +94,7 @@ fn typescript_inner(bound: &Bound, compatibility: Option<(&Bound, u64)>) -> Stri
             let fact = &bound.schema.operations[&program.program.name];
             let horizon = fact.sites.iter().filter(|site| site.class == snapback4_core::schema::SiteClass::Horizon).map(|site| format!("{} by {} ({})", site.table, site.index, site.site)).collect::<Vec<_>>().join(", ");
             let word = fact.runs.as_ref().map(|word| format!("runs: {word}")).or_else(|| fact.predicts.as_ref().map(|word| format!("predicts: {word}"))).unwrap_or_default();
-            let mut comment = format!("Arguments: {}. Result: {}. {word}. Horizon sites: {}. Require codes: {}.", args_ts(&program.args), ty_ts(&program.result), if horizon.is_empty() { "none" } else { &horizon }, if fact.requires.is_empty() { "none".into() } else { fact.requires.join(", ") });
+            let mut comment = format!("Arguments: {}. Result: {}. {word}. Horizon sites: {}. Require codes: {}.", args_ts_with_aliases(&program.args,&program.program.arg_aliases), ty_ts(&program.result), if horizon.is_empty() { "none" } else { &horizon }, if fact.requires.is_empty() { "none".into() } else { fact.requires.join(", ") });
             let mut scales = Vec::new();
             for (name, ty) in &program.args { scale_docs(ty, name, &mut scales); }
             scale_docs(&program.result, "result", &mut scales);
@@ -121,7 +121,7 @@ fn typescript_inner(bound: &Bound, compatibility: Option<(&Bound, u64)>) -> Stri
             }
             out.push_str(&format!("{indent}/** {} */\n", comment.replace("*/", "* /")));
             let old = baseline.and_then(|b| b.programs.iter().find(|p| p.program.name == program.program.name));
-            let args = compat::args(&program.args, old.map(|p| p.args.as_slice()), since);
+            let args = if program.program.arg_aliases.is_empty() { compat::args(&program.args, old.map(|p| p.args.as_slice()), since) } else { args_ts_with_aliases(&program.args,&program.program.arg_aliases) };
             let result = compat::result(&program.result, old.map(|p| &p.result), since);
             out.push_str(&format!("{indent}{}: {kind}<{args}, {result}> & {{ available(release: ReleaseSnapshot): boolean }};\n", property(short)));
         }
@@ -164,7 +164,10 @@ fn typescript_inner(bound: &Bound, compatibility: Option<(&Bound, u64)>) -> Stri
             } else { words };
             let words = if fact.held { format!("{words}, held: true") } else { words };
             let args = format!("JSON.parse({})", string_literal(&serde_json::to_string(&program.program.args).unwrap()));
-            let available = format!(", available: (release) => operationAvailable(release, {}, \"{kind}\", {args})", string_literal(&program.program.name));
+            let aliases = if program.program.arg_aliases.is_empty() { String::new() } else {
+                format!(", JSON.parse({})", string_literal(&serde_json::to_string(&program.program.arg_aliases).unwrap()))
+            };
+            let available = format!(", available: (release) => operationAvailable(release, {}, \"{kind}\", {args}{aliases})", string_literal(&program.program.name));
             out.push_str(&format!("{indent}{}: {{ kind: \"{kind}\", name: {}{words}{available} }},\n", property(short), string_literal(&program.program.name)));
         }
         if module != "schema" {
@@ -252,6 +255,21 @@ fn args_ts(args: &[(String, Ty)]) -> String {
     }
     let fields: Vec<String> = args.iter().map(|(name, ty)| if ty.is_optional() { format!("{}?: {}", property(name), ty_ts(ty)) } else { format!("{}: {}", property(name), ty_ts(ty)) }).collect();
     format!("{{ {} }}", fields.join("; "))
+}
+
+fn args_ts_with_aliases(args: &[(String, Ty)], aliases: &BTreeMap<String,String>) -> String {
+    if aliases.is_empty() { return args_ts(args); }
+    let canonical_aliases: BTreeMap<_,_> = aliases.iter().map(|(alias,canonical)|(canonical.as_str(),alias.as_str())).collect();
+    let plain = args.iter().filter(|(name,_)|!canonical_aliases.contains_key(name.as_str())).map(|(name,ty)|
+        if ty.is_optional(){format!("{}?: {}",property(name),ty_ts(ty))}else{format!("{}: {}",property(name),ty_ts(ty))}).collect::<Vec<_>>();
+    let mut parts = Vec::new();
+    if !plain.is_empty() { parts.push(format!("{{ {} }}",plain.join("; "))); }
+    for (canonical,alias) in canonical_aliases {
+        let Some((_,ty))=args.iter().find(|(name,_)|name==canonical) else { continue; };
+        let optional=if ty.is_optional(){"?"}else{""};
+        parts.push(format!("({{ {}{}: {}; {}?: never }} | {{ {}?: never; {}{}: {} }})",property(canonical),optional,ty_ts(ty),property(alias),property(canonical),property(alias),optional,ty_ts(ty)));
+    }
+    if parts.is_empty(){"Record<string, never>".into()}else{parts.join(" & ")}
 }
 
 pub fn ty_ts(ty: &Ty) -> String {

@@ -13,6 +13,9 @@ struct Wire {
     #[cfg(feature = "sqlite")]
     backfills: Vec<backfill::Backfill>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[cfg(feature = "sqlite")]
+    downfills: Vec<backfill::Backfill>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     receipts: Vec<ReceiptFamily>,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     receipt_dependencies: BTreeMap<String, BTreeSet<String>>,
@@ -57,8 +60,15 @@ struct Wire {
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     ("column-read-v1", |s| s.tables.values().any(|t| !t.column_reads.is_empty())),
+
+    // Table-bearing backend schemas carry this in the ordinary schema fence.
+    // A tableless program has no constraint carrier, so device_protocol also
+    // derives the same requirement directly from its operation facts.
+    (crate::device_protocol::ARGUMENT_ALIAS, |s| !s.tables.is_empty() && s.operations.values().any(|operation| operation.argument_aliases)),
     #[cfg(feature = "sqlite")]
     ("release-backfills-v3", |s| !s.backfills.is_empty()),
+    #[cfg(feature = "sqlite")]
+    ("release-backfills-v4", |s| !s.downfills.is_empty()),
     ("live-parent-copy-v1", |s| s.tables.values().any(|t| t.through.as_ref().is_some_and(|t| t.live.is_some()))),
     ("source-write-reservations-v2", |s| s.source_reservations.values().any(|p| p.birth.is_some())),
     ("source-write-reservations-v1", |s| !s.source_reservations.is_empty()),

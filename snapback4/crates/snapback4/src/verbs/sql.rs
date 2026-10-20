@@ -3,14 +3,17 @@
 use super::{Options, project_or_exit};
 use rusqlite::{Connection, OpenFlags, hooks::{AuthAction, AuthContext, Authorization}, types::ValueRef};
 use serde_json::{Value, json};
-use snapback4_core::schema::{ColumnDefault, ColumnType, Schema};
-use std::collections::BTreeSet;
+use snapback4_core::schema::{ColumnDefault, ColumnType, Schema, Table};
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::{Arc, atomic::{AtomicU8, Ordering}};
 
 type Result<T> = std::result::Result<T, (&'static str, String)>;
 const PRIVATE: &str = "_snapback_sql_";
 const CATALOG_HINT: &str = "`\\dt` lists tables; `\\d messages` describes one";
+const STATE: &str = "_snapback_state";
+const SOURCE: &str = "_snapback_source";
+const COLUMNS: &str = "_snapback_columns";
 #[path = "sql_catalog.rs"]
 mod catalog;
 #[path = "sql_objects.rs"]
@@ -38,6 +41,12 @@ fn inspect(options: &Options) -> Result<()> {
         None => 200,
         Some(value) => value.parse::<u32>().ok().filter(|n| *n > 0).ok_or(("E_INPUT", "--limit must be a positive 32-bit integer".into()))?,
     };
+    let dormant = options.flags.contains_key("dormant");
+    let all_releases = options.flags.contains_key("all-releases");
+    if dormant && all_releases { return Err(("E_INPUT", "sql takes either --dormant or --all-releases, not both".into())); }
+    if (dormant || all_releases) && !options.flags.contains_key("release") {
+        return Err(("E_INPUT", "sql --dormant and --all-releases require an explicit --release <dir> deployment".into()));
+    }
     let path = match options.flags.get("release") {
         Some(dir) => Path::new(dir).join("store.sqlite"),
         None => project_or_exit().store_path(),
@@ -49,8 +58,10 @@ fn inspect(options: &Options) -> Result<()> {
     })?;
     conn.execute_batch("BEGIN DEFERRED").map_err(store_error)?;
     // Catalog, compiled columns and rows all belong to the same WAL snapshot.
-    let (generation, schema) = catalog::active_schema(&conn)?;
-    let header = format!("sql: developer's own store {} — read-only, not rule-filtered", path.display());
+    let (generation, active_schema) = catalog::active_schema(&conn)?;
+    let schema = if dormant || all_releases { retained_schema(&conn, active_schema)? } else { active_schema };
+    let mode = if dormant { "dormant retained records" } else if all_releases { "active and retained records" } else { "active records" };
+    let header = format!("sql: developer's own store {} — {mode}; read-only, not rule-filtered", path.display());
     if let Some(command) = command {
         let result = catalog::inspect(&conn, &schema, command)?;
         if options.json {
@@ -69,34 +80,61 @@ fn inspect(options: &Options) -> Result<()> {
             continue;
         }
         if internal(name) { continue; }
+        if (dormant || all_releases) && table.columns.keys().any(|column| matches!(column.as_str(), STATE | SOURCE | COLUMNS)) {
+            return Err(("E_SQL_INTERNAL", format!("{name} declares {STATE}, {SOURCE} or {COLUMNS}; retained inspection reserves those result columns")));
+        }
         let number: i64 = conn.query_row("SELECT num FROM _catalog WHERE name = ?1", [name], |row| row.get(0)).map_err(store_error)?;
         let private = format!("{PRIVATE}{number}");
-        let mut columns = vec!["id".to_owned()];
-        for (column, kind) in &table.columns {
-            if column == "id" { continue; }
-            let tag = match kind.required() {
-                ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => ".Id",
-                ColumnType::Text { .. } | ColumnType::Enum { .. } => ".String",
-                ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Time | ColumnType::Decimal { .. } | ColumnType::Money { .. } => ".Int",
-                ColumnType::Bool => ".Bool",
-                ColumnType::Bytes { .. } => ".Bytes",
-                _ => "", // Compound values remain canonical tagged JSON, as stored.
-            };
-            let path = format!("$.Row.{}{tag}", ident(column));
-            let mut value = format!("json_extract(data, {})", literal(&path));
-            if table.maintained.contains_key(column) { value = format!("coalesce({value}, 0)"); }
-            // @ref LLP 3000.007#18.3 — inspection projects required literal defaults, while optional absence remains SQL null.
-            if !kind.is_optional() && let Some(ColumnDefault::Literal(default)) = table.defaults.get(column) {
-                let default = format!("json_extract({}, {})", literal(&snapback4_core::value::canonical_json(default)), literal(&format!("${tag}")));
-                let field = literal(&format!("$.Row.{}", ident(column)));
-                value = format!("CASE WHEN json_type(data, {field}) IS NULL THEN {default} ELSE {value} END");
+        let projected = |data: &str, defaults: bool| {
+            let mut columns = vec!["id".to_owned()];
+            for (column, kind) in &table.columns {
+                if column == "id" { continue; }
+                let tag = scalar_tag(kind);
+                let path = format!("$.Row.{}{tag}", ident(column));
+                let mut value = format!("json_extract({data}, {})", literal(&path));
+                if table.maintained.contains_key(column) { value = format!("coalesce({value}, 0)"); }
+                // @ref LLP 3000.007#18.3 — inspection projects required literal defaults, while optional absence remains SQL null.
+                if defaults && !kind.is_optional() && let Some(ColumnDefault::Literal(default)) = table.defaults.get(column) {
+                    let default = format!("json_extract({}, {})", literal(&snapback4_core::value::canonical_json(default)), literal(&format!("${tag}")));
+                    let field = literal(&format!("$.Row.{}", ident(column)));
+                    value = format!("CASE WHEN json_type({data}, {field}) IS NULL THEN {default} ELSE {value} END");
+                }
+                columns.push(format!("{} AS {}", if tag.is_empty() { format!("nullif({value}, 'Null')") } else { value }, ident(column)));
             }
-            columns.push(format!("{} AS {}", if tag.is_empty() { format!("nullif({value}, 'Null')") } else { value }, ident(column)));
-        }
+            columns
+        };
+        let columns = projected("data", true);
+        let provided = |data:&str| {
+            let values=table.columns.keys().filter(|column|column.as_str()!="id" && !table.engine_field(column)).map(|column|format!("CASE WHEN json_type({data},{}) IS NOT NULL THEN {} ELSE '' END",literal(&format!("$.Row.{}",ident(column))),literal(&format!("{},",serde_json::to_string(column).unwrap())))).collect::<Vec<_>>();
+            if values.is_empty() {"'[]'".to_owned()} else {format!("'[' || rtrim({}, ',') || ']'",values.join(" || "))}
+        };
+        let mut source_views=String::new();
+        let backing_sql = if dormant || all_releases {
+            let active_view=format!("{private}_active");
+            let table_view=format!("{private}_table");
+            let narrowed_view=format!("{private}_narrowed");
+            let cells_view=format!("{private}_cells");
+            source_views=format!("CREATE TEMP VIEW {} AS SELECT id,data FROM main.r WHERE t={number}; CREATE TEMP VIEW {} AS SELECT id,data FROM main._dormant_rows WHERE t={number}; CREATE TEMP VIEW {} AS SELECT id,data FROM main._dormant_narrow_rows WHERE t={number}; CREATE TEMP VIEW {} AS SELECT t,id,column_name,data FROM main._dormant_values WHERE t={number};",ident(&active_view),ident(&table_view),ident(&narrowed_view),ident(&cells_view));
+            backing.extend([active_view.clone(),table_view.clone(),narrowed_view.clone(),cells_view.clone()]);
+            let mut parts=Vec::new();
+            if all_releases {parts.push(format!("SELECT {},'active' AS {STATE},NULL AS {SOURCE},{} AS {COLUMNS} FROM temp.{} a",projected("a.data",true).join(", "),provided("a.data"),ident(&active_view)));}
+            parts.push(format!("SELECT {},'dormant-row' AS {STATE},'table' AS {SOURCE},{} AS {COLUMNS} FROM temp.{} d",projected("d.data",false).join(", "),provided("d.data"),ident(&table_view)));
+            parts.push(format!("SELECT {},'dormant-row' AS {STATE},'narrowed' AS {SOURCE},{} AS {COLUMNS} FROM temp.{} d",projected("d.data",false).join(", "),provided("d.data"),ident(&narrowed_view)));
+            let mut cells=vec!["x.id AS id".to_owned()];
+            for (column,kind) in &table.columns {
+                if column=="id" {continue;}
+                let tag=scalar_tag(kind);
+                let value=format!("(SELECT json_extract(v.data,{}) FROM temp.{} v WHERE v.id=x.id AND v.column_name={})",literal(&format!("${tag}")),ident(&cells_view),literal(column));
+                cells.push(format!("{} AS {}",if tag.is_empty(){format!("nullif({value}, 'Null')")}else{value},ident(column)));
+            }
+            let cell_columns=format!("(SELECT json_group_array(column_name) FROM (SELECT column_name FROM temp.{} v WHERE v.id=x.id ORDER BY column_name))",ident(&cells_view));
+            parts.push(format!("SELECT {},'dormant-cell' AS {STATE},'column' AS {SOURCE},{cell_columns} AS {COLUMNS} FROM (SELECT DISTINCT id FROM temp.{}) x",cells.join(", "),ident(&cells_view)));
+            parts.join(" UNION ALL ")
+        } else {format!("SELECT {} FROM main.r WHERE t = {number}",columns.join(", "))};
         // The private backing name cannot occur in submitted SQL. A public
         // view alone is unsafe: a WITH of the same name spoofs its authorizer
         // accessor when reading r. This extra view makes that context unforgeable.
-        conn.execute_batch(&format!("CREATE TEMP VIEW {} AS SELECT {} FROM main.r WHERE t = {number}; CREATE TEMP VIEW {} AS SELECT * FROM temp.{};", ident(&private), columns.join(", "), ident(name), ident(&private))).map_err(store_error)?;
+        conn.execute_batch(&format!("{source_views} CREATE TEMP VIEW {} AS {backing_sql}; CREATE TEMP VIEW {} AS SELECT * FROM temp.{};", ident(&private), ident(name), ident(&private))).map_err(store_error)?;
         views.insert(name.to_ascii_lowercase());
         backing.insert(private);
     }
@@ -109,7 +147,7 @@ fn inspect(options: &Options) -> Result<()> {
             AuthAction::Read { table_name, .. } => {
                 let name = table_name.to_ascii_lowercase();
                 let private_context = context.accessor.is_some_and(|name| backing.contains(name));
-                if context.database_name == Some("main") && name == "r" && private_context { return Authorization::Allow; }
+                if context.database_name == Some("main") && private_context && matches!(name.as_str(), "r" | "_dormant_rows" | "_dormant_narrow_rows" | "_dormant_values") { return Authorization::Allow; }
                 if context.database_name == Some("temp") && (views.contains(&name) || backing.contains(&name)) { return Authorization::Allow; }
                 2
             }
@@ -151,7 +189,7 @@ fn inspect(options: &Options) -> Result<()> {
         if columns.iter().any(|name| !names.insert(name.to_ascii_lowercase())) {
             return Err(("E_INPUT", "--json-objects needs unique output names; alias duplicate columns".into()));
         }
-        objects::booleans(&body, &schema, columns.len()).map_err(|e| ("E_INPUT", e))?
+        objects::booleans(&body, &schema, columns.len(), dormant || all_releases).map_err(|e| ("E_INPUT", e))?
     } else { vec![false; columns.len()] };
     let mut cursor = query.query([]).map_err(query_error)?;
     let mut rows = Vec::new();
@@ -175,7 +213,7 @@ fn inspect(options: &Options) -> Result<()> {
         let rows = if object_rows {
             Value::Array(rows.into_iter().map(|values| Value::Object(columns.iter().cloned().zip(values).collect())).collect())
         } else { json!(rows) };
-        println!("{}", json!({ "header": header, "columns": columns, "rows": rows, "limit": limit, "more": more, "ruleFiltered": false }));
+        println!("{}", json!({ "header": header, "columns": columns, "rows": rows, "limit": limit, "more": more, "ruleFiltered": false, "inspection": mode }));
     } else {
         eprintln!("{header}");
         let cells: Vec<Vec<String>> = rows.iter().map(|row| row.iter().map(|v| match v { Value::String(s) => s.escape_debug().to_string(), _ => v.to_string() }).collect()).collect();
@@ -193,6 +231,45 @@ fn store_error(error: rusqlite::Error) -> (&'static str, String) { ("E_STORE", e
 fn ident(name: &str) -> String { format!("\"{}\"", name.replace('"', "\"\"")) }
 fn literal(value: &str) -> String { format!("'{}'", value.replace('\'', "''")) }
 fn internal(name: &str) -> bool { name.starts_with('_') || matches!(name.to_ascii_lowercase().as_str(), "r" | "i") || name.to_ascii_lowercase().starts_with("sqlite_") }
+
+fn scalar_tag(kind: &ColumnType) -> &'static str {
+    match kind.required() {
+        ColumnType::Id | ColumnType::Principal | ColumnType::Ref { .. } => ".Id",
+        ColumnType::Text { .. } | ColumnType::Enum { .. } => ".String",
+        ColumnType::Int | ColumnType::IntRange { .. } | ColumnType::Time | ColumnType::Decimal { .. } | ColumnType::Money { .. } => ".Int",
+        ColumnType::Bool => ".Bool",
+        ColumnType::Bytes { .. } => ".Bytes",
+        _ => "",
+    }
+}
+
+#[derive(serde::Deserialize)]
+struct RetainedColumn { kind: ColumnType, default: Option<ColumnDefault>, authoritative: bool }
+
+fn retained_schema(conn:&Connection,mut schema:Schema)->Result<Schema> {
+    let mut historical=BTreeMap::<String,Table>::new();
+    let mut statement=conn.prepare("SELECT table_name,definition FROM _dormant_tables UNION SELECT c.name,n.definition FROM _dormant_narrow_rows n JOIN _catalog c ON c.num=n.t ORDER BY 1").map_err(store_error)?;
+    let rows=statement.query_map([],|row|Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?))).map_err(store_error)?;
+    for row in rows {
+        let (name,definition)=row.map_err(store_error)?;
+        let table:Table=serde_json::from_str(&definition).map_err(|e|("E_SCHEMA",e.to_string()))?;
+        historical.entry(name).or_insert(table);
+    }
+    for (name,old) in historical {
+        if let Some(table)=schema.tables.get_mut(&name) {
+            for (column,kind) in &old.columns {if !old.engine_field(column) {table.columns.entry(column.clone()).or_insert(kind.clone());if let Some(default)=old.defaults.get(column){table.defaults.entry(column.clone()).or_insert(default.clone());}}}
+        } else {schema.tables.insert(name,old);}
+    }
+    let mut statement=conn.prepare("SELECT table_name,column_name,definition FROM _dormant_columns ORDER BY table_name,column_name").map_err(store_error)?;
+    let rows=statement.query_map([],|row|Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).map_err(store_error)?;
+    for row in rows {
+        let (table,column,definition)=row.map_err(store_error)?;
+        let retained:RetainedColumn=serde_json::from_str(&definition).map_err(|e|("E_SCHEMA",e.to_string()))?;
+        if !retained.authoritative {continue;}
+        if let Some(target)=schema.tables.get_mut(&table) {target.columns.entry(column.clone()).or_insert(retained.kind);if let Some(default)=retained.default{target.defaults.entry(column).or_insert(default);}}
+    }
+    Ok(schema)
+}
 
 /// Population advice only for a newly declared/changed window, before adoption.
 // @ref LLP 3000.007#8 — bounded catalog probes never adopt or acquire a writer lock.
@@ -273,7 +350,7 @@ fn misplaced_flag(statement: &str) -> Option<&'static str> {
                 if c == '*' && chars.peek().is_some_and(|(_, c)| *c == '/') { chars.next(); break; }
             }
         } else if c == '-' {
-            for flag in ["--release", "--limit", "--json-objects", "--json"] {
+            for flag in ["--release", "--dormant", "--all-releases", "--limit", "--json-objects", "--json"] {
                 if let Some(tail) = statement[offset..].strip_prefix(flag) {
                     if tail.is_empty() || tail.starts_with(char::is_whitespace) || tail.starts_with('=') { return Some(flag); }
                 }

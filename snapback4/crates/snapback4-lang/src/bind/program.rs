@@ -190,8 +190,10 @@ impl<'a> Binder<'a> {
         binder.call_chain.push((super::operation_name(module, &decl.name), decl.site.clone()));
         binder.declare(pure_calls::CONSTANTS, Ty::Null);
         let mut args = BTreeMap::new();
+        let mut arg_aliases = BTreeMap::new();
         let mut arg_types = Vec::new();
         let mut defaults = setup::Body::default();
+        let canonical_names: std::collections::BTreeSet<_> = decl.args.iter().map(|arg| arg.name.as_str()).collect();
         for arg in &decl.args {
             if args.contains_key(&arg.name) {
                 diagnostics.push(unknown(&arg.site, format!("duplicate argument {}", arg.name), "rename one argument"));
@@ -202,6 +204,16 @@ impl<'a> Binder<'a> {
             {
                 diagnostics.push(type_error(&arg.site, format!("argument {} references unknown table {table}", arg.name), name_rewrite(table, catalog.tables.keys().map(String::as_str), None)));
                 return None;
+            }
+            if let Some(alias) = &arg.alias {
+                if canonical_names.contains(alias.as_str()) {
+                    diagnostics.push(unknown(&arg.site, format!("argument alias {alias} collides with a canonical argument"), "choose a legacy name that is not otherwise declared in this operation").guide("deploy"));
+                    return None;
+                }
+                if let Some(previous) = arg_aliases.insert(alias.clone(), arg.name.clone()) {
+                    diagnostics.push(unknown(&arg.site, format!("argument alias {alias} is already used by {previous}"), "give each canonical argument a distinct legacy name").guide("deploy"));
+                    return None;
+                }
             }
             let ty = if arg.default.is_some() {Ty::from_scalar(&arg.type_).required()} else {Ty::from_scalar(&arg.type_)};
             let (wire_type, default) = match super::operation_evolution::argument(arg, schema) {
@@ -229,7 +241,7 @@ impl<'a> Binder<'a> {
                 ProgramKind::Query => (ir::ProgramKind::Query, Ty::Json),
                 _ => (ir::ProgramKind::Job, Ty::Null),
             };
-            return Some(BoundProgram { maintenance_scopes: binder.maintenance_scopes, statement_ends: Vec::new(), page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, receipt_sources: binder.receipt_sources, receipt_returns: binder.receipt_returns, implicit_write_results: binder.implicit_write_results, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers });
+            return Some(BoundProgram { maintenance_scopes: binder.maintenance_scopes, statement_ends: Vec::new(), page_sources: binder.page_sources, canonical_sources: binder.canonical_sources, constraint_domains: binder.constraint_domains, filters: binder.filters, view_types: binder.view_types, selections: binder.selections, sources: binder.sources, receipt_sources: binder.receipt_sources, receipt_returns: binder.receipt_returns, implicit_write_results: binder.implicit_write_results, timeline_scans: binder.timeline_scans, program: Program { name: full_name, kind, args, arg_aliases, read_time_granularity_ms: None, body: Vec::new(), native: true, returned_shapes: Default::default() }, presence: None, module: module.to_owned(), args: arg_types, result, notes: binder.notes, site: decl.site.clone(), job_bound_helpers: binder.job_bound_helpers });
         }
         let mut body = defaults;
         let mut shape_candidates = Vec::new();
@@ -313,7 +325,7 @@ impl<'a> Binder<'a> {
         };
         let ownership = body.ownership;
         let returned_shapes = returned_shapes::marks(&body.code, &full_name, &shape_candidates);
-        let program = Program { name: full_name, kind, args, read_time_granularity_ms: None, body: body.code, native: false, returned_shapes };
+        let program = Program { name: full_name, kind, args, arg_aliases, read_time_granularity_ms: None, body: body.code, native: false, returned_shapes };
         if kind == ir::ProgramKind::Query
             && let Some((work, allowance)) = snapback4_core::engine::rules::bounded_query_work(schema, &program)
             && work >= allowance {

@@ -8,11 +8,12 @@ use std::collections::{BTreeMap, BTreeSet};
 type Columns = Vec<(String, bool)>;
 type Tables = BTreeMap<String, Columns>;
 
-pub(super) fn booleans(sql: &str, schema: &Schema, count: usize) -> Result<Vec<bool>, String> {
+pub(super) fn booleans(sql: &str, schema: &Schema, count: usize, retained: bool) -> Result<Vec<bool>, String> {
     let mut tables: Tables = schema.visible_tables().map(|(name, table)| {
         let mut columns = vec![("id".into(), false)];
         columns.extend(table.columns.iter().filter(|(name, _)| *name != "id")
             .map(|(name, kind)| (name.to_ascii_lowercase(), matches!(kind.required(), ColumnType::Bool))));
+        if retained {columns.extend([("_snapback_state".into(),false),("_snapback_source".into(),false),("_snapback_columns".into(),false)]);}
         (name.to_ascii_lowercase(), columns)
     }).collect();
     let statements = Parser::parse_sql(&SQLiteDialect {}, sql).map_err(|e| format!("--json-objects SQL projection: {e}; use --json for SQLite-specific syntax"))?;

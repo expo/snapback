@@ -467,7 +467,7 @@ fn selected_guards(schema: &Schema, program: &ir::Program, null_refs: &NullRefer
             nested(out,schema,&inputs,&bindings,&context,&effects,null_refs,excluded);
             // Effects execute against the incoming lexical environment; a branch
             // join may overwrite the very condition that controlled its write.
-            let wrapper=ir::Program {name:String::new(),kind:ir::ProgramKind::Mutation,args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![stmt.clone()],returned_shapes:BTreeMap::new(),native:false};
+            let wrapper=ir::Program {name:String::new(),kind:ir::ProgramKind::Mutation,args:BTreeMap::new(),arg_aliases:BTreeMap::new(),read_time_granularity_ms:None,body:vec![stmt.clone()],returned_shapes:BTreeMap::new(),native:false};
             let writes=ir::write_tables(&wrapper).into_iter().map(|(table,_)|table).collect::<BTreeSet<_>>();
             let effect_inputs=(!writes.is_empty() && !matches!(stmt,ir::Stmt::If {..}|ir::Stmt::For {..})).then(||resolved(&json!([context,stmt]),&bindings,&mut BTreeSet::new()));
             match stmt {

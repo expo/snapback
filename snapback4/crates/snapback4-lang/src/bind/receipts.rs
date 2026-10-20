@@ -307,6 +307,8 @@ pub fn expand(documents: &mut Vec<Document>, errors: &mut Vec<Diagnostic>) {
                     for name in [clause.delivered_field.as_str(), clause.seen_field.as_str()] {
                         t.columns.push(ColumnDecl {
                             read: None,
+
+                            renamed_from: None,
                             name: name.into(),
                             type_: ScalarType {
                                 kind: TypeKind::Int,

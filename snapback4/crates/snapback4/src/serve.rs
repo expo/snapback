@@ -1074,7 +1074,7 @@ fn handle(mut request: Request, shared: &Shared) {
             };
             let body = {
                 let bound = lock(&shared.bound);
-                let ops: Vec<Json> = bound.programs.iter().filter(|p| p.program.kind != snapback4_core::ir::ProgramKind::Job).map(|p| json!({ "name": p.program.name, "kind": p.program.kind.word(), "args": p.program.args })).collect();
+                let ops: Vec<Json> = bound.programs.iter().filter(|p| p.program.kind != snapback4_core::ir::ProgramKind::Job).map(|p| json!({ "name": p.program.name, "kind": p.program.kind.word(), "args": p.program.args, "aliases": p.program.arg_aliases })).collect();
                 let tables: Vec<Json> = bound.schema.visible_tables().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line_in(table)), "fields": table.columns.iter().filter(|(column, _)| !table.private_field(column) && !table.engine_field(column)).collect::<BTreeMap<_,_>>() })).collect();
                 json!({ "snapback4": env!("CARGO_PKG_VERSION"), "device_compatibility": snapback4_core::device_protocol::compatibility(&bound.schema.public_projection()), "generation": *lock(&shared.generation), "seq": seq, "ops": ops, "tables": tables })
             };
@@ -1178,7 +1178,7 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     // @ref LLP 3000.022#5 — decoding uses the signature whose binding
                     // passed preflight; adoption is rechecked by the executing writer.
-                    let signature = engine.program(&op).map(|p| (p.kind, p.args.clone()));
+                    let signature = engine.program(&op).cloned();
                     (replay, response_head(&mut engine), signature)
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
@@ -1191,12 +1191,12 @@ fn handle(mut request: Request, shared: &Shared) {
                 signature
             } else {
                 lock(&shared.bound).programs.iter().find(|p| p.program.name == op)
-                    .map(|p| (p.program.kind, p.program.args.clone()))
+                    .map(|p| p.program.clone())
             };
             // @ref LLP 3000.018#3.1 — refresh follows what a query may read on any path, never what one run read,
             // and comes from the schema of the engine that evaluates it.
             let presence_of = |engine: &Engine| engine.schema().operations.get(&op).is_some_and(|fact| fact.sites.iter().any(|site| site.kind == "presence"));
-            let Some((kind, arg_types)) = signature else {
+            let Some(program) = signature else {
                 if path.starts_with("/q/") && lock(&shared.readers).pending(&op) {
                     match shared.read_head() {
                         Ok((store_id, head)) => respond_timed(request, shared, 200, json!({"loading":true,"complete":false,"data":null,"store_id":store_id,"seq":head,"tables":[],"viewer":principal})),
@@ -1207,27 +1207,16 @@ fn handle(mut request: Request, shared: &Shared) {
                 operation_refusal(request, shared, 404, dev_doors::stale(shared, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs")));
                 return;
             };
-            if let Some(why) = dev_doors::persona_argument(shared, &arg_types, &args_json) { argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), why); return; }
-            let mut args = BTreeMap::new();
-            if let Json::Object(fields) = &args_json {
-                for (name, value) in fields {
-                    match arg_types.get(name) {
-                        Some(kind) => match wire::from_json(kind, value) {
-                            Ok(typed) => {
-                                args.insert(name.clone(), typed);
-                            }
-                            Err(why) => {
-                                argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")).guide("types"));
-                                return;
-                            }
-                        },
-                        None => {
-                            argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), dev_doors::stale(shared, Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")).guide("programs")));
-                            return;
-                        }
-                    }
+            if let Some(why) = dev_doors::persona_argument(shared, &program.args, &args_json) { argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), why); return; }
+            let args = match wire::arguments_from_json_with_refusal(&program, &args_json) {
+                Ok(args) => args,
+                Err(refusal) => {
+                    let refusal = if refusal.guide.as_deref() == Some("programs") { dev_doors::stale(shared, refusal) } else { refusal };
+                    argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), refusal);
+                    return;
                 }
-            }
+            };
+            let kind = program.kind;
             let viewer = principal.clone();
             let mut context = Context::new(&principal, args).at(request_now.unwrap_or_else(|| shared.now()));
             if path.starts_with("/q/") {

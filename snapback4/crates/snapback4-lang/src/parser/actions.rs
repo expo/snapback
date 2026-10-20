@@ -26,7 +26,7 @@ impl Parser {
                     let name = self.binding_name()?;
                     self.take(":")?;
                     let type_ = self.parse_type(false)?;
-                    fields.push(ArgDecl { name, type_, site, default: None, deprecated: false });
+                    fields.push(ArgDecl { name, type_, site, default: None, alias: None, deprecated: false });
                     if !self.maybe(",") { break; }
                 }
                 self.take("}")?;

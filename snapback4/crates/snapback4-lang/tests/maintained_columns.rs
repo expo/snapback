@@ -279,7 +279,7 @@ fn raw_ir_system_and_seed_guard_and_overflow_are_owned_by_column() {
         Stmt::Upsert {table:"posts".into(),key:Expr::Literal(id("p")),row:Expr::Literal(row.clone())},
         Stmt::Update {table:"posts".into(),key:Expr::Literal(id("p")),patch:Expr::Literal(object([("likeCount",Value::Int(0))]))},
     ] {
-        let p = Program {name:"bad".into(),kind:ProgramKind::Mutation,args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![stmt],native:false,returned_shapes:Default::default()};
+        let p = Program {name:"bad".into(),kind:ProgramKind::Mutation,args:BTreeMap::new(),arg_aliases:Default::default(),read_time_granularity_ms:None,body:vec![stmt],native:false,returned_shapes:Default::default()};
         let mut e = Engine::memory(b.schema.clone(),[p]).unwrap();
         e.load_mode([("posts".into(), object([("id",id("p")),("at",Value::Int(1))]))],snapback4_core::engine::LoadMode::Restore).unwrap();
         let snapshot = |e: &Engine| (e.seq().unwrap(), e.schema().tables.keys().map(|t| (t.clone(),e.store().rows(t).unwrap())).collect::<BTreeMap<_,_>>());
@@ -369,7 +369,7 @@ fn raw_private_reads_and_every_resolved_dependency_are_refused() {
     let point=Read {table:private.clone(),index:"byId".into(),key:vec![Expr::Literal(id("p"))],site:"private".into(),provenance:KeyProvenance::Computed};
     let scan=Scan { cursor_pins: 0, variant: None,table:private.clone(),index:"byId".into(),prefix:vec![],order:Order::Asc,take:Bound::Literal(1),site:"private".into(),provenance:KeyProvenance::Computed,existence:false,after:None,before:None,range:None,filter:None,opaque_cursor:false,merge_site:None};
     for expression in [Expr::Get(point.clone()),Expr::Exists(point),Expr::Scan(scan)] {
-        let program = Program { name:"private".into(),kind:ProgramKind::Query,args:BTreeMap::new(),read_time_granularity_ms:None,native:false,returned_shapes:Default::default(),body:vec![Stmt::Return(expression)] };
+        let program = Program { name:"private".into(),kind:ProgramKind::Query,args:BTreeMap::new(),arg_aliases:Default::default(),read_time_granularity_ms:None,native:false,returned_shapes:Default::default(),body:vec![Stmt::Return(expression)] };
         let error = Engine::memory(b.schema.clone(),[program]).err().unwrap();
         assert_eq!(error.refusal().code,"E_MAINTAINED_COLUMN_PRIVATE");
         assert!(error.to_string().contains("posts.likeCount"));

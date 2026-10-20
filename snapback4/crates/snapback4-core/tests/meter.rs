@@ -41,7 +41,7 @@ fn duplicate_object_keys_keep_the_last_allocation_and_query_heap_outcome() {
         let query = |row| {
             let program = Program {
                 name: "duplicate_keys".into(), kind: ProgramKind::Query,
-                args: BTreeMap::new(), read_time_granularity_ms: None,
+                args: BTreeMap::new(), arg_aliases: Default::default(), read_time_granularity_ms: None,
                 returned_shapes: BTreeMap::new(), native: false,
                 body: vec![Stmt::Return(Expr::Array(vec![Expr::Literal(row)]))],
             };

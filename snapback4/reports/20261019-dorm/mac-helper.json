@@ -1,0 +1,25 @@
+{
+  "cleanup": {
+    "recentOwnedSnapbackScratch": 0,
+    "snapback4CliProcesses": 0,
+    "targetRetained": true
+  },
+  "existingStandaloneCli": "/Users/ccheever/sb4-ws-dorm/snapback4/target/debug/snapback4",
+  "host": "macstudio-charlie-apt101-a",
+  "node": {
+    "file": "argument-aliases.test.mjs",
+    "log": "mac-hermetic-node.log",
+    "status": "passed",
+    "tests": 1
+  },
+  "priorRustOutputEvidence": {
+    "sourceCommit": "9b9b3e78d5",
+    "status": "unchanged",
+    "tests": 44
+  },
+  "sourceCommit": "9f49a1faa6",
+  "sourceSha256": {
+    "snapback4/scripts/argument-alias-cases.mjs": "9cf87a3d47e1443ac15c1287df6b0ef27b5465bcb75ba6dbff8b6b53dddf6f1c"
+  },
+  "status": "passed"
+}

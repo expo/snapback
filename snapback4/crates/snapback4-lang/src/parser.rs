@@ -61,7 +61,7 @@ struct Parser {
     repair_args: Option<(Site, Vec<ArgDecl>)>,
 }
 
-const TOP_LEVEL: [&str; 22] = ["alias", "backfill", "invariant", "view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
+const TOP_LEVEL: [&str; 23] = ["alias", "backfill", "down", "invariant", "view", "use", "table", "maintain", "channel", "query", "mutation", "job", "action", "route", "effect", "shape", "fn", "proc", "cursor", "schedule", "index", "unique", "deliver"];
 
 impl Parser {
     fn document(&mut self) {
@@ -94,8 +94,9 @@ impl Parser {
         let token = self.peek().clone();
         match token.value.as_str() {
             "alias" => self.parse_alias(),
-            "backfill" => {
-                let site = self.take("backfill")?.site;
+            "backfill" | "down" => {
+                let direction = self.peek().value.clone();
+                let site = self.take(&direction)?.site;
                 let table = self.word()?.value;
                 let name = self.binding_name()?;
                 let args = self.parse_args()?;
@@ -105,7 +106,9 @@ impl Parser {
                 let value = self.expression(0, &["<newline>"])?;
                 self.newline()?;
                 if indented { self.take_kind(Kind::Dedent)?; }
-                self.document.backfills.push(BackfillDecl { table, name, args, value, site });
+                let declaration = BackfillDecl { table, name, args, value, site };
+                if direction == "down" { self.document.downfills.push(declaration); }
+                else { self.document.backfills.push(declaration); }
                 Ok(())
             }
             "invariant" => self.parse_invariant(),
@@ -642,7 +645,7 @@ impl Parser {
                 return Err(crate::diag::Diagnostic::new(&name.site, "E_SEQUENCE_PARENT", "sequence by needs a parent reference column", "ordinal: sequence by conversationId; declare conversationId: conversations").guide("types"));
             };
             self.newline()?;
-            return Ok(ColumnDecl { read: None, on_delete: None, written_by: None, readable_by_audience: false, sequence: Some(parent), maintained: None, name: name.value,
+            return Ok(ColumnDecl { renamed_from: None, read: None, on_delete: None, written_by: None, readable_by_audience: false, sequence: Some(parent), maintained: None, name: name.value,
                 type_: ScalarType { kind: TypeKind::Int, optional: false }, default: None, site: name.site });
         }
         let aggregate = (self.peek_at(2).kind == Kind::Word
@@ -656,13 +659,14 @@ impl Parser {
             let filter = if self.maybe("where") { Some(self.filtered_predicate(&source, &[], true)?) } else { None };
             let by = if self.maybe("by") { self.maybe("."); self.word()?.value } else { String::new() };
             self.newline()?;
-            return Ok(ColumnDecl { read: None, on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: Some(ColumnAggregate { source, of, filter, by }),
+            return Ok(ColumnDecl { renamed_from: None, read: None, on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: Some(ColumnAggregate { source, of, filter, by }),
                 name: name.value, type_: ScalarType { kind: TypeKind::Int, optional: false }, default: None, site: name.site });
         }
         let type_ = self.parse_type(true)?;
         if matches!(type_.kind, TypeKind::Cursor) {
             return Err(syntax_with(&name.site, "cursor is an operation argument type, not a table column", "use c: cursor ? on a query"));
         }
+        let renamed_from = if self.maybe("renamed") { self.take("from")?; Some(self.word()?.value) } else { None };
         // @ref LLP 3000.039#2 — `on delete` follows the type and its `?`.
         let on_delete = if self.at("on") && self.peek_at(1).value == "delete" { Some(self.parse_on_delete(&name.value)?) } else { None };
         if on_delete.is_some() && self.at("?") {
@@ -689,7 +693,7 @@ impl Parser {
         let read = if self.maybe("read") { Some(self.parse_focal_rule_value("read", &name.site)?) } else { None };
         if self.at("on") { return Err(on_delete_error(&self.peek().site, &name.value)); }
         self.newline()?;
-        Ok(ColumnDecl { read, on_delete, sequence: None, written_by, readable_by_audience, maintained: None, name: name.value, type_, default, site: name.site })
+        Ok(ColumnDecl { renamed_from, read, on_delete, sequence: None, written_by, readable_by_audience, maintained: None, name: name.value, type_, default, site: name.site })
     }
 
     fn parse_on_delete(&mut self, column: &str) -> Fallible<(OnDelete, Site)> {

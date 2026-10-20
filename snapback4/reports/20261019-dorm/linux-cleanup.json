@@ -1,0 +1,11 @@
+{
+  "source": "9f49a1faa6",
+  "status": "passed",
+  "activeTargetProcessesBeforeRemoval": 0,
+  "buildBytesRemoved": 25902972928,
+  "sqliteSidecarsRemoved": 1636,
+  "retainedBinary": "/home/ccheever/sb4-loop/dorm-final-bin/snapback4",
+  "binarySha256": "4533663358f71fb75fb617ef60c956dedc09ed8cc9769df7dc3e35213e73dda6",
+  "version": "snapback4 0.4.34",
+  "targetExists": false
+}

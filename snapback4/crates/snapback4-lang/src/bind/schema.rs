@@ -1092,17 +1092,17 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
             None => return Err(unknown(&site, format!("sum names unknown column {}.{column}", maintain.source), name_rewrite(column, source.columns.keys().map(String::as_str), None))),
         },
     };
-    columns.push(ColumnDecl { read: None, on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: "value".into(), type_: value_type, site: site.clone() });
+    columns.push(ColumnDecl { renamed_from: None, read: None, on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: "value".into(), type_: value_type, site: site.clone() });
     let computed = super::maintains::keys(&source, maintain)?;
     let aliases = super::maintains::inherited_aliases(source,maintain);
     if let Some(expr) = &maintain.filter { super::maintains::predicate(&source, expr)?; }
     for field in &maintain.by {
         let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: computed[field].column.contains('.') } } else { source.columns[aliases.get(field).unwrap_or(field)].clone() };
-        columns.push(ColumnDecl { read: None, on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
+        columns.push(ColumnDecl { renamed_from: None, read: None, on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
     // @ref LLP 3000.013.001#3-global-maintained-view-representation — the logical empty tuple gets one store-indexable, compiler-only discriminator.
     let group = if maintain.by.is_empty() {
-        columns.push(ColumnDecl { read: None, on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: GLOBAL.into(), type_: ScalarType { kind: TypeKind::Bool, optional: false }, site: site.clone() });
+        columns.push(ColumnDecl { renamed_from: None, read: None, on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: GLOBAL.into(), type_: ScalarType { kind: TypeKind::Bool, optional: false }, site: site.clone() });
         vec![GLOBAL.into()]
     } else { maintain.by.clone() };
     let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: group, unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];

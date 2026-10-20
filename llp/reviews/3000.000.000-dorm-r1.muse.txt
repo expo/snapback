@@ -1,0 +1,69 @@
+muse: workspace root: /home/ccheever/projects/sb4-b19-dorm (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=e42a34b7-af31-466e-8aab-62ee37c89522]: Subscription quota exhausted. Your usage window resets at 2026-10-19T12:47:06Z. (rate_limit_error)
+This is a design-only review of immutable snapshot `8c2aec1f...d09e4a8e` §19. No code inspected, no tests run.
+
+## Material findings
+
+**1. Missing lookup / meter-cut refuses vs dormant — availability and contradiction.**
+
+§19.1 says both:
+
+- "Missing lookups, meter cuts and invalid reference/authority evidence refuse, never become false absence."
+- "A value with no truthful old representation retains ordinary narrowed dormancy."
+
+Counterexample: `explanations[extension=id]` target deleted between newer deploy and rollback. Is that a "missing lookup" that refuses the entire rollback activation, or "no truthful old representation" that becomes dormant/null?
+
+If the former, a single deleted lookup row or a transient meter cut vetoes rollback of the whole release — liveness failure, operator stuck on newer. If the latter, the `! else MISSING_REASON` fallback controls, but spec does not say when fallback is required vs optional, nor what happens when `MISSING_REASON` itself is missing.
+
+Same for meter cuts: metered system-privileged work is existing law, but rollback refusing on meters breaks atomic activation expectations. At minimum the design must partition: invalid authority/reference evidence refuses; absent application data goes dormant with a retained cell; meter exhaustion aborts atomically with retry semantics, not a permanent bridge repair.
+
+Smallest correction: define a disjoint decision table: exact preimage wins; else if declared fallback present use it; else if lookup absent because target lifetime ended use dormant null with retained newer cells; else if evidence invalid/corrupt refuse. Meters abort, not bridge-repair.
+
+**2. Forward re-entry overwrites native authored values — silent data loss.**
+
+§19.2: "Newly written old-source rows receive required outputs; changed old-source inputs or lookup dependencies catch up" but "Native newer outputs remain authored values."
+
+Counterexample: row born newer with native `n=5` authored, no preimage. Roll back, edit old input that is a backfill dependency for `n`. Roll forward: does backfill "catch up" and overwrite `5`, or does native-authored win? Both clauses claim it. This is exactly the approximation-vs-authored hazard §19.1 claims to avoid.
+
+Smallest correction: state precedence: exact retained newer cells plus reverse image restore on compatible forward; old-source edits to backfill inputs after a native-authored value exists conflict and refuse unless an explicit bridge declares overwrite. Never silently derive.
+
+**3. Rollback to broader old read rules warns only — authorization regression.**
+
+§19.2 preserves old captures and warns "when selecting older rules restores broader confidentiality exposure," but still authorizes every read under target rules.
+
+Counterexample: newer release narrows a predicate for a confidentiality fix. Operator with activation privilege but without data access rolls back to older permissive predicate and reads exfiltrated rows. Warning in preview does not prevent it.
+
+Existing law says active schema does not expose dormant cells, but here the older active schema intentionally exposes more. Warning is not a fence.
+
+Smallest correction: broadening rollback requires explicit broadening capability/confirmation distinct from activation, or refuses by default with an explicit override that is logged. Define "predicate-only" mechanically: same capture structure, same parent id, same authority provenance, only predicate text narrowed/widened; anything else is not predicate-only.
+
+**4. Dormant + expiry = invisible deletion.**
+
+§19.3 excludes "actual expiry/deletion" from dormant loss, and §19.1 says deletion/expiry clears evidence.
+
+Counterexample: rollback hides 21 rows as dormant in newer-only tables. While dormant under older release, their TTL expires. They are deleted while never visible to target users. Preview counted them as dormant, not deleted, so operator approved hidden-not-lost, but result is lost.
+
+Smallest correction: preview must join dormancy with lifetime: flag dormant rows whose parent lifetime can end while dormant, and require explicit acknowledgment or block expiry-while-dormant without a second preview.
+
+**5. Rename with type change underspecified.**
+
+`newName: Type renamed from oldName` names types only once. Counterexample: `count: int` renamed to `count: text`, or required old field has no value on some rows. "No invented defaults" and "conflicting target refuses" are stated, but type-compatibility, required-field-absent behavior on reverse adoption, and which direction's type governs validation are not.
+
+Smallest correction: renames preserve cell bytes plus lifetime evidence only when types are identical or an explicit reversible projection is also declared; otherwise refuse. State required-absent behavior: refuse, not null.
+
+**6. "Equivalent retained executable source across compiler upgrades" breaks identity.**
+
+§19.4 says compiler reports/packaging metadata do not change source identity. Counterexample: same source recompiled with fixed codegen behaves differently; rollback selects "equivalent" old source but executes new behavior. Existing law ties retained refs to lifetimes and rollback to source-over-data, not to an undefined equivalence.
+
+Smallest correction: identity is source bytes plus native/worker behavior inputs including compiler version, or provide a proof rule for equivalence. Otherwise new compiler creates new source identity.
+
+**7. Prune creates reversal-unavailable identities.**
+
+"Prune previews these private images and leaves reversal-unavailable identities when values are explicitly discarded." That makes a later rollback show null/default where preview previously promised reversibility. The design needs to state that post-prune previews must report those identities as certain null/default loss, not as reversible.
+
+## Implementability
+
+Reverse-projection ordering "before projection or narrowed visibility closure can hide its inputs" plus "simultaneous projections read one snapshot and cannot consume each other's new results" is the right isolation, but without the decision table in (1) and precedence in (2) two implementers will diverge on refuse vs dormant vs overwrite. Cell counts vs record counts in §19.3 need disjoint definitions to avoid double-counting a hidden row and its nulled cells.
+
+Verdict: NOT READY

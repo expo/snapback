@@ -5,6 +5,7 @@ use crate::{Schema, error::Refusal};
 
 pub const FLOOR: &str = "0.4.24";
 pub const GENERATION: &str = "sync-generation-v1";
+pub const ARGUMENT_ALIAS: &str = "argument-alias-v1";
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct DeviceEngine {
     pub format: u32,
@@ -20,12 +21,17 @@ pub struct Compatibility {
 impl DeviceEngine {
     pub fn current() -> Self {
         let mut capabilities = Schema::supported_capabilities();
-        capabilities.push(GENERATION.into()); capabilities.sort();
+        capabilities.push(GENERATION.into());
+        capabilities.sort();
         Self { format: 1, version: env!("CARGO_PKG_VERSION").into(), capabilities }
     }
 }
 pub fn compatibility(schema: &Schema) -> Compatibility {
     let mut capabilities: Vec<_> = schema.required_capabilities().into_iter().collect();
+    if schema.operations.values().any(|operation| operation.argument_aliases)
+        && !capabilities.iter().any(|capability| capability == ARGUMENT_ALIAS) {
+        capabilities.push(ARGUMENT_ALIAS.into());
+    }
     capabilities.push(GENERATION.into()); capabilities.sort();
     Compatibility { server_version: env!("CARGO_PKG_VERSION"), minimum_version: FLOOR, capabilities }
 }
@@ -69,5 +75,18 @@ mod tests {
         let why = check(Some(&d), &required).unwrap_err(); assert!(why.message.contains(GENERATION));
         assert!(why.message.contains("9.0.0") && why.message.contains(required.server_version));
         let absent = check(None, &required).unwrap_err(); assert_eq!(absent.code, "E_DEVICE_VERSION"); assert!(absent.message.contains("no valid build stamp"));
+    }
+    #[test]
+    fn argument_aliases_fence_engines_that_would_ignore_program_metadata() {
+        let mut schema = Schema::default();
+        schema.operations.insert("q".into(), crate::schema::Execution { argument_aliases: true, ..Default::default() });
+        let required = compatibility(&schema);
+        assert!(required.capabilities.contains(&ARGUMENT_ALIAS.into()));
+        let mut old = DeviceEngine::current();
+        old.version = "9.0.0".into();
+        old.capabilities.retain(|capability| capability != ARGUMENT_ALIAS);
+        let refusal = check(Some(&old), &required).unwrap_err();
+        assert_eq!(refusal.code, "E_DEVICE_VERSION");
+        assert!(refusal.message.contains(ARGUMENT_ALIAS));
     }
 }

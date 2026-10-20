@@ -328,12 +328,18 @@ fn inspect_cases(
         }; // validate already reported this shape.
         for name in fields
             .keys()
-            .filter(|name| !program.args.contains_key(*name))
+            .filter(|name| program.argument(name).is_none())
         {
             warnings.push(format!("{at}: operation `{op}` takes no argument `{name}`"));
         }
         for (name, kind) in &program.args {
-            let Some(raw) = fields.get(name) else {
+            let mut aliases = program.arg_aliases.iter().filter_map(|(alias, canonical)| (canonical == name).then_some(alias));
+            let supplied_alias = aliases.clone().find(|alias| fields.contains_key(*alias));
+            if fields.contains_key(name) && let Some(alias) = supplied_alias {
+                warnings.push(format!("{at}: operation `{op}` received both argument `{name}` and its alias `{alias}`"));
+                continue;
+            }
+            let Some(raw) = fields.get(name).or_else(|| aliases.find_map(|alias| fields.get(alias))) else {
                 if !matches!(kind, ArgType::Optional(_)) {
                     warnings.push(format!(
                         "{at}: operation `{op}` is missing argument `{name}`"

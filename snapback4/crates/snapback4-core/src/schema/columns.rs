@@ -33,7 +33,7 @@ impl Schema {
     pub fn public_projection(&self) -> Self {
         let mut schema = self.clone();
         #[cfg(feature = "sqlite")]
-        schema.backfills.clear();
+        { schema.backfills.clear(); schema.downfills.clear(); }
         // Inspection provenance is catalog side metadata, never device input.
         #[cfg(feature = "sqlite")]
         { schema.authored_indexes = Default::default(); }

@@ -120,7 +120,7 @@ export function checkLocalIdentity(state: StoreCapture | undefined, generation: 
 // bodies intact. Native descriptors can also be filled in after an offline open.
 function backendKey(backend: BackendJson | null): string {
   const programs = backend?.programs.map(program => ({
-    name: program.name, kind: program.kind, args: program.args, body: program.body,
+    name: program.name, kind: program.kind, args: program.args, arg_aliases: program.arg_aliases, body: program.body,
     native: program.native ?? false, read_time_granularity_ms: program.read_time_granularity_ms ?? null,
     returned_shapes: program.returned_shapes ?? {},
   })).sort((a, b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0);

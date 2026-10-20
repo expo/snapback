@@ -134,7 +134,7 @@ impl<S: DeviceStore> Device<S> {
         if tx.meta(&row_key(name, row))?.as_deref() != Some(self.generation.to_string().as_str()) { return Ok(Json::Null); }
         let Some(table) = self.schema.table(name) else { return Ok(Json::Null) };
         if table.sync.is_none() || table.columns.get(column).and_then(media_type) != Some(false) { return Ok(Json::Null); }
-        let program = Program { name: "device asset home".into(), kind: ProgramKind::Query, args: BTreeMap::new(), read_time_granularity_ms: None, native: false, returned_shapes: Default::default(),
+        let program = Program { name: "device asset home".into(), kind: ProgramKind::Query, args: BTreeMap::new(), arg_aliases: Default::default(), read_time_granularity_ms: None, native: false, returned_shapes: Default::default(),
             body: vec![Stmt::Return(Expr::Get(Read { site: "asset home".into(), table: name.into(), index: "byId".into(), key: vec![Expr::Literal(Value::Id(row.into()))], provenance: KeyProvenance::Const }))] };
         // Media is revoked even when textual delivered history is retained.
         let mut schema = self.schema.clone();

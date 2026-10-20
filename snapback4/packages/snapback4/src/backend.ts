@@ -24,6 +24,7 @@ export interface ProgramJson extends OperationFacts {
   name: string;
   kind: "Query" | "Mutation" | "job" | "action";
   args: Record<string, unknown>;
+  arg_aliases?: Record<string, string>;
   body: unknown[];
   read_time_granularity_ms?: number | null;
   returned_shapes?: Record<string, string>;

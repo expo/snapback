@@ -28,7 +28,7 @@ fn row(table: &Table, id: &str, n: u64) -> Value {
     Value::Row(values.into())
 }
 fn program(table: &str) -> Program {
-    Program { name: format!("rv_{table}"), kind: ProgramKind::Query, args: [("id".into(),ArgType::Id)].into(),
+    Program { name: format!("rv_{table}"), kind: ProgramKind::Query, args: [("id".into(),ArgType::Id)].into(), arg_aliases: Default::default(),
         body: vec![Stmt::Return(Expr::Get(Read { table: table.into(), index: BY_ID.into(), site: "rv".into(),
             key: vec![Expr::Variable("id".into())], provenance: KeyProvenance::Shape }))],
         native: false, returned_shapes: BTreeMap::new(), read_time_granularity_ms: None }

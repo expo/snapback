@@ -250,7 +250,7 @@ fn expression_block_effects_cannot_hide_a_mixed_write() {
     let p = Program {
         name: "probe".into(),
         kind: ProgramKind::Mutation,
-        args: Default::default(),
+        args: Default::default(), arg_aliases: Default::default(),
         read_time_granularity_ms: None,
         returned_shapes: Default::default(),
         native: false,
@@ -359,7 +359,7 @@ fn renewal_keys_account_for_later_loop_iterations() {
     let program = Program {
         name: "changingKey".into(),
         kind: ProgramKind::Mutation,
-        args: [("key".into(), ArgType::Id)].into(),
+        args: [("key".into(), ArgType::Id)].into(), arg_aliases: Default::default(),
         read_time_granularity_ms: None,
         returned_shapes: Default::default(),
         native: false,
@@ -396,7 +396,7 @@ fn renewal_keys_do_not_retain_stability_after_write_results_or_divmod_sinks() {
         Stmt::WriteTarget { target, patch:Expr::Object(Default::default()), upsert:true, condition:None, result:Some("key".into()) },
         Stmt::Let { name:"q".into(), value:Expr::Builtin { builtin:Builtin::Divmod { remainder_sink:"key".into() }, args:vec![Expr::Input(Input::Now),Expr::Literal(Value::Int(3))] } },
     ] {
-        let p=Program { name:"probe".into(),kind:ProgramKind::Mutation,args:[("key".into(),ArgType::Id)].into(),read_time_granularity_ms:None,returned_shapes:Default::default(),native:false,body:vec![setup,Stmt::Upsert {table:"typing".into(),key:Expr::Variable("key".into()),row:Expr::Object(Default::default())}] };
+        let p=Program { name:"probe".into(),kind:ProgramKind::Mutation,args:[("key".into(),ArgType::Id)].into(),arg_aliases:Default::default(),read_time_granularity_ms:None,returned_shapes:Default::default(),native:false,body:vec![setup,Stmt::Upsert {table:"typing".into(),key:Expr::Variable("key".into()),row:Expr::Object(Default::default())}] };
         assert!(!effects::Effects::of(&p, &Default::default()).renews);
     }
 }

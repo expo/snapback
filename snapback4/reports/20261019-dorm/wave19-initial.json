@@ -1,0 +1,1646 @@
+{
+  "binarySha256": "d77a3bbc834300a591a738c31fdd1505109f9d38b014357842c0e8d7686895b1",
+  "lanes": [
+    {
+      "lane": "006-snapback-trampoline-park-incidents",
+      "sourceReadOnly": true,
+      "populationScope": "authoritative schema view before read rules",
+      "rounds": [
+        {
+          "round": 1,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 54,
+            "tables": [
+              {
+                "rows": 54,
+                "sampleIds": [
+                  "01M59JB06TY2XGBQCH0Q98KST4",
+                  "01M59JB06TY2XGBQCH0Q98KST5",
+                  "01M59JB06TY2XGBQCH0Q98KST6",
+                  "01M59JB0TYFV0FR28DSVR5JT71",
+                  "01M59JB0WNRSE6CVX5JXG544Z8"
+                ],
+                "table": "parentReports",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "parentReports": {
+              "rows": 54,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59JB06TY2XGBQCH0Q98KST4",
+                "01M59JB06TY2XGBQCH0Q98KST5",
+                "01M59JB06TY2XGBQCH0Q98KST6",
+                "01M59JB0TYFV0FR28DSVR5JT71",
+                "01M59JB0WNRSE6CVX5JXG544Z8"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  54
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "bookings": 40,
+            "children": 42,
+            "courtHistory": 68,
+            "courts": 13,
+            "reports": 54,
+            "roles": 8,
+            "waivers": 41,
+            "witnesses": 54
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 3
+          }
+        },
+        {
+          "round": 2,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 54,
+            "tables": [
+              {
+                "rows": 54,
+                "sampleIds": [
+                  "01M59JB06TY2XGBQCH0Q98KST4",
+                  "01M59JB06TY2XGBQCH0Q98KST5",
+                  "01M59JB06TY2XGBQCH0Q98KST6",
+                  "01M59JB0TYFV0FR28DSVR5JT71",
+                  "01M59JB0WNRSE6CVX5JXG544Z8"
+                ],
+                "table": "parentReports",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "parentReports": {
+              "rows": 54,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59JB06TY2XGBQCH0Q98KST4",
+                "01M59JB06TY2XGBQCH0Q98KST5",
+                "01M59JB06TY2XGBQCH0Q98KST6",
+                "01M59JB0TYFV0FR28DSVR5JT71",
+                "01M59JB0WNRSE6CVX5JXG544Z8"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  54
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "bookings": 40,
+            "children": 42,
+            "courtHistory": 68,
+            "courts": 13,
+            "reports": 54,
+            "roles": 8,
+            "waivers": 41,
+            "witnesses": 54
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 3
+          }
+        }
+      ],
+      "releaseDirectories": [
+        "1",
+        "2",
+        "3"
+      ],
+      "status": "passed"
+    },
+    {
+      "lane": "008-snapback-fish-hatchery-raceways",
+      "sourceReadOnly": true,
+      "populationScope": "authoritative schema view before read rules",
+      "rounds": [
+        {
+          "round": 1,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 9,
+            "newerOnlyRows": 0,
+            "tables": [
+              {
+                "rows": 9,
+                "sampleIds": [
+                  "01M59JFD52H2A8GK1YSJR98YFZ",
+                  "01M59JNEZJRWCJYK2D0JNN67A7",
+                  "01M59JRAFEKG62SKBXK4XMWQNQ",
+                  "01M59JRMYV1QHHMJ3R25371TZC",
+                  "01M59KCJ72S4JKV65QT795YX5G"
+                ],
+                "table": "mortalityLogs",
+                "targetHasTable": true
+              }
+            ]
+          },
+          "dormantByTable": {
+            "mortalityLogs": {
+              "rows": 9,
+              "targetHasTable": true,
+              "sampleIds": [
+                "01M59JFD52H2A8GK1YSJR98YFZ",
+                "01M59JNEZJRWCJYK2D0JNN67A7",
+                "01M59JRAFEKG62SKBXK4XMWQNQ",
+                "01M59JRMYV1QHHMJ3R25371TZC",
+                "01M59KCJ72S4JKV65QT795YX5G"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  9
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "clearances": 20,
+            "feedLogs": 51,
+            "labReports": 24,
+            "loads": 46,
+            "mortalityLogs": 75,
+            "raceways": 34,
+            "staff": 8,
+            "treatmentHolds": 25,
+            "treatments": 26,
+            "waterReadings": 69
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 8
+          }
+        },
+        {
+          "round": 2,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 9,
+            "newerOnlyRows": 0,
+            "tables": [
+              {
+                "rows": 9,
+                "sampleIds": [
+                  "01M59JFD52H2A8GK1YSJR98YFZ",
+                  "01M59JNEZJRWCJYK2D0JNN67A7",
+                  "01M59JRAFEKG62SKBXK4XMWQNQ",
+                  "01M59JRMYV1QHHMJ3R25371TZC",
+                  "01M59KCJ72S4JKV65QT795YX5G"
+                ],
+                "table": "mortalityLogs",
+                "targetHasTable": true
+              }
+            ]
+          },
+          "dormantByTable": {
+            "mortalityLogs": {
+              "rows": 9,
+              "targetHasTable": true,
+              "sampleIds": [
+                "01M59JFD52H2A8GK1YSJR98YFZ",
+                "01M59JNEZJRWCJYK2D0JNN67A7",
+                "01M59JRAFEKG62SKBXK4XMWQNQ",
+                "01M59JRMYV1QHHMJ3R25371TZC",
+                "01M59KCJ72S4JKV65QT795YX5G"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  9
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "clearances": 20,
+            "feedLogs": 51,
+            "labReports": 24,
+            "loads": 46,
+            "mortalityLogs": 75,
+            "raceways": 34,
+            "staff": 8,
+            "treatmentHolds": 25,
+            "treatments": 26,
+            "waterReadings": 69
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 8
+          }
+        }
+      ],
+      "releaseDirectories": [
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8"
+      ],
+      "status": "passed"
+    },
+    {
+      "lane": "020-snapback-septic-pumpout-compliance",
+      "sourceReadOnly": true,
+      "populationScope": "authoritative schema view before read rules",
+      "rounds": [
+        {
+          "round": 1,
+          "previewVisibility": {
+            "cells": [
+              {
+                "column": "reason",
+                "rows": 6,
+                "sampleIds": [
+                  "01M59SDENHXH8D0K0AXNBG4X5X",
+                  "01M59SDWSP09FN5JVAFX9N3ST8",
+                  "01M59SEJ6SWK2400ER0YNZE1K8",
+                  "01M59SGTXW5XBNBEEWXYFZKA9B",
+                  "01M59SJ54W8ZAZRJ7E1P9ZSF0Y"
+                ],
+                "table": "extensions",
+                "value": "Null"
+              }
+            ],
+            "emptyCells": 6,
+            "hiddenRows": 0,
+            "newerOnlyRows": 31,
+            "tables": [
+              {
+                "rows": 31,
+                "sampleIds": [
+                  "01M59KNBFV9A9A19NW52DXQ0KB",
+                  "01M59KNBFYHFFWKVG3VCRE604Q",
+                  "01M59M2VFPZFDZY8TPSAPF68WG",
+                  "01M59M2VG5T6YX4CFTKZB9C4FX",
+                  "01M59M2X1ZX2GNZ4GBJ3XENTQ5"
+                ],
+                "table": "explanations",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "explanations": {
+              "rows": 31,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59KNBFV9A9A19NW52DXQ0KB",
+                "01M59KNBFYHFFWKVG3VCRE604Q",
+                "01M59M2VFPZFDZY8TPSAPF68WG",
+                "01M59M2VG5T6YX4CFTKZB9C4FX",
+                "01M59M2X1ZX2GNZ4GBJ3XENTQ5"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  31
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "extensions": 31,
+            "properties": 39,
+            "reports": 39,
+            "roles": 22
+          },
+          "oldReasonNulls": 12,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 3
+          }
+        },
+        {
+          "round": 2,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 31,
+            "tables": [
+              {
+                "rows": 31,
+                "sampleIds": [
+                  "01M59KNBFV9A9A19NW52DXQ0KB",
+                  "01M59KNBFYHFFWKVG3VCRE604Q",
+                  "01M59M2VFPZFDZY8TPSAPF68WG",
+                  "01M59M2VG5T6YX4CFTKZB9C4FX",
+                  "01M59M2X1ZX2GNZ4GBJ3XENTQ5"
+                ],
+                "table": "explanations",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "explanations": {
+              "rows": 31,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59KNBFV9A9A19NW52DXQ0KB",
+                "01M59KNBFYHFFWKVG3VCRE604Q",
+                "01M59M2VFPZFDZY8TPSAPF68WG",
+                "01M59M2VG5T6YX4CFTKZB9C4FX",
+                "01M59M2X1ZX2GNZ4GBJ3XENTQ5"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  31
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "extensions": 31,
+            "properties": 39,
+            "reports": 39,
+            "roles": 22
+          },
+          "oldReasonNulls": 12,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 3
+          }
+        }
+      ],
+      "releaseDirectories": [
+        "1",
+        "2",
+        "3"
+      ],
+      "declaredReverseCopy": {
+        "release": 4,
+        "visibility": {
+          "cells": [],
+          "emptyCells": 0,
+          "hiddenRows": 0,
+          "newerOnlyRows": 31,
+          "tables": [
+            {
+              "rows": 31,
+              "sampleIds": [
+                "01M59KNBFV9A9A19NW52DXQ0KB",
+                "01M59KNBFYHFFWKVG3VCRE604Q",
+                "01M59M2VFPZFDZY8TPSAPF68WG",
+                "01M59M2VG5T6YX4CFTKZB9C4FX",
+                "01M59M2X1ZX2GNZ4GBJ3XENTQ5"
+              ],
+              "table": "explanations",
+              "targetHasTable": false
+            }
+          ]
+        },
+        "reasonNulls": 12,
+        "activeExtensions": 31
+      },
+      "status": "failed",
+      "error": "declared reverse failed to preserve representable reason text"
+    },
+    {
+      "lane": "023-snapback-donor-milk-batches",
+      "sourceReadOnly": true,
+      "populationScope": "authoritative schema view before read rules",
+      "rounds": [
+        {
+          "round": 1,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 143,
+            "tables": [
+              {
+                "rows": 63,
+                "sampleIds": [
+                  "01M59J9SXP99FTHKF89HPCSJMP",
+                  "01M59J9SXP99FTHKF89HPCSJMS",
+                  "01M59JJT8Q49B959VREX83RA7Z",
+                  "01M59JJT8T1BEPF0EGDTSMM5WV",
+                  "01M59JJT8WM1KJ91PZMSJXYPY7"
+                ],
+                "table": "batchReaders",
+                "targetHasTable": false
+              },
+              {
+                "rows": 80,
+                "sampleIds": [
+                  "01M59J9SXP99FTHKF89HPCSJMM",
+                  "01M59J9SXP99FTHKF89HPCSJMN",
+                  "01M59J9SXP99FTHKF89HPCSJMQ",
+                  "01M59J9SXP99FTHKF89HPCSJMR",
+                  "01M59JJT8N6E1B0RXGG3K6GAWW"
+                ],
+                "table": "distributions",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "batchReaders": {
+              "rows": 63,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59J9SXP99FTHKF89HPCSJMP",
+                "01M59J9SXP99FTHKF89HPCSJMS",
+                "01M59JJT8Q49B959VREX83RA7Z",
+                "01M59JJT8T1BEPF0EGDTSMM5WV",
+                "01M59JJT8WM1KJ91PZMSJXYPY7"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  63
+                ]
+              ]
+            },
+            "distributions": {
+              "rows": 80,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59J9SXP99FTHKF89HPCSJMM",
+                "01M59J9SXP99FTHKF89HPCSJMN",
+                "01M59J9SXP99FTHKF89HPCSJMQ",
+                "01M59J9SXP99FTHKF89HPCSJMR",
+                "01M59JJT8N6E1B0RXGG3K6GAWW"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  80
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "accounts": 55,
+            "batches": 80,
+            "custody": 280,
+            "donations": 98,
+            "donors": 49
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 21
+          }
+        },
+        {
+          "round": 2,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 143,
+            "tables": [
+              {
+                "rows": 63,
+                "sampleIds": [
+                  "01M59J9SXP99FTHKF89HPCSJMP",
+                  "01M59J9SXP99FTHKF89HPCSJMS",
+                  "01M59JJT8Q49B959VREX83RA7Z",
+                  "01M59JJT8T1BEPF0EGDTSMM5WV",
+                  "01M59JJT8WM1KJ91PZMSJXYPY7"
+                ],
+                "table": "batchReaders",
+                "targetHasTable": false
+              },
+              {
+                "rows": 80,
+                "sampleIds": [
+                  "01M59J9SXP99FTHKF89HPCSJMM",
+                  "01M59J9SXP99FTHKF89HPCSJMN",
+                  "01M59J9SXP99FTHKF89HPCSJMQ",
+                  "01M59J9SXP99FTHKF89HPCSJMR",
+                  "01M59JJT8N6E1B0RXGG3K6GAWW"
+                ],
+                "table": "distributions",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "batchReaders": {
+              "rows": 63,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59J9SXP99FTHKF89HPCSJMP",
+                "01M59J9SXP99FTHKF89HPCSJMS",
+                "01M59JJT8Q49B959VREX83RA7Z",
+                "01M59JJT8T1BEPF0EGDTSMM5WV",
+                "01M59JJT8WM1KJ91PZMSJXYPY7"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  63
+                ]
+              ]
+            },
+            "distributions": {
+              "rows": 80,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59J9SXP99FTHKF89HPCSJMM",
+                "01M59J9SXP99FTHKF89HPCSJMN",
+                "01M59J9SXP99FTHKF89HPCSJMQ",
+                "01M59J9SXP99FTHKF89HPCSJMR",
+                "01M59JJT8N6E1B0RXGG3K6GAWW"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  80
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "accounts": 55,
+            "batches": 80,
+            "custody": 280,
+            "donations": 98,
+            "donors": 49
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 21
+          }
+        }
+      ],
+      "releaseDirectories": [
+        "1",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "2",
+        "20",
+        "21",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "status": "passed"
+    },
+    {
+      "lane": "035-snapback-research-vessel-berths",
+      "sourceReadOnly": true,
+      "populationScope": "authoritative schema view before read rules",
+      "rounds": [
+        {
+          "round": 1,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 100,
+            "tables": [
+              {
+                "rows": 100,
+                "sampleIds": [
+                  "01M59KSXW69221PGQ5KN877S8X",
+                  "01M59KZRFFHYGCKWDM83TGSH82",
+                  "01M59KZRFFHYGCKWDM83TGSH83",
+                  "01M59KZRFFHYGCKWDM83TGSH84",
+                  "01M59KZRFFHYGCKWDM83TGSH85"
+                ],
+                "table": "paperwork",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "paperwork": {
+              "rows": 100,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59KSXW69221PGQ5KN877S8X",
+                "01M59KZRFFHYGCKWDM83TGSH82",
+                "01M59KZRFFHYGCKWDM83TGSH83",
+                "01M59KZRFFHYGCKWDM83TGSH84",
+                "01M59KZRFFHYGCKWDM83TGSH85"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  100
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "berths": 147,
+            "cruises": 100,
+            "medical": 24,
+            "roles": 31,
+            "stations": 44,
+            "survival": 24
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 3
+          }
+        },
+        {
+          "round": 2,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 100,
+            "tables": [
+              {
+                "rows": 100,
+                "sampleIds": [
+                  "01M59KSXW69221PGQ5KN877S8X",
+                  "01M59KZRFFHYGCKWDM83TGSH82",
+                  "01M59KZRFFHYGCKWDM83TGSH83",
+                  "01M59KZRFFHYGCKWDM83TGSH84",
+                  "01M59KZRFFHYGCKWDM83TGSH85"
+                ],
+                "table": "paperwork",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "paperwork": {
+              "rows": 100,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59KSXW69221PGQ5KN877S8X",
+                "01M59KZRFFHYGCKWDM83TGSH82",
+                "01M59KZRFFHYGCKWDM83TGSH83",
+                "01M59KZRFFHYGCKWDM83TGSH84",
+                "01M59KZRFFHYGCKWDM83TGSH85"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  100
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "berths": 147,
+            "cruises": 100,
+            "medical": 24,
+            "roles": 31,
+            "stations": 44,
+            "survival": 24
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 3
+          }
+        }
+      ],
+      "releaseDirectories": [
+        "1",
+        "2",
+        "3"
+      ],
+      "status": "passed"
+    },
+    {
+      "lane": "037-snapback-dairy-tanker-pickups",
+      "sourceReadOnly": true,
+      "populationScope": "authoritative schema view before read rules",
+      "rounds": [
+        {
+          "round": 1,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 86,
+            "tables": [
+              {
+                "rows": 86,
+                "sampleIds": [
+                  "01M59MH5BJBRF3MH3F7BV1YT79",
+                  "01M59MHYN6WYP3CF4HPQNE8QHW",
+                  "01M59MPCQZY19K85RDQ7EF4NGZ",
+                  "01M59MPCRG0WGZFKN9R3VMJ7JS",
+                  "01M59MPCRG0WGZFKN9R3VMJ7JT"
+                ],
+                "table": "pickupSizes",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "pickupSizes": {
+              "rows": 86,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59MH5BJBRF3MH3F7BV1YT79",
+                "01M59MHYN6WYP3CF4HPQNE8QHW",
+                "01M59MPCQZY19K85RDQ7EF4NGZ",
+                "01M59MPCRG0WGZFKN9R3VMJ7JS",
+                "01M59MPCRG0WGZFKN9R3VMJ7JT"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  86
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "docks": 37,
+            "farmResults": 68,
+            "farms": 8,
+            "members": 30,
+            "pickups": 89,
+            "tankers": 69
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 2
+          }
+        },
+        {
+          "round": 2,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 86,
+            "tables": [
+              {
+                "rows": 86,
+                "sampleIds": [
+                  "01M59MH5BJBRF3MH3F7BV1YT79",
+                  "01M59MHYN6WYP3CF4HPQNE8QHW",
+                  "01M59MPCQZY19K85RDQ7EF4NGZ",
+                  "01M59MPCRG0WGZFKN9R3VMJ7JS",
+                  "01M59MPCRG0WGZFKN9R3VMJ7JT"
+                ],
+                "table": "pickupSizes",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "pickupSizes": {
+              "rows": 86,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59MH5BJBRF3MH3F7BV1YT79",
+                "01M59MHYN6WYP3CF4HPQNE8QHW",
+                "01M59MPCQZY19K85RDQ7EF4NGZ",
+                "01M59MPCRG0WGZFKN9R3VMJ7JS",
+                "01M59MPCRG0WGZFKN9R3VMJ7JT"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  86
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "docks": 37,
+            "farmResults": 68,
+            "farms": 8,
+            "members": 30,
+            "pickups": 89,
+            "tankers": 69
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 2
+          }
+        }
+      ],
+      "releaseDirectories": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "unchangedAppLabelHoles": 3,
+      "labelNote": "Original app uses a manual side-table migration, not a declared backfill; product cannot invent its missing fanout. The declared same-table catch-up is qualified separately.",
+      "status": "passed"
+    },
+    {
+      "lane": "039-snapback-countertop-slab-layouts",
+      "sourceReadOnly": true,
+      "populationScope": "authoritative schema view before read rules",
+      "rounds": [
+        {
+          "round": 1,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 52,
+            "tables": [
+              {
+                "rows": 52,
+                "sampleIds": [
+                  "01M59MC43J187112R5ZT37FP3X",
+                  "01M59MC43J187112R5ZT37FP3Y",
+                  "01M59MC43J187112R5ZT37FP3Z",
+                  "01M59MC43J187112R5ZT37FP40",
+                  "01M59MC4PQCHM7ZPC0R0NAZJ9P"
+                ],
+                "table": "jobReviews",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "jobReviews": {
+              "rows": 52,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59MC43J187112R5ZT37FP3X",
+                "01M59MC43J187112R5ZT37FP3Y",
+                "01M59MC43J187112R5ZT37FP3Z",
+                "01M59MC43J187112R5ZT37FP40",
+                "01M59MC4PQCHM7ZPC0R0NAZJ9P"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  52
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "holds": 38,
+            "jobs": 52,
+            "prices": 52,
+            "recuts": 24,
+            "roles": 12,
+            "slabs": 38
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 15
+          }
+        },
+        {
+          "round": 2,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 52,
+            "tables": [
+              {
+                "rows": 52,
+                "sampleIds": [
+                  "01M59MC43J187112R5ZT37FP3X",
+                  "01M59MC43J187112R5ZT37FP3Y",
+                  "01M59MC43J187112R5ZT37FP3Z",
+                  "01M59MC43J187112R5ZT37FP40",
+                  "01M59MC4PQCHM7ZPC0R0NAZJ9P"
+                ],
+                "table": "jobReviews",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "jobReviews": {
+              "rows": 52,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59MC43J187112R5ZT37FP3X",
+                "01M59MC43J187112R5ZT37FP3Y",
+                "01M59MC43J187112R5ZT37FP3Z",
+                "01M59MC43J187112R5ZT37FP40",
+                "01M59MC4PQCHM7ZPC0R0NAZJ9P"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  52
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "holds": 38,
+            "jobs": 52,
+            "prices": 52,
+            "recuts": 24,
+            "roles": 12,
+            "slabs": 38
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 15
+          }
+        }
+      ],
+      "releaseDirectories": [
+        "1",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "status": "passed"
+    },
+    {
+      "lane": "040-snapback-lifeboat-crew-pagers",
+      "sourceReadOnly": true,
+      "populationScope": "authoritative schema view before read rules",
+      "rounds": [
+        {
+          "round": 1,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 58,
+            "tables": [
+              {
+                "rows": 20,
+                "sampleIds": [
+                  "01M59MBVWQM4RXEANFZABN24QC",
+                  "01M59MECNPB98AFHY1XG70WP1P",
+                  "01M59MGEDS534YK3JM0QT5ZG60",
+                  "01M59MJ43RHN4MTDD292NJB4ZF",
+                  "01M59MMAPM1JNMZG1G7Q2AE6FD"
+                ],
+                "table": "availabilityReplies",
+                "targetHasTable": false
+              },
+              {
+                "rows": 38,
+                "sampleIds": [
+                  "01M59MBVWQM4RXEANFZABN24QD",
+                  "01M59MBVWV4WGT2TX29T281592",
+                  "01M59MECNPB98AFHY1XG70WP1Q",
+                  "01M59MECNSYJHF9JYNNMWRNRRS",
+                  "01M59MGEDS534YK3JM0QT5ZG61"
+                ],
+                "table": "availabilityRevisions",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "availabilityReplies": {
+              "rows": 20,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59MBVWQM4RXEANFZABN24QC",
+                "01M59MECNPB98AFHY1XG70WP1P",
+                "01M59MGEDS534YK3JM0QT5ZG60",
+                "01M59MJ43RHN4MTDD292NJB4ZF",
+                "01M59MMAPM1JNMZG1G7Q2AE6FD"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  20
+                ]
+              ]
+            },
+            "availabilityRevisions": {
+              "rows": 38,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59MBVWQM4RXEANFZABN24QD",
+                "01M59MBVWV4WGT2TX29T281592",
+                "01M59MECNPB98AFHY1XG70WP1Q",
+                "01M59MECNSYJHF9JYNNMWRNRRS",
+                "01M59MGEDS534YK3JM0QT5ZG61"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  38
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "calls": 45,
+            "casualties": 41,
+            "members": 8,
+            "photos": 126,
+            "qualifications": 8,
+            "seats": 94,
+            "station": 1
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 24
+          }
+        },
+        {
+          "round": 2,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 58,
+            "tables": [
+              {
+                "rows": 20,
+                "sampleIds": [
+                  "01M59MBVWQM4RXEANFZABN24QC",
+                  "01M59MECNPB98AFHY1XG70WP1P",
+                  "01M59MGEDS534YK3JM0QT5ZG60",
+                  "01M59MJ43RHN4MTDD292NJB4ZF",
+                  "01M59MMAPM1JNMZG1G7Q2AE6FD"
+                ],
+                "table": "availabilityReplies",
+                "targetHasTable": false
+              },
+              {
+                "rows": 38,
+                "sampleIds": [
+                  "01M59MBVWQM4RXEANFZABN24QD",
+                  "01M59MBVWV4WGT2TX29T281592",
+                  "01M59MECNPB98AFHY1XG70WP1Q",
+                  "01M59MECNSYJHF9JYNNMWRNRRS",
+                  "01M59MGEDS534YK3JM0QT5ZG61"
+                ],
+                "table": "availabilityRevisions",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "availabilityReplies": {
+              "rows": 20,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59MBVWQM4RXEANFZABN24QC",
+                "01M59MECNPB98AFHY1XG70WP1P",
+                "01M59MGEDS534YK3JM0QT5ZG60",
+                "01M59MJ43RHN4MTDD292NJB4ZF",
+                "01M59MMAPM1JNMZG1G7Q2AE6FD"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  20
+                ]
+              ]
+            },
+            "availabilityRevisions": {
+              "rows": 38,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59MBVWQM4RXEANFZABN24QD",
+                "01M59MBVWV4WGT2TX29T281592",
+                "01M59MECNPB98AFHY1XG70WP1Q",
+                "01M59MECNSYJHF9JYNNMWRNRRS",
+                "01M59MGEDS534YK3JM0QT5ZG61"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  38
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "calls": 45,
+            "casualties": 41,
+            "members": 8,
+            "photos": 126,
+            "qualifications": 8,
+            "seats": 94,
+            "station": 1
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 24
+          }
+        }
+      ],
+      "releaseDirectories": [
+        "1",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "2",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "status": "passed"
+    },
+    {
+      "lane": "043-snapback-safe-deposit-access",
+      "sourceReadOnly": true,
+      "populationScope": "authoritative schema view before read rules",
+      "rounds": [
+        {
+          "round": 1,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 149,
+            "tables": [
+              {
+                "rows": 149,
+                "sampleIds": [
+                  "01M59MJGBMA5GK1AADAE2E8GWW",
+                  "01M59MMB2WXTSW6K8B1KYNEGT2",
+                  "01M59MMB2WXTSW6K8B1KYNEGT3",
+                  "01M59MMB2WXTSW6K8B1KYNEGT4",
+                  "01M59MMB2WXTSW6K8B1KYNEGT5"
+                ],
+                "table": "rentalArrangements",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "rentalArrangements": {
+              "rows": 149,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59MJGBMA5GK1AADAE2E8GWW",
+                "01M59MMB2WXTSW6K8B1KYNEGT2",
+                "01M59MMB2WXTSW6K8B1KYNEGT3",
+                "01M59MMB2WXTSW6K8B1KYNEGT4",
+                "01M59MMB2WXTSW6K8B1KYNEGT5"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  149
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "authorizations": 43,
+            "boxes": 149,
+            "contents": 41,
+            "members": 208,
+            "presence": 84,
+            "roles": 8,
+            "visits": 84
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 2
+          }
+        },
+        {
+          "round": 2,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 149,
+            "tables": [
+              {
+                "rows": 149,
+                "sampleIds": [
+                  "01M59MJGBMA5GK1AADAE2E8GWW",
+                  "01M59MMB2WXTSW6K8B1KYNEGT2",
+                  "01M59MMB2WXTSW6K8B1KYNEGT3",
+                  "01M59MMB2WXTSW6K8B1KYNEGT4",
+                  "01M59MMB2WXTSW6K8B1KYNEGT5"
+                ],
+                "table": "rentalArrangements",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "rentalArrangements": {
+              "rows": 149,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59MJGBMA5GK1AADAE2E8GWW",
+                "01M59MMB2WXTSW6K8B1KYNEGT2",
+                "01M59MMB2WXTSW6K8B1KYNEGT3",
+                "01M59MMB2WXTSW6K8B1KYNEGT4",
+                "01M59MMB2WXTSW6K8B1KYNEGT5"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  149
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "authorizations": 43,
+            "boxes": 149,
+            "contents": 41,
+            "members": 208,
+            "presence": 84,
+            "roles": 8,
+            "visits": 84
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 2
+          }
+        }
+      ],
+      "releaseDirectories": [
+        "1",
+        "2"
+      ],
+      "status": "passed"
+    },
+    {
+      "lane": "047-snapback-hyperbaric-chamber-log",
+      "sourceReadOnly": true,
+      "populationScope": "authoritative schema view before read rules",
+      "rounds": [
+        {
+          "round": 1,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 82,
+            "tables": [
+              {
+                "rows": 82,
+                "sampleIds": [
+                  "01M59NS00R93F9Z25E8DA2AJ3C",
+                  "01M59NS00WRSXH35JHJ596F7J0",
+                  "01M59NS6QAAVQK3QFWRAV4RNCA",
+                  "01M59NS6RS5SC38QKGKXHZMH2S",
+                  "01M59NT08EAP0Z0WE1F4ZG71C1"
+                ],
+                "table": "prescription_histories",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "prescription_histories": {
+              "rows": 82,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59NS00R93F9Z25E8DA2AJ3C",
+                "01M59NS00WRSXH35JHJ596F7J0",
+                "01M59NS6QAAVQK3QFWRAV4RNCA",
+                "01M59NS6RS5SC38QKGKXHZMH2S",
+                "01M59NT08EAP0Z0WE1F4ZG71C1"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  82
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "consents": 31,
+            "diagnoses": 41,
+            "patients": 31,
+            "physician_claims": 1,
+            "plan_extensions": 49,
+            "plans": 82,
+            "staff": 51,
+            "treatments": 83,
+            "unit": 1
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 26
+          }
+        },
+        {
+          "round": 2,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 82,
+            "tables": [
+              {
+                "rows": 82,
+                "sampleIds": [
+                  "01M59NS00R93F9Z25E8DA2AJ3C",
+                  "01M59NS00WRSXH35JHJ596F7J0",
+                  "01M59NS6QAAVQK3QFWRAV4RNCA",
+                  "01M59NS6RS5SC38QKGKXHZMH2S",
+                  "01M59NT08EAP0Z0WE1F4ZG71C1"
+                ],
+                "table": "prescription_histories",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "prescription_histories": {
+              "rows": 82,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59NS00R93F9Z25E8DA2AJ3C",
+                "01M59NS00WRSXH35JHJ596F7J0",
+                "01M59NS6QAAVQK3QFWRAV4RNCA",
+                "01M59NS6RS5SC38QKGKXHZMH2S",
+                "01M59NT08EAP0Z0WE1F4ZG71C1"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  82
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "consents": 31,
+            "diagnoses": 41,
+            "patients": 31,
+            "physician_claims": 1,
+            "plan_extensions": 49,
+            "plans": 82,
+            "staff": 51,
+            "treatments": 83,
+            "unit": 1
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 26
+          }
+        }
+      ],
+      "releaseDirectories": [
+        "1",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "2",
+        "20",
+        "21",
+        "22",
+        "23",
+        "24",
+        "25",
+        "26",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "status": "passed"
+    },
+    {
+      "lane": "049-snapback-park-pavilion-deposits",
+      "sourceReadOnly": true,
+      "populationScope": "authoritative schema view before read rules",
+      "rounds": [
+        {
+          "round": 1,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 63,
+            "tables": [
+              {
+                "rows": 63,
+                "sampleIds": [
+                  "01M59N1C8HPME4GFH4K8CGFDK1",
+                  "01M59N1C8HPME4GFH4K8CGFDK2",
+                  "01M59N5JHD2Q38NWJQ2XV34TB7",
+                  "01M59N5JHD2Q38NWJQ2XV34TB8",
+                  "01M59N5JXVXZDB2NHPRQTW9RPJ"
+                ],
+                "table": "depositReviews",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "depositReviews": {
+              "rows": 63,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59N1C8HPME4GFH4K8CGFDK1",
+                "01M59N1C8HPME4GFH4K8CGFDK2",
+                "01M59N5JHD2Q38NWJQ2XV34TB7",
+                "01M59N5JHD2Q38NWJQ2XV34TB8",
+                "01M59N5JXVXZDB2NHPRQTW9RPJ"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  63
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "availability": 63,
+            "bookings": 63,
+            "payments": 54,
+            "people": 21
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 20
+          }
+        },
+        {
+          "round": 2,
+          "previewVisibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 63,
+            "tables": [
+              {
+                "rows": 63,
+                "sampleIds": [
+                  "01M59N1C8HPME4GFH4K8CGFDK1",
+                  "01M59N1C8HPME4GFH4K8CGFDK2",
+                  "01M59N5JHD2Q38NWJQ2XV34TB7",
+                  "01M59N5JHD2Q38NWJQ2XV34TB8",
+                  "01M59N5JXVXZDB2NHPRQTW9RPJ"
+                ],
+                "table": "depositReviews",
+                "targetHasTable": false
+              }
+            ]
+          },
+          "dormantByTable": {
+            "depositReviews": {
+              "rows": 63,
+              "targetHasTable": false,
+              "sampleIds": [
+                "01M59N1C8HPME4GFH4K8CGFDK1",
+                "01M59N1C8HPME4GFH4K8CGFDK2",
+                "01M59N5JHD2Q38NWJQ2XV34TB7",
+                "01M59N5JHD2Q38NWJQ2XV34TB8",
+                "01M59N5JXVXZDB2NHPRQTW9RPJ"
+              ],
+              "inspection": [
+                [
+                  "dormant-row",
+                  63
+                ]
+              ]
+            }
+          },
+          "activeV1": {
+            "availability": 63,
+            "bookings": 63,
+            "payments": 54,
+            "people": 21
+          },
+          "oldReasonNulls": 0,
+          "forward": {
+            "lost": 0,
+            "changed": 0,
+            "release": 20
+          }
+        }
+      ],
+      "releaseDirectories": [
+        "1",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "2",
+        "20",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9"
+      ],
+      "status": "passed"
+    }
+  ]
+}

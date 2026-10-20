@@ -18,10 +18,23 @@ impl Parser {
                 }
                 d
             })?;
-            let default = if self.maybe("default") { Some(self.expression(0, &[",", ")", "deprecated"])? ) } else { None };
-            let deprecated = self.maybe("deprecated");
+            let mut default = None;
+            let mut alias = None;
+            let mut deprecated = false;
+            loop {
+                if self.maybe("default") {
+                    if default.is_some() { return Err(syntax(&self.peek().site, "an argument has at most one default")); }
+                    default = Some(self.expression(0, &[",", ")", "alias", "deprecated"])?);
+                } else if self.maybe("alias") {
+                    if alias.is_some() { return Err(syntax(&self.peek().site, "an argument has at most one alias")); }
+                    alias = Some(self.local_name()?);
+                } else if self.maybe("deprecated") {
+                    if deprecated { return Err(syntax(&self.peek().site, "an argument is marked deprecated at most once")); }
+                    deprecated = true;
+                } else { break; }
+            }
             if self.at("=") { return Err(syntax(&self.peek().site,"argument defaults use `default <literal>`")); }
-            args.push(ArgDecl { name: binding, type_, default, deprecated, site: name.site });
+            args.push(ArgDecl { name: binding, type_, default, alias, deprecated, site: name.site });
             if !self.maybe(",") {
                 break;
             }

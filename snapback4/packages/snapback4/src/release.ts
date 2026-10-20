@@ -12,7 +12,7 @@ export type ServedType = "Id" | "Principal" | "Int" | "Bool" | "Time" | "Cursor"
   | { readonly Money: { readonly currency: string; readonly scale: number } } | { readonly Optional: ServedType }
   | { readonly List: { readonly of?: ServedType | null; readonly max: number } }
   | { readonly ListRange: { readonly of?: ServedType | null; readonly min: number; readonly max: number } };
-export interface ServedOperation { readonly kind: "query" | "mutation" | "action"; readonly args: Readonly<Record<string, ServedType>> }
+export interface ServedOperation { readonly kind: "query" | "mutation" | "action"; readonly args: Readonly<Record<string, ServedType>>; readonly aliases?: Readonly<Record<string,string>> }
 export interface ServedRelease {
   readonly generation: number;
   readonly operations: Readonly<Record<string, ServedOperation>>;
@@ -29,12 +29,23 @@ const canonical = (value: unknown): string => JSON.stringify(value, (_, item) =>
   ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
 
 /** A conservative signature check. A release switch may race it: still handle E_OP/E_INPUT. */
-export function operationAvailable(release: ReleaseSnapshot, name: string, kind: string, args: Record<string, unknown>): boolean {
+export function operationAvailable(release: ReleaseSnapshot, name: string, kind: string, args: Record<string, unknown>, aliases: Record<string,string> = {}): boolean {
   if (!("generation" in release)) return false;
   const op = release.operations[name];
-  return !!op && op.kind === kind
-    && Object.entries(args).every(([name, type]) => canonical(op.args[name]) === canonical(type))
-    && Object.entries(op.args).every(([name, type]) => Object.hasOwn(args, name) || (object(type) && Object.hasOwn(type, "Optional")));
+  if (!op || op.kind !== kind) return false;
+  const servedAliases = op.aliases ?? {};
+  return Object.entries(args).every(([expected, type]) => {
+      const names=[expected,
+        ...Object.entries(aliases).filter(([,canonicalName])=>canonicalName===expected).map(([alias])=>alias),
+        ...(servedAliases[expected] ? [servedAliases[expected]] : [])];
+      return names.some(servedName=>Object.hasOwn(op.args,servedName) && canonical(op.args[servedName])===canonical(type));
+    })
+    && Object.entries(op.args).every(([servedName, type]) => {
+      const names=[servedName,
+        ...Object.entries(servedAliases).filter(([,canonicalName])=>canonicalName===servedName).map(([alias])=>alias),
+        ...(aliases[servedName] ? [aliases[servedName]] : [])];
+      return names.some(expectedName=>Object.hasOwn(args,expectedName)) || (object(type) && Object.hasOwn(type,"Optional"));
+    });
 }
 
 function freeze<T>(value: T): T {
@@ -48,7 +59,8 @@ function decode(value: unknown): ServedRelease | undefined {
   const tables: Record<string, { fields: Record<string, ServedType> }> = Object.create(null);
   for (const op of value.ops) {
     if (!object(op) || typeof op.name !== "string" || !["query", "mutation", "action"].includes(op.kind as string) || !object(op.args)) return;
-    operations[op.name] = freeze({ kind: op.kind as ServedOperation["kind"], args: op.args as Record<string, ServedType> });
+    if (op.aliases !== undefined && (!object(op.aliases) || Object.values(op.aliases).some(value => typeof value !== "string"))) return;
+    operations[op.name] = freeze({ kind: op.kind as ServedOperation["kind"], args: op.args as Record<string, ServedType>, aliases: (op.aliases ?? {}) as Record<string,string> });
   }
   for (const table of value.tables) {
     if (!object(table) || typeof table.name !== "string" || !object(table.fields)) return;

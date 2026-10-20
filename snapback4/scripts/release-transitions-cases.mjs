@@ -198,7 +198,86 @@ mutation setup():
     assert.ok(timedPreview.backfills.length);
     assert.ok(!timedPreview.hazards.some(line=>line.includes('refuses on the post-deploy snapshot')),JSON.stringify(timedPreview));
     await clockHost.host.stop();active.delete(clockHost.host);
-    return {status:'passed',reactivation:['cold','hot','same-id','dormant-values','unchanged','backfill-receipts'],refusals:['adoption','post-validation-pointer','no-candidate-left'],rollbackForesight:'dropped-required-column-and-later-writes',oldClients:'installed-guide-signature-diff-baseline-projected-domains'};
+    // Preview capture must survive activation changing SQLite temp_store for
+    // live-parent restoration. Exercise both live and captured read-through
+    // records across rollback preview and retained-source deploy restoration.
+    const p=fixture('preview-live-and-captured-refs');
+    const refs=`use identity guests
+table liveParents:
+  owner: principal
+  access: enum('open','pending','closed')
+  immutable owner, access
+  read <- .owner = viewer and .access != 'closed'
+  insert <- .owner = viewer
+  online only
+table liveChildren:
+  parent: liveParents
+  body: enum('live','captured','other')
+  note: text ?
+  unused: text ?
+  immutable parent
+  cap 5 by parent
+  read through live .parent
+  insert <- allow
+  online only
+table capturedParents:
+  owner: principal
+  access: enum('open','pending','closed')
+  immutable owner, access
+  read <- .owner = viewer and .access != 'closed'
+  insert <- .owner = viewer
+  online only
+table capturedChildren:
+  parent: capturedParents
+  body: enum('live','captured','other')
+  immutable parent
+  read through .parent
+  insert <- allow
+  online only
+mutation setup():
+  liveParent = insert liveParents {owner:viewer, access:'open'}
+  insert liveChildren {parent:liveParent.id, body:'live', note:null}
+  capturedParent = insert capturedParents {owner:viewer, access:'open'}
+  return insert capturedChildren {parent:capturedParent.id, body:'captured'}
+query liveRows():
+  return liveChildren first 10 by .id
+query capturedRows():
+  return capturedChildren first 10 by .id
+`;
+    const narrowed=refs.replaceAll("body: enum('live','captured','other')","body: enum('other')\n  later: text ?").replace("body:'live'","body:'other'").replace("body:'captured'","body:'other'");
+    p.source(refs);await p.run(['deploy',p.deployment]);
+    const refHost=await p.serve();assert.equal((await refHost.post('/m/setup',{},'dorm-preview-refs')).state,'sent');
+    assert.equal((await refHost.post('/q/liveRows')).data[0].body,'live');
+    assert.equal((await refHost.post('/q/capturedRows')).data[0].body,'captured');
+    p.source(narrowed);await p.run(['deploy',p.deployment]);
+    const dormantRows=JSON.parse((await p.run(['sql','SELECT id, body, note, later, _snapback_state, _snapback_source, _snapback_columns FROM liveChildren','--release',p.deployment,'--dormant','--json-objects'])).stdout);
+    assert.equal(dormantRows.rows.length,1,JSON.stringify(dormantRows));
+    assert.equal(dormantRows.rows[0].body,'live');assert.equal(dormantRows.rows[0]._snapback_state,'dormant-row');assert.equal(dormantRows.rows[0]._snapback_source,'narrowed');
+    assert.equal(dormantRows.rows[0].note,null);assert.equal(dormantRows.rows[0].later,null);
+    const provided=JSON.parse(dormantRows.rows[0]._snapback_columns);assert.ok(provided.includes('note'),JSON.stringify(provided));assert.ok(!provided.includes('later'),JSON.stringify(provided));
+    const retainedRows=JSON.parse((await p.run(['sql','SELECT id, body, _snapback_state, _snapback_source FROM capturedChildren','--release',p.deployment,'--all-releases','--json-objects'])).stdout);
+    assert.equal(retainedRows.rows.length,1,JSON.stringify(retainedRows));assert.equal(retainedRows.rows[0]._snapback_source,'narrowed');
+    const internal=await p.invoke(['sql','SELECT * FROM _dormant_rows','--release',p.deployment,'--dormant']);assert.equal(internal.code,1);assert.match(internal.stderr,/E_SQL_INTERNAL/);
+    const beforeRefPreview=await p.status();
+    const checked=await p.run(['rollback',p.deployment,'--to','1','--check','--json']);
+    assert.equal(JSON.parse(checked.stdout).plan.release,1);assert.deepEqual(await p.status(),beforeRefPreview);
+    p.source(refs);await p.run(['deploy',p.deployment,'--restore-dormant']);
+    assert.equal((await p.status()).release,1);
+    assert.equal((await refHost.post('/q/liveRows')).data[0].body,'live');
+    assert.equal((await refHost.post('/q/capturedRows')).data[0].body,'captured');
+    const activeAndRetained=JSON.parse((await p.run(['sql','SELECT body, _snapback_state, _snapback_source, _snapback_columns FROM liveChildren','--release',p.deployment,'--all-releases','--json-objects'])).stdout);
+    assert.equal(activeAndRetained.rows.length,1);assert.equal(activeAndRetained.rows[0].body,'live');assert.equal(activeAndRetained.rows[0]._snapback_state,'active');assert.equal(activeAndRetained.rows[0]._snapback_source,null);
+    assert.deepEqual(p.releases(),['1','2']);
+    // A predicate-only change preserves captured parent/lifetime evidence;
+    // selecting the retained broader rule must not require recapture.
+    const predicate=refs.replaceAll(".access != 'closed'",".access = 'open'");
+    p.source(predicate);await p.run(['deploy',p.deployment]);
+    assert.equal((await refHost.post('/q/capturedRows')).data[0].body,'captured');
+    await p.run(['rollback',p.deployment,'--to','1','--check']);
+    await p.run(['rollback',p.deployment,'--to','1']);
+    assert.equal((await refHost.post('/q/capturedRows')).data[0].body,'captured');
+    await refHost.host.stop();active.delete(refHost.host);
+    return {status:'passed',reactivation:['cold','hot','same-id','dormant-values','unchanged','backfill-receipts','live-and-captured-ref-preview'],refusals:['adoption','post-validation-pointer','no-candidate-left'],rollbackForesight:'dropped-required-column-and-later-writes',oldClients:'installed-guide-signature-diff-baseline-projected-domains'};
   } finally {
     try {for(const host of active)await host.stop();} finally {rmSync(root,{recursive:true,force:true});}
   }

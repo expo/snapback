@@ -62,7 +62,7 @@ fn later_program_owned_writes_refuse_identically_on_digest_hit_and_miss() {
                     "upsert" => Stmt::Upsert { table: "feedFeed".into(), key: Expr::Literal(target.clone()), row: Expr::Literal(row.clone()) },
                     _ => Stmt::Delete { table: "feedFeed".into(), key: Expr::Literal(target.clone()) },
                 };
-                let bad = Program { name: "bad".into(), kind: ProgramKind::Mutation, args: Default::default(), read_time_granularity_ms: None, body: vec![statement], returned_shapes: Default::default(), native: false };
+                let bad = Program { name: "bad".into(), kind: ProgramKind::Mutation, args: Default::default(), arg_aliases: Default::default(), read_time_granularity_ms: None, body: vec![statement], returned_shapes: Default::default(), native: false };
                 let mut programs = b.programs.drain(..).map(|p|p.program).collect::<Vec<_>>(); programs.push(bad);
                 let mut e = Engine::memory(b.schema, programs).unwrap();
                 e.load_trusted(saved.clone().into_iter().flat_map(|(t,rs)|rs.into_iter().filter(|r|present || t!="feedFeed" || r.field("id").unwrap()!=&target).map(|r|(t.clone(),r)).collect::<Vec<_>>())).unwrap();

@@ -99,7 +99,7 @@ impl Pair {
             let name = format!("pairSeed{n}");
             seed_names.push(name.clone());
             programs.push(snapback4_core::ir::Program {
-                name, kind: ProgramKind::Mutation, args: Default::default(),
+                name, kind: ProgramKind::Mutation, args: Default::default(), arg_aliases: Default::default(),
                 read_time_granularity_ms: None, body, native: false,
                 returned_shapes: Default::default(),
             });

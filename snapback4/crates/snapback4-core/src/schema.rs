@@ -45,6 +45,9 @@ pub use routes::RouteSpec;
 pub struct Schema {
     #[cfg(feature = "sqlite")]
     pub backfills: Vec<backfill::Backfill>,
+    /// Candidate-owned projections used only while selecting an older schema.
+    #[cfg(feature = "sqlite")]
+    pub downfills: Vec<backfill::Backfill>,
     pub receipts: Vec<ReceiptFamily>,
     /// Schema-time closure; retained on device projections without private derivations.
     pub receipt_dependencies: BTreeMap<String, BTreeSet<String>>,
@@ -120,6 +123,10 @@ pub struct SearchComposition {
 // @ref LLP 3000.007#6.2 — eligibility is static; prediction and horizon coverage are per call.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Execution {
+    /// This operation accepts a legacy wire argument name. Engines that omit
+    /// Program aliases would otherwise reject a compatible old call locally.
+    #[serde(default, rename = "argumentAliases", skip_serializing_if = "std::ops::Not::not")]
+    pub argument_aliases: bool,
     /// A compiler-proved point projection, evaluated after the bare search page.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub search_decoration: bool,

@@ -125,7 +125,7 @@ fn policy_in(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewe
         rules::Verdict::Readable=>Ok(true),rules::Verdict::Denied=>Ok(false),rules::Verdict::Unknown=>Err("policy reference/coverage judgment is unknown; never a refutation".into()),
     }
 }
-fn program(name:&str,kind:ProgramKind,body:Vec<Stmt>)->Program{Program{name:name.into(),kind,args:BTreeMap::new(),body,read_time_granularity_ms:None,returned_shapes:BTreeMap::new(),native:false}}
+fn program(name:&str,kind:ProgramKind,body:Vec<Stmt>)->Program{Program{name:name.into(),kind,args:BTreeMap::new(),arg_aliases:BTreeMap::new(),body,read_time_granularity_ms:None,returned_shapes:BTreeMap::new(),native:false}}
 fn engine(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probe:Program)->Result<Engine,String>{
     engine_with(bound,rows,vec![probe])
 }

@@ -1,0 +1,9 @@
+muse: workspace root: /home/ccheever/projects/sb4-b19-dorm (cwd default)
+muse: workspace trust: trusted source=run-flag
+This clarification closes the one-way hole safely: compilation refuses protected paired renames before either direction activates, so no forward-only advertised rename can exist.
+
+It is implementable as a compile-time reuse of the existing closed computed-down boundary, with no new conversion or authority.
+
+It is consistent: the reject set — references, assets, collections, engine-owned/maintained columns — plus identical structural type equality including bounds/nullability/enums, same-row/table scalar-only support, and unchanged lifetime laws preserves the described boundaries.
+
+Verdict: READY

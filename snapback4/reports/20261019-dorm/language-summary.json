@@ -1,0 +1,18 @@
+{
+  "source": "9f49a1faa6",
+  "command": "cargo test --no-fail-fast -p snapback4-lang",
+  "exitCode": 0,
+  "passed": 2292,
+  "failed": 0,
+  "ignored": 14,
+  "completedTestBinaries": 170,
+  "logSha256": "5f3b505b1fe9b03abffaec41f3de8a6107c2afa94e65dd408396542460f78bda",
+  "correctedTargets": {
+    "ephemeral_compat": 1,
+    "list_lower_bounds": 14
+  },
+  "otherAffectedOutputs": {
+    "emit_compatibility": 16,
+    "operation_evolution": 13
+  }
+}

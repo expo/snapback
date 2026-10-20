@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-19T12:48:02.134953+00:00",
+  "scope": "design only immutable embedded snapshot",
+  "sha256": "58176d6a46dc7f8da70f71eae31976bbec9caa7f67511c38437cb6b46fef8057",
+  "models": {
+    "muse": "muse-spark-1.3-contributor high via muse-exec.sh",
+    "codex": "gpt-6.1-sol high fresh codex exec"
+  },
+  "redacted": false,
+  "mutuallyBlind": true,
+  "museOutputSha256": "2660b07af54db8dc91aa5395b4ddbbe241aa7b071f518cd7ea855ceafcd2064e",
+  "museVerdict": "Verdict: NOT READY",
+  "codexOutputSha256": "c260a3617c28a4881abf967c14e9df4b7548a91916e344b8f627aa8f389a5cf9",
+  "codexVerdict": "Verdict: READY"
+}

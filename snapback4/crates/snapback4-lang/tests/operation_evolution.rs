@@ -7,17 +7,27 @@ fn checked(source: &str) -> Bound {
 }
 #[test]
 fn literal_defaults_aliases_and_deprecated_inputs_execute_the_shared_ir() {
-    let b=checked("query current(n: int 0..10 default 4, old: text <=8 deprecated):\n  require n != 9 else NINE\n  return n\nalias original = current\n");
+    let b=checked("query current(n: int 0..10 default 4 alias oldN, old: text <=8 deprecated):\n  require n != 9 else NINE\n  return n\nmutation rename(explanation: text 1..500 alias reason):\n  return explanation\nalias original = current\n");
+    let current=b.programs.iter().find(|p|p.program.name=="current").unwrap();
+    assert_eq!(current.program.arg_aliases,BTreeMap::from([("oldN".into(),"n".into())]));
+    let api=emit::typescript(&b);
+    assert!(api.contains("({ n?: number | null; oldN?: never } | { n?: never; oldN?: number | null })"),"{api}");
+    assert!(api.contains("({ explanation: string; reason?: never } | { explanation?: never; reason: string })"),"{api}");
+    assert!(api.contains(r#", JSON.parse("{\"oldN\":\"n\"}"))"#),"aliased availability carries the legacy-to-canonical map: {api}");
     let mut engine=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     for name in ["current","original"] {
-        for args in [BTreeMap::new(),BTreeMap::from([("n".into(),Value::Null)]),BTreeMap::from([("old".into(),Value::String("legacy".into()))])] {
+        for args in [BTreeMap::new(),BTreeMap::from([("n".into(),Value::Null)]),BTreeMap::from([("oldN".into(),Value::Null)]),BTreeMap::from([("old".into(),Value::String("legacy".into()))])] {
             assert_eq!(engine.query(name,Context::new("user:a",args)).unwrap().data,Value::Int(4));
         }
+        assert_eq!(engine.query(name,Context::new("user:a",BTreeMap::from([("oldN".into(),Value::Int(6))]))).unwrap().data,Value::Int(6));
         assert_eq!(engine.query(name,Context::new("user:a",BTreeMap::from([("n".into(),Value::Int(6))]))).unwrap().data,Value::Int(6));
         assert!(engine.query(name,Context::new("user:a",BTreeMap::from([("n".into(),Value::Int(11))]))).is_err());
         assert!(engine.query(name,Context::new("user:a",BTreeMap::from([("n".into(),Value::Int(9))]))).is_err());
         assert!(engine.query(name,Context::new("user:a",BTreeMap::from([("old".into(),Value::Int(2))]))).is_err());
+        for values in [(6,6),(6,7)] {assert!(engine.query(name,Context::new("user:a",BTreeMap::from([("n".into(),Value::Int(values.0)),("oldN".into(),Value::Int(values.1))]))).is_err());}
     }
+    let sent=engine.mutate("rename",None,Context::new("user:a",BTreeMap::from([("reason".into(),Value::String("word for word".into()))]))).unwrap();
+    assert!(matches!(sent.state,snapback4_core::WriteState::Sent{result:Value::String(ref text),..} if text=="word for word"),"{sent:?}");
 }
 #[test]
 fn invalid_modifiers_and_aliases_refuse_without_silent_semantic_changes() {
@@ -26,6 +36,9 @@ fn invalid_modifiers_and_aliases_refuse_without_silent_semantic_changes() {
         "query q(n: int default now):\n  return n\n".into(),
         "query q(n: int default null):\n  return n\n".into(),
         "query q(n: int default 1 deprecated):\n  return 1\n".into(),
+        "query q(n: int alias old deprecated):\n  return 1\n".into(),
+        "query q(n: int alias old, old: int):\n  return n\n".into(),
+        "query q(a: int alias old, b: int alias old):\n  return a\n".into(),
         "query q(n: int deprecated):\n  return n\n".into(),
         "fn f(n: int default 1):\n  return n\nquery q():\n  return f(1)\n".into(),
         "job j(n: int default 1): native\n".into(),
@@ -55,18 +68,44 @@ fn same_named_nominal_rows_still_report_changed_result_fields() {
 #[test]
 fn defaults_and_aliases_have_device_parity_after_backend_json_roundtrip() {
     use snapback4_device::{device::{Backend,Device},memory::MemoryStore};
-    let b=checked("query q(n: int default -4, old: bool deprecated):\n  return n\nalias legacy = q\n");
+    let b=checked("query q(n: int default -4 alias oldN, old: bool deprecated):\n  return n\nmutation rename(explanation: text 1..500 alias reason):\n  return explanation\nalias legacy = q\n");
+    assert!(snapback4_core::device_protocol::compatibility(&b.schema).capabilities.contains(&"argument-alias-v1".into()));
+    assert!(!snapback4_core::device_protocol::compatibility(&checked("query q(n: int):\n  return n\n").schema).capabilities.contains(&"argument-alias-v1".into()));
     let backend=Backend{generation:1,schema:b.schema,programs:b.programs.into_iter().map(|p|p.program).collect()};
     let encoded=serde_json::to_string(&backend).unwrap();
     let decoded:Backend=snapback4_core::json_codec::from_text(&encoded).unwrap();
     let mut device=Device::open_store(MemoryStore::new(),Some(decoded)).unwrap();
     for op in ["q","legacy"] {
-        for args in [serde_json::json!({}),serde_json::json!({"n":null,"old":true})] {
+        for args in [serde_json::json!({}),serde_json::json!({"n":null,"old":true}),serde_json::json!({"oldN":null})] {
             assert_eq!(device.query(op,"user:a",&args,0).unwrap().data,Value::Int(-4));
         }
+        assert_eq!(device.query(op,"user:a",&serde_json::json!({"oldN":7}),0).unwrap().data,Value::Int(7));
         assert_eq!(device.query(op,"user:a",&serde_json::json!({"n":7}),0).unwrap().data,Value::Int(7));
         assert!(device.query(op,"user:a",&serde_json::json!({"n":"bad"}),0).is_err());
+        assert!(device.query(op,"user:a",&serde_json::json!({"n":7,"oldN":7}),0).is_err());
     }
+    let predicted=device.predict("rename","user:a",&serde_json::json!({"reason":"word for word"}),0,vec![],1).unwrap();
+    assert_eq!(predicted.result,serde_json::json!("word for word"));
+}
+
+#[test]
+fn aliases_validate_the_canonical_type_and_contract_comparison_recognizes_renames() {
+    let next=checked("query inspect(explanation: text 1..500 alias reason):\n  return explanation\n");
+    let program=&next.programs[0].program;
+    let typed=snapback4_core::wire::arguments_from_json(program,&serde_json::json!({"reason":"kept"})).unwrap();
+    assert_eq!(typed,BTreeMap::from([("explanation".into(),Value::String("kept".into()))]));
+    for bad in [serde_json::json!({"reason":7}),serde_json::json!({"reason":"x".repeat(501)}),serde_json::json!({"reason":"same","explanation":"same"})] {
+        let error=snapback4_core::wire::arguments_from_json(program,&bad).and_then(|mut args|snapback4_core::engine::validate::validate_inputs(&next.schema,program,&mut args)).unwrap_err();
+        assert_eq!(error.refusal().code,"E_INPUT","{bad}: {error}");
+    }
+    let old=checked("query inspect(reason: text 1..500):\n  return reason\n");
+    assert!(compare(&old,&next,"release 1").is_empty(),"{:?}",compare(&old,&next,"release 1"));
+    let narrowed=checked("query inspect(explanation: text 1..499 ? alias reason):\n  return explanation\n");
+    assert!(compare(&old,&narrowed,"release 1").iter().any(|line|line.contains("narrows the old input domain")),"{:?}",compare(&old,&narrowed,"release 1"));
+    let missing=checked("query inspect(explanation: text 1..500):\n  return explanation\n");
+    let report=compare(&old,&missing,"release 1").join("\n");
+    assert!(report.contains("explanation: <new type> alias reason"),"{report}");
+    assert!(!report.contains("reason: <old type> deprecated"),"{report}");
 }
 
 #[test]

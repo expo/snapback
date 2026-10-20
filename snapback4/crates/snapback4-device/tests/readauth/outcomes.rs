@@ -16,7 +16,7 @@ fn acquire<H:Host>(h:&mut H,e:&mut Engine,mut b:Backend) -> Device<H::Store> {
     use snapback4_core::ir::*;
     for table in b.schema.tables.keys() {
         b.programs.push(Program { name:format!("inspect_{table}"), kind:ProgramKind::Query,
-            args:[("id".into(),ArgType::Id)].into(), read_time_granularity_ms:None, native:false, returned_shapes:Default::default(),
+            args:[("id".into(),ArgType::Id)].into(), arg_aliases: Default::default(), read_time_granularity_ms:None, native:false, returned_shapes:Default::default(),
             body:vec![Stmt::Return(Expr::Get(Read {site:"inspect".into(),table:table.clone(),index:"byId".into(),key:vec![Expr::Variable("id".into())],provenance:KeyProvenance::Arg}))] });
     }
     let mut d=h.open("census",Some(b)).unwrap();
