@@ -10,5 +10,5 @@ crates/snapback4/src/serve_changes.rs 3
 crates/snapback4/src/serve_tests.rs 11
 crates/snapback4/src/store_owner_tests.rs 7
 crates/snapback4/src/verbs/run_admission.rs 4
-crates/snapback4/src/verbs/sql_catalog.rs 22
+crates/snapback4/src/verbs/sql_catalog.rs 14
 crates/snapback4/src/verbs/witness/smoke.rs 3

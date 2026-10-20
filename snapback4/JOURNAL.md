@@ -97270,3 +97270,31 @@ match the base, with no additions. No `scripts/test.sh` or push.
 
 Full scope, validation and generic-caller census:
 [`reports/20261020-p0-s6-store-port.md`](reports/20261020-p0-s6-store-port.md).
+
+## 2026-10-20 — P0-S7, first commit: the SQL inspection port
+
+Commissioned lane on base `98de657098b878b7f9a9934e24a54386a72cbb46`.
+Scoped orientation: LLP 3000 decision 4 (explicitly commissioned core lane),
+LLP 3000.009.001.000 §3.1–3.3 (typed access, policy above the adapter, no
+behavior change), LLP 3000.007 §8 and §18.3 (operator-only read-only views,
+literal default projection), and the current personas/deploy guide cards.
+The local `llp-orient` symlink has no target; assembled this context directly.
+No new design decision, public surface change or current/foundation hand-off.
+
+`store/inspect.rs` now owns the raw read-only connection, deferred snapshot,
+view generation, authorizer and bounded SELECT execution. `InspectionCatalog`
+in `inspection.rs` exposes plain persisted records to the existing host
+catalog policy; Store, Tx and the raw inspection connection implement it.
+The host retains command parsing, provenance validation, descriptions, boolean
+inference and output formatting. Query authorization and boolean inference
+keep their original order; ephemeral notices run at their original view-build
+position. Core's SQLite dependency enables the hooks feature previously used
+by the host. No Postgres implementation or parallel-lane file/region changed.
+
+The binary builds and all eleven existing shared catalog tests pass. The
+complete affected checks follow in the second commit, which extracts release,
+work-record, witness and clock access. This split keeps both commits building.
+
+First-commit ratchet regeneration passes: production 194 → 177, tests 103 →
+95, combined 297 → 272. The final first-commit `cargo build -p snapback4`
+passes after factoring the shared SQLite catalog implementation.

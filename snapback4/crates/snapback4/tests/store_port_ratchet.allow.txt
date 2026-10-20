@@ -12,7 +12,5 @@ crates/snapback4/src/verbs/release_safeguards.rs 6
 crates/snapback4/src/verbs/releases.rs 5
 crates/snapback4/src/verbs/residency.rs 1
 crates/snapback4/src/verbs/run_admission.rs 1
-crates/snapback4/src/verbs/sql.rs 12
-crates/snapback4/src/verbs/sql_catalog.rs 5
 crates/snapback4/src/verbs/witness/smoke.rs 2
 crates/snapback4/src/verbs/work_records.rs 16

@@ -21,6 +21,7 @@ pub mod error;
 #[cfg(feature = "sqlite")]
 pub mod identity;
 pub mod ids;
+pub mod inspection;
 pub mod ir;
 pub mod key;
 pub mod json_codec;

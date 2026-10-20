@@ -45,6 +45,7 @@ mod authority;
 mod identity;
 mod receipts;
 mod jobs;
+pub mod inspect;
 mod caps;
 pub(crate) mod dormant;
 #[cfg(test)]
