@@ -19,7 +19,7 @@ pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
             id TEXT COLLATE \"C\" PRIMARY KEY, name TEXT NOT NULL, args TEXT NOT NULL,
             program_hash TEXT NOT NULL, state TEXT NOT NULL, sweep BIGINT NOT NULL,
             cursor BYTEA, upper BYTEA, chunks BIGINT NOT NULL, rows_written BIGINT NOT NULL,
-            created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL, error TEXT,
+            created_at BIGINT NOT NULL, updated_at BIGINT NOT NULL, error BYTEA,
             chunk_size BIGINT NOT NULL DEFAULT 0, retries BIGINT NOT NULL DEFAULT 0,
             heap_peak BIGINT NOT NULL DEFAULT 0, domain TEXT,
             insertion_order BIGINT GENERATED ALWAYS AS IDENTITY
@@ -57,7 +57,11 @@ fn read_head(row: &postgres::Row) -> Result<Head, RuntimeError> {
             rows_written: row.try_get::<_, i64>("rows_written")? as u64,
             created_at: row.try_get("created_at")?,
             updated_at: row.try_get("updated_at")?,
-            error: row.try_get("error")?,
+            error: row
+                .try_get::<_, Option<Vec<u8>>>("error")?
+                .map(String::from_utf8)
+                .transpose()
+                .map_err(|error| RuntimeError::Store(error.to_string()))?,
             chunk_size: row.try_get::<_, i64>("chunk_size")? as u32,
             retries: row.try_get::<_, i64>("retries")? as u64,
             heap_peak: row.try_get::<_, i64>("heap_peak")? as u64,
@@ -96,7 +100,7 @@ impl JobTransaction for Tx<'_> {
         self.require_serialized_head_fence("park job")?;
         self.execute(
             "UPDATE _jobs SET state='parked',error=$2,updated_at=$3 WHERE id=$1",
-            &[&id, &error, &now],
+            &[&id, &error.as_bytes(), &now],
         )?;
         Ok(())
     }
@@ -108,7 +112,7 @@ impl JobTransaction for Tx<'_> {
     }
 
     fn record_job_chunk(&self, chunk: JobChunkUpdate<'_>) -> Result<(), RuntimeError> {
-        self.require_serialized_head_fence("park job chunk")?;
+        self.require_serialized_head_fence("record job chunk")?;
         self.execute("UPDATE _jobs SET state=$2,sweep=$3,cursor=$4,upper=$5,chunks=chunks+1,rows_written=rows_written+$6,updated_at=$7,chunk_size=$8,retries=$9,heap_peak=$10,domain=$11 WHERE id=$1",
             &[&chunk.id, &chunk.state.word(), &(chunk.sweep as i64), &chunk.cursor, &chunk.upper,
                 &(chunk.rows_written as i64), &chunk.now, &i64::from(chunk.size), &(chunk.retries as i64), &(chunk.heap_peak as i64), &chunk.domain.map(canonical_json)])?;
@@ -126,7 +130,7 @@ impl JobTransaction for Tx<'_> {
     ) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("record native job chunk")?;
         self.execute("UPDATE _jobs SET state='parked',error=$2,updated_at=$3,chunk_size=$4,retries=$5,heap_peak=$6 WHERE id=$1",
-            &[&id, &error, &now, &i64::from(size), &(retries as i64), &(heap_peak as i64)])?;
+            &[&id, &error.as_bytes(), &now, &i64::from(size), &(retries as i64), &(heap_peak as i64)])?;
         Ok(())
     }
 
@@ -182,6 +186,30 @@ fn inspect<T>(
     Ok(result)
 }
 
+/// The driver fetched at most four UTF-8 bytes per requested character. Clip
+/// a partial final character, then retain SQLite substr(TEXT)'s NUL boundary.
+fn summary_error(bytes: Option<&[u8]>, characters: i64) -> Result<Option<String>, RuntimeError> {
+    bytes
+        .map(|bytes| {
+            let text = match std::str::from_utf8(bytes) {
+                Ok(text) => text,
+                Err(error) if error.error_len().is_none() => {
+                    std::str::from_utf8(&bytes[..error.valid_up_to()])
+                        .map_err(|error| RuntimeError::Store(error.to_string()))?
+                }
+                Err(error) => return Err(RuntimeError::Store(error.to_string())),
+            };
+            Ok(text
+                .split('\0')
+                .next()
+                .unwrap_or_default()
+                .chars()
+                .take(characters.max(0) as usize)
+                .collect())
+        })
+        .transpose()
+}
+
 impl JobStore for Store {
     fn job(&mut self, id: &str) -> Result<Option<JobRun>, RuntimeError> {
         inspect(self, |tx| {
@@ -215,7 +243,7 @@ impl JobStore for Store {
     fn latest_schedule_boundary(&mut self) -> Result<Option<i64>, RuntimeError> {
         inspect(self, |tx| {
             Ok(tx
-                .query("SELECT value FROM _meta WHERE key LIKE 'schedule:%'", &[])?
+                .query("SELECT value FROM _meta WHERE key ILIKE 'schedule:%'", &[])?
                 .iter()
                 .filter_map(|row| row.get::<_, &str>(0).parse::<i64>().ok())
                 .max())
@@ -223,22 +251,24 @@ impl JobStore for Store {
     }
     fn job_summaries(&mut self, error_bytes: usize) -> Result<Vec<JobSummary>, RuntimeError> {
         inspect(self, |tx| {
-            // SQLite substr(TEXT,1,N) counts characters, while the flag counts
-            // bytes. The host applies its final UTF-8-safe byte truncation.
-            let rows = tx.query("SELECT id,name,state,rows_written,left(error,LEAST(GREATEST($1::bigint,0),2147483647)::integer),octet_length(error)>$1 FROM _jobs ORDER BY created_at DESC,id DESC LIMIT 64", &[&(error_bytes as i64)])?;
+            // @ref LLP 3000.009.001.000#3.3 — UTF-8 error bytes retain NUL; prefixes count characters, flags count all bytes.
+            // Bound the driver prefix by 4*N and by Postgres' 1 GiB datum
+            // limit without overflowing a BIGINT or substring's integer count.
+            let rows = tx.query("SELECT id,name,state,rows_written,substring(error FROM 1 FOR (LEAST(GREATEST($1::bigint,0),268435456)*4)::integer),octet_length(error)>$1 FROM _jobs ORDER BY created_at DESC,id DESC LIMIT 64", &[&(error_bytes as i64)])?;
             let mut names = BTreeSet::new();
-            Ok(rows
-                .iter()
+            rows.iter()
                 .filter(|row| names.insert(row.get::<_, String>(1)))
-                .map(|row| JobSummary {
-                    id: row.get(0),
-                    name: row.get(1),
-                    state: row.get(2),
-                    rows_written: row.get(3),
-                    error: row.get(4),
-                    error_truncated: row.get::<_, Option<bool>>(5).unwrap_or(false),
+                .map(|row| {
+                    Ok(JobSummary {
+                        id: row.get(0),
+                        name: row.get(1),
+                        state: row.get(2),
+                        rows_written: row.get(3),
+                        error: summary_error(row.get(4), error_bytes as i64)?,
+                        error_truncated: row.get::<_, Option<bool>>(5).unwrap_or(false),
+                    })
                 })
-                .collect())
+                .collect()
         })
     }
     fn job_count(&mut self) -> Result<i64, RuntimeError> {

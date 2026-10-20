@@ -1,5 +1,5 @@
 //! SQLite job and schedule access; chunking and firing policy stay in engine/job.
-// @ref LLP 3000.009.001.000#3.3 — extract access without changing transactions or statements.
+// @ref LLP 3000.009.001.000#3.3 — retain SQLite transactions and job-ordering semantics behind the family contract.
 use super::{Store, Tx};
 use crate::engine::job::{
     Head, JobChunkUpdate, JobRun, JobState, JobStore, JobSummary, JobTransaction,
@@ -285,56 +285,5 @@ impl JobStore for Store {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::engine::job::test_cases;
-
-    #[test]
-    fn shared_queue_and_continuation_cases() {
-        let mut store = Store::memory().unwrap();
-        let tx = store.transaction().unwrap();
-        test_cases::queue_and_continue(&tx);
-        tx.commit().unwrap();
-        test_cases::assert_committed(&mut store);
-    }
-
-    #[test]
-    fn admission_and_watermark_rollback_together() {
-        let mut store = Store::memory().unwrap();
-        let tx = store.transaction().unwrap();
-        test_cases::queue_and_continue(&tx);
-        tx.rollback().unwrap();
-        assert_eq!(store.job_count().unwrap(), 0);
-        assert_eq!(store.schedule_shape("pulse").unwrap(), None);
-        assert_eq!(store.schedule_boundary("pulse").unwrap(), None);
-    }
-
-    #[test]
-    fn refused_chunk_keeps_its_previous_continuation() {
-        let mut store = Store::memory().unwrap();
-        let tx = store.transaction().unwrap();
-        test_cases::queue_and_continue(&tx);
-        tx.commit().unwrap();
-        let tx = store.transaction().unwrap();
-        tx.savepoint("job_chunk").unwrap();
-        test_cases::advance(&tx);
-        tx.rollback_to("job_chunk").unwrap();
-        test_cases::assert_continuation(&tx);
-        tx.park_job_chunk("a", "E_BOUND: fixture", 30, 1, 4, 4096)
-            .unwrap();
-        tx.commit().unwrap();
-        let run = JobStore::job(&mut store, "a").unwrap().unwrap();
-        assert_eq!(run.state, JobState::Parked);
-        assert_eq!(
-            (
-                run.chunks,
-                run.rows_written,
-                run.chunk_size,
-                run.retries,
-                run.heap_peak
-            ),
-            (1, 2, 1, 4, 4096)
-        );
-        assert_eq!(run.error.as_deref(), Some("E_BOUND: fixture"));
-    }
-}
+#[path = "job_tests.rs"]
+mod tests;
