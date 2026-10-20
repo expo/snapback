@@ -1,6 +1,6 @@
 ---
 name: sbs-orchestrate
-description: Orchestrate and supervise a body of work using a fixed model roster — codex gpt-5.6-sol (xhigh or high, orchestrator's call) for all coding implementation, BOTH codex gpt-5.6-sol AND grok-4.6 at xhigh for code review, and whatever model the orchestrator judges best for design, design docs, and other non-coding tasks. Use when the user invokes /sbs-orchestrate or asks to orchestrate/supervise work with the codex+grok roster.
+description: Orchestrate and supervise a body of work using a fixed model roster — codex gpt-6.1-sol (xhigh or high, orchestrator's call) for all coding implementation, BOTH codex gpt-6.1-sol AND grok-4.6 at xhigh for code review, and whatever model the orchestrator judges best for design, design docs, and other non-coding tasks. Use when the user invokes /sbs-orchestrate or asks to orchestrate/supervise work with the codex+grok roster.
 ---
 
 # sbs-orchestrate
@@ -16,8 +16,8 @@ lockfile regen) may be done inline when dispatching would be absurd; say so when
 
 | Task kind | Who | Effort |
 |---|---|---|
-| Coding implementation | codex `gpt-5.6-sol` | `xhigh` or `high` — your call (see below) |
-| Code review | BOTH codex `gpt-5.6-sol` AND grok `grok-4.6` | `xhigh` |
+| Coding implementation | codex `gpt-6.1-sol` | `xhigh` or `high` — your call (see below) |
+| Code review | BOTH codex `gpt-6.1-sol` AND grok `grok-4.6` | `xhigh` |
 | Design, design docs, analysis, synthesis, planning | whatever model you judge best (Claude subagents, codex, grok) | your call |
 
 **xhigh vs high for implementation:** default to `xhigh`. Drop to `high` for
@@ -51,10 +51,10 @@ parallel lanes matters more than per-lane depth. Record which you chose per lane
 ## Codex recipes (paid-for, use verbatim)
 
 - Non-interactive implementation run:
-  `~/.volta/bin/codex exec -m gpt-5.6-sol -c model_reasoning_effort=xhigh -o <final.md> "<brief>" </dev/null`
+  `~/.volta/bin/codex exec -m gpt-6.1-sol -c model_reasoning_effort=xhigh -o <final.md> "<brief>" </dev/null`
   (swap `xhigh`→`high` per the effort call above; cwd = the lane worktree).
 - Read-only review run:
-  `~/.volta/bin/codex exec -m gpt-5.6-sol -c model_reasoning_effort=xhigh -s read-only -o <review.md> "<review prompt>" </dev/null`
+  `~/.volta/bin/codex exec -m gpt-6.1-sol -c model_reasoning_effort=xhigh -s read-only -o <review.md> "<review prompt>" </dev/null`
   — add `--skip-git-repo-check` when reviewing a non-git dir (e.g. an exported capsule).
 - **TRAP:** bare `codex` on PATH may be a cmux shim; shim-wrapped background lanes get
   killed when cmux restarts. Always invoke `~/.volta/bin/codex` directly.
