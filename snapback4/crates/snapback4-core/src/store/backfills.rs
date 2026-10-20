@@ -115,6 +115,48 @@ fn receipt_preimage(tx:&Tx<'_>,next:&Schema,table:&str,t:i64,id:&str,column:&str
     }Ok(false)
 }
 
+fn assemble_owned_cells<'a>(tx:&Tx<'_>,t:i64,id:&str,row:&mut Value,columns:impl Iterator<Item=&'a str>)->Result<(),RuntimeError>{
+    let mut meter=Meter::new(Ceilings::job(),Cut::Abort);
+    for column in columns {
+        if row.field(column).is_ok(){continue}
+        let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0)).optional()?;
+        if let Some(bytes)=bytes {
+            meter.heap((bytes.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
+            let data:String=tx.conn().query_row("SELECT data FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0))?;
+            if let Value::Row(fields)|Value::Map(fields)=row {fields.insert(column.to_owned(),decode(&data)?);}
+        }
+    }Ok(())
+}
+
+fn note_native_absence(tx:&Tx<'_>,t:i64,id:&str,column:&str)->Result<(),RuntimeError>{
+    tx.conn().execute("INSERT OR IGNORE INTO _backfill_absence VALUES(?1,?2,'$restored-native',?3)",params![t,id,column])?;Ok(())
+}
+pub(super) fn native_absences(tx:&Tx<'_>,t:i64,id:&str,row:&Value)->Result<BTreeSet<String>,RuntimeError>{
+    if !present(tx)?{return Ok(BTreeSet::new())}
+    let (bytes,count):(i64,i64)=tx.conn().query_row("SELECT coalesce(sum(octet_length(column_name)),0),count(*) FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition IN ('$restored-native','$native-cell')",params![t,id],|r|Ok((r.get(0)?,r.get(1)?)))?;
+    let mut meter=Meter::new(Ceilings::job(),Cut::Abort);meter.heap((bytes.max(0) as u64).saturating_mul(8).saturating_add((count.max(0) as u64).saturating_mul(64)))?;
+    let columns:Vec<String>=tx.conn().prepare("SELECT DISTINCT a.column_name FROM _backfill_absence a WHERE a.t=?1 AND a.id=?2 AND a.definition IN ('$restored-native','$native-cell') AND NOT EXISTS(SELECT 1 FROM _dormant_values v WHERE v.t=a.t AND v.id=a.id AND v.column_name=a.column_name)")?.query_map(params![t,id],|r|r.get(0))?.collect::<Result<_,_>>()?;
+    Ok(columns.into_iter().filter(|c|row.field(c).is_err()).collect())
+}
+pub(super) fn preserve_native_absence(row:&mut Value,columns:&BTreeSet<String>){
+    if let Value::Row(fields)|Value::Map(fields)=row {for c in columns {fields.remove(c);}}
+}
+// @ref LLP 3000.000.000#191-declared-old-views-and-renames — destination narrowing interprets restored absence using the native destination, never an older default.
+pub(super) fn native_source<'a>(old:&'a Table,next:&Table,columns:&BTreeSet<String>)->std::borrow::Cow<'a,Table>{
+    if columns.is_empty(){return std::borrow::Cow::Borrowed(old)}
+    let mut source=old.clone();
+    for c in columns {
+        let Some(kind)=next.columns.get(c) else {continue};
+        source.columns.insert(c.clone(),kind.clone());
+        if let Some(default)=next.defaults.get(c){source.defaults.insert(c.clone(),default.clone());}else{source.defaults.remove(c);}
+    }
+    std::borrow::Cow::Owned(source)
+}
+
+fn input_lifetime_lost(tx:&Tx<'_>,t:i64,id:&str,key:&str,column:&str)->Result<bool,RuntimeError>{
+    Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3 AND invalid=1)",params![t,id,input_ref(key,column)],|r|r.get(0))?)
+}
+
 // @ref LLP 3000.000.000#191-declared-old-views-and-renames — receipt-owned cells stay consistent across narrowed archives and dormant overlays.
 fn patch_retained<'a>(tx:&Tx<'_>,t:i64,id:&str,patch:impl Iterator<Item=(&'a str,Option<&'a Value>)>)->Result<(),RuntimeError>{
     let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0)).optional()?;
@@ -125,8 +167,12 @@ fn patch_retained<'a>(tx:&Tx<'_>,t:i64,id:&str,patch:impl Iterator<Item=(&'a str
     }else{None};
     for (column,value) in patch {
         if let Some(value)=value {
+            tx.conn().execute("DELETE FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition='$native-cell' AND column_name=?3",params![t,id,column])?;
             tx.conn().execute("UPDATE _dormant_values SET data=?1 WHERE t=?2 AND id=?3 AND column_name=?4",params![canonical_json(value),t,id,column])?;
-        }else{tx.conn().execute("DELETE FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column])?;}
+        }else{
+            tx.conn().execute("INSERT OR IGNORE INTO _backfill_absence VALUES(?1,?2,'$native-cell',?3)",params![t,id,column])?;
+            tx.conn().execute("DELETE FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column])?;
+        }
         if let Some(Value::Row(fields)|Value::Map(fields))=&mut archived {
             if let Some(value)=value{fields.insert(column.to_owned(),value.clone());}else{fields.remove(column);}
         }
@@ -148,6 +194,7 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report:
                 return Ok(())
             };
             if e.active{return Ok(())}
+            assemble_owned_cells(tx,t,id,&mut row,e.after.keys().map(String::as_str))?;
             let fields=row.as_object()?;
             if validate {
             for (column,expected) in &e.after {
@@ -155,9 +202,10 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report:
             }
             let mut inputs_meter=Meter::new(Ceilings::job(),Cut::Abort);
             for (column,original) in &e.inputs.as_object()?.iter().map(|(k,v)|(k.clone(),v.clone())).collect::<BTreeMap<_,_>>() {
-                if let Some(kind)=table.columns.get(column) {
+                if input_lifetime_lost(tx,t,id,&key,column)? {bad.add(id,&format!("reverse input {column} lost its parent lifetime; restore a backup or use a typed bridge"));return Ok(())}
+                if table.columns.contains_key(column) {
                     let current=source_value(tx,t,id,&row,column,Some(table),&mut inputs_meter)?.unwrap_or(Value::Null);
-                    if &current!=original && crate::engine::validate::validate_column(&fill.table,column,kind,Some(&current)).is_ok()
+                    if &current!=original
                         && !receipt_preimage(tx,next,&fill.table,t,id,column,fields.get(column),original)? {
                         bad.add(id,&format!("{}.{} changed while the older release was active; reverse dependencies cannot be recaptured",fill.table,column));return Ok(())
                     }
@@ -173,6 +221,7 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report:
                     },
                     None=>{
                         fields.remove(column);
+                        note_native_absence(tx,t,id,column)?;
                         tx.conn().execute("DELETE FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column])?;
                         // A rename/down round trip must not feed the archived
                         // old-view result back into a forward declaration whose
@@ -191,11 +240,13 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report:
     }} Ok(())
 }
 
-fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,now:i64,report:&mut super::adoption_report::AdoptionReport)->Result<bool,RuntimeError>{
+fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<String,Table>,now:i64,report:&mut super::adoption_report::AdoptionReport)->Result<bool,RuntimeError>{
     let next_keys:BTreeSet<String>=next.downfills.iter().map(Backfill::down_key).collect();
     let leaving:Vec<_>=previous.downfills.iter().filter(|f|!next_keys.contains(&f.down_key())).collect();
     if leaving.is_empty(){return Ok(false)}
     let mut source=previous.clone();source.backfills.clear();source.downfills.clear();
+    let mut reads=BTreeSet::new();for fill in &leaving {collect_reads(&fill.program.body,&mut reads);}
+    if !reads.is_empty(){rebuild_reads(tx,&source,&reads)?;tx.clear_activation_scan();tx.set_meta("activation_population","true")?;}
     tx.conn().execute_batch("CREATE TEMP TABLE _downfill_pending(t INTEGER NOT NULL,id TEXT NOT NULL,definition TEXT NOT NULL,patch TEXT NOT NULL,evidence TEXT NOT NULL,PRIMARY KEY(t,id,definition)) WITHOUT ROWID;")?;
     for fill in leaving {
         fill.admit_down(previous).map_err(refusal)?;
@@ -268,6 +319,10 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,now:i64,report:&mut 
                 if !retained {projected_outputs.insert(c.clone());}
             }
             if projected_outputs.is_empty(){return Ok(())}
+            let native_source=row_source(tx,t,id,sources.get(&fill.table))?;
+            if let Some(source)=native_source.as_deref() {if let Some(c)=projected_outputs.iter().find(|c|source.columns.get(*c).is_some_and(protected)||source_owned(source,c)) {
+                bad.add(id,&format!("native preimage {}.{c} requires reference, asset or lifetime custody; keep a typed bridge",fill.table));return Ok(())
+            }}
             let mut args=BTreeMap::new();
             for (c,kind) in &fill.inputs {
                 let value=source_value(tx,t,id,&row,c,Some(&previous.tables[&fill.table]),&mut Meter::new(Ceilings::job(),Cut::Abort))?;
@@ -275,6 +330,11 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,now:i64,report:&mut 
                 args.insert(c.clone(),value.unwrap_or(Value::Null));
             }
             let inputs=Value::Row(args.clone().into());let mut context=Context::system().at(now);context.args=args;
+            for (c,kind) in &fill.inputs {
+                let kind=native_source.as_deref().and_then(|s|s.columns.get(c)).filter(|k|protected(k)).unwrap_or(kind);
+                capture_input_refs(tx,t,id,c,&input_ref(&key,c),kind,inputs.field(c)?,false)?;
+                if input_lifetime_lost(tx,t,id,&key,c)? {bad.add(id,&format!("reverse input {c} lost its parent lifetime; use a typed bridge"));return Ok(())}
+            }
             let mut runner=Runner::new(tx,&source,context,Meter::new(Ceilings::job(),Cut::Abort),0);
             let patch=match runner.run(&fill.program){Ok(Value::Row(f)|Value::Map(f))=>f.into_iter().collect::<BTreeMap<_,_>>(),Ok(_)=>{bad.add(id,"down projection did not return an object");return Ok(())},Err(e)=>{bad.add(id,&e.to_string());return Ok(())}};
             if runner.read_cut().is_some(){bad.add(id,"reverse lookup did not complete; reduce its bounded work");return Ok(())}
@@ -363,9 +423,9 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     for fill in next.downfills.iter().chain(previous.into_iter().flat_map(|s|s.downfills.iter())) {
         tx.conn().execute("INSERT OR IGNORE INTO _downfill_definitions VALUES(?1,?2)",params![fill.down_key(),canonical_json(fill)])?;
     }
-    mark_down_native(tx,next,previous)?;
+    mark_down_native(tx,next)?;
     let next_keys:BTreeSet<_>=next.backfills.iter().map(Backfill::key).collect();
-    let down_pending=if let Some(previous)=previous{stage_downfills(tx,next,previous,now,report)?}else{false};
+    let down_pending=if let Some(previous)=previous{stage_downfills(tx,next,previous,sources,now,report)?}else{false};
     let definitions:Vec<Backfill>=tx.conn().prepare("SELECT definition FROM _backfill_definitions WHERE digest IN (SELECT definition FROM _backfill_evidence WHERE active=1 OR retained_outputs!='[]' UNION SELECT definition FROM _backfill_pruned WHERE active=1 OR retained_outputs!='[]') ORDER BY digest")?.query_map([],|r|r.get::<_,String>(0))?.map(|s|decode(&s?)).collect::<Result<_,RuntimeError>>()?;
     for fill in definitions.iter().rev().filter(|f|!next_keys.contains(&f.key())) {
         let Some(table)=next.table(&fill.table) else {continue};
@@ -388,6 +448,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 if current!=after && current!=before {bad.add(id,&format!("{}.{} changed after backfill {}; keep a bridge and repair through an authorized mutation before rollback",fill.table,c,fill.name));return Ok(())}
                 if let Some(value)=before {fields.insert(c.clone(),value.clone());}else{
                     fields.remove(c);
+                    note_native_absence(tx,t,id,c)?;
                     tx.conn().execute("INSERT OR IGNORE INTO temp._backfill_unprovided VALUES(?1,?2,?3)",params![t,id,c])?;
                 }
                 let mut view=Value::Row(fields.clone());materialize_optional_fields(&mut view,table);
@@ -567,6 +628,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         let mut admission=Meter::new(Ceilings::job(),Cut::Abort);admission.heap((r.get::<_,i64>(5)?.max(0) as u64).saturating_mul(64).saturating_add(8192)).map_err(|err|refusal(format!("backfill staged reversal evidence exceeds its read budget: {err}; reduce the per-row migration image")))?;
         let patch:BTreeMap<String,Value>=decode(&r.get::<_,String>(3)?)?;let e:Evidence=decode(&r.get::<_,String>(4)?)?;
         let data:String=tx.conn().query_row("SELECT data FROM r WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0))?;let mut row:Value=decode(&data)?;
+        patch_retained(tx,t,&id,patch.iter().map(|(c,v)|(c.as_str(),Some(v))))?;
         if let Value::Row(f)|Value::Map(f)=&mut row {f.extend(patch);}
         tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;
         let prior=evidence(tx,t,&id,&key)?;
@@ -786,6 +848,7 @@ pub(crate) fn prepare_inputs(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>)->
     if next.backfills.is_empty() && next.downfills.is_empty()
         && previous.is_none_or(|s|s.backfills.is_empty() && s.downfills.is_empty()) && !present(tx)? {return Ok(());}
     enable(tx)?;
+    tx.conn().execute("DELETE FROM _backfill_absence WHERE definition='$restored-native'",[])?;
     tx.conn().execute("DELETE FROM _backfill_active",[])?;
     for fill in &next.backfills {tx.conn().execute("INSERT INTO _backfill_active VALUES(?1,?2,?3)",params![tx.num(&fill.table)?,fill.key(),canonical_json(&fill.inputs.keys().filter(|c|!fill.outputs.contains(*c)).collect::<Vec<_>>())])?;}
     for fill in &next.downfills {tx.conn().execute("INSERT INTO _backfill_active VALUES(?1,?2,?3)",params![tx.num(&fill.table)?,fill.down_key(),canonical_json(&fill.inputs.keys().collect::<Vec<_>>())])?;}
@@ -804,16 +867,15 @@ pub(crate) fn prepare_inputs(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>)->
             Ok(())
         })?;
     }
-    mark_down_native(tx,next,previous)
+    mark_down_native(tx,next)
 }
-fn mark_down_native(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>)->Result<(),RuntimeError>{
+fn mark_down_native(tx:&Tx<'_>,next:&Schema)->Result<(),RuntimeError>{
     // A down declaration can be added after native rows already exist. The
     // marker establishes only that this release owns their current image; it
     // does not infer an earlier birth release. Ordinary forward receipts take
     // precedence when rollback later classifies the row.
-    let old_down:BTreeSet<String>=previous.into_iter().flat_map(|s|s.downfills.iter().map(Backfill::down_key)).collect();
     for fill in &next.downfills {
-        let key=fill.down_key();if old_down.contains(&key){continue}
+        let key=fill.down_key();
         let t=tx.num(&fill.table)?;let table=&next.tables[&fill.table];
         super::activation::walk(tx,t,|id,row|{
             let image=crate::schema::row_image(&row,table);

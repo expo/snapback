@@ -439,7 +439,9 @@ pub(super) fn transition(
                 continue;
             }
             super::activation::walk(tx, tx.num(name)?, |id, mut row| {
+                let native=super::backfills::native_absences(tx,tx.num(name)?,id,&row)?;
                 materialize_optional_fields(&mut row, old);
+                super::backfills::preserve_native_absence(&mut row,&native);
                 if candidate.is_none() {
                     tx.conn().execute("INSERT INTO _dormant_rows VALUES(?1,?2,?3) ON CONFLICT(t,id) DO UPDATE SET data=excluded.data",params![tx.num(name)?,id,canonical_json(&row)])?;
                     for (column, kind) in &old.columns {
@@ -529,6 +531,7 @@ pub(super) fn transition(
         super::activation_walk::walk_metered_checked(tx,t,crate::rows::adoption::Work::DECODE,if parent_scratch>0 {Some(&scratch)} else {None},|id,mut row,meter| {
             let old=authority_sources.get(name);
             super::backfills::record_omissions(tx,t,id,&row)?;
+            let native=super::backfills::native_absences(tx,t,id,&row)?;
             if let Some(old)=old {
                 materialize_optional_fields(&mut row,old);
                 super::authority_origin::validate(tx,next,&authority_sources,name,old,&row,now,false)?;
@@ -536,6 +539,7 @@ pub(super) fn transition(
             }
             let values=restored_values(tx,t,id,table,meter)?;
             super::authority_origin::overlay(tx,t,id,old,table,&mut row,values)?;
+            super::backfills::preserve_native_absence(&mut row,&native);
             tx.conn().execute(
                 "UPDATE r SET data=?1 WHERE t=?2 AND id=?3",
                 params![canonical_json(&row), t, id],
@@ -590,7 +594,9 @@ pub(super) fn transition(
         let t=tx.num(name)?;
         tx.conn().execute("DELETE FROM _dormant_rows WHERE t=?1",[t])?;
         super::activation::walk(tx,t,|id,mut row|{
+            let native=super::backfills::native_absences(tx,t,id,&row)?;
             materialize_optional_fields(&mut row,old);
+            super::backfills::preserve_native_absence(&mut row,&native);
             tx.conn().execute("INSERT INTO _dormant_rows VALUES(?1,?2,?3)",params![t,id,canonical_json(&row)])?;
             for (column,kind) in &old.columns {if let Ok(value)=row.field(column) {
                 if !super::authority_origin::live_input(old,column) {capture_refs(tx,t,id,column,kind,value)?;}

@@ -109,10 +109,9 @@ pub(super) fn transition(
                         return Ok(());
                     }
                 }
-                crate::schema::materialize_optional_fields(
-                    &mut row,
-                    previous.and_then(|s| s.table(name)).unwrap_or(table),
-                );
+                let native=super::backfills::native_absences(tx,t,id,&row)?;
+                let source=super::backfills::native_source(previous.and_then(|s|s.table(name)).unwrap_or(table),table,&native);
+                crate::schema::materialize_optional_fields(&mut row,source.as_ref());
                 let mut hidden = incompatible(tx,next, name, &row)?;
                 for (column, kind) in &table.columns {
                     let mut edges = Vec::new();
@@ -131,29 +130,36 @@ pub(super) fn transition(
                 if !hidden {
                     return Ok(());
                 }
+                super::backfills::preserve_native_absence(&mut row,&native);
                 let retained: bool = tx.conn().query_row(
                     "SELECT EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?1 AND id=?2)",
                     params![t, id],
                     |r| r.get(0),
                 )?;
-                let outputs:std::collections::BTreeSet<_>=next.backfills.iter().filter(|f|f.table==*name).flat_map(|f|f.outputs.iter().cloned()).collect();
+                let mut outputs:std::collections::BTreeSet<_>=next.backfills.iter().filter(|f|f.table==*name).flat_map(|f|f.outputs.iter().cloned()).collect();
+                outputs.extend(native.iter().cloned());
                 if retained && !outputs.is_empty() {
                     // Preserve the original source/provenance, updating only
                     // authoritative cells this release explicitly transformed.
                     let data:String=tx.conn().query_row("SELECT data FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0))?;
                     let mut archived:Value=serde_json::from_str(&data).map_err(|e|RuntimeError::Store(e.to_string()))?;
-                    if let Value::Row(fields)|Value::Map(fields)=&mut archived {for c in &outputs {if let Ok(v)=row.field(c){fields.insert(c.clone(),v.clone());}}}
-                    tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&archived),t,id])?;
+                    if let Value::Row(fields)|Value::Map(fields)=&mut archived {for c in &outputs {if let Ok(v)=row.field(c){fields.insert(c.clone(),v.clone());}else if native.contains(c){fields.remove(c);}}}
+                    let definition:String=tx.conn().query_row("SELECT definition FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0))?;
+                    let original:Table=serde_json::from_str(&definition).map_err(|e|RuntimeError::Store(e.to_string()))?;
+                    let definition=super::backfills::native_source(&original,table,&native);
+                    tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?1,definition=?4 WHERE t=?2 AND id=?3",params![canonical_json(&archived),t,id,canonical_json(definition.as_ref())])?;
                 }
                 for c in &outputs {
                     // Candidate-typed new references are absent from the old
                     // definition. Never erase an already-invalid binding.
                     let invalid:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3 AND invalid=1)",params![t,id,c],|r|r.get(0))?;
-                    if !invalid {if let Ok(value)=row.field(c) {super::dormant::capture_refs(tx,t,id,c,&table.columns[c],value)?;}}
+                    if !invalid {if let (Some(kind),Ok(value))=(table.columns.get(c),row.field(c)) {super::dormant::capture_refs(tx,t,id,c,kind,value)?;}}
                 }
                 if !retained {
                     newly_retained += 1;
-                    let old = authority_sources.get(name).unwrap_or(table);
+                    let original = authority_sources.get(name).unwrap_or(table);
+                    let definition=super::backfills::native_source(original,table,&native);
+                    let old=definition.as_ref();
                     tx.conn().execute(
                         "INSERT INTO _dormant_narrow_rows VALUES(?1,?2,?3,?4,?5)",
                         params![
@@ -298,7 +304,9 @@ pub(super) fn restore_images(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,no
         let mut row: Value =
             serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
         super::backfills::record_omissions(tx,t,&id,&row)?;
+        let native=super::backfills::native_absences(tx,t,&id,&row)?;
         crate::schema::materialize_optional_fields(&mut row,&old);
+        super::backfills::preserve_native_absence(&mut row,&native);
         if for_backfills && old.expired(&row,now) {
             // Expose an expired source only inside the uncommitted lifecycle
             // phase so the ordinary engine can close its reference actions.
@@ -359,6 +367,7 @@ pub(super) fn restore_images(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,no
         crate::engine::through_activation::manual_image(tx,next,&name,&old,&mut row,now)?;
         if if for_backfills {incompatible_except(tx,next,&name,&row,&authority)?}else{incompatible(tx,next,&name,&row)?} {continue;}
         if !for_backfills {crate::schema::materialize_optional_fields(&mut row, table);}
+        super::backfills::preserve_native_absence(&mut row,&native);
         // Missing required new fields are a genuine backfill refusal, not dormancy.
         tx.conn().execute(
             "INSERT INTO r(t,id,data) VALUES(?1,?2,?3)",

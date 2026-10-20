@@ -948,3 +948,113 @@ fn r8_a_native_forward_backfill_does_not_conflict_with_its_restored_down_receipt
  let mut e=engine(&b);seed(&mut e,"items",json!({"id":"a","count":5}));
  for _ in 0..2 {adopt(&mut e,a,1).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(0));adopt(&mut e,&b,2).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(5));}
 }
+
+#[test]
+fn r9_down_native_preimages_require_scalar_custody_at_compiler_and_raw_schema_admission(){
+ let prefix="table parents:\n  n: int\n  public\n  online only\n";
+ for kind in ["parents","parents ?","image <=1024","[int] <=10"] {
+  let source=format!("{prefix}table items:\n  owner: {kind}\n  public\n  online only\ndown items legacy(): {{owner:0}}\n");
+  let b=snapback4_lang::compile(&[("schema.q".into(),source)]);
+  assert!(b.diagnostics.iter().any(|d|d.message.contains("native preimage")),"{kind}: {:?}",b.diagnostics);
+ }
+ let (s,_)=compile(&(prefix.to_owned()+"table items:\n  owner: parents\n  public\n  online only\n"));
+ let (good,_)=compile("table items:\n  owner: int\n  public\n  online only\ndown items legacy(): {owner:0}\n");
+ assert!(good.downfills[0].admit_down(&s).unwrap_err().contains("native preimage"));
+}
+
+#[test]
+fn r9_down_reference_inputs_keep_private_lifetime_bindings_through_generic_id_views(){
+ let parents="table parents:\n  n: int\n  public\n  insert <- allow\n  delete <- allow\n  online only\nmutation remove():\n  delete parents['p']\nmutation replace():\n  return insert parents {id:'p',n:2}\n";
+ let newer=format!("{parents}table items:\n  parent: parents\n  count: int\n  public\n  online only\ndown items legacy(parent: id): {{count:0}}\n");
+ let older=newer.replace("parent: parents","parent: id").replace("down items legacy(parent: id): {count:0}\n","");
+ let mut e=engine(&newer);seed(&mut e,"parents",json!({"id":"p","n":1}));seed(&mut e,"items",json!({"id":"a","parent":"p","count":5}));
+ adopt(&mut e,&older,1).unwrap();write(&mut e,"remove");write(&mut e,"replace");let generation=e.generation();
+ let error=adopt(&mut e,&newer,2).unwrap_err().to_string();assert!(error.contains("lifetime"),"{error}");assert_eq!(generation,e.generation());
+}
+
+#[test]
+fn r9_forward_patches_sync_dormant_cells_before_a_later_widening(){
+ let a="table items:\n  x: int\n  gate: int 0..10\n  public\n  online only\n";
+ let b=a.replace("  x: int\n","");let fill="backfill items up(x: int): {x:x + 1}\n";
+ let c=a.replace("gate: int 0..10","gate: int 1..10")+fill;let d=format!("{a}{fill}");
+ let mut e=engine(a);seed(&mut e,"items",json!({"id":"a","x":0,"gate":0}));
+ adopt(&mut e,&b,2).unwrap();adopt(&mut e,&c,3).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+ adopt(&mut e,&d,4).unwrap();assert_eq!(field(&mut e,"items","a","x"),Value::Int(1));
+}
+
+#[test]
+fn r9_renarrowing_a_restored_native_absence_uses_the_native_default(){
+ let a="table items:\n  gate: int 0..10\n  public\n  online only\nquery one():\n  return items['a']\n";
+ let b=a.replace("  gate: int","  x: int default 7\n  gate: int");let c=format!("{b}down items legacy(): {{x:1}}\n");
+ let older=b.replace("default 7","default 9");let narrowed=c.replace("gate: int 0..10","gate: int 1..10");
+ let mut e=engine(a);seed(&mut e,"items",json!({"id":"a","gate":0}));adopt(&mut e,&b,2).unwrap();assert!(row(&mut e,"items","a").field("x").is_err());
+ adopt(&mut e,&c,3).unwrap();adopt(&mut e,&older,1).unwrap();assert_eq!(field(&mut e,"items","a","x"),Value::Int(1));
+ adopt(&mut e,&narrowed,4).unwrap();assert_eq!(e.store().count("items").unwrap(),0);adopt(&mut e,&c,3).unwrap();
+ assert_eq!(e.query("one",Context::new("alice",Default::default())).unwrap().data.field("x").unwrap(),&Value::Int(7));
+ assert!(row(&mut e,"items","a").field("x").is_err(),"native physical absence must survive re-narrowing and widening");
+ for (index,retired) in [a,"query placeholder():\n  return true\n"].into_iter().enumerate() {
+  adopt(&mut e,retired,index as u64+5).unwrap();adopt(&mut e,&c,3).unwrap();
+  assert!(row(&mut e,"items","a").field("x").is_err(),"native physical absence must survive column and table retirement");
+  assert_eq!(e.query("one",Context::new("alice",Default::default())).unwrap().data.field("x").unwrap(),&Value::Int(7));
+ }
+ adopt(&mut e,&older,1).unwrap();adopt(&mut e,&narrowed,4).unwrap();
+ adopt(&mut e,a,5).unwrap();adopt(&mut e,&c,3).unwrap();
+ assert!(row(&mut e,"items","a").field("x").is_err(),"retiring a column while its native row is narrowed must preserve physical absence");
+ assert_eq!(e.query("one",Context::new("alice",Default::default())).unwrap().data.field("x").unwrap(),&Value::Int(7));
+}
+
+#[test]
+fn r9_a_carried_down_declaration_marks_a_newly_returned_native_image(){
+ let a="table items:\n  count: int\n  gate: int 0..10\n  public\n  online only\n";
+ let b=a.replace("gate: int 0..10","gate: int 1..10");let c=format!("{b}down items legacy(): {{count:7}}\n");let d=format!("{a}down items legacy(): {{count:7}}\n");
+ let mut e=engine(a);seed(&mut e,"items",json!({"id":"a","count":5,"gate":0}));
+ adopt(&mut e,&b,2).unwrap();adopt(&mut e,&c,3).unwrap();adopt(&mut e,&d,4).unwrap();adopt(&mut e,a,1).unwrap();
+ assert_eq!(field(&mut e,"items","a","count"),Value::Int(7));adopt(&mut e,&d,4).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(5));
+}
+
+#[test]
+fn r9_retiring_a_projected_column_preserves_physical_receipt_verification(){
+ let middle="table items:\n  label: text <=40\n  public\n  online only\n";
+ let newer=format!("{middle}down items legacy(label: text <=40): {{reason:label}}\n");
+ let older=middle.replace("  label: text <=40","  reason: text <=40 ?\n  label: text <=40");
+ let mut e=engine(&newer);seed(&mut e,"items",json!({"id":"a","label":"native"}));
+ adopt(&mut e,&older,1).unwrap();assert_eq!(field(&mut e,"items","a","reason"),Value::String("native".into()));
+ adopt(&mut e,middle,3).unwrap();adopt(&mut e,&newer,2).unwrap();assert!(row(&mut e,"items","a").field("reason").is_err());
+}
+
+#[test]
+fn r9_down_point_lookups_rebuild_indexes_for_restored_source_rows(){
+ let a="table deps:\n  key: text <=20\n  n: int 0..10\n  unique key\n  public\n  online only\ntable items:\n  count: int\n  public\n  online only\n";
+ let b=a.replace("  n: int 0..10","  n: int 1..10")+"down items legacy(): {count:(deps[key = 'k'] ! else MISSING).n}\n";
+ let mut e=engine(a);seed(&mut e,"deps",json!({"id":"d","key":"k","n":0}));seed(&mut e,"items",json!({"id":"a","count":5}));
+ adopt(&mut e,&b,2).unwrap();assert_eq!(e.store().count("deps").unwrap(),0);adopt(&mut e,a,1).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(0));
+}
+
+#[test]
+fn r9_invalid_in_the_destination_is_still_a_conflicting_old_dependency_edit(){
+ let newer="table items:\n  n: int 1..10\n  x: int\n  public\n  update <- allow\n  online only\ndown items legacy(n: int 1..10): {x:n}\n";
+ let older=newer.replace("n: int 1..10","n: int 0..10").replace("down items legacy(n: int 0..10): {x:n}\n","")+"mutation edit():\n  update items['a'] {n:0}\n";
+ let mut e=engine(newer);seed(&mut e,"items",json!({"id":"a","n":5,"x":9}));adopt(&mut e,&older,1).unwrap();write(&mut e,"edit");let generation=e.generation();
+ let error=adopt(&mut e,newer,2).unwrap_err().to_string();assert!(error.contains("reverse dependencies"),"{error}");assert_eq!(generation,e.generation());
+}
+
+#[test]
+fn no_write_release_walks_restore_the_native_view_across_retirement_narrowing_and_projection(){
+ let base="table items:\n  x: int default 7\n  gate: int 0..10\n  public\n  online only\nquery inspectRows():\n  return items first 20 by .id\n";
+ let down="down items legacy(): {x:1}\n";let native=format!("{base}{down}");
+ let variants=vec![base.to_owned(),base.replace("gate: int 0..10","gate: int 1..10"),native.replace("gate: int 0..10","gate: int 1..10"),base.replace("  x: int default 7\n",""),native.replace("  x: int default 7\n",""),"query placeholder():\n  return true\n".into(),base.replace("x: int default 7","x: int 0..2 default 1"),format!("{native}backfill items up(x: int): {{x:x + 1}}\n")];
+ for seed_value in 0u64..64 {
+  let mut e=engine(&native);
+  for (id,x,gate) in [("a",Some(5),0),("b",Some(0),5),("c",None,0),("d",None,5)] {
+   let mut data=json!({"id":id,"gate":gate});if let Some(x)=x {data.as_object_mut().unwrap().insert("x".into(),json!(x));}seed(&mut e,"items",data);
+  }
+  let expected=e.query("inspectRows",Context::new("alice",Default::default())).unwrap().data;
+  let mut state=seed_value+1;let mut path=Vec::new();
+  for _ in 0..12 {
+   state=state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);let choice=((state>>32) as usize)%variants.len();path.push(choice);
+   adopt(&mut e,&variants[choice],choice as u64+2).unwrap_or_else(|error|panic!("seed {seed_value}, path {path:?}: {error}"));
+  }
+  adopt(&mut e,&native,1).unwrap_or_else(|error|panic!("native return seed {seed_value}, path {path:?}: {error}"));
+  let actual=e.query("inspectRows",Context::new("alice",Default::default())).unwrap().data;assert_eq!(actual,expected,"seed {seed_value}, path {path:?}");
+ }
+}

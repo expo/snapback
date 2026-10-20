@@ -65,9 +65,17 @@ impl Backfill {
         if table.ephemeral.is_some() || schema.maintain_for(&self.table).is_some() { return Err("down projection requires an authoritative durable table".into()); }
         if self.program.kind != ProgramKind::Query || self.program.native || self.outputs.is_empty() { return Err("down projection must produce a nonempty object patch".into()); }
         if self.outputs.contains("id") { return Err("down projection cannot replace row identity".into()); }
+        for c in &self.outputs {
+            if table.columns.get(c).is_some_and(|kind| !native_scalar(kind)) || table.engine_field(c) || table.maintained.contains_key(c) || table.expire.as_ref()==Some(c) || table.not_before.as_ref()==Some(c) {
+                return Err(format!("down native preimage {}.{c} must be an authoritative scalar without reference, asset or lifetime custody; use a typed bridge",self.table));
+            }
+        }
         if !body(&self.program.body,schema) { return Err("down expressions allow deterministic scalar transforms, unique point lookups and bounded existence; no viewer, clock, ids, row collections, loops or writes".into()); }
         Ok(())
     }
+}
+fn native_scalar(k: &ColumnType) -> bool {
+    match k {ColumnType::Optional(k)=>native_scalar(k),ColumnType::Ref{..}=>false,_=>scalar(k)}
 }
 fn scalar(k: &ColumnType) -> bool {
     match k {

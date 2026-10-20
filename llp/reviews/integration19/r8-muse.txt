@@ -1,0 +1,9 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Reviewed [750c8fc94e](https://github.com/ccheever/snapback-sb4loop/commit/750c8fc94e6dac7dbb18a17224ac20c4e693a022) against its parent `f5d010c3f0`, [§19.1](./llp/3000.000.000-retained-storage-and-hot-release.rfc.md) of the retained-storage RFC, and the directly interacting paths in [backfills.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs), [narrowed.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/narrowed.rs), and [dormant.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/dormant.rs).
+
+Each focus claim checks out in the code: inactive down receipts keep native preimages until restoration; `patch_retained` touches only the receipt's own cells across `r`, `_dormant_narrow_rows`, and `_dormant_values`; forward inverses sync exact physical before-images; dependency checks use the shared null/default law while P-cell checks stay physical; first-leaving outputs assemble via the widened `columns()` authority exception; new down declarations mark assembled dormant rows before staging; forward native ownership queries exclude down receipts; and the `activation_population` flag forces narrowing even with unchanged column types.
+
+Pruning, retirement, renames, lifetime custody, conflicting writes, repeated cycles, and initially narrowed rows show no remaining concrete defect in this delta. No tests were run and no other reviews were read.
