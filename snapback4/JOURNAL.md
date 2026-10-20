@@ -97167,3 +97167,58 @@ reproduced on the untouched base: `clippy::while_immutable_condition`
 After rebuilding the lane, Clippy warning titles and source-file pairs match
 the base exactly, with no additions. `ref-check --verbose` passes with zero
 errors and zero unchecked references. `scripts/test.sh` was not run; no push.
+
+## 2026-10-20 — P0-S5: asset-upload ledger access behind the store port
+
+The explicitly commissioned single-worker lane starts at mirror commit
+`d0662f421cb4335155bc455eaf9ee94c055c6869` on `sb4-pg/p0-s5`.
+`assets.rs` extends the typed `AssetTransaction` contract and defines an
+`AssetIntentReader` for Store/Tx existence probes. `store/assets.rs` now
+owns declaration reads/insertion, pending upload publication, cancellation
+and settlement, the quota and recovery-list receipt joins, and reset's asset
+ID inventory. `engine/asset_uploads.rs` retains declaration bounds, encoding,
+digest and placement checks, quota arithmetic, response pagination and
+refusal order. Reset's other SQL is left for the release/schema lane. No
+Postgres implementation or parallel-lane effect/replay file changes.
+
+Scoped orientation: LLP 3000 decision 4 (lead core ownership, this lane
+explicitly commissioned); LLP 3000.009.001.000 §3.1–3.3 (typed access,
+policy above adapters, extraction without behavior changes); LLP
+3000.038 §3 (upload admission); LLP 3000.038.000 §2–3 (declaration bounds,
+immutable bindings, dedup, quota, cancellation and receipt ordering); and
+the current `guide assets` card. The local `llp-orient` symlink has no
+installed target; this context pack was assembled directly from those
+sources. The port documents remain linked in `llp/current/`; no new LLP
+or public authoring-surface change is needed. The affected LLP references
+still apply, and the port RFC's extraction record is updated in this commit.
+
+All 11 distinct moved SQL literals match the base verbatim. The same
+transaction and rollback/commit calls remain in the engine, in the same
+order. New trait operations carry P1 notes. Shared adapter-neutral cases
+exercise declaration preservation, cancellation tombstones, owner isolation,
+receipt-qualified quota/recovery filters, the released-asset difference
+between quota and listing, and the 51-row recovery bound. The SQLite harness
+also verifies rollback and reuses the existence case on Store and Tx.
+
+Ratchet regeneration passes: production sites **218 → 204** (upload engine
+13 → 0, reset 10 → 9), test sites **104 → 104**, combined **322 → 308**.
+Only the production allowlist changes. The required build and
+`ref-check --verbose` pass.
+
+The required Clippy command fails on `clippy::while_immutable_condition`
+(`engine/read.rs:780`) and `clippy::never_loop` (`engine/row_views.rs:1010`).
+The exact command reproduces both failures on untouched base
+`d0662f421cb4335155bc455eaf9ee94c055c6869` in a second detached local worktree.
+The warning/error message-and-source-file signature multisets match exactly:
+no new diagnostic signatures. Neither inherited lint is changed or suppressed.
+
+The complete required `cargo test -p snapback4` passes, including its binary,
+integration targets and ordinary ratchet run. The final build and reference
+validation pass too. Existing ignored tests retain their normal status.
+
+The complete required `cargo test -p snapback4-core` passes, including the
+shared ledger cases, upload-intent and reset integration cases, the generated
+disclosure suites and doctests. No product-test failure was found. Clippy's
+two base-reproduced errors above are the only unresolved required-check
+failures. `scripts/test.sh` was not run. No design uncertainty remains. The
+lane commits locally with the commissioned author/committer and does not push.

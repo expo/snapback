@@ -2,6 +2,7 @@
 //! store identity, optionally reseeded, in one SQLite transaction.
 // @ref LLP 3000.007#20.25 — what "fresh" keeps and what it empties; why the head keeps counting.
 use super::*;
+use crate::assets::AssetTransaction;
 
 /// Tables a reset keeps whole: the store's own metadata, the catalog that
 /// numbers tables and indexes, and the adopted generations.
@@ -46,7 +47,7 @@ impl Engine {
         let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let previous_store_id = tx.meta("store_id")?.unwrap_or_default();
         let head = tx.next_seq()?.saturating_sub(1);
-        let assets: Vec<String> = tx.conn().prepare("SELECT id FROM _assets")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
+        let assets = tx.asset_ids()?;
         let tables: Vec<String> = tx.conn()
             .prepare("SELECT name FROM main.sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'")?
             .query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;

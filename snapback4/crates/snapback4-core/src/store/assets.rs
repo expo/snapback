@@ -1,11 +1,14 @@
 //! SQLite asset ledger access.
 // @ref LLP 3000.009.001.000#3.3 — extract the existing adapter without changing its operations.
-// ----- persistence: the `_assets` and `_asset_views` tables -----
+// ----- persistence: asset facts, upload intents and views -----
 
 use crate::store::{Store, Tx};
 use crate::{
     RuntimeError,
-    assets::{Asset, AssetKind, UNCLAIMED_TTL_MS},
+    assets::{
+        Asset, AssetKind, IntentDeclaration, IntentPlacement, PendingIntent, UNCLAIMED_TTL_MS,
+        UploadedIntent,
+    },
 };
 use rusqlite::{Connection, OptionalExtension, params};
 
@@ -193,7 +196,109 @@ impl Tx<'_> {
     }
 }
 
+impl crate::assets::AssetIntentReader for Store {
+    fn asset_intent_exists(&self, owner: &str, id: &str) -> Result<bool, RuntimeError> {
+        intent_exists(self.conn(), owner, id)
+    }
+}
+
+impl crate::assets::AssetIntentReader for Tx<'_> {
+    fn asset_intent_exists(&self, owner: &str, id: &str) -> Result<bool, RuntimeError> {
+        intent_exists(self.conn(), owner, id)
+    }
+}
+
+fn intent_exists(conn: &Connection, owner: &str, id: &str) -> Result<bool, RuntimeError> {
+    Ok(conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM _asset_intents WHERE owner=?1 AND intent=?2)",
+        [owner, id],
+        |r| r.get::<_, bool>(0),
+    )?)
+}
+
 impl crate::assets::AssetTransaction for Tx<'_> {
+    fn pinned_asset_bytes(&self, owner: &str) -> Result<i64, RuntimeError> {
+        Ok(self.conn().query_row("SELECT COALESCE(SUM(a.bytes),0) FROM _asset_intents u JOIN _assets a ON a.id=u.asset WHERE u.owner=?1 AND u.state='pending' AND a.home_table IS NULL AND NOT EXISTS(SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent)", [owner], |r| r.get(0))?)
+    }
+
+    fn record_uploaded_intent(&self, record: &UploadedIntent<'_>) -> Result<(), RuntimeError> {
+        self.conn().execute("INSERT INTO _asset_intents(owner,intent,fingerprint,asset,facts,placement,state) VALUES(?1,?2,?3,?4,?5,?6,'pending') ON CONFLICT(owner,intent) DO UPDATE SET asset=excluded.asset,facts=excluded.facts,state='pending' WHERE _asset_intents.state='declared'", params![record.owner, record.id, record.fingerprint, record.asset, record.facts, record.placement])?;
+        Ok(())
+    }
+
+    fn intent_declaration(
+        &self,
+        owner: &str,
+        id: &str,
+    ) -> Result<Option<IntentDeclaration>, RuntimeError> {
+        Ok(self.conn().query_row("SELECT fingerprint,placement,state FROM _asset_intents WHERE owner=?1 AND intent=?2", [owner, id], |r| Ok(IntentDeclaration { fingerprint: r.get(0)?, placement: r.get(1)?, state: r.get(2)? })).optional()?)
+    }
+
+    fn declare_intent(
+        &self,
+        owner: &str,
+        id: &str,
+        fingerprint: &str,
+        placement: &str,
+    ) -> Result<(), RuntimeError> {
+        self.conn().execute("INSERT INTO _asset_intents(owner,intent,fingerprint,placement,state) VALUES(?1,?2,?3,?4,'declared')", params![owner, id, fingerprint, placement])?;
+        Ok(())
+    }
+
+    fn intent_placement(
+        &self,
+        owner: &str,
+        id: &str,
+    ) -> Result<Option<IntentPlacement>, RuntimeError> {
+        Ok(self
+            .conn()
+            .query_row(
+                "SELECT placement,state FROM _asset_intents WHERE owner=?1 AND intent=?2",
+                [owner, id],
+                |r| {
+                    Ok(IntentPlacement {
+                        placement: r.get(0)?,
+                        state: r.get(1)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+
+    fn pending_intents(
+        &self,
+        owner: &str,
+        after: &str,
+    ) -> Result<Vec<PendingIntent>, RuntimeError> {
+        Ok(self.conn().prepare("SELECT u.intent,u.facts FROM _asset_intents u JOIN _assets a ON a.id=u.asset WHERE u.owner=?1 AND u.intent>?2 AND u.state='pending' AND a.home_table IS NULL AND a.released_at IS NULL AND NOT EXISTS(SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent) ORDER BY u.intent LIMIT 51")?.query_map([owner, after], |r| Ok(PendingIntent { id: r.get(0)?, facts: r.get(1)? }))?.collect::<Result<_, _>>()?)
+    }
+
+    fn intent_cancelled(&self, owner: &str, id: &str) -> Result<bool, RuntimeError> {
+        Ok(self.conn().query_row(
+            "SELECT state='cancelled' FROM _asset_intents WHERE owner=?1 AND intent=?2",
+            [owner, id],
+            |r| r.get::<_, bool>(0),
+        )?)
+    }
+
+    fn settle_intent(&self, owner: &str, id: &str) -> Result<(), RuntimeError> {
+        self.conn().execute("UPDATE _asset_intents SET state='settled' WHERE owner=?1 AND intent=?2 AND state != 'cancelled'", [owner, id])?;
+        Ok(())
+    }
+
+    fn cancel_intent(&self, owner: &str, id: &str) -> Result<(), RuntimeError> {
+        self.conn().execute("INSERT INTO _asset_intents(owner,intent,state) VALUES(?1,?2,'cancelled') ON CONFLICT(owner,intent) DO UPDATE SET state='cancelled'", [owner, id])?;
+        Ok(())
+    }
+
+    fn asset_ids(&self) -> Result<Vec<String>, RuntimeError> {
+        Ok(self
+            .conn()
+            .prepare("SELECT id FROM _assets")?
+            .query_map([], |row| row.get(0))?
+            .collect::<Result<_, _>>()?)
+    }
+
     fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> {
         self.asset(id)
     }
@@ -261,5 +366,93 @@ impl crate::assets::AssetTransaction for Tx<'_> {
 
     fn mutation_executed(&self, owner: &str, id: &str) -> Result<bool, RuntimeError> {
         crate::receipts::ReceiptReader::receipt_exists(self, owner, id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::assets::{AssetIntentReader, AssetTransaction, test_cases};
+
+    fn asset(id: &str) -> Asset {
+        Asset {
+            id: id.into(),
+            owner: "alice".into(),
+            kind: AssetKind::File,
+            content_type: "application/pdf".into(),
+            bytes: 10,
+            width: None,
+            height: None,
+            duration: None,
+            created_at: 1,
+            home: None,
+            released_at: None,
+            name: None,
+        }
+    }
+
+    #[test]
+    fn shared_declaration_cases_and_rollback() {
+        let mut store = Store::memory().unwrap();
+        store.record_asset(&asset("upload")).unwrap();
+        let tx = store.transaction().unwrap();
+        tx.declare_intent("alice", "declared", "original", "{}")
+            .unwrap();
+        tx.commit().unwrap();
+        test_cases::reader_is_owner_scoped(&store);
+        let tx = store.transaction().unwrap();
+        test_cases::declarations_and_tombstones(&tx);
+        tx.rollback().unwrap();
+        assert!(!store.asset_intent_exists("alice", "tombstone").unwrap());
+        let tx = store.transaction().unwrap();
+        assert_eq!(
+            tx.intent_declaration("alice", "declared")
+                .unwrap()
+                .unwrap()
+                .state,
+            "declared"
+        );
+        assert_eq!(tx.pinned_asset_bytes("alice").unwrap(), 0);
+        tx.rollback().unwrap();
+    }
+
+    #[test]
+    fn shared_quota_and_recovery_cases() {
+        let mut store = Store::memory().unwrap();
+        for id in (0..52).map(|n| format!("p{n:02}")).chain(
+            [
+                "cancelled",
+                "settled",
+                "executed",
+                "released",
+                "placed",
+                "other",
+            ]
+            .map(String::from),
+        ) {
+            store.record_asset(&asset(&id)).unwrap();
+            let owner = if id == "other" { "bob" } else { "alice" };
+            let tx = store.transaction().unwrap();
+            tx.record_uploaded_intent(&UploadedIntent {
+                owner,
+                id: &id,
+                fingerprint: "fp",
+                asset: &id,
+                facts: "{}",
+                placement: None,
+            })
+            .unwrap();
+            tx.commit().unwrap();
+        }
+        store.conn().execute_batch("UPDATE _asset_intents SET state='cancelled' WHERE intent='cancelled';
+            UPDATE _asset_intents SET state='settled' WHERE intent='settled';
+            UPDATE _assets SET released_at=2 WHERE id='released';
+            UPDATE _assets SET home_table='docs',home_id='row',home_column='doc' WHERE id='placed';
+            INSERT INTO _ops(principal,id,seq,outcome) VALUES('alice','executed',1,'{}');
+            INSERT INTO _ops(principal,id,seq,outcome) VALUES('bob','p00',1,'{}');
+            INSERT INTO _asset_intents(owner,intent,asset,facts,state) VALUES('alice','missing','absent','{}','pending');").unwrap();
+        let tx = store.transaction().unwrap();
+        test_cases::quota_and_recovery(&tx);
+        tx.rollback().unwrap();
     }
 }
