@@ -1138,3 +1138,22 @@ fn incoming_native_down_preimages_win_over_another_leaving_projection(){
   for _ in 0..2 {adopt(&mut e,&b,2).unwrap();adopt(&mut e,&a,1).unwrap();assert_eq!(field(&mut e,"items","a","x"),Value::Int(5),"exact entering native cells beat another leaving writer");}
  }
 }
+
+#[test]
+fn r11_down_added_while_a_row_is_narrowed_applies_to_its_retained_native_image(){
+ let wide="table items:\n  x: int\n  gate: int 0..10\n  public\n  online only\n";let narrow=wide.replace("gate: int 0..10","gate: int 1..10");let down=format!("{narrow}down items legacy(): {{x:0}}\n");
+ let mut e=engine(wide);seed(&mut e,"items",json!({"id":"a","x":5,"gate":0}));adopt(&mut e,&narrow,2).unwrap();adopt(&mut e,&down,3).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+ adopt(&mut e,wide,1).unwrap();assert_eq!(field(&mut e,"items","a","x"),Value::Int(0));adopt(&mut e,&down,3).unwrap();adopt(&mut e,&(wide.to_owned()+"down items legacy(): {x:0}\n"),4).unwrap();assert_eq!(field(&mut e,"items","a","x"),Value::Int(5));
+}
+#[test]
+fn r11_retired_reverse_inputs_use_the_retained_native_default(){
+ let a="table items:\n  y: int\n  public\n  online only\n";let b=a.replace("  y: int","  n: int default 7\n  y: int");let c=format!("{b}down items native(): {{n:1}}\ndown items legacy(n: int): {{y:n}}\n");let retired=c.replace("  n: int default 7\n","");
+ let mut e=engine(a);seed(&mut e,"items",json!({"id":"a","y":5}));adopt(&mut e,&b,2).unwrap();adopt(&mut e,&c,3).unwrap();adopt(&mut e,&b,2).unwrap();adopt(&mut e,&c,3).unwrap();assert!(row(&mut e,"items","a").field("n").is_err());
+ adopt(&mut e,&retired,4).unwrap();adopt(&mut e,a,1).unwrap();assert_eq!(field(&mut e,"items","a","y"),Value::Int(7));
+}
+#[test]
+fn r11_raw_existence_fragments_require_declared_plain_indexes(){
+ let (s,_)=compile("table items:\n  count: int\n  public\n  online only\ndown items legacy(): {count:1 if exists items where .count >= 0 else 0}\n");
+ fn corrupt(v:&mut Json,field:&str){match v {Json::Object(fs)=>{if let Some(Json::Object(scan))=fs.get_mut("Scan"){scan.insert(field.into(),Json::String("missing".into()));}for value in fs.values_mut(){corrupt(value,field);}},Json::Array(vs)=>for v in vs{corrupt(v,field)},_=>()}}
+ for field in ["table","index"] {let mut fill=serde_json::to_value(&s.downfills[0]).unwrap();corrupt(&mut fill,field);let mut bad=s.clone();bad.downfills[0]=serde_json::from_value(fill).unwrap();assert!(bad.downfills[0].admit_down(&bad).is_err(),"bad {field} admitted");assert!(crate::schema::validate(&bad).iter().any(|i|i.path.starts_with("downfills")));}
+}

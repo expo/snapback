@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no concrete material defects found in the target commit.
+
+Checked the amendment to [LLP 3000.000.000 §19.1](llp/3000.000.000-retained-storage-and-hot-release.rfc.md) and the delta `9a080a38b4..ffce9018` across [schema/backfill.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/schema/backfill.rs), [schema.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/schema.rs), [store/backfills.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs), [store/dormant.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/dormant.rs), and the new regression tests in [store/backfill_tests.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfill_tests.rs), plus interacting code (activation walk, dormant lifecycle, receipt/absence ledgers).
+
+Coverage, by the named focus:
+
+- Retained/narrowed dependency verification: `walk_images`/`load_image` visit active plus already-narrowed images; per-row `row_source` with the historical-table fallback in `receipt_preimage` handles retired columns.
+- Unchanged reference-input lifetimes: the stage caller now passes `unchanged` through (`is_none_or`), preserving private bindings so a deleted/reused parent stays `invalid=1` via the global parent-delete update; same-value replay never rebinds to the reused parent.
+- Sequence ordinals: rejected as outputs in `admit`, `admit_down`, `source_owned`, and the stage target check; `engine_field` never covered sequences, so each addition is a real new refusal.
+- Raw `Schema::validate`: `validate_downs` runs `admit_down` plus distinct-name/disjoint-output checks.
+- Pruned active history: carry-through succeeds only while native cells or retained values remain available; reintroducing a retired cell without retained evidence refuses; the pruned check sits after the applicable-cells empty check so unrelated changes pass.
+- Applicable-only evaluation: `projected_outputs.is_empty()` returns before capture, lifetime checks, index rebuild, and program run; rebuilds are lazy per applicable expression via `rebuilt_reads`.
+- Entering-beats-leaving precedence: inactive entering receipts' exact native keys join `forward_outputs`, suppressing the leaving substitution for those cells before restore then applies.
+
+Also checked active/inactive identity handling, absence/null/default interpretation, authored-edit conflict paths, two-phase validate-then-restore atomicity within the adoption transaction, delete/prune clearing, and original-authority preservation in `dormant.rs` and `row_source`. No test runs, no review/report reads, no publication-tree inspection were performed.

@@ -1,0 +1,18 @@
+Found **3 MATERIAL concerns** in `ffce9018`:
+
+1. **P1 — Down projections can be silently skipped for already narrowed rows.**  
+   [backfills.rs:295](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs:295) visits archived images but requires an existing receipt or native marker. `mark_down_native` only visits active rows.
+
+   Minimal trigger: seed `{x:5, gate:0}`; narrow `gate` from `0..10` to `1..10`; add `down items legacy(): {x:0}` while the row remains hidden; select the original wide schema without that declaration. The row returns with `x:5`: no marker was created, so the declared projection is skipped. The new archived-image walk does not close this path.
+
+2. **P2 — Retired inputs lose their retained default interpretation during down evaluation.**  
+   [backfills.rs:361](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs:361) passes the immediately previous table to `source_value`, although line 355 has already resolved the retained native source definition.
+
+   Minimal trigger: restore a down receipt whose native `n: int default 7` was physically absent; retire `n`, preserving that absence; carry a declaration `down items legacy(n: int): {y:n}`; then leave it for a target containing `y`. The retained definition supplies default `7`, but the previous table no longer declares `n`. With no physical or dormant value, evaluation reports an absent input and refuses an otherwise valid rollback. It should resolve inputs through the retained source definition.
+
+3. **P2 — Raw down admission accepts invalid existence-scan indexes and later panics.**  
+   [schema/backfill.rs:106](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/schema/backfill.rs:106) checks an existence scan’s expression shape without checking its table/index. The newly added `validate_downs` inherits this gap.
+
+   Minimal trigger: take a valid raw down fragment containing a bounded existence scan and change its index name to an absent index. `Schema::validate` accepts it. With one eligible row and applicable output, leaving the declaration reaches [backfills.rs:820](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs:820), where unchecked map indexing panics instead of returning an admission refusal.
+
+These are static findings. No tests were run, and no test success is inferred. No files were changed or publication paths inspected.

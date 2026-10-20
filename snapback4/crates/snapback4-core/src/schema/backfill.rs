@@ -103,7 +103,7 @@ fn expr(e: &Expr, s: &Schema) -> bool {
     match e {
         Expr::Literal(_) | Expr::Variable(_) => true,
         Expr::Input(_) | Expr::Merge(_) => false,
-        Expr::Scan(r) => r.existence && r.after.is_none() && r.before.is_none() && r.prefix.iter().all(|k| k.scalar().is_some_and(|e|expr(e,s))) && r.filter.as_ref().is_none_or(|e|expr(e,s)) && r.range.as_ref().is_none_or(|r|[&r.gt,&r.gte,&r.lt,&r.lte].iter().all(|e|e.as_ref().is_none_or(|e|expr(e,s)))),
+        Expr::Scan(r) => s.table(&r.table).and_then(|t|t.index(&r.index)).is_some_and(|i|i.is_plain() && r.prefix.len()<=i.components.len() && (r.range.is_none() || r.prefix.len()<i.components.len())) && r.existence && r.after.is_none() && r.before.is_none() && r.prefix.iter().all(|k| k.scalar().is_some_and(|e|expr(e,s))) && r.filter.as_ref().is_none_or(|e|expr(e,s)) && r.range.as_ref().is_none_or(|r|[&r.gt,&r.gte,&r.lt,&r.lte].iter().all(|e|e.as_ref().is_none_or(|e|expr(e,s)))),
         Expr::Field { base, .. } | Expr::Unary { value: base, .. } => expr(base,s),
         Expr::Array(es) => es.iter().all(|e|expr(e,s)),
         Expr::Object(es) => es.values().all(|e|expr(e,s)),

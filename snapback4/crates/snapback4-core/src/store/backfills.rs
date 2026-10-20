@@ -358,7 +358,7 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<St
             }}
             let mut args=BTreeMap::new();
             for (c,kind) in &fill.inputs {
-                let value=source_value(tx,t,id,&row,c,Some(&previous.tables[&fill.table]),&mut Meter::new(Ceilings::job(),Cut::Abort))?;
+                let value=source_value(tx,t,id,&row,c,native_source.as_deref().or(Some(&previous.tables[&fill.table])),&mut Meter::new(Ceilings::job(),Cut::Abort))?;
                 if crate::engine::validate::validate_column(&fill.table,c,kind,value.as_ref()).is_err(){bad.add(id,&format!("current reverse input {}.{c} is absent or invalid",fill.table));return Ok(())}
                 args.insert(c.clone(),value.unwrap_or(Value::Null));
             }
@@ -817,7 +817,7 @@ fn historical_snapshot(tx:&Tx<'_>,epoch:i64,keys:&BTreeSet<String>)->Result<(),R
 }
 fn rebuild_reads(tx:&Tx<'_>,source:&Schema,reads:&BTreeSet<(String,String)>)->Result<(),RuntimeError>{
     for (name,index) in reads {
-        let old=&source.tables[name].indexes[index];let ti=tx.num(&format!("{name}.{index}"))?;
+        let old=source.table(name).and_then(|t|t.index(index)).ok_or_else(||refusal(format!("migration lookup {name}.{index} is not declared in its source schema")))?;let ti=tx.num(&format!("{name}.{index}"))?;
         tx.conn().execute("DELETE FROM i WHERE ti=?1",[ti])?;
         super::activation::walk(tx,tx.num(name)?,|id,mut row|{
             materialize_optional_fields(&mut row,&source.tables[name]);
@@ -915,7 +915,7 @@ fn mark_down_native(tx:&Tx<'_>,next:&Schema)->Result<(),RuntimeError>{
     for fill in &next.downfills {
         let key=fill.down_key();
         let t=tx.num(&fill.table)?;let table=&next.tables[&fill.table];
-        super::activation::walk(tx,t,|id,row|{
+        walk_images(tx,t,|id,row,_in_r|{
             let image=crate::schema::row_image(&row,table);
             let fingerprint=input_fingerprint(&image,fill.inputs.keys().map(String::as_str));
             tx.conn().execute("INSERT OR IGNORE INTO _backfill_absence VALUES(?1,?2,?3,?4)",params![t,id,format!("$native:{key}"),fingerprint])?;Ok(())
