@@ -108,7 +108,10 @@ impl Store {
     }
 
     pub fn transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
-        self.transaction_with_begin_hook(mode, || {})
+        self.transaction_with_begin_hook(mode, || {
+            #[cfg(test)]
+            crate::store::test_race::after_adapter_begin();
+        })
     }
 
     // Tests rendezvous after BEGIN and before the ordinary head fence. Both

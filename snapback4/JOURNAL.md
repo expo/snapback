@@ -97964,3 +97964,57 @@ Focused validation: the Postgres-enabled SQLite store suite passes
 the SQLite negative control. The gated Postgres cases are compiled; the
 full private-cluster run and required final checks follow. No ratchet
 allowlist changed and no push was made.
+
+
+## 2026-10-21 — P1-RQ fix round 2: share the identity fence witness
+
+P1-ID's landed rotation-versus-revocation case already observed its peer in
+`pg_blocking_pids` before allowing the holder to commit, so it did not have
+the request tests' serial-scheduling gap. In this separate commit it reuses
+`FenceRace` and adds the same after-BEGIN rendezvous. One-shot, thread-local
+test hooks coordinate the composite `IdentityStore` operations without
+replacing them with harness writes. The shared helper preserves the physical
+blocker and waiting-head-statement assertions; the resulting rotation/revoke
+state still compares against SQLite's witnessed serial order. The hook is
+compiled only for unit tests and leaves production transactions unchanged.
+Final required checks are recorded below when complete. No push is made.
+
+
+Final verification for P1-RQ fix round 2:
+
+- `cargo test -p snapback4-core` passes through every integration binary and
+  doctest. Unit suite: 495 passed, 0 failed, 3 ignored; five existing opt-in
+  tests are ignored across the full command. Log: `/tmp/p1rq-r2-core.log`.
+- `cargo test -p snapback4 --test store_port_ratchet --test committer_ratchet`
+  passes: 5 store-port and 3 committer tests, zero failures or ignores. Neither
+  allowlist changed. Log: `/tmp/p1rq-r2-ratchets.log`.
+- The complete `scripts/test-postgres.sh` exits zero: experiments 58/0/0,
+  core Postgres module 79/0/0, corpus test binary 19/0/0 (passed/failed/ignored),
+  totaling 156/0/0. The internal Postgres corpus has 207 passed and 88
+  explicitly skipped cases; SQLite's corpus has 210 passed, 85 skipped and
+  zero failed. Log: `/tmp/p1rq-r2-postgres.log`.
+- Both unfenced-contender negative controls pass by waiting at least their
+  100 ms bound and asserting "contender never blocked on the holder's fence".
+  The positive claim and both expiry/settlement orders pass on both stores;
+  `identity_rotation_races_revoke_through_the_head_fence` also passes.
+- The previously recorded
+  `reopening_legacy_maintained_ids_rebuilds_before_publishing_the_generation`
+  failure does not remain: it passes. The experiment's device snapshot fixture
+  passes too; neither recorded fixture is red in this run.
+- The exact `cargo clippy -p snapback4-core --features postgres --tests`
+  reports only the two acknowledged baseline errors: `while_immutable_condition`
+  at `engine/read.rs:780` and `never_loop` at `engine/row_views.rs:1013`.
+  A diagnostic run allowing only those lints passes library and test checking,
+  with no warning in the new helper or request regression files and no source
+  suppression. Logs: `/tmp/p1rq-r2-clippy.log` and
+  `/tmp/p1rq-r2-clippy-diagnostic.log`.
+- Root `./ref-check` passes: 564 LLP documents, 11,521 references, zero errors
+  and zero unchecked. Log: `/tmp/p1rq-r2-refcheck.log`. The RFC retains its
+  single Revised line, with this round prepended.
+
+Cargo used this worktree's target, incremental compilation disabled,
+`line-tables-only` dev/test debug information and at most 24 build jobs.
+Exactly one private Postgres cluster was started:
+`/tmp/sb4-pg-eval.bVtGOc/data`. Its script cleanup stopped it; an independent
+`pg_ctl status` returned 3 (no server running), and `postmaster.pid` is absent.
+No push was made and no pre-existing lane commit was rewritten.

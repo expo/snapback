@@ -397,45 +397,35 @@ fn identity_attach_refuses_incompatible_existing_tables() {
 #[test]
 #[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
 fn identity_rotation_races_revoke_through_the_head_fence() {
-    use std::sync::{Arc, Barrier};
-    use std::time::{Duration, Instant};
+    use std::sync::Arc;
+    use crate::store::test_race::FenceRace;
     let mut owner = authority_engine();
     let name: String = owner.store.client.query_one("SELECT current_schema()", &[]).unwrap().get(0);
-    let owner_pid: i32 = owner.store.client.query_one("SELECT pg_backend_pid()", &[]).unwrap().get(0);
     let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
     let mut peer = super::super::PostgresEngine::open(
         postgres::Client::connect(&url, postgres::NoTls).unwrap(), &name,
     ).unwrap();
     peer.store.client.batch_execute("SET statement_timeout = '10s'").unwrap();
-    let peer_pid: i32 = peer.store.client.query_one("SELECT pg_backend_pid()", &[]).unwrap().get(0);
     // This third connection only observes locks; both competing writes use
     // IdentityStore operations, with no harness SQL holding a writer lock.
-    let mut observer = postgres::Client::connect(&url, postgres::NoTls).unwrap();
+    let observer = postgres::Client::connect(&url, postgres::NoTls).unwrap();
+    let race = Arc::new(FenceRace::postgres(&mut owner.store.client, &mut peer.store.client, observer));
     let old = Session { principal: "member:race".into(), kind: "member".into(),
         token: "ro.race-old".into(), expires_at: 9_000, scope: SessionScope::Read, cap_expires_at: Some(10_000) };
     let next = Session { token: "ro.race-next".into(), ..old.clone() };
     let old_digest = digest(&old.token);
     let next_digest = digest(&next.token);
     RefCell::new(&mut owner.store).insert_identity_session_atomic(&old, 1_000).unwrap();
-    let overlap = Arc::new(Barrier::new(2));
-    let peer_overlap = overlap.clone();
+    let peer_race = race.clone();
     let principal = old.principal.clone();
     let revoked = std::thread::spawn(move || {
-        peer_overlap.wait();
+        peer_race.arm_after_begin(false);
         RefCell::new(&mut peer.store).revoke_identity_principal(&principal).unwrap()
     });
+    race.arm_after_begin(true);
     let rotated = RefCell::new(&mut owner.store).rotate_read_session(&old_digest, 2_000, |record| {
         assert_eq!(record.principal, old.principal);
-        overlap.wait();
-        let deadline = Instant::now() + Duration::from_secs(5);
-        loop {
-            let blockers: Vec<i32> = observer.query_one("SELECT pg_blocking_pids($1)", &[&peer_pid]).unwrap().get(0);
-            if blockers.contains(&owner_pid) { break; }
-            assert!(Instant::now() < deadline, "peer revoke never overlapped the adapter rotation");
-            std::thread::sleep(Duration::from_millis(5));
-        }
-        let query: String = observer.query_one("SELECT query FROM pg_stat_activity WHERE pid = $1", &[&peer_pid]).unwrap().get(0);
-        assert!(query.contains("FROM _head WHERE singleton FOR UPDATE"), "wrong fence: {query}");
+        race.after_fence(true).unwrap();
         Ok(Some(next.clone()))
     }).unwrap().unwrap();
     assert_eq!(rotated.token, next.token);

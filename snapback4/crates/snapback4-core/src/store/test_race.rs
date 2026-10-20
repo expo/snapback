@@ -15,6 +15,17 @@ thread_local! {
     // rusqlite requires a function pointer, so the contender thread supplies
     // the counter through TLS. Each race has its own counter, even in parallel.
     static BUSY_COUNT: RefCell<Option<Arc<AtomicUsize>>> = const { RefCell::new(None) };
+    // Composite family operations open their own adapter transaction. A
+    // one-shot hook gives them the same after-BEGIN rendezvous as direct Tx tests.
+    #[cfg(feature = "postgres")]
+    static BEGIN_HOOK: RefCell<Option<(Arc<FenceRace>, bool)>> = const { RefCell::new(None) };
+}
+
+#[cfg(feature = "postgres")]
+pub(crate) fn after_adapter_begin() {
+    if let Some((race, holder)) = BEGIN_HOOK.with(|slot| slot.borrow_mut().take()) {
+        race.after_begin(holder);
+    }
 }
 
 fn count_busy(attempt: i32) -> bool {
@@ -33,7 +44,7 @@ enum Witness {
     Sqlite(Arc<AtomicUsize>),
     #[cfg(feature = "postgres")]
     Postgres {
-        observer: postgres::Client,
+        observer: Box<postgres::Client>,
         holder: i32,
         contender: i32,
     },
@@ -75,7 +86,7 @@ impl FenceRace {
             .unwrap()
             .get(0);
         Self::new(Witness::Postgres {
-            observer,
+            observer: Box::new(observer),
             holder,
             contender,
         })
@@ -84,6 +95,13 @@ impl FenceRace {
     pub(crate) fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self
+    }
+
+    #[cfg(feature = "postgres")]
+    pub(crate) fn arm_after_begin(self: &Arc<Self>, holder: bool) {
+        BEGIN_HOOK.with(|slot| {
+            assert!(slot.borrow_mut().replace((self.clone(), holder)).is_none());
+        });
     }
 
     /// Install before BEGIN, on the contender thread and connection only.
