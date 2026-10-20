@@ -5,7 +5,10 @@ use crate::{
     RuntimeError,
     engine::actions::{
         ActionRequest,
-        requests::{NewRequest, RequestSettlement, RequestsStore, RequestsTransaction},
+        requests::{
+            NewRequest, RequestSettlement, RequestsStore, RequestsTransaction, diagnostic_text,
+            validate_text,
+        },
     },
     identity,
 };
@@ -104,6 +107,7 @@ fn read(row: &rusqlite::Row<'_>) -> rusqlite::Result<ActionRequest> {
 
 impl RequestsTransaction for Tx<'_> {
     fn request(&self, id: &str) -> Result<Option<ActionRequest>, RuntimeError> {
+        validate_text(&[id])?;
         Ok(self
             .conn()
             .query_row(
@@ -124,6 +128,7 @@ impl RequestsTransaction for Tx<'_> {
     }
 
     fn insert_request(&self, request: &NewRequest<'_>) -> Result<(), RuntimeError> {
+        request.validate()?;
         self.conn().execute("INSERT INTO _requests(id, name, args, principal, at, state, family, principal_generation, admitted_expires_at, args_digest, spec, contract, deadline, release, service_generation) VALUES (?1, ?2, ?3, ?4, ?5, 'queued', ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![request.id, request.action, request.args, request.principal, request.at,
                 request.authority.map(|a| &a.family), request.authority.map(|a| a.generation), request.authority.map(|a| a.expires_at), request.args_digest,
@@ -131,8 +136,9 @@ impl RequestsTransaction for Tx<'_> {
         Ok(())
     }
 
-    fn expired_requests(&self, now: i64, limit: i64) -> Result<Vec<ActionRequest>, RuntimeError> {
-        Ok(self.conn().prepare(&format!("SELECT {COLUMNS} FROM _requests WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until <= ?1)) LIMIT ?2"))?
+    fn expired_requests(&self, now: i64, limit: u64) -> Result<Vec<ActionRequest>, RuntimeError> {
+        let limit = limit.min(i64::MAX as u64) as i64;
+        Ok(self.conn().prepare(&format!("SELECT {COLUMNS} FROM _requests WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until <= ?1)) ORDER BY at, id LIMIT ?2"))?
             .query_map([now, limit], read)?.collect::<Result<Vec<_>, _>>()?)
     }
 
@@ -144,12 +150,16 @@ impl RequestsTransaction for Tx<'_> {
         error: &str,
         now: i64,
     ) -> Result<(), RuntimeError> {
+        validate_text(&[id, state, code])?;
+        let error = diagnostic_text(error);
+        let error = error.as_ref();
         // Retain the last claim fence so an in-flight handler may observe cancellation.
         self.conn().execute("UPDATE _requests SET state = ?2, error_code = ?3, error = ?4, result = NULL, next_at = NULL, settled_at = ?5 WHERE id = ?1", params![id, state, code, error, now])?;
         Ok(())
     }
 
     fn requeue_request(&self, id: &str, now: i64) -> Result<(), RuntimeError> {
+        validate_text(&[id])?;
         self.conn().execute("UPDATE _requests SET state = 'queued', error = 'the action lease expired', error_code = NULL, next_at = ?2, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE id = ?1", params![id, now])?;
         Ok(())
     }
@@ -158,13 +168,27 @@ impl RequestsTransaction for Tx<'_> {
         &self,
         now: i64,
         action: Option<&str>,
-        names: Option<&str>,
-        limit: i64,
+        names: Option<&[String]>,
+        limit: u64,
     ) -> Result<Vec<String>, RuntimeError> {
+        validate_text(&[action.unwrap_or("")])?;
+        if let Some(names) = names {
+            for name in names {
+                validate_text(&[name])?;
+            }
+        }
+        let limit = limit.min(i64::MAX as u64) as i64;
+        let names = names
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|error| RuntimeError::Input(error.to_string()))?;
         Ok(self.conn().prepare("SELECT id FROM _requests WHERE state = 'queued' AND (next_at IS NULL OR next_at <= ?1) AND (?2 IS NULL OR name = ?2) AND (?4 IS NULL OR name IN (SELECT value FROM json_each(?4))) ORDER BY at, id LIMIT ?3")?.query_map(params![now, action, limit, names], |row| row.get(0))?.collect::<Result<_, _>>()?)
     }
 
     fn fail_request_authority(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
+        validate_text(&[id])?;
+        let error = diagnostic_text(error);
+        let error = error.as_ref();
         self.conn().execute("UPDATE _requests SET state = 'failed', error_code = 'E_ACTION_AUTHORITY', error = ?2, settled_at = ?3, next_at = NULL, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE id = ?1", params![id, error, now])?;
         Ok(())
     }
@@ -176,6 +200,7 @@ impl RequestsTransaction for Tx<'_> {
         session_digest: &str,
         lease_until: i64,
     ) -> Result<(), RuntimeError> {
+        validate_text(&[id, worker, session_digest])?;
         self.conn().execute("UPDATE _requests SET state = 'running', attempts = attempts + 1, claimed_by = ?2, session_digest = ?3, lease_until = ?4, next_at = NULL, error = NULL, error_code = NULL WHERE id = ?1", params![id, worker, session_digest, lease_until])?;
         Ok(())
     }
@@ -185,11 +210,15 @@ impl RequestsTransaction for Tx<'_> {
         id: &str,
         settled: &RequestSettlement<'_>,
     ) -> Result<(), RuntimeError> {
-        self.conn().execute("UPDATE _requests SET state = ?2, result = ?3, error = ?4, next_at = ?5, claimed_by = NULL, session_digest = NULL, lease_until = NULL, error_code = ?7, settled_at = ?6 WHERE id = ?1", params![id, settled.state, settled.result, settled.error, settled.next_at, settled.settled_at, settled.error_code])?;
+        validate_text(&[id, settled.state, settled.error_code.unwrap_or("")])?;
+        let error = settled.error.map(diagnostic_text);
+        let error = error.as_deref();
+        self.conn().execute("UPDATE _requests SET state = ?2, result = ?3, error = ?4, next_at = ?5, claimed_by = NULL, session_digest = NULL, lease_until = NULL, error_code = ?7, settled_at = ?6 WHERE id = ?1", params![id, settled.state, settled.result, error, settled.next_at, settled.settled_at, settled.error_code])?;
         Ok(())
     }
 
     fn cancel_request(&self, id: &str) -> Result<(), RuntimeError> {
+        validate_text(&[id])?;
         self.conn()
             .execute("UPDATE _requests SET cancelled = 1 WHERE id = ?1", [id])?;
         Ok(())
@@ -211,6 +240,38 @@ impl RequestsStore for &Store {
             .prepare("SELECT state, COUNT(*) FROM _requests GROUP BY state")?
             .query_map([], |row| Ok((row.get(0)?, row.get::<_, i64>(1)? as u64)))?
             .collect::<Result<_, _>>()?)
+    }
+}
+
+// SQLite normally combines BEGIN and its writer reservation in BEGIN
+// IMMEDIATE. Split them only in this test seam: BEGIN DEFERRED, rendezvous,
+// then a no-op write reserves the same writer lock before any snapshot read.
+#[cfg(test)]
+impl Store {
+    fn requests_race_transaction(
+        &mut self,
+        after_begin: impl FnOnce(),
+    ) -> Result<Tx<'_>, RuntimeError> {
+        self.check_ownership()?;
+        let tx = self
+            .conn
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+        after_begin();
+        tx.execute("UPDATE _meta SET value = value WHERE key = 'version'", [])?;
+        if super::activation::identity(&tx)? != self.identity {
+            return Err(RuntimeError::Generation(
+                "the store adopted another backend; reopen this engine".into(),
+            ));
+        }
+        Ok(Tx {
+            activation_scan: None,
+            changes: Default::default(),
+            sequence_table: Default::default(),
+            tx,
+            page_size: self.page_size,
+            server: self.server,
+            catalog: &self.catalog,
+        })
     }
 }
 
@@ -261,6 +322,24 @@ mod tests {
     }
 
     #[test]
+    fn request_out_of_range_attempts_end_transaction_with_sql_error() {
+        let mut store = Store::memory().unwrap();
+        for attempts in [-1, u32::MAX as i64 + 1] {
+            let tx = store.transaction().unwrap();
+            test_cases::insert(&tx, "wide", "work", 0);
+            tx.conn()
+                .execute(
+                    "UPDATE _requests SET attempts = ?1 WHERE id = 'wide'",
+                    [attempts],
+                )
+                .unwrap();
+            test_cases::invalid_attempts(&tx);
+            tx.rollback().unwrap();
+            assert!(store.request_counts().unwrap().is_empty());
+        }
+    }
+
+    #[test]
     fn request_legacy_nulls_contract() {
         let mut store = Store::memory().unwrap();
         let tx = store.transaction().unwrap();
@@ -286,53 +365,141 @@ mod tests {
     }
 
     #[test]
-    fn request_claim_race_has_exactly_one_winner() {
+    fn request_limited_expiry_contract() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        test_cases::limited_expiry(&tx);
+        tx.commit().unwrap();
+    }
+
+    #[test]
+    fn request_duplicate_insert_ends_transaction() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        test_cases::duplicate_insert(&tx);
+        tx.rollback().unwrap();
+        let tx = store.transaction().unwrap();
+        assert!(tx.request("duplicate").unwrap().is_none());
+        test_cases::insert(&tx, "duplicate", "work", 0);
+        tx.commit().unwrap();
+    }
+
+    #[test]
+    fn request_nul_names_are_refused_before_writes() {
+        let mut store = Store::memory().unwrap();
+        for field in 0..7 {
+            let tx = store.transaction().unwrap();
+            test_cases::nul_insertion(&tx, field);
+            tx.rollback().unwrap();
+            assert!(store.request_counts().unwrap().is_empty());
+        }
+    }
+
+    #[test]
+    fn request_diagnostic_and_json_text_contract() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        let session = identity::action_session(&tx, "dev:alice", 0, 100).unwrap();
+        // Use the same digest as the shared policy witness.
+        tx.conn()
+            .execute(
+                "UPDATE _sessions SET token_digest = 'delegated' WHERE token_digest = ?1",
+                [identity::digest(&session.token)],
+            )
+            .unwrap();
+        test_cases::diagnostic_and_json_text(&tx);
+        tx.commit().unwrap();
+    }
+
+    fn race_store() -> (std::path::PathBuf, Store, [Store; 2]) {
         let dir = std::env::temp_dir().join(format!("sb4-requests-{:x}", crate::ids::seed()));
         std::fs::create_dir(&dir).unwrap();
         let path = dir.join("requests.sqlite");
-        let mut store = Store::open(&path).unwrap();
+        let store = Store::open(&path).unwrap();
+        let stores = [Store::open(&path).unwrap(), Store::open(&path).unwrap()];
+        (dir, store, stores)
+    }
+
+    #[test]
+    fn request_claim_race_has_exactly_one_winner() {
+        let (dir, mut store, stores) = race_store();
         let tx = store.transaction().unwrap();
         test_cases::insert(&tx, "race", "work", 0);
-        test_cases::insert(&tx, "conditional-race", "conditional", 0);
         tx.commit().unwrap();
-        let mut stores = [Store::open(&path).unwrap(), Store::open(&path).unwrap()];
-        // Both connections discover the same candidate before the write race.
-        for store in &mut stores {
-            let tx = store.transaction().unwrap();
-            assert_eq!(
-                tx.due_requests(10, Some("work"), None, 1).unwrap(),
-                ["race"]
-            );
-            tx.rollback().unwrap();
-        }
-        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
-        let handles: Vec<_> = stores.into_iter().enumerate().map(|(n, mut store)| {
-            let barrier = barrier.clone();
-            std::thread::spawn(move || {
-                barrier.wait();
-                let tx = store.transaction().unwrap();
-                let won = test_cases::claim_due(&tx, &format!("service:worker{n}"));
-                let conditional = tx.conn().execute("UPDATE _requests SET state = 'running' WHERE id = 'conditional-race' AND state = 'queued'", []).unwrap();
-                assert_eq!(conditional as u64, tx.conn().changes());
-                // Native conditional updates see the winner's committed state,
-                // including when this connection selected it before the fence.
-                assert_eq!(tx.conn().execute("UPDATE _requests SET state = 'failed' WHERE id = 'race' AND state = 'queued'", []).unwrap(), 0);
-                tx.commit().unwrap();
-                (won, conditional)
+        let order = std::sync::Arc::new(test_cases::RaceOrder::new());
+        let handles: Vec<_> = stores
+            .into_iter()
+            .enumerate()
+            .map(|(n, mut store)| {
+                let order = order.clone();
+                std::thread::spawn(move || {
+                    let tx = store
+                        .requests_race_transaction(|| order.after_begin(n == 0))
+                        .unwrap();
+                    order.after_fence(n == 0);
+                    let won = test_cases::claim_due(&tx, &format!("service:worker{n}"));
+                    tx.commit().unwrap();
+                    won
+                })
             })
-        }).collect();
+            .collect();
         let winners: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
-        assert_eq!(winners.iter().filter(|(won, _)| *won).count(), 1);
-        let mut affected: Vec<_> = winners.iter().map(|(_, changed)| *changed).collect();
-        affected.sort();
-        assert_eq!(affected, [0, 1]);
+        assert_eq!(winners, [true, false]);
         let tx = store.transaction().unwrap();
         let run = tx.request("race").unwrap().unwrap();
         assert_eq!(run.state, "running");
         assert_eq!(run.attempt, 1);
+        assert_eq!(run.lease_until, Some(100));
         tx.rollback().unwrap();
         drop(store);
         std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn request_expiry_vs_settlement_is_serialized_in_both_orders() {
+        for expiry_first in [true, false] {
+            let expected = test_cases::sqlite_expiry_settlement_outcome(expiry_first);
+            let (dir, mut store, stores) = race_store();
+            let tx = store.transaction().unwrap();
+            let session = identity::action_session(&tx, "dev:alice", 0, 100).unwrap();
+            test_cases::seed_expiry_settlement(&tx, &session.token);
+            tx.commit().unwrap();
+            let order = std::sync::Arc::new(test_cases::RaceOrder::new());
+            let handles: Vec<_> = stores
+                .into_iter()
+                .enumerate()
+                .map(|(n, mut store)| {
+                    let order = order.clone();
+                    let token = session.token.clone();
+                    std::thread::spawn(move || {
+                        let first = n == 0;
+                        let tx = store
+                            .requests_race_transaction(|| order.after_begin(first))
+                            .unwrap();
+                        order.after_fence(first);
+                        let won = test_cases::expiry_settlement_operation(
+                            &tx,
+                            if first { expiry_first } else { !expiry_first },
+                            &token,
+                        );
+                        tx.commit().unwrap();
+                        won
+                    })
+                })
+                .collect();
+            assert_eq!(
+                handles
+                    .into_iter()
+                    .map(|h| h.join().unwrap())
+                    .collect::<Vec<_>>(),
+                [true, false]
+            );
+            let tx = store.transaction().unwrap();
+            assert_eq!(tx.request("expiry-race").unwrap(), Some(expected));
+            tx.rollback().unwrap();
+            drop(store);
+            std::fs::remove_dir_all(dir).unwrap();
+        }
     }
 
     #[test]

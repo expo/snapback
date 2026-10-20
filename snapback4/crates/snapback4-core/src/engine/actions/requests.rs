@@ -4,7 +4,7 @@
 // @ref LLP 3000.009.001.000#3.3 — extract access before adding Postgres behavior.
 use super::ActionRequest;
 use crate::{RuntimeError, identity::Authority};
-use std::collections::BTreeMap;
+use std::{borrow::Cow, collections::BTreeMap};
 
 pub(crate) struct NewRequest<'a> {
     pub id: &'a str,
@@ -21,6 +21,42 @@ pub(crate) struct NewRequest<'a> {
     pub service_generation: Option<i64>,
 }
 
+// @ref LLP 3000.009.001.000#9.1 — reject storage names before either dialect sees them.
+pub(crate) fn validate_text(values: &[&str]) -> Result<(), RuntimeError> {
+    if values.iter().any(|value| value.contains('\0')) {
+        return Err(RuntimeError::Input(
+            "request identifiers and names cannot contain U+0000".into(),
+        ));
+    }
+    Ok(())
+}
+
+impl NewRequest<'_> {
+    pub(crate) fn validate(&self) -> Result<(), RuntimeError> {
+        // args and spec are JSON; their encoders escape NUL. Digests, release
+        // and contract are plain text and use the same validation as names.
+        validate_text(&[
+            self.id,
+            self.action,
+            self.principal,
+            self.args_digest,
+            self.contract,
+            self.release.unwrap_or(""),
+            self.authority
+                .map_or("", |authority| authority.family.as_str()),
+        ])
+    }
+}
+
+// @ref LLP 3000.009.001.000#9.1 — normalize diagnostics before policy truncates them.
+pub(crate) fn diagnostic_text(text: &str) -> Cow<'_, str> {
+    if text.contains('\0') {
+        Cow::Owned(text.replace('\0', "\u{fffd}"))
+    } else {
+        Cow::Borrowed(text)
+    }
+}
+
 pub(crate) struct RequestSettlement<'a> {
     pub state: &'a str,
     pub result: Option<&'a str>,
@@ -31,11 +67,15 @@ pub(crate) struct RequestSettlement<'a> {
 }
 
 // @ref LLP 3000.009.001.000#10 — one request contract on SQLite and Postgres.
+/// Any adapter error is terminal for the caller's transaction: propagate it
+/// and roll back/drop the transaction. A conflict that policy may continue
+/// past must instead be expressed as a typed outcome, never a statement error.
+// @ref LLP 3000.009.001.000#9.1 — SQLite must not continue after errors that abort Postgres.
 pub(crate) trait RequestsTransaction {
     fn request(&self, id: &str) -> Result<Option<ActionRequest>, RuntimeError>;
     fn request_release(&self) -> Result<Option<String>, RuntimeError>;
     fn insert_request(&self, request: &NewRequest<'_>) -> Result<(), RuntimeError>;
-    fn expired_requests(&self, now: i64, limit: i64) -> Result<Vec<ActionRequest>, RuntimeError>;
+    fn expired_requests(&self, now: i64, limit: u64) -> Result<Vec<ActionRequest>, RuntimeError>;
     /// Preserve the claim fence; policy invalidates its session before finishing.
     fn finish_request(
         &self,
@@ -46,13 +86,14 @@ pub(crate) trait RequestsTransaction {
         now: i64,
     ) -> Result<(), RuntimeError>;
     fn requeue_request(&self, id: &str, now: i64) -> Result<(), RuntimeError>;
-    /// `names` is the already encoded claim-name set, or no set restriction.
+    /// `names` is a typed claim-name set, or no set restriction.
+    /// Limits above BIGINT::MAX saturate there in both adapters.
     fn due_requests(
         &self,
         now: i64,
         action: Option<&str>,
-        names: Option<&str>,
-        limit: i64,
+        names: Option<&[String]>,
+        limit: u64,
     ) -> Result<Vec<String>, RuntimeError>;
     fn fail_request_authority(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError>;
     fn claim_request(
@@ -165,25 +206,34 @@ pub(crate) mod test_cases {
         insert(tx, "b", "work", 10);
         insert(tx, "a", "work", 10);
         assert_eq!(tx.due_requests(0, None, None, 2).unwrap(), ["a", "b"]);
-        assert!(
-            tx.due_requests(0, None, Some("[]"), 100)
-                .unwrap()
-                .is_empty()
-        );
+        assert!(tx.due_requests(0, None, Some(&[]), 100).unwrap().is_empty());
         assert!(tx.due_requests(0, None, None, 0).unwrap().is_empty());
         assert_eq!(
             tx.due_requests(0, Some("other"), None, 100).unwrap(),
             ["later"]
         );
         assert_eq!(
-            tx.due_requests(0, None, Some("[\"work\"]"), 100).unwrap(),
+            tx.due_requests(0, None, Some(&["work".into()]), 100)
+                .unwrap(),
             ["a", "b"]
         );
         assert!(
-            tx.due_requests(0, Some("other"), Some("[\"work\"]"), 100)
+            tx.due_requests(0, Some("other"), Some(&["work".into()]), 100)
                 .unwrap()
                 .is_empty()
         );
+        insert(tx, "odd", "quoted\"\\é", 30);
+        assert_eq!(
+            tx.due_requests(
+                0,
+                None,
+                Some(&["quoted\"\\é".into(), "work".into(), "work".into()]),
+                u64::MAX
+            )
+            .unwrap(),
+            ["a", "b", "odd"]
+        );
+        tx.fail_request_authority("odd", "not needed", 0).unwrap();
         tx.claim_request("a", "service:worker", "digest", 100)
             .unwrap();
         assert!(tx.expired_requests(99, 1).unwrap().is_empty());
@@ -244,13 +294,6 @@ pub(crate) mod test_cases {
                 attempts + 1
             );
         }
-        for attempts in [-1, u32::MAX as i64 + 1] {
-            set_attempts(attempts);
-            assert!(
-                tx.request("wide").is_err(),
-                "invalid attempts must not truncate or wrap"
-            );
-        }
         set_attempts(2);
         for (result, expected) in [(Some("null"), Some(serde_json::Value::Null)), (None, None)] {
             tx.settle_request(
@@ -294,6 +337,13 @@ pub(crate) mod test_cases {
         )
         .unwrap();
         assert!(tx.request("missing").unwrap().is_none());
+    }
+
+    pub(crate) fn invalid_attempts(tx: &impl RequestsTransaction) {
+        assert!(
+            matches!(tx.request("wide"), Err(RuntimeError::Sql(_))),
+            "out-of-range attempts retain the common legacy Sql variant"
+        );
     }
 
     /// Harness seeds a predecessor row with nullable optional columns and an
@@ -405,6 +455,308 @@ pub(crate) mod test_cases {
         .unwrap();
         assert!(tx.session_by_digest("delegated").unwrap().is_none());
         assert_eq!(tx.request("bound").unwrap().unwrap().lease_until, Some(80));
+    }
+
+    pub(crate) fn limited_expiry(tx: &(impl RequestsTransaction + AuthorityTransaction)) {
+        insert(tx, "b", "z", 10);
+        insert(tx, "a", "a", 10);
+        tx.claim_request("b", "worker", "digest-b", 10).unwrap();
+        tx.claim_request("a", "worker", "digest-a", 10).unwrap();
+        tx.insert_request(&NewRequest {
+            deadline: Some(10),
+            ..new("q", "q", 0)
+        })
+        .unwrap();
+        assert!(tx.expired_requests(10, 0).unwrap().is_empty());
+        assert_eq!(
+            tx.expired_requests(10, u64::MAX)
+                .unwrap()
+                .iter()
+                .map(|r| r.id.as_str())
+                .collect::<Vec<_>>(),
+            ["q", "a", "b"]
+        );
+        for (id, state) in [("q", "failed"), ("a", "queued"), ("b", "queued")] {
+            assert_eq!(tx.expired_requests(10, 1).unwrap()[0].id, id);
+            assert_eq!(
+                super::super::expire_batch(tx, 10, 1, std::time::Duration::MAX).unwrap(),
+                1
+            );
+            let run = tx.request(id).unwrap().unwrap();
+            assert_eq!(run.state, state);
+            if id == "q" {
+                assert_eq!(run.error_code.as_deref(), Some("E_ACTION_DEADLINE"));
+            } else {
+                assert!(run.lease_until.is_none());
+            }
+        }
+        assert!(tx.expired_requests(10, 1).unwrap().is_empty());
+    }
+
+    pub(crate) fn new<'a>(id: &'a str, action: &'a str, at: i64) -> NewRequest<'a> {
+        NewRequest {
+            id,
+            action,
+            at,
+            args: "{}",
+            principal: "dev:alice",
+            authority: None,
+            args_digest: "digest",
+            spec: "{}",
+            contract: "contract",
+            deadline: None,
+            release: None,
+            service_generation: None,
+        }
+    }
+
+    /// The harness must end this transaction after the error, then verify that
+    /// even the preceding successful insert was rolled back on a fresh one.
+    pub(crate) fn duplicate_insert(tx: &impl RequestsTransaction) {
+        insert(tx, "duplicate", "work", 0);
+        assert!(tx.insert_request(&new("duplicate", "work", 1)).is_err());
+    }
+
+    /// Validation is shared and occurs before SQL. The harness rolls back after
+    /// each refused insertion, honoring the terminal-error contract.
+    pub(crate) fn nul_insertion(tx: &impl RequestsTransaction, field: usize) {
+        let authority = Authority {
+            family: "family\0bad".into(),
+            generation: 0,
+            expires_at: 100,
+        };
+        let mut request = new("nul", "work", 0);
+        match field {
+            0 => request.id = "id\0bad",
+            1 => request.action = "name\0bad",
+            2 => request.principal = "principal\0bad",
+            3 => request.authority = Some(&authority),
+            4 => request.args_digest = "digest\0bad",
+            5 => request.contract = "contract\0bad",
+            6 => request.release = Some("release\0bad"),
+            _ => unreachable!(),
+        }
+        assert!(matches!(
+            tx.insert_request(&request),
+            Err(RuntimeError::Input(_))
+        ));
+    }
+
+    pub(crate) fn diagnostic_and_json_text(tx: &(impl RequestsTransaction + AuthorityTransaction)) {
+        use super::super::{ActionSettled, record_settlement};
+        assert!(tx.session_by_digest("delegated").unwrap().is_some());
+        let encoded_args = serde_json::to_string(&BTreeMap::from([(
+            "text",
+            crate::Value::String("a\0b".into()),
+        )]))
+        .unwrap();
+        tx.insert_request(&NewRequest {
+            args: &encoded_args,
+            ..new("json", "work", 0)
+        })
+        .unwrap();
+        assert_eq!(
+            tx.request("json").unwrap().unwrap().args["text"],
+            crate::Value::String("a\0b".into())
+        );
+        let encoded_result = serde_json::to_string(&serde_json::json!({"text": "a\0b"})).unwrap();
+        for (id, settled, refusal, expected) in [
+            (
+                "failed",
+                ActionSettled::Failed {
+                    error: "provider\0failure".into(),
+                    retry: false,
+                },
+                None,
+                "provider\u{fffd}failure".to_owned(),
+            ),
+            (
+                "retry",
+                ActionSettled::Failed {
+                    error: format!("{}\0tail", "x".repeat(1_999)),
+                    retry: true,
+                },
+                None,
+                format!("{}\u{fffd}", "x".repeat(1_999)),
+            ),
+            (
+                "refused",
+                ActionSettled::Refused {
+                    code: "E_REFUSED",
+                    error: "provider\0refused".into(),
+                },
+                None,
+                "provider\u{fffd}refused".to_owned(),
+            ),
+            (
+                "route",
+                ActionSettled::Done(serde_json::Value::Null),
+                Some("route\0refused".into()),
+                "route\u{fffd}refused".to_owned(),
+            ),
+        ] {
+            insert(tx, id, "work", 0);
+            tx.claim_request(id, "service:worker", "delegated", 100)
+                .unwrap();
+            let run = tx.request(id).unwrap().unwrap();
+            let result =
+                matches!(settled, ActionSettled::Done(_)).then_some(encoded_result.as_str());
+            record_settlement(tx, &run, "delegated", settled, result, refusal, 20).unwrap();
+            assert_eq!(
+                tx.request(id).unwrap().unwrap().error.as_deref(),
+                Some(expected.as_str())
+            );
+            let run = tx.request(id).unwrap().unwrap();
+            assert_eq!(
+                run.state,
+                match id {
+                    "retry" => "queued",
+                    "route" => "done",
+                    _ => "failed",
+                }
+            );
+            if id != "refused" {
+                assert!(run.lease_until.is_none());
+            }
+            assert!(tx.session_by_digest("delegated").unwrap().is_none());
+        }
+        insert(tx, "park", "work", 0);
+        super::super::finish(
+            tx,
+            "park",
+            "parked",
+            "E_STEP_PARKED",
+            "uncertain\0outcome",
+            20,
+        )
+        .unwrap();
+        assert_eq!(
+            tx.request("park").unwrap().unwrap().error.as_deref(),
+            Some("uncertain\u{fffd}outcome")
+        );
+        tx.fail_request_authority("json", "authority\0refused", 20)
+            .unwrap();
+        assert_eq!(
+            tx.request("json").unwrap().unwrap().error.as_deref(),
+            Some("authority\u{fffd}refused")
+        );
+        let run = tx.request("route").unwrap().unwrap();
+        assert_eq!(run.result, Some(serde_json::json!({"text": "a\0b"})));
+    }
+
+    /// Two BEGINs overlap. The second is released only once the first owns
+    /// the fence; the first keeps that fence until the second is approaching it.
+    pub(crate) struct RaceOrder {
+        begun: std::sync::Barrier,
+        holder: std::sync::Barrier,
+        contender: std::sync::Barrier,
+    }
+    impl RaceOrder {
+        pub(crate) fn new() -> Self {
+            Self {
+                begun: std::sync::Barrier::new(2),
+                holder: std::sync::Barrier::new(2),
+                contender: std::sync::Barrier::new(2),
+            }
+        }
+        pub(crate) fn after_begin(&self, first: bool) {
+            self.begun.wait();
+            if !first {
+                self.holder.wait();
+                self.contender.wait();
+            }
+        }
+        pub(crate) fn after_fence(&self, first: bool) {
+            if first {
+                self.holder.wait();
+                self.contender.wait();
+            }
+        }
+    }
+
+    pub(crate) fn seed_expiry_settlement(tx: &impl RequestsTransaction, token: &str) {
+        insert(tx, "expiry-race", "work", 0);
+        tx.claim_request(
+            "expiry-race",
+            "service:worker",
+            &crate::identity::digest(token),
+            10,
+        )
+        .unwrap();
+    }
+
+    pub(crate) fn expiry_settlement_operation(
+        tx: &(impl RequestsTransaction + AuthorityTransaction),
+        expire: bool,
+        token: &str,
+    ) -> bool {
+        if expire {
+            super::super::expire_batch(tx, 10, 1, std::time::Duration::MAX).unwrap() == 1
+        } else {
+            let run = match super::super::held_claim_authority(
+                tx,
+                "expiry-race",
+                "service:worker",
+                token,
+                9,
+            ) {
+                Ok(run) => run,
+                Err(error) => {
+                    assert!(matches!(
+                        error,
+                        RuntimeError::Structural {
+                            code: "E_ACTION_LEASE",
+                            ..
+                        }
+                    ));
+                    return false;
+                }
+            };
+            super::super::record_settlement(
+                tx,
+                &run,
+                &crate::identity::digest(token),
+                super::super::ActionSettled::Done(serde_json::Value::Null),
+                Some("null"),
+                None,
+                9,
+            )
+            .unwrap();
+            true
+        }
+    }
+
+    pub(crate) fn sqlite_expiry_settlement_outcome(expiry_first: bool) -> ActionRequest {
+        let mut store = crate::store::Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        let session = crate::identity::action_session(&tx, "dev:alice", 0, 100).unwrap();
+        seed_expiry_settlement(&tx, &session.token);
+        tx.commit().unwrap();
+        for expire in [expiry_first, !expiry_first] {
+            let tx = store.transaction().unwrap();
+            let won = expiry_settlement_operation(&tx, expire, &session.token);
+            assert_eq!(won, expire == expiry_first);
+            tx.commit().unwrap();
+        }
+        let tx = store.transaction().unwrap();
+        let run = tx.request("expiry-race").unwrap().unwrap();
+        assert_expiry_settlement(&run, expiry_first);
+        run
+    }
+
+    pub(crate) fn assert_expiry_settlement(run: &ActionRequest, expiry_first: bool) {
+        assert_eq!(run.attempt, 1);
+        assert!(run.lease_until.is_none());
+        if expiry_first {
+            assert_eq!(run.state, "queued");
+            assert_eq!(run.error.as_deref(), Some("the action lease expired"));
+            assert!(run.result.is_none() && run.settled_at.is_none());
+        } else {
+            assert_eq!(run.state, "done");
+            assert_eq!(run.result, Some(serde_json::Value::Null));
+            assert_eq!(run.settled_at, Some(9));
+            assert!(run.error.is_none());
+        }
     }
 
     /// Two connections call this only after taking their ordinary writer fence.

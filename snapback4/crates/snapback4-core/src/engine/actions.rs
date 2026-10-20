@@ -4,7 +4,7 @@ use super::{Context, Engine, effects::MAX_LEASE_MS, validate};
 use crate::{RuntimeError, authority::{self, AuthorityTransaction}, identity, ir::{BinaryOp, Expr, Input, Program, ProgramKind, Stmt, UnaryOp}, store::Tx, value::Value};
 use crate::schema::{ActionSpec, Schema};
 pub(crate) mod requests;
-use requests::{NewRequest, RequestSettlement, RequestsStore, RequestsTransaction};
+use requests::{NewRequest, RequestSettlement, RequestsStore, RequestsTransaction, diagnostic_text, validate_text};
 use serde_json::Value as Json;
 use std::collections::BTreeMap;
 
@@ -100,16 +100,17 @@ pub fn authorize(program: &Program, viewer: &str) -> Result<(), RuntimeError> {
 }
 
 pub(crate) fn finish(tx: &(impl RequestsTransaction + AuthorityTransaction), id: &str, state: &str, code: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
+    validate_text(&[id, state, code])?;
     if let Some(work) = tx.work_by_id(id)? && let Some(digest) = work.session_digest { tx.invalidate_session(&digest)?; }
-    tx.finish_request(id, state, code, error, now)?;
+    tx.finish_request(id, state, code, &diagnostic_text(error), now)?;
     Ok(())
 }
 
 fn expire(tx: &(impl RequestsTransaction + AuthorityTransaction), now: i64) -> Result<u64, RuntimeError> {
-    expire_batch(tx, now, i64::MAX, std::time::Duration::MAX)
+    expire_batch(tx, now, u64::MAX, std::time::Duration::MAX)
 }
 
-fn expire_batch(tx: &(impl RequestsTransaction + AuthorityTransaction), now: i64, limit: i64, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+fn expire_batch(tx: &(impl RequestsTransaction + AuthorityTransaction), now: i64, limit: u64, budget: std::time::Duration) -> Result<u64, RuntimeError> {
     let started = std::time::Instant::now();
     let runs = tx.expired_requests(now, limit)?;
     let mut changed = 0;
@@ -145,6 +146,7 @@ pub(super) fn insert_request(tx: &Tx<'_>, schema: &Schema, program: &Program, id
 /// Routes use the same durable record and authority binding, with their
 /// declaration's contract rather than a public action program's contract.
 pub(super) fn insert_spec(tx: &Tx<'_>, program: &Program, id: &str, context: &Context, raw: &Json, service: bool, spec: &ActionSpec, contract: &str, now: i64) -> Result<(), RuntimeError> {
+    validate_text(&[id, &program.name, &context.viewer, context.session_digest.as_deref().unwrap_or(""), contract])?;
     if !spec.work.policy.valid() { return Err(RuntimeError::Schema("the action policy is outside its bounds".into())); }
     let authority = context.session_digest.as_deref().map(|digest| identity::authority(tx, digest, &context.viewer, now)).transpose()?;
     let service_generation = if service { Some(identity::principal_generation(tx, &context.viewer)?) } else { None };
@@ -164,6 +166,7 @@ pub(super) fn insert_spec(tx: &Tx<'_>, program: &Program, id: &str, context: &Co
 impl Engine {
     // @ref LLP 3000.007#9.2 — durable action admission precedes the worker and survives retries by id.
     pub fn request_action(&mut self, name: &str, id: &str, mut context: Context) -> Result<(ActionRequest, bool), RuntimeError> {
+        validate_text(&[name, id, &context.viewer])?;
         if context.viewer == crate::SYSTEM_PRINCIPAL || !crate::value::identity_fits(&context.viewer) {
             return Err(RuntimeError::Auth("an action needs a signed-in principal".into()));
         }
@@ -221,16 +224,17 @@ impl Engine {
         if actions.is_empty() || actions.len() > 128 || actions.iter().any(|name| name.is_empty()) {
             return Err(RuntimeError::Input("claim actions must contain 1–128 nonempty names".into()));
         }
-        let names = serde_json::to_string(actions).map_err(|error| RuntimeError::Input(error.to_string()))?;
-        self.claim_selected_actions(worker, None, Some(&names), limit, lease_ms, session_seconds, now)
+        self.claim_selected_actions(worker, None, Some(actions), limit, lease_ms, session_seconds, now)
     }
 
-    fn claim_selected_actions(&mut self, worker: &str, action: Option<&str>, names: Option<&str>, limit: usize, lease_ms: i64, session_seconds: i64, now: i64) -> Result<Vec<ActionClaim>, RuntimeError> {
+    fn claim_selected_actions(&mut self, worker: &str, action: Option<&str>, names: Option<&[String]>, limit: usize, lease_ms: i64, session_seconds: i64, now: i64) -> Result<Vec<ActionClaim>, RuntimeError> {
+        validate_text(&[worker, action.unwrap_or("")])?;
+        if let Some(names) = names { for name in names { validate_text(&[name])?; } }
         if !identity::is_service(worker) { return Err(RuntimeError::Auth("actions are claimed by a service".into())); }
         let duration = lease_ms.clamp(1_000, MAX_LEASE_MS).min(session_seconds.clamp(1, MAX_LEASE_MS / 1_000) * 1_000);
         let tx = self.store.transaction()?;
         expire(&tx, now)?;
-        let ids = tx.due_requests(now, action, names, limit.clamp(1, 100) as i64)?;
+        let ids = tx.due_requests(now, action, names, limit.clamp(1, 100) as u64)?;
         let mut claims = Vec::new();
         for id in ids {
             let run = tx.request(&id)?.ok_or_else(unknown)?;
@@ -296,28 +300,7 @@ impl Engine {
                 }
             }
         } else { None };
-        // The claim token fences the attempt even when the next worker
-        // uses the same service seat. No secret is persisted in plaintext.
-        tx.invalidate_session(&digest)?;
-        let (state, error, next_at) = match settled {
-            ActionSettled::Done(_) => ("done", application_refusal.clone(), None),
-            ActionSettled::Refused { code, error } => {
-                finish(&tx, id, "failed", code, &error.chars().take(2_000).collect::<String>(), now)?;
-                let run = tx.request(id)?.ok_or_else(unknown)?;
-                tx.commit()?;
-                return Ok(run);
-            }
-            ActionSettled::Failed { error, retry } => {
-                let error: String = error.chars().take(2_000).collect();
-                if retry && run.attempt < run.spec.work.policy.max_attempts { ("queued", Some(error), Some(now.saturating_add(run.spec.work.policy.backoff(run.attempt)))) }
-                else { ("failed", Some(error), None) }
-            }
-        };
-        tx.settle_request(id, &RequestSettlement {
-            state, result: result.as_deref(), error: error.as_deref(), next_at,
-            settled_at: if state == "queued" { None } else { Some(now) },
-            error_code: application_refusal.as_ref().map(|_| "E_ROUTE_REFUSED"),
-        })?;
+        record_settlement(&tx, &run, &digest, settled, result.as_deref(), application_refusal, now)?;
         let run = tx.request(id)?.ok_or_else(unknown)?;
         tx.commit()?;
         Ok(run)
@@ -429,4 +412,70 @@ fn result_json(schema: &Schema, spec: &ActionSpec, mut result: Json, ceiling: u6
     let bytes = serde_json::to_string(&result).map_err(|_| "the result is not JSON")?;
     if bytes.len() as u64 > ceiling { return Err("the result exceeds the output byte ceiling".into()); }
     Ok(bytes)
+}
+
+// Shared policy after authority/result validation; exercised by both adapter contracts.
+fn record_settlement(
+    tx: &(impl RequestsTransaction + AuthorityTransaction),
+    run: &ActionRequest,
+    digest: &str,
+    settled: ActionSettled,
+    result: Option<&str>,
+    application_refusal: Option<String>,
+    now: i64,
+) -> Result<(), RuntimeError> {
+    // The claim token fences the attempt even when the next worker uses
+    // the same service seat. No secret is persisted in plaintext.
+    validate_text(&[&run.id, digest])?;
+    if let ActionSettled::Refused { code, .. } = &settled {
+        validate_text(&[code])?;
+    }
+    tx.invalidate_session(digest)?;
+    let (state, error, next_at) = match settled {
+        ActionSettled::Done(_) => (
+            "done",
+            application_refusal
+                .as_deref()
+                .map(|text| diagnostic_text(text).into_owned()),
+            None,
+        ),
+        ActionSettled::Refused { code, error } => {
+            finish(
+                tx,
+                &run.id,
+                "failed",
+                code,
+                &diagnostic_text(&error)
+                    .chars()
+                    .take(2_000)
+                    .collect::<String>(),
+                now,
+            )?;
+            return Ok(());
+        }
+        ActionSettled::Failed { error, retry } => {
+            let error: String = diagnostic_text(&error).chars().take(2_000).collect();
+            if retry && run.attempt < run.spec.work.policy.max_attempts {
+                (
+                    "queued",
+                    Some(error),
+                    Some(now.saturating_add(run.spec.work.policy.backoff(run.attempt))),
+                )
+            } else {
+                ("failed", Some(error), None)
+            }
+        }
+    };
+    tx.settle_request(
+        &run.id,
+        &RequestSettlement {
+            state,
+            result,
+            error: error.as_deref(),
+            next_at,
+            settled_at: if state == "queued" { None } else { Some(now) },
+            error_code: application_refusal.as_ref().map(|_| "E_ROUTE_REFUSED"),
+        },
+    )?;
+    Ok(())
 }

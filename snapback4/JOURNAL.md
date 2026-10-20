@@ -97839,3 +97839,101 @@ suppression was added. Final disk space is 79 GB free, well above the stop
 threshold. The owned private cluster is stopped. No request behavior or
 scope uncertainty remains within the tested contract; the known expanded
 fixture failure is the only failing product-test command. No push.
+
+
+## 2026-10-21 — P1-RQ fix round 1: request adapter parity
+
+Worked only in `sb4-pg-p1rq` on `sb4-pg/p1-requests`, after the lead's rebase
+of `85ecdaa750` and `0a536ea982` onto `6db797f530`. The initial `cargo build
+-j 24` passed; the rebase needed no build repair. Read the new store-port
+RFC §9.1 first and applied its seven rules to the requests family.
+
+Both adapters now order bounded expiry by `at, id`; `due_requests` already
+had that total order, and these are every LIMIT in the two request adapters.
+The shared mixed deadline/lease case pins both the chosen subset and the
+resulting terminal failure/requeue. Postgres request reads have explicit
+columns, with a witness that caches both reads on A, adds a column on B,
+and reuses A without reopening it. Name sets are typed slices; dialect
+encoding lives in the adapters. Unsigned limits saturate at `i64::MAX`,
+preserving the previous full-pass bound.
+
+Shared diagnostic policy replaces NUL before the existing 2,000-character
+settlement truncation. Shared cases cover terminal/retry failure, refusal,
+park, authority failure, acknowledged route refusal and escaped JSON args
+and results. Shared validation refuses NUL in all request names/ids,
+principals, authority families, worker/session keys and the remaining plain
+text bindings before storage. SQLite behavior changes are limited to these
+rule-1 NUL refusals/replacements and rule-2 bounded-expiry subset ordering.
+Other strings retain their existing limits and handling.
+
+The request trait now states that an adapter error ends its transaction.
+All production insert callers propagate it: action admission, route admission
+and scheduled actions. The duplicate-insert case rolls back then checks the
+absence of the earlier write and successful reuse from a new transaction.
+Postgres out-of-range attempts now report the same legacy Sql variant as
+SQLite; invalid-row tests roll back immediately after that adapter error.
+
+The previous claim race could pass sequentially. Its replacement starts
+both transactions before either takes a fence and uses the adapter's actual
+selection/claim. A second rendezvous keeps the first fence held as the other
+connection approaches it. SQLite splits BEGIN from writer reservation in a
+test-only seam, before any snapshot read; its production path is unchanged.
+Expiry/settlement runs with both fence orders and compares the complete final
+request with the ordinary serial SQLite outcome, including session revocation.
+No harness SQL performs either competing transition.
+
+Validation results will be appended after the required commands complete.
+No push is authorized or made; every private cluster started by this lane
+is stopped by its owning runner.
+
+
+The first required Postgres runner attempt could not resolve its locked
+experiment graph: it still named the local packages as 0.4.0 and omitted
+the core's libc dependency. Commit `2825bf5b7f` repairs only those local
+entries. After the experiment's device fixture stopped the original runner
+before request tests, the runner was changed to collect failure status across
+all three stages and still return nonzero. `bash -n scripts/test-postgres.sh`
+passes. This preserves every failure while ensuring every family test executes.
+
+The final serial Postgres script run (`/tmp/p1rq-postgres-verified.log`)
+reports experiment conformance **18 passed / 0 failed / 0 ignored**; the
+unchanged device snapshot fixture **0 / 1 / 0**; the full Postgres module
+**51 / 1 / 0**; and the corpus **19 / 0 / 0**. All **17 gated requests
+cases passed, 0 failed, 0 ignored**. The module's only red is the previously
+tracked maintained-ID duplicate insert:
+[`20261017-snapback4-postgres-legacy-maintained-id-fixture-inserts-existing-group.md`](../issues/20261017-snapback4-postgres-legacy-maintained-id-fixture-inserts-existing-group.md).
+The device fixture omits `after` on snapshot continuations and is recorded in
+[`20261021-snapback4-postgres-device-fixture-omits-snapshot-continuation.md`](../issues/20261021-snapback4-postgres-device-fixture-omits-snapshot-continuation.md).
+Its fixture and the device/Postgres snapshot implementation are unchanged from
+`6db797f530`; there was no separate base build for that observation.
+
+An intermediate mixed-workspace artifact mismatch disappeared after cleaning
+only this target's device package and running the Postgres script serially.
+That cleanup removed a pending executable from an already-running core test
+command, so that interrupted command is not counted as a passing full run;
+the complete core command was restarted after Postgres finished. All four
+private cluster attempts have stopped via their own cleanup traps.
+
+The store-port ratchet passes all five tests without raising or changing an
+allowlist. The required Clippy command reports only the two acknowledged
+baseline errors (`while_immutable_condition`, `engine/read.rs:780`, and
+`never_loop`, `engine/row_views.rs:1010`). A diagnostic run allowing only
+those two lints passes library and test checking, with no source suppression.
+`./ref-check` passes: 564 LLP documents, 11,514 references, zero errors and
+zero unchecked. The RFC retains one Revised line with this round prepended.
+
+
+Final verification: the restarted `cargo test -j 24 -p snapback4-core`
+completed successfully, including every integration binary and the doctests
+(`/tmp/p1rq-core-verified.log`). There were zero failures and five existing
+opt-in ignored tests (three unit measurements, `m7_to_m8`, `measure_history`).
+Its unit suite is 468 passed / 0 failed / 3 ignored. The final exact Clippy
+command again reports only the two acknowledged baseline errors; the final
+diagnostic run allowing only those two lints exits zero and reports no
+request-adapter or request-case warning (`/tmp/p1rq-clippy-verified.log`,
+`/tmp/p1rq-clippy-diagnostic-verified.log`). The final root `./ref-check`
+recheck passes with zero errors and zero unchecked references. The full
+Postgres script remains red on the two unrelated fixtures recorded above;
+no request test is failed or ignored. All four owned cluster directories
+have no `postmaster.pid`. Final observed disk availability is 113 GB.
+No push was made, and the two rebased commits were not rewritten.

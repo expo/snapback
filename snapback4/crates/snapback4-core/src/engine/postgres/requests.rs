@@ -6,7 +6,10 @@ use crate::{
     RuntimeError,
     engine::actions::{
         ActionRequest,
-        requests::{NewRequest, RequestSettlement, RequestsStore, RequestsTransaction},
+        requests::{
+            NewRequest, RequestSettlement, RequestsStore, RequestsTransaction, diagnostic_text,
+            validate_text,
+        },
     },
     identity::Authority,
 };
@@ -64,8 +67,13 @@ fn read(row: &postgres::Row) -> Result<ActionRequest, RuntimeError> {
         principal: row.try_get("principal")?,
         at: row.try_get("at")?,
         state: row.try_get("state")?,
-        attempt: u32::try_from(row.try_get::<_, i64>("attempts")?)
-            .map_err(|_| RuntimeError::Store("request attempts exceed u32".into()))?,
+        // Preserve the public SQLite error variant for this legacy row reader.
+        attempt: {
+            let attempts: i64 = row.try_get("attempts")?;
+            u32::try_from(attempts).map_err(|_| {
+                RuntimeError::Sql(rusqlite::Error::IntegralValueOutOfRange(6, attempts))
+            })?
+        },
         lease_until: row.try_get("lease_until")?,
         result: row
             .try_get::<_, Option<&str>>("result")?
@@ -91,7 +99,8 @@ fn read(row: &postgres::Row) -> Result<ActionRequest, RuntimeError> {
 
 impl RequestsTransaction for Tx<'_> {
     fn request(&self, id: &str) -> Result<Option<ActionRequest>, RuntimeError> {
-        self.query("SELECT * FROM _requests WHERE id = $1", &[&id])?
+        validate_text(&[id])?;
+        self.query("SELECT id, name, args, principal, at, state, attempts, lease_until, result, error, error_code, family, principal_generation, admitted_expires_at, args_digest, settled_at, spec, contract, deadline, release, service_generation, cancelled FROM _requests WHERE id = $1", &[&id])?
             .first()
             .map(read)
             .transpose()
@@ -105,6 +114,7 @@ impl RequestsTransaction for Tx<'_> {
     }
 
     fn insert_request(&self, request: &NewRequest<'_>) -> Result<(), RuntimeError> {
+        request.validate()?;
         self.require_serialized_head_fence("insert request")?;
         self.execute("INSERT INTO _requests(id, name, args, principal, at, state, family, principal_generation, admitted_expires_at, args_digest, spec, contract, deadline, release, service_generation) VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7, $8, $9, $10, $11, $12, $13, $14)",
             &[&request.id, &request.action, &request.args, &request.principal, &request.at,
@@ -113,8 +123,9 @@ impl RequestsTransaction for Tx<'_> {
         Ok(())
     }
 
-    fn expired_requests(&self, now: i64, limit: i64) -> Result<Vec<ActionRequest>, RuntimeError> {
-        self.query("SELECT * FROM _requests WHERE state IN ('queued', 'running') AND (deadline <= $1 OR (state = 'running' AND lease_until <= $1)) LIMIT $2", &[&now, &limit])?
+    fn expired_requests(&self, now: i64, limit: u64) -> Result<Vec<ActionRequest>, RuntimeError> {
+        let limit = limit.min(i64::MAX as u64) as i64;
+        self.query("SELECT id, name, args, principal, at, state, attempts, lease_until, result, error, error_code, family, principal_generation, admitted_expires_at, args_digest, settled_at, spec, contract, deadline, release, service_generation, cancelled FROM _requests WHERE state IN ('queued', 'running') AND (deadline <= $1 OR (state = 'running' AND lease_until <= $1)) ORDER BY at, id LIMIT $2", &[&now, &limit])?
             .iter().map(read).collect()
     }
 
@@ -126,6 +137,9 @@ impl RequestsTransaction for Tx<'_> {
         error: &str,
         now: i64,
     ) -> Result<(), RuntimeError> {
+        validate_text(&[id, state, code])?;
+        let error = diagnostic_text(error);
+        let error = error.as_ref();
         self.require_serialized_head_fence("finish request")?;
         // The shared finish helper revokes the delegated credential first.
         // Preserve its last claim fence for cooperative cancellation/step park.
@@ -134,6 +148,7 @@ impl RequestsTransaction for Tx<'_> {
     }
 
     fn requeue_request(&self, id: &str, now: i64) -> Result<(), RuntimeError> {
+        validate_text(&[id])?;
         self.require_serialized_head_fence("requeue request")?;
         self.execute("UPDATE _requests SET state = 'queued', error = 'the action lease expired', error_code = NULL, next_at = $2, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE id = $1", &[&id, &now])?;
         Ok(())
@@ -143,15 +158,25 @@ impl RequestsTransaction for Tx<'_> {
         &self,
         now: i64,
         action: Option<&str>,
-        names: Option<&str>,
-        limit: i64,
+        names: Option<&[String]>,
+        limit: u64,
     ) -> Result<Vec<String>, RuntimeError> {
+        validate_text(&[action.unwrap_or("")])?;
+        if let Some(names) = names {
+            for name in names {
+                validate_text(&[name])?;
+            }
+        }
+        let limit = limit.min(i64::MAX as u64) as i64;
         // Explicit casts keep optional parameters typed even when NULL is sent.
-        Ok(self.query("SELECT id FROM _requests WHERE state = 'queued' AND (next_at IS NULL OR next_at <= $1) AND ($2::text IS NULL OR name = $2) AND ($4::text IS NULL OR name IN (SELECT json_array_elements_text($4::json))) ORDER BY at, id LIMIT $3",
+        Ok(self.query("SELECT id FROM _requests WHERE state = 'queued' AND (next_at IS NULL OR next_at <= $1) AND ($2::text IS NULL OR name = $2) AND ($4::text[] IS NULL OR name = ANY($4::text[])) ORDER BY at, id LIMIT $3",
             &[&now, &action, &limit, &names])?.iter().map(|row| row.get(0)).collect())
     }
 
     fn fail_request_authority(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
+        validate_text(&[id])?;
+        let error = diagnostic_text(error);
+        let error = error.as_ref();
         self.require_serialized_head_fence("fail request authority")?;
         self.execute("UPDATE _requests SET state = 'failed', error_code = 'E_ACTION_AUTHORITY', error = $2, settled_at = $3, next_at = NULL, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE id = $1", &[&id, &error, &now])?;
         Ok(())
@@ -164,6 +189,7 @@ impl RequestsTransaction for Tx<'_> {
         session_digest: &str,
         lease_until: i64,
     ) -> Result<(), RuntimeError> {
+        validate_text(&[id, worker, session_digest])?;
         self.require_serialized_head_fence("claim request")?;
         // As on SQLite, selection and this update share the writer fence.
         // Authority and lease validation belong to the caller before this write.
@@ -176,12 +202,16 @@ impl RequestsTransaction for Tx<'_> {
         id: &str,
         settled: &RequestSettlement<'_>,
     ) -> Result<(), RuntimeError> {
+        validate_text(&[id, settled.state, settled.error_code.unwrap_or("")])?;
+        let error = settled.error.map(diagnostic_text);
+        let error = error.as_deref();
         self.require_serialized_head_fence("settle request")?;
-        self.execute("UPDATE _requests SET state = $2, result = $3, error = $4, next_at = $5, claimed_by = NULL, session_digest = NULL, lease_until = NULL, error_code = $7, settled_at = $6 WHERE id = $1", &[&id, &settled.state, &settled.result, &settled.error, &settled.next_at, &settled.settled_at, &settled.error_code])?;
+        self.execute("UPDATE _requests SET state = $2, result = $3, error = $4, next_at = $5, claimed_by = NULL, session_digest = NULL, lease_until = NULL, error_code = $7, settled_at = $6 WHERE id = $1", &[&id, &settled.state, &settled.result, &error, &settled.next_at, &settled.settled_at, &settled.error_code])?;
         Ok(())
     }
 
     fn cancel_request(&self, id: &str) -> Result<(), RuntimeError> {
+        validate_text(&[id])?;
         self.require_serialized_head_fence("cancel request")?;
         self.execute(
             "UPDATE _requests SET cancelled = TRUE WHERE id = $1",

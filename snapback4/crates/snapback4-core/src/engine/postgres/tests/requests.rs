@@ -10,10 +10,7 @@ use crate::{
     schema::Schema,
 };
 use postgres::{Client, NoTls};
-use std::{
-    collections::BTreeMap,
-    sync::{Arc, Barrier},
-};
+use std::{collections::BTreeMap, sync::Arc};
 
 fn client() -> Client {
     let url = std::env::var("SNAPBACK4_EVAL_POSTGRES")
@@ -145,43 +142,52 @@ fn request_writes_require_the_existing_head_fence() {
     tx.claim_request("fenced", "worker", "digest", 100).unwrap();
     tx.commit().unwrap();
     for mode in [None, Some(WriteMode::Serializable)] {
-        let tx = e.store.transaction(mode).unwrap();
-        for error in [
-            tx.insert_request(&new("forbidden")).unwrap_err(),
-            tx.finish_request("fenced", "parked", "E_STEP_PARKED", "error", 20)
-                .unwrap_err(),
-            tx.requeue_request("fenced", 20).unwrap_err(),
-            tx.fail_request_authority("fenced", "error", 20)
-                .unwrap_err(),
-            tx.claim_request("fenced", "other", "other", 200)
-                .unwrap_err(),
-            tx.settle_request(
-                "fenced",
-                &RequestSettlement {
-                    state: "done",
-                    result: None,
-                    error: None,
-                    next_at: None,
-                    settled_at: Some(20),
-                    error_code: None,
-                },
-            )
-            .unwrap_err(),
-            tx.cancel_request("fenced").unwrap_err(),
-        ] {
+        for operation in 0..8 {
+            let tx = e.store.transaction(mode).unwrap();
+            let error = match operation {
+                0 => tx.insert_request(&new("forbidden")).unwrap_err(),
+                1 => tx
+                    .finish_request("fenced", "parked", "E_STEP_PARKED", "error", 20)
+                    .unwrap_err(),
+                2 => tx.requeue_request("fenced", 20).unwrap_err(),
+                3 => tx
+                    .fail_request_authority("fenced", "error", 20)
+                    .unwrap_err(),
+                4 => tx
+                    .claim_request("fenced", "other", "other", 200)
+                    .unwrap_err(),
+                5 => tx
+                    .settle_request(
+                        "fenced",
+                        &RequestSettlement {
+                            state: "done",
+                            result: None,
+                            error: None,
+                            next_at: None,
+                            settled_at: Some(20),
+                            error_code: None,
+                        },
+                    )
+                    .unwrap_err(),
+                6 => tx.cancel_request("fenced").unwrap_err(),
+                7 => actions::finish(&tx, "fenced", "parked", "E_STEP_PARKED", "error", 20)
+                    .unwrap_err(),
+                _ => unreachable!(),
+            };
             assert!(
                 error.to_string().contains("serialized shared-head fence"),
                 "{error}"
             );
+            tx.rollback().unwrap();
+            let tx = e.store.transaction(None).unwrap();
+            let run = tx.request("fenced").unwrap().unwrap();
+            assert_eq!(run.state, "running");
+            assert_eq!(run.attempt, 1);
+            assert_eq!(run.lease_until, Some(100));
+            assert!(!run.cancelled);
+            assert!(tx.request("forbidden").unwrap().is_none());
+            tx.rollback().unwrap();
         }
-        assert!(actions::finish(&tx, "fenced", "parked", "E_STEP_PARKED", "error", 20).is_err());
-        let run = tx.request("fenced").unwrap().unwrap();
-        assert_eq!(run.state, "running");
-        assert_eq!(run.attempt, 1);
-        assert_eq!(run.lease_until, Some(100));
-        assert!(!run.cancelled);
-        assert!(tx.request("forbidden").unwrap().is_none());
-        tx.rollback().unwrap();
     }
 }
 
@@ -283,43 +289,187 @@ fn request_claim_race_has_exactly_one_winner() {
     let name = name(&mut e.store);
     let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
     tx.insert_request(&new("race")).unwrap();
-    test_cases::insert(&tx, "conditional-race", "conditional", 10);
     tx.commit().unwrap();
-    let mut engines = [
+    let engines = [
         PostgresEngine::open(client(), &name).unwrap(),
         PostgresEngine::open(client(), &name).unwrap(),
     ];
-    for e in &mut engines {
-        let tx = e.store.transaction(None).unwrap();
-        assert_eq!(
-            tx.due_requests(10, Some("work"), None, 1).unwrap(),
-            ["race"]
-        );
-        tx.rollback().unwrap();
-    }
-    let barrier = Arc::new(Barrier::new(2));
-    let handles: Vec<_> = engines.into_iter().enumerate().map(|(n, mut e)| {
-        let barrier = barrier.clone();
-        std::thread::spawn(move || {
-            barrier.wait();
-            let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
-            let won = test_cases::claim_due(&tx, &format!("service:worker{n}"));
-            let conditional = tx.query("UPDATE _requests SET state = 'running' WHERE id = 'conditional-race' AND state = 'queued' RETURNING id", &[]).unwrap();
-            if let Some(row) = conditional.first() { assert_eq!(row.get::<_, &str>(0), "conditional-race"); }
-            let rows = tx.query("UPDATE _requests SET state = 'failed' WHERE id = 'race' AND state = 'queued' RETURNING id", &[]).unwrap();
-            assert!(rows.is_empty(), "stale conditional update cannot overwrite the winner");
-            tx.commit().unwrap();
-            (won, conditional.len())
+    let order = Arc::new(test_cases::RaceOrder::new());
+    let handles: Vec<_> = engines
+        .into_iter()
+        .enumerate()
+        .map(|(n, mut e)| {
+            let order = order.clone();
+            std::thread::spawn(move || {
+                let tx = e
+                    .store
+                    .transaction_with_begin_hook(Some(WriteMode::Serialized), || {
+                        order.after_begin(n == 0)
+                    })
+                    .unwrap();
+                order.after_fence(n == 0);
+                let won = test_cases::claim_due(&tx, &format!("service:worker{n}"));
+                tx.commit().unwrap();
+                won
+            })
         })
-    }).collect();
-    let winners: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
-    assert_eq!(winners.iter().filter(|(won, _)| *won).count(), 1);
-    let mut affected: Vec<_> = winners.iter().map(|(_, changed)| *changed).collect();
-    affected.sort();
-    assert_eq!(affected, [0, 1]);
+        .collect();
+    assert_eq!(
+        handles
+            .into_iter()
+            .map(|h| h.join().unwrap())
+            .collect::<Vec<_>>(),
+        [true, false]
+    );
     let tx = e.store.transaction(None).unwrap();
     let run = tx.request("race").unwrap().unwrap();
     assert_eq!(run.state, "running");
     assert_eq!(run.attempt, 1);
     assert_eq!(run.lease_until, Some(100));
+}
+
+#[test]
+#[ignore = "SKIP_POSTGRES_REQUESTS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
+fn request_expiry_vs_settlement_is_serialized_in_both_orders() {
+    for expiry_first in [true, false] {
+        let expected = test_cases::sqlite_expiry_settlement_outcome(expiry_first);
+        let mut e = engine();
+        let name = name(&mut e.store);
+        let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+        let digest = crate::identity::digest("race-token");
+        tx.execute("INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES ($1,'dev:alice','action',0,100,'delegated')", &[&digest]).unwrap();
+        test_cases::seed_expiry_settlement(&tx, "race-token");
+        tx.commit().unwrap();
+        let engines = [
+            PostgresEngine::open(client(), &name).unwrap(),
+            PostgresEngine::open(client(), &name).unwrap(),
+        ];
+        let order = Arc::new(test_cases::RaceOrder::new());
+        let handles: Vec<_> = engines
+            .into_iter()
+            .enumerate()
+            .map(|(n, mut e)| {
+                let order = order.clone();
+                std::thread::spawn(move || {
+                    let first = n == 0;
+                    let tx = e
+                        .store
+                        .transaction_with_begin_hook(Some(WriteMode::Serialized), || {
+                            order.after_begin(first)
+                        })
+                        .unwrap();
+                    order.after_fence(first);
+                    let won = test_cases::expiry_settlement_operation(
+                        &tx,
+                        if first { expiry_first } else { !expiry_first },
+                        "race-token",
+                    );
+                    tx.commit().unwrap();
+                    won
+                })
+            })
+            .collect();
+        assert_eq!(
+            handles
+                .into_iter()
+                .map(|h| h.join().unwrap())
+                .collect::<Vec<_>>(),
+            [true, false]
+        );
+        let tx = e.store.transaction(None).unwrap();
+        assert_eq!(tx.request("expiry-race").unwrap(), Some(expected));
+        assert!(tx.session_by_digest(&digest).unwrap().is_none());
+    }
+}
+
+#[test]
+#[ignore = "SKIP_POSTGRES_REQUESTS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
+fn request_limited_expiry_contract() {
+    let mut e = engine();
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    test_cases::limited_expiry(&tx);
+    tx.commit().unwrap();
+}
+
+#[test]
+#[ignore = "SKIP_POSTGRES_REQUESTS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
+fn request_duplicate_insert_ends_transaction() {
+    let mut e = engine();
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    test_cases::duplicate_insert(&tx);
+    tx.rollback().unwrap();
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    assert!(tx.request("duplicate").unwrap().is_none());
+    test_cases::insert(&tx, "duplicate", "work", 0);
+    tx.commit().unwrap();
+}
+
+#[test]
+#[ignore = "SKIP_POSTGRES_REQUESTS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
+fn request_nul_names_are_refused_before_writes() {
+    let mut e = engine();
+    for field in 0..7 {
+        let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+        test_cases::nul_insertion(&tx, field);
+        tx.rollback().unwrap();
+        assert!(e.store.request_counts().unwrap().is_empty());
+    }
+}
+
+#[test]
+#[ignore = "SKIP_POSTGRES_REQUESTS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
+fn request_diagnostic_and_json_text_contract() {
+    let mut e = engine();
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.execute("INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES ('delegated','dev:alice','action',0,100,'delegated')", &[]).unwrap();
+    test_cases::diagnostic_and_json_text(&tx);
+    tx.commit().unwrap();
+}
+
+#[test]
+#[ignore = "SKIP_POSTGRES_REQUESTS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
+fn request_cached_reads_survive_additive_upgrade_on_another_connection() {
+    let mut a = engine();
+    let name = name(&mut a.store);
+    let mut b = PostgresEngine::open(client(), &name).unwrap();
+    let tx = a.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.insert_request(&NewRequest {
+        deadline: Some(10),
+        ..new("cached")
+    })
+    .unwrap();
+    let before = tx.request("cached").unwrap().unwrap();
+    assert_eq!(
+        tx.expired_requests(10, 1).unwrap().as_slice(),
+        std::slice::from_ref(&before)
+    );
+    tx.commit().unwrap();
+    // A retains both prepared statements across transactions. B performs an
+    // additive physical upgrade under the same head lock as attach.
+    let tx = b.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.batch("ALTER TABLE _requests ADD COLUMN future_metadata TEXT")
+        .unwrap();
+    tx.commit().unwrap();
+    let tx = a.store.transaction(None).unwrap();
+    assert_eq!(tx.request("cached").unwrap(), Some(before.clone()));
+    assert_eq!(tx.expired_requests(10, 1).unwrap(), [before]);
+    tx.rollback().unwrap();
+}
+
+#[test]
+#[ignore = "SKIP_POSTGRES_REQUESTS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
+fn request_out_of_range_attempts_end_transaction_with_sql_error() {
+    let mut e = engine();
+    for attempts in [-1, u32::MAX as i64 + 1] {
+        let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+        test_cases::insert(&tx, "wide", "work", 0);
+        tx.execute(
+            "UPDATE _requests SET attempts = $1 WHERE id = 'wide'",
+            &[&attempts],
+        )
+        .unwrap();
+        test_cases::invalid_attempts(&tx);
+        tx.rollback().unwrap();
+        assert!(e.store.request_counts().unwrap().is_empty());
+    }
 }
