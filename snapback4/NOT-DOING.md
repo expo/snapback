@@ -82,9 +82,11 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - No compatibility with Snapback 1 or Snapback 2 apps, packages or on-disk formats.
 - No API stability before the clock; every publish is `0.0.x`.
 - Sparse prose documentation; the diagnostics and the recipes carry the load.
-- One hosted target, SQLite in the production CLI, one platform binary at a time. A separately enabled Postgres evaluation adapter is not a hosted/deployable target (Moves below).
+- One hosted target, one platform binary at a time. SQLite remains the default store; Postgres as a production store is being built under LLP 3000.009.001 (Moves, 2026-10-20) and is not yet a supported deployment target.
 
 ## Moves
+
+- **2026-10-20 — Snapback 4 on Postgres moves onto the doing-list** (author: "commit and push these things, then do your \"what i'd do next\" things, then get this working on postgres and measure it"; LLP 3000.009.001 and its children). Unblocks: the store-port extraction on SQLite (P0, including the `Committer` seam with the serial batch); the Postgres adapters for every durable-state family and `serve`/`deploy`/`doctor` over Postgres (P1), with store-held fencing, the declared HA mode and `BlobStore`; the optimistic committer, commissioned on 2026-10-19 and built after its execution stage is sized; the scale program of LLP 3000.009.001.002 with its raw-Postgres, Supabase and Convex controls on fleet machines; and a research note comparing replicated SQLite with Postgres for applications that outgrow one SQLite file. Taken off in the same change: the evaluation-only framing of the Postgres adapter. Stands: no publication or managed-service deployment authority, no lowering of Quarry to SQL, no SQL writes to managed data, one core owner. Several serving processes (P2), log retention, live graduation (LLP 3000.009.001.001) and the async-safe external anchor each wait for their own Moves line.
 
 - **2026-10-13 — stored lower lifetimes (`not before`) are commissioned by PAGE2** (LLP 3000.036.003). This unblocks timed disclosure without an application publication job. Per-application jobs that flip a publication flag leave this admitted path; clock expressions in rules, captured lower lifetimes for read-through children, and boundary recounts for maintained data remain excluded. HS owns handshake transport; PAGE2 declares the new semantic capability.
 
