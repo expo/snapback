@@ -860,7 +860,7 @@ pub fn data(options: &Options) -> i32 {
     // Read the schema and rows from one snapshot; source on disk may be unadopted.
     let inspected = (|| -> Result<_, snapback4_core::RuntimeError> {
         let tx = store.read_transaction()?;
-        let encoded: String = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT value FROM _meta WHERE key = 'generation')", [], |row| row.get(0))?;
+        let encoded: String = tx.inspection_schema_json()?;
         let schema: snapback4_core::schema::Schema = serde_json::from_str(&encoded).map_err(|e| snapback4_core::RuntimeError::Store(e.to_string()))?;
         schema.refuse_private(table)?;
         let definition = schema.table(table).ok_or_else(|| snapback4_core::RuntimeError::Schema(format!("no table {table}")))?;
@@ -1023,11 +1023,7 @@ pub fn doctor(options: &Options) -> i32 {
     // broken or destructive edits must leave the active generation usable.
     match snapback4_core::Store::open_read_only(&work_records::store_path(options)) {
         Ok(store) => {
-            if let Ok(mut statement) = store.conn().prepare("SELECT value FROM _meta WHERE key = 'worker:status' OR key LIKE 'worker:status:%' ORDER BY key") {
-                if let Ok(rows) = statement.query_map([], |row| row.get::<_, String>(0)) {
-                    for status in rows.flatten() { lines.push(format!("worker    last report: {status}")); }
-                }
-            }
+            for status in store.inspection_worker_reports() { lines.push(format!("worker    last report: {status}")); }
             let generation = store.meta("generation").ok().flatten().unwrap_or_else(|| "unrecorded".into());
             lines.push(format!("store     {} at seq {}, generation {}", work_records::store_path(options).display(), store.seq().unwrap_or(0), generation));
             if host.as_ref().is_some_and(|host| store.meta("store_id").ok().flatten().as_deref() != host["storeId"].as_str()) {
@@ -1097,7 +1093,7 @@ pub fn doctor(options: &Options) -> i32 {
                             lines.push(format!("job       {} {} {:?}: {} chunk{}, {} row{} (chunk size {}, retries {}, peak heap {}){}", run.name, run.id, run.state, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }, run.chunk_size, run.retries, run.heap_peak, run.error.map(|e| format!(" — {e}")).unwrap_or_default()));
                         }
                     }
-                    match work_records::handler_failures(engine.store().conn()) {
+                    match work_records::handler_failures(engine.store()) {
                         Ok(failures) => lines.extend(failures),
                         Err(error) => { ok = false; lines.push(format!("handler failures unavailable: {error}")); }
                     }

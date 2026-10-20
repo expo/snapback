@@ -1,7 +1,7 @@
 //! Application catalog inspection; never prepare caller-supplied SQL here.
 // @ref LLP 3000.007#8 — catalog commands share SQL inspection's active read-only snapshot.
 use super::{CATALOG_HINT, Result, Schema, internal, json};
-use snapback4_core::schema::{IndexComponent, inspection::{Declarations, Record, META_KEY}};
+use snapback4_core::schema::{IndexComponent, inspection::{Declarations, Record}};
 use snapback4_core::inspection::InspectionCatalog;
 use serde_json::Value;
 
@@ -152,6 +152,7 @@ pub(super) fn print(tables: &[Value], generation: u64) {
 mod tests {
     use super::*;
     use rusqlite::Connection;
+    use snapback4_core::schema::inspection::META_KEY;
     use snapback4_core::{Engine, Store, wire};
 
     const SOURCE: &str = "table messages:\n  body: text <=100\n  note: text ?\n  owner: principal\n  at: time default 0\n  unique body\n  search body\n  by byOwner: owner, id\n  by byBucket: bucket(at, 2h, 30m), at, id\n  by id: owner\n  public\n  online only\nmaintain counts: count messages by owner\n  read <- allow\n  online only\ntable typing:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  ephemeral 4s\nquery find(q: text <=20, c: cursor ?):\n  return messages matching q last 10 by .id after c\n";

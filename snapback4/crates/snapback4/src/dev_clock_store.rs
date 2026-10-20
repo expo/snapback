@@ -16,20 +16,16 @@ pub fn ahead(engine: &Engine, now: i64) -> Result<Option<String>, RuntimeError> 
     // Reverse primary-key traversal: no full scan, sort, row payloads or retained
     // historical stamp set. octet_length(column) uses SQLite record metadata;
     // unlike a text length/cast/substr, it need not load oversized payloads.
-    let mut query = engine.store().conn().prepare(
-        "SELECT at, CASE WHEN at > ?1 AND octet_length(touched) <= ?2 THEN CAST(touched AS BLOB) END,
-         octet_length(touched) FROM _commits ORDER BY seq DESC LIMIT ?3")?;
-    let mut rows = query.query(rusqlite::params![now.saturating_add(TOLERANCE_MS), TABLE_BYTES as i64, RECENT_COMMITS as i64])?;
     let mut lead = 0;
     let mut tables = BTreeSet::new();
     let mut omitted = false;
-    while let Some(row) = rows.next()? {
-        let at: i64 = row.get(0)?;
-        if at <= now.saturating_add(TOLERANCE_MS) { continue; }
+    engine.store().visit_recent_commit_clock(now.saturating_add(TOLERANCE_MS), TABLE_BYTES as i64, RECENT_COMMITS as i64, |record| {
+        let at = record.at;
+        if at <= now.saturating_add(TOLERANCE_MS) { return Ok(()); }
         lead = lead.max(at.saturating_sub(now));
-        let length: i64 = row.get(2)?;
-        if length > TABLE_BYTES as i64 { omitted = true; continue; }
-        let bytes: Vec<u8> = row.get(1)?;
+        let length = record.length.unwrap();
+        if length > TABLE_BYTES as i64 { omitted = true; return Ok(()); }
+        let bytes = record.touched.unwrap();
         match serde_json::from_slice::<Vec<String>>(&bytes) {
             Ok(names) => for name in names {
                 if tables.contains(&name) { continue; }
@@ -38,7 +34,8 @@ pub fn ahead(engine: &Engine, now: i64) -> Result<Option<String>, RuntimeError> 
             },
             Err(_) => omitted = true,
         }
-    }
+        Ok(())
+    })?;
     if lead == 0 { return Ok(None); }
     let mut names = tables.into_iter().collect::<Vec<_>>();
     if omitted { names.push("additional tables omitted".into()); }
@@ -222,8 +219,7 @@ pub fn held_schedules(engine: &Engine, now: i64) -> Vec<String> {
 /// The dev clock offset that continues a store's own time: its newest
 /// recent commit stamp (or saved schedule boundary) less wall time, never negative.
 pub fn resume_offset(store: &snapback4_core::Store, wall: i64) -> Result<i64, RuntimeError> {
-    let commit: Option<i64> = store.conn().query_row(
-        "SELECT MAX(at) FROM (SELECT at FROM _commits ORDER BY seq DESC LIMIT ?1)", [RECENT_COMMITS as i64], |row| row.get(0))?;
+    let commit = store.recent_commit_max_at(RECENT_COMMITS as i64)?;
     let boundary = store.latest_schedule_boundary()?;
     let latest = commit.into_iter().chain(boundary).max().unwrap_or(wall);
     // Whole seconds, rounded up, so restarting twice does not drift backwards.
@@ -231,7 +227,7 @@ pub fn resume_offset(store: &snapback4_core::Store, wall: i64) -> Result<i64, Ru
 }
 
 pub fn has_data(engine: &Engine) -> bool {
-    engine.store().conn().query_row("SELECT EXISTS(SELECT 1 FROM r)", [], |r| r.get(0)).unwrap_or(false)
+    engine.store().inspection_has_data().unwrap_or(false)
 }
 
 pub fn offset_line(offset: i64, running: bool) -> String {

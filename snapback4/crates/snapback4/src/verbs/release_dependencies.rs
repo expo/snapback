@@ -298,29 +298,13 @@ pub(super) fn null_references(store: &snapback4_core::Store,current: &Schema,tar
             candidates.insert((table.clone(),column.clone()));
         }
     }}}
-    let conn=store.conn();let mut nulls=BTreeSet::new();
+    let mut nulls=BTreeSet::new();
     for (table,column) in candidates {
-        let mut populated=false;
-        for storage in ["r","_dormant_rows","_dormant_narrow_rows","_dormant_values","_dormant_refs"] {
-            let exists:bool=conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?1)",[storage],|row|row.get(0)).map_err(|e|e.to_string())?;
-            if !exists {continue;}
-            if storage=="_dormant_refs" {
-                populated=conn.query_row("SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=(SELECT num FROM _catalog WHERE name=?1) AND column_name=?2)",[table.as_str(),column.as_str()],|row|row.get(0)).map_err(|e|e.to_string())?;
-            } else {
-                let sql=format!("SELECT data FROM {storage} WHERE t=(SELECT num FROM _catalog WHERE name=?1){}",if storage=="_dormant_values" {" AND column_name=?2"} else {""});
-                let mut statement=conn.prepare(&sql).map_err(|e|e.to_string())?;
-                let parameters:Vec<&dyn rusqlite::ToSql>=if storage=="_dormant_values" {vec![&table,&column]} else {vec![&table]};
-                let mut rows=statement.query(parameters.as_slice()).map_err(|e|e.to_string())?;
-                while let Some(row)=rows.next().map_err(|e|e.to_string())? {
-                    let data:String=row.get(0).map_err(|e|e.to_string())?;
-                    let value:snapback4_core::Value=serde_json::from_str(&data).map_err(|e|e.to_string())?;
-                    populated=if storage=="_dormant_values" {value!=snapback4_core::Value::Null}
-                        else {value.as_object().map_err(|e|e.to_string())?.get(&column).is_some_and(|value|*value!=snapback4_core::Value::Null)};
-                    if populated {break;}
-                }
-            }
-            if populated {break;}
-        }
+        let populated=store.inspection_column_populated(&table,&column,|individual,data| {
+            let value:snapback4_core::Value=serde_json::from_str(data).map_err(|e|e.to_string())?;
+            Ok(if individual {value!=snapback4_core::Value::Null}
+                else {value.as_object().map_err(|e|e.to_string())?.get(&column).is_some_and(|value|*value!=snapback4_core::Value::Null)})
+        })?;
         if !populated {nulls.insert((table,column));}
     }
     Ok(nulls)

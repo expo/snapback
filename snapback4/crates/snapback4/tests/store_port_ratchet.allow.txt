@@ -2,15 +2,6 @@
 crates/snapback4-core/src/engine/dev_reset.rs 1
 crates/snapback4-core/src/error.rs 2
 crates/snapback4-core/src/private_fs.rs 3
-crates/snapback4/src/dev_clock_store.rs 4
 crates/snapback4/src/dev_worker.rs 1
-crates/snapback4/src/release_files.rs 2
-crates/snapback4/src/verbs.rs 4
-crates/snapback4/src/verbs/release_dependencies.rs 5
-crates/snapback4/src/verbs/release_preview.rs 5
-crates/snapback4/src/verbs/release_safeguards.rs 6
-crates/snapback4/src/verbs/releases.rs 5
-crates/snapback4/src/verbs/residency.rs 1
+crates/snapback4/src/verbs.rs 3
 crates/snapback4/src/verbs/run_admission.rs 1
-crates/snapback4/src/verbs/witness/smoke.rs 2
-crates/snapback4/src/verbs/work_records.rs 16

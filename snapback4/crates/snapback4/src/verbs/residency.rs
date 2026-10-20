@@ -128,7 +128,7 @@ pub fn at_check(project: &crate::project::Project, bound: &Bound, options: &supe
     // Inspect the persisted generation, never adopt current source or label a new maintain's absent rows as zero acquisition.
     let mut store = snapback4_core::Store::open_read_only(&path).map_err(|e| e.to_string())?;
     let tx = store.read_transaction().map_err(|e| e.to_string())?;
-    let encoded: String = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT value FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).map_err(|e| e.to_string())?;
+    let encoded: String = tx.inspection_schema_text()?;
     let schema = serde_json::from_str(&encoded).map_err(|e| e.to_string())?;
     let measured = report(&tx, &schema, &personas, verbose).map_err(|e| e.to_string())?;
     Ok(Some(format!("{measured}\n  measured the active dev-store schema; current-source facts: check --residency --verbose")))

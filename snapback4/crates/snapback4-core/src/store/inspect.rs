@@ -221,7 +221,7 @@ impl Inspection {
         let mut rows = Vec::new();
         while let Some(row) = cursor.next().map_err(query_error)? {
             let mut values = Vec::new();
-            for i in 0..columns.len() {
+            for (i, _) in columns.iter().enumerate() {
                 values.push(match row.get_ref(i).map_err(query_error)? {
                     ValueRef::Null => Value::Null,
                     ValueRef::Integer(value) if booleans[i] => json!(value != 0),
@@ -308,3 +308,189 @@ macro_rules! catalog_access {
 catalog_access!(Inspection, conn);
 catalog_access!(Store, conn);
 catalog_access!(Tx<'_>, tx);
+
+// P1: work inspection uses the Postgres read-only role.
+use crate::inspection::WorkRecordKind;
+use serde_json::Value as Json;
+impl Inspection {
+    /// Retain the URI connection for the whole stopped-release inspection.
+    pub fn open_uri(uri: &str) -> Result<Self> {
+        let conn = Connection::open_with_flags(
+            uri,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI,
+        )
+        .map_err(store_error)?;
+        Ok(Self {
+            conn,
+            denied: Arc::new(AtomicU8::new(0)),
+        })
+    }
+    pub fn optional_release(&self) -> Result<Option<String>> {
+        self.conn
+            .query_row("SELECT value FROM _meta WHERE key='release'", [], |row| {
+                row.get(0)
+            })
+            .optional()
+            .map_err(store_error)
+    }
+    pub fn required_release(&self) -> Result<String> {
+        self.conn
+            .query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| {
+                row.get(0)
+            })
+            .map_err(store_error)
+    }
+    pub fn witness_generation(&self) -> Result<(i64, String, String, String)> {
+        self.conn.query_row("SELECT generation, schema, programs, (SELECT value FROM _meta WHERE key='store_id') FROM _generations WHERE generation=(SELECT value FROM _meta WHERE key='generation')",
+            [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))).map_err(store_error)
+    }
+    pub fn work_commit(
+        &self,
+        seq: Option<i64>,
+    ) -> std::result::Result<Option<(String, String, i64)>, String> {
+        self.conn
+            .query_row(
+                "SELECT program, principal, at FROM _commits WHERE seq = ?1",
+                [seq],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+            )
+            .optional()
+            .map_err(|e| e.to_string())
+    }
+    // Read optional columns by name so even a never-upgraded legacy store is inspectable.
+    pub fn work_records(
+        &self,
+        kind: WorkRecordKind,
+        id: &str,
+    ) -> std::result::Result<Vec<Json>, String> {
+        self.work_records_raw(kind, id).map_err(|e| e.to_string())
+    }
+    fn work_records_raw(&self, kind: WorkRecordKind, id: &str) -> rusqlite::Result<Vec<Json>> {
+        let conn = &self.conn;
+        let (table, key) = match kind {
+            WorkRecordKind::Action => ("_requests", "id"),
+            WorkRecordKind::Mutation => ("_ops", "id"),
+            WorkRecordKind::Effect => ("_outbox", "id"),
+            WorkRecordKind::ActionStep => ("_action_steps", "invocation"),
+        };
+        let exists: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)",
+            [table],
+            |row| row.get(0),
+        )?;
+        if !exists {
+            return Ok(Vec::new());
+        }
+        let mut query = conn.prepare(&format!("SELECT * FROM {table} WHERE {key} = ?1"))?;
+        let columns: Vec<String> = query.column_names().iter().map(|s| s.to_string()).collect();
+        query
+            .query_map([id], |row| {
+                let mut fields = serde_json::Map::new();
+                for (i, name) in columns.iter().enumerate() {
+                    let value = match row.get_ref(i)? {
+                        rusqlite::types::ValueRef::Integer(n) => json!(n),
+                        rusqlite::types::ValueRef::Text(s) => json!(String::from_utf8_lossy(s)),
+                        _ => Json::Null,
+                    };
+                    fields.insert(name.clone(), value);
+                }
+                Ok(Json::Object(fields))
+            })?
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn catalog_case(reader: &impl InspectionCatalog) {
+        assert_eq!(reader.active_schema_record().unwrap(), (7, "{}".into()));
+        assert!(reader.inspection_adopted().unwrap());
+        assert_eq!(reader.inspection_row_count("probe", 1).unwrap(), 1);
+        assert_eq!(reader.inspection_row_count("probe", 10).unwrap(), 2);
+        assert_eq!(reader.inspection_row_count("absent", 10).unwrap(), 0);
+        assert_eq!(
+            reader.inspection_provenance().unwrap(),
+            Some((7, "provenance bytes".into()))
+        );
+    }
+
+    #[test]
+    fn catalog_contract_on_store_transaction_and_read_only_snapshot() {
+        let store = Store::memory().unwrap();
+        store
+            .conn
+            .execute_batch(
+                "INSERT OR REPLACE INTO _meta VALUES('generation','7');
+            INSERT INTO _generations VALUES(7,'{}','{}',0);
+            INSERT INTO _catalog VALUES('probe',91);
+            INSERT INTO r VALUES(91,'a','{}'),(91,'b','{}');",
+            )
+            .unwrap();
+        store
+            .conn
+            .execute(
+                "INSERT OR REPLACE INTO _meta VALUES(?1,'provenance bytes')",
+                [crate::schema::inspection::META_KEY],
+            )
+            .unwrap();
+        catalog_case(&store);
+        let path = std::env::temp_dir().join(format!(
+            "sb4-inspection-contract-{}.sqlite",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&path);
+        store.snapshot_to(&path).unwrap();
+        let mut persisted = Store::open_read_only(&path).unwrap();
+        let tx = persisted.read_transaction().unwrap();
+        catalog_case(&tx);
+        tx.rollback().unwrap();
+        drop(persisted);
+        let inspection = Inspection::open(&path).unwrap();
+        inspection.begin_snapshot().unwrap();
+        catalog_case(&inspection);
+        assert!(inspection.conn.execute("DELETE FROM r", []).is_err());
+        drop(inspection);
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn generated_query_authorizer_and_limits() {
+        let inspection = Inspection {
+            conn: Connection::open_in_memory().unwrap(),
+            denied: Arc::new(AtomicU8::new(0)),
+        };
+        inspection
+            .conn
+            .execute_batch("CREATE TABLE r(t INTEGER); INSERT INTO r VALUES(1);")
+            .unwrap();
+        let schema = Schema::default();
+        inspection.build_views(&schema, |_| {}).unwrap();
+        let rows = inspection
+            .query(
+                "SELECT 1 AS n UNION ALL SELECT 2",
+                &schema,
+                1,
+                false,
+                |_| unreachable!(),
+            )
+            .unwrap();
+        assert_eq!(rows.columns, ["n"]);
+        assert_eq!(rows.rows, [vec![json!(1)]]);
+        assert!(rows.more);
+        for (body, code) in [
+            (
+                "WITH spoof AS (SELECT * FROM r) SELECT * FROM spoof",
+                "E_SQL_INTERNAL",
+            ),
+            ("WITH x AS (SELECT 1) DELETE FROM r", "E_SQL_READ_ONLY"),
+        ] {
+            let error = inspection
+                .query(body, &schema, 1, false, |_| unreachable!())
+                .err()
+                .unwrap();
+            assert_eq!(error.0, code);
+        }
+    }
+}

@@ -97298,3 +97298,61 @@ work-record, witness and clock access. This split keeps both commits building.
 First-commit ratchet regeneration passes: production 194 → 177, tests 103 →
 95, combined 297 → 272. The final first-commit `cargo build -p snapback4`
 passes after factoring the shared SQLite catalog implementation.
+
+## 2026-10-20 — P0-S7, second commit: release, work and witness inspection
+
+`store/tooling.rs` owns release snapshots/history, preview population and lost
+row probes, dormant-column probes, doctor work/worker facts, active schema and
+bounded commit-clock reads. Raw work-record and witness inspection joins
+`store/inspect.rs`. The host retains release hazards, reference/value/null
+policy, payload presentation and clock narration. The null and lost-row
+visitors retain the original interleaving and short-circuit order. Active
+schema reads preserve residency's raw driver-error text and data's runtime
+error wrapper. Stopped-release URI inspection keeps its read-only/URI flags,
+immutable/WAL selection and connection lifetime; it does not initialize a
+writable Store. Required/optional release metadata remain distinct.
+
+The witness barrier is a typed Store operation with its original transaction,
+sequence allocation, commit record and commit. A clock callback runs after
+sequence allocation, exactly where the host originally called `now()`.
+No Postgres implementation, S5-owned file, `dev_replay.rs`, or `effect_health`
+region changed. All 46 distinct SQL literal spellings from the scoped base
+files remain verbatim in the final code (including test fixtures). The added
+adapter cases run one catalog contract on Store, Tx and a raw read-only file
+snapshot, and exercise authorizer denial and limit lookahead. Eleven CLI
+SQL/catalog probes pass (limits, catalog descriptions, raw/internal reads,
+CTE spoofing, side-effect functions, private names and duplicate output names);
+the persisted database's SHA-256 remains unchanged.
+
+Final ratchet regeneration passes: production 194 → 127, tests 103 → 95,
+combined 297 → 222 (75 fewer matching lines). The protected S5 files,
+`dev_replay.rs` and the complete `effect_health` function match the base
+byte-for-byte. The final binary builds. Clock inspection streams one bounded
+commit record at a time, retaining its prior scratch-space bound.
+
+The exact required Clippy command reproduces `clippy::while_immutable_condition`
+in `engine/read.rs:780` and `clippy::never_loop` in `engine/row_views.rs:1010`
+on untouched base `98de657098b878b7f9a9934e24a54386a72cbb46`, in a second
+local detached worktree. No inherited lint is changed or suppressed. The base
+worktree was removed after this comparison. Two style warnings surfaced in
+moved code; the inspection output loop and worker-report conditional were
+rewritten without changing lookup/decoding order or error handling.
+
+Final Clippy has the same two errors and identical warning message/source-file
+signatures as the base: no new warnings. The complete `cargo test -p
+snapback4-core` passes, including all integration and doc tests. The host
+doctor test now passes Store to the extracted handler-failure reader; its
+assertions are unchanged. Catalog policy tests retain explicit query-only
+transaction guards, legacy-fixture setup, corruption injection and byte-level
+fixture verification; their ordinary catalog reads use the typed capability.
+
+The final complete host run (`cargo test -p snapback4 --no-fail-fast`) passes
+every target, including all 494 enabled binary tests (five ignored), the
+ratchet, work-record and web-witness targets. The complete core run, required
+binary build and final normal ratchet pass are green. Final Clippy still has
+only the two base-reproduced errors, with identical warning message/file
+signatures and no additions. Final `ref-check --verbose` passes with zero
+errors and unchecked refs. All eleven SQL/catalog CLI probes pass again on
+the final test-profile binary; persisted database bytes are unchanged.
+`scripts/test.sh` was not run. No functional uncertainty or new follow-up is
+left by this extraction; Postgres tooling/inspection implementations remain P1.

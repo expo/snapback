@@ -11,3 +11,24 @@ pub trait InspectionCatalog {
     fn inspection_provenance(&self) -> InspectionResult<Option<(i64, String)>>;
     fn inspection_adopted(&self) -> InspectionResult<bool>;
 }
+
+#[derive(Clone, Copy)]
+pub enum WorkRecordKind {
+    Action,
+    Mutation,
+    Effect,
+    ActionStep,
+}
+pub struct HandlerFailure {
+    pub kind: &'static str,
+    pub id: String,
+    pub name: String,
+    pub state: String,
+    pub attempts: i64,
+    pub error: String,
+}
+pub struct CommitClockRecord {
+    pub at: i64,
+    pub touched: Option<Vec<u8>>,
+    pub length: Option<i64>,
+}
