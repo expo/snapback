@@ -76,9 +76,9 @@ pub fn span(ms: i64) -> String {
 pub fn saved_boundaries(engine: &Engine) -> Vec<Option<i64>> {
     engine.schema().schedules.iter()
         .map(|schedule| {
-            let shape = engine.store().meta(&format!("schedule-shape:{}", schedule.name)).ok().flatten();
+            let shape = engine.store().schedule_shape(&schedule.name).ok().flatten();
             if shape.as_ref().is_some_and(|shape| *shape != snapback4_core::value::digest(schedule)) { return None; }
-            engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten().and_then(|value| value.parse().ok())
+            engine.store().schedule_boundary(&schedule.name).ok().flatten()
         })
         .collect()
 }
@@ -192,22 +192,19 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
 
 /// The report never loads full error/argument payloads from retained jobs.
 fn job_summaries(engine: &Engine) -> Result<std::collections::BTreeMap<String, serde_json::Value>, RuntimeError> {
-    let mut statement = engine.store().conn().prepare(
-        "SELECT name, state, rows_written, substr(error, 1, ?1), octet_length(error) > ?1, id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 64")?;
-    let mut rows = statement.query([REPORT_ERROR_BYTES as i64])?;
     let mut summaries = std::collections::BTreeMap::new();
-    while let Some(row) = rows.next()? {
-        let name: String = row.get(0)?;
+    for summary in engine.store().job_summaries(REPORT_ERROR_BYTES)? {
+        let name = summary.name;
         if summaries.contains_key(&name) { continue; }
-        let mut error: Option<String> = row.get(3)?;
-        let truncated = row.get::<_, Option<bool>>(4)?.unwrap_or(false);
+        let mut error = summary.error;
+        let truncated = summary.error_truncated;
         if let Some(text) = &mut error && truncated {
             let mut end = REPORT_ERROR_BYTES.min(text.len());
             while !text.is_char_boundary(end) { end -= 1; }
             text.truncate(end); text.push('…');
         }
-        summaries.insert(name, serde_json::json!({ "id":row.get::<_, String>(5)?, "state":row.get::<_, String>(1)?,
-            "rowsWritten":row.get::<_, i64>(2)?, "error":error, "errorTruncated":truncated }));
+        summaries.insert(name, serde_json::json!({ "id":summary.id, "state":summary.state,
+            "rowsWritten":summary.rows_written, "error":error, "errorTruncated":truncated }));
     }
     Ok(summaries)
 }
@@ -227,8 +224,7 @@ pub fn held_schedules(engine: &Engine, now: i64) -> Vec<String> {
 pub fn resume_offset(store: &snapback4_core::Store, wall: i64) -> Result<i64, RuntimeError> {
     let commit: Option<i64> = store.conn().query_row(
         "SELECT MAX(at) FROM (SELECT at FROM _commits ORDER BY seq DESC LIMIT ?1)", [RECENT_COMMITS as i64], |row| row.get(0))?;
-    let mut statement = store.conn().prepare("SELECT value FROM _meta WHERE key LIKE 'schedule:%'")?;
-    let boundary = statement.query_map([], |row| row.get::<_, String>(0))?.flatten().filter_map(|value| value.parse::<i64>().ok()).max();
+    let boundary = store.latest_schedule_boundary()?;
     let latest = commit.into_iter().chain(boundary).max().unwrap_or(wall);
     // Whole seconds, rounded up, so restarting twice does not drift backwards.
     Ok((latest.saturating_sub(wall).max(0) + 999) / 1_000 * 1_000)

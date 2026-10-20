@@ -97078,3 +97078,43 @@ run, completed full host run and full binary retry, this completes the lane's
 affected checks. Clippy's two base-reproduced errors remain the only unresolved
 check failures. No design uncertainty remains; the original parallel socket
 timeouts are recorded above with the scope and limits of the base comparison.
+## 2026-10-20 — P0-S4b: jobs and schedules behind the store port
+
+`engine/job.rs` now names typed `JobTransaction` and `JobStore` capabilities
+and plain continuation, chunk-update and bounded-summary records. The SQLite
+adapter is `store/jobs.rs`; job admission, chunking, ceilings, adaptive retries,
+park rules, generation binding and schedule coalescing stay in the engine.
+Schedule reads and writes own typed accessors for `schedule:*` and
+`schedule-shape:*`. Existing SQL text, statement order, transaction boundaries
+and refusal text are retained, including native continuation encoding and the
+clock report's bounded error query. Host report formatting and byte truncation
+stay above the adapter. The clock's `_commits` and application-row inspection
+remain for the inspection slice.
+
+Shared adapter-neutral cases exercise FIFO ties, continuation bytes, arguments
+and accounting. SQLite lifecycle tests exercise admission/watermark rollback
+and savepoint rollback before parking. Host clock inspection and the simple
+maintenance job-count assertion use typed access. No Postgres implementation,
+P0-S4a action/route file or P0-S2 receipt/error file changes. P1 implementations
+are marked at the new traits.
+
+The regenerated ratchet lowers production sites from 273 to 249 and test sites
+from 104 to 103: 377 to 352 in total. The required Clippy command stops on
+`clippy::while_immutable_condition` in `engine/read.rs:780` and
+`clippy::never_loop` in `engine/row_views.rs:1010`. The untouched base
+`a8460f7abb27acc6c99589bd492c7adbee22f381` reproduces both in a second detached
+worktree. Warning messages and their counts match the base with no additions;
+the existing row-decoder `map_clone` warning moves into the adapter.
+
+`cargo build -p snapback4`, the complete `cargo test -p snapback4-core`, the
+three focused job-adapter cases, the ratchet and `ref-check --verbose` pass.
+The final build and focused cases include the extracted summary decoder's
+original field-error ordering. `scripts/test.sh` was not run.
+
+The complete host run (`cargo test -p snapback4 --no-fail-fast`) passes every
+target, including the ratchet. The first host attempt was deliberately
+interrupted after a supplementary `cargo build` replaced the shared CLI path
+with an unoptimized dev binary while its calibration fixture was running.
+Restored the test-profile binary with `cargo test -p snapback4 --no-run`, then
+reran the complete host command successfully. No product-test failure was
+classified as pre-existing.

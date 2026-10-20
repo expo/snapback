@@ -570,7 +570,7 @@ mod tests {
             let reply = super::super::tests::body(&response);
             let windows = reply["schedules"][0]["firedWindows"].as_array().unwrap();
             assert!(windows.iter().all(|window| window["periodEnd"].as_i64().unwrap() <= reply["now"].as_i64().unwrap()), "{reply}");
-            let jobs: i64 = lock(&shared.engine).store().conn().query_row("SELECT COUNT(*) FROM _jobs", [], |row| row.get(0)).unwrap();
+            let jobs: i64 = lock(&shared.engine).store().job_count().unwrap();
             assert_eq!(windows.len() as i64, jobs, "the report must not invent coalesced intermediate windows: {reply}");
             assert_eq!(reply["work"]["schedules"], json!(jobs));
             if !each_boundary { assert_eq!(jobs, 1); }

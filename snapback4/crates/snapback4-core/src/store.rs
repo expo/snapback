@@ -43,6 +43,7 @@ mod release;
 mod authority;
 mod identity;
 mod receipts;
+mod jobs;
 mod caps;
 pub(crate) mod dormant;
 #[cfg(test)]
