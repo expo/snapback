@@ -112,6 +112,19 @@ fn receipt_preimage(tx:&Tx<'_>,next:&Schema,table:&str,t:i64,id:&str,column:&str
     }Ok(false)
 }
 
+// @ref LLP 3000.000.000#191-declared-old-views-and-renames — receipt-owned cells survive while a previously narrowed row stays dormant.
+fn patch_narrowed<'a>(tx:&Tx<'_>,t:i64,id:&str,patch:impl Iterator<Item=(&'a str,Option<&'a Value>)>)->Result<(),RuntimeError>{
+    let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0)).optional()?;
+    let Some(bytes)=bytes else{return Ok(())};
+    let mut meter=Meter::new(Ceilings::job(),Cut::Abort);meter.heap((bytes.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
+    let data:String=tx.conn().query_row("SELECT data FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0))?;
+    let mut archived:Value=decode(&data)?;
+    if let Value::Row(fields)|Value::Map(fields)=&mut archived {for (column,value) in patch {
+        if let Some(value)=value {fields.insert(column.to_owned(),value.clone());}else{fields.remove(column);}
+    }}
+    tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&archived),t,id])?;Ok(())
+}
+
 fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report::AdoptionReport)->Result<(),RuntimeError>{
     for validate in [true,false] {
     for fill in &next.downfills {
@@ -163,9 +176,9 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report:
                     }
                 }
             }
-            for column in e.reversed.keys() {if let Ok(value)=row.field(column) {if let Some(kind)=table.columns.get(column) {
-                if crate::engine::validate::validate_column(&fill.table,column,kind,Some(value)).is_err(){bad.add(id,&format!("saved native output {}.{column} no longer fits this release",fill.table));return Ok(())}
-            }}}
+            // Restore the receipt's native image before ordinary destination
+            // narrowing, including a native row that was already out of domain.
+            patch_narrowed(tx,t,id,e.reversed.iter().map(|(c,v)|(c.as_str(),v.as_ref())))?;
             e.active=true;tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;save(tx,t,id,&key,&e,true)?;count+=1;Ok(())
         })?;
         if bad.count>0{return Err(refusal(format!("down {} {} forward: {}",fill.table,fill.name,bad.describe())))}
@@ -276,6 +289,7 @@ fn apply_staged_downfills(tx:&Tx<'_>)->Result<(),RuntimeError>{
         let mut admission=Meter::new(Ceilings::job(),Cut::Abort);admission.heap((r.get::<_,i64>(5)?.max(0) as u64).saturating_mul(64).saturating_add(8192)).map_err(|err|refusal(format!("down projection staged reversal evidence exceeds its read budget: {err}; reduce the per-row migration image")))?;
         let patch:BTreeMap<String,Value>=decode(&r.get::<_,String>(3)?)?;let e:Evidence=decode(&r.get::<_,String>(4)?)?;
         let text:String=tx.conn().query_row("SELECT data FROM r WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0))?;let mut row:Value=decode(&text)?;if let Value::Row(f)|Value::Map(f)=&mut row{f.extend(patch)}
+        patch_narrowed(tx,t,&id,e.after.iter().map(|(c,v)|(c.as_str(),Some(v))))?;
         tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;save(tx,t,&id,&key,&e,false)?;
     }
     drop(rows);drop(stmt);tx.conn().execute_batch("DROP TABLE temp._downfill_pending;")?;tx.set_meta("activation_population","true")?;Ok(())

@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Reviewed `2152289f46` against its parent `8e1fa93bcd` in `/home/ccheever/projects/snapback-sb4loop`, plus `snapback4/AGENTS.md` and LLP 3000.000.000 §19.1 (lines 880–1001, especially the receipt/P-verification paragraphs at 981–988).
+
+The change is two lines in [backfills.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs:128-145): forward (restore-time) reverse-dependency validation now reads each declared input through the same metered `source_value` retained reader that down staging uses ([backfills.rs:831-846](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs:831-846)), instead of `fields.get` plus a default-literal fallback; and the `&mut row` restoration borrow now starts after the validation pass, with validation on the immutable `row.as_object()` view. The added regression in [backfill_tests.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfill_tests.rs:844-856) covers the reported false `E_ADOPT` (absent optional `x` with insert default 7 reading as `Null` on both sides, so `count` stays `0` under the old release and native `10` restores exactly across two cycles with `x` still absent).
+
+Checked each requested dimension against the directly interacting code and found no remaining material defect:
+
+- Absent optional with insert default vs required/defaulted: the reader's `is_optional → Null` precedence ([backfills.rs:842-844](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs:842-844)) matches down staging exactly; required-with-default still yields the literal on both sides, so behavior there is unchanged.
+- Archived and explicitly unprovided inputs: reader order (physical → temp-unprovided → dormant → table fallback) is now identical on both paths; the one asymmetry (stage-time temp table is empty, validate-time may hold same-transition forward-rollback markers) cannot false-refuse because a temp-induced `Null` on a required column fails the `validate_column(...).is_ok()` guard and is skipped.
+- Narrowed rows and retained cells: dormant lookup is shared by both paths; columns absent from the target table are skipped by the same `table.columns.get` guard as before.
+- Exact native restoration across repeated newer writes: the reversed-preimage capture ([backfills.rs:258-263](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs:258-263)) is untouched by this commit.
+- Interacting down/forward receipts: `receipt_preimage` call and semantics are unchanged.
+- Unchanged-versus-changed older inputs: equality is now compared in the same interpreted domain the down expression consumed, and P-field presence distinctness (absent vs present-null vs present-default) still rests on the untouched exact `e.after` physical comparison.
+
+Three deviations exist but none is material (no minimal realistic trigger): the per-row shared `inputs_meter` sums charges where staging meters each column fresh (diverges only near the 16 MiB job heap ceiling, and a cut aborts legally per §19.1); a corrupt non-row stored image now surfaces `E_TYPE` from `as_object()` instead of `E_ADOPT`; and stage vs restore pass different table snapshots (`previous` vs `next`) if a bridge changes a column's default/optionality under an identical down key. No tests were run and no reviews/reports were read, per instructions.

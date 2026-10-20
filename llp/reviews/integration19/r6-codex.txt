@@ -1,0 +1,9 @@
+- **[P2] Already narrowed rows lose staged down results.** [narrowed.rs:139](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/narrowed.rs:139) updates an existing retained image using only `next.backfills` outputs. A leaving `down` projection can therefore save a receipt without saving its projected cells when the row remains dormant.
+
+  Minimal trigger:
+  1. Schema A: `count: int 0..10`; insert `count = 0`.
+  2. Adopt B: `count: int 1..10` plus `down items legacy(): {count:-1}`. The row becomes narrowed.
+  3. Return to A. Down produces `-1`, which remains dormant, but the retained image still contains `0`.
+  4. Adopt C: B widened to `count: int 0..10`.
+
+  C can represent the saved native `0`, but [backfills.rs:131](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs:131) compares retained `0` against receipt result `-1` and falsely refuses with “changed while the older release was active.” No intervening write is needed. Preserve the applicable down patch in the retained image before removing the assembled row.

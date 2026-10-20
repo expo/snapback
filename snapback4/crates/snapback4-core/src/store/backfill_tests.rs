@@ -854,3 +854,19 @@ fn forward_down_validation_preserves_absent_optional_null_despite_an_insert_defa
   adopt(&mut e,&current,3).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(10));assert!(row(&mut e,"items","a").field("x").is_err());
  }
 }
+
+#[test]
+fn already_narrowed_rows_keep_down_patches_and_native_restoration_through_later_narrowing(){
+ let a="table items:\n  count: int 0..10\n  public\n  online only\n";
+ let b=a.replace("int 0..10","int 1..10")+"down items legacy(): {count:-1}\n";
+ let c=b.replace("int 1..10","int 0..10");
+ for first_return in [&c,&b] {
+  let mut e=engine(a);seed(&mut e,"items",json!({"id":"a","count":0}));
+  adopt(&mut e,&b,2).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+  adopt(&mut e,a,1).unwrap();assert_eq!(e.store().count("items").unwrap(),0);
+  adopt(&mut e,first_return,3).unwrap();
+  if first_return==&b {assert_eq!(e.store().count("items").unwrap(),0);}
+  adopt(&mut e,&c,4).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(0));
+  for _ in 0..2 {adopt(&mut e,a,1).unwrap();assert_eq!(e.store().count("items").unwrap(),0);adopt(&mut e,&c,4).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(0));}
+ }
+}
