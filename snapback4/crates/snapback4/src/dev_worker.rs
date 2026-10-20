@@ -60,22 +60,7 @@ const CHILD_WINDOW: Duration = Duration::from_secs(24 * 60 * 60);
 // supervisor cannot still own this store; revoke its child's whole refresh
 // family, including an orphan left behind by SIGKILL. Manual seats survive.
 pub(crate) fn clear_child_session(store: &Store) -> Result<(), RuntimeError> {
-    let tx = store.conn().unchecked_transaction()?;
-    tx.execute("DELETE FROM _sessions WHERE principal = 'service:worker' AND COALESCE(family, token_digest) = (SELECT value FROM _meta WHERE key = 'worker:session-family')", [])?;
-    tx.execute(
-        "DELETE FROM _meta WHERE key IN ('worker:session-family', 'worker:session-revision')",
-        [],
-    )?;
-    tx.execute("DELETE FROM _sessions WHERE COALESCE(family, token_digest) IN (SELECT substr(key, 15) FROM _meta WHERE key LIKE 'worker:family:%')", [])?;
-    tx.execute("DELETE FROM _meta WHERE key LIKE 'worker:family:%'", [])?;
-    // The next supervisor owns fresh reports; a removed declaration must not
-    // inherit a running row from the host whose credentials just retired.
-    tx.execute(
-        "DELETE FROM _meta WHERE key = 'worker:status' OR key LIKE 'worker:status:%'",
-        [],
-    )?;
-    tx.commit()?;
-    Ok(())
+    identity::clear_worker_families(store)
 }
 
 pub(crate) fn child_session(
@@ -83,15 +68,7 @@ pub(crate) fn child_session(
     now: i64,
     revision: usize,
 ) -> Result<identity::Session, RuntimeError> {
-    // Credential and ownership marker commit together, so a crash cannot
-    // strand a credential that the next supervisor cannot identify.
-    let tx = store.conn().unchecked_transaction()?;
-    let session = identity::service_session(store, "worker", now, 1)?;
-    let digest = format!("{:x}", Sha256::digest(session.token.as_bytes()));
-    store.set_meta("worker:session-family", &digest)?;
-    store.set_meta("worker:session-revision", &revision.to_string())?;
-    tx.commit()?;
-    Ok(session)
+    identity::mint_supervised_child(store, None, now, revision)
 }
 
 pub(crate) fn source(project: &Project) -> Option<PathBuf> {
@@ -685,15 +662,8 @@ impl DevWorker {
             self.child_clock = Some(clock.revision());
             let minted = if let Some(name) = &self.name {
                 (|| -> Result<identity::Session, RuntimeError> {
-                    let tx = engine.store().conn().unchecked_transaction()?;
-                    let session =
-                        identity::service_session(engine.store(), name, now, 1)?;
+                    let session = identity::mint_supervised_child(engine.store(), Some(name), now, self.revision)?;
                     let family = format!("{:x}", Sha256::digest(session.token.as_bytes()));
-                    engine.store().set_meta(
-                        &format!("worker:family:{family}"),
-                        &self.revision.to_string(),
-                    )?;
-                    tx.commit()?;
                     self.family = Some(family);
                     Ok(session)
                 })()
@@ -829,24 +799,7 @@ impl DevWorker {
             return true;
         }
         let engine = lock(&self.shared.engine);
-        let result = (|| -> Result<(), RuntimeError> {
-            let tx = engine.store().conn().unchecked_transaction()?;
-            if let Some(family) = &self.family {
-                tx.execute(
-                    "DELETE FROM _sessions WHERE COALESCE(family, token_digest) = ?1",
-                    [family],
-                )?;
-                tx.execute(
-                    "DELETE FROM _meta WHERE key = ?1",
-                    [format!("worker:family:{family}")],
-                )?;
-            } else {
-                tx.execute("DELETE FROM _sessions WHERE principal = 'service:worker' AND COALESCE(family, token_digest) = (SELECT value FROM _meta WHERE key = 'worker:session-family')", [])?;
-                tx.execute("DELETE FROM _meta WHERE key IN ('worker:session-family', 'worker:session-revision')", [])?;
-            }
-            tx.commit()?;
-            Ok(())
-        })();
+        let result = identity::revoke_worker_family(engine.store(), self.family.as_deref());
         if let Err(error) = result {
             // @ref LLP 3000.009#5.3 — failed retirement fences the original revision once.
             // A blocked DELETE cannot keep the retired credential current.

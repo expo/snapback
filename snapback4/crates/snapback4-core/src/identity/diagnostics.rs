@@ -1,9 +1,6 @@
 //! Development-only evidence for refused sessions. Never an authority source.
 use super::*;
 
-fn present(conn: &Connection, table: &str) -> Result<bool, RuntimeError> {
-    Ok(conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?1)", [table], |r| r.get(0))?)
-}
 
 // @ref LLP 3000.007#20.2 — only trusted dev requests get read-only explanations; absent records remain ambiguous.
 /// Called only after authority refused the token. Diagnostic failure must not
@@ -15,12 +12,7 @@ pub fn refused(store: &Store, token: &str, now: i64, trusted_dev: bool) -> crate
 }
 
 fn explanation(store: &Store, token: &str, now: i64) -> Result<&'static str, RuntimeError> {
-    let conn = store.conn();
-    let digest = digest(token);
-    let mut expiry: Option<i64> = conn.query_row("SELECT expires_at FROM _sessions WHERE token_digest = ?1", [&digest], |r| r.get(0)).optional()?;
-    if expiry.is_none() && present(conn, "_read_sessions")? {
-        expiry = conn.query_row("SELECT MIN(expires_at, cap_expires_at) FROM _read_sessions WHERE token_digest = ?1", [&digest], |r| r.get(0)).optional()?;
-    }
+    let expiry = store.identity_session_expiry(&digest(token))?;
     Ok(match expiry {
         Some(at) if at <= now => "this session expired on the server clock (a dev clock advance can expire sessions); sign in again",
         Some(_) => "this session was signed out, revoked, or replaced by refresh; sign in again and discard the saved token",

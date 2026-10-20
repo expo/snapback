@@ -40,6 +40,7 @@ pub(crate) mod steps;
 mod change_evidence;
 mod release;
 mod authority;
+mod identity;
 mod caps;
 pub(crate) mod dormant;
 #[cfg(test)]
@@ -323,7 +324,7 @@ impl Store {
              CREATE TABLE IF NOT EXISTS _jobs (id TEXT PRIMARY KEY, name TEXT NOT NULL, args TEXT NOT NULL, program_hash TEXT NOT NULL, state TEXT NOT NULL, sweep INTEGER NOT NULL, cursor TEXT, upper TEXT, chunks INTEGER NOT NULL, rows_written INTEGER NOT NULL, created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL, error TEXT);",
         )?;
         conn.execute_batch("CREATE INDEX IF NOT EXISTS _sessions_expiry ON _sessions(expires_at);")?;
-        crate::identity::initialize(&conn)?;
+        identity::initialize(&conn)?;
         let job_columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_jobs')")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
         for column in ["chunk_size", "retries", "heap_peak"] {
             if !job_columns.contains(&column.to_owned()) { conn.execute_batch(&format!("ALTER TABLE _jobs ADD COLUMN {column} INTEGER NOT NULL DEFAULT 0;"))?; }

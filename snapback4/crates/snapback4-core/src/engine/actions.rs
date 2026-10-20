@@ -276,7 +276,7 @@ impl Engine {
                 tx.conn().execute("UPDATE _requests SET state = 'failed', error_code = 'E_ACTION_AUTHORITY', error = ?2, settled_at = ?3, next_at = NULL, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE id = ?1", params![id, AUTHORITY_ERROR, now])?;
                 continue;
             };
-            let session = identity::action_session(tx.conn(), &run.principal, now, now.saturating_add(duration).min(expiry).min(run.deadline.unwrap_or(i64::MAX)))?;
+            let session = identity::action_session(&tx, &run.principal, now, now.saturating_add(duration).min(expiry).min(run.deadline.unwrap_or(i64::MAX)))?;
             tx.conn().execute("UPDATE _requests SET state = 'running', attempts = attempts + 1, claimed_by = ?2, session_digest = ?3, lease_until = ?4, next_at = NULL, error = NULL, error_code = NULL WHERE id = ?1", params![id, worker, identity::digest(&session.token), session.expires_at])?;
             claims.push(ActionClaim { request: request(tx.conn(), &id)?.ok_or_else(unknown)?, session, now });
         }

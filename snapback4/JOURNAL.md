@@ -96919,3 +96919,54 @@ sleep on battery, and 0.4.33 superseded it. No 0.4.32 was published either.
   pass `init` + `check`.
 
 Details: [reports/20261019-publication-0.4.33/REPORT.md](reports/20261019-publication-0.4.33/REPORT.md).
+
+## 2026-10-20 — P0-S3a: identity behind the store port
+
+The identity family now exposes crate-private `IdentityTransaction` and
+`IdentityStore` capabilities and typed records in `identity.rs`; SQLite access
+lives in `store/identity.rs`. Identity policy still owns credential validation,
+entropy, expiry bounds and refusal ordering. Composite methods preserve the
+original deferred/immediate transaction modes for signup/login, guest minting,
+full/read rotation, principal revocation and supervised-worker mint/retirement.
+Callbacks keep policy and token generation at their original point inside an
+atomic operation, without relying on another function's ambient connection.
+The worker marker writes retain the original per-write ownership checks.
+
+Host auth and worker callers use identity operations for their table access.
+The action-session caller passes its existing `Tx`, and the SQLite authority
+adapter uses the relocated read-table probe. No Postgres implementation or
+P0-S1-owned file changes. Adapter-neutral cases cover rollback after full/read
+replacement deletes, credential rechecks, immutable read caps and isolation of
+manual seats from supervised retirement. The ratchet falls from 398 to 329
+production sites; test sites remain 106. The one remaining worker connection
+access obtains the file path for its completion ledger, outside this identity
+slice.
+
+The additional repository-wide inventory audit reports `FAIL guide-manifest`:
+missing generated legacy demo snippets and diagnostics-registry removal-record
+errors. Its complete output is byte-for-byte identical on the untouched base
+`e600ac132cd75d2583e06e4be056fd455e10f67c` in a second detached worktree. This is
+outside the Snapback 4 fence; no legacy artifacts were changed. `ref-check
+--verbose` passes with zero errors and zero unchecked references.
+
+Required checks: `cargo build -p snapback4` and the complete
+`cargo test -p snapback4-core` pass. The required Clippy command is blocked by
+two inherited deny-by-default lints, reproduced on the untouched base:
+`clippy::while_immutable_condition` (`engine/read.rs:780`) and
+`clippy::never_loop` (`engine/row_views.rs:1010`). Warning categories and source
+files match the base with no additions. The first host test attempt found two
+missing-TypeScript failures in `tests/check.rs` (`farm2_typescript_7_is_refused_by_version_not_crashed_on`
+and `w11r1c_toolchain_why_explains_node_start_failure_too`); both reproduce at the
+same assertions on the base. Installed the pinned JS workspace dependencies
+with `bun install --frozen-lockfile` to complete the host check.
+
+The full host run (`cargo test -p snapback4 --no-fail-fast`) executes every
+target; its sole remaining failure was `witness_web::web_witness_help_and_invalid_input`
+because the checkout had no `packages/snapback4/dist/client.js`. The helper
+fails with the same missing client artifact on the untouched base. Emitting
+the client JavaScript restores the witness test: `cargo test -p snapback4
+--test witness_web` passes. Every other host target, including the ratchet,
+passes in the full run. The optional TypeScript emit reports the same three
+TS2307 diagnostics on this lane and base for the unbuilt wasm device imports;
+no client source or wasm artifact is changed by this slice. `scripts/test.sh`
+was not run.

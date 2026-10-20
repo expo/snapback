@@ -1,5 +1,5 @@
 use super::{Store, Tx};
-use crate::identity::read_sessions;
+use super::identity as read_sessions;
 use crate::{
     RuntimeError,
     authority::{AdmissionRecord, AuthorityTransaction, SessionRecord, WorkRecord},
