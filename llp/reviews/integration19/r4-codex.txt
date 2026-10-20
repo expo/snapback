@@ -1,0 +1,5 @@
+- **[P1] Repeated rollback cycles can silently discard newer writes** — [backfills.rs:257](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs:257).
+
+  Minimal trigger: both releases declare `items.count: int`; only the newer release declares `down items legacy(): {count:0}`. Create a newer row with `count=10`, rollback, then forward: it restores `10`. Update that row to `20` under the newer release, then rollback and forward again. It silently restores **10**, losing the committed update.
+
+  `stage_downfills` copies `prior.reversed` from the previous active receipt instead of capturing the current physical value for the fresh rollback receipt. With no declared inputs, restoration’s dependency checks cannot detect this stale preimage. Each rollback must capture the current newer value, including its exact physical presence, as required by LLP 3000.000.000 §19.1.

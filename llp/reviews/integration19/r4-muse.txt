@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No concrete material remaining bugs found by static reasoning at `5db38279`.
+
+Checked the focus diff and interacting code:
+
+- [Exact restoration and interacting receipts](snapback4/crates/snapback4-core/src/store/backfills.rs): staged down expressions run on the same newer snapshot before any forward reversal; two-phase validate-then-restore plus receipt-owned preimage makes declaration order inert; conflicting older edits and pruned evidence refuse atomically.
+- [First scalar rename](snapback4/crates/snapback4-core/src/store/backfills.rs): first `$rename:up` refuses a conflicting physical or dormant destination and allows an identical one; disjoint outputs and identical-type checks hold both directions.
+- [Omission vs nullable and nested spreads](snapback4/crates/snapback4-lang/src/bind/program/objects.rs), [insert defaults](snapback4/crates/snapback4-lang/src/bind/program/objects.rs), and [type rules](snapback4/crates/snapback4-lang/src/types.rs): absent protected properties keep stored domain and use required defaults; present null retains optional type and still fails a required write.
+- [Column invariants and audit](snapback4/crates/snapback4-lang/src/bind/security/columns.rs): effective row/column/owner authority, residency, and lint coverage use the unified rule set.
+- [Return path and generated surface](snapback4/crates/snapback4-lang/src/emit.rs): scalar selection yields null, spreads emit optional properties, compatibility reports newly optional fields.
+- [Release previews and alias availability](snapback4/crates/snapback4-lang/src/client_contracts.rs), [release helper](snapback4/packages/snapback4/src/release.ts): consolidation of independent arguments into one alias is an input break and unavailable; either spelling remains available.
+- [Local lifecycle](snapback4/crates/snapback4-lang/src/bind/program/objects.rs): binder helper move preserves behavior used by check/dev paths.
+
+No reachable minimal trigger violating LLP 3000.000.000 §19.1 or LLP 3000.036 §22.1 was found.

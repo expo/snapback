@@ -829,3 +829,15 @@ fn first_column_rename_refuses_a_conflicting_present_or_retained_destination(){
   else {let error=outcome.unwrap_err().to_string();assert!(error.contains("rename destination"),"{error}");assert_eq!(generation,e.generation());}
  }}
 }
+
+#[test]
+fn each_rollback_captures_the_latest_native_write_even_for_a_constant_projection(){
+ let old="table items:\n  count: int\n  public\n  update <- allow\n  online only\nmutation edit(value: int):\n  update items['a'] {count:value}\n";
+ let current=format!("{old}down items legacy(): {{count:0}}\n");
+ let mut e=engine(&current);seed(&mut e,"items",json!({"id":"a","count":10}));
+ for expected in [10,20,30] {
+  if expected!=10 {let mut context=Context::system();context.args.insert("value".into(),Value::Int(expected));let result=e.mutate("edit",None,context).unwrap();assert!(matches!(result.state,WriteState::Sent{..}),"{result:?}");}
+  adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(0));
+  adopt(&mut e,&current,2).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(expected));
+ }
+}

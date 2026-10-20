@@ -254,7 +254,9 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,now:i64,report:&mut 
             if patch.keys().cloned().collect::<BTreeSet<_>>()!=fill.outputs{return Err(refusal("down projection returned undeclared output fields"))}
             let patch:BTreeMap<_,_>=patch.into_iter().filter(|(c,_)|projected_outputs.contains(c)).collect();
             let reversed=projected_outputs.iter().map(|c|{
-                let value=prior.as_ref().filter(|e|e.active).and_then(|e|e.reversed.get(c).cloned()).unwrap_or_else(||fields.get(c).cloned());
+                // Each rollback owns this cycle's current physical preimage,
+                // including newer writes and absence since the last restoration.
+                let value=fields.get(c).cloned();
                 (c.clone(),value)
             }).collect();
             let e=Evidence{reversed,retained:BTreeSet::new(),absent:BTreeSet::new(),epoch:tx.meta("generation")?.and_then(|s|s.parse::<i64>().ok()).unwrap_or(0).saturating_add(1),active:false,inputs,before:BTreeMap::new(),after:patch.clone()};
