@@ -98290,3 +98290,33 @@ made. Final ref-check passes (564 LLP documents, 11,519 refs, zero errors and
 zero unchecked references); git diff --check passes. No unresolved jobs-family
 failure remains. The original helper's transient Serializable stress failure
 remains recorded as a limitation, with its separate isolated pass distinguished.
+### 2026-10-21 — P1-OB (a), layout and lifecycle
+
+Resumed the uncommitted partial lane at 954b705e9b after the lead reclaimed
+disk. Context pack: LLP 3000 and 2000.000, Snapback 4 NOT-DOING, the port
+RFC §3/§9.1, the current identity adapter and SQLite outbox. The llp-orient
+skill link targets an unavailable submodule in this worktree; assembled the
+scoped context directly without cloning. All work is local, one worker.
+
+Attach verifies and additively upgrades the evaluation outbox to the full
+lifecycle, installs presence and keeps replay state in `_meta`. The named
+incompatibility error is SNAPBACK_OUTBOX_SCHEMA. The old evaluation seq FK
+is removed to match SQLite. The tail stays a single CTE flight, with shared
+admission preparation and full rows rather than per-effect insert calls.
+OutboxTransaction now implements lifecycle transitions under the existing head
+fence; the presence/lease methods needed by that trait accompany it. Snapshot
+store access follows in (b). Host delivery remains P1b.
+
+Shared policy now rejects NUL only at new admission, normalizes diagnostic NUL
+before its 2,000-character bound, and takes unsigned adapter limits. Bounded
+expiry selection now orders by seq/id on SQLite as well as Postgres; presence
+readback and strict expiry are ordered too. Legacy stored rows remain usable.
+Focused lifecycle, tail equivalence and attach fixtures precede this commit;
+full requested verification and the wider shared contract follow in (c).
+
+Part (a) checkpoint: the Postgres-enabled core library run passes 487 tests
+with 64 explicit database-required skips. Running the five built outbox
+fixtures against the owned PostgreSQL 16 cluster passes all five, zero
+failed/ignored. Ref-check passes (564 documents, 11,516 refs). The final
+collation-refusal tightening and its extra fixture will be rebuilt with the
+remaining lane work. This checkpoint is well under the 1,500-line diff stop.

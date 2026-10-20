@@ -41,7 +41,6 @@ CREATE TABLE _log (partition TEXT COLLATE \"C\" NOT NULL, seq BIGINT NOT NULL RE
 CREATE TABLE _ops (principal TEXT COLLATE \"C\" NOT NULL, id TEXT COLLATE \"C\" NOT NULL, seq BIGINT NOT NULL, outcome TEXT NOT NULL, name TEXT NOT NULL, args_digest TEXT NOT NULL, at BIGINT NOT NULL, PRIMARY KEY(principal,id));
 CREATE TABLE _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value BIGINT NOT NULL, PRIMARY KEY(parent, id));
 CREATE TABLE _effect_keys (effect TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY(effect, key));
-CREATE TABLE _outbox (id TEXT PRIMARY KEY, seq BIGINT NOT NULL REFERENCES _commits(seq), effect TEXT NOT NULL, payload TEXT NOT NULL, state TEXT NOT NULL, attempts BIGINT NOT NULL, at BIGINT NOT NULL);
 CREATE TABLE _principal_generations (principal TEXT COLLATE \"C\" PRIMARY KEY, generation BIGINT NOT NULL);
 CREATE TABLE _sessions (token_digest TEXT COLLATE \"C\" PRIMARY KEY, principal TEXT COLLATE \"C\" NOT NULL, kind TEXT NOT NULL, created_at BIGINT NOT NULL, expires_at BIGINT NOT NULL, family TEXT COLLATE \"C\");
 CREATE INDEX _sessions_expiry ON _sessions(expires_at);
@@ -267,13 +266,21 @@ impl Tx<'_> {
         Ok(())
     }
 
-    // @ref LLP 3000.007#19.1 — this evaluation adapter records the emission at
-    // now, not its grace deadline; it supplies neither presence deferral nor
-    // the reconnect cancellation semantics of the SQLite path.
-    pub fn record_effects(&self, outbox: &[crate::engine::presence::Emission], seq: u64, now: i64) -> Result<(), RuntimeError> {
+    // @ref LLP 3000.009.001.000#33-extraction-first-with-no-behavior-change — full admissions share policy and remain one tail flight.
+    pub fn record_effects(&self, outbox: &[crate::engine::presence::Emission], seq: u64, now: i64, schema: &crate::schema::Schema) -> Result<(), RuntimeError> {
+        crate::engine::effects::validate_emissions(outbox, seq)?;
+        let mut prepared = Vec::with_capacity(outbox.len());
+        for (id, effect, payload, presence) in outbox {
+            let (work, deadline, contract) = crate::engine::effects::admission(schema, effect, payload, now)?;
+            prepared.push(super::tail::Effect {
+                id: id.clone(), effect: effect.clone(), payload: canonical_json(payload),
+                next_at: presence.values().flatten().max().copied(), work: canonical_json(&work), deadline, contract,
+                presence: presence.iter().filter_map(|(p,d)| d.map(|d| (p.clone(),d))).collect(),
+            });
+        }
         let mut tail = self.tail.borrow_mut();
         debug_assert!(tail.commit.as_ref().is_some_and(|commit| commit.seq == seq && commit.at == now), "effects require their matching commit tail");
-        tail.effects.extend(outbox.iter().map(|(id, effect, payload, _presence)| (id.clone(), effect.clone(), payload.clone())));
+        tail.effects.extend(prepared);
         Ok(())
     }
 }

@@ -11,6 +11,8 @@ mod authority;
 mod identity;
 mod identity_schema;
 mod requests;
+mod outbox;
+mod outbox_schema;
 mod prefetch;
 mod tail;
 mod through;
@@ -147,6 +149,7 @@ impl PostgresEngine {
         tx.batch(store::READ_SESSIONS_DDL)?;
         tx.batch(identity::DDL)?;
         requests::initialize(&tx)?;
+        outbox_schema::install(&tx)?;
         tx.batch("DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;")?;
         caps::install(&tx, &schema)?;
         jobs::initialize(&tx)?;
@@ -326,7 +329,7 @@ impl PostgresEngine {
                 if !receipt_only {
                     tx.record_commit(seq, now, &program.name, &viewer, program.kind.word(), &tables, writes)?;
                     partition::append(&tx, seq, &events)?;
-                    tx.record_effects(&outbox, seq, now)?;
+                    tx.record_effects(&outbox, seq, now, &self.schema)?;
                 }
                 MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events, &action_tables), replayed: false }
             }

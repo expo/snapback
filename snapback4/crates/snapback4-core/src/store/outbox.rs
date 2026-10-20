@@ -66,14 +66,16 @@ impl OutboxTransaction for Tx<'_> {
         Ok(self.conn().query_row("SELECT lease_digest FROM _outbox WHERE id = ?1", [id], |row| row.get(0))?)
     }
 
-    fn effect_candidates(&self, effect: Option<&str>, now: i64, limit: i64) -> Result<Vec<String>, RuntimeError> {
+    fn effect_candidates(&self, effect: Option<&str>, now: i64, limit: u64) -> Result<Vec<String>, RuntimeError> {
+        let limit = limit.min(i64::MAX as u64) as i64;
         Ok(match effect {
             Some(effect) => self.conn().prepare("SELECT id FROM _outbox WHERE state = 'queued' AND (next_at IS NULL OR next_at <= ?1) AND effect = ?2 ORDER BY seq, id LIMIT ?3")?.query_map(params![now, effect, limit], |row| row.get(0))?.collect::<Result<_, _>>()?,
             None => self.conn().prepare("SELECT id FROM _outbox WHERE state = 'queued' AND (next_at IS NULL OR next_at <= ?1) ORDER BY seq, id LIMIT ?2")?.query_map(params![now, limit], |row| row.get(0))?.collect::<Result<_, _>>()?,
         })
     }
 
-    fn strict_effect_candidates(&self, effect: Option<&str>, now: i64, limit: i64) -> Result<Vec<String>, RuntimeError> {
+    fn strict_effect_candidates(&self, effect: Option<&str>, now: i64, limit: u64) -> Result<Vec<String>, RuntimeError> {
+        let limit = limit.min(i64::MAX as u64) as i64;
         Ok(match effect {
             Some(effect) => self.conn().prepare("SELECT id FROM _outbox WHERE state = 'queued' AND cancelled = 0 AND (next_at IS NULL OR next_at <= ?1) AND effect = ?2 ORDER BY seq, id LIMIT ?3")?.query_map(params![now, effect, limit], |row| row.get(0))?.collect::<Result<_, _>>()?,
             None => self.conn().prepare("SELECT id FROM _outbox WHERE state = 'queued' AND cancelled = 0 AND (next_at IS NULL OR next_at <= ?1) ORDER BY seq, id LIMIT ?2")?.query_map(params![now, limit], |row| row.get(0))?.collect::<Result<_, _>>()?,
@@ -109,7 +111,7 @@ impl OutboxTransaction for Tx<'_> {
     }
 
     fn effect_presence(&self, id: &str) -> Result<Vec<(String, bool)>, RuntimeError> {
-        Ok(self.conn().prepare("SELECT principal, reconnected FROM _effect_presence WHERE id = ?1")?
+        Ok(self.conn().prepare("SELECT principal, reconnected FROM _effect_presence WHERE id = ?1 ORDER BY principal")?
                 .query_map([id], |row| Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?)))?.collect::<Result<Vec<_>, _>>()?)
     }
 
@@ -179,13 +181,14 @@ impl OutboxTransaction for Tx<'_> {
         Ok(())
     }
 
-    fn expired_effects(&self, now: i64, limit: i64) -> Result<Vec<EffectRun>, RuntimeError> {
-        Ok(self.conn().prepare(&format!("SELECT {COLUMNS} FROM _outbox WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until < ?1)) LIMIT ?2"))?
+    fn expired_effects(&self, now: i64, limit: u64) -> Result<Vec<EffectRun>, RuntimeError> {
+        let limit = limit.min(i64::MAX as u64) as i64;
+        Ok(self.conn().prepare(&format!("SELECT {COLUMNS} FROM _outbox WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until < ?1)) ORDER BY seq, id LIMIT ?2"))?
         .query_map([now, limit], read_run)?.collect::<Result<Vec<_>, _>>()?)
     }
 
     fn expired_effects_strict(&self, now: i64) -> Result<Vec<EffectRun>, RuntimeError> {
-        Ok(self.conn().prepare(&format!("SELECT {COLUMNS} FROM _outbox WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until < ?1))"))?
+        Ok(self.conn().prepare(&format!("SELECT {COLUMNS} FROM _outbox WHERE state IN ('queued', 'running') AND (deadline <= ?1 OR (state = 'running' AND lease_until < ?1)) ORDER BY seq, id"))?
         .query_map([now], read_run)?.collect::<Result<Vec<_>, _>>()?)
     }
 
@@ -202,12 +205,13 @@ impl OutboxTransaction for Tx<'_> {
 impl OutboxStore for Store {
     fn effects_due(&self, effect: Option<&str>, now: i64) -> Result<bool, RuntimeError> {
         let due: i64 = match effect {
-            Some(effect) => self.conn().query_row("SELECT COUNT(*) FROM (SELECT 1 FROM _outbox WHERE state = 'queued' AND (next_at IS NULL OR next_at <= ?1) AND effect = ?2 LIMIT 1)", params![now, effect], |row| row.get(0))?,
-            None => self.conn().query_row("SELECT COUNT(*) FROM (SELECT 1 FROM _outbox WHERE state = 'queued' AND (next_at IS NULL OR next_at <= ?1) LIMIT 1)", params![now], |row| row.get(0))?,
+            Some(effect) => self.conn().query_row("SELECT COUNT(*) FROM (SELECT 1 FROM _outbox WHERE state = 'queued' AND (next_at IS NULL OR next_at <= ?1) AND effect = ?2 ORDER BY seq, id LIMIT 1)", params![now, effect], |row| row.get(0))?,
+            None => self.conn().query_row("SELECT COUNT(*) FROM (SELECT 1 FROM _outbox WHERE state = 'queued' AND (next_at IS NULL OR next_at <= ?1) ORDER BY seq, id LIMIT 1)", params![now], |row| row.get(0))?,
         };
         Ok(due > 0)
     }
-    fn list_effects(&self, state: Option<&str>, limit: i64) -> Result<Vec<EffectRun>, RuntimeError> {
+    fn list_effects(&self, state: Option<&str>, limit: u64) -> Result<Vec<EffectRun>, RuntimeError> {
+        let limit = limit.min(i64::MAX as u64) as i64;
         let runs = match state {
             Some(state) => self.conn().prepare(&format!("SELECT {COLUMNS} FROM _outbox WHERE state = ?1 ORDER BY seq DESC, id DESC LIMIT ?2"))?.query_map(params![state, limit], read_run)?.collect::<Result<Vec<_>, _>>()?,
             None => self.conn().prepare(&format!("SELECT {COLUMNS} FROM _outbox ORDER BY seq DESC, id DESC LIMIT ?1"))?.query_map(params![limit], read_run)?.collect::<Result<Vec<_>, _>>()?,

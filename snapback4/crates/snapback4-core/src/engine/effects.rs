@@ -86,7 +86,8 @@ pub(crate) struct ExpiredEffect<'a> {
 }
 
 /// Durable outbox access within the caller's existing transaction.
-/// P1: implement these capabilities for Postgres; lifecycle policy stays here.
+/// Lifecycle policy stays here. Any adapter error terminates the caller's
+/// transaction: roll it back instead of attempting another operation.
 pub(crate) trait OutboxTransaction {
     fn replay_suppresses(&self) -> Result<bool, RuntimeError>;
     fn suppress_effects(&self, count: usize) -> Result<(), RuntimeError>;
@@ -96,8 +97,8 @@ pub(crate) trait OutboxTransaction {
     fn park_effect_generation(&self, id: &str, now: i64) -> Result<(), RuntimeError>;
     fn effect_run(&self, id: &str) -> Result<Option<EffectRun>, RuntimeError>;
     fn effect_lease_digest(&self, id: &str) -> Result<Option<String>, RuntimeError>;
-    fn effect_candidates(&self, effect: Option<&str>, now: i64, limit: i64) -> Result<Vec<String>, RuntimeError>;
-    fn strict_effect_candidates(&self, effect: Option<&str>, now: i64, limit: i64) -> Result<Vec<String>, RuntimeError>;
+    fn effect_candidates(&self, effect: Option<&str>, now: i64, limit: u64) -> Result<Vec<String>, RuntimeError>;
+    fn strict_effect_candidates(&self, effect: Option<&str>, now: i64, limit: u64) -> Result<Vec<String>, RuntimeError>;
     fn effect_presence_satisfied(&self, id: &str) -> Result<bool, RuntimeError>;
     fn clear_effect_presence(&self, id: &str) -> Result<(), RuntimeError>;
     fn satisfy_effect(&self, id: &str, outcome: &Value) -> Result<(), RuntimeError>;
@@ -119,7 +120,7 @@ pub(crate) trait OutboxTransaction {
     /// Atomically shift `_outbox`/`_requests` leases and supervised/delegated
     /// `_sessions`, using the worker-family markers in `_meta`.
     fn shift_worker_leases(&self, milliseconds: i64, before: i64) -> Result<(), RuntimeError>;
-    fn expired_effects(&self, now: i64, limit: i64) -> Result<Vec<EffectRun>, RuntimeError>;
+    fn expired_effects(&self, now: i64, limit: u64) -> Result<Vec<EffectRun>, RuntimeError>;
     fn expired_effects_strict(&self, now: i64) -> Result<Vec<EffectRun>, RuntimeError>;
     fn expire_effect(&self, update: &ExpiredEffect<'_>) -> Result<(), RuntimeError>;
     fn replay_deployed(&self) -> Result<bool, RuntimeError>;
@@ -136,7 +137,7 @@ pub struct EffectHealth {
 /// P1: implement snapshot reads and the dev replay write for Postgres.
 pub(crate) trait OutboxStore {
     fn effects_due(&self, effect: Option<&str>, now: i64) -> Result<bool, RuntimeError>;
-    fn list_effects(&self, state: Option<&str>, limit: i64) -> Result<Vec<EffectRun>, RuntimeError>;
+    fn list_effects(&self, state: Option<&str>, limit: u64) -> Result<Vec<EffectRun>, RuntimeError>;
     fn effect_counts(&self) -> Result<BTreeMap<String, u64>, RuntimeError>;
     fn effect_health(&self, now: i64) -> Result<EffectHealth, RuntimeError>;
     fn set_effect_replay(&self, replay: bool, check: impl FnOnce(bool) -> Result<(), RuntimeError>) -> Result<(), RuntimeError>;
@@ -147,6 +148,7 @@ pub(crate) fn legacy_work() -> WorkSpec { let mut work = WorkSpec::default(); wo
 // @ref LLP 3000.007#20.2 — dev replay counts committed emits without retaining a deliverable payload.
 pub(super) fn record(tx: &impl OutboxTransaction, outbox: &[super::presence::Emission], seq: u64, now: i64, dev: bool, schema: &Schema) -> Result<(), RuntimeError> {
     if outbox.is_empty() { return Ok(()); }
+    validate_emissions(outbox, seq)?;
     let replay = dev && tx.replay_suppresses()?;
     if replay {
         tx.suppress_effects(outbox.len())?;
@@ -154,10 +156,8 @@ pub(super) fn record(tx: &impl OutboxTransaction, outbox: &[super::presence::Emi
         // @ref LLP 3000.009#5.2 — release is admission provenance, not an input to the effect compatibility contract.
         let release: Option<String> = tx.effect_release()?;
         for (id, effect, payload, presence) in outbox {
-            let work = schema.effect_specs.get(effect).cloned().unwrap_or_else(legacy_work);
-            if !work.policy.valid() { return Err(RuntimeError::Schema("the effect policy is outside its bounds".into())); }
-            let contract = work.effect_contract(effect, payload);
-            tx.insert_effect(&NewEffect { id, seq, effect, payload, now, next_at: presence.values().flatten().max().copied(), work: &work, deadline: work.policy.deadline_ms.map(|ms| now.saturating_add(ms as i64)), release: release.as_deref(), contract: &contract })?;
+            let (work, deadline, contract) = admission(schema, effect, payload, now)?;
+            tx.insert_effect(&NewEffect { id, seq, effect, payload, now, next_at: presence.values().flatten().max().copied(), work: &work, deadline, release: release.as_deref(), contract: &contract })?;
             for (principal, deadline) in presence {
                 let Some(deadline) = deadline else { continue; };
                 tx.insert_effect_presence(principal, id, *deadline)?;
@@ -165,6 +165,38 @@ pub(super) fn record(tx: &impl OutboxTransaction, outbox: &[super::presence::Emi
         }
     }
     Ok(())
+}
+
+// @ref LLP 3000.009.001.000#91-adapter-parity-rules — admission validates new text; existing row lookups remain byte exact.
+pub(super) fn validate_new_text(text: &str) -> Result<(), RuntimeError> {
+    if text.contains('\0') { return Err(RuntimeError::Input("effect identifiers and names cannot contain U+0000".into())); }
+    Ok(())
+}
+
+pub(super) fn validate_emissions(outbox: &[super::presence::Emission], seq: u64) -> Result<(), RuntimeError> {
+    if seq > i64::MAX as u64 { return Err(RuntimeError::Input("effect sequence exceeds signed 64-bit storage".into())); }
+    for (id, effect, _, presence) in outbox {
+        validate_new_text(id)?;
+        validate_new_text(effect)?;
+        for (principal, deadline) in presence {
+            if deadline.is_some() { validate_new_text(principal)?; }
+        }
+    }
+    Ok(())
+}
+
+// Shared by the ordinary recorder and the Postgres batched tail.
+pub(super) fn admission(schema: &Schema, effect: &str, payload: &Value, now: i64) -> Result<(WorkSpec, Option<i64>, String), RuntimeError> {
+    let work = schema.effect_specs.get(effect).cloned().unwrap_or_else(legacy_work);
+    if !work.policy.valid() { return Err(RuntimeError::Schema("the effect policy is outside its bounds".into())); }
+    let deadline = work.policy.deadline_ms.map(|ms| now.saturating_add(ms as i64));
+    let contract = work.effect_contract(effect, payload);
+    Ok((work, deadline, contract))
+}
+
+// @ref LLP 3000.009.001.000#91-adapter-parity-rules — normalize diagnostics before the character bound, never JSON values.
+pub(super) fn diagnostic(error: &str) -> String {
+    error.chars().map(|c| if c == '\0' { '\u{fffd}' } else { c }).take(2_000).collect()
 }
 
 pub(super) fn auth_error() -> RuntimeError {
@@ -256,7 +288,8 @@ impl Engine {
     }
 
     fn claim_effects_inner(&mut self, worker: &str, effect: Option<&str>, limit: usize, lease_ms: i64, now: i64, fenced: bool) -> Result<Vec<EffectRun>, RuntimeError> {
-        let limit = limit.clamp(1, 100) as i64;
+        validate_new_text(worker)?;
+        let limit = limit.clamp(1, 100) as u64;
         let lease = lease_ms.clamp(1_000, MAX_LEASE_MS);
         let tx = self.store.transaction()?;
         expire(&tx, now)?;
@@ -286,7 +319,7 @@ impl Engine {
     /// deliberately retain their compatibility behavior.
     // @ref LLP 3000.009#5.2 — effect claims bind current service and declaration authority in the claim transaction.
     pub fn claim_effects_strict(&mut self, service_token: &str, effect: Option<&str>, limit: usize, lease_ms: i64, fenced: bool, declaration_contract: Option<&str>, sample: impl FnOnce() -> identity::ServiceSample) -> Result<Vec<EffectRun>, RuntimeError> {
-        let limit = limit.clamp(1, 100) as i64;
+        let limit = limit.clamp(1, 100) as u64;
         let lease = lease_ms.clamp(1_000, MAX_LEASE_MS);
         let tx = self.store.transaction()?;
         let sample = sample();
@@ -364,7 +397,7 @@ impl Engine {
                 tx.send_effect(id, result.as_ref())?;
             }
             Settled::Failed { error, retry } => {
-                let error: String = error.chars().take(2_000).collect();
+                let error = diagnostic(&error);
                 if retry && run.attempts < run.work.policy.max_attempts {
                     tx.retry_effect(id, &error, now.saturating_add(run.work.policy.backoff(run.attempts)))?;
                 } else {
@@ -399,7 +432,7 @@ impl Engine {
                 tx.send_effect_strict(id, result.as_ref(), sample.now)?;
             }
             Settled::Failed { error, retry } => {
-                let error: String = error.chars().take(2_000).collect();
+                let error = diagnostic(&error);
                 if retry && run.attempts < run.work.policy.max_attempts {
                     tx.retry_effect_strict(id, &error, sample.now.saturating_add(run.work.policy.backoff(run.attempts)))?;
                 } else {
@@ -494,7 +527,7 @@ impl Engine {
 
     /// The most recent effects in one state (or any), newest first.
     pub fn effects(&self, state: Option<&str>, limit: usize) -> Result<Vec<EffectRun>, RuntimeError> {
-        let limit = limit.clamp(1, 500) as i64;
+        let limit = limit.clamp(1, 500) as u64;
         self.store.list_effects(state, limit)
     }
 
@@ -505,10 +538,10 @@ impl Engine {
 }
 
 fn expire(tx: &impl OutboxTransaction, now: i64) -> Result<u64, RuntimeError> {
-    expire_batch(tx, now, i64::MAX, std::time::Duration::MAX)
+    expire_batch(tx, now, u64::MAX, std::time::Duration::MAX)
 }
 
-fn expire_batch(tx: &impl OutboxTransaction, now: i64, limit: i64, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+fn expire_batch(tx: &impl OutboxTransaction, now: i64, limit: u64, budget: std::time::Duration) -> Result<u64, RuntimeError> {
     let started = std::time::Instant::now();
     let runs = tx.expired_effects(now, limit)?;
     let mut changed = 0;
