@@ -1,5 +1,6 @@
 //! Staged upload custody, intent receipts and authorized asset delivery.
 use super::*;
+use crate::receipts::ReceiptReader;
 impl Engine {
     /// Record an upload under `owner`: sniffed, bounded by the largest
     /// column of its kind in this schema, written beside the store. The
@@ -144,7 +145,7 @@ impl Engine {
             if previous.as_deref()!=Some(fingerprint)||binding.as_deref()!=Some(&encoded){return Err(RuntimeError::Asset{code:"E_ASSET_INTENT_REUSE",message:"intent declaration belongs to different bytes, metadata or placement".into()});}
             tx.rollback()?;return Ok(());
         }
-        if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _ops WHERE principal=?1 AND id=?2)",[owner,id],|r|r.get::<_,bool>(0))?{return Err(RuntimeError::Asset{code:"E_WRITE_ID_REUSE",message:"this id already belongs to an executed mutation".into()});}
+        if tx.receipt_exists(owner,id)?{return Err(RuntimeError::Asset{code:"E_WRITE_ID_REUSE",message:"this id already belongs to an executed mutation".into()});}
         tx.conn().execute("INSERT INTO _asset_intents(owner,intent,fingerprint,placement,state) VALUES(?1,?2,?3,?4,'declared')",rusqlite::params![owner,id,fingerprint,encoded])?;
         tx.commit()
     }
@@ -200,7 +201,7 @@ impl Engine {
         if !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _asset_intents WHERE owner=?1 AND intent=?2)", [owner,id], |r| r.get::<_,bool>(0))? {
             return Err(RuntimeError::Asset {code:"E_UPLOAD_INTENT",message:"this viewer has no uploaded intent under that id".into()});
         }
-        if let Some(receipt) = crate::store::replay_bound(tx.conn(), owner, id, name, args)? {
+        if let Some(receipt) = tx.replay_bound(owner, id, name, args)? {
             let outcome = MutationOutcome::from_receipt(&receipt)?; tx.rollback()?; return Ok(outcome);
         }
         let cancelled=tx.conn().query_row("SELECT state='cancelled' FROM _asset_intents WHERE owner=?1 AND intent=?2",[owner,id],|r|r.get::<_,bool>(0))?;
@@ -220,7 +221,7 @@ impl Engine {
     /// Cancellation fences a late staged upload too; executed placements cannot be cancelled.
     pub fn cancel_asset_intent(&mut self, owner: &str, id: &str) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
-        if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _ops WHERE principal=?1 AND id=?2)", [owner,id], |r| r.get::<_,bool>(0))? {
+        if tx.receipt_exists(owner,id)? {
             return Err(RuntimeError::Asset { code: "E_UPLOAD_DISPATCHED", message: "placement already has a server outcome; recover its receipt".into() });
         }
         tx.conn().execute("INSERT INTO _asset_intents(owner,intent,state) VALUES(?1,?2,'cancelled') ON CONFLICT(owner,intent) DO UPDATE SET state='cancelled'", [owner,id])?;

@@ -211,12 +211,11 @@ fn read_answer(shared: &Shared, since: u64) -> Result<Checked, snapback4_core::R
 /// The notification's head, identity and invalidations share one read snapshot.
 fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64, Option<String>, Vec<String>, Vec<String>, Json), snapback4_core::error::RuntimeError,
 > {
-    use rusqlite::OptionalExtension;
     let all_tables: Vec<_> = engine.schema().visible_tables().map(|(n,_)|n.clone()).collect();
     let schema = engine.schema().clone();
     let tx = engine.store_mut().read_transaction()?;
     let head = tx.next_seq()? - 1;
-    let store_id = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).optional()?;
+    let store_id = tx.optional_store_id()?;
     let changes = tx.commits_after(since, 500)?;
     // Advancing to the actual head must not skip invalidation beyond the
     // bounded commit page. Saturation conservatively invalidates every table.

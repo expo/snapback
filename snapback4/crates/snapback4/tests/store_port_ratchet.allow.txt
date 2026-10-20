@@ -1,14 +1,12 @@
 # LLP 3000.009.001.000 §3.2; non-test matching source lines; paths relative to snapback4/
 crates/snapback4-core/src/engine/actions.rs 34
 crates/snapback4-core/src/engine/activation.rs 7
-crates/snapback4-core/src/engine/asset_uploads.rs 16
+crates/snapback4-core/src/engine/asset_uploads.rs 13
 crates/snapback4-core/src/engine/dev_reset.rs 10
 crates/snapback4-core/src/engine/effects.rs 72
-crates/snapback4-core/src/engine/ephemeral.rs 1
 crates/snapback4-core/src/engine/job.rs 21
-crates/snapback4-core/src/engine/mod.rs 6
+crates/snapback4-core/src/engine/mod.rs 2
 crates/snapback4-core/src/engine/routes.rs 2
-crates/snapback4-core/src/engine/time_audience.rs 3
 crates/snapback4-core/src/engine/timeline/activation.rs 7
 crates/snapback4-core/src/engine/timeline/work.rs 1
 crates/snapback4-core/src/error.rs 2
@@ -17,17 +15,13 @@ crates/snapback4/src/dev_clock_store.rs 7
 crates/snapback4/src/dev_replay.rs 5
 crates/snapback4/src/dev_worker.rs 1
 crates/snapback4/src/release_files.rs 2
-crates/snapback4/src/serve.rs 1
-crates/snapback4/src/serve_adoption.rs 1
-crates/snapback4/src/serve_changes.rs 2
-crates/snapback4/src/serve_readers.rs 3
 crates/snapback4/src/verbs.rs 7
 crates/snapback4/src/verbs/release_dependencies.rs 5
 crates/snapback4/src/verbs/release_preview.rs 5
 crates/snapback4/src/verbs/release_safeguards.rs 6
 crates/snapback4/src/verbs/releases.rs 5
 crates/snapback4/src/verbs/residency.rs 1
-crates/snapback4/src/verbs/run_admission.rs 2
+crates/snapback4/src/verbs/run_admission.rs 1
 crates/snapback4/src/verbs/sql.rs 12
 crates/snapback4/src/verbs/sql_catalog.rs 5
 crates/snapback4/src/verbs/witness/smoke.rs 2

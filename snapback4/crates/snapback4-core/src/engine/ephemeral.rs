@@ -473,7 +473,7 @@ impl Engine {
         let plan = accounting.plan(&layer, &self.schema, &viewer, self.ephemeral.limits)?;
         // End the durable read while the undo guard still exists. Dropping Tx
         // afterward is harmless: its SQLite transaction is already rolled back.
-        tx.conn().execute_batch("ROLLBACK")?;
+        tx.abandon()?;
         let preserved = if swept == 0 { layer.footprint().preserved(&self.schema) } else { vec![] };
         layer.commit();
         drop(layer);

@@ -260,10 +260,6 @@ impl crate::assets::AssetTransaction for Tx<'_> {
     }
 
     fn mutation_executed(&self, owner: &str, id: &str) -> Result<bool, RuntimeError> {
-        Ok(self.conn().query_row(
-            "SELECT EXISTS(SELECT 1 FROM _ops WHERE principal=?1 AND id=?2)",
-            [owner, id],
-            |r| r.get::<_, bool>(0),
-        )?)
+        crate::receipts::ReceiptReader::receipt_exists(self, owner, id)
     }
 }

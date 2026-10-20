@@ -29,6 +29,8 @@ pub mod maintain;
 pub mod partition;
 pub mod rows;
 pub mod revocation;
+#[cfg(feature = "sqlite")]
+pub(crate) mod receipts;
 pub mod schema;
 pub mod small_map;
 #[cfg(feature = "server-search")]

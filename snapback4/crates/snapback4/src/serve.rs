@@ -803,7 +803,7 @@ pub(crate) fn query_params(url: &str) -> BTreeMap<String, String> {
 // operation. Mutation replay's seq is historical; head is never that receipt.
 fn response_head(engine: &mut Engine) -> Result<(String, u64), Refusal> {
     let tx = engine.store_mut().read_transaction()?;
-    let id: String = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).map_err(snapback4_core::RuntimeError::from)?;
+    let id: String = tx.store_id()?;
     Ok((id, tx.next_seq()? - 1))
 }
 

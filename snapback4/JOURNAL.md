@@ -96970,3 +96970,48 @@ passes in the full run. The optional TypeScript emit reports the same three
 TS2307 diagnostics on this lane and base for the unbuilt wasm device imports;
 no client source or wasm artifact is changed by this slice. `scripts/test.sh`
 was not run.
+
+### 2026-10-20 — P0-S2: receipts and head seam
+
+The commissioned single-worker store-port lane starts at mirror base
+`a8460f7abb27acc6c99589bd492c7adbee22f381` on `sb4-pg/p0-s2`.
+`receipts.rs` now owns the plain receipt record, `ReceiptReader` trait,
+canonical payload binding helpers and replay policy; `store/receipts.rs`
+implements its reads for SQLite `Store` and `Tx`. Engine acknowledgement
+cuts and validation, negative-sequence errors and asset refusal ordering
+remain at their original call sites. The standalone asset `_ops` probes
+share the receipt access method; the existing typed asset replay delegates
+to it too. Shared cases cover principal isolation, canonical argument
+binding, name/argument mismatches, legacy unbound receipts, sent-only
+acknowledgement and the sequence cut on both handles.
+
+Typed required/optional store identity reads preserve missing-row behavior
+and share the existing head transaction. `Store::is_read_only` and
+`Store::is_memory` own connection inspection. `Tx::abandon` issues the same
+rollback at the same point while the ephemeral undo guard still borrows it.
+Host open/adoption retries use `RuntimeError::is_busy`; the adapter classifies
+exactly the previous SQLite busy/locked codes. SQL text, transaction modes,
+statement order, refusal messages and retry policy are unchanged. No changes
+to the evaluation Postgres adapter or P0-S4a's `engine/actions.rs` and
+`engine/routes.rs`. All seven requested items are included.
+
+The required ratchet update passes and lowers production sites **273 → 254**;
+test sites remain **104 → 104**. Only the production allowlist changes.
+
+`cargo build -p snapback4`, the ratchet update and `./ref-check --verbose`
+pass. The required Clippy command fails on two inherited deny-by-default
+lints: `clippy::while_immutable_condition` (`engine/read.rs:780`) and
+`clippy::never_loop` (`engine/row_views.rs:1010`). Running the same command
+on the untouched base in a second detached worktree reproduces both; the
+sets of diagnostic messages and source files match, with no new warnings
+or errors.
+
+The complete host suite (`cargo test -p snapback4 --no-fail-fast`) passes,
+including the ratchet and the existing busy/locked-code classification test.
+`scripts/test.sh` was not run.
+
+`cargo test -p snapback4-core` also passes in full, including integration
+tests, doctests and the new shared receipt cases. The existing ignored tests
+remain ignored. No product-test failures were found. The only failed required
+check is the base-reproduced Clippy result above. The lane commits locally
+with the commissioned identity and does not push.

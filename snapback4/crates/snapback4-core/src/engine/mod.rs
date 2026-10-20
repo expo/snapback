@@ -864,7 +864,7 @@ impl Engine {
 
     /// The same receipt lookup split at the event cut and the image read head.
     pub fn acknowledged_at(&mut self, principal: &str, pending: &[String], through: u64, images_at: u64) -> Result<(BTreeMap<String, u64>, BTreeMap<String, u64>), RuntimeError> {
-        use rusqlite::OptionalExtension;
+        use crate::receipts::ReceiptReader;
         if images_at < through { return Err(RuntimeError::Input("image head precedes the event watermark".into())); }
         if pending.len() > 256 || pending.iter().any(|id| id.len() > 128) { return Err(RuntimeError::Input("sync accepts at most 256 pending ids of at most 128 bytes".into())); }
         let tx = self.store.read_transaction()?;
@@ -873,7 +873,7 @@ impl Engine {
         for id in pending {
             // @ref LLP 3000.013#6 — idempotency also records refusals; only
             // committed success can acknowledge execution in a device outbox.
-            let seq: Option<i64> = tx.conn().query_row("SELECT seq FROM _ops WHERE principal = ?1 AND id = ?2 AND seq <= ?3 AND json_extract(outcome, '$.state') = 'sent'", rusqlite::params![principal, id, images_at.max(through).min(i64::MAX as u64) as i64], |row| row.get(0)).optional()?;
+            let seq: Option<i64> = tx.sent_sequence(principal, id, images_at.max(through).min(i64::MAX as u64) as i64)?;
             if let Some(seq) = seq {
                 let seq = u64::try_from(seq).map_err(|_| {
                     RuntimeError::Store("negative stored operation sequence".into())
@@ -900,7 +900,7 @@ impl Engine {
     /// Compare wire identity before decoding against a possibly newer schema.
     // @ref LLP 3000.009#5.1 — an id binds the admitted operation and arguments.
     pub fn replay_mutation(&self, viewer: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<MutationOutcome>, RuntimeError> {
-        crate::store::replay_bound(self.store.conn(), viewer, id, name, args)?
+        self.store.replay_bound(viewer, id, name, args)?
             .map(|receipt| MutationOutcome::from_receipt(&receipt)).transpose()
     }
 
@@ -935,7 +935,7 @@ impl Engine {
         }
         let tx = self.store.transaction()?;
         if let Some(op) = op
-            && let Some(outcome) = crate::store::replay_bound(tx.conn(), &context.viewer, op, name, &wire_args)?
+            && let Some(outcome) = tx.replay_bound(&context.viewer, op, name, &wire_args)?
         {
             // Applied between the check above and this transaction.
             let outcome = MutationOutcome::from_receipt(&outcome)?;

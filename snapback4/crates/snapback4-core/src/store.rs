@@ -41,6 +41,7 @@ mod change_evidence;
 mod release;
 mod authority;
 mod identity;
+mod receipts;
 mod caps;
 pub(crate) mod dormant;
 #[cfg(test)]
@@ -470,6 +471,23 @@ impl Store {
         &self.conn
     }
 
+    pub fn is_read_only(&self) -> Result<bool, RuntimeError> {
+        Ok(self.conn.is_readonly("main")?)
+    }
+
+    pub fn is_memory(&self) -> bool {
+        self.conn.path().is_none_or(str::is_empty)
+    }
+
+    /// The store identity; absence remains a storage error for required heads.
+    pub fn store_id(&self) -> Result<String, RuntimeError> {
+        Ok(self.conn.query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0))?)
+    }
+
+    pub fn optional_store_id(&self) -> Result<Option<String>, RuntimeError> {
+        Ok(self.conn.query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).optional()?)
+    }
+
     /// The last committed sequence number.
     pub fn seq(&self) -> Result<u64, RuntimeError> {
         self.check_ownership()?;
@@ -567,6 +585,21 @@ impl<'a> Tx<'a> {
     pub fn conn(&self) -> &Connection {
         self.clear_activation_scan();
         &self.tx
+    }
+
+    /// End the durable snapshot while a borrowed ephemeral undo guard is live.
+    // @ref LLP 3000.009.001.000#3.3 — preserve the rollback point before volatile publication.
+    pub fn abandon(&self) -> Result<(), RuntimeError> {
+        self.conn().execute_batch("ROLLBACK")?;
+        Ok(())
+    }
+
+    pub fn store_id(&self) -> Result<String, RuntimeError> {
+        Ok(self.conn().query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0))?)
+    }
+
+    pub fn optional_store_id(&self) -> Result<Option<String>, RuntimeError> {
+        Ok(self.conn().query_row("SELECT value FROM _meta WHERE key = 'store_id'", [], |row| row.get(0)).optional()?)
     }
 
     pub fn commit(self) -> Result<(), RuntimeError> {
@@ -1286,33 +1319,7 @@ impl crate::rows::Rows for Tx<'_> {
     }
 }
 
-/// Canonical plain JSON, including recursively sorted object keys.
-pub fn canonical_payload(value: &serde_json::Value) -> String {
-    let mut value = value.clone();
-    value.sort_all_objects();
-    value.to_string()
-}
-
-pub fn payload_digest(value: &serde_json::Value) -> String {
-    use sha2::{Digest, Sha256};
-    format!("{:x}", Sha256::digest(canonical_payload(value).as_bytes()))
-}
-
-pub fn id_reused() -> RuntimeError {
-    RuntimeError::Structural { code: "E_ID_REUSED", message: "this id already admitted another operation or different arguments; use the original operation and arguments, or mint a new id".into() }
-}
-
-pub(crate) fn replay_bound(conn: &Connection, principal: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<String>, RuntimeError> {
-    let recorded: Option<(String, Option<String>, Option<String>)> = conn.query_row(
-        "SELECT outcome, name, args_digest FROM _ops WHERE principal = ?1 AND id = ?2", params![principal, id],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-    ).optional()?;
-    let Some((outcome, recorded_name, recorded_digest)) = recorded else { return Ok(None); };
-    // NULL is an old receipt with no binding, never a mismatch.
-    if recorded_name.as_deref().is_some_and(|old| old != name)
-        || recorded_digest.is_some_and(|old| old != payload_digest(args)) { return Err(id_reused()); }
-    Ok(Some(outcome))
-}
+pub use crate::receipts::{canonical_payload, payload_digest, id_reused};
 
 // Server-only volatile history reads; no persisted catalog or device change.
 mod following_history;
@@ -1320,3 +1327,12 @@ mod following_history;
 #[cfg(test)]
 #[path = "store/backfill_tests.rs"]
 mod backfill_tests;
+
+// Driver classification belongs to the adapter, not the host retry policy.
+impl RuntimeError {
+    /// Whether opening/adopting encountered database contention.
+    pub fn is_busy(&self) -> bool {
+        matches!(self, Self::Sql(error) if matches!(error.sqlite_error_code(),
+            Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)))
+    }
+}
