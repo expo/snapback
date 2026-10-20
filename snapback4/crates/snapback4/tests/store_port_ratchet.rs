@@ -39,6 +39,13 @@ mod rust_tokens;
 use rust_tokens::{Token, starts, tokens};
 
 fn database_site(tokens: &[Token<'_>]) -> bool {
+    // Error values/conversions alone do not access a database. Exclude only
+    // the bare driver Error type; Error constructors and other paths still count.
+    let error_type = ["rusqlite", "postgres"].iter().any(|driver| {
+        starts(tokens, &[driver, ":", ":", "Error"])
+            && tokens.get(4).is_none_or(|token| token.text != ":")
+    });
+    if error_type { return false; }
     if starts(tokens, &["rusqlite", ":", ":"])
         || starts(tokens, &["postgres", ":", ":"])
         || starts(tokens, &["Transaction", ":", ":", "new_unchecked"])
@@ -51,6 +58,7 @@ fn database_site(tokens: &[Token<'_>]) -> bool {
         return true;
     }
     if starts(tokens, &[".", "conn", "(", ")"])
+        || starts(tokens, &[".", "test_support_conn", "(", ")"])
         || starts(tokens, &[".", "query_row", "("])
         || starts(tokens, &[".", "query_map", "("])
     {
@@ -244,6 +252,9 @@ fn matcher_counts_lines_and_exact_database_tokens() {
         "rusqlite::Connection",
         "postgres::Client",
         "db.conn()",
+        "db.test_support_conn()",
+        "rusqlite::Error::InvalidQuery",
+        "postgres::Error::from(error)",
         "q.query_row(sql)",
         "q.query_map(params)",
         "db.prepare(sql)",
@@ -258,6 +269,7 @@ fn matcher_counts_lines_and_exact_database_tokens() {
     ] {
         assert_eq!(count_source(source, false), (1, 0), "{source}");
     }
+    assert_eq!(count_source("Sql(#[from] rusqlite::Error), Postgres(#[from] postgres::Error)", false), (0, 0));
     assert_eq!(count_source("db\n . prepare\n (sql);", false), (1, 0));
     assert_eq!(
         count_source(

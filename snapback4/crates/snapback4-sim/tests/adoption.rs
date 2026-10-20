@@ -29,9 +29,9 @@ fn literal_defaults_adopt_three_old_rows_without_writes_and_build_the_index() {
     assert_eq!(steps.iter().find(|s| s.path.ends_with(".tombstone")).unwrap().message, "column messages.tombstone is added with default false; rows written before it read false");
     let images = e.store().rows("messages").unwrap();
     let seq = e.seq().unwrap();
-    e.store().conn().execute_batch("CREATE TEMP TRIGGER forbid_rewrite BEFORE UPDATE ON r BEGIN SELECT RAISE(ABORT, 'adoption rewrote a row'); END;").unwrap();
+    e.store().test_support_conn().execute_batch("CREATE TEMP TRIGGER forbid_rewrite BEFORE UPDATE ON r BEGIN SELECT RAISE(ABORT, 'adoption rewrote a row'); END;").unwrap();
     e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
-    e.store().conn().execute_batch("DROP TRIGGER forbid_rewrite;").unwrap();
+    e.store().test_support_conn().execute_batch("DROP TRIGGER forbid_rewrite;").unwrap();
     assert_eq!(e.store().rows("messages").unwrap(), images);
     assert_eq!(e.seq().unwrap(), seq);
     assert!(e.stream("dev:alice", seq, 100).unwrap().events.is_empty());

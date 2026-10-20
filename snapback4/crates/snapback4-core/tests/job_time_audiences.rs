@@ -95,13 +95,13 @@ fn run_and_restart(path: &Path, job: &str, kind: &str, native: bool, advance_fir
 
     let run = engine.run_job(job, BTreeMap::new(), if advance_first { 120 } else { 200 }).unwrap();
     assert_eq!(run.state, JobState::Done, "{run:?}");
-    assert_eq!(engine.store().meta("time_audience_clock").unwrap().as_deref(), Some("200"));
+    assert_eq!(engine.store().test_support_meta("time_audience_clock").unwrap().as_deref(), Some("200"));
     let live = row_at(&mut engine, kind, 120);
     assert_eq!(live.field("observedAt").unwrap(), &Value::Int(200));
     drop(engine);
 
     let mut restarted = Engine::open_at(Store::open(path).unwrap(), 120).unwrap();
-    assert_eq!(restarted.store().meta("time_audience_clock").unwrap().as_deref(), Some("200"));
+    assert_eq!(restarted.store().test_support_meta("time_audience_clock").unwrap().as_deref(), Some("200"));
     let live = row_at(&mut restarted, kind, 120);
     assert_eq!(live.field("observedAt").unwrap(), &Value::Int(200));
 }
@@ -159,6 +159,6 @@ job stamp():
 
     let run = engine.run_job("stamp", BTreeMap::new(), 50).unwrap();
     assert_eq!(run.state, JobState::Done, "{run:?}");
-    assert_eq!(engine.store().meta("time_audience_clock").unwrap(), None);
+    assert_eq!(engine.store().test_support_meta("time_audience_clock").unwrap(), None);
     assert_eq!(engine.store().rows("inputs").unwrap()[0].field("observedAt").unwrap(), &Value::Int(50));
 }

@@ -274,7 +274,7 @@ fn finding_4_delayed_legacy_page_does_not_erase_an_advanced_owners_history() {
     let from = first.state().unwrap().0;
     engine.mutate("leave", Some("leave"), context("dev:alice", &[("conversationId", id("c1"))])).unwrap();
     first.apply(&stream_page(&mut engine, "dev:alice", from), false).unwrap();
-    first.store().conn().execute("UPDATE _meta SET value = '10' WHERE key = 'device:watermark'", []).unwrap();
+    first.store().test_support_conn().execute("UPDATE _meta SET value = '10' WHERE key = 'device:watermark'", []).unwrap();
     let mut second = Device::open(&host.path("store"), None).unwrap();
     let capture = first.sync_state().unwrap();
     let page = |watermark| json!({ "snapshot": false, "events": [], "watermark": watermark, "more": false,

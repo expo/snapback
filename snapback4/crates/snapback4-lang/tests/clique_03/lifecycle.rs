@@ -107,7 +107,7 @@ pub fn adopt(e: &mut Engine, m: &Model) -> (Device<Store>, PathBuf) {
     assert!(e.generation() > old);
     let events: i64 = e
         .store()
-        .conn()
+        .test_support_conn()
         .query_row(
             "SELECT count(*) FROM _log WHERE seq > ?1",
             [seq as i64],

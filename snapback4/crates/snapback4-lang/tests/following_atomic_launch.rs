@@ -137,7 +137,7 @@ fn copy_ceiling_and_release_permission_refuse_before_candidate_writes() {
     let mut e=engine(None,&bare()); seed(&mut e,1001,5001);
     let before=e.generation(); let b=bound(Q);
     let writes=std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)); let w=writes.clone();
-    e.store().conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1,std::sync::atomic::Ordering::SeqCst); })).unwrap();
+    e.store().test_support_conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1,std::sync::atomic::Ordering::SeqCst); })).unwrap();
     let err=e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap_err();
     assert_eq!(err.code(),"E_TIMELINE_ACTIVATE"); assert!(err.to_string().contains("5002001"));
     assert!(err.to_string().contains("--allow-feed-adoption does not override this ceiling"));
@@ -162,7 +162,7 @@ fn aggregate_copy_ceiling_refuses_two_individually_admissible_launches_before_wr
     let generation = e.generation(); let seq = e.seq().unwrap();
     let sources: Vec<_> = ["posts", "reposts", "follows"].map(|table| (table, e.store().rows(table).unwrap())).into();
     let writes = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)); let w = writes.clone();
-    e.store().conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, std::sync::atomic::Ordering::SeqCst); })).unwrap();
+    e.store().test_support_conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, std::sync::atomic::Ordering::SeqCst); })).unwrap();
     // Test check first: sum -> max must fail without attempting six million copies.
     let preview = e.store_mut().check_timeline_activation(&b.schema).unwrap_err();
     let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
@@ -172,7 +172,7 @@ fn aggregate_copy_ceiling_refuses_two_individually_admissible_launches_before_wr
     assert_eq!(writes.load(std::sync::atomic::Ordering::SeqCst), 0);
     assert_eq!(e.generation(), generation); assert_eq!(e.seq().unwrap(), seq);
     for (table, rows) in sources { assert_eq!(e.store().rows(table).unwrap(), rows); }
-    let names: i64 = e.store().conn().query_row("SELECT COUNT(*) FROM _catalog WHERE name LIKE 'following%' OR name LIKE 'second%'", [], |r| r.get(0)).unwrap();
+    let names: i64 = e.store().test_support_conn().query_row("SELECT COUNT(*) FROM _catalog WHERE name LIKE 'following%' OR name LIKE 'second%'", [], |r| r.get(0)).unwrap();
     assert_eq!(names, 0);
 }
 
@@ -187,14 +187,14 @@ fn copy_ceiling_rechecks_a_follow_committed_between_estimate_and_writer_lock() {
     assert_eq!(e.store_mut().check_timeline_activation(&b.schema).unwrap()[0].copies, 5_000_000);
     let mut writer = Engine::open(Store::open(&p).unwrap()).unwrap();
     let generation = e.generation(); let initial_seq = e.seq().unwrap();
-    let changes = e.store().conn().total_changes();
+    let changes = e.store().test_support_conn().total_changes();
     let (paused_tx, paused_rx) = mpsc::channel();
     let (resume_tx, resume_rx) = mpsc::channel();
     let writes = Arc::new(AtomicUsize::new(0)); let w = writes.clone();
-    e.store().conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, Ordering::SeqCst); })).unwrap();
+    e.store().test_support_conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, Ordering::SeqCst); })).unwrap();
     let begins = Arc::new(AtomicUsize::new(0)); let begin_count = begins.clone();
     let candidate_attempts = Arc::new(AtomicUsize::new(0)); let attempts = candidate_attempts.clone();
-    e.store().conn().authorizer(Some(move |ctx: AuthContext<'_>| {
+    e.store().test_support_conn().authorizer(Some(move |ctx: AuthContext<'_>| {
         match ctx.action {
             // First BEGIN is the unlocked read-only estimate; its rollback
             // precedes this second BEGIN IMMEDIATE. Pause before SQLite executes
@@ -227,7 +227,7 @@ fn copy_ceiling_rechecks_a_follow_committed_between_estimate_and_writer_lock() {
     assert_eq!(writer.store_mut().timeline_launch_estimate(&b.schema).unwrap()[0].copies, 5_001_000);
     let sources = ["posts", "reposts", "follows"].map(|table| (table, writer.store().rows(table).unwrap()));
     let catalog = |e: &Engine| -> Vec<(String, i64)> {
-        e.store().conn().prepare("SELECT name, num FROM _catalog ORDER BY name").unwrap()
+        e.store().test_support_conn().prepare("SELECT name, num FROM _catalog ORDER BY name").unwrap()
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?))).unwrap().collect::<Result<_, _>>().unwrap()
     };
     let before_catalog = catalog(&writer);
@@ -239,7 +239,7 @@ fn copy_ceiling_rechecks_a_follow_committed_between_estimate_and_writer_lock() {
     assert!(error.to_string().contains("total 5001000 exceeds"), "{error}");
     assert_eq!(writes.load(Ordering::SeqCst), 0);
     assert_eq!(e.generation(), generation); assert_eq!(e.seq().unwrap(), seq);
-    assert_eq!(e.store().conn().total_changes(), changes, "candidate wrote rows, including WITHOUT ROWID tables");
+    assert_eq!(e.store().test_support_conn().total_changes(), changes, "candidate wrote rows, including WITHOUT ROWID tables");
     assert_eq!(e.store().meta("generation").unwrap(), Some(generation.to_string()));
     assert_eq!(catalog(&e), before_catalog);
     for (table, rows) in sources { assert_eq!(e.store().rows(table).unwrap(), rows, "{table}: source/slots changed"); }
@@ -254,7 +254,7 @@ fn predecessor_query_snapshot_and_log_normalization_are_isolated_until_commit() 
     let p=path("isolation"); let mut e=engine(Some(&p),&bare()); seed(&mut e,3,1);
     let mut reader=e.reader().unwrap(); let old=e.generation();
     let checked=std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false)); let check=checked.clone();
-    e.store().conn().commit_hook(Some(move || {
+    e.store().test_support_conn().commit_hook(Some(move || {
         let q=reader.query("exportPosts",Context::new("a",[("c".into(),Value::Null)].into())).unwrap();
         assert!(!q.unavailable); assert_eq!(q.data.as_array().unwrap().len(),3);
         let snapshot=reader.snapshot("a").unwrap();
@@ -265,7 +265,7 @@ fn predecessor_query_snapshot_and_log_normalization_are_isolated_until_commit() 
         assert_eq!(reader.generation(),old); check.store(true,std::sync::atomic::Ordering::SeqCst); false
     })).unwrap();
     adopt(&mut e,Q); assert!(checked.load(std::sync::atomic::Ordering::SeqCst));
-    e.store().conn().commit_hook(None::<fn()->bool>).unwrap();
+    e.store().test_support_conn().commit_hook(None::<fn()->bool>).unwrap();
     assert!(e.store().rows("posts").unwrap().iter().all(|r| r.field("$timeline:following:post").is_ok()));
     drop(e); std::fs::remove_dir_all(p.parent().unwrap()).unwrap();
 }
@@ -279,7 +279,7 @@ fn process_death_before_commit_preserves_predecessor_and_retry_succeeds() {
     let mut e=Engine::open(Store::open(&p).unwrap()).unwrap();
     assert_eq!(e.generation(),generation); assert_eq!(e.seq().unwrap(),seq); assert_eq!(e.store().rows("posts").unwrap(),rows);
     assert!(e.store().rows("followingFeed").unwrap().is_empty());
-    let names: i64=e.store().conn().query_row("SELECT COUNT(*) FROM _catalog WHERE name LIKE 'following%'",[],|r|r.get(0)).unwrap();
+    let names: i64=e.store().test_support_conn().query_row("SELECT COUNT(*) FROM _catalog WHERE name LIKE 'following%'",[],|r|r.get(0)).unwrap();
     assert_eq!(names,0,"failed activation did not reserve its candidate catalog");
     adopt(&mut e,Q); assert_eq!(copies(&e,"r00000").len(),20); assert!(page(&mut e,"r00000").complete);
     drop(e); std::fs::remove_dir_all(p.parent().unwrap()).unwrap();
@@ -288,7 +288,7 @@ fn process_death_before_commit_preserves_predecessor_and_retry_succeeds() {
 #[ignore = "process-death child"]
 fn crash_before_launch_commit() {
     let mut e=Engine::open(Store::open(Path::new(&std::env::var("FA_ATOMIC_CRASH").unwrap())).unwrap()).unwrap();
-    e.store().conn().commit_hook(Some(|| { std::process::exit(73); })).unwrap(); adopt(&mut e,Q);
+    e.store().test_support_conn().commit_hook(Some(|| { std::process::exit(73); })).unwrap(); adopt(&mut e,Q);
     panic!("commit hook did not run");
 }
 
@@ -328,7 +328,7 @@ fn calibration_atomic_launch_measurement() {
         (posts+if first<nr {(nr+nu-1-first)/nu} else {0}).min(1000)
     }).sum::<usize>();
     let estimates=e.store_mut().timeline_launch_estimate(&b.schema).unwrap(); assert_eq!(estimates[0].copies,expected as u64);
-    e.store().conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE)").unwrap();
+    e.store().test_support_conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE)").unwrap();
     let start=std::time::Instant::now();
     e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     let elapsed=start.elapsed().as_secs_f64();

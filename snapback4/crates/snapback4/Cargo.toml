@@ -30,4 +30,9 @@ oxc_parser = { version = "=0.154.0", default-features = false }
 oxc_span = "=0.154.0"
 
 [dev-dependencies]
+snapback4-core = { path = "../snapback4-core", features = ["test-support"] }
 rusqlite = { version = "0.40.2", features = ["trace"] }
+
+[[example]]
+name = "pf_scale_probe"
+required-features = ["snapback4-core/test-support"]

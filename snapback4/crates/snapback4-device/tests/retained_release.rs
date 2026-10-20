@@ -202,7 +202,7 @@ fn retained_releases_never_mix_shapes_on_late_reordered_pages_and_reopen() {
                 Some("snapback4-store-1")
             );
             let dormant: i64 = store
-                .conn()
+                .test_support_conn()
                 .query_row(
                     "SELECT COUNT(*) FROM sqlite_schema WHERE name LIKE '_dormant_%'",
                     [],

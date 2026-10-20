@@ -14,7 +14,7 @@ fn atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes() {
     let (entered, waiting) = mpsc::channel(); let (resume, resumed) = mpsc::channel();
     {
         let engine = lock(&host.shared.engine);
-        engine.store().conn().commit_hook(Some(move || {
+        engine.store().test_support_conn().commit_hook(Some(move || {
             entered.send(()).unwrap(); resumed.recv_timeout(Duration::from_secs(10)).unwrap(); false
         })).unwrap();
     }
@@ -23,7 +23,7 @@ fn atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes() {
         let b = snapback4_lang::compile(&[("schema.q".into(),next.into())]);
         let mut engine = lock(&shared.engine);
         let (generation, _) = adoption::adopt_candidate(&shared, &mut engine, &b, || panic!("unexpected reopen")).unwrap();
-        engine.store().conn().commit_hook(None::<fn()->bool>).unwrap();
+        engine.store().test_support_conn().commit_hook(None::<fn()->bool>).unwrap();
         lock(&shared.readers).replace(&engine, &b.refusal_sites);
         *lock(&shared.bound) = b; *lock(&shared.generation) = generation;
     });
@@ -89,7 +89,7 @@ fn atomic_feed_sync_authenticates_before_wait_and_rechecks_after_it() {
         let address = host.address;
         let sync = thread::spawn(move || exchange_held(address, WAIT_TIMEOUT, &format!("POST /sync HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nAuthorization: Bearer {}\r\nContent-Length: 2\r\n\r\n{{}}", session.token)));
         wait_until(|| host.shared.engine.waiting() == 1);
-        engine.store().conn().execute(if revoke { "DELETE FROM _sessions" } else { "UPDATE _sessions SET expires_at = 0" }, []).unwrap();
+        engine.store().test_support_conn().execute(if revoke { "DELETE FROM _sessions" } else { "UPDATE _sessions SET expires_at = 0" }, []).unwrap();
         lock(&host.shared.readers).finish_adoption();
         drop(engine);
         let reply = sync.join().unwrap();
@@ -252,7 +252,7 @@ fn w8r1b_adoption_recovery_retires_a_query_already_in_flight() {
     let (entered, waiting) = mpsc::channel();
     let (resume, resumed) = mpsc::channel();
     let once = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    old.store().conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+    old.store().test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
         // The activation reads precede seq(); pause with a real WAL snapshot pinned.
         if matches!(ctx.action, rusqlite::hooks::AuthAction::Read { table_name: "_commits", .. }) && !once.swap(true, Ordering::SeqCst) {
             entered.send(()).unwrap();

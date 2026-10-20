@@ -25,7 +25,7 @@ fn adoption_fences_an_already_established_snapshot_and_rebinds_hub() {
     let mut old_store = e.store().reader().unwrap();
     let tx = old_store.read_transaction().unwrap();
     let old_generation = tx
-        .conn()
+        .test_support_conn()
         .query_row(
             "SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation'",
             [],
@@ -33,7 +33,7 @@ fn adoption_fences_an_already_established_snapshot_and_rebinds_hub() {
         )
         .unwrap() as u64;
     let identity = tx
-        .conn()
+        .test_support_conn()
         .query_row("SELECT value FROM _meta WHERE key='store_id'", [], |r| {
             r.get::<_, String>(0)
         })

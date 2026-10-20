@@ -137,9 +137,9 @@ fn dev_removes_populated_view_and_preserves_sources_and_other_views() {
     let mut e = Engine::open(Store::open(&path).unwrap()).unwrap();
     for table in owned {
         assert!(!e.schema().tables.contains_key(&table));
-        let n: i64 = e.store().conn().query_row("SELECT count(*) FROM r JOIN _catalog c ON c.num = r.t WHERE c.name = ?1", [&table], |r| r.get(0)).unwrap();
+        let n: i64 = e.store().test_support_conn().query_row("SELECT count(*) FROM r JOIN _catalog c ON c.num = r.t WHERE c.name = ?1", [&table], |r| r.get(0)).unwrap();
         assert_eq!(n, 0);
-        let n: i64 = e.store().conn().query_row("SELECT count(*) FROM i JOIN _catalog c ON c.num = i.ti WHERE substr(c.name, 1, length(?1) + 1) = ?1 || '.'", [&table], |r| r.get(0)).unwrap();
+        let n: i64 = e.store().test_support_conn().query_row("SELECT count(*) FROM i JOIN _catalog c ON c.num = i.ti WHERE substr(c.name, 1, length(?1) + 1) = ?1 || '.'", [&table], |r| r.get(0)).unwrap();
         assert_eq!(n, 0);
     }
     for (table, mut rows) in kept {
@@ -270,7 +270,7 @@ fn retirement_resets_dependent_aggregates_even_when_all_names_survive() {
         let steps = snapback4_core::successor::classify(e.schema(), &next);
         assert!(steps.iter().any(|s| s.path == "timelines.following" && s.change == snapback4_core::successor::Change::Destructive));
         let estimate = e.store_mut().adoption_estimate(&next).unwrap().expect("retained names still retire rows");
-        let retired_before: i64 = e.store().conn().query_row("SELECT count(*) FROM r JOIN _catalog c ON c.num=r.t WHERE c.name IN ('followingPosts','followingWork','followingEdges','followingFeed','totals')", [], |r| r.get(0)).unwrap();
+        let retired_before: i64 = e.store().test_support_conn().query_row("SELECT count(*) FROM r JOIN _catalog c ON c.num=r.t WHERE c.name IN ('followingPosts','followingWork','followingEdges','followingFeed','totals')", [], |r| r.get(0)).unwrap();
         assert_eq!(estimate.retired_rows, retired_before as u64, "do not count a target twice when also rebuilt");
         assert!(estimate.retired_index_entries > 0);
         assert!(estimate.summary().contains("unestimated"));
@@ -279,7 +279,7 @@ fn retirement_resets_dependent_aggregates_even_when_all_names_survive() {
         assert!(e.store().rows("followingPosts").unwrap().is_empty());
         assert_eq!(e.store().rows("sourceTotals").unwrap()[0].field("value").unwrap(), &Value::Int(1));
         assert_eq!(e.store().rows("posts").unwrap(), source_rows);
-        let count: i64 = e.store().conn().query_row("SELECT count(*) FROM i JOIN _catalog c ON c.num = i.ti WHERE c.name LIKE 'totals.%'", [], |r| r.get(0)).unwrap();
+        let count: i64 = e.store().test_support_conn().query_row("SELECT count(*) FROM i JOIN _catalog c ON c.num = i.ti WHERE c.name LIKE 'totals.%'", [], |r| r.get(0)).unwrap();
         assert_eq!(count, 0, "no stale aggregate index entries");
         if keep_aggregate {
             e.seed([("followingPosts".into(), event)]).unwrap();
@@ -313,7 +313,7 @@ fn unfinished_experimental_rebuild_is_fenced_but_can_be_removed() {
     ]);
     let mut row = e.store().rows("followingWork").unwrap()[0].as_object().unwrap().clone();
     row.insert("id".into(), id(&control_id)); row.insert("kind".into(), Value::String("rebuild".into()));
-    e.store().conn().execute("INSERT INTO r(t,id,data) VALUES ((SELECT num FROM _catalog WHERE name='followingWork'),?1,?2)",
+    e.store().test_support_conn().execute("INSERT INTO r(t,id,data) VALUES ((SELECT num FROM _catalog WHERE name='followingWork'),?1,?2)",
         [&control_id, &serde_json::to_string(&Value::Row(row.into())).unwrap()]).unwrap();
     drop(e);
     let error = match Engine::open(Store::open(&path).unwrap()) { Ok(_) => panic!("unfinished rebuild opened"), Err(e) => e };
@@ -446,7 +446,7 @@ fn check_and_runtime_refuse_the_copy_ceiling_and_owned_name_reuse() {
         let preview = e.store_mut().check_timeline_activation(&b.schema).unwrap_err();
         let generation = e.generation();
         let writes = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0)); let w = writes.clone();
-        e.store().conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, std::sync::atomic::Ordering::SeqCst); })).unwrap();
+        e.store().test_support_conn().update_hook(Some(move |_, _: &str, _: &str, _| { w.fetch_add(1, std::sync::atomic::Ordering::SeqCst); })).unwrap();
         let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
         assert_eq!(preview.to_string(), error.to_string());
         assert_eq!(e.generation(), generation);

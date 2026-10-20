@@ -143,14 +143,14 @@ fn setup() -> Engine {
 }
 fn measured<T>(engine: &mut Engine, run: impl FnOnce(&mut Engine) -> T) -> (T, Work) {
     WORK.with(|w| *w.borrow_mut() = Work::default());
-    engine.store().conn().trace_v2(
+    engine.store().test_support_conn().trace_v2(
         TraceEventCodes::SQLITE_TRACE_STMT | TraceEventCodes::SQLITE_TRACE_PROFILE,
         Some(trace),
     );
     let result = run(engine);
     engine
         .store()
-        .conn()
+        .test_support_conn()
         .trace_v2(TraceEventCodes::empty(), None);
     (result, WORK.with(|w| w.borrow().clone()))
 }

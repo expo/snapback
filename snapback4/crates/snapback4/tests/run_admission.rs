@@ -17,8 +17,8 @@ impl Project {
     fn store(&self) -> PathBuf { self.0.join(".snapback4/store.sqlite") }
     fn run(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
     fn conn(&self) -> rusqlite::Connection { rusqlite::Connection::open(self.store()).unwrap() }
-    fn jobs(&self) -> i64 { self.conn().query_row("SELECT count(*) FROM _jobs", [], |r| r.get(0)).unwrap() }
-    fn generation(&self) -> String { self.conn().query_row("SELECT value FROM _meta WHERE key='generation'", [], |r| r.get(0)).unwrap() }
+    fn jobs(&self) -> i64 { self.test_support_conn().query_row("SELECT count(*) FROM _jobs", [], |r| r.get(0)).unwrap() }
+    fn generation(&self) -> String { self.test_support_conn().query_row("SELECT value FROM _meta WHERE key='generation'", [], |r| r.get(0)).unwrap() }
     fn initialize(&self) { let out = self.run(&["run", "put", "--json"]); assert!(out.status.success(), "{out:?}"); }
     fn rows(&self) -> serde_json::Value {
         let out = self.run(&["run", "rows", "--json"]); assert!(out.status.success(), "{out:?}");
@@ -69,7 +69,7 @@ fn bound(source: &str) -> snapback4_lang::Bound {
 fn pause_activation(store: &Store) -> (mpsc::Receiver<()>, mpsc::Sender<()>) {
     let (arrive, arrived) = mpsc::channel(); let (release, released) = mpsc::channel();
     let mut paused = false;
-    store.conn().update_hook(Some(move |_: rusqlite::hooks::Action, _: &str, table: &str, _: i64| {
+    store.test_support_conn().update_hook(Some(move |_: rusqlite::hooks::Action, _: &str, table: &str, _: i64| {
         if table == "_generations" && !paused { paused = true; arrive.send(()).unwrap(); released.recv_timeout(Duration::from_secs(25)).unwrap(); }
     })).unwrap();
     (arrived, release)
@@ -121,7 +121,7 @@ fn changed_maintain_writer_and_backfill_outlast_the_old_five_second_wait() {
 fn deadline_refuses_before_job_admission_or_activation() {
     let p = Project::new(); p.initialize();
     p.source(&SOURCE.replace("count items where .active by owner", "count items by owner"));
-    let conn = p.conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let conn = p.test_support_conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
     let mut run = Running::start(&p, "deadline", &["run", "backfill", "--json"]);
     run.waiting(); let (status, result) = run.finish();
     assert_eq!(status.code(), Some(2)); assert_eq!(result, serde_json::Value::Null);
@@ -137,7 +137,7 @@ fn deadline_refuses_before_job_admission_or_activation() {
 #[test]
 fn source_edit_while_waiting_refuses_original_intent() {
     let p = Project::new(); p.initialize();
-    let conn = p.conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let conn = p.test_support_conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
     let mut run = Running::start(&p, "edit", &["run", "backfill", "--json"]); run.waiting();
     p.source(&SOURCE.replace("row.n + 1", "row.n + 100"));
     let (status, _) = run.finish(); assert_eq!(status.code(), Some(2));
@@ -149,7 +149,7 @@ fn source_edit_while_waiting_refuses_original_intent() {
 #[test]
 fn competing_cli_refuses_before_admission_then_can_retry_after_owner_exit() {
     let p = Project::new(); p.initialize();
-    let conn = p.conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let conn = p.test_support_conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
     let mut first = Running::start(&p, "first", &["run", "backfill", "--json"]);
     first.waiting();
     let mut second = Running::start(&p, "second", &["run", "backfill", "--json"]);
@@ -203,7 +203,7 @@ fn live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_rele
         assert!(minted.status.success(), "{minted:?}");
         // The dev inspector still understands the lock's first-line legacy port.
         assert!(p.run(&["doctor", "--json"]).status.success());
-        let conn = p.conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+        let conn = p.test_support_conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
         let inspected = p.run(&["data", "items", "--json"]);
         assert!(inspected.status.success(), "{inspected:?}");
         let page: serde_json::Value = serde_json::from_slice(&inspected.stdout).unwrap();
@@ -221,7 +221,7 @@ fn live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_rele
 #[test]
 fn cli_ownership_refuses_server_startup_and_store_symlinks_share_the_lock() {
     let p = Project::new(); p.initialize();
-    let conn = p.conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let conn = p.test_support_conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
     let mut cli = Running::start(&p, "cli-owner", &["run", "backfill", "--json"]);
     cli.waiting();
     let out = p.run(&["dev", "--port", "0", "--no-watch"]);
@@ -374,7 +374,7 @@ fn release_token_owns_the_resolved_database_before_sqlite_open() {
 #[test]
 fn interrupting_a_waiter_does_not_admit_a_job() {
     let p = Project::new(); p.initialize();
-    let conn = p.conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
+    let conn = p.test_support_conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
     let mut run = Running::start(&p, "interrupt", &["run", "backfill", "--json"]); run.waiting();
     unsafe { assert_eq!(libc::kill(run.child.id() as i32, libc::SIGINT), 0); }
     assert!(!run.child.wait().unwrap().success());
@@ -388,7 +388,7 @@ fn invalid_source_and_non_lock_store_errors_keep_their_meaning() {
     let out = p.run(&["run", "nope"]);
     assert!(!out.status.success()); assert!(!String::from_utf8_lossy(&out.stderr).contains("E_RUN_BUSY"));
     p.source(SOURCE); drop(Store::open(&p.store()).unwrap());
-    let conn = p.conn(); conn.execute("UPDATE _meta SET value='invalid' WHERE key='version'", []).unwrap(); drop(conn);
+    let conn = p.test_support_conn(); conn.execute("UPDATE _meta SET value='invalid' WHERE key='version'", []).unwrap(); drop(conn);
     let started = Instant::now(); let out = p.run(&["run", "backfill"]);
     let text = String::from_utf8_lossy(&out.stderr);
     assert!(!out.status.success()); assert!(text.contains("E_STORE"), "{text}");

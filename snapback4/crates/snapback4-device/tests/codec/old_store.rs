@@ -133,7 +133,7 @@ fn old_sqlite_store_opens_from_pre_funnel_values() {
     let tx = store.transaction().unwrap();
     tx.put("notes", &backend.schema.tables["notes"], &row, None).unwrap();
     // Install indexes through Rows, then explicitly write the old row encoding.
-    tx.conn().execute("UPDATE r SET data = ?1", [serde_json::to_string(&row).unwrap()]).unwrap();
+    tx.test_support_conn().execute("UPDATE r SET data = ?1", [serde_json::to_string(&row).unwrap()]).unwrap();
     tx.outbox_insert(entry.seq, &entry.id, &serde_json::to_string(&entry).unwrap()).unwrap();
     tx.base_remember("notes", "n1", Some(&serde_json::to_string(&row).unwrap())).unwrap();
     tx.staged_put(&serde_json::to_string(&("notes", "n1")).unwrap(), &staged.0, &staged.1).unwrap();
@@ -154,7 +154,7 @@ fn old_sqlite_store_opens_from_pre_funnel_values() {
 
 fn old_sqlite_open(path: &Path) -> snapback4_core::store::Store {
     let store = snapback4_core::store::Store::open(path).unwrap();
-    store.conn().execute_batch("CREATE TABLE IF NOT EXISTS _device_outbox (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, entry TEXT NOT NULL);
+    store.test_support_conn().execute_batch("CREATE TABLE IF NOT EXISTS _device_outbox (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, entry TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS _device_base (t TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY(t, id)) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS _device_snapshot (k TEXT PRIMARY KEY, t TEXT NOT NULL, data TEXT NOT NULL);
         CREATE INDEX IF NOT EXISTS _device_snapshot_by_table ON _device_snapshot(t, k);").unwrap();
@@ -165,7 +165,7 @@ fn raw_records(store: &snapback4_core::store::Store) -> Vec<Vec<Vec<rusqlite::ty
     ["SELECT * FROM r ORDER BY t, id", "SELECT * FROM _device_outbox ORDER BY seq",
      "SELECT * FROM _device_base ORDER BY t, id", "SELECT * FROM _device_snapshot ORDER BY k",
      "SELECT * FROM _meta ORDER BY key"].iter().map(|sql| {
-        let mut statement = store.conn().prepare(sql).unwrap();
+        let mut statement = store.test_support_conn().prepare(sql).unwrap();
         let columns = statement.column_count();
         statement.query_map([], |row| (0..columns).map(|i| row.get(i)).collect()).unwrap().collect::<Result<Vec<_>, _>>().unwrap()
     }).collect()

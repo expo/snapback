@@ -33,7 +33,7 @@ fn cursor(e: &Engine, key: &str) -> Option<Value> {
     table_cursor(e,"feedWork",key)
 }
 fn table_cursor(e: &Engine, table: &str, key: &str) -> Option<Value> {
-    let mut stmt=e.store().conn().prepare_cached("SELECT data FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1) AND id=?2").unwrap();
+    let mut stmt=e.store().test_support_conn().prepare_cached("SELECT data FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1) AND id=?2").unwrap();
     let row=stmt.query_map([table,key],|r|r.get::<_,String>(0)).unwrap().next().map(|r|serde_json::from_str::<Value>(&r.unwrap()).unwrap());
     row.filter(|r|r.field("status").unwrap().as_str().unwrap()=="pending")
         .map(|r|r.field("cursor").unwrap().clone())
@@ -149,11 +149,11 @@ fn tail_position_rolls_back_with_copies_cursor_epochs_and_sequence() {
     let mut e=backfill_fixture();follow(&mut e,"bob","alice");post(&mut e,"dave","queued",0);
     let tables=["feedFeed","feedWork","feedEdges"];
     let before:Vec<_>=tables.iter().map(|t|e.store().rows(t).unwrap()).collect();let seq=e.store().seq().unwrap();
-    e.store().conn().execute_batch("CREATE TRIGGER lu_abort BEFORE INSERT ON _log BEGIN SELECT RAISE(ABORT, 'LU late transaction fault'); END;").unwrap();
+    e.store().test_support_conn().execute_batch("CREATE TRIGGER lu_abort BEFORE INSERT ON _log BEGIN SELECT RAISE(ABORT, 'LU late transaction fault'); END;").unwrap();
     assert!(e.run_timeline_turn_for(0,Duration::ZERO).is_err());
     for (table,rows) in tables.iter().zip(before) {assert_eq!(e.store().rows(table).unwrap(),rows);}
     assert_eq!(e.store().seq().unwrap(),seq);
-    e.store().conn().execute_batch("DROP TRIGGER lu_abort;").unwrap();
+    e.store().test_support_conn().execute_batch("DROP TRIGGER lu_abort;").unwrap();
     e.run_timeline_turn_for(0,Duration::ZERO).unwrap();assert_eq!(copies(&e,"bob"),51);
 }
 
@@ -169,7 +169,7 @@ fn restart_and_adoption_every_turn_preserve_item_share_during_arrivals() {
         if next!=previous {assert!(turn<=deadline);previous=next;deadline=turn+pending(&e);}
         else {assert!(turn<deadline);}
         let path=dir.join(format!("{turn}.sqlite"));
-        e.store().conn().execute("VACUUM INTO ?1",[path.to_str().unwrap()]).unwrap();drop(e);
+        e.store().test_support_conn().execute("VACUUM INTO ?1",[path.to_str().unwrap()]).unwrap();drop(e);
         e=Engine::open(Store::open(&path).unwrap()).unwrap();
         let b=snapback4_lang::compile(&[("schema.q".into(),SOURCE.into())]);e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     }

@@ -146,7 +146,7 @@ fn sqlite_activation_refusals_leave_reopened_file_unchanged() {
         };
         e.load(images.into_iter().map(|r|(table.into(),r))).unwrap();let before=snapshot(&e);let generation=e.generation();
         let schema=e.schema().clone();let programs=e.programs().cloned().collect::<Vec<_>>();
-        let catalog=|e:&Engine|e.store().conn().prepare("SELECT name FROM _catalog ORDER BY name").unwrap().query_map([],|r|r.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+        let catalog=|e:&Engine|e.store().test_support_conn().prepare("SELECT name FROM _catalog ORDER BY name").unwrap().query_map([],|r|r.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
         let tables=catalog(&e);
         assert_eq!(adopt(&mut e,bound(true)).unwrap_err().code(),"E_TIMELINE_ACTIVATE");
         assert_eq!(snapshot(&e),before);assert_eq!(e.generation(),generation);assert_eq!(e.schema(),&schema);assert_eq!(e.programs().cloned().collect::<Vec<_>>(),programs);assert_eq!(catalog(&e),tables);
@@ -176,7 +176,7 @@ fn legacy_timeline_store_refuses_before_open_or_adoption() {
     let mut legacy=e.schema().clone();legacy.timelines[0].version=1;
     // 0.3 serialized no version field and carried the original capability.
     let mut wire=serde_json::to_value(&legacy).unwrap();wire["timelines"][0].as_object_mut().unwrap().remove("version");
-    e.store().conn().execute("UPDATE _generations SET schema = ?1",[wire.to_string()]).unwrap();drop(e);
+    e.store().test_support_conn().execute("UPDATE _generations SET schema = ?1",[wire.to_string()]).unwrap();drop(e);
     let error=match Engine::open(Store::open(&path).unwrap()) {Ok(_)=>panic!("legacy store opened"),Err(error)=>error};
     assert_eq!(error.code(),"E_TIMELINE_REDEFINE");assert!(error.to_string().contains("fresh store"));
 }

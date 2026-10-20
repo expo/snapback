@@ -13,21 +13,21 @@ fn report_without_row_reads(device: &mut Device) -> Json {
     use rusqlite::{hooks::{AuthAction, AuthContext, Authorization}, trace::{TraceEvent, TraceEventCodes}, StatementStatus};
     let row_reads = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
     let captured = row_reads.clone();
-    device.store().conn().authorizer(Some(move |ctx: AuthContext<'_>| {
+    device.store().test_support_conn().authorizer(Some(move |ctx: AuthContext<'_>| {
         if let AuthAction::Read { table_name: "r", column_name } = ctx.action {
             captured.lock().unwrap().push(column_name.to_owned());
         }
         Authorization::Allow
     })).unwrap();
     STATEMENTS.with(|statements| statements.borrow_mut().clear());
-    device.store().conn().trace_v2(TraceEventCodes::SQLITE_TRACE_PROFILE, Some(|event| {
+    device.store().test_support_conn().trace_v2(TraceEventCodes::SQLITE_TRACE_PROFILE, Some(|event| {
         if let TraceEvent::Profile(statement, _) = event {
             STATEMENTS.with(|statements| statements.borrow_mut().push((statement.sql().into_owned(), statement.get_status(StatementStatus::FullscanStep))));
         }
     }));
     let measured = report(device);
-    device.store().conn().trace_v2(TraceEventCodes::empty(), None);
-    device.store().conn().authorizer(None::<fn(AuthContext<'_>) -> Authorization>).unwrap();
+    device.store().test_support_conn().trace_v2(TraceEventCodes::empty(), None);
+    device.store().test_support_conn().authorizer(None::<fn(AuthContext<'_>) -> Authorization>).unwrap();
     let statements = STATEMENTS.with(|statements| std::mem::take(&mut *statements.borrow_mut()));
     println!("residency statements: {statements:?}");
     assert!(!statements.is_empty(), "the real read must be traced");
@@ -50,7 +50,7 @@ fn check_rows(device: &mut Device) -> Json {
         assert_eq!(measured["tables"][name], json!({"rows":rows.len(), "bytes":bytes}), "{name}");
     }
     assert_eq!(measured["totalBytesKind"], "sqlite-pages");
-    let conn = device.store().conn();
+    let conn = device.store().test_support_conn();
     let pages: i64 = conn.query_row("PRAGMA page_count", [], |r| r.get(0)).unwrap();
     let page_size: i64 = conn.query_row("PRAGMA page_size", [], |r| r.get(0)).unwrap();
     assert_eq!(measured["totalBytes"], pages * page_size);
@@ -71,11 +71,11 @@ fn sqlite_residency_tracks_unicode_rollback_clear_and_other_owners() {
     let before = check_rows(&mut device);
     assert_eq!(before["tables"]["messages"]["rows"], 120);
     let mut other = Device::open(&path, None).unwrap();
-    other.store().conn().execute_batch("BEGIN IMMEDIATE; UPDATE r SET data = replace(data, 'General', '🦀é'); SAVEPOINT discard; DELETE FROM r; ROLLBACK TO discard; RELEASE discard; COMMIT;").unwrap();
+    other.store().test_support_conn().execute_batch("BEGIN IMMEDIATE; UPDATE r SET data = replace(data, 'General', '🦀é'); SAVEPOINT discard; DELETE FROM r; ROLLBACK TO discard; RELEASE discard; COMMIT;").unwrap();
     let after = check_rows(&mut device);
     assert_eq!(after["tables"]["conversations"]["bytes"].as_u64().unwrap() + 1, before["tables"]["conversations"]["bytes"].as_u64().unwrap());
     assert_eq!(after["tables"], check_rows(&mut other)["tables"]);
-    device.store().conn().execute_batch("BEGIN IMMEDIATE; DELETE FROM r; ROLLBACK").unwrap();
+    device.store().test_support_conn().execute_batch("BEGIN IMMEDIATE; DELETE FROM r; ROLLBACK").unwrap();
     assert_eq!(after["tables"], check_rows(&mut device)["tables"]);
     let cleared = call(&mut other, json!({"op":"clear_rows"}));
     assert!(cleared.get("denied").is_none(), "{cleared}");
@@ -132,8 +132,8 @@ fn old_large_store_upgrades_once_and_reports_without_a_partition_scan() {
     let host = Sqlite::new("residency-upgrade");
     let path = host.path("store");
     let device = Device::open(&path, Some(backend)).unwrap();
-    device.store().conn().execute_batch("DROP TRIGGER _device_residency_insert; DROP TRIGGER _device_residency_delete; DROP TRIGGER _device_residency_update; DROP TABLE _device_residency;").unwrap();
-    let tx = device.store().conn().unchecked_transaction().unwrap();
+    device.store().test_support_conn().execute_batch("DROP TRIGGER _device_residency_insert; DROP TRIGGER _device_residency_delete; DROP TRIGGER _device_residency_update; DROP TABLE _device_residency;").unwrap();
+    let tx = device.store().test_support_conn().unchecked_transaction().unwrap();
     let t: i64 = tx.query_row("SELECT num FROM _catalog WHERE name = 'messages'", [], |r| r.get(0)).unwrap();
     for n in 0..20_000 {
         tx.execute("INSERT INTO r VALUES (?1, ?2, ?3)", rusqlite::params![t, n.to_string(), "{\"Object\":{\"body\":{\"String\":\"é🦀\"}}}"]).unwrap();
@@ -164,20 +164,20 @@ fn incomplete_counter_installation_is_rebuilt_before_the_next_read_or_write() {
         // a crash: the counter table exists, but not every trigger does.
         for trigger in ["insert", "delete", "update"] {
             if missing == "all" || missing == trigger {
-                device.store().conn().execute_batch(&format!("DROP TRIGGER _device_residency_{trigger}")).unwrap();
+                device.store().test_support_conn().execute_batch(&format!("DROP TRIGGER _device_residency_{trigger}")).unwrap();
             }
         }
-        device.store().conn().execute("UPDATE _device_residency SET rows = 999, bytes = 1", []).unwrap();
+        device.store().test_support_conn().execute("UPDATE _device_residency SET rows = 999, bytes = 1", []).unwrap();
         drop(device);
         let mut device = Device::open(&path, None).unwrap();
         assert_eq!(check_rows(&mut device)["tables"], expected["tables"], "missing {missing}");
         // All three repaired triggers must maintain subsequent changes, not
         // merely return the correct backfilled snapshot once.
-        device.store().conn().execute_batch("INSERT INTO r SELECT t, 'extra', data FROM r WHERE id = 'msg000';").unwrap();
+        device.store().test_support_conn().execute_batch("INSERT INTO r SELECT t, 'extra', data FROM r WHERE id = 'msg000';").unwrap();
         assert_eq!(check_rows(&mut device)["tables"]["messages"]["rows"], 121);
-        device.store().conn().execute_batch("UPDATE r SET data = replace(data, 'General', '🦀é')").unwrap();
+        device.store().test_support_conn().execute_batch("UPDATE r SET data = replace(data, 'General', '🦀é')").unwrap();
         check_rows(&mut device);
-        device.store().conn().execute_batch("DELETE FROM r WHERE id = 'extra'").unwrap();
+        device.store().test_support_conn().execute_batch("DELETE FROM r WHERE id = 'extra'").unwrap();
         assert_eq!(check_rows(&mut device)["tables"]["messages"]["rows"], 120);
         let repaired = check_rows(&mut device);
         drop(device);
@@ -213,7 +213,7 @@ fn legacy_counters_stay_temporary_until_adoption_and_follow_other_owners() {
         device.apply(page, n == 0).unwrap();
     }
     let expected = check_rows(&mut device);
-    device.store().conn().execute_batch("DROP TRIGGER _device_residency_insert; DROP TRIGGER _device_residency_delete; DROP TRIGGER _device_residency_update; DROP TABLE _device_residency;").unwrap();
+    device.store().test_support_conn().execute_batch("DROP TRIGGER _device_residency_insert; DROP TRIGGER _device_residency_delete; DROP TRIGGER _device_residency_update; DROP TABLE _device_residency;").unwrap();
     drop(device);
     let before = std::fs::read(&path).unwrap();
     let mut device = Device::open(&path, None).unwrap();
@@ -227,21 +227,21 @@ fn legacy_counters_stay_temporary_until_adoption_and_follow_other_owners() {
 
     let mut device = Device::open(&path, None).unwrap();
     let other = Device::open(&path, None).unwrap();
-    other.store().conn().execute_batch("INSERT INTO r SELECT t, 'extra', data FROM r WHERE id = 'msg000';").unwrap();
+    other.store().test_support_conn().execute_batch("INSERT INTO r SELECT t, 'extra', data FROM r WHERE id = 'msg000';").unwrap();
     assert_eq!(check_rows(&mut device)["tables"]["messages"]["rows"], 121);
     // Refresh only after a peer commit, never on each subsequent inspection.
     assert_eq!(report_without_row_reads(&mut device)["tables"]["messages"]["rows"], 121);
-    device.store().conn().execute_batch("DELETE FROM r WHERE id = 'extra';").unwrap();
+    device.store().test_support_conn().execute_batch("DELETE FROM r WHERE id = 'extra';").unwrap();
     assert_eq!(report_without_row_reads(&mut device)["tables"]["messages"]["rows"], 120);
-    let durable: i64 = device.store().conn().query_row("SELECT count(*) FROM main.sqlite_master WHERE name = '_device_residency'", [], |r| r.get(0)).unwrap();
+    let durable: i64 = device.store().test_support_conn().query_row("SELECT count(*) FROM main.sqlite_master WHERE name = '_device_residency'", [], |r| r.get(0)).unwrap();
     assert_eq!(durable, 0);
     drop(other);
     let mut next = device.backend(); next.generation += 1;
     device.adopt(next).unwrap();
-    let durable: i64 = device.store().conn().query_row("SELECT count(*) FROM main.sqlite_master WHERE name = '_device_residency'", [], |r| r.get(0)).unwrap();
+    let durable: i64 = device.store().test_support_conn().query_row("SELECT count(*) FROM main.sqlite_master WHERE name = '_device_residency'", [], |r| r.get(0)).unwrap();
     assert_eq!(durable, 1, "successful adoption installs durable counters");
-    let temporary: i64 = device.store().conn().query_row("SELECT count(*) FROM temp.sqlite_master WHERE name LIKE '_device_residency%'", [], |r| r.get(0)).unwrap();
+    let temporary: i64 = device.store().test_support_conn().query_row("SELECT count(*) FROM temp.sqlite_master WHERE name LIKE '_device_residency%'", [], |r| r.get(0)).unwrap();
     assert_eq!(temporary, 0, "promotion removes temp triggers as well as their table");
-    device.store().conn().execute_batch("INSERT INTO r VALUES ((SELECT num FROM _catalog WHERE name = 'messages'), 'after', '{\"Row\":{}}');").unwrap();
+    device.store().test_support_conn().execute_batch("INSERT INTO r VALUES ((SELECT num FROM _catalog WHERE name = 'messages'), 'after', '{\"Row\":{}}');").unwrap();
     check_rows(&mut device); // A leftover temp trigger would count this twice.
 }

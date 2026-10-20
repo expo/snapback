@@ -99670,3 +99670,15 @@ bulk replacement and metering move verbatim, together with the interruption
 and competing-installer test. The SQL and transaction boundaries are retained.
 The binary builds. This move allows the next commit to privatize raw handles
 without exposing a production connection accessor to the device or host.
+
+## 2026-10-20 — P0-S8, third commit: explicit fixture access
+
+Raw fixture, corruption and lock probes now call the explicitly named
+`test_support_conn`, `test_support_meta` and `test_support_set_meta` methods.
+They exist only with the core's `test-support` feature, enabled by consumer
+dev-dependencies; examples declare that feature requirement. Integration
+fixtures in the sibling workspace crates migrate too, keeping the workspace
+buildable when generic access is privatized. The ratchet still counts the
+renamed raw connection calls and excludes only bare driver Error types (never
+constructors or connection paths). The ordinary binary build passes without
+the feature; final suite and privacy probes follow with boundary closure.

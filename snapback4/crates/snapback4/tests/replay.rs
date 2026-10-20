@@ -58,7 +58,7 @@ fn held_effects_remain_durable_and_claimable_after_restart() {
 fn held_schedules_skip_missed_periods_and_resume_at_the_next_boundary() {
     let f = Fixture::new("schedules");
     let host = f.start(&["--hold-schedules"]);
-    f.engine().store().set_meta("schedule:ticking", "0").unwrap();
+    f.engine().store().test_support_set_meta("schedule:ticking", "0").unwrap();
     std::thread::sleep(Duration::from_millis(1300));
     assert!(f.engine().jobs(10).unwrap().is_empty());
     drop(host);
@@ -201,7 +201,7 @@ fn changed_schedule_shape_releases_at_first_boundary() {
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     dev_replay::effects(&engine, true).unwrap();
-    assert_eq!(engine.store().meta("dev:replay").unwrap().as_deref(), Some("true"));
+    assert_eq!(engine.store().test_support_meta("dev:replay").unwrap().as_deref(), Some("true"));
     assert!(engine.fire_schedules(0).unwrap().is_empty());
     dev_replay::schedules(&mut engine, true, 60_000).unwrap();
     let changed = snapback4_lang::compile(&[("schema.q".into(), SOURCE.replace("every 1m", "every 2m"))]);
@@ -218,7 +218,7 @@ fn competing_starts_preserve_the_live_replay_policy() {
     for same_port in [true, false] {
         let f = Fixture::new(if same_port { "competing-port" } else { "competing-store" });
         let host = f.start(&["--replay"]);
-        f.engine().store().set_meta("schedule:ticking", "0").unwrap();
+        f.engine().store().test_support_set_meta("schedule:ticking", "0").unwrap();
         let port = if same_port { host.address.rsplit(':').next().unwrap() } else { "0" };
         let child = Command::new(BIN).current_dir(&f.0).args(["dev", "--no-watch", "--port", port])
             .stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
@@ -232,15 +232,15 @@ fn competing_starts_preserve_the_live_replay_policy() {
         drop(contender);
         let sent = host.post("/m/send", json!({"id":"after-contender", "args":{}}), PERSONA);
         assert_eq!(sent["state"], "sent", "{sent}");
-        assert_eq!(f.engine().store().meta("dev:replay").unwrap().as_deref(), Some("true"));
-        assert_eq!(f.engine().store().meta("dev:hold-schedules").unwrap().as_deref(), Some("true"));
-        assert_eq!(f.engine().store().meta("schedule:ticking").unwrap().as_deref(), Some("0"));
+        assert_eq!(f.engine().store().test_support_meta("dev:replay").unwrap().as_deref(), Some("true"));
+        assert_eq!(f.engine().store().test_support_meta("dev:hold-schedules").unwrap().as_deref(), Some("true"));
+        assert_eq!(f.engine().store().test_support_meta("schedule:ticking").unwrap().as_deref(), Some("0"));
         assert!(f.engine().effects(None, 10).unwrap().is_empty());
         assert_eq!(f.engine().effect_counts().unwrap()["suppressed"], 1);
         assert!(status.is_some_and(|status| !status.success()), "competing host must refuse even on a different port");
         let deploy = f.command(&["deploy", f.0.join(".snapback4").to_str().unwrap()]);
         assert!(!deploy.status.success(), "a live dev host owns the same lock as deploy");
-        assert!(f.engine().store().meta("release").unwrap().is_none());
+        assert!(f.engine().store().test_support_meta("release").unwrap().is_none());
         drop(host);
         let normal = f.start(&[]);
         assert_eq!(normal.post("/m/send", json!({"id":"after-owner-exit", "args":{}}), PERSONA)["state"], "sent");
@@ -255,8 +255,8 @@ fn a_busy_listener_leaves_stopped_replay_policy_unchanged() {
     let listener = host_limits::test_listener("127.0.0.1:0").unwrap();
     let out = f.command(&["dev", "--no-watch", "--port", &listener.local_addr().unwrap().port().to_string()]);
     assert!(!out.status.success());
-    assert_eq!(f.engine().store().meta("dev:replay").unwrap().as_deref(), Some("true"));
-    assert_eq!(f.engine().store().meta("dev:hold-schedules").unwrap().as_deref(), Some("true"));
+    assert_eq!(f.engine().store().test_support_meta("dev:replay").unwrap().as_deref(), Some("true"));
+    assert_eq!(f.engine().store().test_support_meta("dev:hold-schedules").unwrap().as_deref(), Some("true"));
 }
 
 #[test]
@@ -272,7 +272,7 @@ fn release_engines_ignore_dev_suppression_and_delayed_dev_policy_is_refused() {
     }
     assert_eq!(release.effects(None, 10).unwrap().len(), 2, "release transactions always emit");
     assert!(dev_replay::effects(&stale, false).is_err(), "a delayed dev open must not change a deployed store");
-    assert_eq!(release.store().meta("dev:replay").unwrap().as_deref(), Some("true"));
+    assert_eq!(release.store().test_support_meta("dev:replay").unwrap().as_deref(), Some("true"));
 }
 
 #[test]
@@ -281,7 +281,7 @@ fn serve_emits_with_replay_metadata_left_in_the_release_store() {
     let dir = f.0.join("deployment");
     assert!(f.command(&["deploy", dir.to_str().unwrap()]).status.success());
     let store = Store::open(&dir.join("store.sqlite")).unwrap();
-    store.set_meta("dev:replay", "true").unwrap();
+    store.test_support_set_meta("dev:replay", "true").unwrap();
     let token = f.command(&["token", "--release", dir.to_str().unwrap(), "--service", "worker"]);
     assert!(token.status.success(), "{token:?}");
     let auth = format!("Authorization: Bearer {}", String::from_utf8(token.stdout).unwrap().trim());
@@ -291,7 +291,7 @@ fn serve_emits_with_replay_metadata_left_in_the_release_store() {
     let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
     let host = Host { child, address: line.trim().trim_start_matches("http://").into() };
     assert!(!host.address.is_empty(), "serve did not start");
-    assert_eq!(store.meta("dev:replay").unwrap().as_deref(), Some("true"), "release startup must not rewrite dev policy");
+    assert_eq!(store.test_support_meta("dev:replay").unwrap().as_deref(), Some("true"), "release startup must not rewrite dev policy");
     assert_eq!(host.post("/m/send", json!({"id":"release-send", "args":{}}), &auth)["state"], "sent");
     let startup = fs::read_to_string(log).unwrap();
     assert!(startup.contains(&format!("snapback4 serve: http://{}", host.address)), "{startup}");

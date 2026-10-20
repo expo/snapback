@@ -7,6 +7,8 @@ publish = false
 description = "Snapback 4 core: the value model, schema, IR, SQLite store, rules, the runtime meter, the interpreter, and the partition log (LLP 3000 §5 week 2)."
 
 [features]
+# Raw fixture/corruption hooks; consumers enable this only in dev-dependencies.
+test-support = ["sqlite"]
 default = ["sqlite", "native", "server-search"]
 # Compact one-read membership opening belongs to server reads, not device wasm.
 server-search = []
@@ -47,6 +49,7 @@ serde_json = { version = "1", features = ["unbounded_depth"] }
 libc = "0.2"
 
 [dev-dependencies]
+snapback4-core = { path = ".", default-features = false, features = ["test-support"] }
 rusqlite = { version = "0.40.2", features = ["hooks"] }
 snapback4-lang = { path = "../snapback4-lang" }
 
@@ -56,3 +59,7 @@ js-sys = { version = "=0.3.104", optional = true }
 # `cfg(kani)` gates the key-encoding proofs (`src/key_proofs.rs`, `scripts/kani.sh`).
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+
+[[example]]
+name = "adoption_pause"
+required-features = ["test-support"]

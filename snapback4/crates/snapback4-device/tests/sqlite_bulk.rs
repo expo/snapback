@@ -6,7 +6,7 @@ use snapback4_device::store::DeviceTx;
 use snapback4_core::{Store, Value, error::RuntimeError, value::object};
 
 fn stored(store: &Store) -> (Vec<(i64,String,String)>, Vec<(i64,Vec<u8>,String)>, Vec<(i64,Vec<u8>,i64)>, Vec<(i64,i64,i64)>) {
-    let conn = store.conn();
+    let conn = store.test_support_conn();
     let rows = conn.prepare("SELECT t,id,data FROM r ORDER BY t,id").unwrap().query_map([],|r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap().collect::<Result<_,_>>().unwrap();
     let indexes = conn.prepare("SELECT ti,k,id FROM i ORDER BY ti,k").unwrap().query_map([],|r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap().collect::<Result<_,_>>().unwrap();
     let caps = conn.prepare("SELECT t,k,n FROM _cap_counts ORDER BY t,k").unwrap().query_map([],|r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap().collect::<Result<_,_>>().unwrap();
@@ -54,14 +54,14 @@ table items:
             match failure {
                 "loader" => Err(RuntimeError::Input("injected loader failure".into())),
                 "duplicate-index" => {
-                    tx.conn().execute("INSERT INTO temp._device_index_load SELECT * FROM temp._device_index_load LIMIT 1",[])?;
+                    tx.test_support_conn().execute("INSERT INTO temp._device_index_load SELECT * FROM temp._device_index_load LIMIT 1",[])?;
                     Ok(())
                 }
                 _ => Ok(()),
             }
         });
         assert_eq!(result.is_ok(),failure=="none");
-        assert_eq!(tx.conn().query_row("SELECT count(*) FROM temp.sqlite_master WHERE name = '_device_index_load'",[],|r| r.get::<_,i64>(0)).unwrap(),0);
+        assert_eq!(tx.test_support_conn().query_row("SELECT count(*) FROM temp.sqlite_master WHERE name = '_device_index_load'",[],|r| r.get::<_,i64>(0)).unwrap(),0);
         if result.is_ok() { tx.commit().unwrap(); } else { tx.rollback().unwrap(); }
         assert_eq!(stored(&store),expected,"{failure}");
     }

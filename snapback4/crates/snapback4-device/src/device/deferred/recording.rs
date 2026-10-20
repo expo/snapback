@@ -130,7 +130,7 @@ mod tests {
 fn failed_metadata_operation_is_not_recorded() {
     crate::device::publication_tests::with_sqlite(|mut store| {
         let tx = DeviceStore::transaction(&mut store).unwrap();
-        tx.conn().execute_batch("CREATE TRIGGER reject_meta BEFORE INSERT ON _meta WHEN NEW.key = 'reject' BEGIN SELECT RAISE(ABORT, 'injected metadata error'); END;").unwrap();
+        tx.test_support_conn().execute_batch("CREATE TRIGGER reject_meta BEFORE INSERT ON _meta WHEN NEW.key = 'reject' BEGIN SELECT RAISE(ABORT, 'injected metadata error'); END;").unwrap();
         let recording = Recording::new(&tx, BTreeMap::new(), BTreeMap::new());
         assert!(recording.set_meta("reject", "uncommitted").is_err());
         assert!(recording.meta.borrow().is_empty());

@@ -15,7 +15,7 @@ fn failed_candidate_clears_pending_names_and_allows_a_later_adoption() {
     let failed = thread::spawn(move || {
         let mut engine = lock(&shared.engine);
         let once = std::sync::atomic::AtomicBool::new(false);
-        engine.store().conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+        engine.store().test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
             if matches!(ctx.action,rusqlite::hooks::AuthAction::Insert {table_name:"i"}) && !once.swap(true,Ordering::SeqCst) {
                 entered.send(()).unwrap();
                 resumed.recv_timeout(Duration::from_secs(10)).unwrap();
@@ -24,7 +24,7 @@ fn failed_candidate_clears_pending_names_and_allows_a_later_adoption() {
             rusqlite::hooks::Authorization::Allow
         })).unwrap();
         let error = adoption::adopt_candidate(&shared, &mut engine, &candidate, || panic!("not a generation refusal")).unwrap_err();
-        engine.store().conn().authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>)->rusqlite::hooks::Authorization>).unwrap();
+        engine.store().test_support_conn().authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>)->rusqlite::hooks::Authorization>).unwrap();
         error
     });
     waiting.recv_timeout(Duration::from_secs(5)).unwrap();
