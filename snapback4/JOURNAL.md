@@ -99659,3 +99659,14 @@ binary builds; the complete required checks follow after boundary closure.
 The local llp-orient links are broken, so the scoped context was assembled
 from the Snapback 4 rules, root and store-port LLPs and S6/S7 records directly.
 No sub-agents, other worktree, remote commands or push.
+
+## 2026-10-20 — P0-S8, second commit: native device adapter custody
+
+Native DeviceStore/DeviceTx now delegate to named device operations in
+`store/device.rs`; side-table SQL, metadata persistence and residency access
+live in the core SQLite adapter. The independent device contract keeps its
+metadata namespace and callbacks. Residency installation, temporary caches,
+bulk replacement and metering move verbatim, together with the interruption
+and competing-installer test. The SQL and transaction boundaries are retained.
+The binary builds. This move allows the next commit to privatize raw handles
+without exposing a production connection accessor to the device or host.

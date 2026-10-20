@@ -1,6 +1,6 @@
 //! Native residency counters; SQLite maintains them with the row transaction.
 use rusqlite::{Connection, OptionalExtension, params};
-use snapback4_core::{error::{MeterKind, RuntimeError}, meter::{Ceilings, Cut, Meter}, schema::Schema};
+use crate::{error::{MeterKind, RuntimeError}, meter::{Ceilings, Cut, Meter}, schema::Schema};
 use serde_json::{Value, json};
 
 // @ref LLP 3000.019#3.4 — inspecting residency must not copy or scan the held partition on every call.
@@ -117,7 +117,7 @@ pub(crate) fn replace_in(conn: &Connection, load: impl FnOnce() -> Result<(), Ru
     Ok(())
 }
 
-pub(crate) fn read(store: &mut snapback4_core::Store, schema: &Schema) -> Result<Value, RuntimeError> {
+pub(crate) fn read(store: &mut crate::Store, schema: &Schema) -> Result<Value, RuntimeError> {
     // The catalog and counters must belong to the handle's adopted generation.
     let snapshot = store.read_transaction()?;
     let tx = snapshot.conn();
@@ -142,5 +142,5 @@ pub(crate) fn read(store: &mut snapback4_core::Store, schema: &Schema) -> Result
 }
 
 #[cfg(test)]
-#[path = "sqlite_residency_tests.rs"]
+#[path = "device_residency_tests.rs"]
 mod tests;

@@ -21,6 +21,8 @@ use std::path::{Path, PathBuf};
 
 pub(crate) mod backfills;
 mod fork;
+mod device;
+mod device_residency;
 mod activation;
 mod activation_cache;
 mod activation_index;
