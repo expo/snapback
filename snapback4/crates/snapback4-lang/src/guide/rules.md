@@ -32,14 +32,10 @@ See `guide refusals` and local `why recent`.
 
 ### Column read rules
 
-A column may append `read <- policy`; `read (a, b) <- policy` on the table
-shares a gate. Both narrow row authority, omit denied row properties and make
-explicit selections optional/null. The complete runnable example and sync,
-asset, aggregate and rollback boundaries are in `guide rule-recipes`,
-Column-level privacy. Row-local cells sync; probe-based cells stay online and
-ordinary queries fall back automatically. Protected payloads cannot supply
-stored keys, cursors/order/search, authority, lifetimes, immutable constraints
-or maintained derivation inputs (E_COLUMN_READ). Use an ordinary public key
+A column may append `read <- policy`; `read (a, b) <- policy` on the table shares a gate. Both narrow row authority, omit denied row properties and make
+explicit selections optional/null. The complete runnable example and sync, asset, aggregate and rollback boundaries are in `guide rule-recipes`,
+Column-level privacy. Row-local cells sync; probe-based cells stay online and ordinary queries fall back automatically. Protected payloads cannot supply
+stored keys, cursors/order/search, authority, lifetimes, immutable constraints or maintained derivation inputs (E_COLUMN_READ). Use an ordinary public key
 for structure, or a separate entity with its own lifecycle.
 
 ### Hops, operators and read through
