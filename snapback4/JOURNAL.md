@@ -97589,3 +97589,50 @@ The stock Postgres script then exposed another stale evaluation fixture: its
 device snapshot pages omitted the request after cursor, which the current
 device continuation fence requires. The fixture now echoes that cursor, as
 the ordinary sync wire does; no device or snapshot policy changed.
+
+
+### P1-ID fix round 1 — completed verification
+
+The stock Postgres script also found Clique's stale no-notes assertion. Its
+SQLite/memory counterpart already expects N_MAINTAIN_AUTHORIZATION for
+unreadFor. The Postgres factory now expects that same single note only for
+Clique; all other scenarios still require no notes. The focused read-through
+rerun passes all seven cases.
+
+Final requested checks:
+
+- cargo test -p snapback4-core: passes every target, including 17 doctests.
+  The final affected identity follow-up passes 34 tests, including the new
+  ambiguous-digest case added after the full run's build.
+- cargo test -p snapback4 --no-fail-fast: passes every target after the fresh
+  worktree's JS prerequisites were restored; the store-port ratchet passes
+  all five tests with no allowlist increases.
+- scripts/test-postgres.sh: 136 passed, 0 failed, 0 ignored: 58 evaluation
+  tests, 59 core adapter tests, and 19 corpus harness tests. All 24 identity
+  tests and the three shared authority cases execute successfully. Corpus
+  unsupported-case reasons remain explicit; none is an identity exclusion.
+  The outer runner's owned private cluster /tmp/sb4-p1-fix.aM6TCi stops
+  successfully; its postmaster.pid is absent, as are those of all earlier
+  clusters started for this round.
+- The exact requested Clippy command reaches the two inherited default-deny
+  errors in engine/read.rs and engine/row_views.rs. Allowing just those
+  exposes three inherited not_unsafe_ptr_arg_deref errors in device/ffi.rs.
+  A follow-up allowing only those three lint classes completes. One new test
+  err_expect warning was fixed; the final run has no new warnings in this
+  change. No source suppressions were added.
+- Root ref-check passes: 564 LLP docs, 11,509 refs, 0 errors, 0 unchecked.
+
+Host prerequisite details: bun install --frozen-lockfile supplies the missing
+TypeScript dependency. The SDK TypeScript invocation emits the client JS
+needed by witness_web, though its full package build still reports missing
+generated wasm inputs; no package qualification is claimed. The full host
+rerun and final focused witness_web test both pass. An extra focused host
+build after the two Cargo workspaces shared this target directory exposed
+reused device artifacts with incompatible crate identities. After all full
+suites had finished, cleaning only this worktree's snapback4-device artifacts
+and rebuilding makes that focused test pass (1 passed, 0 failed, 0 ignored).
+This cleanup did not run during any test suite and touched no other lane.
+
+The RFC retains its single Revised line with P1-ID fix round 1 prepended.
+All corrections are new commits above d46f2a4ea5; the three rebased lane
+commits are unchanged. No push was performed.
