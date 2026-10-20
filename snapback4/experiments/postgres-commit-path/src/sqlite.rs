@@ -11,13 +11,13 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-fn fresh(dir: &str, label: &str) -> PathBuf {
+pub(crate) fn fresh(dir: &str, label: &str) -> PathBuf {
     let d = Path::new(dir).join(format!("{label}-{}-{:x}", std::process::id(), snapback4_core::ids::seed() & 0xffff_ffff));
     std::fs::create_dir_all(&d).unwrap();
     d.join("store.sqlite")
 }
 
-fn create(path: &Path, synchronous: &str) -> Engine {
+pub(crate) fn create(path: &Path, synchronous: &str) -> Engine {
     let (schema, programs) = compiled();
     let store = Store::open(path).unwrap();
     store.conn().execute_batch(&format!("PRAGMA synchronous={synchronous}")).unwrap();
@@ -26,7 +26,7 @@ fn create(path: &Path, synchronous: &str) -> Engine {
     engine
 }
 
-fn pragmas(engine: &Engine) -> Json {
+pub(crate) fn pragmas(engine: &Engine) -> Json {
     let conn = engine.store().conn();
     json!({
         "journal_mode": conn.query_row("PRAGMA journal_mode", [], |r| r.get::<_, String>(0)).unwrap(),

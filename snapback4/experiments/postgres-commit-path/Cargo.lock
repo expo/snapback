@@ -837,6 +837,7 @@ version = "0.1.0"
 dependencies = [
  "libc",
  "postgres",
+ "rusqlite",
  "serde_json",
  "snapback4-core",
  "snapback4-postgres-evaluation",

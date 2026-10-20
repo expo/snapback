@@ -643,13 +643,14 @@ individual invocations below run three repetitions):
 | 3, raw C=32 | `python3 scripts/s1a.py <new-results> raw` | `target/release/snapback4-postgres-commit-path raw --net rtt500 --writers 32 --counters hot1` |
 | 1, execution C=8/16/32/64 | `python3 scripts/s1a.py <new-results> execution` | `target/release/snapback4-postgres-commit-path pg-execution --net rtt500 --connections 32` |
 | 2, full-write commit stage | `python3 scripts/s1a.py <new-results> commit` | `target/release/snapback4-postgres-commit-path model --protocol A --net rtt500 --counters disjoint --batch 64 --full-writes --non-head-pct 30` |
+| 5, SQLite optimistic models | `python3 scripts/s1a.py <new-results> sqlite` | `target/release/snapback4-postgres-commit-path sqlite-execution --threads 32 --dir "$SQLITE_DIR"` and `target/release/snapback4-postgres-commit-path sqlite-commit --batch 64 --dir "$SQLITE_DIR"` |
 | Proxy calibration | `python3 scripts/s1a.py <new-results> ping` | `target/release/snapback4-postgres-commit-path ping --net rtt500 --n 3000` |
 
-Default timing is S0's 1 s warm-up and 4 s measurement, three runs per
-setting, medians with all runs retained. `NETS` can select a subset of
-`rtt200 rtt500 rtt1000`. `scripts/s1a.py` treats each setting's three runs
-as one measurement block and records `uptime` and `vmstat 1 5` before and
-after it. It gates at one-minute load <= 4 and samples that load each second;
+Default timing is S0's 1 s warm-up and 4 s measurement, three independent
+process invocations per setting, medians with all runs retained. `NETS` can select a subset of
+`rtt200 rtt500 rtt1000`. `scripts/s1a.py` treats each repetition
+as a measurement block and records `uptime` and `vmstat 1 5` before and
+after it. It gates at one-minute load <= 6 and samples that load each second;
 a block exceeding 8 is kept as rejected evidence and rerun in fresh files.
 A quiet failed product cell is retained as failed, without a success retry.
 The runner never changes durability, the existing 5 s timeouts, or retry
@@ -699,5 +700,38 @@ receipt/session/footprint counts, final revision, and the maximum committed
 pin, over warm-up, measurement and drain. The short smoke run (excluded from
 sizing tables) passed with 4,336 receipts/footprints/revisions, 1,301 sessions,
 and 3,035 increments. Initial raw attempts exceeded load 8 and were retained;
-the starting-load gate was tightened from 8 to 4 to leave headroom for the
-unchanged S0 proxy. Product timeouts and retries were not changed.
+the three repetitions were separated by host snapshots and load gating,
+with a final starting-load gate of 6 to leave headroom for the unchanged S0
+proxy. The two rejected 15-second attempts remain in the directory. Product timeouts and retries were not changed.
+
+### SQLite optimistic models
+
+The execution model translates the same eight reads onto the engine-created
+SQLite store's real `_meta`, `_commits`, `_ops`, `r`, `i`, and catalog. It
+uses separate `SQLITE_OPEN_READ_ONLY` connections with `query_only=ON`, a
+`BEGIN DEFERRED` snapshot, and the existing 5 s busy timeout. Threads are
+1/4/16/32. The idle engine connection keeps the WAL open; no writer runs in
+this stage. Counter totals must remain zero.
+
+The commit model applies N precomputed disjoint increments in one
+`BEGIN IMMEDIATE` transaction with WAL and `synchronous=FULL`, preserving
+the default autocheckpoint policy. Every member updates `r` and inserts its
+commit, log, receipt and revision/authority footprint. One metadata revision
+and one maximum time pin update per batch. SQLite's public head is
+`COALESCE(MAX(seq),0)` over `_commits`, as in the actual store; it has no
+Postgres-style head row. The timer includes image/receipt construction and
+all SQL and COMMIT work. Each member receives the full batch latency.
+This is a prefilled-batch stage measurement: it excludes external queueing
+and batch fill delay, unlike the PG producer/committer latency.
+
+Receipts, log rows, footprints and counter sums must match every acknowledged
+increment, including warm-up/drain. The corrected short smoke runs passed.
+The earlier failed SQLite smoke evidence records an implementation mistake
+(the model initially assumed a `_meta.seq` row); it is excluded from sizing.
+No production store or engine code was changed.
+
+Tables, including three-run spread, worst run p99 and the sizing calculation:
+
+```sh
+python3 -I scripts/tables.py results-20261020-s1a
+```

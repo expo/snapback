@@ -2,8 +2,9 @@
 """Run an S1a block, preserving every attempt and rejecting load > 8.
 
 Usage: python3 scripts/s1a.py NEW_RESULTS_DIR raw|execution|commit|sqlite|ping
-Each setting is a measurement block (three runs); uptime and vmstat 1 5
-bracket it. Existing attempt files are never overwritten. Re-running the
+Each repetition is a measurement block; uptime and vmstat 1 5 bracket it.
+Three independent repetitions per setting are summarized by tables.py.
+Existing attempt files are never overwritten. Re-running the
 command skips accepted settings and retries rejected ones in NEW files.
 NETS and CP_* may select RTTs and timing; defaults match the S0 timer.
 """
@@ -52,15 +53,15 @@ def snapshot(path):
 
 
 def run(out, block, number, args):
-    prefix = f"{block}-{number:02d}"
+    prefix = f"{block}-{number}"
     previous = sorted(out.glob(prefix + "-*.json"))
     if any(json.loads(p.read_text()).get("accepted") for p in previous):
         return
     attempt = len(previous) + 1
     while True:
         # Leave headroom for the S0 proxy's own spinning forwarding threads.
-        while os.getloadavg()[0] > 4:
-            print(f"waiting for starting load <= 4: {os.getloadavg()[0]:.2f}", flush=True)
+        while os.getloadavg()[0] > 6:
+            print(f"waiting for starting load <= 6: {os.getloadavg()[0]:.2f}", flush=True)
             time.sleep(30)
         name = f"{prefix}-{attempt:02d}"
         snapshot(out / (name + ".before.txt"))
@@ -96,4 +97,8 @@ if __name__ == "__main__":
     destination = Path(sys.argv[1]).resolve()
     destination.mkdir(parents=True, exist_ok=True)
     for number, args in enumerate(cells(sys.argv[2])):
-        run(destination, sys.argv[2], number, args)
+        if sys.argv[2] == "ping":
+            run(destination, sys.argv[2], f"{number:02d}", args)
+        else:
+            for repeat in range(3):
+                run(destination, sys.argv[2], f"{number:02d}-r{repeat}", args + ["--runs", "1"])

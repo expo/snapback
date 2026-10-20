@@ -3,6 +3,77 @@
    python3 -I scripts/tables.py <results-dir>"""
 import json, os, sys
 
+
+def s1a_tables(directory):
+    """S1a has three independent, load-qualified repetition records/setting."""
+    import glob
+    import statistics
+    groups = {}
+    rejected = []
+    for path in sorted(glob.glob(os.path.join(directory, "*.json"))):
+        if not os.path.basename(path).startswith(("raw-", "execution-", "commit-", "sqlite-", "ping-")):
+            continue
+        record = json.load(open(path))
+        if "result" not in record:
+            continue
+        if not record.get("accepted"):
+            rejected.append(path)
+            continue
+        r = record["result"]
+        key = (r.get("cell"), r.get("net", {}).get("label", "local"),
+               r.get("connections", r.get("threads", r.get("writers", 1))),
+               r.get("batch", 1), r.get("non_head_pct", 0), r.get("counters", "disjoint"))
+        groups.setdefault(key, []).append(record)
+    stats = {}
+    print("| Cell | RTT | C/threads/producers | N | Non-head % | Keys | /s median (min–max) | p50 ms | p99 ms | Max run p99 ms | Max load |")
+    print("| --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: |")
+    for key, records in sorted(groups.items()):
+        if key[0] == "ping":
+            r = records[0]["result"]
+            print(f"Ping {key[1]}: p50={r['p50_us']:.1f} µs, p99={r['p99_us']:.1f} µs")
+            continue
+        runs = [run for record in records for run in record["result"].get("runs", [])]
+        complete = (len(runs) == 3 and all(r["status"] == "complete" for r in runs)
+                    and all(r["exit_status"] == 0 for r in records))
+        if not complete:
+            print(f"| {' | '.join(map(str,key))} | FAILED/INCOMPLETE ({len(runs)} runs) | | | | |")
+            continue
+        rate = [r["commits_per_s"] for r in runs]
+        s = {"rate":statistics.median(rate), "p50":statistics.median(r["p50_ms"] for r in runs),
+             "p99":statistics.median(r["p99_ms"] for r in runs), "max_p99":max(r["p99_ms"] for r in runs)}
+        stats[key] = s
+        print(f"| {' | '.join(map(str,key))} | {s['rate']:,.0f} ({min(rate):,.0f}–{max(rate):,.0f}) | {s['p50']:.3f} | {s['p99']:.3f} | {s['max_p99']:.3f} | {max(r['max_load'] for r in records):.2f} |")
+    print(f"\nRejected load attempts retained: {len(rejected)}")
+    print("\n| RTT | Execution C32 /s | Best full commit 0/10/30% /s (N) | Predicted 0% /s | Raw C32 disjoint/hot1 /s | Predicted/raw disjoint |")
+    print("| --- | ---: | --- | ---: | --- | ---: |")
+    for net in ["rtt200", "rtt500", "rtt1000"]:
+        execution = stats.get(("pg-execution",net,32,1,0,"disjoint"))
+        raw = [stats.get(("raw",net,32,1,0,keys)) for keys in ["disjoint","hot1"]]
+        best = []
+        for pct in [0,10,30]:
+            choices = [(s["rate"],k[3]) for k,s in stats.items() if k[0]=="model" and k[1]==net and k[4]==pct and s["max_p99"]<=100]
+            best.append(max(choices) if choices else None)
+        if execution and all(raw) and all(best):
+            ceiling = min(execution["rate"],best[0][0])
+            detail = " / ".join(f"{rate:,.0f} (N={n})" for rate,n in best)
+            print(f"| {net} | {execution['rate']:,.0f} | {detail} | {ceiling:,.0f} | {raw[0]['rate']:,.0f} / {raw[1]['rate']:,.0f} | {ceiling/raw[0]['rate']:.1%} |")
+            if net == "rtt500":
+                bar = max(2000,raw[0]["rate"]*0.5)
+                print(f"\nSizing rule: {'BUILD' if ceiling>=bar else 'DO NOT BUILD'}; ceiling={ceiling:.1f}/s, 2× bar={bar:.1f}/s.")
+    sqread = [(s["rate"],k[2]) for k,s in stats.items() if k[0]=="sqlite-execution"]
+    sqwrite = [(s["rate"],k[3]) for k,s in stats.items() if k[0]=="sqlite-commit" and s["max_p99"]<=100]
+    if len(sqread)==4 and len(sqwrite)==4:
+        er,threads = max(sqread)
+        cr,n = max(sqwrite)
+        ceiling = min(er,cr)
+        c32 = stats[("sqlite-execution","local",32,1,0,"disjoint")]["rate"]
+        print(f"\nSQLite model: best read={er:,.0f}/s ({threads} threads), commit={cr:,.0f}/s (N={n}), ceiling={ceiling:,.0f}/s; C32 ceiling={min(c32,cr):,.0f}/s; vs S0 3,700–4,200/s = {ceiling/4200:.2f}–{ceiling/3700:.2f}×.")
+
+
+if any(name.endswith(".before.txt") for name in os.listdir(sys.argv[1])):
+    s1a_tables(sys.argv[1])
+    sys.exit(0)
+
 d = sys.argv[1]
 NETS = ["unix", "rtt0", "rtt200", "rtt500", "rtt1000"]
 

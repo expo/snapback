@@ -6,6 +6,7 @@ mod model;
 mod proxy;
 mod raw;
 mod sqlite;
+mod sqlite_optimistic;
 
 use common::*;
 use serde_json::{Value as Json, json};
@@ -162,6 +163,8 @@ fn main() {
         "model" => model::run(&args),
         "raw" => raw::run(&args),
         "pg-execution" => execution::run(&args),
+        "sqlite-execution" => sqlite_optimistic::execution(&args),
+        "sqlite-commit" => sqlite_optimistic::commit(&args),
         "sqlite-serve" => sqlite::serve(&args),
         "sqlite-four-connections" => sqlite::four_connections(&args),
         "sqlite-exec-flush" => sqlite::exec_flush(&args),
