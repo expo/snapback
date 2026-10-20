@@ -97120,3 +97120,35 @@ closed keyset reads preserve the exact source image without changing migration l
 Guide changes and LLP3000.037 §20.3 record existing-app/store effects and the
 wave19 day-two analysis. Verification and wasm measurement are recorded separately.
 No push or publication.
+
+## 2026-10-19 — 0.4.33 published (snapback4, both platforms, snapback4-expo); 0.4.31 skipped
+
+`snapback4`, `snapback4-darwin-arm64`, `snapback4-linux-x64` and
+`snapback4-expo` 0.4.33 are published from `3653cae823` (Integration 17). The
+wave-18 go was briefly suspended over wave 19's "lost records"; the coordinator
+found these were dormant rows at rollback, not data loss. All four `latest` = 0.4.33:
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-KIsQ9PQYxbufDI9g721LnHoMQ/ZKx4HzFQIT5/kVu1JJXo+6lEWe4nd2fniXzW/f9ByjA8UIJxOVHdWFAwSSVA==` |
+| `snapback4-darwin-arm64` | `sha512-hwy7cSYzj1DmpHr+EjPbCdztJQvQdg1n/+uwW8kFOn2ODexGohcURmxEP/ODAvojJFTIMGkocy+RHvfN2Jd+kg==` |
+| `snapback4-linux-x64` | `sha512-yuyO94medY6S9gf3geiGY9oq6OV2z5oEBMQPgnvbReGMnT+lvMpEHOXBclj+dp8DFwb6ML/pR7bt98Yze5t1Lw==` |
+| `snapback4-expo` | `sha512-Zn75Lu16YkCWgFkAsqNlcIOY3SOLaWI+w/NABNBOg+ZXb6nb3PucOTcsZ5RSDpw5csGn+5lg04HELiP5P0XOiw==` |
+
+0.4.31 was never published. Its last Mac dry run was invalidated by a clamshell
+sleep on battery, and 0.4.33 superseded it. No 0.4.32 was published either.
+
+- **Native and Expo witness:** built and witnessed on Xcode 27.1.
+- **Linux:** passed, `== 0 failure(s) in 3053 s`.
+- **Mac dry run:** this ran through a new gate that watches AC power, the lid and
+  sleep during the run, not just at the start.
+  - Attempt 1 hit a known timing flake in the `dev_refusals` coalescing test: 8
+    refusals were assumed to land within a 1 s window, and `×6` was printed instead
+    of `×8`. The test passed 12/12 alone. It is fixed on main in `8b1b688190`.
+  - Attempt 2 passed, `== 0 failure(s) in 9030 s`.
+- **Publish:** one `--resume` published the platforms and the client. The registry
+  check passed on the first try, and Expo was readable after 169 s.
+- **Clean installs:** on Linux and the Mac, these print `snapback4 0.4.33` and
+  pass `init` + `check`.
+
+Details: [reports/20261019-publication-0.4.33/REPORT.md](reports/20261019-publication-0.4.33/REPORT.md).
