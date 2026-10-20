@@ -1035,7 +1035,7 @@ fn inspection_selects_release_explicitly_and_names_misplaced_sql_flags() {
         assert!(error.contains("--release <dir>") && error.contains("deployment"), "{error}");
         assert!(!project.0.join(".snapback4/store.sqlite").exists());
     }
-    for flag in ["--release deployment", "--limit 10", "--json", "--json-objects"] {
+    for flag in ["--release deployment", "--dormant", "--all-releases", "--limit 10", "--json", "--json-objects"] {
         let output = project.run(&["sql", &format!("SELECT id FROM notes {flag}")]);
         assert!(!output.status.success());
         let error = text(&output);
@@ -1045,6 +1045,14 @@ fn inspection_selects_release_explicitly_and_names_misplaced_sql_flags() {
     assert!(output.status.success(), "{}", text(&output));
     let answer: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(answer["rows"][0]["literal"], "--release deployment");
+    assert_eq!(answer["inspection"], "active records");
+    for (flag, mode) in [("--dormant", "dormant retained records"), ("--all-releases", "active and retained records")] {
+        let output = project.run(&["sql", "SELECT id FROM notes", "--release", "deployment", flag, "--json"]);
+        assert!(output.status.success(), "{}", text(&output));
+        let answer: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(answer["inspection"], mode);
+    }
+
     let output = project.run(&["data", "notes", "--release", "deployment"]);
     assert!(output.status.success(), "{}", text(&output));
     assert_eq!(output.stdout, b"");

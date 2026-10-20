@@ -97676,3 +97676,14 @@ gzip / 552,771 B Brotli (Node zlib quality 11), with strict family and
 server-only/Unicode absence attribution passing. The existing 734,190 B
 gzip budget remains measured + exactly 500 B. Raw/gzip bytes are identical
 to Integration 19; the storage adapters add no device payload.
+
+
+### 2026-10-21 — retain SQL mode reporting across the inspection extraction
+
+The final merge-delta audit found two host presentation details omitted by
+conflict resolution: the `inspection` JSON mode and misplaced `--dormant` /
+`--all-releases` advice. Restore both without changing adapter access. The
+existing CLI inspection regression now checks both misplaced flags and all
+three mode labels; the expanded test fails before the correction. Earlier
+partial broad attempts are excluded; full final Linux qualification restarts
+after this correction.

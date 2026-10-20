@@ -73,7 +73,7 @@ fn inspect(options: &Options) -> Result<()> {
         let rows = if object_rows {
             Value::Array(rows.into_iter().map(|values| Value::Object(columns.iter().cloned().zip(values).collect())).collect())
         } else { json!(rows) };
-        println!("{}", json!({ "header": header, "columns": columns, "rows": rows, "limit": limit, "more": more, "ruleFiltered": false }));
+        println!("{}", json!({ "header": header, "columns": columns, "rows": rows, "limit": limit, "more": more, "ruleFiltered": false, "inspection": mode }));
     } else {
         eprintln!("{header}");
         let cells: Vec<Vec<String>> = rows.iter().map(|row| row.iter().map(|v| match v { Value::String(s) => s.escape_debug().to_string(), _ => v.to_string() }).collect()).collect();
@@ -168,7 +168,7 @@ fn misplaced_flag(statement: &str) -> Option<&'static str> {
                 if c == '*' && chars.peek().is_some_and(|(_, c)| *c == '/') { chars.next(); break; }
             }
         } else if c == '-' {
-            for flag in ["--release", "--limit", "--json-objects", "--json"] {
+            for flag in ["--release", "--dormant", "--all-releases", "--limit", "--json-objects", "--json"] {
                 if let Some(tail) = statement[offset..].strip_prefix(flag) {
                     if tail.is_empty() || tail.starts_with(char::is_whitespace) || tail.starts_with('=') { return Some(flag); }
                 }
