@@ -97152,3 +97152,8 @@ sleep on battery, and 0.4.33 superseded it. No 0.4.32 was published either.
   pass `init` + `check`.
 
 Details: [reports/20261019-publication-0.4.33/REPORT.md](reports/20261019-publication-0.4.33/REPORT.md).
+
+
+## 2026-10-20 — Integration 19 wasm ratchet
+
+Integration 19, 0.4.35: locked Linux merged web device is 2,404,722 B raw / 733,690 B gzip; budget 734,190 B = measured gzip + exactly 500 B. Whole-artifact delta from Integration 18 is +18,880 B raw / +6,677 B gzip, including column projection/omission, shared query-branch reservations, argument-alias metadata and the 0.4.35 stamp. Server-only reverse receipts and security campaigns remain absent from the web artifact. No independent per-feature attribution, Mac measurement or runtime ceiling increase.
