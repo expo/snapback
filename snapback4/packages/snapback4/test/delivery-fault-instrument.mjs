@@ -448,3 +448,12 @@ export function awaitBoundary() {
 // reply. These operator proof controls do not enter application write custody,
 // offline delivery or settlement. The packed staging and clock cases exercise
 // their refusal/production boundaries. Delivery sites and recipes are unchanged.
+
+// Integration 19 boundary review: auth.ts moves sign-in fetch/body waits into
+// identity-request.ts. Its fetch, decode and bounded pause retry only an explicit
+// pre-admission auth E_RATE_LIMIT; ambiguous replies never replay. These waits
+// create sessions before application custody, and identity-rate tests cover
+// cancellation/deadlines/lost replies. proof-accounts uses the same setup helper.
+// proof.ts adds native stop and read-only store-lock barrier waits, outside
+// application delivery. Packed DX4 covers worker-held locks and rate retries.
+// No delivery scope, required/optional recipe or custody site changes.

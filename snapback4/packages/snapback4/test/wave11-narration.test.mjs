@@ -87,7 +87,7 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   assert.equal((await host.post('/m/archive', { note: ids[0] })).state, 'sent');
   await host.stop();
   assert.equal(existsSync(join(deployment, 'serve.lock')), false, host.log());
-  const warning = "WARNING notes.status: 1 row holds 'archived', which release 1 cannot hold; it becomes dormant on this switch and is restored on compatible forward; accept their absence or preserve these values in a bridge release";
+  const warning = "WARNING notes.status: 1 row holds 'archived', which release 1 cannot hold directly; without a fitting declared reverse projection, it becomes dormant on this switch and is restored on compatible forward; accept their absence or preserve these values in a bridge release";
   const samples = `samples: cells notes.color [${ids.slice(1).sort().join(', ')}]; rows notes [${ids[0]}]`;
   const plan = run('rollback', deployment, '--to', '1', '--check');
   assert.ok(plan.stdout.split('\n').some(line => line.startsWith('  WARNING notes:') && line.includes(warning.slice('WARNING '.length))), plan.stdout);

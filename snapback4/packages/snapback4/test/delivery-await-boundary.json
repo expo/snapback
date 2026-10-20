@@ -68,8 +68,8 @@
     "sha256": "9b7053ff962ff6552f058b1ff95c860f052f6182487cc092a85e4919dda20d44"
   },
   "auth.ts": {
-    "count": 13,
-    "sha256": "31a872d064e6cca5b0fca97d6499c882f4b1caa462699b62a8027698871ac364"
+    "count": 12,
+    "sha256": "9603fced615a06cc010e207d6b324b3e539a4285cc0abd27dba364cabb4b4f55"
   },
   "backend.ts": {
     "count": 0,
@@ -166,6 +166,10 @@
   "identity-principal.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "identity-request.ts": {
+    "count": 3,
+    "sha256": "8872c4680f22a7120d9ac0cab9a45f33e14873bc2049dc4b5fb068fc57bfac94"
   },
   "identity-runtime.ts": {
     "count": 5,
@@ -316,8 +320,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "proof-accounts.ts": {
-    "count": 8,
-    "sha256": "8c7b7a618f840ba832e09838aeae9603b7a9cb232dc05fc85c87d74991eee3f0"
+    "count": 6,
+    "sha256": "58ee53492a328132a9027a663d35463687ec2519fb7b853ae39c12f8b932ad2d"
   },
   "proof-fixtures.ts": {
     "count": 5,
@@ -333,11 +337,11 @@
   },
   "proof-process.ts": {
     "count": 6,
-    "sha256": "5b7cdcfd62f5dcf4a6f41dc9d59fec7e5a7e364582c01189c4723b860518e93f"
+    "sha256": "66b685ad3cea112b8c848b91adaa4aad81952dc8b9dac53bf35c27d125204b3e"
   },
   "proof.ts": {
-    "count": 45,
-    "sha256": "5230483c0df3a7d90f12fe2765e2b624765d99aa04439c869aaeac6b9e663910"
+    "count": 47,
+    "sha256": "3107e57951f804219d75636f3c4495f5f4a2c52f01f8f713ad960899f2842b84"
   },
   "query-custody.ts": {
     "count": 1,

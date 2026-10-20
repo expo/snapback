@@ -55,22 +55,18 @@ query list():
     getCanonicalFileName: n => n, getCurrentDirectory: () => dir, getNewLine: () => "\n",
   }));
   const password = "headless-private-test-password";
-  const run = mode => exec(process.execPath, [script], { cwd: dir,
-    env: { ...process.env, SNAPBACK_URL: url, SEED_PASSWORD: password, SEED_AUTH: mode } });
-  await assert.rejects(run("singup"), error => {
-    assert.match(error.stderr, /SEED_AUTH must be signup or login/);
-    assert.equal(error.stdout, "");
-    assert.equal(error.stderr.includes(password), false);
-    return true;
-  });
-  const registered = await run("signup"), signedIn = await run("login");
+  const run = (secret = password) => exec(process.execPath, [script], { cwd: dir,
+    env: { ...process.env, SNAPBACK_URL: url, SEED_PASSWORD: secret } });
+  // The installed local recipe logs in first and signs up only when needed.
+  const registered = await run(), signedIn = await run();
   const first = registered.stdout.trim();
   assert.match(first, /^user:/);
   assert.equal(signedIn.stdout.trim(), first, "login recovers the guide's account");
-  await assert.rejects(run("signup"), error => {
+  await assert.rejects(run("headless-wrong-test-password"), error => {
     assert.match(error.stderr, /Error: that email already has an account; sign in instead/);
     assert.equal(error.stdout, "");
     assert.equal(error.stderr.includes(password), false);
+    assert.equal(error.stderr.includes("headless-wrong-test-password"), false);
     return true;
   });
   const second = await signup(url, "seed2@example.test", password);

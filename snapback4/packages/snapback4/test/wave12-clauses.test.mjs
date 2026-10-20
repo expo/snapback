@@ -9,6 +9,9 @@ import { fileURLToPath } from 'node:url';
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor, hangBudget } from './helpers/wait.mjs';
 
+// Synchronous CLI previews can outlive HTTP keepalive while Node is blocked.
+// Close each fixture connection so a later write cannot reuse an undrained FIN.
+const fetch = (url, options={}) => globalThis.fetch(url, {...options,headers:{...options.headers,connection:'close'}});
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const binary = process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4');
 function fixture(t) {
