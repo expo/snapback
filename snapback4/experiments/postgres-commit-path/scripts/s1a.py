@@ -58,8 +58,9 @@ def run(out, block, number, args):
         return
     attempt = len(previous) + 1
     while True:
-        while os.getloadavg()[0] > 8:
-            print(f"waiting for load <= 8: {os.getloadavg()[0]:.2f}", flush=True)
+        # Leave headroom for the S0 proxy's own spinning forwarding threads.
+        while os.getloadavg()[0] > 4:
+            print(f"waiting for starting load <= 4: {os.getloadavg()[0]:.2f}", flush=True)
             time.sleep(30)
         name = f"{prefix}-{attempt:02d}"
         snapshot(out / (name + ".before.txt"))

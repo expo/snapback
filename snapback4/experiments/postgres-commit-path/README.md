@@ -642,13 +642,14 @@ individual invocations below run three repetitions):
 | --- | --- | --- |
 | 3, raw C=32 | `python3 scripts/s1a.py <new-results> raw` | `target/release/snapback4-postgres-commit-path raw --net rtt500 --writers 32 --counters hot1` |
 | 1, execution C=8/16/32/64 | `python3 scripts/s1a.py <new-results> execution` | `target/release/snapback4-postgres-commit-path pg-execution --net rtt500 --connections 32` |
+| 2, full-write commit stage | `python3 scripts/s1a.py <new-results> commit` | `target/release/snapback4-postgres-commit-path model --protocol A --net rtt500 --counters disjoint --batch 64 --full-writes --non-head-pct 30` |
 | Proxy calibration | `python3 scripts/s1a.py <new-results> ping` | `target/release/snapback4-postgres-commit-path ping --net rtt500 --n 3000` |
 
 Default timing is S0's 1 s warm-up and 4 s measurement, three runs per
 setting, medians with all runs retained. `NETS` can select a subset of
 `rtt200 rtt500 rtt1000`. `scripts/s1a.py` treats each setting's three runs
 as one measurement block and records `uptime` and `vmstat 1 5` before and
-after it. It gates at one-minute load <= 8 and samples that load each second;
+after it. It gates at one-minute load <= 4 and samples that load each second;
 a block exceeding 8 is kept as rejected evidence and rerun in fresh files.
 A quiet failed product cell is retained as failed, without a success retry.
 The runner never changes durability, the existing 5 s timeouts, or retry
@@ -666,3 +667,37 @@ Stop only the private cluster started above and remove its socket directory:
 ```sh
 scripts/cluster.sh stop "$S1A_ENV"
 ```
+
+### Full-write-set commit model
+
+`--full-writes` extends S0 (A), keeping explicit START / one CTE / COMMIT
+(three round trips, one durable flush). Every stream member has an `_ops`
+receipt and a revision/footprint row, including an authority-fact descriptor.
+One `_s1a_meta` clock row advances to the batch maximum, without conflicts;
+one revision row advances by the number of stream operations. The full
+counter write set remains `r`, `_commits`, `_log`, and `_ops`. No index entry
+changes for this increment because its value is not indexed.
+
+A deterministic 0/10/30% of **stream members** are non-head operations,
+replacing increments: session-mint-like inserts into the existing `_sessions`
+table, including both secondary indexes, plus their receipts and footprints.
+They use the same queue, batch, transaction, flush and acknowledgement; they
+advance the internal revision but leave the public head unchanged. All-member
+throughput is reported as stream operations/s; head throughput is also given
+when comparing counter work. The 0% case is the direct W4 denominator match.
+
+As in S0, producers number `max(4, 2N)` and wait for each acknowledgement;
+only the committer has a measured database connection. Commit latency includes
+queueing and the flush, beginning before enqueue. Batch histograms record
+partial batches. N=64's optimistic backlog is larger than P1's 32 synchronous
+request workers, so its stage bound assumes queued precomputed work beyond
+those workers. The C=32 execution measurement still fixes the combined bound.
+No batch fill timer was added.
+
+Post-run checks compare acknowledged increments with counter totals and check
+receipt/session/footprint counts, final revision, and the maximum committed
+pin, over warm-up, measurement and drain. The short smoke run (excluded from
+sizing tables) passed with 4,336 receipts/footprints/revisions, 1,301 sessions,
+and 3,035 increments. Initial raw attempts exceeded load 8 and were retained;
+the starting-load gate was tightened from 8 to 4 to leave headroom for the
+unchanged S0 proxy. Product timeouts and retries were not changed.
