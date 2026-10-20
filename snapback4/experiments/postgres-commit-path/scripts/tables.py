@@ -25,12 +25,15 @@ def s1a_tables(directory):
                r.get("batch", 1), r.get("non_head_pct", 0), r.get("counters", "disjoint"))
         groups.setdefault(key, []).append(record)
     stats = {}
-    print("| Cell | RTT | C/threads/producers | N | Non-head % | Keys | /s median (min–max) | p50 ms | p99 ms | Max run p99 ms | Max load |")
-    print("| --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: |")
     for key, records in sorted(groups.items()):
         if key[0] == "ping":
             r = records[0]["result"]
             print(f"Ping {key[1]}: p50={r['p50_us']:.1f} µs, p99={r['p99_us']:.1f} µs")
+    print()
+    print("| Cell | RTT | C/threads/producers | N | Non-head % | Keys | /s median (min–max) | p50 ms | p99 ms | Max run p99 ms | Max load |")
+    print("| --- | --- | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: | ---: |")
+    for key, records in sorted(groups.items()):
+        if key[0] == "ping":
             continue
         runs = [run for record in records for run in record["result"].get("runs", [])]
         complete = (len(runs) == 3 and all(r["status"] == "complete" for r in runs)

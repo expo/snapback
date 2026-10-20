@@ -646,11 +646,16 @@ individual invocations below run three repetitions):
 | 5, SQLite optimistic models | `python3 scripts/s1a.py <new-results> sqlite` | `target/release/snapback4-postgres-commit-path sqlite-execution --threads 32 --dir "$SQLITE_DIR"` and `target/release/snapback4-postgres-commit-path sqlite-commit --batch 64 --dir "$SQLITE_DIR"` |
 | Proxy calibration | `python3 scripts/s1a.py <new-results> ping` | `target/release/snapback4-postgres-commit-path ping --net rtt500 --n 3000` |
 
-Default timing is S0's 1 s warm-up and 4 s measurement, three independent
-process invocations per setting, medians with all runs retained. `NETS` can select a subset of
+Default timing is S0's 1 s warm-up and 4 s measurement, three repetitions
+per setting, medians with all runs retained. Raw and execution repetitions
+use fresh process invocations. The PG commit stage retains S0's three runs
+on one namespace: the first run carries its known empty-namespace FK-plan
+effect, and the next two are warm. This avoids measuring that startup
+effect three times. Every run, including the first, is retained. `NETS` can select a subset of
 `rtt200 rtt500 rtt1000`. `scripts/s1a.py` treats each repetition
-as a measurement block and records `uptime` and `vmstat 1 5` before and
-after it. It gates at one-minute load <= 6 and samples that load each second;
+as a measurement block (all three runs together for the PG commit stage)
+and records `uptime` and `vmstat 1 5` before and after it. Starting-load gates of 4–7 leave headroom according to the cell's
+thread/connection demand; every gate is recorded, and load is sampled each second;
 a block exceeding 8 is kept as rejected evidence and rerun in fresh files.
 A quiet failed product cell is retained as failed, without a success retry.
 The runner never changes durability, the existing 5 s timeouts, or retry
@@ -701,8 +706,11 @@ pin, over warm-up, measurement and drain. The short smoke run (excluded from
 sizing tables) passed with 4,336 receipts/footprints/revisions, 1,301 sessions,
 and 3,035 increments. Initial raw attempts exceeded load 8 and were retained;
 the three repetitions were separated by host snapshots and load gating,
-with a final starting-load gate of 6 to leave headroom for the unchanged S0
-proxy. The two rejected 15-second attempts remain in the directory. Product timeouts and retries were not changed.
+with conservative starting-load headroom for the unchanged S0 proxy. The two rejected 15-second attempts remain in the directory. Later load
+rejections are also retained. `python3 scripts/s1a.py <new-results> all`
+schedules the same cells serially, taking low-load gaps for cells needing
+more headroom, without changing any cell parameters or the load-8 acceptance
+ceiling. This is the final sweep command used here. Product timeouts and retries were not changed.
 
 ### SQLite optimistic models
 
@@ -735,3 +743,26 @@ Tables, including three-run spread, worst run p99 and the sizing calculation:
 ```sh
 python3 -I scripts/tables.py results-20261020-s1a
 ```
+
+### Limits of the S1a prediction
+
+- These are separate **statement-level models**, not an optimistic engine.
+  Their minimum is an upper bound, not a measured end-to-end rate or SLO.
+  Interpreter execution, read-set recording/validation, authority checks and
+  fencing, overlay work, sequence-placeholder rewriting, conflict reruns and
+  fallback traffic are omitted. Authority descriptors/footprints are written;
+  they do not implement validation. Larger programs or hot keys can lower
+  the bound substantially. The hot-key raw control is diagnostic; execution
+  and commit models use disjoint increments and predict no hot-key reruns.
+- S0's userspace loopback proxy is unchanged. The setting adds delay to each
+  direction rather than producing an exact total RTT. Its forwarding threads,
+  the clients and PG share the same host; ping calibration and result-specific
+  load samples matter. There is no real network, TLS, replicated flush or
+  managed-service path here.
+- This is one shared, fast-flush host, with short closed-loop windows and
+  three repetitions. Load-qualified samples reduce one source of noise but
+  do not make the host dedicated. SQLite's batch latency assumes precomputed
+  work is available, and its SQL-only read model omits most of Engine's CPU
+  work; a model gain over S0's real engine is not a demonstrated engine gain.
+  Only the separate stage SLO is tested; combined execution + queue + commit
+  latency and open-loop saturation still need an engine measurement.

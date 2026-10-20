@@ -89,7 +89,7 @@ const Q_COMMIT_STAGE: &str = "WITH head AS (
             INSERT INTO _ops SELECT 'alice',o.id,o.seq,o.outcome,'increment',$7,$5 FROM head, unnest($8::text[],$6::bigint[],$9::text[]) AS o(id,seq,outcome)
         ) SELECT (SELECT count(*) FROM head), (SELECT count(*) FROM w), (SELECT count(*) FROM committed)";
 
-// @ref LLP 3000.009.001.000#6.3-candidates-in-the-order-they-are-taken — all durable operations share the stream; pins fold by max
+// @ref LLP 3000.009.001.000#6.3 — all durable operations share the stream; pins fold by max
 // S1a uses the actual _sessions (including its two secondary indexes).
 // Footprints and revision/pin rows model the proposed, not-yet-built store.
 const Q_FULL_STAGE: &str = "WITH head AS (

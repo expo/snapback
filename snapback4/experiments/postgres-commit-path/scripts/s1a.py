@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Run an S1a block, preserving every attempt and rejecting load > 8.
 
-Usage: python3 scripts/s1a.py NEW_RESULTS_DIR raw|execution|commit|sqlite|ping
+Usage: python3 scripts/s1a.py NEW_RESULTS_DIR raw|execution|commit|sqlite|ping|all
 Each repetition is a measurement block; uptime and vmstat 1 5 bracket it.
-Three independent repetitions per setting are summarized by tables.py.
+Three repetitions per setting are summarized by tables.py. The PG commit
+stage keeps S0's three runs on one namespace (cold FK plan in the first).
 Existing attempt files are never overwritten. Re-running the
 command skips accepted settings and retries rejected ones in NEW files.
 NETS and CP_* may select RTTs and timing; defaults match the S0 timer.
@@ -52,17 +53,20 @@ def snapshot(path):
         subprocess.run(["vmstat", "1", "5"], stdout=out, check=True)
 
 
-def run(out, block, number, args):
+def run(out, block, number, args, gate=6, wait=True):
     prefix = f"{block}-{number}"
     previous = sorted(out.glob(prefix + "-*.json"))
     if any(json.loads(p.read_text()).get("accepted") for p in previous):
-        return
-    attempt = len(previous) + 1
+        return True
+    attempts = [int(p.name.split(".")[0].rsplit("-",1)[1]) for p in out.glob(prefix + "-*.before.txt")]
+    attempt = max(attempts, default=0) + 1
     while True:
         # Leave headroom for the S0 proxy's own spinning forwarding threads.
-        while os.getloadavg()[0] > 6:
-            print(f"waiting for starting load <= 6: {os.getloadavg()[0]:.2f}", flush=True)
-            time.sleep(30)
+        while os.getloadavg()[0] > gate:
+            if not wait:
+                return False
+            print(f"waiting for starting load <= {gate}: {os.getloadavg()[0]:.2f}", flush=True)
+            time.sleep(5)
         name = f"{prefix}-{attempt:02d}"
         snapshot(out / (name + ".before.txt"))
         loads = [os.getloadavg()[0]]
@@ -82,23 +86,65 @@ def run(out, block, number, args):
         quiet = max(loads) <= 8
         record = {"started": started, "argv": args, "exit_status": process.returncode,
                   "load_samples_1s": loads, "max_load": max(loads), "load_qualified": quiet,
-                  "accepted": quiet, "result": result}
+                  "accepted": quiet, "starting_load_gate": gate, "result": result}
         (out / (name + ".json")).write_text(json.dumps(record) + "\n")
         print(f"{name}: exit {process.returncode}, max load {max(loads):.2f}, "
               f"{'accepted' if quiet else 'REJECTED; rerunning'}: {' '.join(args)}", flush=True)
         if quiet:
             # Product failures are retained as failed cells, never retried
             # for success. Only environmental load rejection triggers reruns.
-            return
+            return True
+        if not wait:
+            return False
         attempt += 1
+
+
+
+def tasks(block):
+    for number, args in enumerate(cells(block)):
+        if block in ("ping", "commit"):
+            yield block, f"{number:02d}", args
+        else:
+            for repeat in range(3):
+                yield block, f"{number:02d}-r{repeat}", args + ["--runs", "1"]
+
+
+def starting_gate(args):
+    # Headroom affects scheduling only. Acceptance always requires max <= 8.
+    if args[0] == "sqlite-execution":
+        threads = int(args[args.index("--threads")+1])
+        return 4 if threads == 32 else 6 if threads == 16 else 7
+    if args[0] == "pg-execution":
+        c = int(args[args.index("--connections")+1])
+        net = args[args.index("--net")+1]
+        return 4 if c == 64 and net == "rtt200" else 6 if c >= 32 else 7
+    if args[0] == "raw" and "rtt200" in args:
+        return 6
+    return 7
 
 
 if __name__ == "__main__":
     destination = Path(sys.argv[1]).resolve()
     destination.mkdir(parents=True, exist_ok=True)
-    for number, args in enumerate(cells(sys.argv[2])):
-        if sys.argv[2] == "ping":
-            run(destination, sys.argv[2], f"{number:02d}", args)
-        else:
-            for repeat in range(3):
-                run(destination, sys.argv[2], f"{number:02d}-r{repeat}", args + ["--runs", "1"])
+    if sys.argv[2] != "all":
+        for block, number, args in tasks(sys.argv[2]):
+            run(destination, block, number, args, gate=starting_gate(args))
+    else:
+        pending = []
+        for block in ("raw", "execution", "commit", "sqlite"):
+            for task in tasks(block):
+                b, number, args = task
+                if not any(json.loads(p.read_text()).get("accepted") for p in destination.glob(f"{b}-{number}-*.json")):
+                    pending.append(task)
+        # One subprocess at a time. Spend quiet gaps on the cells needing
+        # most headroom; among those, prioritize the 0.5 ms decision cells.
+        pending.sort(key=lambda t: (starting_gate(t[2]), 0 if "rtt500" in t[2] else 1, t[0], t[1]))
+        while pending:
+            eligible = [task for task in pending if os.getloadavg()[0] <= starting_gate(task[2])]
+            if not eligible:
+                print(f"waiting for load headroom: {os.getloadavg()[0]:.2f}; {len(pending)} blocks remain", flush=True)
+                time.sleep(5)
+                continue
+            task = eligible[0]
+            if run(destination, *task, gate=starting_gate(task[2]), wait=False):
+                pending.remove(task)

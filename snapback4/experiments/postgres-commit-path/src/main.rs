@@ -169,7 +169,7 @@ fn main() {
         "sqlite-four-connections" => sqlite::four_connections(&args),
         "sqlite-exec-flush" => sqlite::exec_flush(&args),
         "sqlite-old-cell" => sqlite::old_cell(&args),
-        _ => panic!("usage: commit-path <ping|capture|engine|model|raw|sqlite-serve|sqlite-four-connections|sqlite-exec-flush|sqlite-old-cell> [options]; see README"),
+        _ => panic!("usage: commit-path <ping|capture|engine|model|raw|pg-execution|sqlite-execution|sqlite-commit|sqlite-serve|sqlite-four-connections|sqlite-exec-flush|sqlite-old-cell> [options]; see README"),
     };
     out["started"] = json!(started);
     out["finished"] = json!(now_iso());

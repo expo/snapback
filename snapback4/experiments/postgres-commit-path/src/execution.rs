@@ -13,9 +13,13 @@ pub fn run(args: &Args) -> Json {
     let mut runs = Vec::new();
     for run in 0..args.runs() {
         let (net, schema) = (net.clone(), schema.clone());
-        let mut result = closed_loop(connections, &timing, Some(true), move |_| Conn::new(&net, &schema), move |conn, w, i| {
-            conn.execution(&slot(true, w), &format!("exec-{run}-{w}-{i}"))
-        });
+        let mut result = closed_loop(
+            connections,
+            &timing,
+            Some(true),
+            move |_| Conn::new(&net, &schema),
+            move |conn, w, i| conn.execution(&slot(true, w), &format!("exec-{run}-{w}-{i}")),
+        );
         result["executions_per_s"] = result["commits_per_s"].clone();
         runs.push(result);
     }
