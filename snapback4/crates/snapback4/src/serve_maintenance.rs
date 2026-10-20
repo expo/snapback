@@ -363,7 +363,7 @@ fn completed_drain(work: Work, stopping: bool) -> Result<Work, snapback4_core::R
 
 // @ref LLP 3000.000.000.002#4-staging-clock — staging grants clock control, never fixture or persona authority.
 pub(super) fn staging(shared: &Shared) -> bool {
-    lock(&shared.engine).store().meta("deployment_environment").ok().flatten().as_deref() == Some("staging")
+    lock(&shared.engine).store().deployment_environment().ok().flatten().as_deref() == Some("staging")
 }
 fn clock_service(request: &Request, shared: &Shared) -> Result<Option<String>, snapback4_core::Refusal> {
     if shared.personas { return Ok(None); }
@@ -405,7 +405,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let mut engine = lock(&shared.engine);
         let before = crate::dev_clock_store::saved_boundaries(&engine);
         if let Some(principal) = &service {
-            if engine.store().meta("deployment_environment").map_err(|e|e.refusal())?.as_deref() != Some("staging") { return Err(crate::dev_clock::release()); }
+            if engine.store().deployment_environment().map_err(|e|e.refusal())?.as_deref() != Some("staging") { return Err(crate::dev_clock::release()); }
             super::session_identity::mutation_authority(&request,shared,&engine,principal)?;
         } else { shared.dev_authority(&engine)?; }
         let mut clock = lock(&shared.clock);

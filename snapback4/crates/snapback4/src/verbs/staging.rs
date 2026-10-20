@@ -2,7 +2,6 @@
 use std::path::Path;
 use crate::store_owner::Owner;
 
-pub(super) const KEY: &str = "deployment_environment";
 fn production() -> String {
     "E_STAGING: existing production/legacy stores cannot be relabelled; deploy --staging into a separate fresh directory".into()
 }
@@ -13,13 +12,13 @@ pub(super) fn classify(dir: &Path, owner: Option<&Owner>, existed: bool, checkin
     if checking && !existed { return Ok(()); }
     if let Some(owner) = owner {
         let store = owner.open_store(std::time::Duration::from_secs(5)).map_err(|e|e.to_string())?;
-        match store.meta(KEY).map_err(|e|e.to_string())?.as_deref() {
+        match store.deployment_environment().map_err(|e|e.to_string())?.as_deref() {
             Some("staging") => Ok(()),
-            None if !existed && !checking => store.set_meta(KEY, "staging").map_err(|e|e.to_string()),
+            None if !existed && !checking => store.set_deployment_environment("staging").map_err(|e|e.to_string()),
             _ => Err(production()),
         }
     } else {
         let store = snapback4_core::Store::open_read_only(&path).map_err(|e|e.to_string())?;
-        if store.meta(KEY).map_err(|e|e.to_string())?.as_deref() == Some("staging") { Ok(()) } else { Err(production()) }
+        if store.deployment_environment().map_err(|e|e.to_string())?.as_deref() == Some("staging") { Ok(()) } else { Err(production()) }
     }
 }

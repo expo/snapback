@@ -50,7 +50,7 @@ pub fn serve(
         );
     // @ref LLP 3000.000.000.002#4-staging-clock — only immutable store classification admits a release test clock.
     let staging = if let Mode::Release { owner, .. } = &mode {
-        owner.open_store(Duration::from_secs(5)).map_err(|e|e.to_string())?.meta("deployment_environment").map_err(|e|e.to_string())?.as_deref() == Some("staging")
+        owner.open_store(Duration::from_secs(5)).map_err(|e|e.to_string())?.deployment_environment().map_err(|e|e.to_string())?.as_deref() == Some("staging")
     } else { false };
     let clock = crate::dev_clock::Clock::new(
         dev || staging,
@@ -170,13 +170,13 @@ pub fn serve(
     let adoption = Mutex::new(adoption::Status::new(
         engine
             .store()
-            .meta("store_id")
+            .store_identity()
             .map_err(|e| e.to_string())?
             .unwrap_or_default(),
     ));
     // Keep registration custody in this serving frame, independently of worker Arcs.
     let registration = if dev { Some(crate::dev_hosts::register(&project.root, address,
-        engine.store().meta("store_id").map_err(|e|e.to_string())?.unwrap_or_default(),
+        engine.store().store_identity().map_err(|e|e.to_string())?.unwrap_or_default(),
         matches!(mode, Mode::Dev {fresh:true,..}), host_owner.as_ref().and_then(|o| o.path().ok()).map(std::path::Path::to_path_buf))?) } else {None};
     let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
     let shared = Arc::new(Shared {
@@ -200,7 +200,7 @@ pub fn serve(
                 &project.root,
                 &engine
                     .store()
-                    .meta("store_id")
+                    .store_identity()
                     .map_err(|e| e.to_string())?
                     .unwrap_or_default(),
                 address,

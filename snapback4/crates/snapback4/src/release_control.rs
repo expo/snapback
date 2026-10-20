@@ -471,7 +471,7 @@ mod tests {
         let mut candidate=crate::release_files::Candidate::new(&dir.0,2);
         let result=request_observed(&dir.0,Command::Activate{release:2,expected_release:Some(1),expected_revision:1,digest:"test".into(),rollback:false,restore_dormant:false,allow_feed_adoption:false},|pending|candidate.pending=pending);
         assert!(result.is_err());assert!(candidate.pending);
-        let before=snapback4_core::Store::open_read_only(&dir.0.join("store.sqlite")).unwrap();assert_eq!(before.meta("release").unwrap().as_deref(),Some("1"));drop(before);
+        let before=snapback4_core::Store::open_read_only(&dir.0.join("store.sqlite")).unwrap();assert_eq!(before.release_value().unwrap().as_deref(),Some("1"));drop(before);
         drop(candidate);assert!(root.join("snapback/schema.q").is_file());
         resume.send(()).unwrap();assert_eq!(task.join().unwrap(),2);
         let recovered=crate::project::Project{root}.compile().unwrap();assert!(recovered.diagnostics.is_empty());

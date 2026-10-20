@@ -398,7 +398,7 @@ impl DevWorker {
                 .ok_or("worker ledger needs a file-backed store")?;
             let identity = engine
                 .store()
-                .meta("store_id")
+                .store_identity()
                 .map_err(|e| e.to_string())?
                 .ok_or("worker ledger needs a store identity")?;
             let namespace = format!("{:x}", Sha256::digest(identity.as_bytes()));
@@ -782,12 +782,8 @@ impl DevWorker {
 
     fn record_status(&self, state: &str) {
         let record = serde_json::json!({ "name": self.name.as_deref().unwrap_or("worker"), "source": self.source, "mode": if self.explicit_env { "serve" } else { "dev" }, "state": state, "starts": self.starts, "restarts": self.starts.saturating_sub(1), "crashes": self.crashes, "pid": self.worker_pid });
-        if let Err(error) = lock(&self.shared.engine).store().set_meta(
-            &self
-                .name
-                .as_ref()
-                .map(|name| format!("worker:status:{name}"))
-                .unwrap_or_else(|| "worker:status".into()),
+        if let Err(error) = lock(&self.shared.engine).store().set_worker_status(
+            self.name.as_deref(),
             &record.to_string(),
         ) {
             snapback4_core::diagnostic!("snapback4 worker: cannot record status: {error}");

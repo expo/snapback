@@ -194,7 +194,7 @@ impl Engine {
             if let Some(name)=asset.name {facts["name"]=serde_json::json!(name);}
             intents.push(serde_json::json!({"id":id,"asset":facts,"createdAt":asset.created_at}));
         }
-        let store = tx.meta("store_id")?;
+        let store = tx.store_identity()?;
         tx.rollback()?;
         Ok(serde_json::json!({"intents":intents,"next":next,"store_id":store}))
     }
@@ -263,7 +263,7 @@ impl Engine {
             return Err(unknown());
         }
         // @ref LLP 3000.019#3.5 — a delayed download cannot confer custody in a replacement store.
-        let store_id = tx.meta("store_id")?.ok_or_else(unknown)?;
+        let store_id = tx.store_identity()?.ok_or_else(unknown)?;
         let grant = |once: bool| AssetGrant { store_id: store_id.clone(), home: asset.home.clone(), path: path.clone(), content_type: asset.content_type.clone(), bytes: asset.bytes, once, kind: asset.kind, name: asset.name.clone() };
         let Some((table_name, row_id, column)) = &asset.home else {
             if asset.owner == principal {

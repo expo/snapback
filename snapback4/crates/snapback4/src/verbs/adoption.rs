@@ -101,7 +101,7 @@ fn host_with_legacy(project: &Project, options: &super::Options, legacy: bool) -
     // Older persisted hosts still publish their address through store ownership.
     let path=project.store_path();
     if let Some(address)=legacy.then(||crate::store_owner::inspector_address(&path)).flatten().filter(|a|!hosts.contains_key(a)) {
-        if let Some(id)=Store::open_read_only(&path).ok().and_then(|s|s.meta("store_id").ok().flatten()) {
+        if let Some(id)=Store::open_read_only(&path).ok().and_then(|s|s.store_identity().ok().flatten()) {
             if let Some(mut status)=request(address,"GET","/dev/status").filter(|s|s["project"]==serde_json::json!(root) && s["storeId"]==id && s["temporary"]==false) {
                 status["address"]=serde_json::json!(address.to_string());hosts.insert(address,status);
             }

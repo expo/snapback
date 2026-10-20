@@ -12,7 +12,7 @@ impl Wake {
     pub fn new(engine: &Engine) -> Self {
         Self {
             seq: engine.seq().unwrap_or(0),
-            store_id: engine.store().meta("store_id").unwrap_or(None),
+            store_id: engine.store().store_identity().unwrap_or(None),
             generation: engine.generation(),
             eph: engine.ephemeral_hub().snapshot().expect("new hub"),
         }
@@ -227,7 +227,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
                     .mutate_ephemeral(op, context)
                     .map_err(|e| snapback4_core::engine::seat_refusal(reader.schema(),&e,&principal))
             });
-            let store_id = reader.store().meta("store_id").ok().flatten();
+            let store_id = reader.store().store_identity().ok().flatten();
             if result.is_ok() {
                 lock(&shared.readers).put(&epoch, reader);
             }
@@ -247,7 +247,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
                         .mutate_ephemeral(op, context)
                         .map_err(|e| snapback4_core::engine::seat_refusal(engine.schema(),&e,&principal))
                 })
-                .map(|out| (out, engine.store().meta("store_id").ok().flatten()))
+                .map(|out| (out, engine.store().store_identity().ok().flatten()))
         }
     };
     match result {

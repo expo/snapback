@@ -236,7 +236,7 @@ impl Owner {
 
     pub(crate) fn open_engine(&self, bound: &snapback4_lang::Bound, timeout: Duration, now: i64) -> Result<Engine, RuntimeError> {
         let store = self.open_store(timeout)?;
-        if store.meta("release")?.is_some() {
+        if store.release_value()?.is_some() {
             return Err(RuntimeError::Generation("this store belongs to a deployment; use `deploy` to activate source and `serve` to run it".into()));
         }
         Engine::new_at(store, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), now)

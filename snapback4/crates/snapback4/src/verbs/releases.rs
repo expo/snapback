@@ -117,7 +117,7 @@ fn pointer_current(dir: &Path, database: &Path) -> Result<u64, String> {
     let pointer = pointer.trim().parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing)?;
     bound_at(dir.join("releases").join(pointer.to_string()))?;
     let store = snapback4_core::Store::open_read_only(database).map_err(|e|e.to_string())?;
-    match store.meta("release").map_err(|e|e.to_string())? {
+    match store.release_value().map_err(|e|e.to_string())? {
         Some(value) => value.parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing),
         None => Ok(pointer),
     }
@@ -134,7 +134,7 @@ fn current(dir: &Path, owner: &Owner) -> Result<Option<u64>, String> {
         let store = owner
             .open_store(std::time::Duration::from_secs(5))
             .map_err(|e| e.to_string())?;
-        if let Some(release) = store.meta("release").map_err(|e| e.to_string())? {
+        if let Some(release) = store.release_value().map_err(|e| e.to_string())? {
             return release
                 .parse()
                 .map(Some)
@@ -684,7 +684,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     let clock_offset = options.flags.get("clock-offset").map(|text| crate::dev_clock::offset(text).map_err(|e| e.to_string())).transpose()?.unwrap_or(0);
     if options.flags.contains_key("clock-offset") {
         let store = owner.open_store(std::time::Duration::from_secs(5)).map_err(|e| e.to_string())?;
-        if store.meta("deployment_environment").map_err(|e|e.to_string())?.as_deref() != Some("staging") { return Err(crate::dev_clock::release().to_string()); }
+        if store.deployment_environment().map_err(|e|e.to_string())?.as_deref() != Some("staging") { return Err(crate::dev_clock::release().to_string()); }
     }
     let current = current(&dir, &owner)?.ok_or("no current release; deploy first")?;
     let release = Project {

@@ -1,4 +1,4 @@
-//! SQLite metadata key ownership; generic access stays public for host migration.
+//! SQLite metadata key ownership for the typed server families.
 use super::*;
 use crate::metadata::{DevMetadata, MetadataReader, MetadataWriter, SchemaMarker};
 

@@ -199,7 +199,7 @@ fn barrier(path: &Path, store_id: &str, prime: u64) -> Result<u64> {
     let _owner = crate::store_owner::command(path).map_err(|_| error("E_WITNESS_BACKEND", "cannot acquire backend store; stop its owner and check store permissions"))?;
     let append = || -> std::result::Result<u64, snapback4_core::RuntimeError> {
         let mut store = _owner.open_store(std::time::Duration::from_secs(5))?;
-        if store.meta("store_id")?.as_deref() != Some(store_id) || store.seq()? < prime {
+        if store.store_identity()?.as_deref() != Some(store_id) || store.seq()? < prime {
             return Err(snapback4_core::RuntimeError::Store("smoke backend identity/watermark changed since prime".into()));
         }
         store.record_witness_barrier(|| now() as i64)
@@ -295,7 +295,7 @@ query required(id: heldRows):
         let held = counts(engine.store());
         let row: String = engine.store().conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get(0)).unwrap();
         let before = engine.seq().unwrap();
-        let identity = engine.store().meta("store_id").unwrap().unwrap();
+        let identity = engine.store().store_identity().unwrap().unwrap();
         drop(engine);
         let inherited = {
             let mut owner = crate::store_owner::command(&path).unwrap();

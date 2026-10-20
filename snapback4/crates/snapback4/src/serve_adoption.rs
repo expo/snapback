@@ -143,7 +143,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
         let now = project.sources_stamp();
         let stored_generation = {
             let engine = lock(&shared.engine);
-            engine.store().meta("generation").ok().flatten().and_then(|s| s.parse::<u64>().ok()).unwrap_or(seen_generation)
+            engine.store().generation_value().ok().flatten().and_then(|s| s.parse::<u64>().ok()).unwrap_or(seen_generation)
         };
         if now == stamp && !retry && stored_generation == seen_generation {
             continue;

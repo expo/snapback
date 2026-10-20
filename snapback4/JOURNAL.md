@@ -99649,3 +99649,13 @@ No push, stash, git configuration change, sub-agent, other worktree, remote
 machine, new gate, allowance increase, publication or Postgres host wiring
 was used. The remaining verification limitation is the absent contype='n'
 catalog shape on the supplied 17.9 server, as recorded above.
+## 2026-10-20 — P0-S8, first commit: named host metadata families
+
+Host callers and the two asset-upload identity reads now use S6's typed
+metadata methods. Replay uses named jobs-family setters for schedule boundary
+and shape, preserving their statement order and transaction. Doctor keeps the
+same malformed-boundary parsing. No new key, value or error policy. The
+binary builds; the complete required checks follow after boundary closure.
+The local llp-orient links are broken, so the scoped context was assembled
+from the Snapback 4 rules, root and store-port LLPs and S6/S7 records directly.
+No sub-agents, other worktree, remote commands or push.

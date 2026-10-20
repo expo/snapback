@@ -168,7 +168,7 @@ impl Shared {
     pub fn now(&self) -> i64 { lock(&self.clock).now().max(self.time_audience_clock.load(Ordering::Acquire)) }
     pub(crate) fn refresh_time_audience_clock(&self, engine: &Engine, now: i64) {
         if engine.schema().tables.values().any(|table| table.not_before.is_some()) {
-            let durable = engine.store().meta("time_audience_clock").ok().flatten()
+            let durable = engine.store().time_audience_clock_value().ok().flatten()
                 .and_then(|value| value.parse::<i64>().ok()).unwrap_or(i64::MIN);
             self.time_audience_clock.fetch_max(now.max(durable), Ordering::AcqRel);
         } else {
@@ -811,7 +811,7 @@ fn response_head(engine: &mut Engine) -> Result<(String, u64), Refusal> {
 // the endpoint changes between the client's probe and this transaction.
 fn intent_store(engine: &Engine, payload: &Json) -> Result<(), Refusal> {
     let Some(expected) = payload.get("store_id").filter(|id| !id.is_null()) else { return Ok(()); };
-    let current = engine.store().meta("store_id")?;
+    let current = engine.store().store_identity()?;
     if expected.as_str().is_some_and(|id| Some(id) == current.as_deref()) { return Ok(()); }
     Err(Refusal::new("E_STORE_REPLACED", "store", "the intent belongs to another store; its original outcome is unknown")
         .site("request.store_id").rewrite("reconcile this write with its original store before submitting new intent").guide("sync"))
@@ -1057,7 +1057,7 @@ fn handle(mut request: Request, shared: &Shared) {
             let (auth, environment) = {
                 let engine = producing_engine(shared);
                 let environment = if shared.personas { "development" }
-                    else if engine.store().meta("deployment_environment").ok().flatten().as_deref() == Some("staging") { "staging" } else { "production" };
+                    else if engine.store().deployment_environment().ok().flatten().as_deref() == Some("staging") { "staging" } else { "production" };
                 (engine.schema().auth.clone(), environment)
             };
             // @ref LLP 3000.011.003.000.000#1 — an opt-in proof marker asserts the directly bound server, without granting authority.

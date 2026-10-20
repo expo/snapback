@@ -43,7 +43,7 @@ fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_mete
         assert_eq!(status(&response), 200, "{response}");
         let reply = body(&response);
         assert_eq!(reply["loading"], true);
-        assert_eq!(reply["store_id"], lock(&host.shared.engine).store().meta("store_id").unwrap().unwrap());
+        assert_eq!(reply["store_id"], lock(&host.shared.engine).store().store_identity().unwrap().unwrap());
         assert!(reply.get("data").is_some_and(Json::is_null), "legacy data placeholder");
         assert_eq!(reply["complete"], false, "legacy clients must not cache a complete undefined answer");
         assert_eq!(reply.get("meter").is_some(), dev, "production omits the field entirely");

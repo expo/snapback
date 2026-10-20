@@ -11,14 +11,14 @@ pub fn effects(engine: &Engine, replay: bool) -> Result<(), RuntimeError> {
 
 // @ref LLP 3000.007#20.2 — releasing a dev replay starts schedules at the next boundary, without catch-up.
 pub fn schedules(engine: &mut Engine, held: bool, now: i64) -> Result<(), RuntimeError> {
-    if !held && engine.store().meta("dev:hold-schedules")?.as_deref() != Some("true") { return Ok(()); }
+    if !held && engine.store().dev_value(snapback4_core::metadata::DevMetadata::HoldSchedules)?.as_deref() != Some("true") { return Ok(()); }
     let schedules = engine.schema().schedules.clone();
     let tx = engine.store_mut().transaction()?;
     tx.require_dev_replay_store()?;
     for schedule in schedules {
-        tx.set_meta(&format!("schedule:{}", schedule.name), &schedule.boundary(now).to_string())?;
-        tx.set_meta(&format!("schedule-shape:{}", schedule.name), &snapback4_core::value::digest(&schedule))?;
+        tx.save_schedule_boundary(&schedule.name, schedule.boundary(now))?;
+        tx.save_schedule_shape(&schedule.name, &snapback4_core::value::digest(&schedule))?;
     }
-    tx.set_meta("dev:hold-schedules", if held { "true" } else { "false" })?;
+    tx.set_dev_value(snapback4_core::metadata::DevMetadata::HoldSchedules, if held { "true" } else { "false" })?;
     tx.commit()
 }
