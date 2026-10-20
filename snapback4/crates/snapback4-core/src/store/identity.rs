@@ -434,6 +434,39 @@ impl IdentityStore for Store {
 }
 
 #[cfg(test)]
+impl crate::identity::test_cases::RotationFixture for Store {
+    fn seed_read_family(&self, session: &Session, generation: i64) {
+        insert_read(&self.conn, session, 1_000, Some((&digest(&session.token), generation))).unwrap();
+    }
+    fn drop_read_sessions(&self) {
+        self.conn.execute_batch("DROP TABLE IF EXISTS _read_sessions").unwrap();
+    }
+    fn read_sessions_present(&self) -> bool { present(&self.conn).unwrap() }
+}
+
+#[cfg(test)]
+impl crate::identity::test_cases::IdentityFixture for Store {
+    type Transaction<'a> = Tx<'a>;
+    fn with_identity_tx<T>(&self, run: impl FnOnce(&Tx<'_>) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        let tx = self.authority_transaction()?;
+        let result = run(&tx)?;
+        tx.commit()?;
+        Ok(result)
+    }
+    fn principal_facts(&self, principal: &str) -> Option<(String, Option<String>, i64)> {
+        self.conn.query_row("SELECT kind,name,created_at FROM _principals WHERE id = ?1", [principal], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).optional().unwrap()
+    }
+    fn principal_ids(&self) -> Vec<String> {
+        self.conn.prepare("SELECT id FROM _principals ORDER BY id").unwrap().query_map([], |r| r.get(0)).unwrap().collect::<Result<_, _>>().unwrap()
+    }
+    fn null_full_family(&self, digest: &str) {
+        self.conn.execute("UPDATE _sessions SET family = NULL WHERE token_digest = ?1", [digest]).unwrap();
+    }
+    fn set_worker_meta(&self, key: &str, value: &str) { self.set_meta(key, value).unwrap(); }
+    fn worker_meta(&self, key: &str) -> Option<String> { self.meta(key).unwrap() }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::identity::test_cases;
@@ -456,6 +489,41 @@ mod tests {
     }
 
     #[test]
+    fn shared_diagnostics() {
+        test_cases::assert_diagnostics(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_transaction_contract() {
+        test_cases::assert_transaction_contract(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_mint_bindings() {
+        test_cases::assert_mint_bindings(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_conflicts_and_collation() {
+        test_cases::assert_conflicts_and_collation(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_nulls_counts_and_timestamps() {
+        test_cases::assert_nulls_counts_and_timestamps(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_read_family_isolation() {
+        test_cases::assert_read_family_isolation(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_worker_markers() {
+        test_cases::assert_worker_markers(&Store::memory().unwrap());
+    }
+
+    #[test]
     fn shared_refresh_rollback_cases_run_on_sqlite() {
         test_cases::assert_refresh_rollback(&Store::memory().unwrap());
     }
@@ -469,15 +537,4 @@ mod tests {
     fn shared_worker_family_cases_run_on_sqlite() {
         test_cases::assert_worker_families(&Store::memory().unwrap());
     }
-}
-
-#[cfg(test)]
-impl crate::identity::test_cases::RotationFixture for Store {
-    fn seed_read_family(&self, session: &Session, generation: i64) {
-        insert_read(&self.conn, session, 1_000, Some((&digest(&session.token), generation))).unwrap();
-    }
-    fn drop_read_sessions(&self) {
-        self.conn.execute_batch("DROP TABLE IF EXISTS _read_sessions").unwrap();
-    }
-    fn read_sessions_present(&self) -> bool { present(&self.conn).unwrap() }
 }

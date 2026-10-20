@@ -116,11 +116,12 @@ table children:
     }
     tx.put(&private_target_name, &private_target, &private_row, None).unwrap();
     let group_table = engine.schema.tables["groups"].clone();
-    let mut group = tx.get("groups", "group").unwrap().unwrap();
+    let old_group = tx.get("groups", "group").unwrap().unwrap();
+    let mut group = old_group.clone();
     if let Value::Row(fields) | Value::Map(fields) = &mut group {
         fields.insert("total".into(), Value::Int(41));
     }
-    tx.put("groups", &group_table, &group, None).unwrap();
+    tx.put("groups", &group_table, &group, Some(&old_group)).unwrap();
     tx.execute("UPDATE _backend SET maintained_identity_version=NULL WHERE singleton", &[]).unwrap();
     tx.commit().unwrap();
     drop(engine);

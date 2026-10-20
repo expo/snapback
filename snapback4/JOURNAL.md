@@ -97466,3 +97466,77 @@ is the next separately committed step.
 The two Postgres smoke/fence tests pass on the private PostgreSQL 16.15 cluster
 (2 passed, 0 skipped); that owned cluster was stopped by its exit trap. The
 first round trip includes an expiry beyond 32-bit integer range.
+
+## 2026-10-20 — P1-ID step 3: one identity contract on both adapters
+
+Fourteen adapter-neutral identity cases now cover transaction facts and family
+invalidation, credentials and read/full rotation rollback, each rotation
+refusal, principal insert-ignore, exact credential lookup and byte ordering,
+NULL family fallback, delete row counts, wide integer timestamps and captured
+generations, mint binding persistence/collision rollback, worker isolation and
+markers, and trusted/untrusted diagnostics. SQL and legacy-fixture setup stay
+inside adapters. Diagnostics delegate to the same shared policy helper on both
+stores; the public SQLite entry point and refusal text are unchanged.
+
+Postgres adds four adapter witnesses: session/logout round trip, rejection of
+every transaction-level write without the existing serialized head fence,
+waiting for the head before invoking a mint callback, and installing missing
+identity tables at attach/reopen while preserving session rows and explicit
+C collations on lookup keys. The existing three shared authority tests run
+alongside them. Every database test is explicitly ignored with a named reason
+by the ordinary harness and requires `SNAPBACK4_EVAL_POSTGRES` when opted in;
+missing environment or connection failure cannot count as a pass.
+
+The new worker-marker case reproduced a real translation difference: SQLite
+LIKE removes ASCII-case variants of `worker:family:` and `worker:status:`;
+Postgres LIKE leaves them. Postgres now uses ILIKE on its C-collated metadata
+key for these fixed ASCII prefixes. The case covers both variant family rows
+and variant status keys. Other exercised differences are translated with
+ON CONFLICT DO NOTHING, COALESCE, LEAST, u64 delete counts and BIGINT facts.
+Postgres wraps convenience writes in head-fenced transactions; SQLite's
+pre-existing non-atomic convenience insert/logout primitives retain autocommit.
+Failure atomicity of those primitives is not a shared guarantee; rollback
+assertions exercise the explicit atomic composites and caller-owned transactions.
+
+The first full Postgres-adapter run reached 52 passes and one fixture failure
+in `reopening_legacy_maintained_ids_rebuilds_before_publishing_the_generation`.
+The fixture loads an existing `groups` row and calls `put` with no old row,
+requesting an INSERT and hitting its primary key before the actual reopen
+assertions. Those lines are identical in base `4736ac7f42`. Corrected the
+fixture to pass the captured old row to `put`; no row-store implementation or
+maintained-identity policy changed. The separate planted worker-LIKE
+regression failed as expected before its translation fix.
+
+The complete SQLite core suite passes (integration targets and doctests),
+followed by 30 final identity-filtered passes, including all fourteen shared
+cases. The store-port ratchet passes all five tests. The requested stock
+Clippy command reports the two known deny-by-default lints in `engine/read.rs`
+and `engine/row_views.rs`. A supplementary run allowing just those two lints
+reached the tests and exposed a new fixture-placement warning, fixed by moving
+the test-only implementations before their test module. No code suppressions
+were added. Final Postgres and lint results follow below.
+
+All 53 Postgres adapter tests pass on the private PostgreSQL 16.15 cluster,
+including eighteen identity tests and three authority tests, with zero skips.
+The exact fixture and worker-LIKE fixes both pass. The lint follow-up allowing
+only the two known errors completes; no warning points into the new adapter
+or shared-case/fixture additions. `ref-check --verbose` passes with zero errors/unchecked refs.
+
+The first complete feature-enabled core run stopped before executing
+`tests/dev_reset.rs`: my `cargo clean -p snapback4` (after the host ratchet
+passed) removed the core executable with that shared test-target name while
+the core run was executing earlier targets. This was an agent cleanup error,
+not a failed product test. Rebuilding and rerunning the complete command with
+no further artifact cleanup in flight; the private cluster was stopped by
+its own trap, and the retry starts a new owned cluster.
+
+The complete feature-enabled core retry passes every target and all seventeen
+doctests; its owned PostgreSQL 16.15 cluster stops successfully. The ordinary
+feature run names 48 database-required ignored tests; all are covered by the
+explicit adapter run (53 passed, 0 failed, 0 skipped, including its five
+non-database tests). No absent-database result was counted as a pass. The
+ordinary harness's other ignored tests are pre-existing opt-in measurements
+and scale fixtures, not identity exclusions. No identity outcome remains
+uncertain in the covered cases. Versioned internal migrations, the P1b owner
+fence and a Postgres authentication host remain the separately scoped work
+noted above. No push was performed.

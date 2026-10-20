@@ -1,5 +1,7 @@
 use super::super::WriteMode;
+use super::super::store::{Store, Tx};
 use super::authority_engine;
+use crate::identity::test_cases::{self, IdentityFixture, RotationFixture};
 use crate::{
     authority::AuthorityTransaction,
     identity::{IdentityStore, IdentityTransaction, Session, SessionScope, digest},
@@ -7,7 +9,7 @@ use crate::{
 use std::cell::RefCell;
 
 #[test]
-#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
 fn identity_insert_and_logout_round_trip() {
     let mut engine = authority_engine();
     let session = Session {
@@ -40,7 +42,7 @@ fn identity_insert_and_logout_round_trip() {
 }
 
 #[test]
-#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
 fn identity_transaction_writes_require_the_existing_head_fence() {
     let mut engine = authority_engine();
     let session = Session {
@@ -64,6 +66,262 @@ fn identity_transaction_writes_require_the_existing_head_fence() {
                 .unwrap()
                 .is_none()
         );
+        let record = crate::identity::SessionMintRecord {
+            input_digest: "input".into(),
+            scope: "full".into(),
+            principal: session.principal.clone(),
+            kind: session.kind.clone(),
+            days: 7,
+            expires_at: session.expires_at,
+            family: "family".into(),
+            principal_generation: 0,
+        };
+        for error in [
+            tx.insert_read_session(&session, 1_000, None).unwrap_err(),
+            tx.initialize_mint_binding_scope().unwrap_err(),
+            tx.record_session_mint("invocation", "intent", &record)
+                .unwrap_err(),
+            tx.set_identity_session_family("digest", "family")
+                .unwrap_err(),
+        ] {
+            assert!(error.to_string().contains("serialized shared-head fence"));
+        }
         tx.rollback().unwrap();
     }
+}
+
+impl IdentityFixture for RefCell<&mut Store> {
+    type Transaction<'a> = Tx<'a>;
+    fn with_identity_tx<T>(
+        &self,
+        run: impl FnOnce(&Tx<'_>) -> Result<T, crate::RuntimeError>,
+    ) -> Result<T, crate::RuntimeError> {
+        let mut store = self.borrow_mut();
+        let tx = store.transaction(Some(WriteMode::Serialized))?;
+        let result = run(&tx)?;
+        tx.commit()?;
+        Ok(result)
+    }
+    fn principal_facts(&self, principal: &str) -> Option<(String, Option<String>, i64)> {
+        self.with_identity_tx(|tx| {
+            Ok(tx
+                .query(
+                    "SELECT kind,name,created_at FROM _principals WHERE id = $1",
+                    &[&principal],
+                )?
+                .first()
+                .map(|row| (row.get(0), row.get(1), row.get(2))))
+        })
+        .unwrap()
+    }
+    fn principal_ids(&self) -> Vec<String> {
+        self.with_identity_tx(|tx| {
+            Ok(tx
+                .query("SELECT id FROM _principals ORDER BY id", &[])?
+                .iter()
+                .map(|row| row.get(0))
+                .collect())
+        })
+        .unwrap()
+    }
+    fn null_full_family(&self, digest: &str) {
+        self.with_identity_tx(|tx| {
+            tx.execute(
+                "UPDATE _sessions SET family = NULL WHERE token_digest = $1",
+                &[&digest],
+            )?;
+            Ok(())
+        })
+        .unwrap();
+    }
+    fn set_worker_meta(&self, key: &str, value: &str) {
+        self.with_identity_tx(|tx| { tx.execute("INSERT INTO _meta(key,value) VALUES ($1,$2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", &[&key,&value])?; Ok(()) }).unwrap();
+    }
+    fn worker_meta(&self, key: &str) -> Option<String> {
+        self.with_identity_tx(|tx| {
+            Ok(tx
+                .query("SELECT value FROM _meta WHERE key = $1", &[&key])?
+                .first()
+                .map(|r| r.get(0)))
+        })
+        .unwrap()
+    }
+}
+
+impl RotationFixture for RefCell<&mut Store> {
+    fn seed_read_family(&self, session: &Session, generation: i64) {
+        self.with_identity_tx(|tx| {
+            tx.insert_read_session(session, 1_000, Some((&digest(&session.token), generation)))
+        })
+        .unwrap();
+    }
+    fn drop_read_sessions(&self) {
+        self.with_identity_tx(|tx| tx.batch("DROP TABLE IF EXISTS _read_sessions"))
+            .unwrap();
+    }
+    fn read_sessions_present(&self) -> bool {
+        self.with_identity_tx(|tx| {
+            Ok(tx.query("SELECT to_regclass('_read_sessions') IS NOT NULL", &[])?[0].get(0))
+        })
+        .unwrap()
+    }
+}
+
+macro_rules! shared_case {
+    ($name:ident, $case:ident) => {
+        #[test]
+        #[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+        fn $name() {
+            let mut engine = authority_engine();
+            test_cases::$case(&RefCell::new(&mut engine.store));
+        }
+    };
+}
+shared_case!(shared_diagnostics, assert_diagnostics);
+shared_case!(shared_refresh_rollback, assert_refresh_rollback);
+shared_case!(shared_credential_policy, assert_credential_policy);
+shared_case!(shared_worker_families, assert_worker_families);
+shared_case!(shared_transaction_contract, assert_transaction_contract);
+shared_case!(shared_mint_bindings, assert_mint_bindings);
+shared_case!(
+    shared_conflicts_and_collation,
+    assert_conflicts_and_collation
+);
+shared_case!(
+    shared_nulls_counts_and_timestamps,
+    assert_nulls_counts_and_timestamps
+);
+shared_case!(shared_read_family_isolation, assert_read_family_isolation);
+shared_case!(shared_worker_markers, assert_worker_markers);
+
+macro_rules! refusal_case {
+    ($name:ident, $refusal:ident) => {
+        #[test]
+        #[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+        fn $name() {
+            let mut engine = authority_engine();
+            test_cases::assert_read_rotation_refusal(
+                &RefCell::new(&mut engine.store),
+                test_cases::RotationRefusal::$refusal,
+            );
+        }
+    };
+}
+refusal_case!(shared_read_rotation_expired_refusal, Expired);
+refusal_case!(shared_read_rotation_cap_expired_refusal, CapExpired);
+refusal_case!(
+    shared_read_rotation_stale_generation_refusal,
+    StaleGeneration
+);
+refusal_case!(shared_read_rotation_missing_table_refusal, MissingTable);
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn identity_attach_installs_missing_tables_and_reopens_without_changing_rows() {
+    let mut engine = authority_engine();
+    let name: String = engine
+        .store
+        .client
+        .query_one("SELECT current_schema()", &[])
+        .unwrap()
+        .get(0);
+    let session = Session {
+        principal: "member:legacy".into(),
+        kind: "member".into(),
+        token: "legacy-token".into(),
+        expires_at: 9_000_000_000,
+        scope: SessionScope::Full,
+        cap_expires_at: None,
+    };
+    RefCell::new(&mut engine.store)
+        .insert_identity_session_atomic(&session, 1_000)
+        .unwrap();
+    let tx = engine
+        .store
+        .transaction(Some(WriteMode::Serialized))
+        .unwrap();
+    tx.batch("DROP TABLE _principals, _credentials, _session_mint_bindings, _meta")
+        .unwrap();
+    tx.commit().unwrap();
+    let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private test-postgres.sh database");
+    let mut reopened = super::super::PostgresEngine::open(
+        postgres::Client::connect(&url, postgres::NoTls).unwrap(),
+        &name,
+    )
+    .unwrap();
+    let tx = reopened.store.transaction(None).unwrap();
+    for (table, column) in [
+        ("_principals", "id"),
+        ("_credentials", "principal"),
+        ("_credentials", "email"),
+        ("_session_mint_bindings", "invocation"),
+        ("_session_mint_bindings", "intent"),
+        ("_session_mint_bindings", "principal"),
+        ("_session_mint_bindings", "family"),
+        ("_meta", "key"),
+    ] {
+        let collation: String = tx.query(
+            "SELECT c.collname FROM pg_attribute a JOIN pg_collation c ON c.oid = a.attcollation WHERE a.attrelid = to_regclass($1) AND a.attname = $2", &[&table, &column],
+        ).unwrap()[0].get(0);
+        assert_eq!(collation, "C", "{table}.{column}");
+    }
+    assert_eq!(
+        tx.session_by_digest(&digest(&session.token))
+            .unwrap()
+            .unwrap()
+            .expires_at,
+        session.expires_at
+    );
+    tx.rollback().unwrap();
+    drop(reopened);
+    let mut reopened = super::super::PostgresEngine::open(
+        postgres::Client::connect(&url, postgres::NoTls).unwrap(),
+        &name,
+    )
+    .unwrap();
+    assert_eq!(
+        RefCell::new(&mut reopened.store)
+            .identity_session_expiry(&digest(&session.token))
+            .unwrap(),
+        Some(session.expires_at)
+    );
+}
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn identity_store_writes_wait_for_the_head_before_running_callbacks() {
+    let mut owner = authority_engine();
+    let name: String = owner
+        .store
+        .client
+        .query_one("SELECT current_schema()", &[])
+        .unwrap()
+        .get(0);
+    let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private test-postgres.sh database");
+    let mut peer = super::super::PostgresEngine::open(
+        postgres::Client::connect(&url, postgres::NoTls).unwrap(),
+        &name,
+    )
+    .unwrap();
+    peer.store
+        .client
+        .batch_execute("SET lock_timeout = '50ms'")
+        .unwrap();
+    let held = owner
+        .store
+        .transaction(Some(WriteMode::Serialized))
+        .unwrap();
+    let mut minted = false;
+    assert!(
+        RefCell::new(&mut peer.store)
+            .mint_supervised_child(true, 1_000, 7, || {
+                minted = true;
+                unreachable!("head wait must happen before minting")
+            })
+            .is_err()
+    );
+    assert!(!minted);
+    held.rollback().unwrap();
+    let store = RefCell::new(&mut peer.store);
+    test_cases::assert_worker_families(&store);
 }

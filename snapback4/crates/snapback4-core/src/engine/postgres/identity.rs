@@ -354,13 +354,15 @@ impl IdentityStore for RefCell<&mut Store> {
     }
 
     fn clear_worker_families(&self) -> Result<(), RuntimeError> {
+        // SQLite LIKE folds ASCII case. C-collated ILIKE preserves its marker
+        // prefix matching, while equality on identity keys stays byte-exact.
         write(self, |tx| {
             tx.execute("DELETE FROM _sessions WHERE principal = 'service:worker' AND COALESCE(family,token_digest) = (SELECT value FROM _meta WHERE key = 'worker:session-family')", &[])?;
             tx.execute("DELETE FROM _meta WHERE key IN ('worker:session-family','worker:session-revision')", &[])?;
-            tx.execute("DELETE FROM _sessions WHERE COALESCE(family,token_digest) IN (SELECT substr(key,15) FROM _meta WHERE key LIKE 'worker:family:%')", &[])?;
-            tx.execute("DELETE FROM _meta WHERE key LIKE 'worker:family:%'", &[])?;
+            tx.execute("DELETE FROM _sessions WHERE COALESCE(family,token_digest) IN (SELECT substr(key,15) FROM _meta WHERE key ILIKE 'worker:family:%')", &[])?;
+            tx.execute("DELETE FROM _meta WHERE key ILIKE 'worker:family:%'", &[])?;
             tx.execute(
-                "DELETE FROM _meta WHERE key = 'worker:status' OR key LIKE 'worker:status:%'",
+                "DELETE FROM _meta WHERE key = 'worker:status' OR key ILIKE 'worker:status:%'",
                 &[],
             )?;
             Ok(())
