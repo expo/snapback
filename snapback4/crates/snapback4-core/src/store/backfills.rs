@@ -590,11 +590,13 @@ fn restore_snapshot(tx:&Tx<'_>)->Result<(),RuntimeError>{
 // arguments, point lookups and lookup indexes. Null is a temporary source-view
 // marker; the saved physical image is restored before committing any patch.
 fn mask_unprovided(tx:&Tx<'_>)->Result<(),RuntimeError>{
-    let mut q=tx.conn().prepare("SELECT DISTINCT r.t,r.id,octet_length(r.data) FROM r JOIN temp._backfill_unprovided m ON m.t=r.t AND m.id=r.id ORDER BY r.t,r.id")?;
-    let mut rows=q.query([])?;
-    while let Some(r)=rows.next()? {
-        let t:i64=r.get(0)?;let id:String=r.get(1)?;
-        let mut meter=Meter::new(Ceilings::job(),Cut::Abort);meter.heap((r.get::<_,i64>(2)?.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
+    // @ref LLP 3000.000.000#191-declared-old-views-and-renames — close each source cursor before mutating its physical image.
+    let mut after=(i64::MIN,String::new());
+    loop {
+        let next:Option<(i64,String,i64)>=tx.conn().query_row("SELECT r.t,r.id,octet_length(r.data) FROM r WHERE (r.t,r.id)>(?1,?2) AND EXISTS(SELECT 1 FROM temp._backfill_unprovided m WHERE m.t=r.t AND m.id=r.id) ORDER BY r.t,r.id LIMIT 1",params![after.0,after.1],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
+        let Some((t,id,bytes))=next else{break};
+        after=(t,id.clone());
+        let mut meter=Meter::new(Ceilings::job(),Cut::Abort);meter.heap((bytes.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
         let data:String=tx.conn().query_row("SELECT data FROM r WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0))?;let mut row:Value=decode(&data)?;
         tx.conn().execute("INSERT OR IGNORE INTO temp._backfill_originals SELECT t,id,data FROM r WHERE t=?1 AND id=?2",params![t,id])?;
         if let Value::Row(fields)|Value::Map(fields)=&mut row {

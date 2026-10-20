@@ -21,9 +21,9 @@ fn proposals(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
         RuleExpr::Exists{table,key,equalities,..} if key.iter().chain(equalities.iter().map(|(_,v)|v)).any(|v|matches!(v,RuleTerm::Viewer))=>{out.insert(table.clone());},
         RuleExpr::And(xs)|RuleExpr::Or(xs)=>for r in xs{grants(r,out)},RuleExpr::Not(r)=>grants(r,out),_=>{}
     }}
-    for t in bound.schema.tables.values(){grants(&t.rules.read,&mut grant_tables);}
+    for t in bound.schema.tables.values(){for rule in std::iter::once(&t.rules.read).chain(t.column_reads.values()){grants(rule,&mut grant_tables);}}
     let counts=bound.schema.visible_tables().filter(|(table,_)|bound.schema.maintain_for(table).is_none()).map(|(table,t)|{
-        let own=people.iter().filter(|(roster,_,_,_)|roster==table).count();(table.clone(),if own>0{own}else if grant_tables.contains(table)||t.rules.read.any_term(&|term|matches!(term,RuleTerm::Field(c) if t.columns.get(c).is_some_and(|k|matches!(k.required(),C::Principal)))){people.len().max(1usize<<t.columns.values().filter(|k|matches!(k.required(),C::Principal)).count().min(3))}else{t.columns.values().filter_map(|k|if let C::Enum{variants}=k.required(){Some(variants.len())}else{None}).max().unwrap_or(2).max(1usize<<t.columns.values().filter(|k|matches!(k.required(),C::Principal)).count().min(3)).clamp(2,8)})
+        let own=people.iter().filter(|(roster,_,_,_)|roster==table).count();(table.clone(),if own>0{own}else if grant_tables.contains(table)||std::iter::once(&t.rules.read).chain(t.column_reads.values()).any(|rule|rule.any_term(&|term|matches!(term,RuleTerm::Field(c) if t.columns.get(c).is_some_and(|k|matches!(k.required(),C::Principal))))){people.len().max(1usize<<t.columns.values().filter(|k|matches!(k.required(),C::Principal)).count().min(3))}else{t.columns.values().filter_map(|k|if let C::Enum{variants}=k.required(){Some(variants.len())}else{None}).max().unwrap_or(2).max(1usize<<t.columns.values().filter(|k|matches!(k.required(),C::Principal)).count().min(3)).clamp(2,8)})
     }).collect::<BTreeMap<_,_>>();
     let mut rows=BTreeMap::new();
     for (table,t) in bound.schema.visible_tables(){
@@ -92,7 +92,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             RuleExpr::Exists{table,index,key,equalities,..} if table==name&&key.iter().chain(equalities.iter().map(|(_,v)|v)).any(|v|matches!(v,RuleTerm::Viewer))=>super::super::privilege::probe_pairs(bound,table,index,key,equalities).iter().any(|(c,v)|columns.contains(c)&&matches!(v,RuleTerm::Literal(Value::String(_)))),
             RuleExpr::And(xs)|RuleExpr::Or(xs)=>xs.iter().any(|r|used(bound,r,name,columns)),RuleExpr::Not(r)=>used(bound,r,name,columns),_=>false,
         }}
-        !columns.is_empty()&&bound.schema.tables.values().any(|t|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].iter().any(|r|used(bound,r,name,&columns)))
+        !columns.is_empty()&&bound.schema.tables.values().any(|t|[&t.rules.read,&t.rules.insert,&t.rules.update,&t.rules.delete].into_iter().chain(t.column_reads.values()).any(|r|used(bound,r,name,&columns)))
     }
     let rosters=bound.schema.visible_tables().filter(|(name,_)|authority_roster(bound,name)).map(|(name,_)|name.clone()).collect::<BTreeSet<_>>();
     let creators=bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native&&!bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral)&&ir::write_tables(&p.program).iter().any(|(_,kind)|matches!(*kind,"insert"|"upsert"))).collect::<Vec<_>>();

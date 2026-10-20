@@ -65,11 +65,12 @@ pub(super) fn summary(report:&Report,verbose:bool){
 
 /// A rule-changing preflight demands a current campaign, without pretending
 /// finite tests or undeclared intent certify a deployment.
-pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,String)],prior:Option<&Bound>,options:&Options){
-    let changed=prior.is_some_and(|old|bound.schema.tables.iter().any(|(name,t)|old.schema.tables.get(name).is_none_or(|o|serde_json::to_value(&o.rules).ok()!=serde_json::to_value(&t.rules).ok()))||old.schema.tables.keys().any(|t|!bound.schema.tables.contains_key(t)));
-    if !changed{return;}
+pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,String)],prior:Option<&Bound>,options:&Options)->Option<String>{
+    let changed=prior.is_some_and(|old|bound.schema.tables.iter().any(|(name,t)|old.schema.tables.get(name).is_none_or(|o|serde_json::to_value((&o.rules,&o.column_reads,&o.written_by)).ok()!=serde_json::to_value((&t.rules,&t.column_reads,&t.written_by)).ok()))||old.schema.tables.keys().any(|t|!bound.schema.tables.contains_key(t)));
+    if !changed{return None;}
     let report=security::analyze(bound);exposure(&report);
-    eprintln!("{}",release_notice(project,bound,sources,options));
+    let notice=release_notice(project,bound,sources,options);
+    eprintln!("{notice}");Some(notice)
 }
 fn release_notice(project:&Project,bound:&Bound,sources:&[(String,String)],options:&Options)->String{
     let selection=options.flags.get("schema").map(|s|format!(" --source {s:?}")).unwrap_or_default();

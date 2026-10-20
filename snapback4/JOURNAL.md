@@ -97106,3 +97106,17 @@ existing types card. The decoder now keeps structured error categories; the
 server preserves types for conversions and programs for signature mistakes,
 without changing the expected wire trace. Latest device measurement after
 that refactor is 2,387,155 B raw / 727,383 B gzip, still below 727,513.
+
+
+## 2026-10-20 — Integration 19 composition
+
+QRY, DX4, SEC4, COLR and DORM merge in that order for 0.4.35. Column-only gates
+participate in generated security rosters, privilege discovery and rule-change
+preflight. Deploy JSON carries security guidance alongside old-client contracts,
+visibility and backfills. Cross-lane tests combine effective cell authority,
+argument aliases, scalar renames, explicit down projections and old-source writes.
+The combined migration test found a mutable DISTINCT cursor during absence masking;
+closed keyset reads preserve the exact source image without changing migration law.
+Guide changes and LLP3000.037 §20.3 record existing-app/store effects and the
+wave19 day-two analysis. Verification and wasm measurement are recorded separately.
+No push or publication.

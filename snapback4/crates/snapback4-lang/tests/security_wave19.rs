@@ -191,3 +191,13 @@ fn implicit_insert_and_lowered_upsert_values_cannot_invent_column_alternates(){
  let b=bind("table docs:\n  principal: principal\n  body: int default 0\n  unique principal\n  immutable body\n  read <- allow\n  insert <- allow\n  online only\nmutation create(body: int):\n  upsert docs[viewer] {body}\n  return null\nquery publicIds():\n  return docs where .body = 0 first 50 by .id {id}\ninvariant docs.body read only deny\n");
  let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);assert!(c.violations.iter().any(|v|v.operation=="publicIds"&&v.reachability==Reachability::GeneratedFixtureTrace),"{c:?}");
 }
+
+#[test]
+fn column_only_role_gates_generate_the_real_roster_and_preserve_private_payloads(){
+ let source="table seats:\n  principal: principal\n  clearance: text <=20\n  unique principal\n  read <- allow\n  insert <- viewer = 'service:operator'\n  online only\ntable docs:\n  secret: text <=40 read <- exists seats[viewer,clearance = 'doctor']\n  public\n  insert <- allow\n  online only\nmutation add(secret: text <=40):\n  return insert docs {secret}\nquery all():\n  return docs first 50 by .id\ninvariant docs.secret read only exists seats[viewer,clearance = 'doctor']\n";
+ let b=bind(source);let mut c=Campaign::default();let e=challenges::generated_fixture(&b,&mut c).unwrap();
+ assert!(e.store().rows("seats").unwrap().iter().any(|r|r.field("clearance")==Ok(&Value::String("doctor".into()))),"{c:?}");
+ assert!(!e.store().rows("docs").unwrap().is_empty(),"{c:?}");
+ challenges::fixture_observers(&b,&e,&mut c);assert!(c.violations.is_empty(),"{c:?}");
+ let report=security::analyze(&b);let exposure=report.exposures.iter().find(|e|e.table=="docs").unwrap();assert!(exposure.column_audiences["secret"].contains("doctor"));assert!(exposure.grants.iter().any(|g|g.table=="seats"));
+}

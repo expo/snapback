@@ -660,3 +660,28 @@ fn column_rules_preserve_the_preexisting_sequence_allocation_read_guard() {
     assert_eq!(result.field("ordinal").unwrap(),&Value::Int(1));
     assert!(result.field("secret").is_err());
 }
+
+#[test]
+fn protected_scalar_rename_reverse_projection_and_argument_alias_survive_two_release_cycles(){
+ let v1="table records:\n  owner: principal\n  body: text <=80\n  legacy: text <=80 ?\n  public\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  online only\nquery one(id: records):\n  return records[id]\nmutation add(reason: text <=80):\n  return insert records {owner: viewer,body: reason,legacy: null}\n";
+ let v2="table records:\n  owner: principal\n  secret: text <=80 renamed from body read <- .owner = viewer\n  public\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  online only\nquery one(id: records):\n  return records[id]\nmutation add(explanation: text <=80 alias reason):\n  return insert records {owner: viewer,secret: explanation}\ndown records oldView(secret: text <=80): {legacy:secret}\ninvariant records.secret read only .owner = viewer\n";
+ let b=clean(v1);let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+ let b=clean(v1);e.adopt_release_at(b.schema,b.programs.into_iter().map(|p|p.program),&snapback4_core::engine::release::ReleaseActivation::new(1,None),true,1_800_000_000_000).unwrap();
+ for cycle in 0..2 {
+  let b=clean(v2);let mut a=snapback4_core::engine::release::ReleaseActivation::new(2,Some(1));a.restore_dormant=true;
+  e.adopt_release_at(b.schema,b.programs.into_iter().map(|p|p.program),&a,true,1_800_000_000_000).unwrap();
+  let text=format!("private-{cycle}");let mut ctx=context("alice");ctx.args.insert("reason".into(),Value::String(text.clone()));
+  let sent=e.mutate("add",None,ctx).unwrap();let WriteState::Sent{result,..}=sent.state else{panic!("{sent:?}")};let key=result.field("id").unwrap().clone();
+  let query=|viewer:&str|{let mut c=context(viewer);c.args.insert("id".into(),key.clone());c};
+  assert!(e.query("one",query("bob")).unwrap().data.field("secret").is_err());
+  let b=clean(v1);let mut a=snapback4_core::engine::release::ReleaseActivation::new(1,Some(2));a.restore_dormant=true;
+  e.adopt_release_at(b.schema,b.programs.into_iter().map(|p|p.program),&a,true,1_800_000_000_000).unwrap();
+  let old=e.query("one",query("bob")).unwrap().data;
+  assert_eq!(old.field("body").unwrap(),&Value::String(text.clone()));assert_eq!(old.field("legacy").unwrap(),&Value::String(text.clone()));
+  let mut ctx=context("alice");ctx.args.insert("reason".into(),Value::String(format!("old-{cycle}")));assert!(matches!(e.mutate("add",None,ctx).unwrap().state,WriteState::Sent{..}));
+  let b=clean(v2);let mut a=snapback4_core::engine::release::ReleaseActivation::new(2,Some(1));a.restore_dormant=true;
+  e.adopt_release_at(b.schema,b.programs.into_iter().map(|p|p.program),&a,true,1_800_000_000_000).unwrap();
+  assert_eq!(e.query("one",query("alice")).unwrap().data.field("secret").unwrap(),&Value::String(text));
+  assert!(e.query("one",query("bob")).unwrap().data.field("secret").is_err());
+ }
+}

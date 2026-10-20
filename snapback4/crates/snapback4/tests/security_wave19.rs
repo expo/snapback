@@ -77,3 +77,15 @@ fn password_only_ephemeral_auth_refusals_pass_the_real_security_campaign(){
  let app=App::new();app.write("snapback/schema.q","use identity password\ntable docs:\n  read <- allow\n  online only\ntable pulses:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  ephemeral 4s\nquery alive():\n  return true\nmutation ping():\n  upsert pulses[viewer] {}\n");
  let out=app.run(&["test"]);let body=text(&out);assert!(out.status.success(),"{body}");assert!(body.contains("security unauthenticated serve HTTP: 7 attempts refused"),"{body}");assert!(body.contains("security live-session revocation HTTP: 14 attempts refused"),"{body}");assert!(!body.contains("security HTTP failure"),"{body}");
 }
+
+#[test]
+fn column_only_policy_change_is_in_the_combined_json_release_preview(){
+ let app=App::new();let source="table docs:\n  owner: principal\n  secret: text <=40\n  public\n  online only\nquery one(id: docs):\n  return docs[id]\n";
+ app.write("snapback/schema.q",source);let out=app.run(&["deploy","deployment"]);assert!(out.status.success(),"{}",text(&out));
+ app.write("snapback/schema.q",&source.replace("secret: text <=40","secret: text <=40 read <- .owner = viewer"));
+ let out=app.run(&["deploy","deployment","--check","--json"]);assert!(out.status.success(),"{}",text(&out));
+ let report:serde_json::Value=serde_json::from_slice(&out.stdout).unwrap();
+ assert!(report["security"].as_str().unwrap().contains("run `snapback4 test`"),"{report}");
+ for field in ["visibility","rollbackVisibility","clientCompatibility","backfills"]{assert!(report.get(field).is_some(),"{field}: {report}");}
+ assert!(report["clientCompatibility"].as_array().unwrap().iter().any(|x|x.as_str().unwrap().contains("RESULT REVIEW")),"{report}");
+}

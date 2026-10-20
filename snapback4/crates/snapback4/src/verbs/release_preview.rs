@@ -198,7 +198,7 @@ pub(super) fn preview(
         eprintln!("bridge starter written to {path}; edit its current source and follow ROLLBACK-CHECKLIST.md before activation");
     }
     if options.json {
-        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"visibility":visibility,"rollbackVisibility":rollback_visibility,"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary(),"backfills":engine.store().adoption_report.backfills})).unwrap());
+        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"security":options.flags.get("security-summary"),"visibility":visibility,"rollbackVisibility":rollback_visibility,"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary(),"backfills":engine.store().adoption_report.backfills})).unwrap());
     } else {
         if !options.flags.contains_key("deploy-direction") {
             for line in visibility.lines(held["release"].as_u64().unwrap_or(0),release) {println!("{line}");}

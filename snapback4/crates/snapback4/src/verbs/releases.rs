@@ -371,10 +371,10 @@ pub fn deploy(options: &Options) -> i32 {
             } else {
                 held["release"].as_u64()
             };
-            {
+            let security_summary={
                 let prior=previous.map(|n|bound_at(dir.join("releases").join(n.to_string()))).transpose()?;
-                super::security::release_loop(&project,&bound,&sources,prior.as_ref(),options);
-            }
+                super::security::release_loop(&project,&bound,&sources,prior.as_ref(),options)
+            };
             let revision = held["revision"].as_u64().unwrap_or(0);
             check_change(&dir, previous, &bound, options, None)?;
             let releases = dir.join("releases").canonicalize().map_err(|e| e.to_string())?;
@@ -438,6 +438,7 @@ pub fn deploy(options: &Options) -> i32 {
             }
             if let Some(n) = matched {
                 let mut preview_options=options.clone();
+                if let Some(summary)=&security_summary {preview_options.flags.insert("security-summary".into(),summary.clone());}
                 preview_options.flags.insert("deploy-direction".into(),String::new());
                 preview_options.flags.insert("restore-dormant".into(),String::new());
                 if !checking { preview_options.flags.insert("validation-only".into(),String::new()); }
@@ -451,7 +452,8 @@ pub fn deploy(options: &Options) -> i32 {
             let mut n=std::fs::read_dir(&releases).map_err(|e|e.to_string())?.filter_map(Result::ok).filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok()).max().unwrap_or(0);
             let staged_bound = bound_at(stage.clone())?;
             if options.flags.contains_key("check") {
-                let mut preview_options=options.clone();preview_options.flags.insert("deploy-direction".into(),String::new());
+                let mut preview_options=options.clone();
+                if let Some(summary)=&security_summary {preview_options.flags.insert("security-summary".into(),summary.clone());}preview_options.flags.insert("deploy-direction".into(),String::new());
                 let result=super::release_preview::preview(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&preview_options,None);
                 let _=std::fs::remove_dir_all(&stage);
                 return result;
