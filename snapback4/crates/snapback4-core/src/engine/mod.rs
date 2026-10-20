@@ -17,6 +17,10 @@ pub mod admission;
 mod asset_columns;
 #[cfg(feature = "sqlite")]
 mod asset_uploads;
+#[cfg(feature = "sqlite")]
+pub(crate) mod committer;
+#[cfg(feature = "sqlite")]
+use committer::{Committer, Kind, Member};
 pub mod components;
 #[cfg(feature = "sqlite")]
 mod effect_steps;
@@ -932,7 +936,8 @@ impl Engine {
                 Err(error) => Err(error),
             };
         }
-        let tx = self.store.transaction()?;
+        Committer::run(Member::new(Kind::Program, |commit| {
+        let tx = commit.transaction(&mut self.store)?;
         if let Some(op) = op
             && let Some(outcome) = tx.replay_bound(&context.viewer, op, name, &wire_args)?
         {
@@ -1057,8 +1062,9 @@ impl Engine {
             tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.receipt(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
             tx.bind_applied(&viewer, op, name, &wire_args, now)?;
         }
-        tx.commit()?;
+        commit.commit(tx)?;
         Ok(outcome)
+        }))
     }
 
     /// Write rows as the system principal: rules are bypassed, validation,
