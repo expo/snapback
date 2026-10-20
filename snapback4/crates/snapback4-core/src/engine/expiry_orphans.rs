@@ -1,5 +1,7 @@
 //! Explicit recovery for physically missing expiry parents; absence has no provenance.
 // @ref LLP 3000.039#13-wave-13-expiry-orphan-recovery — inspect without writes; only an operator-selected missing identity can trigger recovery.
+use super::committer::{Committer, Kind, Member};
+
 use super::{Engine, Runner, time_audience};
 use crate::{Context, Value, error::RuntimeError, meter::{Ceilings, Cut, Meter}, schema::{BY_ID, Schema}, store::{Bounds, Dir}};
 use std::collections::BTreeSet;
@@ -47,25 +49,27 @@ impl Engine {
         if id.is_empty() || !eligible(&self.schema, parent) {
             return Err(RuntimeError::Schema("expiry orphan recovery needs an expiring parent table with cascade or set-null references and a nonempty id".into()));
         }
-        let tx = self.store.transaction()?;
-        if tx.get(parent, id)?.is_some() {
-            return Err(RuntimeError::Schema("expiry orphan recovery requires a physically missing parent; an existing expired parent uses the ordinary sweep".into()));
-        }
-        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
-        let seq = tx.next_seq()?;
-        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-        let identity = crate::value::object([("id", Value::Id(id.into()))]);
-        runner.apply_missing_reference_actions(parent, &identity)?;
-        let events = runner.events.take();
-        let tables = runner.written_tables.iter().cloned().collect::<Vec<_>>();
-        let written = runner.rows_written;
-        drop(runner);
-        if written > 0 {
-            tx.record_commit(seq, now, "repair expiry orphan", crate::SYSTEM_PRINCIPAL, &format!("{parent}:{id}"), &tables, written)?;
-            super::partition::append(&tx, seq, &events)?;
-        }
-        tx.commit()?;
-        Ok(written)
+        Committer::run(Member::new(Kind::Engine, |commit| {
+            let tx = commit.open(&mut self.store)?;
+            if tx.get(parent, id)?.is_some() {
+                return Err(RuntimeError::Schema("expiry orphan recovery requires a physically missing parent; an existing expired parent uses the ordinary sweep".into()));
+            }
+            let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
+            let seq = tx.next_seq()?;
+            let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            let identity = crate::value::object([("id", Value::Id(id.into()))]);
+            runner.apply_missing_reference_actions(parent, &identity)?;
+            let events = runner.events.take();
+            let tables = runner.written_tables.iter().cloned().collect::<Vec<_>>();
+            let written = runner.rows_written;
+            drop(runner);
+            if written > 0 {
+                tx.record_commit(seq, now, "repair expiry orphan", crate::SYSTEM_PRINCIPAL, &format!("{parent}:{id}"), &tables, written)?;
+                super::partition::append(&tx, seq, &events)?;
+            }
+            commit.commit(tx)?;
+            Ok(written)
+        }))
     }
 }
 

@@ -28,12 +28,26 @@ impl<F> Member<F> {
     }
 }
 
+/// A successful commit's continuation, kept across adapter/engine layers so
+/// their hooks can run at the original point without holding a writer borrow.
+pub(crate) struct Committed<T>(T);
+impl<T> Committed<T> {
+    pub(crate) fn after_commit<R>(self, hook: impl FnOnce(T) -> R) -> Committed<R> {
+        Committed(hook(self.0))
+    }
+    pub(crate) fn into_inner(self) -> T {
+        self.0
+    }
+}
+
 pub(crate) trait CommitTransaction {
     fn commit_transaction(self) -> Result<(), RuntimeError>;
 }
 
 impl CommitTransaction for Tx<'_> {
-    fn commit_transaction(self) -> Result<(), RuntimeError> { self.commit() }
+    fn commit_transaction(self) -> Result<(), RuntimeError> {
+        self.commit()
+    }
 }
 
 /// A member-scoped boundary. The body selects the original commit point and
@@ -45,21 +59,29 @@ pub(crate) struct Committer {
 }
 
 impl Committer {
-    pub(crate) fn run<T>(member: Member<impl FnOnce(&mut Self) -> Result<T, RuntimeError>>) -> Result<T, RuntimeError> {
+    pub(crate) fn run<T>(
+        member: Member<impl FnOnce(&mut Self) -> Result<T, RuntimeError>>,
+    ) -> Result<T, RuntimeError> {
         let Member { kind, run } = member;
         // K0a deliberately has no kind-dependent scheduling, queue, batching,
         // revision allocation or retries. Every member runs in place, alone.
         let _kind = kind;
-        run(&mut Self { opened: false, committed: false })
+        run(&mut Self {
+            opened: false,
+            committed: false,
+        })
     }
 
-    pub(crate) fn transaction<'a>(&mut self, store: &'a mut Store) -> Result<Tx<'a>, RuntimeError> {
+    pub(crate) fn open<'a>(&mut self, store: &'a mut Store) -> Result<Tx<'a>, RuntimeError> {
         self.open_with(|| store.transaction())
     }
 
     /// Activation must prepare its raw transaction before constructing a Tx
     /// over the candidate catalog. Invoke its adapter's original opener.
-    pub(crate) fn open_with<X>(&mut self, open: impl FnOnce() -> Result<X, RuntimeError>) -> Result<X, RuntimeError> {
+    pub(crate) fn open_with<X>(
+        &mut self,
+        open: impl FnOnce() -> Result<X, RuntimeError>,
+    ) -> Result<X, RuntimeError> {
         assert!(!self.opened, "one transaction per reference member");
         let tx = open()?;
         self.opened = true;
@@ -67,16 +89,30 @@ impl Committer {
     }
 
     pub(crate) fn commit(&mut self, tx: impl CommitTransaction) -> Result<(), RuntimeError> {
-        assert!(self.opened && !self.committed, "one commit per reference member");
+        assert!(
+            self.opened && !self.committed,
+            "one commit per reference member"
+        );
         tx.commit_transaction()?;
         self.committed = true;
         Ok(())
     }
 
+    pub(crate) fn committed<T>(&self, value: T) -> Committed<T> {
+        assert!(
+            self.committed,
+            "commit acknowledgement requires a successful commit"
+        );
+        Committed(value)
+    }
+
     /// Register and run the next post-commit hook. Inline execution preserves
     /// today's ordering relative to subsequent reads, wakeups and fallible work.
     pub(crate) fn after_commit<T>(&self, hook: impl FnOnce() -> T) -> T {
-        assert!(self.committed, "post-commit hook requires a successful commit");
+        assert!(
+            self.committed,
+            "post-commit hook requires a successful commit"
+        );
         hook()
     }
 }
@@ -90,7 +126,11 @@ mod tests {
     impl CommitTransaction for Transaction<'_> {
         fn commit_transaction(self) -> Result<(), RuntimeError> {
             self.0.borrow_mut().push("commit");
-            if self.1 { Ok(()) } else { Err(RuntimeError::Store("commit failed".into())) }
+            if self.1 {
+                Ok(())
+            } else {
+                Err(RuntimeError::Store("commit failed".into()))
+            }
         }
     }
 
@@ -106,10 +146,32 @@ mod tests {
             commit.commit(tx)?;
             commit.after_commit(|| events.borrow_mut().push("first"));
             commit.after_commit(|| events.borrow_mut().push("second"));
-            Ok(7)
-        })).unwrap();
+            Ok(commit.committed(7))
+        }))
+        .unwrap();
+        let value = value
+            .after_commit(|value| {
+                events.borrow_mut().push("adapter hook");
+                value
+            })
+            .after_commit(|value| {
+                events.borrow_mut().push("engine hook");
+                value
+            })
+            .into_inner();
         assert_eq!(value, 7);
-        assert_eq!(*events.borrow(), ["open", "body", "commit", "first", "second"]);
+        assert_eq!(
+            *events.borrow(),
+            [
+                "open",
+                "body",
+                "commit",
+                "first",
+                "second",
+                "adapter hook",
+                "engine hook"
+            ]
+        );
     }
 
     #[test]
@@ -118,11 +180,17 @@ mod tests {
             let events = RefCell::new(Vec::new());
             let result = Committer::run(Member::new(Kind::Direct, |commit| {
                 let tx = commit.open_with(|| {
-                    if mode == 2 { return Err(RuntimeError::Store("open failed".into())); }
+                    if mode == 2 {
+                        return Err(RuntimeError::Store("open failed".into()));
+                    }
                     Ok(Transaction(&events, mode != 3))
                 })?;
-                if mode == 0 { return Ok(()); }
-                if mode == 1 { return Err(RuntimeError::Store("body failed".into())); }
+                if mode == 0 {
+                    return Ok(());
+                }
+                if mode == 1 {
+                    return Err(RuntimeError::Store("body failed".into()));
+                }
                 commit.commit(tx)?;
                 commit.after_commit(|| events.borrow_mut().push("hook"));
                 Ok(())

@@ -23,7 +23,7 @@ pub(crate) trait DevResetStore {
         inventory_assets: impl FnOnce(&crate::store::Tx<'_>) -> Result<Vec<String>, RuntimeError>,
         prime_schedules: impl FnOnce(&crate::store::Tx<'_>, i64) -> Result<(), RuntimeError>,
         seed: impl FnOnce(&crate::store::Tx<'_>, u64, i64) -> Result<u64, RuntimeError>,
-    ) -> Result<ResetState, RuntimeError>;
+    ) -> Result<Committed<ResetState>, RuntimeError>;
 }
 
 /// What a development reset did. The caller unlinks `assets` after the
@@ -52,7 +52,7 @@ impl Engine {
         // Like adoption: no ephemeral program runs across the identity change.
         drop(self.ephemeral.lock()?);
         let schema = &self.schema;
-        let ResetState { previous_store_id, store_id, seq, seeded, assets } = self.store.dev_reset(
+        let committed = self.store.dev_reset(
             |tx| time_audience::pin_writer_time(schema, tx, now),
             |tx| tx.asset_ids(),
             |tx, now| {
@@ -69,11 +69,13 @@ impl Engine {
                 seed_rows(schema, tx, rows, now)
             },
         )?;
-        // A new store identity starts a fresh bounded expiry walk. Clear only
-        // after commit so a refused reset keeps the old store's continuation.
-        self.expiry_after.clear();
-        self.timeline_schedule = timeline::Schedule::default();
-        self.ephemeral.rebind_committed(store_id.clone(), self.generation, &self.schema);
-        Ok(DevReset { previous_store_id, store_id, seq, seeded, assets: assets::AssetSweep::named(assets, self.store.assets_dir()) })
+        Ok(committed.after_commit(|ResetState { previous_store_id, store_id, seq, seeded, assets }| {
+            // A new store identity starts a fresh bounded expiry walk. Clear only
+            // after commit so a refused reset keeps the old store's continuation.
+            self.expiry_after.clear();
+            self.timeline_schedule = timeline::Schedule::default();
+            self.ephemeral.rebind_committed(store_id.clone(), self.generation, &self.schema);
+            DevReset { previous_store_id, store_id, seq, seeded, assets: assets::AssetSweep::named(assets, self.store.assets_dir()) }
+        }).into_inner())
     }
 }
