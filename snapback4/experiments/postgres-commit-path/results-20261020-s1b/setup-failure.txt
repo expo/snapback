@@ -1,0 +1,1 @@
+Setup-only failure before database creation: local bind on 56034 returned Address already in use. All 35 recorded tunnel processes were stopped (cleanup.json). No benchmark cells ran. Retained unchanged. The next run uses 62000..62143, outside this host's ephemeral range 32768..60999, with identical workload/timing/durability.

@@ -46,8 +46,7 @@ pub(super) fn preview(
     if store_path.exists() {
     let source = snapback4_core::Store::open_read_only(store_path).map_err(|e| e.to_string())?;
     source
-        .conn()
-        .execute("VACUUM INTO ?1", [path.to_string_lossy().as_ref()])
+        .snapshot_to(&path)
         .map_err(|e| {
             format!("snapshot preview failed (retry after store/disk becomes available): {e}")
         })?;
@@ -83,7 +82,7 @@ pub(super) fn preview(
     let candidate_programs:std::collections::BTreeMap<_,_>=bound.programs.iter().map(|p|(p.program.name.clone(),p.program.clone())).collect();
     let mut hazards=Vec::new();
     let mut notes=Vec::new();
-    let prior:Option<(String,String)>=store.conn().query_row("SELECT schema,programs FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')",[],|r|Ok((r.get(0)?,r.get(1)?))).ok();
+    let prior:Option<(String,String)>=store.inspection_generation().ok();
     let prior_schema=prior.as_ref().map(|(schema,_)|serde_json::from_str::<snapback4_core::Schema>(schema).map_err(|e|e.to_string())).transpose()?;
     if let Some((schema,programs))=prior {
         let prior:snapback4_core::Schema=serde_json::from_str(&schema).map_err(|e|e.to_string())?;
@@ -99,7 +98,7 @@ pub(super) fn preview(
         let (behavior_warnings, behavior_notes) = super::release_narration::behavior(store_path, &store, &prior, &candidate_schema, &programs, &candidate_programs, &project, held["release"].as_u64(), &target_label, rollback)?;
         hazards.extend(behavior_warnings); notes.extend(behavior_notes);
         for name in prior.tables.keys().filter(|name|!candidate_schema.tables.contains_key(*name) && prior.maintain_for(name).is_none() && prior.tables[*name].ephemeral.is_none()) {
-            let count:u64=store.conn().query_row("SELECT COUNT(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1)",[name],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?;
+            let count:u64=store.inspection_table_population(name)?;
             if count>0 {hazards.push(format!("table {name}: {count} rows become dormant; {target_label} lacks this table's behavior; preserve it in a bridge or accept its absence"));}
         }
     }
@@ -162,7 +161,7 @@ pub(super) fn preview(
             hazards.extend(super::rollback_foresight::risks(&candidate_schema,&old.schema,current,store_path.parent().unwrap()));
             // Exact reverse adoption tests today's post-deploy image, separately from future-write risks.
             let reverse_path=snapshot.0.join("reverse.sqlite");
-            engine.store().conn().execute("VACUUM INTO ?1",[reverse_path.to_string_lossy().as_ref()]).map_err(|e|e.to_string())?;
+            engine.store().snapshot_to(&reverse_path).map_err(|e|e.to_string())?;
             let reverse_store=snapback4_core::Store::open(&reverse_path).map_err(|e|e.to_string())?;
             super::release_safeguards::capture(&reverse_store)?;
             let native=crate::native::prepare(&Project {root:old_root},&old).map_err(|e|e.to_string())?;

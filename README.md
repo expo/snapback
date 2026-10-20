@@ -503,8 +503,8 @@ This is a different job from building an app *on* Snapback. Read
 goes deeper than this section.
 
 **Do not start with recursive submodule initialization.** The normal checkout
-initializes only the small `vendor/llp` and `vendor/ccheever-skills`
-submodules. The large `vendor/ibex` runtime checkout is initialized on demand
+initializes only the small `vendor/llp`, `vendor/cdcstack` and
+`vendor/ccheever-skills` submodules. The large `vendor/ibex` runtime checkout is initialized on demand
 by the supported bootstrap entry point, which also prepares the ignored Hermes
 artifacts:
 
@@ -625,7 +625,9 @@ above, not a change in posture.)
 each agent's discovery path (`.claude/skills`, `.agents/skills`,
 `.cursor/skills`, `.pi/skills`, `.opencode/skills`): `llp-orient` (context
 before coding), `llp-create`, `llp-review`, `llp-adopt`, `llp-maintain`,
-`llp-super-refine`, `llp-ship`. Run `scripts/sync-agent-skills` after pulling
+`llp-super-refine`, `llp-ship`, and from cdcstack `orchestrate` and `panel`
+(hard directional decisions and RFC/LLP refinement; prefer it to
+`llp-super-refine`). Run `scripts/sync-agent-skills` after pulling
 upstream skill changes, and activate the tracked hooks with
 `git config core.hooksPath .githooks`.
 

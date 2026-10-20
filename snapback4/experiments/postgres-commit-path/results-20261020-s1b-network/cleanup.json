@@ -1,0 +1,727 @@
+{
+  "database": "sb4_s1b_20261020_164429_3648223",
+  "database_dropped": true,
+  "tunnels": [
+    {
+      "pid": 3648235,
+      "port": 62000,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648237,
+      "port": 62001,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648240,
+      "port": 62002,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648253,
+      "port": 62003,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648256,
+      "port": 62004,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648261,
+      "port": 62005,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648275,
+      "port": 62006,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648290,
+      "port": 62007,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648293,
+      "port": 62008,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648300,
+      "port": 62009,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648312,
+      "port": 62010,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648325,
+      "port": 62011,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648337,
+      "port": 62012,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648345,
+      "port": 62013,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648360,
+      "port": 62014,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648370,
+      "port": 62015,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648371,
+      "port": 62016,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648372,
+      "port": 62017,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648375,
+      "port": 62018,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648377,
+      "port": 62019,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648381,
+      "port": 62020,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648409,
+      "port": 62021,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648419,
+      "port": 62022,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648441,
+      "port": 62023,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648451,
+      "port": 62024,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648483,
+      "port": 62025,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648493,
+      "port": 62026,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648513,
+      "port": 62027,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648516,
+      "port": 62028,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648519,
+      "port": 62029,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648531,
+      "port": 62030,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648535,
+      "port": 62031,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648536,
+      "port": 62032,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648539,
+      "port": 62033,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648540,
+      "port": 62034,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648554,
+      "port": 62035,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648597,
+      "port": 62036,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648614,
+      "port": 62037,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648623,
+      "port": 62038,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648644,
+      "port": 62039,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648647,
+      "port": 62040,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648648,
+      "port": 62041,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648653,
+      "port": 62042,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648664,
+      "port": 62043,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648665,
+      "port": 62044,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648672,
+      "port": 62045,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648674,
+      "port": 62046,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648686,
+      "port": 62047,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648691,
+      "port": 62048,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648705,
+      "port": 62049,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648710,
+      "port": 62050,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648711,
+      "port": 62051,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648725,
+      "port": 62052,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648756,
+      "port": 62053,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648771,
+      "port": 62054,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648799,
+      "port": 62055,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648812,
+      "port": 62056,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648822,
+      "port": 62057,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648936,
+      "port": 62058,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648949,
+      "port": 62059,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648954,
+      "port": 62060,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648962,
+      "port": 62061,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648967,
+      "port": 62062,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648978,
+      "port": 62063,
+      "exit_status": 0
+    },
+    {
+      "pid": 3648982,
+      "port": 62064,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649008,
+      "port": 62065,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649015,
+      "port": 62066,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649018,
+      "port": 62067,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649019,
+      "port": 62068,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649020,
+      "port": 62069,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649024,
+      "port": 62070,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649026,
+      "port": 62071,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649028,
+      "port": 62072,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649033,
+      "port": 62073,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649043,
+      "port": 62074,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649044,
+      "port": 62075,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649054,
+      "port": 62076,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649057,
+      "port": 62077,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649059,
+      "port": 62078,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649062,
+      "port": 62079,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649065,
+      "port": 62080,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649077,
+      "port": 62081,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649083,
+      "port": 62082,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649094,
+      "port": 62083,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649113,
+      "port": 62084,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649132,
+      "port": 62085,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649137,
+      "port": 62086,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649140,
+      "port": 62087,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649154,
+      "port": 62088,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649157,
+      "port": 62089,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649162,
+      "port": 62090,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649171,
+      "port": 62091,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649242,
+      "port": 62092,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649292,
+      "port": 62093,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649298,
+      "port": 62094,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649303,
+      "port": 62095,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649311,
+      "port": 62096,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649349,
+      "port": 62097,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649354,
+      "port": 62098,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649357,
+      "port": 62099,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649361,
+      "port": 62100,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649368,
+      "port": 62101,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649377,
+      "port": 62102,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649378,
+      "port": 62103,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649381,
+      "port": 62104,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649384,
+      "port": 62105,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649386,
+      "port": 62106,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649391,
+      "port": 62107,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649401,
+      "port": 62108,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649402,
+      "port": 62109,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649403,
+      "port": 62110,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649406,
+      "port": 62111,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649412,
+      "port": 62112,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649422,
+      "port": 62113,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649423,
+      "port": 62114,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649426,
+      "port": 62115,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649439,
+      "port": 62116,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649445,
+      "port": 62117,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649453,
+      "port": 62118,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649459,
+      "port": 62119,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649478,
+      "port": 62120,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649494,
+      "port": 62121,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649497,
+      "port": 62122,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649510,
+      "port": 62123,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649514,
+      "port": 62124,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649543,
+      "port": 62125,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649562,
+      "port": 62126,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649576,
+      "port": 62127,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649582,
+      "port": 62128,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649597,
+      "port": 62129,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649606,
+      "port": 62130,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649616,
+      "port": 62131,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649623,
+      "port": 62132,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649624,
+      "port": 62133,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649625,
+      "port": 62134,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649639,
+      "port": 62135,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649645,
+      "port": 62136,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649656,
+      "port": 62137,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649665,
+      "port": 62138,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649666,
+      "port": 62139,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649680,
+      "port": 62140,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649681,
+      "port": 62141,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649683,
+      "port": 62142,
+      "exit_status": 0
+    },
+    {
+      "pid": 3649686,
+      "port": 62143,
+      "exit_status": 0
+    }
+  ],
+  "database_absent": true
+}

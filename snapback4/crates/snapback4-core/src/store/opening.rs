@@ -10,15 +10,15 @@ pub(crate) struct Metadata {
 impl Metadata {
     pub fn read(tx: &Tx<'_>) -> Result<Self, RuntimeError> {
         Ok(Self {
-            store_id: tx.meta("store_id")?.unwrap_or_default(),
-            dev_effects: tx.meta("release")?.is_none(),
+            store_id: tx.store_identity()?.unwrap_or_default(),
+            dev_effects: tx.release_value()?.is_none(),
         })
     }
 }
 
 /// An open that needs activation releases its first snapshot. Bind that repair
 /// to the exact stored backend it validated, not just the declared hash.
-pub(crate) struct Backend(pub i64, pub String, pub String);
+pub(crate) use crate::activation::Backend;
 
 impl Backend {
     pub fn check(&self, conn: &Connection) -> Result<(), RuntimeError> {

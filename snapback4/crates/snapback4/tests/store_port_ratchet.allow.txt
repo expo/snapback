@@ -1,0 +1,5 @@
+# LLP 3000.009.001.000 §3.2; non-test matching source lines; paths relative to snapback4/
+crates/snapback4-core/src/error.rs 2
+crates/snapback4-core/src/private_fs.rs 3
+crates/snapback4/src/dev_worker.rs 1
+crates/snapback4/src/verbs/run_admission.rs 1

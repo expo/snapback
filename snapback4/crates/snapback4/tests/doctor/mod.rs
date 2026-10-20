@@ -1,4 +1,4 @@
-use super::effect_health;
+use snapback4_core::engine::effects::EffectHealth;
 use snapback4_core::{Engine, Store};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}, mpsc};
 
@@ -19,7 +19,7 @@ fn w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim() {
     writer.store().conn().execute_batch("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at) VALUES ('push',1,'push','null','queued',0,100,200); INSERT INTO _effect_presence(principal,id,deadline) VALUES ('alice','push',200);").unwrap();
     writer.store().set_meta("dev:suppressed-effects", "7").unwrap();
     let reader = Engine::open(Store::open_read_only(&path.join("store.sqlite")).unwrap()).unwrap();
-    let (counts, deferred) = effect_health(&reader, 100).unwrap();
+    let EffectHealth { counts, deferred } = reader.effect_health(100).unwrap();
     assert_eq!(counts["queued"], 1); assert_eq!(counts["suppressed"], 7);
     assert_eq!(deferred.unwrap(), (1, Some(200)));
     let (claim, start) = mpsc::channel();
@@ -37,12 +37,12 @@ fn w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim() {
         }
         rusqlite::hooks::Authorization::Allow
     })).unwrap();
-    let (counts, deferred) = effect_health(&reader, 100).unwrap();
+    let EffectHealth { counts, deferred } = reader.effect_health(100).unwrap();
     worker.join().unwrap();
     assert!(fired.load(Ordering::SeqCst));
     assert_eq!(counts["queued"], 1);
     assert_eq!(deferred.unwrap(), (1, Some(200)), "the same line cannot mix pre-claim counts and post-claim deferrals");
-    let (counts, deferred) = effect_health(&reader, 100).unwrap();
+    let EffectHealth { counts, deferred } = reader.effect_health(100).unwrap();
     assert_eq!(counts["running"], 1); assert_eq!(counts["suppressed"], 7);
     assert_eq!(deferred.unwrap(), (0, None));
     println!("doctor: concurrent_claims=1 snapshot_queued=1 snapshot_deferred=1 next_read_running=1 next_read_deferred=0 suppressed=7");
@@ -84,7 +84,7 @@ fn w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code() {
 fn settled_handler_failures_remain_visible_including_retry_and_action() {
     let engine = Engine::new(Store::memory().unwrap(), Default::default(), []).unwrap();
     engine.store().conn().execute_batch("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,error) VALUES ('e1',1,'scan','null','queued',1,100,'scanner unavailable'); INSERT INTO _requests(id,name,args,principal,at,state,attempts,error) VALUES ('a1','send','{}','user:a',101,'failed',2,'provider failed');").unwrap();
-    let lines = super::work_records::handler_failures(engine.store().conn()).unwrap();
+    let lines = super::work_records::handler_failures(engine.store()).unwrap();
     assert_eq!(lines.len(), 2);
     assert!(lines.iter().any(|line| line.contains("scan e1 queued") && line.contains("scanner unavailable")));
     assert!(lines.iter().any(|line| line.contains("send a1 failed") && line.contains("provider failed")));

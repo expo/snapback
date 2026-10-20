@@ -1,5 +1,5 @@
 //! Server summary retention is atomic with its commit; missing intervals widen.
-use snapback4_core::{Store, Value, schema::Schema, revocation::preserved_between, value::object};
+use snapback4_core::{Store, Value, schema::Schema, value::object};
 
 fn schema() -> Schema {
     let b = snapback4_lang::compile(&[("schema.q".into(), "table docs:\n  body: int\n  public\n  sync public\n".into())]);
@@ -84,14 +84,14 @@ fn accepted_server_backend_migrates_evidence_before_commits() {
     let store = engine.store_mut();
     assert!(evidence_exists(store), "accepted backend must migrate before commits can run");
     assert_eq!(stats(store).0, 0);
-    assert!(preserved_between(store.conn(), &schema, 0, 1).is_empty());
+    assert!(store.preserved_between(&schema, 0, 1).is_empty());
     check_commits_reuse_plans(store, &schema);
     let version = schema_version(store);
     drop(engine);
     let store = Store::open(&path).unwrap();
     assert_eq!(schema_version(&store), version, "server reopen must be idempotent");
     assert_eq!(stats(&store).0, 1000);
-    assert_eq!(preserved_between(store.conn(), &schema, 501, 1001), vec!["docs"]);
+    assert_eq!(store.preserved_between(&schema, 501, 1001), vec!["docs"]);
     drop(store);
     std::fs::remove_dir_all(dir).unwrap();
 }
@@ -103,19 +103,19 @@ fn pruning_is_atomic_and_old_or_missing_intervals_widen() {
     store.install(&schema).unwrap();
     for n in 1..=1001 { write(&mut store,&schema,n,true); }
     assert_eq!(stats(&store).0,1000);
-    assert!(preserved_between(store.conn(),&schema,0,1).is_empty());
-    assert!(preserved_between(store.conn(),&schema,500,1001).is_empty());
-    assert_eq!(preserved_between(store.conn(),&schema,501,1001),vec!["docs"]);
-    assert_eq!(preserved_between(store.conn(),&schema,1,2),vec!["docs"]);
+    assert!(store.preserved_between(&schema,0,1).is_empty());
+    assert!(store.preserved_between(&schema,500,1001).is_empty());
+    assert_eq!(store.preserved_between(&schema,501,1001),vec!["docs"]);
+    assert_eq!(store.preserved_between(&schema,1,2),vec!["docs"]);
     let before = stats(&store);
     write(&mut store,&schema,1002,false);
     assert_eq!(stats(&store),before);
-    assert_eq!(preserved_between(store.conn(),&schema,1,2),vec!["docs"]);
+    assert_eq!(store.preserved_between(&schema,1,2),vec!["docs"]);
     write(&mut store,&schema,1002,true);
-    assert!(preserved_between(store.conn(),&schema,1,2).is_empty());
+    assert!(store.preserved_between(&schema,1,2).is_empty());
     // A backend without summaries (including Postgres) cannot certify a commit.
     store.conn().execute("DROP TABLE _change_evidence",[]).unwrap();
-    assert!(preserved_between(store.conn(),&schema,1001,1002).is_empty());
+    assert!(store.preserved_between(&schema,1001,1002).is_empty());
 }
 
 #[test]

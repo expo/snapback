@@ -1,0 +1,1 @@
+{"cell": "smoke-sqlite-commit", "status": "failed", "excluded_from_sizing": true, "error": "QueryReturnedNoRows: initial model assumed a _meta.seq row; SQLite head is COALESCE(MAX(seq),0) FROM _commits. Corrected before measurements.", "stdout_file": "smoke-sqlite-commit.stdout"}

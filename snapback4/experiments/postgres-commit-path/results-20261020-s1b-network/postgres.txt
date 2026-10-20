@@ -1,0 +1,10 @@
+PostgreSQL 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit
+commit_delay|0|
+fsync|on|
+full_page_writes|on|
+lock_timeout|0|ms
+max_connections|300|
+shared_buffers|1048576|8kB
+statement_timeout|0|ms
+synchronous_commit|on|
+wal_sync_method|fdatasync|

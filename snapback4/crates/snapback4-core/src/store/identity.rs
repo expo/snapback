@@ -1,0 +1,455 @@
+//! SQLite identity access. Identity policy stays in `crate::identity`.
+// @ref LLP 3000.009.001.000#33-extraction-first-with-no-behavior-change — preserve statement order and transaction modes.
+use super::{Store, Tx};
+use crate::{
+    RuntimeError,
+    identity::{
+        Credential, FullRotationRecord, IdentityStore, IdentityTransaction, PreparedSignup,
+        ReadRotationRecord, Session, SessionMintRecord, SessionScope, digest,
+    },
+};
+use rusqlite::{Connection, OptionalExtension, params};
+
+// @ref LLP 3000.009#5.1 — refresh preserves admission authority; revocation changes its generation.
+pub(super) fn initialize(conn: &Connection) -> Result<(), RuntimeError> {
+    let columns: Vec<String> = conn
+        .prepare("SELECT name FROM pragma_table_info('_sessions')")?
+        .query_map([], |row| row.get(0))?
+        .collect::<Result<_, _>>()?;
+    if !columns.iter().any(|name| name == "family") {
+        conn.execute_batch("ALTER TABLE _sessions ADD COLUMN family TEXT;")?;
+    }
+    conn.execute_batch("CREATE INDEX IF NOT EXISTS _sessions_family ON _sessions(principal, family, expires_at);
+        CREATE TABLE IF NOT EXISTS _principal_generations (principal TEXT PRIMARY KEY, generation INTEGER NOT NULL);
+        CREATE TABLE IF NOT EXISTS _session_mint_bindings (
+            invocation TEXT NOT NULL, intent TEXT NOT NULL, input_digest TEXT NOT NULL,
+            principal TEXT NOT NULL, kind TEXT NOT NULL, days INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL, family TEXT NOT NULL, principal_generation INTEGER NOT NULL,
+            PRIMARY KEY(invocation, intent)
+        ) WITHOUT ROWID;")?;
+    Ok(())
+}
+
+fn insert_session(conn: &Connection, session: &Session, now: i64) -> Result<(), RuntimeError> {
+    conn.execute("DELETE FROM _sessions WHERE expires_at <= ?1", [now])?;
+    // @ref LLP 3000.033#1.3 — sign-in collects expired families; read rotation
+    // remains limited to its own family, including at the immutable cap.
+    if present(conn)? {
+        conn.execute(
+            "DELETE FROM _read_sessions WHERE expires_at <= ?1 OR cap_expires_at <= ?1",
+            [now],
+        )?;
+    }
+    conn.execute(
+        "INSERT OR IGNORE INTO _principals(id, kind, name, created_at) VALUES (?1, ?2, NULL, ?3)",
+        params![session.principal, session.kind, now],
+    )?;
+    if session.scope == SessionScope::Read {
+        return insert_read(conn, session, now, None);
+    }
+    conn.execute(
+        "INSERT INTO _sessions(token_digest, principal, kind, created_at, expires_at, family) VALUES (?1, ?2, ?3, ?4, ?5, ?1)",
+        params![digest(&session.token), session.principal, session.kind, now, session.expires_at],
+    )?;
+    Ok(())
+}
+
+fn mint_binding_record(
+    conn: &Connection,
+    invocation: &str,
+    intent: &str,
+) -> Result<Option<SessionMintRecord>, RuntimeError> {
+    Ok(conn.query_row(
+        "SELECT input_digest, principal, kind, days, expires_at, family, principal_generation, scope FROM _session_mint_bindings WHERE invocation = ?1 AND intent = ?2",
+        params![invocation, intent],
+        |row| Ok(SessionMintRecord { scope: row.get(7)?, input_digest: row.get(0)?, principal: row.get(1)?, kind: row.get(2)?, days: row.get(3)?, expires_at: row.get(4)?, family: row.get(5)?, principal_generation: row.get(6)? }),
+    ).optional()?)
+}
+
+// @ref LLP 3000.033#1.3 — only minting installs read-session storage.
+pub(super) fn present(conn: &Connection) -> Result<bool, RuntimeError> {
+    Ok(conn.prepare_cached("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = '_read_sessions')")?.query_row([], |r| r.get(0))?)
+}
+
+// @ref LLP 3000.033#1.3 — separate storage and captured generations prevent downgrade resurrection.
+fn initialize_read(conn: &Connection) -> Result<(), RuntimeError> {
+    conn.execute_batch("CREATE TABLE IF NOT EXISTS _read_sessions (
+        token_digest TEXT PRIMARY KEY, principal TEXT NOT NULL, kind TEXT NOT NULL,
+        family TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL,
+        cap_expires_at INTEGER NOT NULL, principal_generation INTEGER NOT NULL
+    ); CREATE INDEX IF NOT EXISTS _read_sessions_family ON _read_sessions(principal, family, expires_at);")?;
+    Ok(())
+}
+
+pub(super) fn initialize_binding_scope(conn: &Connection) -> Result<(), RuntimeError> {
+    let has_scope: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_session_mint_bindings') WHERE name = 'scope')", [], |r| r.get(0))?;
+    if !has_scope {
+        conn.execute_batch(
+            "ALTER TABLE _session_mint_bindings ADD COLUMN scope TEXT NOT NULL DEFAULT 'full';",
+        )?;
+    }
+    Ok(())
+}
+
+fn insert_read(
+    conn: &Connection,
+    session: &Session,
+    now: i64,
+    family: Option<(&str, i64)>,
+) -> Result<(), RuntimeError> {
+    initialize_read(conn)?;
+    let digest = digest(&session.token);
+    let generation: i64 = match family {
+        Some((_, generation)) => generation,
+        None => conn
+            .query_row(
+                "SELECT generation FROM _principal_generations WHERE principal = ?1",
+                [&session.principal],
+                |r| r.get(0),
+            )
+            .optional()?
+            .unwrap_or(0),
+    };
+    conn.execute("INSERT INTO _read_sessions(token_digest, principal, kind, family, created_at, expires_at, cap_expires_at, principal_generation) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+        params![digest, session.principal, session.kind, family.map_or(digest.as_str(), |f| f.0), now, session.expires_at, session.cap_expires_at.expect("read cap"), generation])?;
+    Ok(())
+}
+
+fn set_family(conn: &Connection, digest: &str, family: &str) -> Result<(), RuntimeError> {
+    conn.execute(
+        "UPDATE _sessions SET family = ?2 WHERE token_digest = ?1",
+        params![digest, family],
+    )?;
+    Ok(())
+}
+
+impl IdentityTransaction for Tx<'_> {
+    fn insert_identity_session(&self, session: &Session, now: i64) -> Result<(), RuntimeError> {
+        insert_session(self.conn(), session, now)
+    }
+    fn insert_read_session(
+        &self,
+        session: &Session,
+        now: i64,
+        family: Option<(&str, i64)>,
+    ) -> Result<(), RuntimeError> {
+        insert_read(self.conn(), session, now, family)
+    }
+    fn initialize_mint_binding_scope(&self) -> Result<(), RuntimeError> {
+        initialize_binding_scope(self.conn())
+    }
+    fn mint_binding_record(
+        &self,
+        invocation: &str,
+        intent: &str,
+    ) -> Result<Option<SessionMintRecord>, RuntimeError> {
+        mint_binding_record(self.conn(), invocation, intent)
+    }
+    fn record_session_mint(
+        &self,
+        invocation: &str,
+        intent: &str,
+        record: &SessionMintRecord,
+    ) -> Result<(), RuntimeError> {
+        self.conn().execute(
+            "INSERT INTO _session_mint_bindings(invocation, intent, input_digest, principal, kind, days, expires_at, family, principal_generation, scope) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'full')",
+            params![invocation, intent, record.input_digest, record.principal, record.kind, record.days, record.expires_at, record.family, record.principal_generation],
+        )?;
+        Ok(())
+    }
+    fn set_identity_session_family(&self, digest: &str, family: &str) -> Result<(), RuntimeError> {
+        set_family(self.conn(), digest, family)
+    }
+}
+
+impl IdentityStore for Store {
+    fn insert_identity_session(&self, session: &Session, now: i64) -> Result<(), RuntimeError> {
+        insert_session(&self.conn, session, now)
+    }
+    fn insert_identity_session_atomic(
+        &self,
+        session: &Session,
+        now: i64,
+    ) -> Result<(), RuntimeError> {
+        let tx = self.conn.unchecked_transaction()?;
+        insert_session(&tx, session, now)?;
+        tx.commit()?;
+        Ok(())
+    }
+    fn close_identity_session(&self, digest: &str) -> Result<(), RuntimeError> {
+        self.conn.execute(
+            "DELETE FROM _sessions WHERE token_digest = ?1",
+            params![digest],
+        )?;
+        if present(&self.conn)? {
+            self.conn.execute(
+                "DELETE FROM _read_sessions WHERE token_digest = ?1",
+                params![digest],
+            )?;
+        }
+        Ok(())
+    }
+    fn full_rotation_record(
+        &self,
+        digest: &str,
+        now: i64,
+    ) -> Result<Option<FullRotationRecord>, RuntimeError> {
+        Ok(self.conn.query_row(
+            "SELECT principal, kind, expires_at - created_at, COALESCE(family, token_digest) FROM _sessions WHERE token_digest = ?1 AND expires_at > ?2",
+            params![digest, now],
+            |row| Ok(FullRotationRecord { principal: row.get(0)?, kind: row.get(1)?, lifetime_ms: row.get(2)?, family: row.get(3)? }),
+        ).optional()?)
+    }
+    fn delete_expired_identity_session(&self, digest: &str, now: i64) -> Result<(), RuntimeError> {
+        self.conn.execute(
+            "DELETE FROM _sessions WHERE token_digest = ?1 AND expires_at <= ?2",
+            params![digest, now],
+        )?;
+        Ok(())
+    }
+    fn replace_full_session(
+        &self,
+        old_digest: &str,
+        session: &Session,
+        family: &str,
+        now: i64,
+    ) -> Result<bool, RuntimeError> {
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute("DELETE FROM _sessions WHERE expires_at <= ?1", [now])?;
+        let removed = tx.execute(
+            "DELETE FROM _sessions WHERE token_digest = ?1 AND expires_at > ?2",
+            params![old_digest, now],
+        )?;
+        if removed == 0 {
+            tx.commit()?;
+            return Ok(false);
+        }
+        insert_session(&tx, session, now)?;
+        set_family(&tx, &digest(&session.token), family)?;
+        tx.commit()?;
+        Ok(true)
+    }
+    fn signup_identity(
+        &self,
+        prepared: &PreparedSignup,
+        session: &Session,
+        now: i64,
+        validate: impl FnOnce(Option<String>) -> Result<(), RuntimeError>,
+    ) -> Result<(), RuntimeError> {
+        let tx = self.conn.unchecked_transaction()?;
+        let taken = tx
+            .query_row(
+                "SELECT principal FROM _credentials WHERE email = ?1",
+                [&prepared.email],
+                |row| row.get(0),
+            )
+            .optional()?;
+        validate(taken)?;
+        tx.execute(
+            "INSERT INTO _principals(id, kind, name, created_at) VALUES (?1, 'user', ?2, ?3)",
+            params![session.principal, prepared.email, now],
+        )?;
+        tx.execute(
+            "INSERT INTO _credentials(principal, email, hash) VALUES (?1, ?2, ?3)",
+            params![session.principal, prepared.email, prepared.hash],
+        )?;
+        insert_session(&tx, session, now)?;
+        tx.commit()?;
+        Ok(())
+    }
+    fn identity_credential(&self, email: &str) -> Result<Option<Credential>, RuntimeError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT principal, hash FROM _credentials WHERE email = ?1",
+                [email],
+                |row| {
+                    Ok(Credential {
+                        principal: row.get(0)?,
+                        hash: row.get(1)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+    fn login_identity(
+        &self,
+        principal: &str,
+        session: &Session,
+        now: i64,
+        validate: impl FnOnce(Option<String>) -> Result<(), RuntimeError>,
+    ) -> Result<(), RuntimeError> {
+        let tx = self.conn.unchecked_transaction()?;
+        let current = tx
+            .query_row(
+                "SELECT hash FROM _credentials WHERE principal = ?1",
+                [principal],
+                |row| row.get(0),
+            )
+            .optional()?;
+        validate(current)?;
+        insert_session(&tx, session, now)?;
+        tx.commit()?;
+        Ok(())
+    }
+    fn rotate_read_session(
+        &self,
+        digest: &str,
+        now: i64,
+        mint: impl FnOnce(&ReadRotationRecord) -> Result<Session, RuntimeError>,
+    ) -> Result<Option<Session>, RuntimeError> {
+        let tx = rusqlite::Transaction::new_unchecked(
+            &self.conn,
+            rusqlite::TransactionBehavior::Immediate,
+        )?;
+        if !present(&tx)? {
+            return Ok(None);
+        }
+        let found = tx.query_row(
+            "SELECT principal, kind, family, cap_expires_at, principal_generation FROM _read_sessions r
+         WHERE token_digest = ?1 AND expires_at > ?2 AND cap_expires_at > ?2
+         AND principal_generation >= COALESCE((SELECT generation FROM _principal_generations WHERE principal = r.principal), 0)",
+            params![digest, now], |r| Ok(ReadRotationRecord { principal: r.get(0)?, kind: r.get(1)?, family: r.get(2)?, cap: r.get(3)?, generation: r.get(4)? })).optional()?;
+        let Some(record) = found else {
+            return Ok(None);
+        };
+        let session = mint(&record)?;
+        tx.execute(
+            "DELETE FROM _read_sessions WHERE family = ?1 AND principal = ?2",
+            params![record.family, record.principal],
+        )?;
+        insert_read(
+            &tx,
+            &session,
+            now,
+            Some((&record.family, record.generation)),
+        )?;
+        tx.commit()?;
+        Ok(Some(session))
+    }
+    fn revoke_identity_principal(&self, principal: &str) -> Result<u64, RuntimeError> {
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute("INSERT INTO _principal_generations(principal, generation) VALUES (?1, 1) ON CONFLICT(principal) DO UPDATE SET generation = generation + 1", [principal])?;
+        let mut removed = tx.execute(
+            "DELETE FROM _sessions WHERE principal = ?1",
+            params![principal],
+        )? as u64;
+        if present(&tx)? {
+            removed += tx.execute(
+                "DELETE FROM _read_sessions WHERE principal = ?1",
+                params![principal],
+            )? as u64;
+        }
+        tx.commit()?;
+        Ok(removed)
+    }
+    fn identity_session_expiry(&self, digest: &str) -> Result<Option<i64>, RuntimeError> {
+        let mut expiry = self
+            .conn
+            .query_row(
+                "SELECT expires_at FROM _sessions WHERE token_digest = ?1",
+                [digest],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if expiry.is_none()
+            && self.conn.query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = ?1)",
+                ["_read_sessions"],
+                |r| r.get::<_, bool>(0),
+            )?
+        {
+            expiry = self.conn.query_row("SELECT MIN(expires_at, cap_expires_at) FROM _read_sessions WHERE token_digest = ?1", [digest], |r| r.get(0)).optional()?;
+        }
+        Ok(expiry)
+    }
+    fn is_supervised_family(&self, digest: &str) -> Result<bool, RuntimeError> {
+        Ok(self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM _sessions s JOIN _meta m
+                 ON m.key = 'worker:family:' || COALESCE(s.family, s.token_digest)
+                 OR (m.key = 'worker:session-family' AND m.value = COALESCE(s.family, s.token_digest))
+                 WHERE s.token_digest = ?1)",
+            [digest], |row| row.get(0),
+        )?)
+    }
+    fn clear_worker_families(&self) -> Result<(), RuntimeError> {
+        let tx = self.conn.unchecked_transaction()?;
+        tx.execute("DELETE FROM _sessions WHERE principal = 'service:worker' AND COALESCE(family, token_digest) = (SELECT value FROM _meta WHERE key = 'worker:session-family')", [])?;
+        tx.execute(
+            "DELETE FROM _meta WHERE key IN ('worker:session-family', 'worker:session-revision')",
+            [],
+        )?;
+        tx.execute("DELETE FROM _sessions WHERE COALESCE(family, token_digest) IN (SELECT substr(key, 15) FROM _meta WHERE key LIKE 'worker:family:%')", [])?;
+        tx.execute("DELETE FROM _meta WHERE key LIKE 'worker:family:%'", [])?;
+        // The next supervisor owns fresh reports, including removed declarations.
+        tx.execute(
+            "DELETE FROM _meta WHERE key = 'worker:status' OR key LIKE 'worker:status:%'",
+            [],
+        )?;
+        tx.commit()?;
+        Ok(())
+    }
+    fn revoke_worker_family(&self, family: Option<&str>) -> Result<(), RuntimeError> {
+        let tx = self.conn.unchecked_transaction()?;
+        if let Some(family) = family {
+            tx.execute(
+                "DELETE FROM _sessions WHERE COALESCE(family, token_digest) = ?1",
+                [family],
+            )?;
+            tx.execute(
+                "DELETE FROM _meta WHERE key = ?1",
+                [format!("worker:family:{family}")],
+            )?;
+        } else {
+            tx.execute("DELETE FROM _sessions WHERE principal = 'service:worker' AND COALESCE(family, token_digest) = (SELECT value FROM _meta WHERE key = 'worker:session-family')", [])?;
+            tx.execute("DELETE FROM _meta WHERE key IN ('worker:session-family', 'worker:session-revision')", [])?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+    // Credential and ownership marker commit together, including failed ownership checks.
+    fn mint_supervised_child(
+        &self,
+        named: bool,
+        now: i64,
+        revision: usize,
+        mint: impl FnOnce() -> Result<Session, RuntimeError>,
+    ) -> Result<Session, RuntimeError> {
+        let tx = self.conn.unchecked_transaction()?;
+        let session = mint()?;
+        insert_session(&tx, &session, now)?;
+        let family = digest(&session.token);
+        if named {
+            self.check_ownership()?;
+            tx.execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![format!("worker:family:{family}"), revision.to_string()])?;
+        } else {
+            self.check_ownership()?;
+            tx.execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params!["worker:session-family", family])?;
+            self.check_ownership()?;
+            tx.execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params!["worker:session-revision", revision.to_string()])?;
+        }
+        tx.commit()?;
+        Ok(session)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::identity::test_cases;
+
+    #[test]
+    fn shared_refresh_rollback_cases_run_on_sqlite() {
+        test_cases::assert_refresh_rollback(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_credential_and_read_rotation_cases_run_on_sqlite() {
+        test_cases::assert_credential_policy(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_worker_family_cases_run_on_sqlite() {
+        test_cases::assert_worker_families(&Store::memory().unwrap());
+    }
+}

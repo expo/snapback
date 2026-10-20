@@ -4,6 +4,8 @@
 //! with a refusal, and applies at most once per client-minted id.
 
 #[cfg(feature = "sqlite")]
+use crate::activation::ActivationReader;
+#[cfg(feature = "sqlite")]
 pub mod actions;
 #[cfg(feature = "sqlite")]
 mod activation;
@@ -451,12 +453,9 @@ impl Engine {
 
     fn open_selected_at(mut store: Store, now: i64, expected_release: Option<u64>) -> Result<Self, RuntimeError> {
         let tx = store.opening_transaction()?;
-        Store::check_selected_release(tx.conn(), expected_release)?;
-        let (generation, schema, programs): (i64, String, String) = tx.conn().query_row(
-            "SELECT g.generation, g.schema, g.programs FROM _generations g JOIN _meta m ON m.key = 'generation' AND g.generation = CAST(m.value AS INTEGER)",
-            [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
-            .map_err(|e| RuntimeError::Store(format!("no readable activated backend in this store: {e}")))?;
-        let kept = crate::store::opening::Backend(generation, schema.clone(), programs.clone());
+        tx.check_selected_release(expected_release)?;
+        let crate::activation::Backend(generation, schema, programs) = tx.opening_backend()?;
+        let kept = crate::activation::Backend(generation, schema.clone(), programs.clone());
         let generation = u64::try_from(generation).map_err(|_| RuntimeError::Store("negative stored generation".into()))?;
         let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("invalid stored schema: {e}"))))?;
         crate::schema::timeline::check_version(&schema)?;
@@ -472,12 +471,12 @@ impl Engine {
         // backend, never a caller's source. The repair logs its row changes.
         // @ref LLP 3000.007#20.9.3 — expiry index adoption is required even without physical cap counters.
         let (generation, metadata) = if stored_schema_hash == schema_hash
-            && tx.meta("live_sum_candidates")?.as_deref() == Some("1")
+            && tx.schema_marker(crate::metadata::SchemaMarker::LiveSumCandidates)?.as_deref() == Some("1")
             && (!schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
-                || tx.meta(crate::schema::MAINTAINED_ID_META)?.as_deref() == Some(crate::schema::MAINTAINED_ID_VERSION))
-            && (!crate::rows::caps::required(&schema) || tx.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash))
+                || tx.schema_marker(crate::metadata::SchemaMarker::MaintainedIds)?.as_deref() == Some(crate::schema::MAINTAINED_ID_VERSION))
+            && (!crate::rows::caps::required(&schema) || tx.schema_marker(crate::metadata::SchemaMarker::CapCounts)?.as_deref() == Some(&schema_hash))
             && (!schema.tables.values().any(|table| table.not_before.is_some())
-                || tx.meta(crate::store::time_audience::PUBLICATION_STATE_KEY)?.as_deref() == Some("1")) { (generation, Store::finish_open(tx)?) }
+                || tx.schema_marker(crate::metadata::SchemaMarker::TimePublications)?.as_deref() == Some("1")) { (generation, Store::finish_open(tx)?) }
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))? };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
@@ -569,7 +568,7 @@ impl Engine {
 
     /// Counts shortened by the last schema activation, committed with its generation.
     pub fn read_through_shortened(&self) -> Result<BTreeMap<String,u64>,RuntimeError> {
-        self.store.meta("read_through_shortened")?.map(|s| {
+        self.store.schema_marker(crate::metadata::SchemaMarker::ReadThroughShortened)?.map(|s| {
                 crate::json_codec::from_text(&s).map_err(|e|RuntimeError::Store(e.to_string()))
             }).transpose().map(Option::unwrap_or_default)
     }
@@ -762,7 +761,7 @@ impl Engine {
         let touches = self.schema.operations.get(name).is_some_and(|f| !f.ephemeral_reads.is_empty());
         let mut hub = if touches { Some(self.ephemeral.lock()?) } else { None };
         if let Some(hub) = &mut hub {
-            hub.bind(&tx.meta("store_id")?.unwrap_or_default(), self.generation, &self.schema)?;
+            hub.bind(&tx.store_identity()?.unwrap_or_default(), self.generation, &self.schema)?;
         }
         let version = hub.as_ref().map(|h| h.version());
         let layered = hub.as_ref().map(|h| ephemeral::Layered::new(&tx, &h.rows, &self.schema, false));
@@ -865,7 +864,7 @@ impl Engine {
 
     /// The same receipt lookup split at the event cut and the image read head.
     pub fn acknowledged_at(&mut self, principal: &str, pending: &[String], through: u64, images_at: u64) -> Result<(BTreeMap<String, u64>, BTreeMap<String, u64>), RuntimeError> {
-        use rusqlite::OptionalExtension;
+        use crate::receipts::ReceiptReader;
         if images_at < through { return Err(RuntimeError::Input("image head precedes the event watermark".into())); }
         if pending.len() > 256 || pending.iter().any(|id| id.len() > 128) { return Err(RuntimeError::Input("sync accepts at most 256 pending ids of at most 128 bytes".into())); }
         let tx = self.store.read_transaction()?;
@@ -874,7 +873,7 @@ impl Engine {
         for id in pending {
             // @ref LLP 3000.013#6 — idempotency also records refusals; only
             // committed success can acknowledge execution in a device outbox.
-            let seq: Option<i64> = tx.conn().query_row("SELECT seq FROM _ops WHERE principal = ?1 AND id = ?2 AND seq <= ?3 AND json_extract(outcome, '$.state') = 'sent'", rusqlite::params![principal, id, images_at.max(through).min(i64::MAX as u64) as i64], |row| row.get(0)).optional()?;
+            let seq: Option<i64> = tx.sent_sequence(principal, id, images_at.max(through).min(i64::MAX as u64) as i64)?;
             if let Some(seq) = seq {
                 let seq = u64::try_from(seq).map_err(|_| {
                     RuntimeError::Store("negative stored operation sequence".into())
@@ -901,7 +900,7 @@ impl Engine {
     /// Compare wire identity before decoding against a possibly newer schema.
     // @ref LLP 3000.009#5.1 — an id binds the admitted operation and arguments.
     pub fn replay_mutation(&self, viewer: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<MutationOutcome>, RuntimeError> {
-        crate::store::replay_bound(self.store.conn(), viewer, id, name, args)?
+        self.store.replay_bound(viewer, id, name, args)?
             .map(|receipt| MutationOutcome::from_receipt(&receipt)).transpose()
     }
 
@@ -936,7 +935,7 @@ impl Engine {
         }
         let tx = self.store.transaction()?;
         if let Some(op) = op
-            && let Some(outcome) = crate::store::replay_bound(tx.conn(), &context.viewer, op, name, &wire_args)?
+            && let Some(outcome) = tx.replay_bound(&context.viewer, op, name, &wire_args)?
         {
             // Applied between the check above and this transaction.
             let outcome = MutationOutcome::from_receipt(&outcome)?;
@@ -1337,7 +1336,7 @@ pub use row_views::ViewChunk;
 mod receipts;
 
 #[cfg(feature = "sqlite")]
-mod dev_reset;
+pub(crate) mod dev_reset;
 #[cfg(feature = "sqlite")]
 pub use dev_reset::DevReset;
 

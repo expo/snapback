@@ -38,7 +38,6 @@ pub(crate) fn existing_deployment(requested: &Path) -> Result<PathBuf, String> {
 // SQLite READONLY can create WAL sidecars. A stopped store's existing owner
 // lock makes immutable inspection safe; a live host supplies its own status.
 fn inspect_current(dir: &Path) -> Result<u64, String> {
-    use rusqlite::{Connection, OpenFlags, OptionalExtension};
     let database = dir.join("store.sqlite").canonicalize().map_err(|e| e.to_string())?;
     let missing = || format!("no current release in {}; run `snapback4 deploy {}` first", dir.display(), dir.display());
     let owner = match snapback4_core::private_fs::auxiliary_file(&database,
@@ -103,8 +102,8 @@ fn inspect_current(dir: &Path) -> Result<u64, String> {
     // Immutable SQLite omits WAL reads: use it only for the checkpointed main
     // image. Existing WAL+SHM can be read normally under the same exclusion.
     uri.push_str(if has_wal { "?mode=ro" } else { "?mode=ro&immutable=1" });
-    let conn = Connection::open_with_flags(uri, OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_URI).map_err(|e|e.to_string())?;
-    let release: Option<String> = conn.query_row("SELECT value FROM _meta WHERE key='release'", [], |row|row.get(0)).optional().map_err(|e|e.to_string())?;
+    let inspection = snapback4_core::store::inspect::Inspection::open_uri(&uri).map_err(|(_, e)|e)?;
+    let release = inspection.optional_release().map_err(|(_, e)|e)?;
     let release = match release {
         Some(value) => value,
         None => std::fs::read_to_string(dir.join("current")).map_err(|_| missing())?,
@@ -856,9 +855,9 @@ pub(super) fn check_release(options:&Options)->i32 {
 fn selectable(dir:&Path,release:u64)->Result<(),String> {
     let root=dir.join("releases").join(release.to_string());
     let store=snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).map_err(|e|e.to_string())?;
-    let history:bool=store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='_release_events')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+    let history:bool=store.has_release_history()?;
     if history || root.join(".pending-adoption").exists() {
-        let committed=if history {store.conn().query_row("SELECT EXISTS(SELECT 1 FROM _release_events WHERE (release=?1 OR previous=?1) AND operation!='prune')",[i64::try_from(release).map_err(|_|"release identity exceeds SQLite range")?],|r|r.get::<_,bool>(0)).map_err(|e|e.to_string())?} else {false};
+        let committed=if history {store.release_adopted(i64::try_from(release).map_err(|_|"release identity exceeds SQLite range")?)?} else {false};
         if !committed {return Err(format!("release {release} did not complete adoption; select a successful release with --to latest"));}
     }
     bound_at(root).map(|_|())

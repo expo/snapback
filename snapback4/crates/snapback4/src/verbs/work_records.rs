@@ -1,6 +1,6 @@
 //! Operator inspection, never an application result-collection endpoint.
 use super::*;
-use rusqlite::{Connection, OpenFlags, OptionalExtension};
+use snapback4_core::{inspection::WorkRecordKind, store::inspect::Inspection};
 use snapback4_core::store::{canonical_payload, payload_digest};
 
 pub(super) fn store_path(options: &Options) -> std::path::PathBuf {
@@ -10,30 +10,11 @@ pub(super) fn store_path(options: &Options) -> std::path::PathBuf {
 
 pub(super) fn project(options: &Options) -> Result<Project, String> {
     let Some(dir) = options.flags.get("release") else { return Ok(project_or_exit()); };
-    let conn = Connection::open_with_flags(store_path(options), OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|e| e.to_string())?;
-    let release: String = conn.query_row("SELECT value FROM _meta WHERE key = 'release'", [], |row| row.get(0)).map_err(|e| e.to_string())?;
+    let conn = Inspection::open(&store_path(options)).map_err(|(_, e)| e)?;
+    let release: String = conn.required_release().map_err(|(_, e)| e)?;
     Ok(Project { root: Path::new(dir).join("releases").join(release) })
 }
 
-// Read optional columns by name so even a never-upgraded legacy store is inspectable.
-fn records(conn: &Connection, table: &str, key: &str, id: &str) -> rusqlite::Result<Vec<Json>> {
-    let exists: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)", [table], |row| row.get(0))?;
-    if !exists { return Ok(Vec::new()); }
-    let mut query = conn.prepare(&format!("SELECT * FROM {table} WHERE {key} = ?1"))?;
-    let columns: Vec<String> = query.column_names().iter().map(|s| s.to_string()).collect();
-    query.query_map([id], |row| {
-        let mut fields = serde_json::Map::new();
-        for (i, name) in columns.iter().enumerate() {
-            let value = match row.get_ref(i)? {
-                rusqlite::types::ValueRef::Integer(n) => json!(n),
-                rusqlite::types::ValueRef::Text(s) => json!(String::from_utf8_lossy(s)),
-                _ => Json::Null,
-            };
-            fields.insert(name.clone(), value);
-        }
-        Ok(Json::Object(fields))
-    })?.collect()
-}
 
 fn plain(record: &Json, key: &str, tagged: bool) -> Option<Json> {
     let text = record[key].as_str()?;
@@ -60,15 +41,15 @@ fn show(value: &Json) -> String {
 pub(super) fn explain(options: &Options, id: &str) -> Result<bool, String> {
     let path = store_path(options);
     if !path.is_file() { return Ok(false); }
-    let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|e| e.to_string())?;
-    conn.execute_batch("BEGIN DEFERRED").map_err(|e| e.to_string())?;
+    let conn = Inspection::open(&path).map_err(|(_, e)| e)?;
+    conn.begin_snapshot().map_err(|(_, e)| e)?;
     let values = options.flags.contains_key("values");
     let mut found = false;
-    for (table, kind) in [("_requests", "action"), ("_ops", "mutation"), ("_outbox", "effect")] {
-        for record in records(&conn, table, "id", id).map_err(|e| e.to_string())? {
+    for (record_kind, kind) in [(WorkRecordKind::Action, "action"), (WorkRecordKind::Mutation, "mutation"), (WorkRecordKind::Effect, "effect")] {
+        for record in conn.work_records(record_kind, id)? {
             found = true;
             let commit: Option<(String, String, i64)> = if kind != "action" && !record["seq"].is_null() {
-                conn.query_row("SELECT program, principal, at FROM _commits WHERE seq = ?1", [record["seq"].as_i64()], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).optional().map_err(|e| e.to_string())?
+                conn.work_commit(record["seq"].as_i64())?
             } else { None };
             let receipt = plain(&record, "outcome", false).unwrap_or(Json::Null);
             let operation = if kind == "effect" { record["effect"].clone() } else if !record["name"].is_null() { record["name"].clone() }
@@ -99,7 +80,7 @@ pub(super) fn explain(options: &Options, id: &str) -> Result<bool, String> {
             describe_payload("result", if kind == "mutation" { None } else { plain(&record, "result", kind == "effect") }, values);
             if kind == "action" {
                 println!("  contract: {}", show(&record["contract"]));
-                for step in records(&conn, "_action_steps", "invocation", id).map_err(|e| e.to_string())? {
+                for step in conn.work_records(WorkRecordKind::ActionStep, id)? {
                     println!("  step {}: {}\n    input digest: {}\n    provider key: {}\n    admitted at: {}\n    settled at: {}", show(&step["name"]), show(&step["state"]), show(&step["input_digest"]), show(&step["provider_key"]), show(&step["at"]), show(&step["settled_at"]));
                     describe_payload("step result", plain(&step, "result", false), values);
                 }
@@ -110,14 +91,6 @@ pub(super) fn explain(options: &Options, id: &str) -> Result<bool, String> {
 }
 
 /// Keep successfully settled attempts visible even when they requeued for retry.
-pub(super) fn handler_failures(conn: &Connection) -> rusqlite::Result<Vec<String>> {
-    let mut lines = Vec::new();
-    for (table, kind, name) in [("_requests", "action", "name"), ("_outbox", "effect", "effect")] {
-        let exists: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)", [table], |row| row.get(0))?;
-        if !exists { continue; }
-        let mut query = conn.prepare(&format!("SELECT id, {name}, state, attempts, error FROM {table} WHERE error IS NOT NULL ORDER BY at DESC, id DESC LIMIT 3"))?;
-        let records = query.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, i64>(3)?, row.get::<_, String>(4)?)))?;
-        for record in records { let (id, name, state, attempts, error) = record?; lines.push(format!("{kind}    {name} {id} {state} after {attempts} attempt(s): {}", serde_json::to_string(&error).unwrap_or_default())); }
-    }
-    Ok(lines)
+pub(super) fn handler_failures(store: &snapback4_core::Store) -> Result<Vec<String>, String> {
+    Ok(store.handler_failure_records()?.into_iter().map(|r| format!("{}    {} {} {} after {} attempt(s): {}", r.kind, r.name, r.id, r.state, r.attempts, serde_json::to_string(&r.error).unwrap_or_default())).collect())
 }

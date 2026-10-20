@@ -1,0 +1,32 @@
+{
+  "records": [
+    [
+      "raw",
+      "--writers",
+      "64",
+      "--counters",
+      "hot1",
+      "--runs",
+      "1"
+    ],
+    [
+      "raw",
+      "--writers",
+      "64",
+      "--counters",
+      "hot1",
+      "--runs",
+      "1"
+    ],
+    [
+      "raw",
+      "--writers",
+      "64",
+      "--counters",
+      "hot1",
+      "--runs",
+      "1"
+    ]
+  ],
+  "complete": true
+}

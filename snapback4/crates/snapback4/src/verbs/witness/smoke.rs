@@ -28,11 +28,10 @@ impl Run {
         // the driver neither creates nor borrows an application credential.
         let host = super::super::adoption::request(address(self.options.port), "GET", "/dev/status")
             .ok_or_else(|| error("E_WITNESS_BACKEND", "cannot read the owned backend's generation"))?;
-        let db = rusqlite::Connection::open_with_flags(self.manifest["backend"]["store"].as_str().unwrap_or_default(), rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)
+        let db = snapback4_core::store::inspect::Inspection::open(Path::new(self.manifest["backend"]["store"].as_str().unwrap_or_default()))
             .map_err(|_| error("E_WITNESS_BACKEND", "cannot inspect or advance owned backend; check its store and schema"))?;
-        let (generation, schema, programs, store_id): (i64, String, String, String) = db.query_row(
-            "SELECT generation, schema, programs, (SELECT value FROM _meta WHERE key='store_id') FROM _generations WHERE generation=(SELECT value FROM _meta WHERE key='generation')",
-            [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?))).map_err(|_| error("E_WITNESS_BACKEND", "cannot inspect or advance owned backend; check its store and schema"))?;
+        let (generation, schema, programs, store_id) = db.witness_generation()
+            .map_err(|_| error("E_WITNESS_BACKEND", "cannot inspect or advance owned backend; check its store and schema"))?;
         if host["generation"] != generation || host["storeId"] != store_id || !host["adoption"].is_null() {
             return Err(error("E_WITNESS_BACKEND", "owned backend and committed compiler generation differ"));
         }
@@ -203,11 +202,7 @@ fn barrier(path: &Path, store_id: &str, prime: u64) -> Result<u64> {
         if store.meta("store_id")?.as_deref() != Some(store_id) || store.seq()? < prime {
             return Err(snapback4_core::RuntimeError::Store("smoke backend identity/watermark changed since prime".into()));
         }
-        let tx = store.transaction()?;
-        let seq = tx.next_seq()?;
-        tx.record_commit(seq, now() as i64, "native-smoke", "system", "witness", &[], 0)?;
-        tx.commit()?;
-        Ok(seq)
+        store.record_witness_barrier(|| now() as i64)
     };
     append().map_err(|_| error("E_WITNESS_BACKEND", "cannot inspect or advance owned backend; check its store and schema"))
 }

@@ -1,0 +1,213 @@
+{
+  "best_commit": {
+    "0": [
+      4255.933320164706,
+      64
+    ],
+    "10": [
+      4527.921440563006,
+      64
+    ],
+    "30": [
+      4591.925639504175,
+      64
+    ]
+  },
+  "verdicts": [
+    {
+      "variant": "exec",
+      "C": 32,
+      "execution": 3691.919786581777,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 5889.72087974754,
+      "required": 2944.86043987377,
+      "predicted": 3691.919786581777,
+      "margin": 747.0593467080071,
+      "ratio": 1.2536824280678067,
+      "sizing_pass": true
+    },
+    {
+      "variant": "k1",
+      "C": 32,
+      "execution": 376.2442127996409,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 5889.72087974754,
+      "required": 2944.86043987377,
+      "predicted": 376.2442127996409,
+      "margin": -2568.616227074129,
+      "ratio": 0.12776300285923514,
+      "sizing_pass": false
+    },
+    {
+      "variant": "k2",
+      "C": 32,
+      "execution": 6969.364600926874,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 5889.72087974754,
+      "required": 2944.86043987377,
+      "predicted": 4255.933320164706,
+      "margin": 1311.0728802909362,
+      "ratio": 1.44520713529879,
+      "sizing_pass": true
+    },
+    {
+      "variant": "k3p",
+      "C": 32,
+      "execution": 381.2441096831943,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 5889.72087974754,
+      "required": 2944.86043987377,
+      "predicted": 381.2441096831943,
+      "margin": -2563.6163301905754,
+      "ratio": 0.12946084117301537,
+      "sizing_pass": false
+    },
+    {
+      "variant": "k3",
+      "C": 32,
+      "execution": 9544.10529943353,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 5889.72087974754,
+      "required": 2944.86043987377,
+      "predicted": 4255.933320164706,
+      "margin": 1311.0728802909362,
+      "ratio": 1.44520713529879,
+      "sizing_pass": true
+    },
+    {
+      "variant": "exec",
+      "C": 64,
+      "execution": 4459.933334031506,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 12388.321493578518,
+      "required": 6194.160746789259,
+      "predicted": 4255.933320164706,
+      "margin": -1938.2274266245531,
+      "ratio": 0.6870879678688945,
+      "sizing_pass": false
+    },
+    {
+      "variant": "k1",
+      "C": 64,
+      "execution": 766.9887883496391,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 12388.321493578518,
+      "required": 6194.160746789259,
+      "predicted": 766.9887883496391,
+      "margin": -5427.17195843962,
+      "ratio": 0.12382448885383018,
+      "sizing_pass": false
+    },
+    {
+      "variant": "k2",
+      "C": 64,
+      "execution": 8148.628884891726,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 12388.321493578518,
+      "required": 6194.160746789259,
+      "predicted": 4255.933320164706,
+      "margin": -1938.2274266245531,
+      "ratio": 0.6870879678688945,
+      "sizing_pass": false
+    },
+    {
+      "variant": "k3p",
+      "C": 64,
+      "execution": 776.4884976817617,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 12388.321493578518,
+      "required": 6194.160746789259,
+      "predicted": 776.4884976817617,
+      "margin": -5417.672249107497,
+      "ratio": 0.125358144456334,
+      "sizing_pass": false
+    },
+    {
+      "variant": "k3",
+      "C": 64,
+      "execution": 9640.355611573828,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 12388.321493578518,
+      "required": 6194.160746789259,
+      "predicted": 4255.933320164706,
+      "margin": -1938.2274266245531,
+      "ratio": 0.6870879678688945,
+      "sizing_pass": false
+    },
+    {
+      "variant": "exec",
+      "C": 128,
+      "execution": 4537.184096266707,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 24382.64550681264,
+      "required": 12191.32275340632,
+      "predicted": 4255.933320164706,
+      "margin": -7935.389433241615,
+      "ratio": 0.349095287381804,
+      "sizing_pass": false
+    },
+    {
+      "variant": "k1",
+      "C": 128,
+      "execution": 1579.976262436633,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 24382.64550681264,
+      "required": 12191.32275340632,
+      "predicted": 1579.976262436633,
+      "margin": -10611.346490969689,
+      "ratio": 0.12959842786503042,
+      "sizing_pass": false
+    },
+    {
+      "variant": "k2",
+      "C": 128,
+      "execution": 7935.267776372341,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 24382.64550681264,
+      "required": 12191.32275340632,
+      "predicted": 4255.933320164706,
+      "margin": -7935.389433241615,
+      "ratio": 0.349095287381804,
+      "sizing_pass": false
+    },
+    {
+      "variant": "k3p",
+      "C": 128,
+      "execution": 1615.7245495108275,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 24382.64550681264,
+      "required": 12191.32275340632,
+      "predicted": 1615.7245495108275,
+      "margin": -10575.598203895493,
+      "ratio": 0.1325307009085118,
+      "sizing_pass": false
+    },
+    {
+      "variant": "k3",
+      "C": 128,
+      "execution": 9377.852423080882,
+      "commit": 4255.933320164706,
+      "commit_batch": 64,
+      "raw_disjoint": 24382.64550681264,
+      "required": 12191.32275340632,
+      "predicted": 4255.933320164706,
+      "margin": -7935.389433241615,
+      "ratio": 0.349095287381804,
+      "sizing_pass": false
+    }
+  ]
+}

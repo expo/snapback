@@ -1,0 +1,15 @@
+[package]
+name = "snapback4-postgres-fencing"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Deliberately outside every other workspace: a throwaway protocol prototype.
+[workspace]
+
+[dependencies]
+postgres = "0.19.14"
+libc = "0.2"
+
+[profile.release]
+debug = 1

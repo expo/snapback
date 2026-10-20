@@ -1,0 +1,39 @@
+{
+  "status": "passed",
+  "settings": 35,
+  "non_ping_repetitions": 105,
+  "standalone_rtt_repetitions": 3,
+  "bracket_rtt_cells": 76,
+  "all_applicable_result_checks": true,
+  "both_host_snapshots_and_monitors": true,
+  "source_and_binary_sha256_match": true,
+  "durability_before_after_on": true,
+  "credential_scan_files": 2025,
+  "credential_matches": 0,
+  "created_databases_dropped": 3,
+  "recorded_tunnels_stopped": 211,
+  "cleanup": [
+    {
+      "directory": "results-20261020-s1b",
+      "tunnels_stopped": 35,
+      "database_dropped": false
+    },
+    {
+      "directory": "results-20261020-s1b-network",
+      "tunnels_stopped": 144,
+      "database_dropped": true
+    },
+    {
+      "directory": "results-20261020-s1b-smoke01",
+      "tunnels_stopped": 16,
+      "database_dropped": true
+    },
+    {
+      "directory": "results-20261020-s1b-smoke02",
+      "tunnels_stopped": 16,
+      "database_dropped": true
+    }
+  ],
+  "experiment_target_bytes": 1809793172,
+  "cargo_clean_required": false
+}

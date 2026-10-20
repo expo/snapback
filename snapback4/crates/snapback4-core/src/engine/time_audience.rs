@@ -49,7 +49,7 @@ impl Engine {
     /// The next private wake deadline. It is host scheduling state and never
     /// appears in a query, sync cursor, change answer, or device database.
     pub fn next_time_audience_at(&mut self) -> Result<Option<i64>, RuntimeError> {
-        if self.store.conn().is_readonly("main")? {
+        if self.store.is_read_only()? {
             return Ok(None);
         }
         let tx = self.store.read_transaction()?;
@@ -67,12 +67,10 @@ impl Engine {
         {
             return Ok(requested);
         }
-        if self.store.conn().is_readonly("main")? {
+        if self.store.is_read_only()? {
             let floor = self
                 .store
-                .meta("time_audience_clock")?
-                .and_then(|value| value.parse::<i64>().ok())
-                .unwrap_or(i64::MIN);
+                .time_audience_clock()?;
             return Ok(requested.max(floor));
         }
         let tx = self.store.transaction()?;
@@ -102,12 +100,10 @@ impl Engine {
         {
             return Ok(requested);
         }
-        if self.store.conn().is_readonly("main")? {
+        if self.store.is_read_only()? {
             let floor = self
                 .store
-                .meta("time_audience_clock")?
-                .and_then(|value| value.parse::<i64>().ok())
-                .unwrap_or(i64::MIN);
+                .time_audience_clock()?;
             return Ok(requested.max(floor));
         }
 

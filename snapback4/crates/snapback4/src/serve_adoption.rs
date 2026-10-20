@@ -4,19 +4,14 @@ use crate::project::Project;
 use snapback4_core::RuntimeError;
 use std::{sync::Arc, time::{Duration, Instant}};
 
-fn locked(error: &RuntimeError) -> bool {
-    matches!(error,
-        RuntimeError::Sql(sql) if matches!(sql.sqlite_error_code(), Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)))
-}
-
-fn retryable(error: &RuntimeError) -> bool { locked(error) || matches!(error, RuntimeError::Generation(_)) }
+fn retryable(error: &RuntimeError) -> bool { error.is_busy() || matches!(error, RuntimeError::Generation(_)) }
 
 pub(super) fn open(owner: &crate::store_owner::Owner, bound: &snapback4_lang::Bound, clock: &crate::dev_clock::Clock) -> Result<snapback4_core::Engine, RuntimeError> {
     let mut reported = None;
     loop {
         match owner.open_engine(bound, Duration::from_secs(5), clock.now()) {
             Ok(engine) => return Ok(engine),
-            Err(error) if locked(&error) && !crate::lifecycle::stopping() => {
+            Err(error) if error.is_busy() && !crate::lifecycle::stopping() => {
                 let reason = error.to_string();
                 if reported.as_ref() != Some(&reason) {
                     snapback4_core::diagnostic!("snapback4 dev: startup schema adoption failed: {reason}; no requests, jobs or sweeps are running; retrying automatically");

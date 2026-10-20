@@ -1,0 +1,11 @@
+{
+  "database": "sb4_s1b_20261020_164108_3639445",
+  "client_host": "expo-build-450b",
+  "database_host": "expo-build-450a",
+  "mode": "smoke",
+  "timing_ms": {
+    "warmup": 100,
+    "measure": 400
+  },
+  "source_commit": "6410077ae6fb62d3515c753e85104702983ab575"
+}

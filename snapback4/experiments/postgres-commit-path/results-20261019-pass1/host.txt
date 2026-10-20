@@ -1,0 +1,17 @@
+96
+Model name:                              AMD EPYC 9454 48-Core Processor
+Thread(s) per core:                      2
+Socket(s):                               1
+NUMA node(s):                            1
+Linux expose-builder-pixel 6.8.0-142-generic #142-Ubuntu SMP PREEMPT_DYNAMIC Wed Sep  2 14:24:27 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+TARGET SOURCE         FSTYPE OPTIONS
+/      /dev/nvme0n1p4 ext4   rw,relatime,stripe=32
+NAME        MODEL                SIZE ROTA TYPE MOUNTPOINT
+nvme1n1     KIOXIA KCD8XRUG1T92  1.7T    0 disk 
+└─nvme1n1p1                      1.7T    0 part /var/cache/expose-build
+nvme0n1     KIOXIA KCD8XRUG1T92  1.7T    0 disk 
+├─nvme0n1p1                       32G    0 part [SWAP]
+├─nvme0n1p2                      256M    0 part /boot/efi
+├─nvme0n1p3                        1G    0 part /boot
+└─nvme0n1p4                      1.7T    0 part /
+KIOXIA KCD8XRUG1T92                     

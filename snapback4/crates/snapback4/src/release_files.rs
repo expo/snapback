@@ -197,9 +197,9 @@ impl Drop for Candidate {
         if self.pending {eprintln!("release {} result remains unknown; retained source while the server may still commit; inspect releases",self.release);return;}
         let probe=(|| -> Result<bool,String> {
             let store=snapback4_core::Store::open_read_only(&self.dir.join("store.sqlite")).map_err(|e|e.to_string())?;
-            let history:bool=store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='_release_events')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+            let history:bool=store.has_release_history()?;
             if !history {return Ok(false);}
-            store.conn().query_row("SELECT EXISTS(SELECT 1 FROM _release_events WHERE release=?1 OR previous=?1)",[self.release as i64],|r|r.get(0)).map_err(|e|e.to_string())
+            store.release_referenced(self.release as i64)
         })();
         match probe {
             Ok(false)=>if let Err(e)=fs::remove_dir_all(self.dir.join("releases").join(self.release.to_string())) {eprintln!("uncommitted release {} cleanup failed: {e}",self.release);},

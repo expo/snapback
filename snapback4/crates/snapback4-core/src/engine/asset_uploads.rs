@@ -1,5 +1,7 @@
 //! Staged upload custody, intent receipts and authorized asset delivery.
 use super::*;
+use crate::assets::{AssetIntentReader, AssetTransaction};
+use crate::receipts::ReceiptReader;
 impl Engine {
     /// Record an upload under `owner`: sniffed, bounded by the largest
     /// column of its kind in this schema, written beside the store. The
@@ -120,12 +122,19 @@ impl Engine {
                 tx.rollback()?;
                 return Ok(asset);
             }
-            let pinned: i64 = tx.conn().query_row("SELECT COALESCE(SUM(a.bytes),0) FROM _asset_intents u JOIN _assets a ON a.id=u.asset WHERE u.owner=?1 AND u.state='pending' AND a.home_table IS NULL AND NOT EXISTS(SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent)", [&upload.asset.owner], |r| r.get(0))?;
+            let pinned = tx.pinned_asset_bytes(&upload.asset.owner)?;
             if pinned as u64 + upload.asset.bytes > 128 << 20 {
                 return Err(RuntimeError::Asset { code: "E_UPLOAD_QUOTA", message: "unplaced upload intents exceed this viewer's 128 MiB allowance; place or cancel earlier intents".into() });
             }
             // BEGIN IMMEDIATE excludes cancellation/other writers between this recheck and publication.
-            tx.conn().execute("INSERT INTO _asset_intents(owner,intent,fingerprint,asset,facts,placement,state) VALUES(?1,?2,?3,?4,?5,?6,'pending') ON CONFLICT(owner,intent) DO UPDATE SET asset=excluded.asset,facts=excluded.facts,state='pending' WHERE _asset_intents.state='declared'", rusqlite::params![upload.asset.owner,id,fingerprint,upload.asset.id,crate::json_codec::to_text(&upload.asset).map_err(|e|RuntimeError::Store(e.to_string()))?,upload.placement.as_ref().map(crate::json_codec::to_text).transpose().map_err(|e|RuntimeError::Store(e.to_string()))?])?;
+            tx.record_uploaded_intent(&assets::UploadedIntent {
+                owner: &upload.asset.owner,
+                id,
+                fingerprint,
+                asset: &upload.asset.id,
+                facts: &crate::json_codec::to_text(&upload.asset).map_err(|e|RuntimeError::Store(e.to_string()))?,
+                placement: upload.placement.as_ref().map(crate::json_codec::to_text).transpose().map_err(|e|RuntimeError::Store(e.to_string()))?.as_deref(),
+            })?;
         }
         tx.record_asset(&upload.asset)?;
         tx.commit()?;
@@ -135,25 +144,23 @@ impl Engine {
 
     /// Bind original placement and upload fingerprint before accepting byte transport.
     pub fn declare_asset_intent(&mut self, owner:&str,id:&str,fingerprint:&str,placement:&serde_json::Value)->Result<(),RuntimeError>{
-        use rusqlite::OptionalExtension;
         let encoded=bounded_placement(placement)?;
         let tx=self.store.transaction()?;
-        let old:Option<(Option<String>,Option<String>,String)>=tx.conn().query_row("SELECT fingerprint,placement,state FROM _asset_intents WHERE owner=?1 AND intent=?2",[owner,id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
-        if let Some((previous,binding,state))=old {
+        let old = tx.intent_declaration(owner,id)?;
+        if let Some(assets::IntentDeclaration { fingerprint: previous, placement: binding, state })=old {
             if state=="cancelled"{return Err(RuntimeError::Asset{code:"E_UPLOAD_CANCELLED",message:"this intent was cancelled".into()});}
             if previous.as_deref()!=Some(fingerprint)||binding.as_deref()!=Some(&encoded){return Err(RuntimeError::Asset{code:"E_ASSET_INTENT_REUSE",message:"intent declaration belongs to different bytes, metadata or placement".into()});}
             tx.rollback()?;return Ok(());
         }
-        if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _ops WHERE principal=?1 AND id=?2)",[owner,id],|r|r.get::<_,bool>(0))?{return Err(RuntimeError::Asset{code:"E_WRITE_ID_REUSE",message:"this id already belongs to an executed mutation".into()});}
-        tx.conn().execute("INSERT INTO _asset_intents(owner,intent,fingerprint,placement,state) VALUES(?1,?2,?3,?4,'declared')",rusqlite::params![owner,id,fingerprint,encoded])?;
+        if tx.receipt_exists(owner,id)?{return Err(RuntimeError::Asset{code:"E_WRITE_ID_REUSE",message:"this id already belongs to an executed mutation".into()});}
+        tx.declare_intent(owner,id,fingerprint,&encoded)?;
         tx.commit()
     }
     pub fn asset_declaration(&mut self,owner:&str,id:&str)->Result<Option<serde_json::Value>,RuntimeError>{
-        use rusqlite::OptionalExtension;
         let tx=self.store.transaction()?;
-        let binding:Option<(Option<String>,String)>=tx.conn().query_row("SELECT placement,state FROM _asset_intents WHERE owner=?1 AND intent=?2",[owner,id],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
-        if binding.as_ref().is_some_and(|(_,s)|s=="cancelled"){return Err(RuntimeError::Asset{code:"E_UPLOAD_CANCELLED",message:"this intent was cancelled".into()});}
-        let result=binding.and_then(|(p,_)|p).map(|p|crate::json_codec::from_text(&p).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
+        let binding = tx.intent_placement(owner,id)?;
+        if binding.as_ref().is_some_and(|p|p.state=="cancelled"){return Err(RuntimeError::Asset{code:"E_UPLOAD_CANCELLED",message:"this intent was cancelled".into()});}
+        let result=binding.and_then(|p|p.placement).map(|p|crate::json_codec::from_text(&p).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
         tx.rollback()?;Ok(result)
     }
 
@@ -161,7 +168,7 @@ impl Engine {
     // @ref LLP 3000.038.000#3 — media placement always settles through a durable receipt.
     pub fn require_non_media_ephemeral(&self,owner:&str,id:Option<&str>)->Result<(),RuntimeError>{
         if let Some(id)=id
-            && self.store.conn().query_row("SELECT EXISTS(SELECT 1 FROM _asset_intents WHERE owner=?1 AND intent=?2)",[owner,id],|r|r.get::<_,bool>(0))? {
+            && self.store.asset_intent_exists(owner,id)? {
             return Err(RuntimeError::Asset{code:"E_UPLOAD_INTENT",message:"upload-and-place requires a durable mutation; this operation became ephemeral".into()});
         }
         Ok(())
@@ -178,10 +185,10 @@ impl Engine {
     /// Bounded owner-only recovery of pinned uploads after device storage loss.
     pub fn pending_asset_intents(&mut self, owner: &str, after: &str) -> Result<serde_json::Value, RuntimeError> {
         let tx = self.store.transaction()?;
-        let entries: Vec<(String,String)> = tx.conn().prepare("SELECT u.intent,u.facts FROM _asset_intents u JOIN _assets a ON a.id=u.asset WHERE u.owner=?1 AND u.intent>?2 AND u.state='pending' AND a.home_table IS NULL AND a.released_at IS NULL AND NOT EXISTS(SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent) ORDER BY u.intent LIMIT 51")?.query_map([owner,after], |r| Ok((r.get(0)?,r.get(1)?)))?.collect::<Result<_,_>>()?;
-        let next = if entries.len()>50 { Some(entries[49].0.clone()) } else { None };
+        let entries = tx.pending_intents(owner,after)?;
+        let next = if entries.len()>50 { Some(entries[49].id.clone()) } else { None };
         let mut intents=Vec::new();
-        for (id,facts) in entries.into_iter().take(50) {
+        for assets::PendingIntent { id, facts } in entries.into_iter().take(50) {
             let asset: Asset = crate::json_codec::from_text(&facts).map_err(|e| RuntimeError::Store(e.to_string()))?;
             let mut facts=serde_json::json!({"id":asset.id,"type":asset.content_type,"bytes":asset.bytes,"width":asset.width,"height":asset.height,"duration":asset.duration});
             if let Some(name)=asset.name {facts["name"]=serde_json::json!(name);}
@@ -197,13 +204,13 @@ impl Engine {
     pub fn finish_asset_intent(&mut self, owner: &str, id: &str, name: &str, args: &serde_json::Value, why: &Refusal) -> Result<MutationOutcome, RuntimeError> {
         if why.retryable { return Err(RuntimeError::Input("retryable outcomes cannot finalize an upload intent".into())); }
         let tx = self.store.transaction()?;
-        if !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _asset_intents WHERE owner=?1 AND intent=?2)", [owner,id], |r| r.get::<_,bool>(0))? {
+        if !tx.asset_intent_exists(owner,id)? {
             return Err(RuntimeError::Asset {code:"E_UPLOAD_INTENT",message:"this viewer has no uploaded intent under that id".into()});
         }
-        if let Some(receipt) = crate::store::replay_bound(tx.conn(), owner, id, name, args)? {
+        if let Some(receipt) = tx.replay_bound(owner, id, name, args)? {
             let outcome = MutationOutcome::from_receipt(&receipt)?; tx.rollback()?; return Ok(outcome);
         }
-        let cancelled=tx.conn().query_row("SELECT state='cancelled' FROM _asset_intents WHERE owner=?1 AND intent=?2",[owner,id],|r|r.get::<_,bool>(0))?;
+        let cancelled=tx.intent_cancelled(owner,id)?;
         if cancelled {tx.rollback()?;return Ok(MutationOutcome{receipt_only:true,state:WriteState::Failed{why:Refusal::new("E_UPLOAD_CANCELLED","asset","this intent was durably cancelled"),current:None},metered:Metered::default(),tables:Vec::new(),events:0,replayed:true});}
         assets::require_placement(&tx,owner,id,name,args)?;
         if why.code.chars().count()>128 || why.family.chars().count()>128 || why.message.chars().count()>4096 || why.guide.as_ref().is_some_and(|g|g.chars().count()>128) {
@@ -213,17 +220,17 @@ impl Engine {
         let seq = tx.next_seq()? - 1;
         tx.record_applied(owner,id,seq,&crate::json_codec::to_text(&outcome.receipt(Some(id))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
         tx.bind_applied(owner,id,name,args,crate::now_ms())?;
-        tx.conn().execute("UPDATE _asset_intents SET state='settled' WHERE owner=?1 AND intent=?2 AND state != 'cancelled'", [owner,id])?;
+        tx.settle_intent(owner,id)?;
         tx.commit()?; Ok(outcome)
     }
 
     /// Cancellation fences a late staged upload too; executed placements cannot be cancelled.
     pub fn cancel_asset_intent(&mut self, owner: &str, id: &str) -> Result<(), RuntimeError> {
         let tx = self.store.transaction()?;
-        if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _ops WHERE principal=?1 AND id=?2)", [owner,id], |r| r.get::<_,bool>(0))? {
+        if tx.receipt_exists(owner,id)? {
             return Err(RuntimeError::Asset { code: "E_UPLOAD_DISPATCHED", message: "placement already has a server outcome; recover its receipt".into() });
         }
-        tx.conn().execute("INSERT INTO _asset_intents(owner,intent,state) VALUES(?1,?2,'cancelled') ON CONFLICT(owner,intent) DO UPDATE SET state='cancelled'", [owner,id])?;
+        tx.cancel_intent(owner,id)?;
         tx.commit()
     }
 

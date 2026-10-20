@@ -50,11 +50,6 @@ impl fmt::Display for Error {
     }
 }
 
-fn locked(error: &RuntimeError) -> bool {
-    matches!(error, RuntimeError::Sql(error) if matches!(error.sqlite_error_code(),
-        Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)))
-}
-
 // @ref LLP 3000.011.004.000#2 — bind retries to source before admission, never retry the operation.
 // @ref LLP 3000.011.004.000#3 — external adoption remains supported; the watcher reopens and stale hosts refuse.
 pub(super) fn open(project: &Project, owner: &crate::store_owner::Owner, bound: &Bound, source: &Source, operation: &str, now: i64) -> Result<Engine, Error> {
@@ -80,7 +75,7 @@ pub(super) fn open(project: &Project, owner: &crate::store_owner::Owner, bound: 
                 }
                 return Ok(engine);
             }
-            Err(error) if locked(&error) => {
+            Err(error) if error.is_busy() => {
                 if last.is_none() {
                     eprintln!("snapback4 run {operation}: waiting before admission for store open/adoption ({} ms elapsed; 15000 ms contention deadline): {error}; inspect `snapback4 doctor` or the dev adoption log", started.elapsed().as_millis());
                 }
@@ -123,12 +118,12 @@ mod tests {
     #[test]
     fn only_typed_sqlite_locks_are_retryable() {
         for code in [rusqlite::ffi::SQLITE_BUSY, rusqlite::ffi::SQLITE_LOCKED, rusqlite::ffi::SQLITE_BUSY_SNAPSHOT] {
-            assert!(locked(&rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(code), None).into()));
+            assert!(RuntimeError::from(rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(code), None)).is_busy());
         }
         for code in [rusqlite::ffi::SQLITE_IOERR, rusqlite::ffi::SQLITE_CORRUPT, rusqlite::ffi::SQLITE_READONLY] {
-            assert!(!locked(&rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(code), Some("database is locked".into())).into()));
+            assert!(!RuntimeError::from(rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(code), Some("database is locked".into()))).is_busy());
         }
-        assert!(!locked(&RuntimeError::Store("database is locked".into())));
-        assert!(!locked(&RuntimeError::Generation("changed".into())));
+        assert!(!RuntimeError::Store("database is locked".into()).is_busy());
+        assert!(!RuntimeError::Generation("changed".into()).is_busy());
     }
 }

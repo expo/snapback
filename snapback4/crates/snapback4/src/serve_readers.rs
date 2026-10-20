@@ -24,7 +24,7 @@ impl QueryReaders {
         &mut self,
         engine: &Engine,
     ) -> Result<(Arc<()>, Engine), snapback4_core::RuntimeError> {
-        self.memory = engine.store().conn().path().is_none_or(str::is_empty);
+        self.memory = engine.store().is_memory();
         if self.source.is_none() {
             self.source = engine.reader().ok();
         }
@@ -57,14 +57,14 @@ impl QueryReaders {
         Self {
             source: engine.reader().ok(),
             refusal_sites: Arc::new(sites.clone()),
-            memory: engine.store().conn().path().is_none_or(str::is_empty),
+            memory: engine.store().is_memory(),
             ..Self::default()
         }
     }
     pub(super) fn replace(&mut self, engine: &Engine, sites: &dev_refusals::Sites) {
         self.invalidate();
         self.refusal_sites = Arc::new(sites.clone());
-        self.memory = engine.store().conn().path().is_none_or(str::is_empty);
+        self.memory = engine.store().is_memory();
         self.source = engine.reader().ok();
     }
     // @ref LLP 3000.019#3.6 — retry a failed factory on existing writer work; reads still refuse immediately.

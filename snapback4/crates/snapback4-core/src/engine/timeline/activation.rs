@@ -1,35 +1,28 @@
 //! Retirement is atomic. First-use launch construction lives in store::timeline_launch.
 // @ref LLP 3000.013#4-following-without-caps — copies, admission history and derived totals share activation.
 use super::*;
-use crate::{schema::Schema, store::Tx};
-use rusqlite::OptionalExtension;
+use crate::schema::Schema;
+use crate::activation::{ActivationReader, ActivationTransaction};
 
-fn populated(tx: &Tx<'_>, table: &str, retirement: Option<&super::super::through_activation::Retirement<'_>>) -> Result<bool, RuntimeError> {
+fn populated(tx: &impl ActivationReader, table: &str, retirement: Option<&super::super::through_activation::Retirement<'_>>) -> Result<bool, RuntimeError> {
     let Some(retirement) = retirement.filter(|r| r.affects(table)) else {
-        return Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r JOIN _catalog c ON r.t = c.num WHERE c.name = ?1)", [table], |row| row.get(0))?);
+        return tx.table_populated(table);
     };
     // Stream predecessor images without writes, row staging or work tables.
     // Runtime has already removed these rows; preview evaluates that same phase.
-    let mut statement = tx.conn().prepare("SELECT data FROM r WHERE t = (SELECT num FROM _catalog WHERE name = ?1)")?;
-    let mut rows = statement.query([table])?;
-    while let Some(row) = rows.next()? {
-        let image: Value = crate::json_codec::from_text(row.get_ref(0)?.as_str().map_err(|e| RuntimeError::Store(e.to_string()))?)
-            .map_err(|e| RuntimeError::Store(e.to_string()))?;
-        if !retirement.retires(table, &image) { return Ok(true); }
-    }
-    Ok(false)
+    tx.any_table_image(table, |image| !retirement.retires(table, image))
 }
 
 /// Fence stores left by the withdrawn experimental builder. Recognize its
 /// single control identity, never execute it or resume a partial reconstruction.
 /// Removing the view bypasses this fence and retires that work in the same commit.
-pub(crate) fn check_no_rebuilds(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> {
+pub(crate) fn check_no_rebuilds(tx: &impl ActivationReader, schema: &Schema) -> Result<(), RuntimeError> {
     for t in &schema.timelines {
         let id = crate::schema::timeline::owned_id(&t.name, "Work", &[
             Value::String("rebuild".into()), Value::Id("service:$timeline-rebuild".into()),
             Value::Null, Value::Null, Value::Null,
         ]);
-        let exists: bool = tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t = (SELECT num FROM _catalog WHERE name = ?1) AND id = ?2)", [&t.table("Work"), &id], |row| row.get(0))?;
+        let exists: bool = tx.timeline_rebuild_exists(&t.table("Work"), &id)?;
         if exists {
             return Err(refusal("E_TIMELINE_REDEFINE", format!("view {}: an unfinished experimental reconstruction cannot prove repost identities or complete history; remove the view and deploy, then add the new definition with a fresh view name, or use the planned home query in guide feeds over the retained sources", t.name)));
         }
@@ -37,9 +30,9 @@ pub(crate) fn check_no_rebuilds(tx: &Tx<'_>, schema: &Schema) -> Result<(), Runt
     Ok(())
 }
 
-pub(crate) fn check_activation_read_only(tx: &Tx<'_>, schema: &Schema, retirement_time: Option<i64>) -> Result<Schema, RuntimeError> {
+pub(crate) fn check_activation_read_only(tx: &impl ActivationReader, schema: &Schema, retirement_time: Option<i64>) -> Result<Schema, RuntimeError> {
     crate::schema::timeline::check_version(schema)?;
-    let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
+    let previous: Option<String> = tx.previous_schema()?;
     let previous: Schema = previous.map(|s| crate::json_codec::from_text(&s).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?.unwrap_or_default();
     crate::schema::timeline::check_version(&previous)?;
     let retirement = retirement_time.map(|now| super::super::through_activation::Retirement::new(schema, &previous, now));
@@ -64,7 +57,7 @@ pub(crate) fn check_activation_read_only(tx: &Tx<'_>, schema: &Schema, retiremen
     Ok(previous)
 }
 
-pub(crate) fn check_activation(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> {
+pub(crate) fn check_activation(tx: &impl ActivationTransaction, schema: &Schema) -> Result<(), RuntimeError> {
     // Runtime has physically completed retirement and recapture; never apply
     // predecessor expiry again to the recaptured images.
     let previous = check_activation_read_only(tx, schema, None)?;
@@ -73,10 +66,10 @@ pub(crate) fn check_activation(tx: &Tx<'_>, schema: &Schema) -> Result<(), Runti
     // targets; surviving maintained columns are reset by ordinary activation.
     // Catalog numbers stay reserved, as for removed maintained tables.
     for table in retired {
-        tx.conn().execute("DELETE FROM r WHERE t = (SELECT num FROM _catalog WHERE name = ?1)", [&table])?;
+        tx.clear_retired_table(&table)?;
         if let Some(old) = previous.table(&table) {
             for index in old.indexes.keys() {
-                tx.conn().execute("DELETE FROM i WHERE ti = (SELECT num FROM _catalog WHERE name = ?1)", [format!("{table}.{index}")])?;
+                tx.clear_retired_index(&table, index)?;
             }
         }
     }

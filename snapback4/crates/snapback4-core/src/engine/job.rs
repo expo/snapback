@@ -15,8 +15,7 @@ use crate::ir::{Expr, LoopDomain, ProgramKind, Scan, Stmt};
 use crate::meter::{Ceilings, Cut, Meter};
 use crate::partition;
 use crate::store::{Bounds, Dir};
-use crate::value::{Value, canonical_json, decode_bytes_hex, digest, encode_bytes_hex};
-use rusqlite::{Connection, OptionalExtension, params};
+use crate::value::{Value, canonical_json, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -32,7 +31,7 @@ pub enum JobState {
 }
 
 impl JobState {
-    fn word(self) -> &'static str {
+    pub(crate) fn word(self) -> &'static str {
         match self {
             Self::Queued => "queued",
             Self::Running => "running",
@@ -63,54 +62,69 @@ pub struct JobRun {
     pub error: Option<String>,
 }
 
-struct Head {
-    run: JobRun,
-    args: BTreeMap<String, Value>,
-    program_hash: String,
-    cursor: Option<Vec<u8>>,
-    upper: Option<Vec<u8>>,
-    domain: Option<Scan>,
+/// The durable continuation, independent of a database row representation.
+pub(crate) struct Head {
+    pub(crate) run: JobRun,
+    pub(crate) args: BTreeMap<String, Value>,
+    pub(crate) program_hash: String,
+    pub(crate) cursor: Option<Vec<u8>>,
+    pub(crate) upper: Option<Vec<u8>>,
+    pub(crate) domain: Option<Scan>,
 }
 
-const COLUMNS: &str = "id, name, args, program_hash, state, sweep, cursor, upper, chunks, rows_written, created_at, updated_at, error, chunk_size, retries, heap_peak, domain";
-
-fn read_head(row: &rusqlite::Row<'_>) -> rusqlite::Result<Head> {
-    let state: String = row.get(4)?;
-    let args: Value = serde_json::from_str::<Value>(&row.get::<_, String>(2)?).unwrap_or(Value::Null);
-    Ok(Head {
-        run: JobRun {
-            id: row.get(0)?,
-            name: row.get(1)?,
-            state: match state.as_str() {
-                "queued" => JobState::Queued,
-                "running" => JobState::Running,
-                "done" => JobState::Done,
-                _ => JobState::Parked,
-            },
-            sweep: row.get::<_, i64>(5)? as u32,
-            chunks: row.get::<_, i64>(8)? as u64,
-            rows_written: row.get::<_, i64>(9)? as u64,
-            created_at: row.get(10)?,
-            updated_at: row.get(11)?,
-            error: row.get(12)?,
-            chunk_size: row.get::<_, i64>(13)? as u32,
-            retries: row.get::<_, i64>(14)? as u64,
-            heap_peak: row.get::<_, i64>(15)? as u64,
-        },
-        args: args.as_object().map(|fields| fields.clone()).unwrap_or_default(),
-        program_hash: row.get(3)?,
-        cursor: row.get::<_, Option<String>>(6)?.and_then(|hex| decode_bytes_hex(&hex)),
-        upper: row.get::<_, Option<String>>(7)?.and_then(|hex| decode_bytes_hex(&hex)),
-        domain: row.get::<_, Option<String>>(16)?.map(|json| serde_json::from_str(&json).map_err(|error| rusqlite::Error::FromSqlConversionFailure(16, rusqlite::types::Type::Text, Box::new(error)))).transpose()?,
-    })
+pub(crate) struct JobChunkUpdate<'a> {
+    pub(crate) id: &'a str,
+    pub(crate) state: JobState,
+    pub(crate) sweep: usize,
+    pub(crate) cursor: Option<&'a [u8]>,
+    pub(crate) upper: Option<&'a [u8]>,
+    pub(crate) rows_written: u64,
+    pub(crate) now: i64,
+    pub(crate) size: u32,
+    pub(crate) retries: u64,
+    pub(crate) heap_peak: u64,
+    pub(crate) domain: Option<&'a Scan>,
 }
 
-fn insert_job(conn: &Connection, id: &str, name: &str, args: &BTreeMap<String, Value>, program_hash: &str, now: i64) -> Result<(), RuntimeError> {
-    conn.execute(
-        "INSERT INTO _jobs(id, name, args, program_hash, state, sweep, cursor, upper, chunks, rows_written, created_at, updated_at, error) VALUES (?1, ?2, ?3, ?4, 'queued', 0, NULL, NULL, 0, 0, ?5, ?5, NULL)",
-        params![id, name, canonical_json(&Value::Map(args.clone().into())), program_hash, now],
-    )?;
-    Ok(())
+/// Bounded inspection facts; presentation and byte truncation belong to the host.
+pub struct JobSummary {
+    pub id: String,
+    pub name: String,
+    pub state: String,
+    pub rows_written: i64,
+    pub error: Option<String>,
+    pub error_truncated: bool,
+}
+
+/// Snapshot inspection of the work family. No policy or presentation lives here.
+// P1: implement every JobStore operation for the Postgres adapter.
+pub(crate) trait JobStore {
+    fn job(&self, id: &str) -> Result<Option<JobRun>, RuntimeError>;
+    fn jobs(&self, limit: usize) -> Result<Vec<JobRun>, RuntimeError>;
+    fn schedule_shape(&self, name: &str) -> Result<Option<String>, RuntimeError>;
+    fn schedule_boundary(&self, name: &str) -> Result<Option<i64>, RuntimeError>;
+    fn latest_schedule_boundary(&self) -> Result<Option<i64>, RuntimeError>;
+    fn job_summaries(&self, error_bytes: usize) -> Result<Vec<JobSummary>, RuntimeError>;
+    fn job_count(&self) -> Result<i64, RuntimeError>;
+}
+
+/// Access to job continuations and schedule watermarks in the caller's writer.
+/// Policy decides state, refusal text, chunk size and the order of these calls.
+// @ref LLP 3000.009.001.000#3.3 — the boundary and admitted job stay in one transaction.
+// P1: implement every JobTransaction operation for the Postgres adapter.
+pub(crate) trait JobTransaction {
+    fn insert_job(&self, id: &str, name: &str, args: &BTreeMap<String, Value>, program_hash: &str, now: i64) -> Result<(), RuntimeError>;
+    fn head_job(&self) -> Result<Option<Head>, RuntimeError>;
+    fn park_job(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError>;
+    fn finish_job_sweeps(&self, id: &str, sweeps: usize, now: i64) -> Result<(), RuntimeError>;
+    fn record_job_chunk(&self, chunk: JobChunkUpdate<'_>) -> Result<(), RuntimeError>;
+    fn park_job_chunk(&self, id: &str, error: &str, now: i64, size: u32, retries: u64, heap_peak: u64) -> Result<(), RuntimeError>;
+    #[cfg(feature = "native")]
+    fn record_native_job_chunk(&self, id: &str, state: JobState, cursor: Option<&[u8]>, rows_written: u64, now: i64) -> Result<(), RuntimeError>;
+    fn schedule_shape(&self, name: &str) -> Result<Option<String>, RuntimeError>;
+    fn schedule_boundary(&self, name: &str) -> Result<Option<i64>, RuntimeError>;
+    fn set_schedule_shape(&self, name: &str, shape: &str) -> Result<(), RuntimeError>;
+    fn set_schedule_boundary(&self, name: &str, boundary: i64) -> Result<(), RuntimeError>;
 }
 
 /// Durable admission identity for a queued run. Quarry jobs retain their
@@ -194,7 +208,7 @@ impl Engine {
         #[cfg(not(feature = "native"))]
         let program_hash = job_admission_hash(&program, None);
         let tx = self.store.transaction()?;
-        insert_job(tx.conn(), &id, name, &args, &program_hash, now)?;
+        tx.insert_job(&id, name, &args, &program_hash, now)?;
         tx.commit()?;
         Ok(id)
     }
@@ -212,14 +226,12 @@ impl Engine {
     }
 
     pub fn job(&self, id: &str) -> Result<Option<JobRun>, RuntimeError> {
-        Ok(self.store.conn().query_row(&format!("SELECT {COLUMNS} FROM _jobs WHERE id = ?1"), [id], read_head).optional()?.map(|head| head.run))
+        JobStore::job(&self.store, id)
     }
 
     /// The most recent runs, newest first.
     pub fn jobs(&self, limit: usize) -> Result<Vec<JobRun>, RuntimeError> {
-        let mut statement = self.store.conn().prepare(&format!("SELECT {COLUMNS} FROM _jobs ORDER BY created_at DESC LIMIT ?1"))?;
-        let rows = statement.query_map([limit as i64], read_head)?;
-        Ok(rows.map(|head| head.map(|head| head.run)).collect::<Result<_, _>>()?)
+        JobStore::jobs(&self.store, limit)
     }
 
     /// One chunk of the head job (queued or running, oldest first): one
@@ -247,7 +259,7 @@ impl Engine {
         // runner, partition events and commit share the floor pinned inside
         // their writer transaction, for Quarry and native chunks alike.
         let now = super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
-        let head = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _jobs WHERE state IN ('queued', 'running') ORDER BY created_at, id LIMIT 1"), [], read_head).optional()?;
+        let head = tx.head_job()?;
         let Some(mut head) = head else { return Ok(None) };
         let program = self.programs.get(&head.run.name).cloned();
         #[cfg(feature = "native")]
@@ -255,7 +267,7 @@ impl Engine {
         #[cfg(not(feature = "native"))]
         let current_hash = program.as_ref().map(|program| job_admission_hash(program, None));
         let Some(program) = program.filter(|_| current_hash.as_deref() == Some(&head.program_hash)) else {
-            tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id, format!("E_JOB_GENERATION: job {} or its native module changed (or the run predates module binding) since this run was queued; queue it again", head.run.name), now])?;
+            tx.park_job(&head.run.id, &format!("E_JOB_GENERATION: job {} or its native module changed (or the run predates module binding) since this run was queued; queue it again", head.run.name), now)?;
             tx.commit()?;
             return self.job(&head.run.id);
         };
@@ -289,13 +301,13 @@ impl Engine {
         if sweeps.is_empty() || unsupported.is_some() {
             let reason = unsupported.map_or_else(|| "has no recorded table sweep".to_owned(),
                 |(position, binding)| format!("has an unsupported top-level loop at statement {position} (`for {binding}`)"));
-            tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id,
-                format!("E_JOB_SWEEP: job {} {reason}; bind its work as `for row in table:` and put optional filters inside the loop", program.name), now])?;
+            tx.park_job(&head.run.id,
+                &format!("E_JOB_SWEEP: job {} {reason}; bind its work as `for row in table:` and put optional filters inside the loop", program.name), now)?;
             tx.commit()?;
             return self.job(&head.run.id);
         }
         if sweep >= sweeps.len() {
-            tx.conn().execute("UPDATE _jobs SET state = 'done', sweep = ?2, cursor = NULL, upper = NULL, updated_at = ?3 WHERE id = ?1", params![head.run.id, sweeps.len() as i64, now])?;
+            tx.finish_job_sweeps(&head.run.id, sweeps.len(), now)?;
             tx.commit()?;
             return self.job(&head.run.id);
         }
@@ -366,10 +378,12 @@ impl Engine {
                     }
                     let (next_sweep, cursor, upper) = if chunk.finished { (sweeps.len(), None, None) } else if chunk.ended { (sweep + 1, None, None) } else { (sweep, chunk.last_key, upper) };
                     let state = if next_sweep >= sweeps.len() { JobState::Done } else { JobState::Running };
-                    tx.conn().execute(
-                        "UPDATE _jobs SET state = ?2, sweep = ?3, cursor = ?4, upper = ?5, chunks = chunks + 1, rows_written = rows_written + ?6, updated_at = ?7, chunk_size = ?8, retries = ?9, heap_peak = ?10, domain = ?11 WHERE id = ?1",
-                        params![head.run.id, state.word(), next_sweep as i64, cursor.as_deref().map(encode_bytes_hex), upper.as_deref().map(encode_bytes_hex), rows_written as i64, now, size, head.run.retries as i64, head.run.heap_peak as i64, if next_sweep == sweep { frozen.as_ref().map(canonical_json) } else { None }],
-                    )?;
+                    tx.record_job_chunk(JobChunkUpdate {
+                        id: &head.run.id, state, sweep: next_sweep,
+                        cursor: cursor.as_deref(), upper: upper.as_deref(), rows_written, now,
+                        size, retries: head.run.retries, heap_peak: head.run.heap_peak,
+                        domain: if next_sweep == sweep { frozen.as_ref() } else { None },
+                    })?;
                     tx.commit()?;
                     return Ok(self.job(&head.run.id)?);
                 }
@@ -382,7 +396,7 @@ impl Engine {
                         continue;
                     }
                     let refusal = error.refusal();
-                    tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3, chunk_size = ?4, retries = ?5, heap_peak = ?6 WHERE id = ?1", params![head.run.id, format!("{}: {}", refusal.code, refusal.message), now, size, head.run.retries as i64, head.run.heap_peak as i64])?;
+                    tx.park_job_chunk(&head.run.id, &format!("{}: {}", refusal.code, refusal.message), now, size, head.run.retries, head.run.heap_peak)?;
                     tx.commit()?;
                     return self.job(&head.run.id);
                 }
@@ -425,8 +439,6 @@ impl Engine {
         let mut fired = Vec::new();
         for schedule in self.schema.schedules.get(range).unwrap_or(&[]).to_vec() {
             let boundary = selected.unwrap_or_else(|| schedule.boundary(now));
-            let key = format!("schedule:{}", schedule.name);
-            let shape_key = format!("schedule-shape:{}", schedule.name);
             let shape = digest(&schedule);
             let program = self.programs.get(&schedule.target).filter(|p| matches!(p.kind, ProgramKind::Job | ProgramKind::Action))
                 .ok_or_else(|| RuntimeError::Schema(format!("schedule {} names missing job or action {}; restore its target before firing it", schedule.name, schedule.target)))?.clone();
@@ -437,21 +449,21 @@ impl Engine {
                 return Err(RuntimeError::Schema("a scheduled job runs as the system, not a service seat".into()));
             }
             let tx = self.store.transaction()?;
-            let previous_shape: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [&shape_key], |row| row.get(0)).optional()?;
+            let previous_shape: Option<String> = tx.schedule_shape(&schedule.name)?;
             if previous_shape.as_ref().is_some_and(|previous| previous != &shape) {
-                tx.set_meta(&key, &boundary.to_string())?;
-                tx.set_meta(&shape_key, &shape)?;
+                tx.set_schedule_boundary(&schedule.name, boundary)?;
+                tx.set_schedule_shape(&schedule.name, &shape)?;
                 tx.commit()?;
                 continue;
             }
-            tx.set_meta(&shape_key, &shape)?;
-            let last: Option<i64> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [&key], |row| row.get::<_, String>(0)).optional()?.and_then(|value| value.parse().ok());
+            tx.set_schedule_shape(&schedule.name, &shape)?;
+            let last: Option<i64> = tx.schedule_boundary(&schedule.name)?;
             if last.is_some_and(|last| last >= boundary) {
                 tx.commit()?;
                 continue;
             }
             let Some(_) = last else {
-                tx.set_meta(&key, &boundary.to_string())?;
+                tx.set_schedule_boundary(&schedule.name, boundary)?;
                 tx.commit()?;
                 continue;
             };
@@ -476,9 +488,9 @@ impl Engine {
                 let program_hash = job_admission_hash(&program, self.native.as_deref().map(super::native::Module::digest));
                 #[cfg(not(feature = "native"))]
                 let program_hash = job_admission_hash(&program, None);
-                insert_job(tx.conn(), &id, &schedule.target, &args, &program_hash, now)?;
+                tx.insert_job(&id, &schedule.target, &args, &program_hash, now)?;
             }
-            tx.conn().execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![key, boundary.to_string()])?;
+            tx.set_schedule_boundary(&schedule.name, boundary)?;
             tx.commit()?;
             fired.push(schedule.name.clone());
         }
@@ -514,18 +526,15 @@ fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module
             }
             let (state, cursor) = match step {
                 Step::Done => (JobState::Done, None),
-                Step::Again(state) => (JobState::Running, Some(encode_bytes_hex(state.to_string().as_bytes()))),
+                Step::Again(state) => (JobState::Running, Some(state.to_string().into_bytes())),
             };
-            tx.conn().execute(
-                "UPDATE _jobs SET state = ?2, cursor = ?3, chunks = chunks + 1, rows_written = rows_written + ?4, updated_at = ?5 WHERE id = ?1",
-                params![head.run.id, state.word(), cursor, outcome.rows_written as i64, now],
-            )?;
+            tx.record_native_job_chunk(&head.run.id, state, cursor.as_deref(), outcome.rows_written, now)?;
             tx.commit()
         }
         Err(error) if error.is_refusal() => {
             tx.rollback_to("job_chunk")?;
             let refusal = error.refusal();
-            tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id, format!("{}: {}", refusal.code, refusal.message), now])?;
+            tx.park_job(&head.run.id, &format!("{}: {}", refusal.code, refusal.message), now)?;
             tx.commit()
         }
         Err(error) => {
@@ -538,6 +547,62 @@ fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module
 /// Built without native jobs: a native job parks, saying so.
 #[cfg(not(feature = "native"))]
 fn native_chunk(tx: crate::store::Tx<'_>, head: Head, program: &crate::ir::Program, now: i64) -> Result<(), RuntimeError> {
-    tx.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1", params![head.run.id, format!("E_NATIVE: job {} is native and this server was built without native jobs", program.name), now])?;
+    tx.park_job(&head.run.id, &format!("E_NATIVE: job {} is native and this server was built without native jobs", program.name), now)?;
     tx.commit()
+}
+
+/// Adapter-neutral cases: each adapter supplies its own transaction lifecycle.
+#[cfg(test)]
+pub(crate) mod test_cases {
+    use super::*;
+
+    pub(crate) fn queue_and_continue(tx: &impl JobTransaction) {
+        let args = BTreeMap::from([("periodEnd".into(), Value::Int(60_000))]);
+        tx.insert_job("b", "tick", &args, "hash", 10).unwrap();
+        tx.insert_job("a", "tick", &args, "hash", 10).unwrap();
+        // FIFO ties use the id; adapter row order must not pick insertion order.
+        assert_eq!(tx.head_job().unwrap().unwrap().run.id, "a");
+        tx.record_job_chunk(JobChunkUpdate {
+            id: "a", state: JobState::Running, sweep: 0,
+            cursor: Some(&[0, 127, 255]), upper: Some(&[255, 255]),
+            rows_written: 2, now: 20, size: 32, retries: 1, heap_peak: 1024, domain: None,
+        }).unwrap();
+        tx.set_schedule_shape("pulse", "shape").unwrap();
+        tx.set_schedule_boundary("pulse", 60_000).unwrap();
+        tx.park_job("b", "E_JOB_GENERATION: fixture", 20).unwrap();
+        assert_continuation(tx);
+    }
+
+    pub(crate) fn assert_continuation(tx: &impl JobTransaction) {
+        let head = tx.head_job().unwrap().unwrap();
+        assert_eq!(head.run.id, "a");
+        assert_eq!(head.run.state, JobState::Running);
+        assert_eq!((head.run.chunks, head.run.rows_written), (1, 2));
+        assert_eq!(head.cursor.as_deref(), Some([0, 127, 255].as_slice()));
+        assert_eq!(head.upper.as_deref(), Some([255, 255].as_slice()));
+        assert_eq!(head.args.get("periodEnd"), Some(&Value::Int(60_000)));
+        assert_eq!(tx.schedule_shape("pulse").unwrap().as_deref(), Some("shape"));
+        assert_eq!(tx.schedule_boundary("pulse").unwrap(), Some(60_000));
+    }
+
+    pub(crate) fn advance(tx: &impl JobTransaction) {
+        tx.record_job_chunk(JobChunkUpdate {
+            id: "a", state: JobState::Done, sweep: 1,
+            cursor: None, upper: None, rows_written: 7, now: 30,
+            size: 16, retries: 2, heap_peak: 2048, domain: None,
+        }).unwrap();
+        tx.set_schedule_boundary("pulse", 120_000).unwrap();
+        assert!(tx.head_job().unwrap().is_none());
+    }
+
+    pub(crate) fn assert_committed(store: &impl JobStore) {
+        assert_eq!(store.job_count().unwrap(), 2);
+        let runs = store.jobs(2).unwrap();
+        assert_eq!(runs.len(), 2);
+        let run = store.job("b").unwrap().unwrap();
+        assert_eq!(run.state, JobState::Parked);
+        assert_eq!(run.error.as_deref(), Some("E_JOB_GENERATION: fixture"));
+        assert_eq!(store.schedule_boundary("pulse").unwrap(), Some(60_000));
+        assert_eq!(store.latest_schedule_boundary().unwrap(), Some(60_000));
+    }
 }

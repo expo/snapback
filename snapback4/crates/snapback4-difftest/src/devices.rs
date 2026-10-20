@@ -207,7 +207,7 @@ pub fn stream_reply(server: &mut Server, principal: &str, from: u64, limit: usiz
     let page = e.stream_at(principal, from, limit, now).map_err(|e| format!("stream: {e}"))?;
     let images_at = page.images_at.unwrap_or(page.watermark);
     let (acknowledged, committed_above) = e.acknowledged_at(principal, pending, page.watermark, images_at).map_err(|e| e.to_string())?;
-    let preserved = snapback4_core::revocation::preserved_between(e.store().conn(), e.schema(), from, images_at);
+    let preserved = e.store().preserved_between(e.schema(), from, images_at);
     let sent: std::collections::BTreeMap<_, _> = acknowledged.iter().chain(committed_above.iter()).map(|(k, v)| (k.clone(), *v)).collect();
     let events: Vec<Json> = page
         .events

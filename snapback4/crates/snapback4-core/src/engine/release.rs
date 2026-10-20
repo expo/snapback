@@ -1,7 +1,6 @@
 //! Release activation extends the existing engine transaction and generation.
 // @ref LLP 3000.000.000#5-hot-activation-and-ownership — CAS includes every activation, not only semantic changes.
 use super::*;
-use rusqlite::OptionalExtension;
 
 #[derive(Clone, Debug)]
 pub struct ReleaseActivation {
@@ -12,6 +11,11 @@ pub struct ReleaseActivation {
     pub native_digest: Option<String>,
     pub operation: String,
 }
+pub(crate) trait ReleaseTransaction {
+    fn selected_release(&self) -> Result<Option<String>, RuntimeError>;
+    fn release_revision(&self) -> Result<Option<String>, RuntimeError>;
+}
+
 impl ReleaseActivation {
     pub fn new(release: u64, expected_previous: Option<u64>) -> Self {
         Self {
@@ -23,25 +27,15 @@ impl ReleaseActivation {
             operation: "activate".into(),
         }
     }
-    pub(crate) fn check(&self, conn: &rusqlite::Connection) -> Result<(), RuntimeError> {
-        let actual: Option<String> = conn
-            .query_row("SELECT value FROM _meta WHERE key='release'", [], |r| {
-                r.get(0)
-            })
-            .optional()?;
+    pub(crate) fn check(&self, tx: &impl ReleaseTransaction) -> Result<(), RuntimeError> {
+        let actual = tx.selected_release()?;
         if actual
             .as_ref()
             .is_some_and(|s| s.parse::<u64>().ok() != self.expected_previous)
         {
             return Err(RuntimeError::Generation("current release changed; run `snapback4 releases <dir>` and retry the selected release".into()));
         }
-        let revision: Option<String> = conn
-            .query_row(
-                "SELECT value FROM _meta WHERE key='release_revision'",
-                [],
-                |r| r.get(0),
-            )
-            .optional()?;
+        let revision = tx.release_revision()?;
         let revision = revision.and_then(|v| v.parse::<u64>().ok()).unwrap_or(0);
         if self.expected_revision.is_some_and(|n| n != revision) {
             return Err(RuntimeError::Generation("activation revision changed (including rollback/equal-content activation); run `snapback4 releases <dir>` and retry".into()));

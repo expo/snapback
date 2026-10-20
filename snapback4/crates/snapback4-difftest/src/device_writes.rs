@@ -30,7 +30,7 @@
 //! disagreement. The stream reply mirrors `sync_wire.rs::StreamReply`;
 //! `changes` (the TypeScript client's settlement summary, not a device
 //! field) is omitted, and `preserved` comes from
-//! `revocation::preserved_between`, as `serve_sync.rs` computes it.
+//! `Store::preserved_between`, as `serve_sync.rs` computes it.
 // @ref LLP 3000.035#5.1 — predicted device writes against committed server outcomes.
 use crate::{
     ast::{Body, Expr, Key, Stmt, Write},

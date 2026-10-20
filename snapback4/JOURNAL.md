@@ -97216,3 +97216,454 @@ Round-nine fresh Codex identified six concrete gaps; Muse returned READY on the 
 ### 2026-10-20 — Integration 19, archived eligibility and raw lookup admission
 
 Round-ten fresh Codex identified three material gaps; Muse returned READY. All three detecting regressions failed before correction. Native down eligibility now walks already-narrowed images when a declaration is added, so a hidden row cannot silently skip the declared old view on later widening. Down input interpretation uses the retained native source definition, preserving a physically absent retired field's default. Raw bounded existence expressions require a declared plain index and a valid prefix/range shape; rebuilding a malformed source lookup returns E_ADOPT rather than indexing a missing map entry. Final full-suite, differential and packed results are rerun after this source correction.
+## 2026-10-20 — P0-S3a: identity behind the store port
+
+The identity family now exposes crate-private `IdentityTransaction` and
+`IdentityStore` capabilities and typed records in `identity.rs`; SQLite access
+lives in `store/identity.rs`. Identity policy still owns credential validation,
+entropy, expiry bounds and refusal ordering. Composite methods preserve the
+original deferred/immediate transaction modes for signup/login, guest minting,
+full/read rotation, principal revocation and supervised-worker mint/retirement.
+Callbacks keep policy and token generation at their original point inside an
+atomic operation, without relying on another function's ambient connection.
+The worker marker writes retain the original per-write ownership checks.
+
+Host auth and worker callers use identity operations for their table access.
+The action-session caller passes its existing `Tx`, and the SQLite authority
+adapter uses the relocated read-table probe. No Postgres implementation or
+P0-S1-owned file changes. Adapter-neutral cases cover rollback after full/read
+replacement deletes, credential rechecks, immutable read caps and isolation of
+manual seats from supervised retirement. The ratchet falls from 398 to 329
+production sites; test sites remain 106. The one remaining worker connection
+access obtains the file path for its completion ledger, outside this identity
+slice.
+
+The additional repository-wide inventory audit reports `FAIL guide-manifest`:
+missing generated legacy demo snippets and diagnostics-registry removal-record
+errors. Its complete output is byte-for-byte identical on the untouched base
+`e600ac132cd75d2583e06e4be056fd455e10f67c` in a second detached worktree. This is
+outside the Snapback 4 fence; no legacy artifacts were changed. `ref-check
+--verbose` passes with zero errors and zero unchecked references.
+
+Required checks: `cargo build -p snapback4` and the complete
+`cargo test -p snapback4-core` pass. The required Clippy command is blocked by
+two inherited deny-by-default lints, reproduced on the untouched base:
+`clippy::while_immutable_condition` (`engine/read.rs:780`) and
+`clippy::never_loop` (`engine/row_views.rs:1010`). Warning categories and source
+files match the base with no additions. The first host test attempt found two
+missing-TypeScript failures in `tests/check.rs` (`farm2_typescript_7_is_refused_by_version_not_crashed_on`
+and `w11r1c_toolchain_why_explains_node_start_failure_too`); both reproduce at the
+same assertions on the base. Installed the pinned JS workspace dependencies
+with `bun install --frozen-lockfile` to complete the host check.
+
+The full host run (`cargo test -p snapback4 --no-fail-fast`) executes every
+target; its sole remaining failure was `witness_web::web_witness_help_and_invalid_input`
+because the checkout had no `packages/snapback4/dist/client.js`. The helper
+fails with the same missing client artifact on the untouched base. Emitting
+the client JavaScript restores the witness test: `cargo test -p snapback4
+--test witness_web` passes. Every other host target, including the ratchet,
+passes in the full run. The optional TypeScript emit reports the same three
+TS2307 diagnostics on this lane and base for the unbuilt wasm device imports;
+no client source or wasm artifact is changed by this slice. `scripts/test.sh`
+was not run.
+
+### 2026-10-20 — P0-S2: receipts and head seam
+
+The commissioned single-worker store-port lane starts at mirror base
+`a8460f7abb27acc6c99589bd492c7adbee22f381` on `sb4-pg/p0-s2`.
+`receipts.rs` now owns the plain receipt record, `ReceiptReader` trait,
+canonical payload binding helpers and replay policy; `store/receipts.rs`
+implements its reads for SQLite `Store` and `Tx`. Engine acknowledgement
+cuts and validation, negative-sequence errors and asset refusal ordering
+remain at their original call sites. The standalone asset `_ops` probes
+share the receipt access method; the existing typed asset replay delegates
+to it too. Shared cases cover principal isolation, canonical argument
+binding, name/argument mismatches, legacy unbound receipts, sent-only
+acknowledgement and the sequence cut on both handles.
+
+Typed required/optional store identity reads preserve missing-row behavior
+and share the existing head transaction. `Store::is_read_only` and
+`Store::is_memory` own connection inspection. `Tx::abandon` issues the same
+rollback at the same point while the ephemeral undo guard still borrows it.
+Host open/adoption retries use `RuntimeError::is_busy`; the adapter classifies
+exactly the previous SQLite busy/locked codes. SQL text, transaction modes,
+statement order, refusal messages and retry policy are unchanged. No changes
+to the evaluation Postgres adapter or P0-S4a's `engine/actions.rs` and
+`engine/routes.rs`. All seven requested items are included.
+
+The required ratchet update passes and lowers production sites **273 → 254**;
+test sites remain **104 → 104**. Only the production allowlist changes.
+
+`cargo build -p snapback4`, the ratchet update and `./ref-check --verbose`
+pass. The required Clippy command fails on two inherited deny-by-default
+lints: `clippy::while_immutable_condition` (`engine/read.rs:780`) and
+`clippy::never_loop` (`engine/row_views.rs:1010`). Running the same command
+on the untouched base in a second detached worktree reproduces both; the
+sets of diagnostic messages and source files match, with no new warnings
+or errors.
+
+The complete host suite (`cargo test -p snapback4 --no-fail-fast`) passes,
+including the ratchet and the existing busy/locked-code classification test.
+`scripts/test.sh` was not run.
+
+`cargo test -p snapback4-core` also passes in full, including integration
+tests, doctests and the new shared receipt cases. The existing ignored tests
+remain ignored. No product-test failures were found. The only failed required
+check is the base-reproduced Clippy result above. The lane commits locally
+with the commissioned identity and does not push.
+## 2026-10-20 — P0-S4a: request storage behind typed access
+
+The request family now has `RequestsTransaction`/`RequestsStore` contracts and
+plain insertion/settlement records in `engine/actions/requests.rs`, implemented
+for SQLite `Tx`/`Store` in `store/requests.rs`. The adapter owns request DDL and
+upgrades, row decoding, insertion, due/expired selection, claim/finish/requeue,
+settlement, cancellation and counts. `actions.rs` keeps admission authority,
+lease and attempt rules, validation, transition selection and refusal order;
+`routes.rs` reads through the same typed method. The step adapter still calls
+the shared finish policy, which invalidates the delegated session before the
+typed request update and retains the cooperative claim fence. All 15 moved SQL
+literals match the base verbatim; initialization and transaction boundaries
+retain their original order. No host request SQL exists outside inspection,
+so `verbs/work_records.rs` stays for that slice. No Postgres or P0-S2-owned
+files changed.
+
+Scoped LLP orientation: LLP 3000 §1 decision 4 (the lead owns the core; this is
+an explicitly commissioned lane), LLP 3000.009.001.000 §3.1–3.3 (typed access,
+policy above the adapter, extraction without behavioral changes), LLP 3000.009
+§5.1 (authority, leases, results and route identity), LLP 3000.007 §9.2 (durable
+action admission). The governing work documents remain in `llp/current/`;
+none is in `foundation/`. The current action/route guide cards agree with the
+retained lifecycle. Updated the port RFC's extraction record; no public
+surface or new design decision needs documentation. Shared adapter-neutral
+cases check finish-time credential invalidation and fence retention, ordinary
+settlement/requeue fence clearing, due ordering/name filters, lease expiry and
+rollback. The existing action/route suites cover the public policy. No open
+design question or LLP hand-off.
+
+Ratchet regeneration passes: production sites 273 → 237 (actions 34 → 0,
+routes 2 → 0), test sites unchanged at 104; combined 377 → 341. The required
+build and `ref-check --verbose` pass (zero reference errors/unchecked refs).
+The required Clippy command fails on `clippy::while_immutable_condition`
+(`engine/read.rs:780`) and `clippy::never_loop` (`engine/row_views.rs:1010`).
+The exact command reproduces both failures on untouched base
+`a8460f7abb27acc6c99589bd492c7adbee22f381` in a second detached local worktree.
+The distinct warning message/source-file signatures match the base exactly,
+with no additions. No inherited lint was changed or suppressed.
+
+The initial full host run hit three socket read timeouts (`WouldBlock`) in
+`serve::tests::release_lifecycle_tests`:
+`authentication_and_metadata_stamp_the_engine_after_intake_switch`,
+`following_reply_stamps_the_engine_selected_after_request_intake`, and
+`action_reply_stamps_admission_after_switch_during_request_intake`. Checked the
+release-lifecycle group on the untouched base: it passes (12 passed, 1 ignored),
+so this scoped comparison does not reproduce the timeouts. Reran the lane's
+entire binary target with `cargo test -p snapback4 --bin snapback4 --
+--test-threads=4`: 494 passed, 5 ignored, including all three original failures.
+No source or timeout was changed. These are recorded as transient failures in
+the first run, not as reproduced base failures.
+
+The full `cargo test -p snapback4 --no-fail-fast` run completed every target.
+Every target other than the initial binary target passes, including the normal
+ratchet run and web witness. The only failing target is the three initial
+binary timeouts above, all covered by the successful full binary retry.
+`scripts/test.sh` was not run.
+
+The complete `cargo test -p snapback4-core` passes, including all integration
+and doc tests. Together with the required build, ratchet regeneration/normal
+run, completed full host run and full binary retry, this completes the lane's
+affected checks. Clippy's two base-reproduced errors remain the only unresolved
+check failures. No design uncertainty remains; the original parallel socket
+timeouts are recorded above with the scope and limits of the base comparison.
+## 2026-10-20 — P0-S4b: jobs and schedules behind the store port
+
+`engine/job.rs` now names typed `JobTransaction` and `JobStore` capabilities
+and plain continuation, chunk-update and bounded-summary records. The SQLite
+adapter is `store/jobs.rs`; job admission, chunking, ceilings, adaptive retries,
+park rules, generation binding and schedule coalescing stay in the engine.
+Schedule reads and writes own typed accessors for `schedule:*` and
+`schedule-shape:*`. Existing SQL text, statement order, transaction boundaries
+and refusal text are retained, including native continuation encoding and the
+clock report's bounded error query. Host report formatting and byte truncation
+stay above the adapter. The clock's `_commits` and application-row inspection
+remain for the inspection slice.
+
+Shared adapter-neutral cases exercise FIFO ties, continuation bytes, arguments
+and accounting. SQLite lifecycle tests exercise admission/watermark rollback
+and savepoint rollback before parking. Host clock inspection and the simple
+maintenance job-count assertion use typed access. No Postgres implementation,
+P0-S4a action/route file or P0-S2 receipt/error file changes. P1 implementations
+are marked at the new traits.
+
+The regenerated ratchet lowers production sites from 273 to 249 and test sites
+from 104 to 103: 377 to 352 in total. The required Clippy command stops on
+`clippy::while_immutable_condition` in `engine/read.rs:780` and
+`clippy::never_loop` in `engine/row_views.rs:1010`. The untouched base
+`a8460f7abb27acc6c99589bd492c7adbee22f381` reproduces both in a second detached
+worktree. Warning messages and their counts match the base with no additions;
+the existing row-decoder `map_clone` warning moves into the adapter.
+
+`cargo build -p snapback4`, the complete `cargo test -p snapback4-core`, the
+three focused job-adapter cases, the ratchet and `ref-check --verbose` pass.
+The final build and focused cases include the extracted summary decoder's
+original field-error ordering. `scripts/test.sh` was not run.
+
+The complete host run (`cargo test -p snapback4 --no-fail-fast`) passes every
+target, including the ratchet. The first host attempt was deliberately
+interrupted after a supplementary `cargo build` replaced the shared CLI path
+with an unoptimized dev binary while its calibration fixture was running.
+Restored the test-profile binary with `cargo test -p snapback4 --no-run`, then
+reran the complete host command successfully. No product-test failure was
+classified as pre-existing.
+## 2026-10-20 — P0-S4c: outbox and effects behind the store port
+
+`engine/effects.rs` now owns crate-private `OutboxTransaction` and
+`OutboxStore` capabilities plus plain admission and expiry records. SQLite
+access and row decoding live in `store/outbox.rs`; no Postgres implementation
+is added. Claim/settle/expiry policy, declaration compatibility, presence
+satisfaction, attempt bounds, backoff, refusal ordering and the maintenance
+budget stay in the engine. The original strict and legacy update statements
+retain their different field-clearing behavior. SQL text and transaction
+boundaries are preserved, and every existing public engine call shape remains.
+
+The dev clock shift is one explicit transaction operation across `_outbox`,
+`_requests`, supervised `_sessions` and delegated request sessions, using the
+worker-family markers in `_meta`. `presence_reconnected` still probes in a
+read transaction before opening a writer, under the caller's engine lock.
+The host obtains counts and grace deferrals from one typed `EffectHealth`
+snapshot; a deferral-query error remains advisory with its original display
+text. Replay configuration still checks deployment identity and writes the
+policy in one immediate transaction, while schedule replay checks reuse their
+existing writer transaction.
+
+Shared capability cases exercise expiry equality, generation parking before
+expiry, terminal evidence immutability, deadline precedence, presence grace
+boundaries and progress with a zero maintenance budget. The existing doctor
+concurrent-claim test now exercises the typed snapshot method directly. The
+ratchet falls from 273 to 193 production sites (80 removed); test sites remain
+104. The change stays below the requested 1,000-line split threshold. Parallel
+lanes' source files are unchanged.
+
+Validation: `cargo build -p snapback4`, the complete
+`cargo test -p snapback4-core` and the ratchet pass. The complete host run with
+`--no-fail-fast` executes every target; all integration targets pass. Its binary
+target initially reports socket `WouldBlock` timeouts in
+`authentication_and_metadata_stamp_the_engine_after_intake_switch` and
+`following_reply_stamps_the_engine_selected_after_request_intake`, both at
+`serve_tests.rs:149`. The untouched base `a8460f7abb27acc6c99589bd492c7adbee22f381`
+passes its full binary target (494 passed, five ignored), so those timeouts are
+not classified as pre-existing failures. The lane's full binary-target rerun
+at default concurrency also passes (494 passed, five ignored). The original
+socket-timeout cause remains unconfirmed. Sharing the Cargo target directory
+with the base caused stale metadata during an intermediate retry; clearing the
+affected core/host package artifacts and rebuilding restores the lane check.
+
+The required Clippy command fails on two inherited deny-by-default lints,
+reproduced on the untouched base: `clippy::while_immutable_condition`
+(`engine/read.rs:780`) and `clippy::never_loop` (`engine/row_views.rs:1010`).
+After rebuilding the lane, Clippy warning titles and source-file pairs match
+the base exactly, with no additions. `ref-check --verbose` passes with zero
+errors and zero unchecked references. `scripts/test.sh` was not run; no push.
+
+## 2026-10-20 — P0-S5: asset-upload ledger access behind the store port
+
+The explicitly commissioned single-worker lane starts at mirror commit
+`d0662f421cb4335155bc455eaf9ee94c055c6869` on `sb4-pg/p0-s5`.
+`assets.rs` extends the typed `AssetTransaction` contract and defines an
+`AssetIntentReader` for Store/Tx existence probes. `store/assets.rs` now
+owns declaration reads/insertion, pending upload publication, cancellation
+and settlement, the quota and recovery-list receipt joins, and reset's asset
+ID inventory. `engine/asset_uploads.rs` retains declaration bounds, encoding,
+digest and placement checks, quota arithmetic, response pagination and
+refusal order. Reset's other SQL is left for the release/schema lane. No
+Postgres implementation or parallel-lane effect/replay file changes.
+
+Scoped orientation: LLP 3000 decision 4 (lead core ownership, this lane
+explicitly commissioned); LLP 3000.009.001.000 §3.1–3.3 (typed access,
+policy above adapters, extraction without behavior changes); LLP
+3000.038 §3 (upload admission); LLP 3000.038.000 §2–3 (declaration bounds,
+immutable bindings, dedup, quota, cancellation and receipt ordering); and
+the current `guide assets` card. The local `llp-orient` symlink has no
+installed target; this context pack was assembled directly from those
+sources. The port documents remain linked in `llp/current/`; no new LLP
+or public authoring-surface change is needed. The affected LLP references
+still apply, and the port RFC's extraction record is updated in this commit.
+
+All 11 distinct moved SQL literals match the base verbatim. The same
+transaction and rollback/commit calls remain in the engine, in the same
+order. New trait operations carry P1 notes. Shared adapter-neutral cases
+exercise declaration preservation, cancellation tombstones, owner isolation,
+receipt-qualified quota/recovery filters, the released-asset difference
+between quota and listing, and the 51-row recovery bound. The SQLite harness
+also verifies rollback and reuses the existence case on Store and Tx.
+
+Ratchet regeneration passes: production sites **218 → 204** (upload engine
+13 → 0, reset 10 → 9), test sites **104 → 104**, combined **322 → 308**.
+Only the production allowlist changes. The required build and
+`ref-check --verbose` pass.
+
+The required Clippy command fails on `clippy::while_immutable_condition`
+(`engine/read.rs:780`) and `clippy::never_loop` (`engine/row_views.rs:1010`).
+The exact command reproduces both failures on untouched base
+`d0662f421cb4335155bc455eaf9ee94c055c6869` in a second detached local worktree.
+The warning/error message-and-source-file signature multisets match exactly:
+no new diagnostic signatures. Neither inherited lint is changed or suppressed.
+
+The complete required `cargo test -p snapback4` passes, including its binary,
+integration targets and ordinary ratchet run. The final build and reference
+validation pass too. Existing ignored tests retain their normal status.
+
+The complete required `cargo test -p snapback4-core` passes, including the
+shared ledger cases, upload-intent and reset integration cases, the generated
+disclosure suites and doctests. No product-test failure was found. Clippy's
+two base-reproduced errors above are the only unresolved required-check
+failures. `scripts/test.sh` was not run. No design uncertainty remains. The
+lane commits locally with the commissioned author/committer and does not push.
+
+## 2026-10-20 — P0-S6: core activation, ordered reset and typed metadata
+
+`activation.rs` now owns the stored-backend record and crate-private opening,
+activation preparation, retirement and timeline-count access traits.
+`store/activation_access.rs` implements SQLite access; release selection,
+restoration accounting, timeline retirement predicates and activation policy
+stay in the engine. Retirement still streams images and stops at the first
+survivor. SQL literals, decoder/error order and transaction boundaries remain
+unchanged. `store/opening.rs` keeps the exact backend comparison under the
+activation lock.
+
+`store/dev_reset.rs` owns the ordered reset transaction, with engine callbacks
+for clock pinning, the pending asset inventory, schedule priming and
+commit/seeding policy at their original statement boundaries. The `_assets`
+read stays intact in its callback for P0-S5. Reset's schedule writes now use
+P0-S4b's typed jobs family. Continuations and ephemeral identity still change
+only after commit.
+
+`metadata.rs` and `store/metadata.rs` add typed key families with crate-private
+access traits and public Store/Tx forwarding methods for the independent host
+migration. Values stay textual so callers keep their existing missing,
+malformed and empty-value policy, and Store reads retain ownership checks.
+Core callers are migrated except the two generic identity reads in P0-S5's
+`engine/asset_uploads.rs`. The generic API remains available. The report lists
+remaining callers, including DeviceStore's SQLite forwarding boundary; later
+privacy work must account for that boundary too. No host source, Postgres
+adapter or pending effects/assets implementation changes. P1 gaps are marked.
+
+Shared cases cover metadata isolation, worker revision fences, textual values,
+streaming retirement and retired names, with SQLite metadata rollback coverage.
+The final build, complete core suite including doctests, and complete host suite
+(`--no-fail-fast`) pass. Ratchet regeneration passes: production **194 → 168**,
+tests **103 → 103**, total **297 → 271**. `ref-check --verbose` passes.
+
+The first core attempt exposed a new fixture's stale captured generation;
+corrected its setup and repeated the complete suite. The first host attempt
+stopped at two clock tests (expiry socket timeout and large-report output
+length). The exact-base clock target and the lane's complete rerun both pass
+all 45 clock tests with unchanged bounds; these are not classified as
+pre-existing failures. Required Clippy still stops on
+`clippy::while_immutable_condition` (`engine/read.rs:780`) and
+`clippy::never_loop` (`engine/row_views.rs:1010`). The exact base `98de657`
+reproduces both in a second detached worktree; final warning messages/counts
+match the base, with no additions. No `scripts/test.sh` or push.
+
+Full scope, validation and generic-caller census:
+[`reports/20261020-p0-s6-store-port.md`](reports/20261020-p0-s6-store-port.md).
+
+## 2026-10-20 — P0-S7, first commit: the SQL inspection port
+
+Commissioned lane on base `98de657098b878b7f9a9934e24a54386a72cbb46`.
+Scoped orientation: LLP 3000 decision 4 (explicitly commissioned core lane),
+LLP 3000.009.001.000 §3.1–3.3 (typed access, policy above the adapter, no
+behavior change), LLP 3000.007 §8 and §18.3 (operator-only read-only views,
+literal default projection), and the current personas/deploy guide cards.
+The local `llp-orient` symlink has no target; assembled this context directly.
+No new design decision, public surface change or current/foundation hand-off.
+
+`store/inspect.rs` now owns the raw read-only connection, deferred snapshot,
+view generation, authorizer and bounded SELECT execution. `InspectionCatalog`
+in `inspection.rs` exposes plain persisted records to the existing host
+catalog policy; Store, Tx and the raw inspection connection implement it.
+The host retains command parsing, provenance validation, descriptions, boolean
+inference and output formatting. Query authorization and boolean inference
+keep their original order; ephemeral notices run at their original view-build
+position. Core's SQLite dependency enables the hooks feature previously used
+by the host. No Postgres implementation or parallel-lane file/region changed.
+
+The binary builds and all eleven existing shared catalog tests pass. The
+complete affected checks follow in the second commit, which extracts release,
+work-record, witness and clock access. This split keeps both commits building.
+
+First-commit ratchet regeneration passes: production 194 → 177, tests 103 →
+95, combined 297 → 272. The final first-commit `cargo build -p snapback4`
+passes after factoring the shared SQLite catalog implementation.
+
+## 2026-10-20 — P0-S7, second commit: release, work and witness inspection
+
+`store/tooling.rs` owns release snapshots/history, preview population and lost
+row probes, dormant-column probes, doctor work/worker facts, active schema and
+bounded commit-clock reads. Raw work-record and witness inspection joins
+`store/inspect.rs`. The host retains release hazards, reference/value/null
+policy, payload presentation and clock narration. The null and lost-row
+visitors retain the original interleaving and short-circuit order. Active
+schema reads preserve residency's raw driver-error text and data's runtime
+error wrapper. Stopped-release URI inspection keeps its read-only/URI flags,
+immutable/WAL selection and connection lifetime; it does not initialize a
+writable Store. Required/optional release metadata remain distinct.
+
+The witness barrier is a typed Store operation with its original transaction,
+sequence allocation, commit record and commit. A clock callback runs after
+sequence allocation, exactly where the host originally called `now()`.
+No Postgres implementation, S5-owned file, `dev_replay.rs`, or `effect_health`
+region changed. All 46 distinct SQL literal spellings from the scoped base
+files remain verbatim in the final code (including test fixtures). The added
+adapter cases run one catalog contract on Store, Tx and a raw read-only file
+snapshot, and exercise authorizer denial and limit lookahead. Eleven CLI
+SQL/catalog probes pass (limits, catalog descriptions, raw/internal reads,
+CTE spoofing, side-effect functions, private names and duplicate output names);
+the persisted database's SHA-256 remains unchanged.
+
+Final ratchet regeneration passes: production 194 → 127, tests 103 → 95,
+combined 297 → 222 (75 fewer matching lines). The protected S5 files,
+`dev_replay.rs` and the complete `effect_health` function match the base
+byte-for-byte. The final binary builds. Clock inspection streams one bounded
+commit record at a time, retaining its prior scratch-space bound.
+
+The exact required Clippy command reproduces `clippy::while_immutable_condition`
+in `engine/read.rs:780` and `clippy::never_loop` in `engine/row_views.rs:1010`
+on untouched base `98de657098b878b7f9a9934e24a54386a72cbb46`, in a second
+local detached worktree. No inherited lint is changed or suppressed. The base
+worktree was removed after this comparison. Two style warnings surfaced in
+moved code; the inspection output loop and worker-report conditional were
+rewritten without changing lookup/decoding order or error handling.
+
+Final Clippy has the same two errors and identical warning message/source-file
+signatures as the base: no new warnings. The complete `cargo test -p
+snapback4-core` passes, including all integration and doc tests. The host
+doctor test now passes Store to the extracted handler-failure reader; its
+assertions are unchanged. Catalog policy tests retain explicit query-only
+transaction guards, legacy-fixture setup, corruption injection and byte-level
+fixture verification; their ordinary catalog reads use the typed capability.
+
+The final complete host run (`cargo test -p snapback4 --no-fail-fast`) passes
+every target, including all 494 enabled binary tests (five ignored), the
+ratchet, work-record and web-witness targets. The complete core run, required
+binary build and final normal ratchet pass are green. Final Clippy still has
+only the two base-reproduced errors, with identical warning message/file
+signatures and no additions. Final `ref-check --verbose` passes with zero
+errors and unchecked refs. All eleven SQL/catalog CLI probes pass again on
+the final test-profile binary; persisted database bytes are unchanged.
+`scripts/test.sh` was not run. No functional uncertainty or new follow-up is
+left by this extraction; Postgres tooling/inspection implementations remain P1.
+
+
+## 2026-10-21 — Integration 19 storage-port merge, still 0.4.35
+
+Merged the commissioned storage-port extraction into the qualified 0.4.35
+integration. Retained SQL inspection (whole rows, narrowed rows and individual
+cells) now builds its logical views inside `store/inspect.rs`, preserving the
+pinned snapshot, authorizer, provided-cell metadata and boolean inference.
+Release preview capture and exact visibility probes use `store/tooling.rs`;
+the before images remain MAIN tables so activation's temp-store switch cannot
+erase them. The detecting temp-store regression moves alongside the adapter.
+Asset policy retains uploader-only home guidance and the extracted ledger
+access. Both journal histories remain intact. No version or runtime ceiling
+change. Linux qualification and wasm remeasurement follow in the workstream
+report; the publication's Mac dry run covers platform checks.

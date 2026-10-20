@@ -1,0 +1,47 @@
+{
+  "args": [
+    "ping",
+    "--n",
+    "3000"
+  ],
+  "exit_status": 0,
+  "result": {
+    "argv": [
+      "/home/ccheever/projects/sb4-s1b/snapback4/experiments/postgres-commit-path/target/release/snapback4-postgres-commit-path",
+      "ping",
+      "--n",
+      "3000",
+      "--net",
+      "tunnels"
+    ],
+    "cell": "ping",
+    "finished": "2026-10-20T16:37:19Z",
+    "iterations": 3000,
+    "loadavg_after": [
+      5.57,
+      5.2,
+      5.61
+    ],
+    "loadavg_before": [
+      5.8,
+      5.23,
+      5.62
+    ],
+    "min_us": 451.689,
+    "net": {
+      "added_rtt_us": null,
+      "label": "tunnels",
+      "one_ssh_stream_per_connection": true,
+      "proxy": false
+    },
+    "p50_us": 532.1320000000001,
+    "p90_us": 607.883,
+    "p99_us": 675.772,
+    "profile": "release",
+    "started": "2026-10-20T16:37:17Z",
+    "timing_ms": {
+      "measure": 400,
+      "warmup": 100
+    }
+  }
+}

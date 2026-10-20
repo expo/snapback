@@ -243,9 +243,7 @@ impl Engine {
     /// Operator counts. Work images are private to their actor or affected reader.
     pub fn timeline_work_counts(&self) -> Result<Vec<(String, u64, u64)>, RuntimeError> {
         self.schema.timelines.iter().map(|t| {
-            let count = |state: &str| self.store.conn().query_row(
-                "SELECT count(*) FROM r JOIN _catalog c ON r.t = c.num WHERE c.name = ?1 AND json_extract(r.data, '$.Row.status.String') = ?2",
-                [&t.table("Work"), state], |row| row.get::<_, i64>(0).map(|n| n as u64)).map_err(RuntimeError::from);
+            let count = |state: &str| crate::activation::TimelineWorkReader::timeline_work_count(&self.store, &t.table("Work"), state);
             Ok((t.name.clone(), count("pending")?, count("parked")?))
         }).collect()
     }

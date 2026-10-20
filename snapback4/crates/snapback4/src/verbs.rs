@@ -850,7 +850,7 @@ pub fn data(options: &Options) -> i32 {
     // Read the schema and rows from one snapshot; source on disk may be unadopted.
     let inspected = (|| -> Result<_, snapback4_core::RuntimeError> {
         let tx = store.read_transaction()?;
-        let encoded: String = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT value FROM _meta WHERE key = 'generation')", [], |row| row.get(0))?;
+        let encoded: String = tx.inspection_schema_json()?;
         let schema: snapback4_core::schema::Schema = serde_json::from_str(&encoded).map_err(|e| snapback4_core::RuntimeError::Store(e.to_string()))?;
         schema.refuse_private(table)?;
         let definition = schema.table(table).ok_or_else(|| snapback4_core::RuntimeError::Schema(format!("no table {table}")))?;
@@ -914,19 +914,6 @@ fn human(bytes: u64) -> String {
 #[cfg(test)]
 #[path = "../tests/doctor/mod.rs"]
 pub(crate) mod doctor_tests;
-
-fn effect_health(engine: &snapback4_core::Engine, now: i64) -> Result<(BTreeMap<String, u64>, rusqlite::Result<(i64, Option<i64>)>), snapback4_core::RuntimeError> {
-    // Counts (including replay suppression) and grace deadlines describe one snapshot.
-    let snapshot = engine.store().conn().unchecked_transaction()?;
-    let counts = engine.effect_counts()?;
-    // @ref LLP 3000.007#20.16 — report grace deferrals without treating retry backoff as presence.
-    let deferred = engine.store().conn().query_row(
-        "SELECT COUNT(*), MIN(next_at) FROM _outbox WHERE state = 'queued' AND next_at > ?1 AND EXISTS (SELECT 1 FROM _effect_presence WHERE id = _outbox.id)",
-        [now], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?)),
-    );
-    snapshot.rollback()?;
-    Ok((counts, deferred))
-}
 
 pub fn doctor(options: &Options) -> i32 {
     if options.flags.contains_key("repair-expiry-orphan") { return expiry_orphans::repair(options); }
@@ -1026,11 +1013,7 @@ pub fn doctor(options: &Options) -> i32 {
     // broken or destructive edits must leave the active generation usable.
     match snapback4_core::Store::open_read_only(&work_records::store_path(options)) {
         Ok(store) => {
-            if let Ok(mut statement) = store.conn().prepare("SELECT value FROM _meta WHERE key = 'worker:status' OR key LIKE 'worker:status:%' ORDER BY key") {
-                if let Ok(rows) = statement.query_map([], |row| row.get::<_, String>(0)) {
-                    for status in rows.flatten() { lines.push(format!("worker    last report: {status}")); }
-                }
-            }
+            for status in store.inspection_worker_reports() { lines.push(format!("worker    last report: {status}")); }
             let generation = store.meta("generation").ok().flatten().unwrap_or_else(|| "unrecorded".into());
             lines.push(format!("store     {} at seq {}, generation {}", work_records::store_path(options).display(), store.seq().unwrap_or(0), generation));
             if host.as_ref().is_some_and(|host| store.meta("store_id").ok().flatten().as_deref() != host["storeId"].as_str()) {
@@ -1100,11 +1083,11 @@ pub fn doctor(options: &Options) -> i32 {
                             lines.push(format!("job       {} {} {:?}: {} chunk{}, {} row{} (chunk size {}, retries {}, peak heap {}){}", run.name, run.id, run.state, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }, run.chunk_size, run.retries, run.heap_peak, run.error.map(|e| format!(" — {e}")).unwrap_or_default()));
                         }
                     }
-                    match work_records::handler_failures(engine.store().conn()) {
+                    match work_records::handler_failures(engine.store()) {
                         Ok(failures) => lines.extend(failures),
                         Err(error) => { ok = false; lines.push(format!("handler failures unavailable: {error}")); }
                     }
-                    if let Ok((counts, deferred)) = effect_health(&engine, now) && !counts.is_empty() {
+                    if let Ok(snapback4_core::engine::effects::EffectHealth { counts, deferred }) = engine.effect_health(now) && !counts.is_empty() {
                         let deferred = match deferred {
                             Ok((count, Some(at))) => format!("{count} deferred (next at {at}, +{}s)", (at - now + 999) / 1000),
                             Ok((count, None)) => format!("{count} deferred"),

@@ -304,13 +304,8 @@ fn perform(
             // returning a refresh successor would escape its live log redactors.
             // Match family, not principal: a manual seat with the same name
             // remains refreshable. The engine guard also owns supervisor writes.
-            let supervised: bool = engine.store().conn().query_row(
-                "SELECT EXISTS(SELECT 1 FROM _sessions s JOIN _meta m
-                 ON m.key = 'worker:family:' || COALESCE(s.family, s.token_digest)
-                 OR (m.key = 'worker:session-family' AND m.value = COALESCE(s.family, s.token_digest))
-                 WHERE s.token_digest = ?1)",
-                [format!("{:x}", Sha256::digest(token.as_bytes()))], |row| row.get(0),
-            )?;
+            let supervised = identity::is_supervised_family(engine.store(),
+                &format!("{:x}", Sha256::digest(token.as_bytes())))?;
             if supervised { return Ok(Outcome::SupervisedRefresh); }
             #[cfg(test)]
             crate::serve::test_work(&shared.auth_work);

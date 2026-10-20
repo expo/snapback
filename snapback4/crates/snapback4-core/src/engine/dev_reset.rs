@@ -2,18 +2,29 @@
 //! store identity, optionally reseeded, in one SQLite transaction.
 // @ref LLP 3000.007#20.25 — what "fresh" keeps and what it empties; why the head keeps counting.
 use super::*;
+use crate::assets::AssetTransaction;
 
-/// Tables a reset keeps whole: the store's own metadata, the catalog that
-/// numbers tables and indexes, and the adopted generations.
-const KEPT: [&str; 3] = ["_meta", "_catalog", "_generations"];
+use crate::engine::job::JobTransaction;
 
-/// Identity tables a reset empties except for service seats: the dev
-/// worker's session and `snapback4 token` seats outlive a reset, accounts,
-/// guests and their sessions do not.
-const SERVICE_SEATS: [(&str, &str); 5] = [
-    ("_principals", "id"), ("_sessions", "principal"), ("_read_sessions", "principal"),
-    ("_principal_generations", "principal"), ("_session_mint_bindings", "principal"),
-];
+pub(crate) struct ResetState {
+    pub previous_store_id: String,
+    pub store_id: String,
+    pub seq: u64,
+    pub seeded: u64,
+    pub assets: Vec<String>,
+}
+
+/// Ordered storage reset with engine policy at the original statement boundaries.
+// P1: implement the reset transaction for Postgres.
+pub(crate) trait DevResetStore {
+    fn dev_reset(
+        &mut self,
+        pin_clock: impl FnOnce(&crate::store::Tx<'_>) -> Result<i64, RuntimeError>,
+        inventory_assets: impl FnOnce(&crate::store::Tx<'_>) -> Result<Vec<String>, RuntimeError>,
+        prime_schedules: impl FnOnce(&crate::store::Tx<'_>, i64) -> Result<(), RuntimeError>,
+        seed: impl FnOnce(&crate::store::Tx<'_>, u64, i64) -> Result<u64, RuntimeError>,
+    ) -> Result<ResetState, RuntimeError>;
+}
 
 /// What a development reset did. The caller unlinks `assets` after the
 /// commit, outside any engine guard it holds.
@@ -40,44 +51,24 @@ impl Engine {
     pub fn dev_reset_at(&mut self, rows: Vec<(String, Value)>, now: i64) -> Result<DevReset, RuntimeError> {
         // Like adoption: no ephemeral program runs across the identity change.
         drop(self.ephemeral.lock()?);
-        let tx = self.store.transaction()?;
-        // @ref LLP 3000.000.000.000.000#2-fixture-semantics — the new store identity must not inherit the retired store's future clock.
-        tx.conn().execute("DELETE FROM _meta WHERE key = 'time_audience_clock'", [])?;
-        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
-        let previous_store_id = tx.meta("store_id")?.unwrap_or_default();
-        let head = tx.next_seq()?.saturating_sub(1);
-        let assets: Vec<String> = tx.conn().prepare("SELECT id FROM _assets")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
-        let tables: Vec<String> = tx.conn()
-            .prepare("SELECT name FROM main.sqlite_schema WHERE type = 'table' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'")?
-            .query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;
-        // @ref LLP 3000.039#6.5 — every table empties together: no referential action runs, and no reference is left naming a removed row.
-        for table in &tables {
-            if KEPT.contains(&table.as_str()) { continue; }
-            let quoted = format!("\"{}\"", table.replace('"', "\"\""));
-            match SERVICE_SEATS.iter().find(|(name, _)| name == table) {
-                Some((_, column)) => tx.conn().execute(&format!("DELETE FROM {quoted} WHERE substr({column}, 1, ?2) <> ?1"),
-                    rusqlite::params![crate::identity::SERVICE_PREFIX, crate::identity::SERVICE_PREFIX.len() as i64])?,
-                None => tx.conn().execute(&format!("DELETE FROM {quoted}"), [])?,
-            };
-        }
-        // Prime at the reset clock in this transaction: no old period fires,
-        // and the next crossed boundary fires normally. Replay's count restarts.
-        tx.conn().execute("DELETE FROM _meta WHERE key LIKE 'schedule:%' OR key LIKE 'schedule-shape:%' OR key = 'dev:suppressed-effects'", [])?;
-        for schedule in &self.schema.schedules {
-            tx.set_meta(&format!("schedule:{}", schedule.name), &schedule.boundary(now).to_string())?;
-            tx.set_meta(&format!("schedule-shape:{}", schedule.name), &crate::value::digest(schedule))?;
-        }
-        tx.conn().execute("UPDATE _meta SET value = lower(hex(randomblob(16))) WHERE key = 'store_id'", [])?;
-        let store_id = tx.meta("store_id")?.unwrap_or_default();
-        // Every table changed: no change evidence may certify an interval
-        // across the reset.
-        tx.changes.borrow_mut().widen();
-        let touched: Vec<String> = self.schema.visible_tables().map(|(name, _)| name.clone()).collect();
-        tx.record_commit(head + 1, now, "dev reset", crate::SYSTEM_PRINCIPAL, "reset", &touched, 0)?;
-        if crate::store::backfills::has_evidence(&tx)? {crate::store::backfills::prepare_inputs(&tx,&self.schema,None)?;}
-        let seeded = seed_rows(&self.schema, &tx, rows, now)?;
-        let seq = tx.next_seq()?.saturating_sub(1);
-        tx.commit()?;
+        let schema = &self.schema;
+        let ResetState { previous_store_id, store_id, seq, seeded, assets } = self.store.dev_reset(
+            |tx| time_audience::pin_writer_time(schema, tx, now),
+            |tx| tx.asset_ids(),
+            |tx, now| {
+                for schedule in &schema.schedules {
+                    tx.set_schedule_boundary(&schedule.name, schedule.boundary(now))?;
+                    tx.set_schedule_shape(&schedule.name, &crate::value::digest(schedule))?;
+                }
+                Ok(())
+            },
+            |tx, head, now| {
+                let touched: Vec<String> = schema.visible_tables().map(|(name, _)| name.clone()).collect();
+                tx.record_commit(head + 1, now, "dev reset", crate::SYSTEM_PRINCIPAL, "reset", &touched, 0)?;
+                if crate::store::backfills::has_evidence(tx)? {crate::store::backfills::prepare_inputs(tx,schema,None)?;}
+                seed_rows(schema, tx, rows, now)
+            },
+        )?;
         // A new store identity starts a fresh bounded expiry walk. Clear only
         // after commit so a refused reset keeps the old store's continuation.
         self.expiry_after.clear();

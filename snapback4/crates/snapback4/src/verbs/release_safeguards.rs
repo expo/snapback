@@ -35,14 +35,7 @@ fn reads(schema: &Schema, program: &ir::Program) -> BTreeSet<String> {
 }
 
 pub(super) fn capture(store: &Store) -> Result<(), String> {
-    // Release activation may switch temp_store while it prepares file-backed
-    // restoration identities. Keep this operator-only before-image in the
-    // private preview database so that switch cannot discard it.
-    let conn=store.conn();
-    conn.execute_batch("DROP TABLE IF EXISTS main._release_preview_active; CREATE TABLE main._release_preview_active AS SELECT c.name,r.t,r.id,r.data FROM r JOIN _catalog c ON c.num=r.t; CREATE INDEX main._release_preview_active_id ON _release_preview_active(t,id); DROP TABLE IF EXISTS main._release_preview_cells; CREATE TABLE main._release_preview_cells(t INTEGER NOT NULL,id TEXT NOT NULL,column_name TEXT NOT NULL,data TEXT NOT NULL); CREATE INDEX main._release_preview_cells_id ON _release_preview_cells(t,id,column_name);").map_err(|e|e.to_string())?;
-    let dormant_values:bool=conn.query_row("SELECT EXISTS(SELECT 1 FROM main.sqlite_schema WHERE type='table' AND name='_dormant_values')",[],|row|row.get(0)).map_err(|e|e.to_string())?;
-    if dormant_values {conn.execute("INSERT INTO main._release_preview_cells(t,id,column_name,data) SELECT t,id,column_name,data FROM main._dormant_values",[]).map_err(|e|e.to_string())?;}
-    Ok(())
+    store.capture_preview_active()
 }
 fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String,String)>) {
     match (kind,value) {
@@ -60,12 +53,11 @@ pub(super) fn warnings(store: &Store, current: Option<&Schema>, schema: &Schema,
         let by_table = if program.kind == ir::ProgramKind::Query { &mut query_readers } else { &mut gates };
         for table in reads(schema,program) { by_table.entry(table).or_default().insert(name.clone()); }
     }
-    let conn=store.conn();
     let mut warnings=Vec::new();
     let mut rollback_summaries=Vec::new();
     // Table populations are facts; arbitrary args/viewers/predicates are not.
     for (table, operations) in &query_readers {
-        let (before,after,lost):(i64,i64,i64)=conn.query_row("SELECT (SELECT count(*) FROM _release_preview_active WHERE name=?1),(SELECT count(*) FROM r JOIN _catalog c ON c.num=r.t WHERE c.name=?1),(SELECT count(*) FROM _release_preview_active p WHERE p.name=?1 AND NOT EXISTS(SELECT 1 FROM r WHERE r.t=p.t AND r.id=p.id))",[table],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|e|e.to_string())?;
+        let (before,after,lost):(i64,i64,i64)=store.preview_populations(table)?;
         if lost>0 {
             warnings.push(format!("queries/counts {} read {table}: active table population {before} → {after}, {lost} active {} {}; verify filtered results and progress denominators before selecting release {release} (dependency, not a query-result count)",operations.iter().cloned().collect::<Vec<_>>().join(", "),if lost==1 {"row"} else {"rows"},if lost==1 {"leaves"} else {"leave"}));
         }
@@ -83,23 +75,21 @@ pub(super) fn warnings(store: &Store, current: Option<&Schema>, schema: &Schema,
         }
     }}
     // Only actual before-active rows retained dormant can be dependent losses.
-    let mut statement=conn.prepare("SELECT p.name,p.id,p.data FROM _release_preview_active p WHERE NOT EXISTS(SELECT 1 FROM r WHERE r.t=p.t AND r.id=p.id) AND (EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=p.t AND n.id=p.id) OR EXISTS(SELECT 1 FROM _dormant_rows n WHERE n.t=p.t AND n.id=p.id)) ORDER BY p.name,p.id").map_err(|e|e.to_string())?;
-    let lost=statement.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?))).map_err(|e|e.to_string())?;
     let mut dependents=BTreeMap::<String,(u64,BTreeSet<String>)>::new();
-    for row in lost {
-        let (name,_,data)=row.map_err(|e|e.to_string())?;
-        let Some(table)=schema.table(&name) else {continue;};
+    store.visit_preview_lost(|name,_,data| {
+        let Some(table)=schema.table(&name) else {return Ok(());};
         let mut row:Value=serde_json::from_str(&data).map_err(|e|e.to_string())?;
         snapback4_core::schema::materialize_optional_fields(&mut row,table);
         let mut edges=Vec::new();
         for (column,kind) in &table.columns {if let Ok(value)=row.field(column) {refs(kind,value,&mut edges);}}
         let mut parents=BTreeSet::new();
         for (parent,id) in edges {
-            let dormant:bool=conn.query_row("SELECT EXISTS(SELECT 1 FROM _catalog c WHERE c.name=?1 AND (EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=c.num AND n.id=?2) OR EXISTS(SELECT 1 FROM _dormant_rows n WHERE n.t=c.num AND n.id=?2)) AND NOT EXISTS(SELECT 1 FROM r WHERE r.t=c.num AND r.id=?2))",[&parent,&id],|r|r.get(0)).map_err(|e|e.to_string())?;
+            let dormant:bool=store.preview_parent_dormant(&parent,&id)?;
             if dormant {parents.insert(parent);}
         }
         if !parents.is_empty() {let group=dependents.entry(name).or_default();group.0+=1;group.1.extend(parents);}
-    }
+        Ok(())
+    })?;
     for (table,(count,parents)) in dependents {
         warnings.push(format!("dependent {table}: {count} active {} {} dormant with parent tables {}; preserve these linked records in a bridge or accept their absence in release {release}",if count==1 {"row"} else {"rows"},if count==1 {"goes"} else {"go"},parents.into_iter().collect::<Vec<_>>().join(", ")));
     }
@@ -114,30 +104,4 @@ pub(super) fn warnings(store: &Store, current: Option<&Schema>, schema: &Schema,
     }
     warnings.extend(rollback_summaries);
     Ok(warnings)
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn preview_before_image_survives_temp_store_reconfiguration() {
-        let store = Store::memory().unwrap();
-        capture(&store).unwrap();
-        store.conn().pragma_update(None, "temp_store", "FILE").unwrap();
-        let exists: bool = store.conn().query_row(
-            "SELECT EXISTS(SELECT 1 FROM main.sqlite_schema WHERE type='table' AND name='_release_preview_active')",
-            [],
-            |row| row.get(0),
-        ).unwrap();
-        assert!(exists);
-        let cells_exist: bool = store.conn().query_row(
-            "SELECT EXISTS(SELECT 1 FROM main.sqlite_schema WHERE type='table' AND name='_release_preview_cells')",
-            [],
-            |row| row.get(0),
-        ).unwrap();
-        assert!(cells_exist);
-        // Reverse previews can copy and recapture a forward preview database.
-        capture(&store).unwrap();
-    }
 }

@@ -33,20 +33,13 @@ pub(super) struct Cells {
     pub sample_ids: Vec<String>,
 }
 
-// The row id, table number and retained-row existence are facts from the same
-// snapshot. Exclude actual expiry/deletion and private rebuilt caches.
-const LOST: &str = "FROM main._release_preview_active p WHERE p.name=?1 AND NOT EXISTS(SELECT 1 FROM r WHERE r.t=p.t AND r.id=p.id) AND (EXISTS(SELECT 1 FROM _dormant_narrow_rows d WHERE d.t=p.t AND d.id=p.id) OR EXISTS(SELECT 1 FROM _dormant_rows d WHERE d.t=p.t AND d.id=p.id))";
-
 pub(super) fn assess(store: &Store, current: Option<&Schema>, target: &Schema) -> Result<Visibility, String> {
     let mut result = Visibility::default();
     let Some(current) = current else { return Ok(result); };
-    let conn = store.conn();
     for (name, table) in current.visible_tables().filter(|(name, t)| t.ephemeral.is_none() && current.maintain_for(name).is_none()) {
-        let rows: u64 = conn.query_row(&format!("SELECT count(*) {LOST}"), [name], |r| r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?;
+        let (rows, sample_ids) = store.preview_hidden_population(name)?;
         if rows > 0 {
             let target_has_table = target.table(name).is_some() && target.visible(name);
-            let sample_ids = conn.prepare(&format!("SELECT p.id {LOST} ORDER BY p.id LIMIT 5")).map_err(|e|e.to_string())?
-                .query_map([name], |r| r.get(0)).map_err(|e|e.to_string())?.collect::<Result<Vec<_>, _>>().map_err(|e|e.to_string())?;
             if target_has_table { result.hidden_rows += rows; } else { result.newer_only_rows += rows; }
             result.tables.push(Population { table:name.clone(), rows, target_has_table, sample_ids });
         }
@@ -70,15 +63,8 @@ pub(super) fn assess(store: &Store, current: Option<&Schema>, target: &Schema) -
                 serde_json::to_string(&old).map_err(|e|e.to_string())?
             } else { encoded.clone() };
             let prior_missing = !table.columns.contains_key(column);
-            let from = "FROM main._release_preview_active p JOIN r ON r.t=p.t AND r.id=p.id WHERE p.name=?1 AND (json_extract(r.data,?2)=json_extract(?3,'$') OR json_extract(r.data,?2) IS NULL) AND (?4 OR coalesce(json_extract(p.data,?2),json_extract(?5,'$'))!=json_extract(?3,'$'))";
-            let args = rusqlite::params![name, path, encoded, prior_missing, prior];
-            let rows: u64 = conn.query_row(&format!("SELECT count(*) {from}"), args, |r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?;
+            let (rows, sample_ids, retained_empty_rows) = store.preview_empty_population(name, column, &path, &encoded, prior_missing, &prior)?;
             if rows == 0 { continue; }
-            let sample_ids = conn.prepare(&format!("SELECT p.id {from} ORDER BY p.id LIMIT 5")).map_err(|e|e.to_string())?
-                .query_map(args, |r|r.get(0)).map_err(|e|e.to_string())?.collect::<Result<Vec<_>, _>>().map_err(|e|e.to_string())?;
-            let retained_empty_rows = if prior_missing {
-                conn.query_row(&format!("SELECT count(*) {from} AND EXISTS(SELECT 1 FROM main._release_preview_cells c WHERE c.t=p.t AND c.id=p.id AND c.column_name=?6 AND json_extract(c.data,'$')=json_extract(?3,'$'))"),rusqlite::params![name,path,encoded,prior_missing,prior,column],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?
-            } else {0};
             result.empty_cells += rows;
             result.retained_empty_cells += retained_empty_rows;
             result.newly_empty_cells += rows-retained_empty_rows;
