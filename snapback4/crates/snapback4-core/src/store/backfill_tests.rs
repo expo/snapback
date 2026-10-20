@@ -1058,3 +1058,83 @@ fn no_write_release_walks_restore_the_native_view_across_retirement_narrowing_an
   let actual=e.query("inspectRows",Context::new("alice",Default::default())).unwrap().data;assert_eq!(actual,expected,"seed {seed_value}, path {path:?}");
  }
 }
+
+#[test]
+fn r10_unchanged_private_reference_bindings_cannot_be_recaptured_after_native_parent_reuse(){
+ let parents="table parents:\n  n: int\n  public\n  insert <- allow\n  delete <- allow\n  online only\nmutation remove():\n  delete parents['p']\nmutation replace():\n  return insert parents {id:'p',n:2}\n";
+ let old=format!("{parents}table items:\n  parent: parents on delete keep\n  count: int\n  public\n  online only\n");let new=format!("{old}down items legacy(parent: id): {{count:0}}\n");
+ let mut e=engine(&new);seed(&mut e,"parents",json!({"id":"p","n":1}));seed(&mut e,"items",json!({"id":"a","parent":"p","count":5}));
+ adopt(&mut e,&old,1).unwrap();adopt(&mut e,&new,2).unwrap();write(&mut e,"remove");write(&mut e,"replace");let generation=e.generation();
+ let error=adopt(&mut e,&old,1).unwrap_err().to_string();assert!(error.contains("lifetime"),"{error}");assert_eq!(generation,e.generation());
+}
+
+#[test]
+fn r10_retired_down_dependencies_are_compared_against_their_current_provided_cells(){
+ let old="table items:\n  n: int\n  x: int\n  public\n  update <- allow\n  online only\nmutation edit():\n  update items['a'] {n:0}\n";
+ let new=old.replace("  n: int\n","").replace("mutation edit():\n  update items['a'] {n:0}\n","")+"down items legacy(n: int): {x:n}\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":5,"x":9}));adopt(&mut e,&new,2).unwrap();adopt(&mut e,old,1).unwrap();write(&mut e,"edit");let generation=e.generation();
+ let error=adopt(&mut e,&new,2).unwrap_err().to_string();assert!(error.contains("reverse dependencies"),"{error}");assert_eq!(generation,e.generation());
+}
+
+#[test]
+fn r10_a_previously_narrowed_row_cannot_hide_a_conflicting_down_dependency_edit(){
+ let newer="table items:\n  n: int 1..10\n  x: int\n  gate: int 0..10\n  public\n  update <- allow\n  online only\ndown items legacy(n: int 1..10): {x:n}\n";
+ let old=newer.replace("n: int 1..10","n: int 0..10").replace("down items legacy(n: int 0..10): {x:n}\n","")+"mutation edit():\n  update items['a'] {n:0}\n";
+ let middle=old.replace("gate: int 0..10","gate: int 1..10");let mut e=engine(newer);seed(&mut e,"items",json!({"id":"a","n":5,"x":9,"gate":0}));
+ adopt(&mut e,&old,1).unwrap();write(&mut e,"edit");adopt(&mut e,&middle,3).unwrap();assert_eq!(e.store().count("items").unwrap(),0);let generation=e.generation();
+ let error=adopt(&mut e,newer,2).unwrap_err().to_string();assert!(error.contains("reverse dependencies"),"{error}");assert_eq!(generation,e.generation());
+}
+
+#[test]
+fn r10_sequence_ordinals_are_not_scalar_migration_custody(){
+ let base="table parents:\n  public\n  online only\ntable items:\n  parent: parents\n  ordinal: sequence by parent\n  unique position: parent, ordinal\n  public\n  insert <- allow\n  online only\n";
+ for declaration in ["down items legacy(): {ordinal:2}\n","backfill items legacy(): {ordinal:2}\n"] {
+  let b=snapback4_lang::compile(&[("schema.q".into(),format!("{base}{declaration}"))]);
+  assert!(!b.diagnostics.is_empty(),"engine-owned ordinal was accepted: {declaration}");
+ }
+}
+
+#[test]
+fn r10_an_inapplicable_down_lookup_does_not_enforce_a_retired_unique_index(){
+ let a="table deps:\n  key: text <=20\n  n: int 0..10\n  public\n  online only\ntable items:\n  count: int\n  public\n  online only\n";
+ let b=a.replace("  n: int 0..10","  n: int 1..10\n  unique key")+"down items legacy(): {legacy:(deps[key = 'k'] ! else MISSING).n}\n";
+ let mut e=engine(a);seed(&mut e,"deps",json!({"id":"a","key":"k","n":0}));seed(&mut e,"deps",json!({"id":"b","key":"k","n":1}));seed(&mut e,"items",json!({"id":"a","count":5}));
+ adopt(&mut e,&b,2).unwrap();assert_eq!(e.store().count("deps").unwrap(),1);adopt(&mut e,a,1).unwrap();assert_eq!(e.store().count("deps").unwrap(),2);assert_eq!(field(&mut e,"items","a","count"),Value::Int(5));
+}
+
+#[test]
+fn r10_pruned_native_receipts_do_not_block_unrelated_changes_but_future_reversal_stays_unavailable(){
+ for sparse in [false,true] {
+  let a="table items:\n  count: int default 7\n  public\n  online only\n";let b=format!("{a}down items legacy(): {{count:0}}\n");let c=b.replace("  count: int","  tag: bool ?\n  count: int");
+  let mut e=if sparse {let mut e=engine("table items:\n  public\n  online only\n");seed(&mut e,"items",json!({"id":"a"}));adopt(&mut e,&b,2).unwrap();e}else{let mut e=engine(&b);seed(&mut e,"items",json!({"id":"a","count":5}));e};
+  adopt(&mut e,a,1).unwrap();adopt(&mut e,&b,2).unwrap();e.store_mut().prune_dormant(true,None).unwrap();adopt(&mut e,&c,3).unwrap();
+  if !sparse {assert_eq!(field(&mut e,"items","a","count"),Value::Int(5));}
+  let error=adopt(&mut e,a,1).unwrap_err().to_string();assert!(error.contains("explicitly pruned"),"{error}");
+ }
+}
+
+#[test]
+fn r10_a_pruned_retired_native_cell_cannot_be_reintroduced_as_fabricated_null(){
+ let a="table items:\n  count: int ?\n  public\n  online only\n";let b=format!("{a}down items legacy(): {{count:0}}\n");let retired=b.replace("  count: int ?\n","");
+ let mut e=engine(&b);seed(&mut e,"items",json!({"id":"a","count":5}));adopt(&mut e,a,1).unwrap();adopt(&mut e,&b,2).unwrap();e.store_mut().prune_dormant(true,None).unwrap();
+ adopt(&mut e,&retired,3).unwrap();e.store_mut().prune_dormant(true,None).unwrap();let generation=e.generation();
+ let error=adopt(&mut e,&b,2).unwrap_err().to_string();assert!(error.contains("pruned"),"{error}");assert_eq!(generation,e.generation());
+}
+
+#[test]
+fn r10_raw_schema_validation_checks_down_fragments_names_and_native_custody(){
+ let (mut s,_)=compile("table items:\n  count: int\n  public\n  online only\ndown items legacy(): {count:0}\n");
+ s.downfills.push(s.downfills[0].clone());assert!(crate::schema::validate(&s).iter().any(|i|i.path.starts_with("downfills")&&i.message.contains("disjoint")));
+ s.downfills.pop();s.tables.remove("items");assert!(crate::schema::validate(&s).iter().any(|i|i.path.starts_with("downfills")&&i.message.contains("absent")));
+}
+
+#[test]
+fn incoming_native_down_preimages_win_over_another_leaving_projection(){
+ let base="table deps:\n  key: text <=20\n  n: int 0..10\n  public\n  online only\ntable items:\n  x: int\n  public\n  online only\n";
+ let a=format!("{base}down items first(): {{x:0}}\n");
+ for lookup in [false,true] {
+  let b=if lookup {base.replace("  n: int 0..10","  n: int 1..10\n  unique key")+"down items second(): {x:(deps[key = 'k'] ! else MISSING).n}\n"}else{format!("{base}down items second(): {{x:1}}\n")};
+  let mut e=engine(&a);seed(&mut e,"deps",json!({"id":"a","key":"k","n":0}));seed(&mut e,"deps",json!({"id":"b","key":"k","n":1}));seed(&mut e,"items",json!({"id":"a","x":5}));
+  for _ in 0..2 {adopt(&mut e,&b,2).unwrap();adopt(&mut e,&a,1).unwrap();assert_eq!(field(&mut e,"items","a","x"),Value::Int(5),"exact entering native cells beat another leaving writer");}
+ }
+}

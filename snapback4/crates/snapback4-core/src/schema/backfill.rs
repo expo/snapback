@@ -53,7 +53,7 @@ impl Backfill {
         if self.program.kind != ProgramKind::Query || self.program.native || self.outputs.is_empty() { return Err("backfill must produce a nonempty object patch".into()); }
         for c in &self.outputs {
             let kind = table.columns.get(c).ok_or_else(||format!("backfill output {}.{c} is not declared",self.table))?;
-            if c=="id" || table.engine_field(c) || table.maintained.contains_key(c) || table.expire.as_ref()==Some(c) || table.not_before.as_ref()==Some(c) || !scalar(kind) {
+            if c=="id" || table.engine_field(c) || table.sequences.contains_key(c) || table.maintained.contains_key(c) || table.expire.as_ref()==Some(c) || table.not_before.as_ref()==Some(c) || !scalar(kind) {
                 return Err(format!("backfill output {}.{c} must be an authoritative scalar, not an asset, lifetime or captured field",self.table));
             }
         }
@@ -66,13 +66,20 @@ impl Backfill {
         if self.program.kind != ProgramKind::Query || self.program.native || self.outputs.is_empty() { return Err("down projection must produce a nonempty object patch".into()); }
         if self.outputs.contains("id") { return Err("down projection cannot replace row identity".into()); }
         for c in &self.outputs {
-            if table.columns.get(c).is_some_and(|kind| !native_scalar(kind)) || table.engine_field(c) || table.maintained.contains_key(c) || table.expire.as_ref()==Some(c) || table.not_before.as_ref()==Some(c) {
+            if table.columns.get(c).is_some_and(|kind| !native_scalar(kind)) || table.engine_field(c) || table.sequences.contains_key(c) || table.maintained.contains_key(c) || table.expire.as_ref()==Some(c) || table.not_before.as_ref()==Some(c) {
                 return Err(format!("down native preimage {}.{c} must be an authoritative scalar without reference, asset or lifetime custody; use a typed bridge",self.table));
             }
         }
         if !body(&self.program.body,schema) { return Err("down expressions allow deterministic scalar transforms, unique point lookups and bounded existence; no viewer, clock, ids, row collections, loops or writes".into()); }
         Ok(())
     }
+}
+pub(super) fn validate_downs(schema:&Schema)->Vec<SchemaIssue>{
+    let mut issues=Vec::new();let mut names=BTreeSet::new();let mut outputs=BTreeSet::new();
+    for f in &schema.downfills {
+        if let Err(message)=f.admit_down(schema){issues.push(SchemaIssue{path:format!("downfills.{}.{}",f.table,f.name),message});}
+        if !names.insert((&f.table,&f.name))||f.outputs.iter().any(|c|!outputs.insert((&f.table,c))){issues.push(SchemaIssue{path:format!("downfills.{}.{}",f.table,f.name),message:"down projections require distinct names and disjoint outputs".into()});}
+    }issues
 }
 fn native_scalar(k: &ColumnType) -> bool {
     match k {ColumnType::Optional(k)=>native_scalar(k),ColumnType::Ref{..}=>false,_=>scalar(k)}

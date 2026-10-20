@@ -1131,6 +1131,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
             issues.push(SchemaIssue { path:format!("backfills.{}.{}",f.table,f.name),message:"backfills require distinct names and disjoint outputs".into() });
         }
     }
+    issues.extend(backfill::validate_downs(schema));
     }
     issues.extend(ephemeral::validate(schema));
     issues.extend(field_authority::validate(schema));

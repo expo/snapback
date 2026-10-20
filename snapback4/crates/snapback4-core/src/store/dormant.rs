@@ -554,7 +554,7 @@ pub(super) fn transition(
     for (name,table) in &restoring {source_definitions.insert(name.clone(),table.clone());}
     crate::engine::through_activation::forward_sources(tx,next,&authority_sources,now)?;
     for (name,column,text) in &cells {
-        if let Some(candidate)=next.table(name).filter(|t|t.columns.contains_key(column) || next.backfills.iter().any(|f|f.table==*name && f.inputs.contains_key(column))) {
+        if let Some(candidate)=next.table(name).filter(|t|t.columns.contains_key(column) || next.backfills.iter().chain(&next.downfills).chain(previous.into_iter().flat_map(|s|s.downfills.iter())).any(|f|f.table==*name && f.inputs.contains_key(column))) {
             let old:Column=serde_json::from_str(text).map_err(|e|RuntimeError::Store(e.to_string()))?;
             let source=source_definitions.entry(name.clone()).or_insert_with(||candidate.clone());
             if let Some(capture)=&old.capture_source {
