@@ -2,6 +2,7 @@
 //! cell at one setting, three times, and prints one JSON line. See README.md.
 mod common;
 mod execution;
+mod execution_network;
 mod model;
 mod proxy;
 mod raw;
@@ -163,6 +164,7 @@ fn main() {
         "model" => model::run(&args),
         "raw" => raw::run(&args),
         "pg-execution" => execution::run(&args),
+        "pg-execution-network" => execution_network::run(&args),
         "sqlite-execution" => sqlite_optimistic::execution(&args),
         "sqlite-commit" => sqlite_optimistic::commit(&args),
         "sqlite-serve" => sqlite::serve(&args),

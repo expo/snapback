@@ -1,0 +1,14 @@
+{
+  "records": [
+    [
+      "raw",
+      "--writers",
+      "2",
+      "--counters",
+      "hot1",
+      "--runs",
+      "1"
+    ]
+  ],
+  "complete": true
+}

@@ -24,7 +24,20 @@ pub fn env(name: &str) -> String {
 /// Direct Unix-socket connection for setup, WAL LSNs and sampling. Never
 /// routed through the proxy, never measured.
 pub fn admin() -> Client {
-    Client::connect(&env("PG_UNIX_URL"), NoTls).expect("admin connection over the Unix socket")
+    let url = if std::env::var_os("CP_TUNNEL_PORTS").is_some() { tunnel_url("sb4cp_admin") } else { env("PG_UNIX_URL") };
+    Client::connect(&url, NoTls).expect("admin connection")
+}
+
+/// A fresh, non-recycling allocation across ALL connections in this process,
+/// including setup/admin/samplers. The runner serializes cell processes.
+pub fn tunnel_url(application_name: &str) -> String {
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let ports: Vec<u16> = env("CP_TUNNEL_PORTS").split(',').map(|s| s.parse().unwrap()).collect();
+    let index = NEXT.fetch_add(1, Ordering::SeqCst);
+    let port = ports.get(index).expect("tunnel pool exhausted; never share an SSH stream");
+    // Never emit URLs: the runner reads the mode-600 password into PGPASSWORD.
+    let password = env("PGPASSWORD").replace('\\', "\\\\").replace('\'', "\\'");
+    format!("host=127.0.0.1 port={port} user=postgres dbname={} password='{password}' application_name={application_name}", env("PGDATABASE"))
 }
 
 /// A network setting: the Unix socket (reference) or the delay proxy in
@@ -38,6 +51,9 @@ pub struct Net {
 
 impl Net {
     pub fn parse(label: &str) -> Net {
+        if label == "tunnels" {
+            return Net { label: label.into(), rtt_us: None, url: String::new(), _proxy: None };
+        }
         if label == "unix" {
             return Net { label: label.into(), rtt_us: None, url: env("PG_UNIX_URL"), _proxy: None };
         }
@@ -54,6 +70,7 @@ impl Net {
     }
 
     pub fn url(&self) -> String {
+        if self.label == "tunnels" { return tunnel_url(APP); }
         format!("{} application_name={APP}", self.url)
     }
 
@@ -62,7 +79,8 @@ impl Net {
     }
 
     pub fn describe(&self) -> Json {
-        json!({"label": self.label, "proxy": self.rtt_us.is_some(), "added_rtt_us": self.rtt_us})
+        json!({"label": self.label, "proxy": self.rtt_us.is_some(), "added_rtt_us": self.rtt_us,
+            "one_ssh_stream_per_connection": self.label == "tunnels"})
     }
 }
 
@@ -218,7 +236,7 @@ impl WaitSampler {
         let flag = stop.clone();
         let handle = thread::spawn(move || {
             let mut client = admin();
-            let statement = client.prepare(&format!("SELECT coalesce(wait_event_type,'CPU'), coalesce(wait_event,'-'), coalesce(state,'-') FROM pg_stat_activity WHERE application_name = '{APP}'")).unwrap();
+            let statement = client.prepare(&format!("SELECT coalesce(wait_event_type,'CPU'), coalesce(wait_event,'-'), coalesce(state,'-') FROM pg_stat_activity WHERE application_name = '{APP}' AND datname = current_database()")).unwrap();
             let mut counts: BTreeMap<String, u64> = BTreeMap::new();
             let mut samples = 0u64;
             while !flag.load(Ordering::Relaxed) {

@@ -37,12 +37,12 @@ use std::{
 
 const ARGS_DIGEST: &str = "9acc01a1b8d6d1476070406c156e19349f53cf23b10a42535ccb17cd923f8a22";
 
-const Q_GEN_HEAD: &str = "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton";
-const Q_OPS: &str = "SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2";
+pub(crate) const Q_GEN_HEAD: &str = "SELECT generation, (SELECT seq FROM _head WHERE singleton) FROM _backend WHERE singleton";
+pub(crate) const Q_OPS: &str = "SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2";
 const Q_HEAD_LOCK: &str = "SELECT seq FROM _head WHERE singleton FOR UPDATE";
-const Q_GEN: &str = "SELECT generation FROM _backend WHERE singleton";
-const Q_SIZES: &str = "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5";
-const Q_DATA: &str = "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5";
+pub(crate) const Q_GEN: &str = "SELECT generation FROM _backend WHERE singleton";
+pub(crate) const Q_SIZES: &str = "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5";
+pub(crate) const Q_DATA: &str = "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5";
 const Q_UPDATE: &str = "UPDATE r SET data = $3 WHERE t = $1 AND id = $2";
 // The engine's tail, verbatim (crates/snapback4-core/src/engine/postgres/tail.rs).
 const Q_TAIL: &str = "WITH head AS (

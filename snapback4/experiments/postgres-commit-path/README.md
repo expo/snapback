@@ -887,3 +887,89 @@ cells, S1a smoke cells, the complete 62-setting result-integrity audit,
 Python syntax checks, and `ref-check --verbose` passed. The private cluster
 was stopped and its socket removed; synthetic databases were removed to
 recover disk space. Raw results and server/cleanup logs remain here.
+
+## S1b: real network and round-trip reduction
+
+S1b extends these separate-stage **statement models**, without changing the
+engine. `scripts/s1b.py` connects from `expo-build-450b` to the existing durable
+Postgres 16.15 on `expo-build-450a` (12 cores) through independent SSH local
+forwards. It creates and finally drops one `sb4_s1b_<UTC timestamp>_<pid>`
+database per invocation; the cluster and other databases are never changed.
+Each physical database connection, including admin and sampling connections,
+gets a unique tunnel port for the lifetime of a cell process. Tunnel PIDs are
+recorded at launch and only those PIDs are stopped. The password is read from
+`~/sb4bench/pw` into `PGPASSWORD` and is never included in recorded arguments.
+
+Rerun from this experiment directory, on 450b, with the supplied server and
+mode-600 password file already in place:
+
+```sh
+cargo build --release --locked -j 4
+python3 scripts/s1b.py results-<new-run>-s1b-smoke smoke
+python3 scripts/s1b.py results-<new-run>-s1b all
+python3 -I scripts/s1b_tables.py results-<new-run>-s1b
+```
+
+The runner uses three repetitions, 1 s warm-up and 4 s measurement, just as
+S1a. Execution and raw repetitions are fresh subprocesses; full-write commit
+cells retain three runs on one namespace, including the known first-run FK
+planning effect. Each setting is bracketed by uptime and `vmstat 1 5` on both
+hosts, and a `vmstat 1` monitor runs on each host throughout the block. Each
+setting also has 1,000-ping before/after RTT controls (200 unmeasured warm-ups),
+plus three standalone 3,000-ping RTT runs. No load rejection or product retry
+is used: database saturation is itself a measurement. Failed cells remain in
+the results. Statement and lock timeouts remain 5 s; durability is unchanged.
+
+The execution baseline is the S1a captured eight-SELECT model, **10**
+synchronous round trips including BEGIN and ROLLBACK. The earlier S1a sizing
+verdict's “about 12” is not the count implemented by this read-only cell.
+The following dependency classification is specific to a successful captured
+increment with its counter address supplied as input:
+
+| Read | Address depends on a previous SQL result? | Level / client gate |
+|---|---|---|
+| generation + head | no | 0; first SELECT takes S |
+| replay receipt | no; principal and op id are inputs | 0 |
+| generation again | no | 0 |
+| receipt again | no | 0; duplicate retained |
+| first scan-size preflight | no; slot determines the encoded key range | 0 |
+| second scan-size preflight | no; same input slot | 0; duplicate retained |
+| first row fetch | no new address; its size preflight gates transfer | 1 |
+| second row fetch | no new address; its size preflight gates transfer | 1; duplicate retained |
+
+The first fetched value determines the new counter value, not the second read's
+address. This SQL-only model can schedule both preflights together. Generation
+and receipt refusal paths, meter refusals, and programs whose later addresses
+or control flow depend on earlier row data need a different dependency plan;
+this is not an unconditional engine transformation.
+
+| Variant | Wire schedule | `k_exec` |
+|---|---|---:|
+| baseline | BEGIN, eight SELECTs in capture order, ROLLBACK | 10 |
+| k1 | BEGIN; pipeline six level-0 SELECTs; pipeline two fetches; ROLLBACK | 4 |
+| k2 | BEGIN; one level-0 UNION ALL / unnest statement; one level-1 unnest join; ROLLBACK | 4 |
+| k3p (transport control) | pipeline BEGIN + batched level 0; pipeline batched level 1 + ROLLBACK | 2 |
+| k3 | one SimpleQuery message containing BEGIN + EXECUTE of the prepared level-0 batch; one containing EXECUTE of level 1 + ROLLBACK | 2 |
+
+All optimized variants use tokio-postgres. Batches preserve duplicates by tag
+and ordinal, including absent receipts; each execution compares all eight read
+results to an unmeasured serial reference on that connection, and checks
+counters remain unchanged. Setup witnesses check `repeatable read`, read-only,
+a stable snapshot across the folded flights, and completed rollback for both
+protocol forms. Two flights are the minimum **with the client size gate kept**;
+putting that gate or interpreter logic into SQL is outside this experiment.
+
+The first smoke run (`results-20261020-s1b-smoke01`) exposed a large pipelining
+stall: k1 about 86 ms and folded extended-protocol k3p about 84 ms at C=2,
+versus about 7 ms for the baseline and 3.5 ms for k2. Its original `k3` label
+means today's k3p. Those investigative short-window results are preserved,
+with their cleanup receipt; they are excluded from sizing. The added k3 uses
+one SimpleQuery message per flight to avoid intermediate protocol response
+boundaries. The full sweep retains k3p as a control. No TCP/SSH/server settings
+were tuned to remove the stall.
+
+The second short smoke (`results-20261020-s1b-smoke02`) checks the final forms
+at C=2: baseline 295/s, k1 20/s, k2 547/s, k3p 25/s, and k3 822/s
+(k3 p50 2.42 ms, p99 2.81 ms). These are 0.1 s warm-up / 0.4 s windows for
+validation and protocol diagnosis, not sizing evidence. Full-window results
+and same-host §8 verdicts follow separately.

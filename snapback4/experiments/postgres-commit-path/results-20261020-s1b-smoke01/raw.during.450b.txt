@@ -1,0 +1,4 @@
+vmstat_pid 3629526
+procs -----------memory---------- ---swap-- -----io---- -system-- -------cpu-------
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st gu
+ 2  1 262560 3313184 1096772 124605336    2    6    25   559  694    0  1  0 99  0  0  0
