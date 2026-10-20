@@ -21,7 +21,7 @@ pub(crate) struct NewRequest<'a> {
     pub service_generation: Option<i64>,
 }
 
-// @ref LLP 3000.009.001.000#9.1 — reject storage names before either dialect sees them.
+// @ref LLP 3000.009.001.000#9.1 — validate new storage names at admission, never stored keys.
 pub(crate) fn validate_text(values: &[&str]) -> Result<(), RuntimeError> {
     if values.iter().any(|value| value.contains('\0')) {
         return Err(RuntimeError::Input(
@@ -642,36 +642,6 @@ pub(crate) mod test_cases {
         );
         let run = tx.request("route").unwrap().unwrap();
         assert_eq!(run.result, Some(serde_json::json!({"text": "a\0b"})));
-    }
-
-    /// Two BEGINs overlap. The second is released only once the first owns
-    /// the fence; the first keeps that fence until the second is approaching it.
-    pub(crate) struct RaceOrder {
-        begun: std::sync::Barrier,
-        holder: std::sync::Barrier,
-        contender: std::sync::Barrier,
-    }
-    impl RaceOrder {
-        pub(crate) fn new() -> Self {
-            Self {
-                begun: std::sync::Barrier::new(2),
-                holder: std::sync::Barrier::new(2),
-                contender: std::sync::Barrier::new(2),
-            }
-        }
-        pub(crate) fn after_begin(&self, first: bool) {
-            self.begun.wait();
-            if !first {
-                self.holder.wait();
-                self.contender.wait();
-            }
-        }
-        pub(crate) fn after_fence(&self, first: bool) {
-            if first {
-                self.holder.wait();
-                self.contender.wait();
-            }
-        }
     }
 
     pub(crate) fn seed_expiry_settlement(tx: &impl RequestsTransaction, token: &str) {

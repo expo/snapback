@@ -100,7 +100,6 @@ pub fn authorize(program: &Program, viewer: &str) -> Result<(), RuntimeError> {
 }
 
 pub(crate) fn finish(tx: &(impl RequestsTransaction + AuthorityTransaction), id: &str, state: &str, code: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
-    validate_text(&[id, state, code])?;
     if let Some(work) = tx.work_by_id(id)? && let Some(digest) = work.session_digest { tx.invalidate_session(&digest)?; }
     tx.finish_request(id, state, code, &diagnostic_text(error), now)?;
     Ok(())
@@ -166,7 +165,6 @@ pub(super) fn insert_spec(tx: &Tx<'_>, program: &Program, id: &str, context: &Co
 impl Engine {
     // @ref LLP 3000.007#9.2 — durable action admission precedes the worker and survives retries by id.
     pub fn request_action(&mut self, name: &str, id: &str, mut context: Context) -> Result<(ActionRequest, bool), RuntimeError> {
-        validate_text(&[name, id, &context.viewer])?;
         if context.viewer == crate::SYSTEM_PRINCIPAL || !crate::value::identity_fits(&context.viewer) {
             return Err(RuntimeError::Auth("an action needs a signed-in principal".into()));
         }
@@ -228,8 +226,6 @@ impl Engine {
     }
 
     fn claim_selected_actions(&mut self, worker: &str, action: Option<&str>, names: Option<&[String]>, limit: usize, lease_ms: i64, session_seconds: i64, now: i64) -> Result<Vec<ActionClaim>, RuntimeError> {
-        validate_text(&[worker, action.unwrap_or("")])?;
-        if let Some(names) = names { for name in names { validate_text(&[name])?; } }
         if !identity::is_service(worker) { return Err(RuntimeError::Auth("actions are claimed by a service".into())); }
         let duration = lease_ms.clamp(1_000, MAX_LEASE_MS).min(session_seconds.clamp(1, MAX_LEASE_MS / 1_000) * 1_000);
         let tx = self.store.transaction()?;
@@ -426,10 +422,6 @@ fn record_settlement(
 ) -> Result<(), RuntimeError> {
     // The claim token fences the attempt even when the next worker uses
     // the same service seat. No secret is persisted in plaintext.
-    validate_text(&[&run.id, digest])?;
-    if let ActionSettled::Refused { code, .. } = &settled {
-        validate_text(&[code])?;
-    }
     tx.invalidate_session(digest)?;
     let (state, error, next_at) = match settled {
         ActionSettled::Done(_) => (

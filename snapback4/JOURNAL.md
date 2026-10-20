@@ -97937,3 +97937,30 @@ Postgres script remains red on the two unrelated fixtures recorded above;
 no request test is failed or ignored. All four owned cluster directories
 have no `postmaster.pid`. Final observed disk availability is 113 GB.
 No push was made, and the two rebased commits were not rewritten.
+
+
+## 2026-10-21 — P1-RQ fix round 2: admission-only validation and observed contention
+
+The rebased lane builds with Postgres enabled; both attach families and all
+operation-named fence calls compile without repair. Request text validation
+now runs at new admission only. Both adapters and shared finish/settlement,
+replay and claim selection preserve existing keys. Five SQLite regressions
+seed `job\0one` and a NUL operation name directly, covering deadline and
+lease expiry (including exhausted attempts), an oldest-row claim with a
+healthy row behind it, done/refused/retry settlement, cancellation, replay
+and authority failure. Their existing outcomes and credential invalidation
+remain pinned; new request admission still refuses NUL.
+
+`store::test_race::FenceRace` replaces the request-specific barriers. Both
+adapter transactions BEGIN before the holder fences; the holder releases
+only after the contender's SQLite busy handler has fired or Postgres reports
+the holder in `pg_blocking_pids(contender)`. Postgres also verifies the
+waiting statement is the ordinary head fence. Claim and both expiry/settle
+orders use this helper on both stores. Unfenced-contender negative controls
+must time out with "contender never blocked" on each store.
+
+Focused validation: the Postgres-enabled SQLite store suite passes
+223/0/0, including the legacy request cases, both request race tests and
+the SQLite negative control. The gated Postgres cases are compiled; the
+full private-cluster run and required final checks follow. No ratchet
+allowlist changed and no push was made.

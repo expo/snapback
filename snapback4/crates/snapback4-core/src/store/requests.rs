@@ -7,7 +7,6 @@ use crate::{
         ActionRequest,
         requests::{
             NewRequest, RequestSettlement, RequestsStore, RequestsTransaction, diagnostic_text,
-            validate_text,
         },
     },
     identity,
@@ -107,7 +106,6 @@ fn read(row: &rusqlite::Row<'_>) -> rusqlite::Result<ActionRequest> {
 
 impl RequestsTransaction for Tx<'_> {
     fn request(&self, id: &str) -> Result<Option<ActionRequest>, RuntimeError> {
-        validate_text(&[id])?;
         Ok(self
             .conn()
             .query_row(
@@ -150,7 +148,6 @@ impl RequestsTransaction for Tx<'_> {
         error: &str,
         now: i64,
     ) -> Result<(), RuntimeError> {
-        validate_text(&[id, state, code])?;
         let error = diagnostic_text(error);
         let error = error.as_ref();
         // Retain the last claim fence so an in-flight handler may observe cancellation.
@@ -159,7 +156,6 @@ impl RequestsTransaction for Tx<'_> {
     }
 
     fn requeue_request(&self, id: &str, now: i64) -> Result<(), RuntimeError> {
-        validate_text(&[id])?;
         self.conn().execute("UPDATE _requests SET state = 'queued', error = 'the action lease expired', error_code = NULL, next_at = ?2, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE id = ?1", params![id, now])?;
         Ok(())
     }
@@ -171,12 +167,6 @@ impl RequestsTransaction for Tx<'_> {
         names: Option<&[String]>,
         limit: u64,
     ) -> Result<Vec<String>, RuntimeError> {
-        validate_text(&[action.unwrap_or("")])?;
-        if let Some(names) = names {
-            for name in names {
-                validate_text(&[name])?;
-            }
-        }
         let limit = limit.min(i64::MAX as u64) as i64;
         let names = names
             .map(serde_json::to_string)
@@ -186,7 +176,6 @@ impl RequestsTransaction for Tx<'_> {
     }
 
     fn fail_request_authority(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
-        validate_text(&[id])?;
         let error = diagnostic_text(error);
         let error = error.as_ref();
         self.conn().execute("UPDATE _requests SET state = 'failed', error_code = 'E_ACTION_AUTHORITY', error = ?2, settled_at = ?3, next_at = NULL, lease_until = NULL, claimed_by = NULL, session_digest = NULL WHERE id = ?1", params![id, error, now])?;
@@ -200,7 +189,6 @@ impl RequestsTransaction for Tx<'_> {
         session_digest: &str,
         lease_until: i64,
     ) -> Result<(), RuntimeError> {
-        validate_text(&[id, worker, session_digest])?;
         self.conn().execute("UPDATE _requests SET state = 'running', attempts = attempts + 1, claimed_by = ?2, session_digest = ?3, lease_until = ?4, next_at = NULL, error = NULL, error_code = NULL WHERE id = ?1", params![id, worker, session_digest, lease_until])?;
         Ok(())
     }
@@ -210,7 +198,6 @@ impl RequestsTransaction for Tx<'_> {
         id: &str,
         settled: &RequestSettlement<'_>,
     ) -> Result<(), RuntimeError> {
-        validate_text(&[id, settled.state, settled.error_code.unwrap_or("")])?;
         let error = settled.error.map(diagnostic_text);
         let error = error.as_deref();
         self.conn().execute("UPDATE _requests SET state = ?2, result = ?3, error = ?4, next_at = ?5, claimed_by = NULL, session_digest = NULL, lease_until = NULL, error_code = ?7, settled_at = ?6 WHERE id = ?1", params![id, settled.state, settled.result, error, settled.next_at, settled.settled_at, settled.error_code])?;
@@ -218,7 +205,6 @@ impl RequestsTransaction for Tx<'_> {
     }
 
     fn cancel_request(&self, id: &str) -> Result<(), RuntimeError> {
-        validate_text(&[id])?;
         self.conn()
             .execute("UPDATE _requests SET cancelled = 1 WHERE id = ?1", [id])?;
         Ok(())
@@ -243,42 +229,13 @@ impl RequestsStore for &Store {
     }
 }
 
-// SQLite normally combines BEGIN and its writer reservation in BEGIN
-// IMMEDIATE. Split them only in this test seam: BEGIN DEFERRED, rendezvous,
-// then a no-op write reserves the same writer lock before any snapshot read.
 #[cfg(test)]
-impl Store {
-    fn requests_race_transaction(
-        &mut self,
-        after_begin: impl FnOnce(),
-    ) -> Result<Tx<'_>, RuntimeError> {
-        self.check_ownership()?;
-        let tx = self
-            .conn
-            .transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
-        after_begin();
-        tx.execute("UPDATE _meta SET value = value WHERE key = 'version'", [])?;
-        if super::activation::identity(&tx)? != self.identity {
-            return Err(RuntimeError::Generation(
-                "the store adopted another backend; reopen this engine".into(),
-            ));
-        }
-        Ok(Tx {
-            activation_scan: None,
-            changes: Default::default(),
-            sequence_table: Default::default(),
-            tx,
-            page_size: self.page_size,
-            server: self.server,
-            catalog: &self.catalog,
-        })
-    }
-}
+mod legacy_tests;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::actions::requests::test_cases;
+    use crate::{engine::actions::requests::test_cases, store::test_race::FenceRace};
 
     #[test]
     fn request_finish_and_settlement_contract() {
@@ -426,17 +383,18 @@ mod tests {
         let tx = store.transaction().unwrap();
         test_cases::insert(&tx, "race", "work", 0);
         tx.commit().unwrap();
-        let order = std::sync::Arc::new(test_cases::RaceOrder::new());
+        let order = std::sync::Arc::new(FenceRace::sqlite());
         let handles: Vec<_> = stores
             .into_iter()
             .enumerate()
             .map(|(n, mut store)| {
                 let order = order.clone();
                 std::thread::spawn(move || {
+                    if n != 0 { order.install_sqlite_busy_handler(store.conn()); }
                     let tx = store
-                        .requests_race_transaction(|| order.after_begin(n == 0))
+                        .transaction_with_begin_hook(true, || order.after_begin(n == 0))
                         .unwrap();
-                    order.after_fence(n == 0);
+                    order.after_fence(n == 0).unwrap();
                     let won = test_cases::claim_due(&tx, &format!("service:worker{n}"));
                     tx.commit().unwrap();
                     won
@@ -464,7 +422,7 @@ mod tests {
             let session = identity::action_session(&tx, "dev:alice", 0, 100).unwrap();
             test_cases::seed_expiry_settlement(&tx, &session.token);
             tx.commit().unwrap();
-            let order = std::sync::Arc::new(test_cases::RaceOrder::new());
+            let order = std::sync::Arc::new(FenceRace::sqlite());
             let handles: Vec<_> = stores
                 .into_iter()
                 .enumerate()
@@ -473,10 +431,11 @@ mod tests {
                     let token = session.token.clone();
                     std::thread::spawn(move || {
                         let first = n == 0;
+                        if !first { order.install_sqlite_busy_handler(store.conn()); }
                         let tx = store
-                            .requests_race_transaction(|| order.after_begin(first))
+                            .transaction_with_begin_hook(true, || order.after_begin(first))
                             .unwrap();
-                        order.after_fence(first);
+                        order.after_fence(first).unwrap();
                         let won = test_cases::expiry_settlement_operation(
                             &tx,
                             if first { expiry_first } else { !expiry_first },

@@ -8,6 +8,7 @@ use crate::{
         requests::{NewRequest, RequestSettlement, RequestsStore, RequestsTransaction, test_cases},
     },
     schema::Schema,
+    store::test_race::FenceRace,
 };
 use postgres::{Client, NoTls};
 use std::{collections::BTreeMap, sync::Arc};
@@ -290,11 +291,12 @@ fn request_claim_race_has_exactly_one_winner() {
     let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
     tx.insert_request(&new("race")).unwrap();
     tx.commit().unwrap();
-    let engines = [
+    let mut engines = [
         PostgresEngine::open(client(), &name).unwrap(),
         PostgresEngine::open(client(), &name).unwrap(),
     ];
-    let order = Arc::new(test_cases::RaceOrder::new());
+    let (holder, contender) = engines.split_at_mut(1);
+    let order = Arc::new(FenceRace::postgres(&mut holder[0].store.client, &mut contender[0].store.client, client()));
     let handles: Vec<_> = engines
         .into_iter()
         .enumerate()
@@ -307,7 +309,7 @@ fn request_claim_race_has_exactly_one_winner() {
                         order.after_begin(n == 0)
                     })
                     .unwrap();
-                order.after_fence(n == 0);
+                order.after_fence(n == 0).unwrap();
                 let won = test_cases::claim_due(&tx, &format!("service:worker{n}"));
                 tx.commit().unwrap();
                 won
@@ -330,6 +332,30 @@ fn request_claim_race_has_exactly_one_winner() {
 
 #[test]
 #[ignore = "SKIP_POSTGRES_REQUESTS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
+fn postgres_fence_race_rejects_a_contender_that_takes_no_fence() {
+    use std::time::{Duration, Instant};
+    let mut holder = engine();
+    let name = name(&mut holder.store);
+    let mut contender = PostgresEngine::open(client(), &name).unwrap();
+    let timeout = Duration::from_millis(100);
+    let race = FenceRace::postgres(&mut holder.store.client, &mut contender.store.client, client()).with_timeout(timeout);
+    std::thread::scope(|scope| {
+        let race = &race;
+        let peer = scope.spawn(move || {
+            let tx = contender.store.transaction_with_begin_hook(None, || race.after_begin(false)).unwrap();
+            tx.rollback().unwrap();
+        });
+        let tx = holder.store.transaction_with_begin_hook(Some(WriteMode::Serialized), || race.after_begin(true)).unwrap();
+        let started = Instant::now();
+        assert_eq!(race.after_fence(true).unwrap_err(), "contender never blocked on the holder's fence");
+        assert!(started.elapsed() >= timeout);
+        tx.rollback().unwrap();
+        peer.join().unwrap();
+    });
+}
+
+#[test]
+#[ignore = "SKIP_POSTGRES_REQUESTS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
 fn request_expiry_vs_settlement_is_serialized_in_both_orders() {
     for expiry_first in [true, false] {
         let expected = test_cases::sqlite_expiry_settlement_outcome(expiry_first);
@@ -340,11 +366,12 @@ fn request_expiry_vs_settlement_is_serialized_in_both_orders() {
         tx.execute("INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES ($1,'dev:alice','action',0,100,'delegated')", &[&digest]).unwrap();
         test_cases::seed_expiry_settlement(&tx, "race-token");
         tx.commit().unwrap();
-        let engines = [
+        let mut engines = [
             PostgresEngine::open(client(), &name).unwrap(),
             PostgresEngine::open(client(), &name).unwrap(),
         ];
-        let order = Arc::new(test_cases::RaceOrder::new());
+        let (holder, contender) = engines.split_at_mut(1);
+        let order = Arc::new(FenceRace::postgres(&mut holder[0].store.client, &mut contender[0].store.client, client()));
         let handles: Vec<_> = engines
             .into_iter()
             .enumerate()
@@ -358,7 +385,7 @@ fn request_expiry_vs_settlement_is_serialized_in_both_orders() {
                             order.after_begin(first)
                         })
                         .unwrap();
-                    order.after_fence(first);
+                    order.after_fence(first).unwrap();
                     let won = test_cases::expiry_settlement_operation(
                         &tx,
                         if first { expiry_first } else { !expiry_first },
