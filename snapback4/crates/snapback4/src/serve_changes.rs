@@ -224,8 +224,8 @@ fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64
         else { changes.into_iter().flat_map(|(_, tables)| tables).filter(|name| all_tables.contains(name)).collect() };
     tables.sort();
     tables.dedup();
-    let preserved = snapback4_core::revocation::preserved_between(tx.conn(), &schema, since, head);
-    let changes = settlement_changes(tx.conn(), &schema, since, head);
+    let preserved = tx.preserved_between(&schema, since, head);
+    let changes = settlement_changes(tx.footprint_between(since, head), &schema, since, head);
     tx.rollback()?;
     Ok((head, store_id, tables, preserved, changes))
 }
@@ -314,10 +314,10 @@ mod column_tests {
         }});
         tx.conn().execute("INSERT OR REPLACE INTO _change_evidence(seq, footprint) VALUES (?1, ?2)", rusqlite::params![(after + 1) as i64, proof.to_string()]).unwrap();
         tx.commit().unwrap();
-        let changes = super::settlement_changes(engine.store().conn(), engine.schema(), after, after + 1);
+        let changes = super::settlement_changes(engine.store().footprint_between(after, after + 1), engine.schema(), after, after + 1);
         assert_eq!(changes, serde_json::json!({"after":after,"through":after+1,"writes":{"posts":["at","likeCount"]}}));
         assert!(!changes.to_string().contains("$column"));
-        assert!(super::settlement_changes(engine.store().conn(), engine.schema(), after, after + 2).is_null(), "a gap never certifies fields");
+        assert!(super::settlement_changes(engine.store().footprint_between(after, after + 2), engine.schema(), after, after + 2).is_null(), "a gap never certifies fields");
     }
     #[test]
     fn saturated_changes_uses_the_public_table_enumeration() {
@@ -353,7 +353,7 @@ pub(super) fn ack_preserved(engine: &snapback4_core::Engine, outcome: Option<&sn
                 snapback4_core::revocation::Footprint::default().preserved(engine.schema())
             }
             snapback4_core::WriteState::Sent { seq, .. } => {
-                snapback4_core::revocation::preserved_between(engine.store().conn(), engine.schema(), seq.saturating_sub(1), seq)
+                engine.store().preserved_between(engine.schema(), seq.saturating_sub(1), seq)
             }
             _ => Vec::new(),
         }, _ => Vec::new(),
@@ -361,8 +361,8 @@ pub(super) fn ack_preserved(engine: &snapback4_core::Engine, outcome: Option<&sn
 }
 
 // @ref LLP 3000.023#11 — certify the whole interval, including server-only inputs.
-pub(super) fn settlement_changes(conn: &rusqlite::Connection, schema: &snapback4_core::Schema, after: u64, through: u64) -> Json {
-    let Some(f) = snapback4_core::revocation::footprint_between(conn, after, through).filter(|f| !f.unknown) else { return Json::Null; };
+pub(super) fn settlement_changes(footprint: Option<snapback4_core::revocation::Footprint>, schema: &snapback4_core::Schema, after: u64, through: u64) -> Json {
+    let Some(f) = footprint.filter(|f| !f.unknown) else { return Json::Null; };
     let mut public = snapback4_core::revocation::Footprint::default();
     for (name, c) in f.tables {
         if schema.visible(&name) {

@@ -69,11 +69,11 @@ impl Engine {
         }
         let prior_items = std::cell::RefCell::new(Vec::new());
         let population=std::cell::Cell::new(None);
-        let outcome=store.activate_at_with_launch(schema, Some(programs), false, now, allow_feed_adoption, |conn| {
+        let outcome=store.activate_at_with_launch(schema, Some(programs), false, now, allow_feed_adoption, |conn, release_check| {
             Store::check_selected_release(conn, expected_release)?;
             if let Some(backend) = expected_backend { backend.check(conn)?; }
             if let Some(options)=release {
-                options.check(conn)?;
+                release_check.check_release_activation(options)?;
                 *prior_items.borrow_mut()=crate::store::release_history::inventory(conn,None,usize::MAX)?;
                 crate::store::dormant::enable(conn)?;
                 conn.execute("INSERT INTO _meta(key,value) VALUES('release_native_digest',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",[options.native_digest.as_deref().unwrap_or("")])?;

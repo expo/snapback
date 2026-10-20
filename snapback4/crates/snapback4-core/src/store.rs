@@ -34,6 +34,11 @@ pub mod adoption_estimate;
 pub mod adoption_report;
 #[cfg(test)]
 mod adoption_tests;
+mod assets;
+mod partition;
+pub(crate) mod steps;
+mod change_evidence;
+mod release;
 mod authority;
 mod caps;
 pub(crate) mod dormant;

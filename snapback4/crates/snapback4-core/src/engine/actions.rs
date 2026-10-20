@@ -24,7 +24,7 @@ pub(crate) fn initialize(conn: &Connection) -> Result<(), RuntimeError> {
     for (column, kind) in [("family", "TEXT"), ("principal_generation", "INTEGER"), ("admitted_expires_at", "INTEGER"), ("args_digest", "TEXT"), ("error_code", "TEXT"), ("settled_at", "INTEGER"), ("spec", "TEXT"), ("contract", "TEXT"), ("deadline", "INTEGER"), ("release", "TEXT"), ("service_generation", "INTEGER"), ("cancelled", "INTEGER NOT NULL DEFAULT 0")] {
         if !columns.iter().any(|name| name == column) { conn.execute_batch(&format!("ALTER TABLE _requests ADD COLUMN {column} {kind};"))?; }
     }
-    steps::initialize(conn)?;
+    crate::store::steps::initialize_actions(conn)?;
     Ok(())
 }
 
@@ -130,7 +130,7 @@ pub fn authorize(program: &Program, viewer: &str) -> Result<(), RuntimeError> {
     Ok(())
 }
 
-fn finish(tx: &Tx<'_>, id: &str, state: &str, code: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
+pub(crate) fn finish(tx: &Tx<'_>, id: &str, state: &str, code: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
     if let Some(work) = tx.work_by_id(id)? && let Some(digest) = work.session_digest { tx.invalidate_session(&digest)?; }
     // Retain the last claim fence so an in-flight handler may observe cancellation.
     tx.conn().execute("UPDATE _requests SET state = ?2, error_code = ?3, error = ?4, result = NULL, next_at = NULL, settled_at = ?5 WHERE id = ?1", params![id, state, code, error, now])?;

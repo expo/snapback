@@ -173,29 +173,38 @@ fn asset(kind: &ColumnType) -> bool {
         ColumnType::Optional(t) | ColumnType::List { of: t, .. } | ColumnType::ListRange { of: t, .. } => asset(t), _ => false }
 }
 
+/// One commit's optional durable evidence, without database types.
+#[cfg(feature = "sqlite")]
+pub(crate) struct EvidenceRecord { pub seq: u64, pub footprint: Option<String> }
+
+#[cfg(feature = "sqlite")]
+pub(crate) trait ChangeEvidence {
+    fn change_evidence(&self, after: u64, through: u64, visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Option<()>;
+}
+
 /// Classify a complete interval. Legacy, pruned and over-limit intervals widen.
 #[cfg(feature = "sqlite")]
-pub fn preserved_between(conn: &rusqlite::Connection, schema: &Schema, after: u64, through: u64) -> Vec<String> {
-    footprint_between(conn, after, through).map_or_else(Vec::new, |f| f.preserved(schema))
+pub(crate) fn preserved_between(store: &impl ChangeEvidence, schema: &Schema, after: u64, through: u64) -> Vec<String> {
+    footprint_between(store, after, through).map_or_else(Vec::new, |f| f.preserved(schema))
 }
 
 /// Complete bounded transaction evidence; gaps and legacy stores certify nothing.
 #[cfg(feature = "sqlite")]
-pub fn footprint_between(conn: &rusqlite::Connection, after: u64, through: u64) -> Option<Footprint> {
+pub(crate) fn footprint_between(store: &impl ChangeEvidence, after: u64, through: u64) -> Option<Footprint> {
     if after == through { return Some(Footprint::default()); }
     if through < after { return None; }
-    let mut statement = conn.prepare("SELECT c.seq, e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>?1 AND c.seq<=?2 ORDER BY c.seq LIMIT 501").ok()?;
-    let rows = statement.query_map(rusqlite::params![after as i64, through as i64], |r| Ok((r.get::<_,i64>(0)? as u64, r.get::<_,Option<String>>(1)?))).ok()?;
     let mut footprint = Footprint::default();
     let mut previous = after;
-    for (count, row) in rows.enumerate() {
-        let (seq, json) = row.ok()?;
+    let mut count = 0;
+    store.change_evidence(after, through, |EvidenceRecord { seq, footprint: json }| {
         if count >= 500 || seq != previous + 1 { return None; }
         let json = json?;
         if json.len() > 262144 { return None; }
         footprint.merge(&crate::json_codec::from_text::<Footprint>(&json).ok()?);
         previous = seq;
-    }
+        count += 1;
+        Some(())
+    })?;
     (previous == through).then_some(footprint)
 }
 
@@ -240,4 +249,46 @@ mod tests {
         let mut footprint = Footprint::default(); footprint.merge(&recorder.footprint());
         assert!(footprint.preserved(&schema).is_empty());
     }
+}
+
+#[cfg(all(test, feature = "sqlite"))]
+pub(crate) mod evidence_test_cases {
+    use super::*;
+
+    pub(crate) fn records() -> Vec<EvidenceRecord> {
+        let mut records = vec![
+            EvidenceRecord { seq: 1, footprint: Some(r#"{"unknown":false,"tables":{"messages":{"deleted":false,"population":false,"columns":["body"]}}}"#.into()) },
+            EvidenceRecord { seq: 2, footprint: Some(crate::value::canonical_json(&Footprint::default())) },
+            EvidenceRecord { seq: 3, footprint: None },
+            EvidenceRecord { seq: 4, footprint: Some("invalid".into()) },
+            EvidenceRecord { seq: 5, footprint: Some(" ".repeat(262145)) },
+        ];
+        records.extend((6..=506).map(|seq| EvidenceRecord { seq, footprint: Some(crate::value::canonical_json(&Footprint::default())) }));
+        records
+    }
+
+    pub(crate) fn check(store: &impl ChangeEvidence) {
+        assert!(footprint_between(store, 0, 0).unwrap().tables.is_empty());
+        assert!(footprint_between(store, 2, 1).is_none());
+        for through in [1, 2] {
+            let footprint = footprint_between(store, 0, through).unwrap();
+            assert!(!footprint.unknown);
+            assert_eq!(footprint.tables["messages"].columns, BTreeSet::from(["body".into()]));
+        }
+        for (after, through) in [(0, 3), (3, 4), (4, 5), (5, 506), (506, 507)] {
+            assert!(footprint_between(store, after, through).is_none(), "{after}..{through} must not certify");
+        }
+        assert!(footprint_between(store, 5, 505).unwrap().tables.is_empty(), "exactly 500 commits still certify");
+    }
+
+    struct Memory;
+    impl ChangeEvidence for Memory {
+        fn change_evidence(&self, after: u64, through: u64, mut visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Option<()> {
+            for record in records().into_iter().filter(|r| r.seq > after && r.seq <= through).take(501) { visit(record)?; }
+            Some(())
+        }
+    }
+
+    #[test]
+    fn bounded_evidence_policy_without_a_database() { check(&Memory); }
 }

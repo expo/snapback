@@ -148,7 +148,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
                     let generation = reader.generation();
                     (under_generation(&mut reader, requested_generation, generation, &store_id, &device, |reader| {
                                 reader.stream_at(&principal, from, limit, now).and_then(|page| {
-                                        reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) })
+                                        reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = reader.store().preserved_between(reader.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(reader.store().footprint_between(from, page.images_at.unwrap_or(page.watermark)), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) })
                                     })
                             },
                         ), generation,
@@ -165,7 +165,7 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
                     let generation = engine.generation();
                     (under_generation(&mut engine, requested_generation, generation, &store_id, &device, |engine| {
                                 engine.stream_at(&principal, from, limit, now).and_then(|page| {
-                                        engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) })
+                                        engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = engine.store().preserved_between(engine.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(engine.store().footprint_between(from, page.images_at.unwrap_or(page.watermark)), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) })
                                     })
                             },
                         ), generation,

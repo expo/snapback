@@ -681,177 +681,30 @@ mod tests {
     }
 }
 
+/// Durable facts used by upload replay and placement policy.
 #[cfg(feature = "sqlite")]
-mod persistence {
-// ----- persistence: the `_assets` and `_asset_views` tables -----
-
-use super::*;
-use crate::store::{Store, Tx};
-use rusqlite::{Connection, OptionalExtension, params};
-
-const COLUMNS: &str = "id, owner, kind, content_type, bytes, width, height, duration, created_at, home_table, home_id, home_column, released_at, name";
-
-fn read_asset(row: &rusqlite::Row<'_>) -> rusqlite::Result<Asset> {
-    let kind: String = row.get(2)?;
-    let home: (Option<String>, Option<String>, Option<String>) = (row.get(9)?, row.get(10)?, row.get(11)?);
-    Ok(Asset {
-        id: row.get(0)?,
-        owner: row.get(1)?,
-        kind: match kind.as_str() { "video" => AssetKind::Video, "file" => AssetKind::File, _ => AssetKind::Image },
-        content_type: row.get(3)?,
-        bytes: row.get::<_, i64>(4)? as u64,
-        width: row.get::<_, Option<i64>>(5)?.map(|w| w as u32),
-        height: row.get::<_, Option<i64>>(6)?.map(|h| h as u32),
-        duration: row.get::<_, Option<i64>>(7)?.map(|d| d as u64),
-        created_at: row.get(8)?,
-        home: match home {
-            (Some(table), Some(id), Some(column)) => Some((table, id, column)),
-            _ => None,
-        },
-        released_at: row.get(12)?,
-        name: row.get(13)?,
-    })
+pub(crate) struct IntentRecord {
+    pub binding: Option<String>,
+    pub facts: Option<String>,
+    pub state: String,
 }
 
-fn find(conn: &Connection, id: &str) -> Result<Option<Asset>, RuntimeError> {
-    Ok(conn.query_row(&format!("SELECT {COLUMNS} FROM _assets WHERE id = ?1"), [id], read_asset,
-            ).optional()?)
-}
-
-    fn stale(conn: &Connection, now: i64) -> Result<Vec<Asset>, RuntimeError> {
-        let mut statement = conn.prepare(&format!("SELECT {COLUMNS} FROM _assets WHERE released_at IS NOT NULL OR (home_table IS NULL AND created_at < ?1 AND NOT EXISTS (SELECT 1 FROM _asset_intents u WHERE u.asset=_assets.id AND u.state='pending' AND NOT EXISTS (SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent))) LIMIT 256"))?;
-        let rows = statement.query_map([now - UNCLAIMED_TTL_MS], read_asset)?;
-        Ok(rows.collect::<Result<_, _>>()?)
-    }
-
-    fn forget(conn: &Connection, id: &str) -> Result<(), RuntimeError> {
-        conn.execute("DELETE FROM _asset_views WHERE asset = ?1", [id])?;
-        conn.execute("DELETE FROM _asset_gc WHERE asset = ?1", [id])?;
-        conn.execute("DELETE FROM _assets WHERE id = ?1", [id])?;
-        Ok(())
-    }
-
-    fn record(conn: &Connection, asset: &Asset) -> Result<(), RuntimeError> {
-        conn.execute(
-            &format!("INSERT INTO _assets({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, NULL, NULL, NULL, ?10)"),
-            params![asset.id, asset.owner, asset.kind.word(), asset.content_type, asset.bytes as i64, asset.width.map(i64::from), asset.height.map(i64::from), asset.duration.map(|d| d as i64), asset.created_at, asset.name],
-        )?;
-        Ok(())
-    }
-
-    impl Store {
-        /// Record an upload. The bytes are the caller's to write at `asset_path`.
-        pub fn record_asset(&self, asset: &Asset) -> Result<(), RuntimeError> {
-            record(self.conn(), asset)
-    }
-
-    pub fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> {
-        find(self.conn(), id)
-    }
-
-    pub fn asset_path(&self, id: &str) -> std::path::PathBuf {
-        self.assets_dir().join(id)
-    }
-
-    /// Assets nobody serves any more: released by their home, or never
-    /// claimed within the grace period. The sweep unlinks and forgets them.
-    pub fn stale_assets(&self, now: i64) -> Result<Vec<Asset>, RuntimeError> {
-            stale(self.conn(), now)
-    }
-
-    pub fn forget_asset(&self, id: &str) -> Result<(), RuntimeError> {
-            forget(self.conn(), id)
-    }
-}
-
-impl Tx<'_> {
-        pub fn record_asset(&self, asset: &Asset) -> Result<(), RuntimeError> {
-            record(self.conn(), asset)
-        }
-
-        /// Select a bounded sweep batch and close the claim race for old,
-        /// unclaimed uploads before their files are removed outside the guard.
-        pub fn stage_stale_assets(&self, now: i64) -> Result<Vec<Asset>, RuntimeError> {
-            self.stage_stale_assets_for(now, std::time::Duration::MAX)
-        }
-
-        pub fn stage_stale_assets_for(&self, now: i64, budget: std::time::Duration) -> Result<Vec<Asset>, RuntimeError> {
-            let started = std::time::Instant::now();
-            let mut assets = stale(self.conn(), now)?;
-            let mut staged = 0;
-            for asset in &assets {
-                if staged > 0 && started.elapsed() >= budget { break; }
-                self.conn().execute("INSERT OR IGNORE INTO _asset_gc(asset) VALUES (?1)", [&asset.id])?;
-                self.conn().execute(
-                    "UPDATE _assets SET released_at = COALESCE(released_at, ?2) WHERE id = ?1",
-                    params![asset.id, now],
-                )?;
-                staged += 1;
-            }
-            assets.truncate(staged);
-            Ok(assets)
-        }
-
-        pub fn forget_asset(&self, id: &str) -> Result<(), RuntimeError> {
-            forget(self.conn(), id)
-        }
-
-        pub fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> {
-        find(self.conn(), id)
-    }
-
-    /// A row column takes the asset: one asset, one home. The uploader's
-    /// own assets only (the system principal may place any), and an asset
-    /// another row already holds is refused.
-    pub fn claim_asset(&self, id: &str, by: &str, table: &str, row_id: &str, column: &str) -> Result<Asset, RuntimeError> {
-        let unknown = || RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: format!("no upload of yours is named {id}; upload the bytes first (POST /assets) and place the id it returns") };
-        let Some(asset) = self.asset(id)? else { return Err(unknown()) };
-        // @ref LLP 3000#7 — release permits a move; collection reservation closes the outside-lock unlink race.
-        if self.conn().query_row("SELECT EXISTS(SELECT 1 FROM _asset_gc WHERE asset = ?1)", [id], |row| row.get::<_, bool>(0))? {
-            return Err(unknown());
-        }
-        if asset.owner != by && by != crate::SYSTEM_PRINCIPAL {
-            return Err(unknown());
-        }
-        // Release detaches the previous home. The uploader may reclaim
-        // the still-present bytes until the garbage collector reserves them.
-        match &asset.home {
-            Some((t, r, c)) if (t.as_str(), r.as_str(), c.as_str()) == (table, row_id, column) => {}
-            Some((t, _, _)) => return Err(RuntimeError::Asset { code: "E_ASSET_PLACED", message: format!("asset {id} already belongs to a row of {t}; upload it again for a second home") }),
-            None => {
-                self.conn().execute("UPDATE _assets SET home_table = ?2, home_id = ?3, home_column = ?4, released_at = NULL WHERE id = ?1", params![id, table, row_id, column])?;
-            }
-        }
-        Ok(asset)
-    }
-
-    /// Only the recorded home can let go of an asset. Legacy references in
-    /// another cell (or to an unplaced upload) leave its ledger untouched.
-    pub fn release_asset(&self, id: &str, table: &str, row_id: &str, column: &str, now: i64) -> Result<(), RuntimeError> {
-        self.conn().execute("UPDATE _assets SET released_at = ?2, home_table = NULL, home_id = NULL, home_column = NULL WHERE id = ?1 AND released_at IS NULL AND home_table = ?3 AND home_id = ?4 AND home_column = ?5", params![id, now, table, row_id, column])?;
-        Ok(())
-    }
-
-    pub fn asset_viewed(&self, id: &str, principal: &str) -> Result<bool, RuntimeError> {
-        Ok(self.conn().query_row("SELECT 1 FROM _asset_views WHERE asset = ?1 AND principal = ?2", params![id, principal], |_| Ok(())).optional()?.is_some())
-    }
-
-    pub fn record_asset_view(&self, id: &str, principal: &str, now: i64) -> Result<(), RuntimeError> {
-        self.conn().execute("INSERT OR IGNORE INTO _asset_views(asset, principal, at) VALUES (?1, ?2, ?3)", params![id, principal, now])?;
-        Ok(())
-    }
-}
+#[cfg(feature = "sqlite")]
+pub(crate) trait AssetTransaction {
+    fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError>;
+    fn asset_reserved(&self, id: &str) -> Result<bool, RuntimeError>;
+    fn place_asset(&self, id: &str, table: &str, row_id: &str, column: &str) -> Result<(), RuntimeError>;
+    fn replay_record(&self, owner: &str, id: &str) -> Result<Option<IntentRecord>, RuntimeError>;
+    fn placement_record(&self, owner: &str, id: &str) -> Result<Option<IntentRecord>, RuntimeError>;
+    fn mutation_executed(&self, owner: &str, id: &str) -> Result<bool, RuntimeError>;
 }
 
 // @ref LLP 3000.038.000#3 — immutable dedup receipts survive collection and cancellation.
 #[cfg(feature = "sqlite")]
-pub(crate) fn replay_intent(tx: &crate::store::Tx<'_>, owner: &str, id: &str, fingerprint: &str) -> Result<Option<Asset>, RuntimeError> {
-    use rusqlite::OptionalExtension;
-    let receipt: Option<(Option<String>, Option<String>, String)> = tx.conn().query_row(
-        "SELECT fingerprint, facts, state FROM _asset_intents WHERE owner=?1 AND intent=?2", [owner, id],
-        |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).optional()?;
-    let Some((original, facts, state)) = receipt else {
-        if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _ops WHERE principal=?1 AND id=?2)", [owner, id], |r| r.get::<_, bool>(0))? {
+pub(crate) fn replay_intent(tx: &impl AssetTransaction, owner: &str, id: &str, fingerprint: &str) -> Result<Option<Asset>, RuntimeError> {
+    let receipt = tx.replay_record(owner, id)?;
+    let Some(IntentRecord { binding: original, facts, state }) = receipt else {
+        if tx.mutation_executed(owner, id)? {
             return Err(RuntimeError::Asset { code: "E_WRITE_ID_REUSE", message: "intent id already belongs to an executed mutation; select a new id".into() });
         }
         return Ok(None);
@@ -869,10 +722,9 @@ pub(crate) fn replay_intent(tx: &crate::store::Tx<'_>, owner: &str, id: &str, fi
 }
 
 #[cfg(feature="sqlite")]
-pub(crate) fn require_placement(tx:&crate::store::Tx<'_>,owner:&str,id:&str,name:&str,args:&serde_json::Value)->Result<(),RuntimeError>{
-    use rusqlite::OptionalExtension;
-    let record:Option<(Option<String>,Option<String>,String)>=tx.conn().query_row("SELECT placement,facts,state FROM _asset_intents WHERE owner=?1 AND intent=?2",[owner,id],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
-    let Some((binding,facts,state))=record else {return Ok(())};
+pub(crate) fn require_placement(tx:&impl AssetTransaction,owner:&str,id:&str,name:&str,args:&serde_json::Value)->Result<(),RuntimeError>{
+    let record=tx.placement_record(owner,id)?;
+    let Some(IntentRecord { binding, facts, state })=record else {return Ok(())};
     if state=="cancelled"{return Err(RuntimeError::Asset{code:"E_UPLOAD_CANCELLED",message:"this upload-and-place intent was cancelled".into()});}
     let Some(binding)=binding else {return Err(RuntimeError::Asset{code:"E_UPLOAD_INTENT",message:"upload intent has no declared placement".into()});};
     let Some(facts)=facts else{return Err(RuntimeError::Asset{code:"E_UPLOAD_PENDING",message:"placing mutation must wait for its uploaded asset".into()});};
@@ -885,4 +737,27 @@ pub(crate) fn require_placement(tx:&crate::store::Tx<'_>,owner:&str,id:&str,name
     expected[argument]=asset_facts;
     if binding["op"]!=name||expected!=*args{return Err(RuntimeError::Asset{code:"E_ASSET_INTENT_REUSE",message:"operation or args differ from the declared placement and authenticated upload facts".into()});}
     Ok(())
+}
+
+#[cfg(feature = "sqlite")]
+pub(crate) fn claim_asset(tx: &impl AssetTransaction, id: &str, by: &str, table: &str, row_id: &str, column: &str) -> Result<Asset, RuntimeError> {
+    let unknown = || RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: format!("no upload of yours is named {id}; upload the bytes first (POST /assets) and place the id it returns") };
+    let Some(asset) = tx.asset(id)? else { return Err(unknown()) };
+    // @ref LLP 3000#7 — release permits a move; collection reservation closes the outside-lock unlink race.
+    if tx.asset_reserved(id)? {
+        return Err(unknown());
+    }
+    if asset.owner != by && by != crate::SYSTEM_PRINCIPAL {
+        return Err(unknown());
+    }
+    // Release detaches the previous home. The uploader may reclaim
+    // the still-present bytes until the garbage collector reserves them.
+    match &asset.home {
+        Some((t, r, c)) if (t.as_str(), r.as_str(), c.as_str()) == (table, row_id, column) => {}
+        Some((t, _, _)) => return Err(RuntimeError::Asset { code: "E_ASSET_PLACED", message: format!("asset {id} already belongs to a row of {t}; upload it again for a second home") }),
+        None => {
+            tx.place_asset(id, table, row_id, column)?;
+        }
+    }
+    Ok(asset)
 }
