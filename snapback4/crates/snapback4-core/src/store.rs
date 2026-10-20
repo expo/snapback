@@ -38,6 +38,7 @@ mod assets;
 mod partition;
 pub(crate) mod steps;
 mod requests;
+mod outbox;
 mod change_evidence;
 mod release;
 mod authority;

@@ -97118,3 +97118,52 @@ with an unoptimized dev binary while its calibration fixture was running.
 Restored the test-profile binary with `cargo test -p snapback4 --no-run`, then
 reran the complete host command successfully. No product-test failure was
 classified as pre-existing.
+## 2026-10-20 — P0-S4c: outbox and effects behind the store port
+
+`engine/effects.rs` now owns crate-private `OutboxTransaction` and
+`OutboxStore` capabilities plus plain admission and expiry records. SQLite
+access and row decoding live in `store/outbox.rs`; no Postgres implementation
+is added. Claim/settle/expiry policy, declaration compatibility, presence
+satisfaction, attempt bounds, backoff, refusal ordering and the maintenance
+budget stay in the engine. The original strict and legacy update statements
+retain their different field-clearing behavior. SQL text and transaction
+boundaries are preserved, and every existing public engine call shape remains.
+
+The dev clock shift is one explicit transaction operation across `_outbox`,
+`_requests`, supervised `_sessions` and delegated request sessions, using the
+worker-family markers in `_meta`. `presence_reconnected` still probes in a
+read transaction before opening a writer, under the caller's engine lock.
+The host obtains counts and grace deferrals from one typed `EffectHealth`
+snapshot; a deferral-query error remains advisory with its original display
+text. Replay configuration still checks deployment identity and writes the
+policy in one immediate transaction, while schedule replay checks reuse their
+existing writer transaction.
+
+Shared capability cases exercise expiry equality, generation parking before
+expiry, terminal evidence immutability, deadline precedence, presence grace
+boundaries and progress with a zero maintenance budget. The existing doctor
+concurrent-claim test now exercises the typed snapshot method directly. The
+ratchet falls from 273 to 193 production sites (80 removed); test sites remain
+104. The change stays below the requested 1,000-line split threshold. Parallel
+lanes' source files are unchanged.
+
+Validation: `cargo build -p snapback4`, the complete
+`cargo test -p snapback4-core` and the ratchet pass. The complete host run with
+`--no-fail-fast` executes every target; all integration targets pass. Its binary
+target initially reports socket `WouldBlock` timeouts in
+`authentication_and_metadata_stamp_the_engine_after_intake_switch` and
+`following_reply_stamps_the_engine_selected_after_request_intake`, both at
+`serve_tests.rs:149`. The untouched base `a8460f7abb27acc6c99589bd492c7adbee22f381`
+passes its full binary target (494 passed, five ignored), so those timeouts are
+not classified as pre-existing failures. The lane's full binary-target rerun
+at default concurrency also passes (494 passed, five ignored). The original
+socket-timeout cause remains unconfirmed. Sharing the Cargo target directory
+with the base caused stale metadata during an intermediate retry; clearing the
+affected core/host package artifacts and rebuilding restores the lane check.
+
+The required Clippy command fails on two inherited deny-by-default lints,
+reproduced on the untouched base: `clippy::while_immutable_condition`
+(`engine/read.rs:780`) and `clippy::never_loop` (`engine/row_views.rs:1010`).
+After rebuilding the lane, Clippy warning titles and source-file pairs match
+the base exactly, with no additions. `ref-check --verbose` passes with zero
+errors and zero unchecked references. `scripts/test.sh` was not run; no push.

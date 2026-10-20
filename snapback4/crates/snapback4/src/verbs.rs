@@ -925,19 +925,6 @@ fn human(bytes: u64) -> String {
 #[path = "../tests/doctor/mod.rs"]
 pub(crate) mod doctor_tests;
 
-fn effect_health(engine: &snapback4_core::Engine, now: i64) -> Result<(BTreeMap<String, u64>, rusqlite::Result<(i64, Option<i64>)>), snapback4_core::RuntimeError> {
-    // Counts (including replay suppression) and grace deadlines describe one snapshot.
-    let snapshot = engine.store().conn().unchecked_transaction()?;
-    let counts = engine.effect_counts()?;
-    // @ref LLP 3000.007#20.16 — report grace deferrals without treating retry backoff as presence.
-    let deferred = engine.store().conn().query_row(
-        "SELECT COUNT(*), MIN(next_at) FROM _outbox WHERE state = 'queued' AND next_at > ?1 AND EXISTS (SELECT 1 FROM _effect_presence WHERE id = _outbox.id)",
-        [now], |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?)),
-    );
-    snapshot.rollback()?;
-    Ok((counts, deferred))
-}
-
 pub fn doctor(options: &Options) -> i32 {
     if options.flags.contains_key("repair-expiry-orphan") { return expiry_orphans::repair(options); }
     if options.flags.contains_key("latency") || options.flags.contains_key("reset") { return latency::doctor(options); }
@@ -1114,7 +1101,7 @@ pub fn doctor(options: &Options) -> i32 {
                         Ok(failures) => lines.extend(failures),
                         Err(error) => { ok = false; lines.push(format!("handler failures unavailable: {error}")); }
                     }
-                    if let Ok((counts, deferred)) = effect_health(&engine, now) && !counts.is_empty() {
+                    if let Ok(snapback4_core::engine::effects::EffectHealth { counts, deferred }) = engine.effect_health(now) && !counts.is_empty() {
                         let deferred = match deferred {
                             Ok((count, Some(at))) => format!("{count} deferred (next at {at}, +{}s)", (at - now + 999) / 1000),
                             Ok((count, None)) => format!("{count} deferred"),
