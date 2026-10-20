@@ -97712,3 +97712,32 @@ fix remains deferred. PostgreSQL host wiring, the internal migration runner
 and the owner lease fence remain outside this lane, as before. The retained
 SQLite lazy-install exception is a deliberate LLP 3000.033 compatibility
 constraint, not a new Postgres per-operation DDL path.
+## 2026-10-20 — P1-RQ task 1: Postgres request access
+
+Single-worker local lane `sb4-pg/p1-requests`, based on mirror
+`d6545aaf59`. The scoped orientation is LLP 3000 decision 4 (explicitly
+commissioned core lane), LLP 3000.009.001.000 §§3, 4.1, 9–10, the actions
+guide card, the shared request contract and the SQLite statements. The local
+`llp-orient` symlink has no installed target, so these constraints were read
+directly. No other machine, checkout, sub-agent, stash or push is used.
+
+`engine/postgres/requests.rs` implements all request access: insert/read,
+release metadata, due/expired selection, claim, retry, authority failure,
+settlement, cancellation, counts and the finish operation used by shared
+step parking. All writes require the existing serialized head fence, reused
+from the authority adapter. Claim selection and mutation stay in the same
+writer transaction; authority, lease limits and transitions remain shared
+Rust policy. No owner-fence scheme or public Postgres action API is added.
+
+Attach probes optional request columns and only alters missing ones under
+its existing head lock. `_meta` carries the same optional `release` key as
+SQLite; until the release adapter populates it, lookup returns None.
+Postgres BIGINT attempts are checked when converting to the public u32;
+optional query parameters are explicitly typed. The counts trait accepts a
+mutable receiver for Postgres's synchronous client, while SQLite implements
+it for a shared Store reference to retain `Engine::action_counts(&self)`.
+
+`cargo check -p snapback4-core --features postgres` passes. Task 2 will run
+the shared cases on both stores, including real database races and all
+requested final checks. This is adapter-family coverage only; public
+Postgres actions/routes and the other work families remain later slices.

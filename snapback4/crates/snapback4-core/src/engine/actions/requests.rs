@@ -30,7 +30,7 @@ pub(crate) struct RequestSettlement<'a> {
     pub error_code: Option<&'a str>,
 }
 
-// P1: Postgres request lifecycle access awaits work-family parity.
+// @ref LLP 3000.009.001.000#10 — one request contract on SQLite and Postgres.
 pub(crate) trait RequestsTransaction {
     fn request(&self, id: &str) -> Result<Option<ActionRequest>, RuntimeError>;
     fn request_release(&self) -> Result<Option<String>, RuntimeError>;
@@ -67,9 +67,8 @@ pub(crate) trait RequestsTransaction {
     fn cancel_request(&self, id: &str) -> Result<(), RuntimeError>;
 }
 
-// P1: Postgres request inspection awaits work-family parity.
 pub(crate) trait RequestsStore {
-    fn request_counts(&self) -> Result<BTreeMap<String, u64>, RuntimeError>;
+    fn request_counts(&mut self) -> Result<BTreeMap<String, u64>, RuntimeError>;
 }
 
 #[cfg(test)]

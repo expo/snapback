@@ -197,7 +197,15 @@ impl RequestsTransaction for Tx<'_> {
 }
 
 impl RequestsStore for Store {
-    fn request_counts(&self) -> Result<std::collections::BTreeMap<String, u64>, RuntimeError> {
+    fn request_counts(&mut self) -> Result<std::collections::BTreeMap<String, u64>, RuntimeError> {
+        (&*self).request_counts()
+    }
+}
+
+// SQLite permits inspection through a shared store reference; Postgres needs
+// mutable access to its synchronous client. The public Engine API stays shared.
+impl RequestsStore for &Store {
+    fn request_counts(&mut self) -> Result<std::collections::BTreeMap<String, u64>, RuntimeError> {
         Ok(self
             .conn()
             .prepare("SELECT state, COUNT(*) FROM _requests GROUP BY state")?

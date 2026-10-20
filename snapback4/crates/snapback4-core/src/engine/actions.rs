@@ -370,7 +370,7 @@ impl Engine {
     }
 
     pub fn action_counts(&self) -> Result<BTreeMap<String, u64>, RuntimeError> {
-        self.store.request_counts()
+        (&self.store).request_counts()
     }
 }
 
