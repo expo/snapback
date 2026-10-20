@@ -168,8 +168,10 @@ project-local skill discovery path:
 - Pi: `.pi/skills`
 - OpenCode: `.opencode/skills`
 
-The aggregate entries are symlinks into `vendor/llp` and
-`vendor/ccheever-skills`. Run `scripts/sync-agent-skills` after pulling upstream
+The aggregate entries are symlinks into `vendor/llp`, `vendor/cdcstack`
+(`orchestrate`, and `panel`: four blind model families, one pass, for hard
+directional decisions and RFC/LLP refinement — use it instead of
+`llp-super-refine` in almost every case), and `vendor/ccheever-skills`. Run `scripts/sync-agent-skills` after pulling upstream
 skill changes; this repo also uses tracked Git hooks in `.githooks/` to refresh
 them after normal checkout/merge operations in this local clone.
 
@@ -201,7 +203,7 @@ signature-ticket state; install or refresh it with
 workflow remains report-only.
 
 The skills sync (and therefore the checkout/merge hooks) initializes only the
-small `vendor/llp` and `vendor/ccheever-skills` submodules. It deliberately does
+small `vendor/llp`, `vendor/cdcstack` and `vendor/ccheever-skills` submodules. It deliberately does
 **not** auto-initialize `vendor/ibex`, which is a full Ibex runtime checkout that
 most Snapback work never needs — cloning it on every checkout would be
 disproportionate. When `vendor/ibex` is uninitialized the sync prints a one-line

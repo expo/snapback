@@ -24,9 +24,9 @@ root="$(git rev-parse --show-toplevel)"
 cd "$root"
 
 if [ "$fetch" -eq 1 ]; then
-  git submodule update --init --remote vendor/llp vendor/ccheever-skills
+  git submodule update --init --remote vendor/llp vendor/cdcstack vendor/ccheever-skills
 else
-  git submodule update --init vendor/llp vendor/ccheever-skills
+  git submodule update --init vendor/llp vendor/cdcstack vendor/ccheever-skills
 fi
 
 link() {
@@ -58,7 +58,7 @@ mkdir -p skills
 for existing in skills/*; do
   [ -L "$existing" ] || continue
   case "$(readlink "$existing")" in
-    ../vendor/llp/skills/*|../vendor/ccheever-skills/*)
+    ../vendor/llp/skills/*|../vendor/cdcstack/skills/*|../vendor/ccheever-skills/*)
       [ -e "$existing" ] || rm -f "$existing"
       ;;
   esac
@@ -72,6 +72,11 @@ for dir in vendor/llp/skills/*/; do
   [ -f "$dir/SKILL.md" ] || continue
   link "../vendor/llp/skills/$skill" "skills/$skill"
 done
+# cdcstack ships its own repository guidance (style) alongside the
+# working-posture skills; only the latter apply here, so this is a list.
+for skill in orchestrate panel; do
+  link "../vendor/cdcstack/skills/$skill" "skills/$skill"
+done
 link "../vendor/ccheever-skills/cdc-linear-do" "skills/cdc-linear-do"
 
 link ../skills .agents/skills
@@ -80,8 +85,8 @@ link ../skills .cursor/skills
 link ../skills .pi/skills
 link ../skills .opencode/skills
 
-# vendor/ibex is deliberately NOT auto-initialized here. Unlike vendor/llp and
-# vendor/ccheever-skills (small skill repos), it is a full Ibex runtime checkout
+# vendor/ibex is deliberately NOT auto-initialized here. Unlike vendor/llp,
+# vendor/cdcstack and vendor/ccheever-skills (small skill repos), it is a full Ibex runtime checkout
 # (tens of MB plus history) that most Snapback work — docs, demos, JavaScript —
 # never needs, so cloning it on every checkout/worktree-add would be a
 # disproportionate cost. scripts/bootstrap-ibex-runtime initializes it safely on
@@ -108,5 +113,5 @@ if [ "$refusals" -gt 0 ]; then
 fi
 
 if [ "$quiet" -eq 0 ]; then
-  printf 'Synced agent skills from vendor/llp and vendor/ccheever-skills.\n'
+  printf 'Synced agent skills from vendor/llp, vendor/cdcstack and vendor/ccheever-skills.\n'
 fi

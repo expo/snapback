@@ -1,6 +1,6 @@
 ---
 name: sbs-orchestrate
-description: Orchestrate and supervise a body of work using a fixed model roster — codex gpt-6.1-sol (xhigh or high, orchestrator's call) for all coding implementation, BOTH codex gpt-6.1-sol AND grok-4.6 at xhigh for code review, and whatever model the orchestrator judges best for design, design docs, and other non-coding tasks. Use when the user invokes /sbs-orchestrate or asks to orchestrate/supervise work with the codex+grok roster.
+description: Orchestrate and supervise a body of work using a fixed model roster — codex gpt-6.1-sol (xhigh or high, orchestrator's call) for all coding implementation, BOTH codex gpt-6.1-sol AND grok-4.7 at xhigh for code review, and whatever model the orchestrator judges best for design, design docs, and other non-coding tasks. Use when the user invokes /sbs-orchestrate or asks to orchestrate/supervise work with the codex+grok roster.
 ---
 
 # sbs-orchestrate
@@ -17,8 +17,9 @@ lockfile regen) may be done inline when dispatching would be absurd; say so when
 | Task kind | Who | Effort |
 |---|---|---|
 | Coding implementation | codex `gpt-6.1-sol` | `xhigh` or `high` — your call (see below) |
-| Code review | BOTH codex `gpt-6.1-sol` AND grok `grok-4.6` | `xhigh` |
+| Code review | BOTH codex `gpt-6.1-sol` AND grok `grok-4.7` | `xhigh` |
 | Design, design docs, analysis, synthesis, planning | whatever model you judge best (Claude subagents, codex, grok) | your call |
+| Hard directional decisions, RFC/LLP refinement | **the panel** — see the `panel` skill; it replaces `llp-super-refine` | per seat |
 
 **xhigh vs high for implementation:** default to `xhigh`. Drop to `high` for
 mechanical or high-volume work where judgment density is low (bulk renames, test
@@ -65,7 +66,7 @@ parallel lanes matters more than per-lane depth. Record which you chose per lane
 
 ## Grok recipe
 
-- `grok -p "<review prompt>" -m grok-4.6 --reasoning-effort xhigh --output-format plain --disable-web-search --permission-mode auto --max-turns 200`
+- `grok -p "<review prompt>" -m grok-4.7 --reasoning-effort xhigh --output-format plain --disable-web-search --permission-mode auto --max-turns 200`
   (cwd = the checkout under review; stdout is the final response, arriving at the end).
 - **TRAP:** the grok wallet can 402 mid-run and top-ups may not reach the CLI's
   wallet. Probe with a cheap one-liner call before dispatching real reviews. If grok

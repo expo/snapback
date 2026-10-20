@@ -25,6 +25,7 @@
 !vendor/
 vendor/llp/
 vendor/ccheever-skills/
+vendor/cdcstack/
 vendor/ibex/ios/
 vendor/ibex/node_modules/
 vendor/ibex/target/

@@ -10,3 +10,7 @@
 	path = vendor/ccheever-skills
 	url = https://github.com/ccheever/skills.git
 	branch = main
+[submodule "vendor/cdcstack"]
+	path = vendor/cdcstack
+	url = https://github.com/ccheever/cdcstack.git
+	branch = main
