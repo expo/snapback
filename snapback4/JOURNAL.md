@@ -97540,3 +97540,52 @@ and scale fixtures, not identity exclusions. No identity outcome remains
 uncertain in the covered cases. Versioned internal migrations, the P1b owner
 fence and a Postgres authentication host remain the separately scoped work
 noted above. No push was performed.
+
+
+## 2026-10-20 — P1-ID fix round 1: review corrections
+
+The rebased branch builds with Postgres enabled. The separate evaluation
+lockfile still recorded the local crates at 0.4.0 and omitted core's libc
+dependency; the stock locked Postgres runner refused before running tests.
+Refreshed only those local package records to match 0.4.34. Its first owned
+private cluster stopped through the exit trap.
+
+Read-session insertion now probes for absent storage before table/index DDL.
+The shared missing-storage case still installs it on the first insert. A real
+two-connection witness holds an insert and the head open while a peer reads
+expiry and authority, then acquires a compatible relation writer lock.
+Attach validates existing identity columns, types, nullability, primary and
+unique keys, and C-collated lookup keys before DDL. Wrong-shaped principals,
+credentials, mint bindings (missing scope), and read sessions fail closed with
+E_STORE / SNAPBACK_IDENTITY_SCHEMA naming the table. No migration is invented.
+Read-rotation None explicitly rolls back, matching SQLite, and transaction
+fence failures name the particular identity/authority operation.
+
+Shared policy refuses U+0000 in storage-bound email, principal, kind, service
+name, invocation/intent and family inputs. This deliberately changes SQLite's
+prior acceptance of NUL strings; it is the lead's small parity ruling. The
+shared case expects E_AUTH/E_INPUT instead of E_STORE and verifies no new
+principal/credential or expiry sweep. Family values read from storage are
+validated before a later write; generated tokens/digests/hashes are NUL-free.
+
+Convenience-write failure atomicity remains outside the shared contract and
+is now explicit on both trait methods and in the RFC parity note. The shared
+duplicate-insert case pins the conflict and surviving original bearer without
+asserting SQLite/Postgres's divergent sweep/principal residue. SQLite's
+autocommit statement order is unchanged. The literal full scope in
+record_session_mint predates the slice (confirmed at ce6c0d87da); both adapters
+retain it as requested. Validation results follow when the checks finish.
+
+The duplicate-digest review premise differed from the code: rusqlite 0.40.2
+query_row takes the first row, so SQLite did not already reject a digest in
+both tables. Treating the requested shared refusal as the intended contract,
+SQLite now uses query_one for that authority lookup, and Postgres returns the
+same RuntimeError::Sql(QueryReturnedMoreThanOneRow). This is a second small
+SQLite behavior correction, separate from convenience-write atomicity, which
+is untouched. The shared collision case pins E_STORE, message, store family
+and retryability and verifies cleanup of both rows.
+
+The stock Postgres script then exposed another stale evaluation fixture: its
+device snapshot pages omitted the request after cursor, which the current
+device continuation fence requires. The fixture now echoes that cursor, as
+the ordinary sync wire does; no device or snapshot policy changed.

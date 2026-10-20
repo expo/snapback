@@ -44,7 +44,7 @@ impl AuthorityTransaction for Tx<'_> {
         } else {
             "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL, NULL FROM _sessions WHERE token_digest = ?1"
         };
-        Ok(self.tx.query_row(
+        Ok(self.tx.query_one(
             sql,
             [digest],
             |row| {

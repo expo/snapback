@@ -472,6 +472,24 @@ mod tests {
     use crate::identity::test_cases;
 
     #[test]
+    fn shared_digest_in_both_session_tables_refused() {
+        test_cases::assert_digest_in_both_session_tables_refused(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_nul_inputs_refused() {
+        test_cases::assert_nul_inputs_refused(&Store::memory().unwrap());
+    }
+    #[test]
+    fn shared_convenience_insert_conflict() {
+        test_cases::assert_convenience_insert_conflict(&Store::memory().unwrap());
+    }
+    #[test]
+    fn shared_missing_read_storage_created_on_insert() {
+        test_cases::assert_missing_read_storage_created_on_insert(&Store::memory().unwrap());
+    }
+
+    #[test]
     fn shared_read_rotation_expired_refusal() {
         test_cases::assert_read_rotation_refusal(&Store::memory().unwrap(), test_cases::RotationRefusal::Expired);
     }

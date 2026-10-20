@@ -31,7 +31,7 @@ fn read_sessions_present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
 
 impl IdentityTransaction for Tx<'_> {
     fn insert_identity_session(&self, session: &Session, now: i64) -> Result<(), RuntimeError> {
-        self.require_serialized_head_fence()?;
+        self.require_serialized_head_fence("insert identity session")?;
         self.execute("DELETE FROM _sessions WHERE expires_at <= $1", &[&now])?;
         if read_sessions_present(self)? {
             self.execute(
@@ -60,10 +60,12 @@ impl IdentityTransaction for Tx<'_> {
         now: i64,
         family: Option<(&str, i64)>,
     ) -> Result<(), RuntimeError> {
-        self.require_serialized_head_fence()?;
+        self.require_serialized_head_fence("insert read session")?;
         // Normally installed at attach; also permits minting into absent storage,
         // while lookups and refused rotations never create it.
-        self.batch(super::store::READ_SESSIONS_DDL)?;
+        if !read_sessions_present(self)? {
+            self.batch(super::store::READ_SESSIONS_DDL)?;
+        }
         let digest = digest(&session.token);
         let generation = match family {
             Some((_, generation)) => generation,
@@ -78,7 +80,7 @@ impl IdentityTransaction for Tx<'_> {
 
     fn initialize_mint_binding_scope(&self) -> Result<(), RuntimeError> {
         // This table is new to this adapter; attach installs scope with it.
-        self.require_serialized_head_fence()
+        self.require_serialized_head_fence("initialize mint binding scope")
     }
 
     fn mint_binding_record(
@@ -101,7 +103,7 @@ impl IdentityTransaction for Tx<'_> {
         intent: &str,
         record: &SessionMintRecord,
     ) -> Result<(), RuntimeError> {
-        self.require_serialized_head_fence()?;
+        self.require_serialized_head_fence("record session mint")?;
         self.execute(
             "INSERT INTO _session_mint_bindings(invocation,intent,input_digest,principal,kind,days,expires_at,family,principal_generation,scope) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'full')",
             &[&invocation, &intent, &record.input_digest, &record.principal, &record.kind, &record.days, &record.expires_at, &record.family, &record.principal_generation],
@@ -110,7 +112,7 @@ impl IdentityTransaction for Tx<'_> {
     }
 
     fn set_identity_session_family(&self, digest: &str, family: &str) -> Result<(), RuntimeError> {
-        self.require_serialized_head_fence()?;
+        self.require_serialized_head_fence("set identity session family")?;
         self.execute(
             "UPDATE _sessions SET family = $2 WHERE token_digest = $1",
             &[&digest, &family],
@@ -283,8 +285,10 @@ impl IdentityStore for RefCell<&mut Store> {
         now: i64,
         mint: impl FnOnce(&ReadRotationRecord) -> Result<Option<Session>, RuntimeError>,
     ) -> Result<Option<Session>, RuntimeError> {
-        write(self, |tx| {
-            if !read_sessions_present(tx)? {
+        let mut store = self.borrow_mut();
+        let tx = store.transaction(Some(WriteMode::Serialized))?;
+        let result = (|| -> Result<Option<Session>, RuntimeError> {
+            if !read_sessions_present(&tx)? {
                 return Ok(None);
             }
             let found = tx.query(
@@ -310,7 +314,13 @@ impl IdentityStore for RefCell<&mut Store> {
                 Some((&record.family, record.principal_generation)),
             )?;
             Ok(Some(session))
-        })
+        })()?;
+        if result.is_some() {
+            tx.commit()?;
+        } else {
+            tx.rollback()?;
+        }
+        Ok(result)
     }
 
     fn revoke_identity_principal(&self, principal: &str) -> Result<u64, RuntimeError> {

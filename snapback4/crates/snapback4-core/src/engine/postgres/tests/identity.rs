@@ -59,7 +59,7 @@ fn identity_transaction_writes_require_the_existing_head_fence() {
             tx.insert_identity_session(&session, 1_000)
                 .unwrap_err()
                 .to_string()
-                .contains("serialized shared-head fence")
+                .contains("insert identity session requires the serialized shared-head fence")
         );
         assert!(
             tx.session_by_digest(&digest(&session.token))
@@ -76,15 +76,13 @@ fn identity_transaction_writes_require_the_existing_head_fence() {
             family: "family".into(),
             principal_generation: 0,
         };
-        for error in [
-            tx.insert_read_session(&session, 1_000, None).unwrap_err(),
-            tx.initialize_mint_binding_scope().unwrap_err(),
-            tx.record_session_mint("invocation", "intent", &record)
-                .unwrap_err(),
-            tx.set_identity_session_family("digest", "family")
-                .unwrap_err(),
+        for (operation, error) in [
+            ("insert read session", tx.insert_read_session(&session, 1_000, None).unwrap_err()),
+            ("initialize mint binding scope", tx.initialize_mint_binding_scope().unwrap_err()),
+            ("record session mint", tx.record_session_mint("invocation", "intent", &record).unwrap_err()),
+            ("set identity session family", tx.set_identity_session_family("digest", "family").unwrap_err()),
         ] {
-            assert!(error.to_string().contains("serialized shared-head fence"));
+            assert_eq!(error.to_string(), format!("E_STORE: Postgres {operation} requires the serialized shared-head fence"));
         }
         tx.rollback().unwrap();
     }
@@ -193,6 +191,10 @@ shared_case!(
 );
 shared_case!(shared_read_family_isolation, assert_read_family_isolation);
 shared_case!(shared_worker_markers, assert_worker_markers);
+shared_case!(shared_digest_in_both_session_tables_refused, assert_digest_in_both_session_tables_refused);
+shared_case!(shared_nul_inputs_refused, assert_nul_inputs_refused);
+shared_case!(shared_convenience_insert_conflict, assert_convenience_insert_conflict);
+shared_case!(shared_missing_read_storage_created_on_insert, assert_missing_read_storage_created_on_insert);
 
 macro_rules! refusal_case {
     ($name:ident, $refusal:ident) => {
@@ -324,4 +326,62 @@ fn identity_store_writes_wait_for_the_head_before_running_callbacks() {
     held.rollback().unwrap();
     let store = RefCell::new(&mut peer.store);
     test_cases::assert_worker_families(&store);
+}
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn identity_read_insert_does_not_block_peer_authority_reads() {
+    let mut owner = authority_engine();
+    let name: String = owner.store.client.query_one("SELECT current_schema()", &[]).unwrap().get(0);
+    let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private test-postgres.sh database");
+    let mut peer = super::super::PostgresEngine::open(
+        postgres::Client::connect(&url, postgres::NoTls).unwrap(), &name,
+    ).unwrap();
+    let existing = Session {
+        principal: "member:existing".into(), kind: "member".into(), token: "ro.existing".into(),
+        expires_at: 9_000, cap_expires_at: Some(10_000), scope: SessionScope::Read,
+    };
+    RefCell::new(&mut owner.store).insert_identity_session_atomic(&existing, 1_000).unwrap();
+    peer.store.client.batch_execute("SET lock_timeout = '100ms'").unwrap();
+    let held = owner.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    let inserted = Session { principal: "member:inserted".into(), token: "ro.inserted".into(), ..existing.clone() };
+    held.insert_read_session(&inserted, 1_001, None).unwrap();
+    // A still owns its writer and relation locks. Both B readers must complete
+    // before A releases it.
+    assert_eq!(RefCell::new(&mut peer.store).identity_session_expiry(&digest(&existing.token)).unwrap(), Some(existing.expires_at));
+    let reader = peer.store.transaction(None).unwrap();
+    let record = reader.session_by_digest(&digest(&existing.token)).unwrap().unwrap();
+    assert_eq!(record.scope, SessionScope::Read);
+    assert_eq!(record.expires_at, existing.expires_at);
+    reader.rollback().unwrap();
+    // Probe relation-lock compatibility independently of the shared head. A
+    // no-op CREATE INDEX retains a SHARE lock that blocks this ordinary writer
+    // lock; the insert itself needs only ROW EXCLUSIVE, compatible with peers.
+    peer.store.client.batch_execute("BEGIN; LOCK TABLE _read_sessions IN ROW EXCLUSIVE MODE NOWAIT; ROLLBACK").unwrap();
+    held.rollback().unwrap();
+}
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn identity_attach_refuses_incompatible_existing_tables() {
+    for (table, drift) in [
+        ("_principals", "ALTER TABLE _principals ALTER COLUMN created_at TYPE TEXT"),
+        ("_credentials", "ALTER TABLE _credentials ALTER COLUMN email TYPE TEXT COLLATE \"default\""),
+        ("_session_mint_bindings", "ALTER TABLE _session_mint_bindings DROP COLUMN scope"),
+        ("_read_sessions", "ALTER TABLE _read_sessions DROP COLUMN cap_expires_at"),
+        ("_credentials", "ALTER TABLE _credentials DROP CONSTRAINT _credentials_email_key"),
+    ] {
+        let mut engine = authority_engine();
+        let name: String = engine.store.client.query_one("SELECT current_schema()", &[]).unwrap().get(0);
+        let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+        tx.batch(drift).unwrap();
+        tx.commit().unwrap();
+        let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private test-postgres.sh database");
+        let result = super::super::PostgresEngine::open(
+            postgres::Client::connect(&url, postgres::NoTls).unwrap(), &name,
+        );
+        let error = match result { Ok(_) => panic!("attach admitted {drift}"), Err(error) => error };
+        assert!(matches!(&error, crate::RuntimeError::Store(_)), "{error}");
+        assert!(error.to_string().contains(&format!("SNAPBACK_IDENTITY_SCHEMA: {table}:")), "{error}");
+    }
 }

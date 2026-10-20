@@ -44,6 +44,7 @@ pub(super) fn rotate(store: &impl IdentityStore, token: &str, now: i64) -> Resul
             || record.principal_generation < record.current_generation {
             return Ok(None);
         }
+        validate_family(&record.family)?;
         let mut session = scoped_session(&record.principal, &record.kind, now, SessionScope::Read)?;
         session.cap_expires_at = Some(record.cap_expires_at);
         session.expires_at = session.expires_at.min(record.cap_expires_at);

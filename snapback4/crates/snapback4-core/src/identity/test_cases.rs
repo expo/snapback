@@ -276,6 +276,81 @@ pub(crate) trait IdentityFixture: RotationFixture {
     fn worker_meta(&self, key: &str) -> Option<String>;
 }
 
+pub(crate) fn assert_nul_inputs_refused(store: &impl IdentityFixture) {
+    let mut expired = new_session("member:untouched", "member", 1_000, 7).unwrap();
+    expired.expires_at = 1_001;
+    store.insert_identity_session_atomic(&expired, 1_000).unwrap();
+    let principal_message = "a principal is 1–128 printable characters";
+    let kind_message = "a session kind is 1–64 letters, digits, _ or -";
+    for (error, message) in [
+        (prepare_signup("a\0b@example.com", "correct horse").err().unwrap(), "an email address is needed"),
+        (finish_signup_in(store, PreparedSignup { email: "a\0b@example.com".into(), hash: "unused".into() }, 2_000, &mut crate::ids::Mint::default(), SessionScope::Full).unwrap_err(), "an email address is needed"),
+        (credential_in(store, "a\0b@example.com").err().unwrap(), "an email address is needed"),
+        (validate_custom_session("member:\0x", "member").unwrap_err(), principal_message),
+        (validate_custom_session("member:x", "mem\0ber").unwrap_err(), kind_message),
+        (open_session_for(store, "member:\0x", "member", 2_000, 7).unwrap_err(), principal_message),
+        (open_session_for(store, "member:x", "mem\0ber", 2_000, 7).unwrap_err(), kind_message),
+        (read_sessions::scoped_session("member:\0x", "member", 2_000, SessionScope::Read).unwrap_err(), principal_message),
+        (revoke_principal_in(store, "member:\0x").unwrap_err(), principal_message),
+        (revoke_worker_family_in(store, Some("family\0x")).unwrap_err(), "a session family cannot contain U+0000"),
+    ] {
+        assert_eq!(error.code(), "E_AUTH", "malformed identity must never reach a driver");
+        assert_eq!(error.to_string(), format!("E_AUTH: {message}"));
+    }
+    assert!(!valid_name("worker\0x"));
+    for (invocation, intent) in [("inv\0ocation", BOUND_SESSION_INTENT), ("invocation", "identity-session/v1\0")] {
+        let error = validate_mint_binding(&SessionMintBinding {
+            invocation_id: invocation.into(), intent: intent.into(), replace_lost_delivery: false,
+        }).unwrap_err();
+        assert_eq!(error.code(), "E_INPUT");
+        assert!(error.to_string().contains("binding requires a valid invocationId and intent identity-session/v1"));
+    }
+    assert_eq!(store.principal_ids(), ["member:untouched"]);
+    assert_eq!(store.identity_session_expiry(&digest(&expired.token)).unwrap(), Some(1_001), "invalid input must not run the expiry sweep");
+    assert!(store.identity_credential("ab@example.com").unwrap().is_none());
+}
+
+pub(crate) fn assert_convenience_insert_conflict(store: &impl IdentityFixture) {
+    let first = open_session_for(store, "member:original", "member", 1_000, 7).unwrap();
+    let mut expired = new_session("member:expired", "member", 1_000, 7).unwrap();
+    expired.expires_at = 1_001;
+    store.insert_identity_session_atomic(&expired, 1_000).unwrap();
+    let mut collision = first.clone();
+    collision.principal = "member:conflict".into();
+    let error = store.insert_identity_session(&collision, 2_000).unwrap_err();
+    assert_eq!(error.code(), "E_STORE");
+    // Both reject the duplicate digest. Expiry/principal residue after failure
+    // differs between autocommit SQLite and transactional Postgres by design.
+    assert_eq!(store.identity_session_expiry(&digest(&first.token)).unwrap(), Some(first.expires_at));
+}
+
+pub(crate) fn assert_missing_read_storage_created_on_insert(store: &impl IdentityFixture) {
+    store.drop_read_sessions();
+    assert!(!store.read_sessions_present());
+    let read = read_sessions::scoped_session("member:lazy", "member", 1_000, SessionScope::Read).unwrap();
+    store.insert_identity_session_atomic(&read, 1_000).unwrap();
+    assert!(store.read_sessions_present());
+    assert_eq!(store.identity_session_expiry(&digest(&read.token)).unwrap(), Some(read.expires_at));
+}
+
+pub(crate) fn assert_digest_in_both_session_tables_refused(store: &impl IdentityFixture) {
+    let full = new_session("member:ambiguous", "member", 1_000, 7).unwrap();
+    let read = Session { scope: SessionScope::Read, cap_expires_at: Some(full.expires_at), ..full.clone() };
+    store.with_identity_tx(|tx| {
+        tx.insert_identity_session(&full, 1_000)?;
+        tx.insert_read_session(&read, 1_000, None)?;
+        let error = tx.session_by_digest(&digest(&full.token)).expect_err("a digest in both stores is ambiguous");
+        assert_eq!(error.code(), "E_STORE");
+        assert_eq!(error.to_string(), "E_STORE: Query returned more than one row");
+        let refusal = error.refusal();
+        assert_eq!(refusal.family, "store");
+        assert!(refusal.retryable);
+        tx.invalidate_session(&digest(&full.token))?;
+        assert!(tx.session_by_digest(&digest(&full.token))?.is_none());
+        Ok(())
+    }).unwrap();
+}
+
 pub(crate) fn assert_transaction_contract(store: &impl IdentityFixture) {
     let now = 1_i64 << 40;
     let full = new_session("member:tx", "member", now, 7).unwrap();
