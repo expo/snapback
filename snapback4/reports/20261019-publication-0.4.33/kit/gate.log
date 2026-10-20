@@ -1,0 +1,4 @@
+2026-10-19T09:19:08Z starting dry run attempt 1 (99%;)
+2026-10-19T10:22:51Z attempt 1 killed by coordinator ruling (dev_refusals quiet timing flake; flake rule applied)
+2026-10-19T10:22:52Z starting dry run attempt 2 (100%;)
+2026-10-19T13:00:05Z attempt 2 finished: done after 9433 s

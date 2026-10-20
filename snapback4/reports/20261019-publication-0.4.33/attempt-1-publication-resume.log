@@ -1,0 +1,1524 @@
+consumer ok: query complete+fresh, online write sent, offline write pending
+security Unproved: todos.read (.ownerId = viewer)
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  list: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  toggle: authored refusal observations are not reduced to this read policy
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security: audit --json lists paths, exclusions and grant writers; guide security explains proof scope
+DAY5 installed guide recipe, immutable snapshot, bridge and schema-first starter custody passed
+
+added 6 packages in 533ms
+init: wrote 17 files in . — Vite + React todos, offline-capable — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{frontend-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+npm install
+
+added 26 packages in 1s
+http://127.0.0.1:51246
+(node:88011) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web/guide-development-hosts.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+check: ok — 1 table (1 synced), 4 operations, no problems, 172.7 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+security Unproved: todos.read (.ownerId = viewer)
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  list: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  toggle: authored refusal observations are not reduced to this read policy
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security: audit --json lists paths, exclusions and grant writers; guide security explains proof scope
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 135 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.45 kB │ gzip:   0.28 kB
+dist/assets/web-worker-entry-CElNOn_5.js          25.03 kB
+dist/assets/snapback4_device_bg-DqX5VvSd.wasm  2,380.73 kB │ gzip: 738.37 kB
+dist/assets/index-D1mLdyLc.css                     0.36 kB │ gzip:   0.24 kB
+dist/assets/index-bS2mTdsa.js                    594.01 kB │ gzip: 188.91 kB
+
+[32m✓ built in 205ms[39m
+web-shell: 6 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1792414896354,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "selected": {
+    "current": true,
+    "digest": "fcdf89673a639b97f76bca07122ac1f1b91df5fcad90611e105484fa391f5a3a",
+    "release": 1
+  },
+  "workers": []
+}
+
+frontend:proof passed
+frontend:proof passed
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite src/App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  remove scripts/frontend-proof.mjs — the unmodified todo frontend proof exercises Task/Add; replace it with your own screen's write assertions
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+  extend package.json — inherited proof infrastructure
+    scripts.frontend:proof: "node scripts/frontend-proof.mjs" → null
+    scripts.proof:web: "node scripts/frontend-proof.mjs" → null
+    serialize package.json (including script key ordering)
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl and scripts/frontend-proof.mjs (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote src/App.tsx and src/client.ts and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+check: ok — 1 table (0 synced), 2 operations, no problems, 2 notes, 3.0 ms
+2 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:10:1 — N_NOT_PREDICTABLE: no action unless it is slow (`check --cost` measures it). add is no longer eligible to predict; queued without a row: online-only table notes (sites: schema.q:11:10) — snapback4 why N_NOT_PREDICTABLE
+by design — what a declaration implies; no action needed for online use:
+note: N_NO_CURSOR: no action for a top-N list. Pages without continuation: query mine (schema.q:8:1); if the screen pages, add `c: cursor ?` and `after c` — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+N_SECURITY_INTENT: 1 tables have access rules and no security invariants: notes; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 117 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-e-3-GJOU.js   528.07 kB │ gzip: 168.29 kB
+
+[32m✓ built in 73ms[39m
+web-shell: 4 files at /; wrote snapback4-sw.js
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: no write scenario: replace the Home assertions
+    at file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web/scripts/frontend-proof.mjs:43:12
+    at runNextTicks (node:internal/process/task_queues:65:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async withBrowser (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web/node_modules/snapback4/dist/proof.js:284:20)
+    at async file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web/scripts/frontend-proof.mjs:27:3 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 0,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+check: ok — 1 table (0 synced), 2 operations, no problems, 1 note, 2.9 ms
+1 advisory note — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+by design — what a declaration implies; no action needed for online use:
+note: N_NO_CURSOR: no action for a top-N list. Pages without continuation: query mine (schema.q:8:1); if the screen pages, add `c: cursor ?` and `after c` — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+N_SECURITY_INTENT: 1 tables have access rules and no security invariants: notes; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 117 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-EKIHd212.js   530.87 kB │ gzip: 169.30 kB
+
+[32m✓ built in 78ms[39m
+web-shell: 4 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 577ms
+init: wrote 17 files in . — Vite + React app, online reads and journaled writes (no device) — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{frontend-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+npm install
+
+added 26 packages in 1s
+check: ok — 1 table (0 synced), 4 operations, no problems, 170.7 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+security Unproved: todos.read (.ownerId = viewer)
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  list: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  toggle: authored refusal observations are not reduced to this read policy
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security: audit --json lists paths, exclusions and grant writers; guide security explains proof scope
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 117 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-G7t63ivk.js   533.36 kB │ gzip: 170.12 kB
+
+[32m✓ built in 164ms[39m
+web-shell: 4 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1792414909036,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "selected": {
+    "current": true,
+    "digest": "d5d4ef239e2c779c4fe9ddb2ac4bd903490ef16c3879d23d5cfbd3cd1d36d5a7",
+    "release": 1
+  },
+  "workers": []
+}
+
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 598ms
+init: wrote 18 files in . — Expo todos: native when available, online in Expo Go — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{frontend-proof.mjs, launch.mjs}
+init: Expo dependencies are pinned; next: `npm install`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `--port N` sets the client's backend URL and the README and launchers together
+npm install
+
+added 507 packages in 4s
+check: ok — 1 table (1 synced), 4 operations, no problems, 163.9 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+security Unproved: todos.read (.ownerId = viewer)
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  list: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  toggle: authored refusal observations are not reduced to this read policy
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security: audit --json lists paths, exclusions and grant writers; guide security explains proof scope
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 348ms index.js (329 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.eb483bdde726f91193b863dd5750a386.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/index-68397f42088fafd35f19501385bd0198.js (844KB)
+_expo/static/js/web/web-worker-entry-a33f2456e18c4cf829a8224ca6f9fb0b.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 2329ms index.js (329 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.eb483bdde726f91193b863dd5750a386.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/index-68397f42088fafd35f19501385bd0198.js (844KB)
+_expo/static/js/web/web-worker-entry-a33f2456e18c4cf829a8224ca6f9fb0b.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1792414922560,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "selected": {
+    "current": true,
+    "digest": "b3d318452838b57c228ca300e99c537ea11de07b2de73d59f28cb44e34f8c3da",
+    "release": 1
+  },
+  "workers": []
+}
+
+frontend:proof passed
+frontend:proof passed
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  remove scripts/frontend-proof.mjs — the unmodified todo frontend proof exercises Task/Add; replace it with your own screen's write assertions
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+  extend package.json — inherited proof infrastructure
+    scripts.frontend:proof: "node scripts/frontend-proof.mjs" → null
+    scripts.proof:web: "node scripts/frontend-proof.mjs" → null
+    serialize package.json (including script key ordering)
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl and scripts/frontend-proof.mjs (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote App.tsx and src/client.ts and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+check: ok — 1 table (0 synced), 2 operations, no problems, 2 notes, 2.0 ms
+2 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:10:1 — N_NOT_PREDICTABLE: no action unless it is slow (`check --cost` measures it). add is no longer eligible to predict; queued without a row: online-only table notes (sites: schema.q:11:10) — snapback4 why N_NOT_PREDICTABLE
+by design — what a declaration implies; no action needed for online use:
+note: N_NO_CURSOR: no action for a top-N list. Pages without continuation: query mine (schema.q:8:1); if the screen pages, add `c: cursor ?` and `after c` — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+N_SECURITY_INTENT: 1 tables have access rules and no security invariants: notes; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 332ms index.js (299 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-b66f49ae5119c86190bee8f335185a08.js (757KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 2302ms index.js (295 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-b66f49ae5119c86190bee8f335185a08.js (757KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 3 files at /; wrote snapback4-sw.js
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: no write scenario: replace the Home assertions
+    at file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-expo/scripts/frontend-proof.mjs:43:12
+    at async withBrowser (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-expo/node_modules/snapback4/dist/proof.js:284:20)
+    at async file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-expo/scripts/frontend-proof.mjs:27:3 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 0,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.18.0
+check: ok — 1 table (0 synced), 2 operations, no problems, 1 note, 1.9 ms
+1 advisory note — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+by design — what a declaration implies; no action needed for online use:
+note: N_NO_CURSOR: no action for a top-N list. Pages without continuation: query mine (schema.q:8:1); if the screen pages, add `c: cursor ?` and `after c` — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+N_SECURITY_INTENT: 1 tables have access rules and no security invariants: notes; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 236ms index.js (144 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-79c877d91f2fce13184ad75095918792.js (764KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 2358ms index.js (297 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-79c877d91f2fce13184ad75095918792.js (764KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 3 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 567ms
+init: wrote 20 files in . — Vite chat app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, src/{App.tsx, client.ts, Composer.tsx, Thread.tsx, Inbox.tsx, main.tsx, intents.ts, state.ts, vite-env.d.ts}, snapback/{schema.q, worker.ts, generated/package.json}, public/favicon.svg, scripts/{frontend-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+npm install
+
+added 26 packages in 1s
+check: ok — 5 tables, 1 view (5 synced), 12 operations, no problems, 7 notes, 222.3 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:85:10 — N_REFERENCE_UNCHECKED: review: this reference argument has no mandatory target lookup. mutation addMember stores argument conversationId directly in memberships.conversationId, without a mandatory lookup of conversations[conversationId] on every committing path: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:94:9); mutation sendPhoto (schema.q:99:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:30:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:40:1); profiles: no production writer can bootstrap this root (schema.q:16:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: N_NO_CURSOR: no action for a top-N list. Pages without continuation: query inbox (schema.q:79:1); if the screen pages, add `c: cursor ?` and `after c` — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+security Unproved: conversations.read exists memberships[.id, viewer]
+  addMember may copy protected data into another table; cross-table disclosure reduction is unproved
+  addMember: authored refusal observations are not reduced to this read policy
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  inbox: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  leave may copy protected data into another table; cross-table disclosure reduction is unproved
+  leave: authored refusal observations are not reduced to this read policy
+  markRead may copy protected data into another table; cross-table disclosure reduction is unproved
+  markRead: authored refusal observations are not reduced to this read policy
+  send may copy protected data into another table; cross-table disclosure reduction is unproved
+  send: authored refusal observations are not reduced to this read policy
+  sendPhoto may copy protected data into another table; cross-table disclosure reduction is unproved
+  sendPhoto: authored refusal observations are not reduced to this read policy
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  thread: authored refusal observations are not reduced to this read policy
+  thread: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: memberships.read exists memberships[.conversationId, viewer]
+  addMember: authored refusal observations are not reduced to this read policy
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  inbox: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  leave: authored refusal observations are not reduced to this read policy
+  markRead may copy protected data into another table; cross-table disclosure reduction is unproved
+  markRead: authored refusal observations are not reduced to this read policy
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  raw rule probe/reference from conversations can observe memberships independently of its read rule
+  raw rule probe/reference from memberships can observe memberships independently of its read rule
+  raw rule probe/reference from messageCounts can observe memberships independently of its read rule
+  raw rule probe/reference from messages can observe memberships independently of its read rule
+  raw rule probe/reference from readMarkers can observe memberships independently of its read rule
+  send may copy protected data into another table; cross-table disclosure reduction is unproved
+  send: authored refusal observations are not reduced to this read policy
+  sendPhoto may copy protected data into another table; cross-table disclosure reduction is unproved
+  sendPhoto: authored refusal observations are not reduced to this read policy
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  thread: authored refusal observations are not reduced to this read policy
+  thread: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: messages.read exists memberships[.conversationId, viewer]
+  blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  edit: authored refusal observations are not reduced to this read policy
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  send: authored refusal observations are not reduced to this read policy
+  sendPhoto: authored refusal observations are not reduced to this read policy
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  thread: authored refusal observations are not reduced to this read policy
+  thread: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  unsend: authored refusal observations are not reduced to this read policy
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: messageCounts.read exists memberships[.conversationId, viewer]
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  inbox: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: readMarkers.read (.principal = viewer)
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  markRead: authored refusal observations are not reduced to this read policy
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+N_BROAD_READ: conversations is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_GRANT_OUTLIVES_ROLE: conversations: `exists memberships[.id, viewer]` trusts memberships grants, but this branch does not re-check the reader's current role; existing grants can survive a role change — conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security
+N_BROAD_READ: memberships is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_GRANT_OUTLIVES_ROLE: memberships: `exists memberships[.conversationId, viewer]` trusts memberships grants, but this branch does not re-check the reader's current role; existing grants can survive a role change — conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security
+N_BROAD_READ: messageCounts is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_GRANT_OUTLIVES_ROLE: messageCounts: `exists memberships[.conversationId, viewer]` trusts memberships grants, but this branch does not re-check the reader's current role; existing grants can survive a role change — conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security
+N_BROAD_READ: messages is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_OPTIONAL_EVIDENCE: messages.photo permits omitted or empty media evidence — if the spec requires evidence, declare a required image/file or [image] 1..N; otherwise retain optionality deliberately (guide security)
+N_GRANT_OUTLIVES_ROLE: messages: `exists memberships[.conversationId, viewer]` trusts memberships grants, but this branch does not re-check the reader's current role; existing grants can survive a role change — conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security
+N_BROAD_READ: profiles is readable by every signed-in user: public — confirm the spec permits these columns and declare read intent; snapback4 audit lists inherited grants and their writers
+N_SECURITY_INTENT: 1 tables have access rules and no security invariants: profiles; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+N_EXISTENCE_ORACLE: edit: lookup absence NOT_FOUND, later denial NOT_AUTHOR; callers admitted by the read rule can distinguish these outcomes — use the same absence/denial code and message when existence is private, or tighten the table read rule; the read gate already hides rows it denies
+N_EXISTENCE_ORACLE: unsend: lookup absence NOT_FOUND, later denial NOT_AUTHOR; callers admitted by the read rule can distinguish these outcomes — use the same absence/denial code and message when existence is private, or tighten the table read rule; the read gate already hides rows it denies
+security: audit --json lists paths, exclusions and grant writers; guide security explains proof scope
+
+> snapback4-web-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-chat@0.0.1 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 140 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    1.21 kB │ gzip:   0.66 kB
+dist/assets/web-worker-entry-CElNOn_5.js          25.03 kB
+dist/assets/snapback4_device_bg-DqX5VvSd.wasm  2,380.73 kB │ gzip: 738.37 kB
+dist/assets/index-Ahn-yCYt.js                    602.62 kB │ gzip: 191.33 kB
+
+[32m✓ built in 322ms[39m
+[33m[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+web-shell: 5 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1792414955711,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "selected": {
+    "current": true,
+    "digest": "c98cc325f5ff88afa32f45e4167b3f880998b5ee933d7ed8e6188fe3869abfb2",
+    "release": 1
+  },
+  "workers": [
+    [
+      "worker:status",
+      "{\"crashes\":0,\"mode\":\"dev\",\"name\":\"worker\",\"pid\":93911,\"restarts\":0,\"source\":\"/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web-chat/deployment/releases/1/snapback/worker.ts\",\"starts\":1,\"state\":\"running\"}"
+    ]
+  ]
+}
+
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 980ms
+init: wrote 22 files in . — Expo chat app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts, Inbox.tsx, Thread.tsx, intents.ts, intent-store.ts, intent-store.web.ts, intent-store.native.ts}, snapback/{schema.q, generated/package.json}, scripts/{frontend-proof.mjs, launch.mjs}
+init: Expo dependencies are pinned; next: `npm install`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `--port N` sets the client's backend URL and the README and launchers together
+npm install
+
+added 507 packages in 5s
+check: ok — 5 tables, 1 view (5 synced), 11 operations, no problems, 7 notes, 222.6 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:83:10 — N_REFERENCE_UNCHECKED: review: this reference argument has no mandatory target lookup. mutation addMember stores argument conversationId directly in memberships.conversationId, without a mandatory lookup of conversations[conversationId] on every committing path: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:92:9); mutation sendPhoto (schema.q:97:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:28:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:38:1); profiles: no production writer can bootstrap this root (schema.q:14:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: N_NO_CURSOR: no action for a top-N list. Pages without continuation: query inbox (schema.q:77:1); if the screen pages, add `c: cursor ?` and `after c` — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+security Unproved: conversations.read exists memberships[.id, viewer]
+  addMember may copy protected data into another table; cross-table disclosure reduction is unproved
+  addMember: authored refusal observations are not reduced to this read policy
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  inbox: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  leave may copy protected data into another table; cross-table disclosure reduction is unproved
+  leave: authored refusal observations are not reduced to this read policy
+  markRead may copy protected data into another table; cross-table disclosure reduction is unproved
+  markRead: authored refusal observations are not reduced to this read policy
+  send may copy protected data into another table; cross-table disclosure reduction is unproved
+  send: authored refusal observations are not reduced to this read policy
+  sendPhoto may copy protected data into another table; cross-table disclosure reduction is unproved
+  sendPhoto: authored refusal observations are not reduced to this read policy
+  thread: authored refusal observations are not reduced to this read policy
+  thread: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: memberships.read exists memberships[.conversationId, viewer]
+  addMember: authored refusal observations are not reduced to this read policy
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  inbox: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  leave: authored refusal observations are not reduced to this read policy
+  markRead may copy protected data into another table; cross-table disclosure reduction is unproved
+  markRead: authored refusal observations are not reduced to this read policy
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  raw rule probe/reference from conversations can observe memberships independently of its read rule
+  raw rule probe/reference from memberships can observe memberships independently of its read rule
+  raw rule probe/reference from messageCounts can observe memberships independently of its read rule
+  raw rule probe/reference from messages can observe memberships independently of its read rule
+  raw rule probe/reference from readMarkers can observe memberships independently of its read rule
+  send may copy protected data into another table; cross-table disclosure reduction is unproved
+  send: authored refusal observations are not reduced to this read policy
+  sendPhoto may copy protected data into another table; cross-table disclosure reduction is unproved
+  sendPhoto: authored refusal observations are not reduced to this read policy
+  thread: authored refusal observations are not reduced to this read policy
+  thread: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: messages.read exists memberships[.conversationId, viewer]
+  blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  edit: authored refusal observations are not reduced to this read policy
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  send: authored refusal observations are not reduced to this read policy
+  sendPhoto: authored refusal observations are not reduced to this read policy
+  thread: authored refusal observations are not reduced to this read policy
+  thread: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  unsend: authored refusal observations are not reduced to this read policy
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: messageCounts.read exists memberships[.conversationId, viewer]
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  inbox: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: readMarkers.read (.principal = viewer)
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  markRead: authored refusal observations are not reduced to this read policy
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+N_BROAD_READ: conversations is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_GRANT_OUTLIVES_ROLE: conversations: `exists memberships[.id, viewer]` trusts memberships grants, but this branch does not re-check the reader's current role; existing grants can survive a role change — conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security
+N_BROAD_READ: memberships is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_GRANT_OUTLIVES_ROLE: memberships: `exists memberships[.conversationId, viewer]` trusts memberships grants, but this branch does not re-check the reader's current role; existing grants can survive a role change — conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security
+N_BROAD_READ: messageCounts is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_GRANT_OUTLIVES_ROLE: messageCounts: `exists memberships[.conversationId, viewer]` trusts memberships grants, but this branch does not re-check the reader's current role; existing grants can survive a role change — conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security
+N_BROAD_READ: messages is readable by any signed-in user with a matching memberships row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_OPTIONAL_EVIDENCE: messages.photo permits omitted or empty media evidence — if the spec requires evidence, declare a required image/file or [image] 1..N; otherwise retain optionality deliberately (guide security)
+N_GRANT_OUTLIVES_ROLE: messages: `exists memberships[.conversationId, viewer]` trusts memberships grants, but this branch does not re-check the reader's current role; existing grants can survive a role change — conjoin the current reader-role probe with the grant branch, or revoke derived grants transactionally on every role change; see guide security
+N_BROAD_READ: profiles is readable by every signed-in user: public — confirm the spec permits these columns and declare read intent; snapback4 audit lists inherited grants and their writers
+N_SECURITY_INTENT: 1 tables have access rules and no security invariants: profiles; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+N_EXISTENCE_ORACLE: edit: lookup absence NOT_FOUND, later denial NOT_AUTHOR; callers admitted by the read rule can distinguish these outcomes — use the same absence/denial code and message when existence is private, or tighten the table read rule; the read gate already hides rows it denies
+N_EXISTENCE_ORACLE: unsend: lookup absence NOT_FOUND, later denial NOT_AUTHOR; callers admitted by the read rule can distinguish these outcomes — use the same absence/denial code and message when existence is private, or tighten the table read rule; the read gate already hides rows it denies
+security: audit --json lists paths, exclusions and grant writers; guide security explains proof scope
+
+> snapback4-expo-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 769ms index.js (359 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.eb483bdde726f91193b863dd5750a386.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/index-0f102246463b957f3f2e796033d8fada.js (922KB)
+_expo/static/js/web/web-worker-entry-6fd4b957b771acc1bd1cb0a9b9aedca1.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-chat@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+Web Bundled 82ms index.js (1 module)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.eb483bdde726f91193b863dd5750a386.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/index-0f102246463b957f3f2e796033d8fada.js (922KB)
+_expo/static/js/web/web-worker-entry-6fd4b957b771acc1bd1cb0a9b9aedca1.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1792414969190,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "selected": {
+    "current": true,
+    "digest": "04556b87ef831f23f45a19cea3a2ff4c081288b6d65ac283e330654cdcbe41fd",
+    "release": 1
+  },
+  "workers": []
+}
+
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 526ms
+init: wrote 43 files in . — Expo Router social app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, expo-env.d.ts, README.md, tsconfig.json, app.json, src/ (20 files), scripts/{seed.mjs, frontend-proof.mjs, launch.mjs}, snapback/{workers/notifications.mjs, schema.q, generated/package.json}, app/{_layout.tsx, conversation/[id].tsx, dm/[other].tsx, (tabs)/_layout.tsx, (tabs)/index.tsx, (tabs)/chats.tsx, (tabs)/search.tsx, (tabs)/profile.tsx, search-chat/[id].tsx}
+init: Expo dependencies are pinned; next: `npm install`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `--port N` sets the client's backend URL and the README and launchers together
+npm install
+
+added 614 packages in 6s
+check: ok — 16 tables, 1 view (15 synced), 31 operations, no problems, 17 notes, 1929.9 ms
+17 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:232:1 — N_NEVER_COMPLETE — review query search: missing pin .conversation; choose the intended scope without dropping other readers (check --verbose) — snapback4 why N_NEVER_COMPLETE
+  impact: fine for a screen showing returned rows; proving absence or all matches needs complete: true; keep partial data visible
+  audience: completeness is not proved for every caller; runtime complete may still be true (scan messages[..] by read or declaration on messages (at, id) at schema.q:233:10)
+note: schema.q:80:7 — N_REFERENCE_UNCHECKED: review: this reference argument has no mandatory target lookup. mutation send stores argument conversation directly in messages.conversation, without a mandatory lookup of conversations[conversation] on every committing path: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation add (schema.q:85:3); mutation setLike (schema.q:207:5) — snapback4 why N_REFERENCE_UNCHECKED
+note: table followingEdges:1:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. followingEdges: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for followingFeed: no production writer can bootstrap this root (table followingFeed:1:1); followingPosts: no production writer can bootstrap this root (table followingPosts:1:1); followingRemovedEvents: no production writer can bootstrap this root (table followingRemovedEvents:1:1); followingWork: no production writer can bootstrap this root (table followingWork:1:1); reposts: no production writer can bootstrap this root (schema.q:170:1) — snapback4 why N_NO_PRODUCTION_WRITER
+note: programs.search.0 — N_SEARCH_OPEN: review. opening every membership and head must fit one read; an opening cut refuses E_SEARCH_OPEN without a continuation — snapback4 why N_SEARCH_OPEN
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:67:69 — N_SEEK: no action unless it is slow (`check --cost` measures it). a `where` on the next index column is a seek; write it in the key — snapback4 why N_SEEK
+note: N_SEEK (as above) also for a (schema.q:72:69) — snapback4 why N_SEEK
+note: schema.q:225:1 — N_EPHEMERAL_SERVER: no action unless it is slow (`check --cost` measures it). typingIn runs on the server because it reads an ephemeral table — snapback4 why N_EPHEMERAL_SERVER
+note: programs.search.0 — N_SEARCH_WORDS: no action unless it is slow (`check --cost` measures it). word expansion and further-term misses consume the meter; compact membership refills rescan words and charge repeated work — snapback4 why N_SEARCH_WORDS
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:230:10 — N_SYNC_ORDER: no action for an online app. query searchChat `messages[conversation = conversation] matching q last 20 by .at after c`: the order differs: the page reads by .at, .id, the window by .ordinal, .id; write `last 20 by .ordinal, .id` — it reads messages by .at, .id, newest first (index [conversation, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline the ordinary query cannot deliver a complete answer in this order (coverage remains unknown) — snapback4 why N_SYNC_ORDER
+note: N_SYNC_ORDER (as above) also for query search (schema.q:233:10) — snapback4 why N_SYNC_ORDER
+8 mutations are server-run (online app: no action): compactReceipts (reads receipt-owned or derived field members.deliveredOrdinal), delivered (reads receipt-owned or derived field conversations.lastOrdinal), follow (writes online-only table follows), leave (receipt membership changes and progress need settled state), seen (reads receipt-owned or derived field conversations.lastOrdinal), setTyping (writes online-only table typing), stopTyping (writes online-only table typing), unfollow (writes online-only table follows); 4 mutations have insert arms that may queue; 3 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+security Unproved: conversations.read exists members[.id, viewer]
+  add may copy protected data into another table; cross-table disclosure reduction is unproved
+  add: authored refusal observations are not reduced to this read policy
+  blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved
+  compactReceipts may copy protected data into another table; cross-table disclosure reduction is unproved
+  compactReceipts: authored refusal observations are not reduced to this read policy
+  compactReceipts: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  createConversation may copy protected data into another table; cross-table disclosure reduction is unproved
+  delivered may copy protected data into another table; cross-table disclosure reduction is unproved
+  delivered: authored refusal observations are not reduced to this read policy
+  delivered: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  history: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  inbox: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  leave may copy protected data into another table; cross-table disclosure reduction is unproved
+  leave: authored refusal observations are not reduced to this read policy
+  messageReceipts: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  openDirect may copy protected data into another table; cross-table disclosure reduction is unproved
+  openDirect: authored refusal observations are not reduced to this read policy
+  progress: authored refusal observations are not reduced to this read policy
+  progress: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  raw rule probe/reference from directChats can observe conversations independently of its read rule
+  raw rule probe/reference from members can observe conversations independently of its read rule
+  receipt/timeline engine-owned paths require a separate reduction; no affected-table inference is assumed
+  search: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  searchChat: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  seen may copy protected data into another table; cross-table disclosure reduction is unproved
+  seen: authored refusal observations are not reduced to this read policy
+  send may copy protected data into another table; cross-table disclosure reduction is unproved
+  send: authored refusal observations are not reduced to this read policy
+  setTyping may copy protected data into another table; cross-table disclosure reduction is unproved
+  stopTyping may copy protected data into another table; cross-table disclosure reduction is unproved
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  typingIn: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: members.read exists members[.conversation, viewer]
+  add: authored refusal observations are not reduced to this read policy
+  blind update/upsert outcomes can reveal hidden-target existence; read correspondence is unproved
+  compactReceipts may copy protected data into another table; cross-table disclosure reduction is unproved
+  compactReceipts: authored refusal observations are not reduced to this read policy
+  compactReceipts: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  createConversation may copy protected data into another table; cross-table disclosure reduction is unproved
+  delivered may copy protected data into another table; cross-table disclosure reduction is unproved
+  delivered: authored refusal observations are not reduced to this read policy
+  delivered: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  inbox: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  leave: authored refusal observations are not reduced to this read policy
+  messageReceipts: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  openDirect may copy protected data into another table; cross-table disclosure reduction is unproved
+  openDirect: authored refusal observations are not reduced to this read policy
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  progress: authored refusal observations are not reduced to this read policy
+  progress: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  raw rule probe/reference from conversations can observe members independently of its read rule
+  raw rule probe/reference from members can observe members independently of its read rule
+  raw rule probe/reference from messages can observe members independently of its read rule
+  raw rule probe/reference from runs can observe members independently of its read rule
+  raw rule probe/reference from typing can observe members independently of its read rule
+  receipt/timeline engine-owned paths require a separate reduction; no affected-table inference is assumed
+  seen: authored refusal observations are not reduced to this read policy
+  send may copy protected data into another table; cross-table disclosure reduction is unproved
+  send: authored refusal observations are not reduced to this read policy
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: messages.read exists members[.conversation, viewer]
+  compactReceipts may copy protected data into another table; cross-table disclosure reduction is unproved
+  compactReceipts: authored refusal observations are not reduced to this read policy
+  compactReceipts: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  delivered may copy protected data into another table; cross-table disclosure reduction is unproved
+  delivered: authored refusal observations are not reduced to this read policy
+  delivered: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  history: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  messageReceipts: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  progress: authored refusal observations are not reduced to this read policy
+  progress: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  receipt/timeline engine-owned paths require a separate reduction; no affected-table inference is assumed
+  search: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  searchChat: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  send: authored refusal observations are not reduced to this read policy
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: directChats.read (.owner = viewer)
+  device read uses a delivered snapshot; current server role at disconnected access is unproved
+  directPeer: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  openDirect may copy protected data into another table; cross-table disclosure reduction is unproved
+  openDirect: authored refusal observations are not reduced to this read policy
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  receipt/timeline engine-owned paths require a separate reduction; no affected-table inference is assumed
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+security Unproved: typing.read exists members[.conversation, viewer]
+  ephemeral/sequence path is outside the current proof reduction
+  insert/unique/upsert collision outcomes can reveal an existing hidden row; old-row read authorization is not proved by new-image insert authority
+  parent deletion/referential refusal can observe this child (including default restrict and transitive closures)
+  receipt/timeline engine-owned paths require a separate reduction; no affected-table inference is assumed
+  system/job/action/native/external path requires a reviewed reduction; no affected-table inference is assumed
+  typingIn: scan/merge/loop or opaque IR path needs a reviewed read-disclosure reduction
+  wire sequencing/activity metadata has no logical-existence reduction; direct row-rule proof does not establish whole-protocol noninterference
+N_BROAD_READ: conversations is readable by any signed-in user with a matching members row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_BROAD_READ: followingPosts is readable by every signed-in user: public — confirm the spec permits these columns and declare read intent; snapback4 audit lists inherited grants and their writers
+N_BROAD_READ: followingRemovedEvents is readable by every signed-in user: public — confirm the spec permits these columns and declare read intent; snapback4 audit lists inherited grants and their writers
+N_BROAD_READ: follows is readable by every signed-in user: public — confirm the spec permits these columns and declare read intent; snapback4 audit lists inherited grants and their writers
+N_BROAD_READ: likes is readable by every signed-in user: public — confirm the spec permits these columns and declare read intent; snapback4 audit lists inherited grants and their writers
+N_BROAD_READ: members is readable by any signed-in user with a matching members row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_BROAD_READ: messages is readable by any signed-in user with a matching members row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_OPTIONAL_EVIDENCE: messages.photo permits omitted or empty media evidence — if the spec requires evidence, declare a required image/file or [image] 1..N; otherwise retain optionality deliberately (guide security)
+N_BROAD_READ: posts is readable by every signed-in user: public — confirm the spec permits these columns and declare read intent; snapback4 audit lists inherited grants and their writers
+N_BROAD_READ: profiles is readable by every signed-in user: public — confirm the spec permits these columns and declare read intent; snapback4 audit lists inherited grants and their writers
+N_OPTIONAL_EVIDENCE: profiles.avatar permits omitted or empty media evidence — if the spec requires evidence, declare a required image/file or [image] 1..N; otherwise retain optionality deliberately (guide security)
+N_BROAD_READ: reposts is readable by every signed-in user: public — confirm the spec permits these columns and declare read intent; snapback4 audit lists inherited grants and their writers
+N_BROAD_READ: runs is readable by any signed-in user with a matching members row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_BROAD_READ: typing is readable by any signed-in user with a matching members row; no particular role or row ownership is required — confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit
+N_SECURITY_INTENT: 12 tables have access rules and no security invariants: $ownKeys:likes, followingEdges, followingFeed, followingPosts, followingRemovedEvents, followingWork, follows, likes, posts, profiles, reposts, runs; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+N_EXISTENCE_ORACLE: send: lookup absence QUOTE_UNAVAILABLE, later denial WRONG_CONVERSATION; callers admitted by the read rule can distinguish these outcomes — use the same absence/denial code and message when existence is private, or tighten the table read rule; the read gate already hides rows it denies
+N_ARGUMENT_GRANT: openDirect writes argument other straight into reader-grant column directChats.owner — require the chosen principal's current role and relationship before granting access; caller authority alone does not validate the recipient
+security: audit --json lists paths, exclusions and grant writers; guide security explains proof scope
+
+> snapback4-social-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 4208ms node_modules/expo-router/entry.js (931 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.eb483bdde726f91193b863dd5750a386.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-19df3cd217b2bf1f643c57f29dd0cf31.js (1.6MB)
+_expo/static/js/web/web-worker-entry-8cd2451ad098d0b3a66b9a8b91877125.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-social-starter@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+Web Bundled 172ms node_modules/expo-router/entry.js (677 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.eb483bdde726f91193b863dd5750a386.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-19df3cd217b2bf1f643c57f29dd0cf31.js (1.6MB)
+_expo/static/js/web/web-worker-entry-8cd2451ad098d0b3a66b9a8b91877125.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 23 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1792414989481,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "selected": {
+    "current": true,
+    "digest": "83506dbc7038b73b7c577f86df70a1f6d02144f60af77fb2452cf23d975f2a67",
+    "release": 1
+  },
+  "workers": [
+    [
+      "worker:status:notifications",
+      "{\"crashes\":0,\"mode\":\"serve\",\"name\":\"notifications\",\"pid\":96795,\"restarts\":0,\"source\":\"/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-expo-social/deployment/releases/1/snapback/workers/notifications.mjs\",\"starts\":1,\"state\":\"running\"}"
+    ]
+  ]
+}
+
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 574ms
+init: wrote 17 files in . — Vite + React todos, offline-capable — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{frontend-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+npm install
+
+added 26 packages in 1s
+day-two accounts passed: v1, hot v2, rollback, forward; business assertions at every step
+packed clock and alias controls passed
+✔ KIT4 literal first wire page runs unchanged and its trace is generated from real requests (213.645209ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 246.348417
+
+added 6 packages in 539ms
+check: ok — 2 tables (0 synced), 4 operations, no problems, 6.0 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+N_SECURITY_INTENT: 2 tables have access rules and no security invariants: notes, roles; declare the spec's privacy rules as invariants (`guide security`) — review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted
+N_ARGUMENT_GRANT: provision writes argument principal straight into reader-grant column roles.principal — require the chosen principal's current role and relationship before granting access; caller authority alone does not validate the recipient
+{"backendUrl":"http://127.0.0.1:52106","credentialsFile":"staging-users.json"}
+release 1 is current as generation 1; 0 rows, 0 cells, 0 index entries dormant; 1.2 ms
+First admin provisioned; sign in with the chosen email and password
+packed staging: serve, real users/data, first admin, production refusal passed
+
+added 6 packages in 524ms
+== npm publish snapback4-darwin-arm64-0.4.33.tgz
+npm notice
+npm notice 📦  snapback4-darwin-arm64@0.4.33
+npm notice Tarball Contents
+npm notice 1.2kB THIRD-PARTY-NOTICES
+npm notice 458B package.json
+npm notice 23.5MB snapback4
+npm notice Tarball Details
+npm notice name: snapback4-darwin-arm64
+npm notice version: 0.4.33
+npm notice filename: snapback4-darwin-arm64-0.4.33.tgz
+npm notice package size: 11.4 MB
+npm notice unpacked size: 23.5 MB
+npm notice shasum: b943c32931734f8fe700f935e7b84ed1e7216ad5
+npm notice integrity: sha512-hwy7cSYzj1Dmp[...]y+RHvfN2Jd+kg==
+npm notice total files: 3
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4-darwin-arm64@0.4.33 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.33 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.33 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.33 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.33 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.33 to become readable
+== npm publish snapback4-linux-x64-0.4.33.tgz
+npm notice
+npm notice 📦  snapback4-linux-x64@0.4.33
+npm notice Tarball Contents
+npm notice 7.5kB THIRD-PARTY-NOTICES
+npm notice 448B package.json
+npm notice 30.7MB snapback4
+npm notice Tarball Details
+npm notice name: snapback4-linux-x64
+npm notice version: 0.4.33
+npm notice filename: snapback4-linux-x64-0.4.33.tgz
+npm notice package size: 12.9 MB
+npm notice unpacked size: 30.7 MB
+npm notice shasum: d4b163796044b427f1fb1b5e0154578c7aecb69f
+npm notice integrity: sha512-yuyO94medY6S9[...]7bt98Yze5t1Lw==
+npm notice total files: 3
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4-linux-x64@0.4.33 to become readable
+publish: waiting for snapback4-linux-x64@0.4.33 to become readable
+publish: waiting for snapback4-linux-x64@0.4.33 to become readable
+publish: waiting for snapback4-linux-x64@0.4.33 to become readable
+publish: waiting for snapback4-linux-x64@0.4.33 to become readable
+publish: waiting for snapback4-linux-x64@0.4.33 to become readable
+publish: waiting for snapback4-linux-x64@0.4.33 to become readable
+== npm publish snapback4-0.4.33.tgz
+npm notice
+npm notice 📦  snapback4@0.4.33
+npm notice Tarball Contents
+npm notice 34.6kB CHANGELOG.md
+npm notice 285.7kB CLIENT-AND-OPERATIONS.md
+npm notice 16.2kB FOLLOWING-ADOPTION.md
+npm notice 5.9kB OFFLINE-UPLOADS.md
+npm notice 30.8kB README.md
+npm notice 73.0kB SERVER.md
+npm notice 7.8kB bin/cli-commands.json
+npm notice 647B bin/cli-usage.js
+npm notice 5.2kB bin/release-changes.js
+npm notice 3.5kB bin/snapback4.js
+npm notice 15.2kB bin/upgrade.js
+npm notice 6.5kB bin/web-shell.js
+npm notice 25.7kB bin/witness-acquire.js
+npm notice 14.2kB bin/witness-web.js
+npm notice 819B dist/acquisition.d.ts
+npm notice 1.7kB dist/acquisition.js
+npm notice 475B dist/actions.d.ts
+npm notice 1.7kB dist/actions.js
+npm notice 1.4kB dist/admission-authority.d.ts
+npm notice 3.1kB dist/admission-authority.js
+npm notice 2.2kB dist/admission.d.ts
+npm notice 2.8kB dist/admission.js
+npm notice 557B dist/app-client.d.ts
+npm notice 20.6kB dist/app-client.js
+npm notice 352B dist/app-global.d.ts
+npm notice 1.3kB dist/app-global.js
+npm notice 1.6kB dist/app-journal.d.ts
+npm notice 9.2kB dist/app-journal.js
+npm notice 859B dist/app-online-arm.d.ts
+npm notice 3.2kB dist/app-online-arm.js
+npm notice 575B dist/app-online.d.ts
+npm notice 35.8kB dist/app-online.js
+npm notice 285B dist/app-persona.d.ts
+npm notice 13.3kB dist/app-persona.js
+npm notice 874B dist/app-revocations.d.ts
+npm notice 13.0kB dist/app-revocations.js
+npm notice 573B dist/app-storage.d.ts
+npm notice 2.6kB dist/app-storage.js
+npm notice 359B dist/app-uploads.d.ts
+npm notice 2.4kB dist/app-uploads.js
+npm notice 4.1kB dist/app.d.ts
+npm notice 65.1kB dist/app.js
+npm notice 855B dist/asset-download.d.ts
+npm notice 14.1kB dist/asset-download.js
+npm notice 1.7kB dist/asset-progress.d.ts
+npm notice 2.7kB dist/asset-progress.js
+npm notice 1.2kB dist/assets.d.ts
+npm notice 9.0kB dist/assets.js
+npm notice 3.4kB dist/auth.d.ts
+npm notice 8.4kB dist/auth.js
+npm notice 3.2kB dist/backend.d.ts
+npm notice 4.8kB dist/backend.js
+npm notice 53B dist/bin-path.d.ts
+npm notice 212B dist/bin-path.js
+npm notice 645B dist/change-evidence.d.ts
+npm notice 994B dist/change-evidence.js
+npm notice 807B dist/changes.d.ts
+npm notice 6.3kB dist/changes.js
+npm notice 527B dist/client-start.d.ts
+npm notice 988B dist/client-start.js
+npm notice 2.4kB dist/client.d.ts
+npm notice 86.5kB dist/client.js
+npm notice 1.9kB dist/clock.d.ts
+npm notice 9.9kB dist/clock.js
+npm notice 1.0kB dist/closing-responses.d.ts
+npm notice 2.3kB dist/closing-responses.js
+npm notice 31.2kB dist/contract.d.ts
+npm notice 5.6kB dist/contract.js
+npm notice 49B dist/default-fetch.d.ts
+npm notice 455B dist/default-fetch.js
+npm notice 333B dist/delivery-acceptance.d.ts
+npm notice 1.2kB dist/delivery-acceptance.js
+npm notice 2.4kB dist/delivery-state.d.ts
+npm notice 6.2kB dist/delivery-state.js
+npm notice 2.2kB dist/delivery.d.ts
+npm notice 19.2kB dist/delivery.js
+npm notice 1.6kB dist/device-control.d.ts
+npm notice 3.5kB dist/device-control.js
+npm notice 1.7kB dist/device-restore.d.ts
+npm notice 3.0kB dist/device-restore.js
+npm notice 1.8kB dist/device-version.d.ts
+npm notice 3.2kB dist/device-version.js
+npm notice 1.3kB dist/ephemeral-reads.d.ts
+npm notice 5.7kB dist/ephemeral-reads.js
+npm notice 1.1kB dist/ephemeral.d.ts
+npm notice 6.6kB dist/ephemeral.js
+npm notice 1.4kB dist/files.d.ts
+npm notice 3.7kB dist/files.js
+npm notice 980B dist/following-transport.d.ts
+npm notice 1.9kB dist/following-transport.js
+npm notice 1.7kB dist/following.d.ts
+npm notice 18.5kB dist/following.js
+npm notice 1.4kB dist/http-response.d.ts
+npm notice 4.2kB dist/http-response.js
+npm notice 1.8kB dist/identity-admission.d.ts
+npm notice 8.7kB dist/identity-admission.js
+npm notice 80B dist/identity-principal.d.ts
+npm notice 312B dist/identity-principal.js
+npm notice 544B dist/identity-runtime.d.ts
+npm notice 4.7kB dist/identity-runtime.js
+npm notice 3.8kB dist/identity.d.ts
+npm notice 29.0kB dist/identity.js
+npm notice 126B dist/inspection.d.ts
+npm notice 49B dist/inspection.js
+npm notice 117B dist/journal-changes.d.ts
+npm notice 2.8kB dist/journal-changes.js
+npm notice 1.6kB dist/local-assets.d.ts
+npm notice 10.4kB dist/local-assets.js
+npm notice 1.1kB dist/local-backend.d.ts
+npm notice 2.7kB dist/local-backend.js
+npm notice 1.5kB dist/local-delivery.d.ts
+npm notice 8.0kB dist/local-delivery.js
+npm notice 4.7kB dist/local-device.d.ts
+npm notice 376B dist/local-device.js
+npm notice 451B dist/local-exit-settlement.d.ts
+npm notice 939B dist/local-exit-settlement.js
+npm notice 614B dist/local-exit.d.ts
+npm notice 3.0kB dist/local-exit.js
+npm notice 1.7kB dist/local-following.d.ts
+npm notice 6.5kB dist/local-following.js
+npm notice 658B dist/local-native.d.ts
+npm notice 3.1kB dist/local-native.js
+npm notice 563B dist/local-network.d.ts
+npm notice 2.3kB dist/local-network.js
+npm notice 473B dist/local-publication.d.ts
+npm notice 845B dist/local-publication.js
+npm notice 3.8kB dist/local-query.d.ts
+npm notice 33.9kB dist/local-query.js
+npm notice 945B dist/local-read-deadlines.d.ts
+npm notice 2.3kB dist/local-read-deadlines.js
+npm notice 9.8kB dist/local-reads.d.ts
+npm notice 25.8kB dist/local-reads.js
+npm notice 2.3kB dist/local-receipts.d.ts
+npm notice 6.9kB dist/local-receipts.js
+npm notice 2.3kB dist/local-search.d.ts
+npm notice 26.2kB dist/local-search.js
+npm notice 1.4kB dist/local-sync.d.ts
+npm notice 4.5kB dist/local-sync.js
+npm notice 189B dist/local-through.d.ts
+npm notice 5.3kB dist/local-through.js
+npm notice 1.2kB dist/local-types.d.ts
+npm notice 11B dist/local-types.js
+npm notice 896B dist/local-upload.d.ts
+npm notice 2.6kB dist/local-upload.js
+npm notice 700B dist/local.d.ts
+npm notice 120.3kB dist/local.js
+npm notice 437B dist/mock-ephemeral.d.ts
+npm notice 5.0kB dist/mock-ephemeral.js
+npm notice 2.1kB dist/mock.d.ts
+npm notice 13.7kB dist/mock.js
+npm notice 866B dist/native.d.ts
+npm notice 5.9kB dist/native.js
+npm notice 159B dist/node-fetch.d.ts
+npm notice 5.2kB dist/node-fetch.js
+npm notice 1.6kB dist/observation-work.d.ts
+npm notice 4.4kB dist/observation-work.js
+npm notice 1.7kB dist/observe-watch.d.ts
+npm notice 5.8kB dist/observe-watch.js
+npm notice 941B dist/online-arm-fence.d.ts
+npm notice 1.2kB dist/online-arm-fence.js
+npm notice 2.9kB dist/online-capture.d.ts
+npm notice 10.8kB dist/online-capture.js
+npm notice 710B dist/online-delivery.d.ts
+npm notice 1.8kB dist/online-delivery.js
+npm notice 701B dist/online-dispatch.d.ts
+npm notice 635B dist/online-dispatch.js
+npm notice 4.7kB dist/pending-items.d.ts
+npm notice 11.5kB dist/pending-items.js
+npm notice 1.2kB dist/pending-writes.d.ts
+npm notice 6.4kB dist/pending-writes.js
+npm notice 423B dist/presence-refresh.d.ts
+npm notice 858B dist/presence-refresh.js
+npm notice 967B dist/proof-accounts.d.ts
+npm notice 4.1kB dist/proof-accounts.js
+npm notice 930B dist/proof-fixtures.d.ts
+npm notice 5.2kB dist/proof-fixtures.js
+npm notice 0B dist/proof-guard.d.ts
+npm notice 457B dist/proof-guard.js
+npm notice 11B dist/proof-host.d.ts
+npm notice 7.6kB dist/proof-host.js
+npm notice 2.4kB dist/proof-process.d.ts
+npm notice 6.8kB dist/proof-process.js
+npm notice 6.4kB dist/proof.d.ts
+npm notice 23.5kB dist/proof.js
+npm notice 1.1kB dist/query-custody.d.ts
+npm notice 2.1kB dist/query-custody.js
+npm notice 1.9kB dist/query-dependencies.d.ts
+npm notice 4.3kB dist/query-dependencies.js
+npm notice 1.3kB dist/query-settlement.d.ts
+npm notice 5.5kB dist/query-settlement.js
+npm notice 898B dist/react-pages.d.ts
+npm notice 7.5kB dist/react-pages.js
+npm notice 724B dist/react-pending-items.d.ts
+npm notice 3.2kB dist/react-pending-items.js
+npm notice 798B dist/react-pending-writes.d.ts
+npm notice 2.3kB dist/react-pending-writes.js
+npm notice 17.9kB dist/react.d.ts
+npm notice 38.3kB dist/react.js
+npm notice 698B dist/read-approval.d.ts
+npm notice 6.3kB dist/read-approval.js
+npm notice 976B dist/read-decoration.d.ts
+npm notice 3.5kB dist/read-decoration.js
+npm notice 1.0kB dist/read-episode.d.ts
+npm notice 2.9kB dist/read-episode.js
+npm notice 468B dist/read-existence.d.ts
+npm notice 1.1kB dist/read-existence.js
+npm notice 1.8kB dist/read-expiry.d.ts
+npm notice 9.4kB dist/read-expiry.js
+npm notice 320B dist/read-key.d.ts
+npm notice 593B dist/read-key.js
+npm notice 166B dist/read-notifications.d.ts
+npm notice 558B dist/read-notifications.js
+npm notice 3.1kB dist/read-observation.d.ts
+npm notice 11.8kB dist/read-observation.js
+npm notice 1.3kB dist/read-only.d.ts
+npm notice 4.7kB dist/read-only.js
+npm notice 63B dist/read-token.d.ts
+npm notice 327B dist/read-token.js
+npm notice 1.4kB dist/read-work.d.ts
+npm notice 8.9kB dist/read-work.js
+npm notice 1.3kB dist/receipt-family.d.ts
+npm notice 11B dist/receipt-family.js
+npm notice 8.6kB dist/recipes/production/expo/App.tsx
+npm notice 2.2kB dist/recipes/production/expo/client.ts
+npm notice 2.0kB dist/recipes/production/expo/schema.q
+npm notice 746B dist/recipes/production/expo/test.cases.jsonl
+npm notice 8.4kB dist/recipes/production/web/App.tsx
+npm notice 1.6kB dist/recipes/production/web/client.ts
+npm notice 2.0kB dist/recipes/production/web/schema.q
+npm notice 746B dist/recipes/production/web/test.cases.jsonl
+npm notice 2.9kB dist/release.d.ts
+npm notice 6.6kB dist/release.js
+npm notice 774B dist/request-wait.d.ts
+npm notice 1.7kB dist/request-wait.js
+npm notice 310B dist/residency.d.ts
+npm notice 949B dist/residency.js
+npm notice 49B dist/resolve-binary.d.ts
+npm notice 1.3kB dist/resolve-binary.js
+npm notice 1.6kB dist/seen-progress.d.ts
+npm notice 9.0kB dist/seen-progress.js
+npm notice 570B dist/server-context.d.ts
+npm notice 7.1kB dist/server-context.js
+npm notice 694B dist/server-effect-context.d.ts
+npm notice 5.8kB dist/server-effect-context.js
+npm notice 735B dist/server-json.d.ts
+npm notice 4.2kB dist/server-json.js
+npm notice 1.3kB dist/server-lifetime.d.ts
+npm notice 3.9kB dist/server-lifetime.js
+npm notice 1.4kB dist/server-private.d.ts
+npm notice 339B dist/server-private.js
+npm notice 1.8kB dist/server-routes.d.ts
+npm notice 7.4kB dist/server-routes.js
+npm notice 630B dist/server-steps.d.ts
+npm notice 3.6kB dist/server-steps.js
+npm notice 790B dist/server-verify.d.ts
+npm notice 7.5kB dist/server-verify.js
+npm notice 3.4kB dist/server.d.ts
+npm notice 11.9kB dist/server.js
+npm notice 541B dist/session-authority.d.ts
+npm notice 7.4kB dist/session-authority.js
+npm notice 232B dist/session-refusal.d.ts
+npm notice 372B dist/session-refusal.js
+npm notice 195B dist/sha256.d.ts
+npm notice 3.6kB dist/sha256.js
+npm notice 4.5kB dist/uploads.d.ts
+npm notice 14.7kB dist/uploads.js
+npm notice 57B dist/utf8-size.d.ts
+npm notice 304B dist/utf8-size.js
+npm notice 2.4MB dist/wasm/snapback4_device_bg.wasm
+npm notice 984B dist/wasm/snapback4_device_bg.wasm.d.ts
+npm notice 3.0kB dist/wasm/snapback4_device.d.ts
+npm notice 16.1kB dist/wasm/snapback4_device.js
+npm notice 150B dist/web-drain.d.ts
+npm notice 422B dist/web-drain.js
+npm notice 1.6kB dist/web-idb-buckets.d.ts
+npm notice 8.1kB dist/web-idb-buckets.js
+npm notice 1.1kB dist/web-idb-pages.d.ts
+npm notice 14.1kB dist/web-idb-pages.js
+npm notice 150B dist/web-idb.d.ts
+npm notice 13.8kB dist/web-idb.js
+npm notice 526B dist/web-journal-execution.d.ts
+npm notice 555B dist/web-journal-execution.js
+npm notice 3.0kB dist/web-journal.d.ts
+npm notice 19.8kB dist/web-journal.js
+npm notice 552B dist/web-ownership.d.ts
+npm notice 3.7kB dist/web-ownership.js
+npm notice 715B dist/web-receipts.d.ts
+npm notice 3.4kB dist/web-receipts.js
+npm notice 341B dist/web-residency.d.ts
+npm notice 2.5kB dist/web-residency.js
+npm notice 1.3kB dist/web-upload-admission.d.ts
+npm notice 1.6kB dist/web-upload-admission.js
+npm notice 858B dist/web-wasm.d.ts
+npm notice 5.0kB dist/web-wasm.js
+npm notice 334B dist/web-worker-device.d.ts
+npm notice 15.3kB dist/web-worker-device.js
+npm notice 11B dist/web-worker-entry.d.ts
+npm notice 80B dist/web-worker-entry.js
+npm notice 2.4kB dist/web-worker-host.d.ts
+npm notice 13.5kB dist/web-worker-host.js
+npm notice 446B dist/web-worker-orphans.d.ts
+npm notice 7.4kB dist/web-worker-orphans.js
+npm notice 1.1kB dist/web-worker-runtime.d.ts
+npm notice 7.3kB dist/web-worker-runtime.js
+npm notice 855B dist/web-worker-suspend.d.ts
+npm notice 4.7kB dist/web-worker-suspend.js
+npm notice 2.7kB dist/web.d.ts
+npm notice 41.4kB dist/web.js
+npm notice 754B dist/witness-web.d.ts
+npm notice 13.7kB dist/witness-web.js
+npm notice 649B dist/worker-ledger.d.ts
+npm notice 5.3kB dist/worker-ledger.js
+npm notice 6.6kB dist/worker.d.ts
+npm notice 21.0kB dist/worker.js
+npm notice 511B dist/write-settlement.d.ts
+npm notice 2.6kB dist/write-settlement.js
+npm notice 3.1kB dist/writes.d.ts
+npm notice 14.5kB dist/writes.js
+npm notice 3.9kB package.json
+npm notice Tarball Details
+npm notice name: snapback4
+npm notice version: 0.4.33
+npm notice filename: snapback4-0.4.33.tgz
+npm notice package size: 1.3 MB
+npm notice unpacked size: 4.5 MB
+npm notice shasum: d53513acabe30d94b19873c7b457265bbd19e958
+npm notice integrity: sha512-KIsQ9PQYxbufD[...]xOVHdWFAwSSVA==
+npm notice total files: 319
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+publish: waiting for snapback4@0.4.33 to become readable
+{"tarballBytes":1300706,"platformTarballBytes":11375644,"tarballIntegrity":"sha512-KIsQ9PQYxbufDI9g721LnHoMQ/ZKx4HzFQIT5/kVu1JJXo+6lEWe4nd2fniXzW/f9ByjA8UIJxOVHdWFAwSSVA==","platformTarballIntegrity":"sha512-hwy7cSYzj1DmpHr+EjPbCdztJQvQdg1n/+uwW8kFOn2ODexGohcURmxEP/ODAvojJFTIMGkocy+RHvfN2Jd+kg==","files":319,"binaryVersion":"snapback4 0.4.33","binaryProfile":"production","sqliteBuildFlags":"-USQLITE_ENABLE_MEMORY_MANAGEMENT","cargoProfile":{"opt_level":"3","debuginfo":0,"debug_assertions":false,"overflow_checks":false,"test":false},"platform":"darwin-arm64","at":"2026-10-19T13:15:10.213Z","version":"0.4.33","source":"3653cae823145170df3e720f5e321bd1b5b4d79d","artifacts":[{"name":"snapback4-darwin-arm64","version":"0.4.33","filename":"snapback4-darwin-arm64-0.4.33.tgz","integrity":"sha512-hwy7cSYzj1DmpHr+EjPbCdztJQvQdg1n/+uwW8kFOn2ODexGohcURmxEP/ODAvojJFTIMGkocy+RHvfN2Jd+kg==","bytes":11375644,"binaryProfile":"production","binarySha256":"35a34c0b19b40263c2cf1a8a8239448afa8e7257e500f1443e6f3ee9ba4b3ab0","binaryVersion":"snapback4 0.4.33","binaryBytes":23453776,"cargoProfile":{"opt_level":"3","debuginfo":0,"debug_assertions":false,"overflow_checks":false,"test":false},"sqliteBuildFlags":"-USQLITE_ENABLE_MEMORY_MANAGEMENT","signing":{"signingAuthority":"Developer ID Application: Charles Cheever (UD2ZVW5WU5)","signingTeamId":"UD2ZVW5WU5","notarized":false,"notarySubmissionId":null},"proof":{"status":"passed","proofKit":{"status":"passed","dayTwo":"production accounts, UI sign-in, v1/hot v2/rollback/forward business assertions","wire":"literal first section, actual packed CLI trace","clock":"30-day coalesced jump, each-boundary cap, memory replay command, page sampling","aliases":"array index path through packed test"},"staging":{"status":"passed","guide":"staging","recipes":"verbatim installed card","roles":{"admin":2,"member":2},"mode":"serve","realPasswordLogin":"passed","data":"passed","selfGrant":"refused","productionBulkSeed":"refused before mint","productionRelabel":"refused","firstAdmin":"passed","privateCredentials":"0600"},"security":{"status":"passed","guide":"verbatim installed security card","artifacts":{"clientSha256":"a336d4fa861e968fb8aa7772a927c86d8c08f7c3b271509e30283a3f9a44f96f","platformSha256":"f25ed2890807d71eaa24205c733f8b77bcfabcc04789dad6984fb1bb0f497923","binarySha256":"35a34c0b19b40263c2cf1a8a8239448afa8e7257e500f1443e6f3ee9ba4b3ab0"},"guideCases":[{"block":0,"invariants":2,"audit":"passed","finite":{"attempted":56,"refused":0,"violations":0,"unauthenticatedHttpRefused":7,"revocationHttpRefused":0},"broadRead":"refuted","expectedFailureExits":[1,1,1]}],"sessions":[{"method":"guests","status":"passed","attempted":8,"refused":0,"violations":0,"unauthenticatedHttpRefused":7,"revocationHttpRefused":14,"disconnectedDevice":"not covered"},{"method":"password","status":"passed","attempted":8,"refused":0,"violations":0,"unauthenticatedHttpRefused":7,"revocationHttpRefused":14,"disconnectedDevice":"not covered"}],"starters":[{"id":"todo-online","status":"passed","invariants":1,"attempted":78,"refused":10,"violations":0,"unauthenticatedHttpRefused":11,"revocationHttpRefused":0},{"id":"social","status":"passed","invariants":5,"attempted":391,"refused":91,"violations":0,"unauthenticatedHttpRefused":0,"unauthenticatedHttpNotCovered":"complete deployed native/action/effect artifacts required","revocationHttpRefused":0},{"id":"todo-web","status":"passed","invariants":1,"attempted":4866,"refused":370,"violations":0,"unauthenticatedHttpRefused":11,"revocationHttpRefused":18},{"id":"chat-web","status":"passed","invariants":5,"attempted":22,"refused":20,"violations":0,"unauthenticatedHttpRefused":0,"unauthenticatedHttpNotCovered":"complete deployed native/action/effect artifacts required","revocationHttpRefused":0},{"id":"chat-expo","status":"passed","invariants":5,"attempted":22,"refused":20,"violations":0,"unauthenticatedHttpRefused":25,"revocationHttpRefused":32},{"id":"production-recipe","status":"passed","source":"installed dist/recipes/production/web/schema.q","invariants":2,"attempted":24,"refused":15,"violations":0,"unauthenticatedHttpRefused":13,"revocationHttpRefused":20}],"scope":"finite campaigns and declared policy checks; no zero-hole or disconnected-device revocation claim","commands":[{"args":["guide","security","--full"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/card-0","exitCode":0,"expectedExitCode":0},{"args":["audit","--json"],"project":"/card-0","exitCode":0,"expectedExitCode":0},{"args":["check","--audit","--json"],"project":"/card-0","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/card-0","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/card-0","exitCode":1,"expectedExitCode":1},{"args":["audit","--json"],"project":"/card-0","exitCode":1,"expectedExitCode":1},{"args":["test","--fixture-only"],"project":"/card-0","exitCode":1,"expectedExitCode":1},{"args":["check","--json"],"project":"/revocation-guests","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/revocation-guests","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/revocation-password","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/revocation-password","exitCode":0,"expectedExitCode":0},{"args":["init","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/security-policy-3nNWEX/todo-online","--online"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/todo-online","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/todo-online","exitCode":0,"expectedExitCode":0},{"args":["init","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/security-policy-3nNWEX/social","--template","social"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/social","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/social","exitCode":0,"expectedExitCode":0},{"args":["init","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/security-policy-3nNWEX/todo-web","--web"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/todo-web","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/todo-web","exitCode":0,"expectedExitCode":0},{"args":["init","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/security-policy-3nNWEX/chat-web","--template","chat","--web"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/chat-web","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/chat-web","exitCode":0,"expectedExitCode":0},{"args":["init","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/security-policy-3nNWEX/chat-expo","--template","chat","--expo"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/chat-expo","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/chat-expo","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/production-recipe","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/production-recipe","exitCode":0,"expectedExitCode":0}]},"day5Proof":{"status":"passed","directory":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/consumer","guideRecipe":"capture-release-and-bridge","starterCustody":["web","expo"]},"starters":[{"starter":"web","kind":"web","fixtureGuide":"passed","status":"passed","adapted":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"web","kind":"web","attempt":1,"status":"passed","elapsedMs":1293,"range":[51317,51337],"occupied":51317,"cpuLoadWorkers":2,"loadavg":[6.7978515625,6.07861328125,5.57373046875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web/proof-logs-1"},{"starter":"web","kind":"web","attempt":2,"status":"passed","elapsedMs":1282,"range":[51330,51350],"occupied":51330,"cpuLoadWorkers":2,"loadavg":[6.89404296875,6.1103515625,5.587890625],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web/proof-logs-2"}],"adaptedProofs":[{"starter":"web","kind":"web","attempt":1,"status":"passed","elapsedMs":1047,"range":[51358,51378],"occupied":51358,"cpuLoadWorkers":2,"loadavg":[6.89404296875,6.1103515625,5.587890625],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web/proof-logs-1"},{"starter":"web","kind":"web","attempt":2,"status":"passed","elapsedMs":1066,"range":[51376,51396],"occupied":51376,"cpuLoadWorkers":2,"loadavg":[8.583984375,6.4736328125,5.71875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web/proof-logs-2"}],"negativeProof":{"status":"passed","expected":"no write scenario: replace the Home assertions","listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"}},"formSubmit":"passed"},{"starter":"web-online","kind":"web","fixtureGuide":"passed","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"web-online","kind":"web","attempt":1,"status":"passed","elapsedMs":1036,"range":[51423,51443],"occupied":51423,"cpuLoadWorkers":2,"loadavg":[8.296875,6.44873046875,5.71435546875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web-online/proof-logs-1"},{"starter":"web-online","kind":"web","attempt":2,"status":"passed","elapsedMs":1014,"range":[51436,51456],"occupied":51436,"cpuLoadWorkers":2,"loadavg":[8.296875,6.44873046875,5.71435546875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web-online/proof-logs-2"}]},{"starter":"expo","kind":"expo","fixtureGuide":"passed","status":"passed","adapted":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"expo","kind":"expo","attempt":1,"status":"passed","elapsedMs":3963,"range":[51510,51530],"occupied":51510,"cpuLoadWorkers":2,"loadavg":[7.41796875,6.34423828125,5.689453125],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-expo/proof-logs-1"},{"starter":"expo","kind":"expo","attempt":2,"status":"passed","elapsedMs":4055,"range":[51532,51552],"occupied":51532,"cpuLoadWorkers":2,"loadavg":[7.41796875,6.34423828125,5.689453125],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-expo/proof-logs-2"}],"adaptedProofs":[{"starter":"expo","kind":"expo","attempt":1,"status":"passed","elapsedMs":3838,"range":[51606,51626],"occupied":51606,"cpuLoadWorkers":2,"loadavg":[8.60498046875,6.6787109375,5.82373046875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-expo/proof-logs-1"},{"starter":"expo","kind":"expo","attempt":2,"status":"passed","elapsedMs":3664,"range":[51633,51653],"occupied":51633,"cpuLoadWorkers":2,"loadavg":[8.60498046875,6.6787109375,5.82373046875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-expo/proof-logs-2"}],"negativeProof":{"status":"passed","expected":"no write scenario: replace the Home assertions","listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"}},"formSubmit":"not-applicable"},{"starter":"web-chat","kind":"web","template":"chat","fixtureGuide":"passed","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"web-chat","kind":"web","attempt":1,"status":"passed","elapsedMs":1439,"range":[51688,51708],"occupied":51688,"cpuLoadWorkers":2,"loadavg":[9.373046875,6.9033203125,5.9130859375],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web-chat/proof-logs-1"},{"starter":"web-chat","kind":"web","attempt":2,"status":"passed","elapsedMs":1409,"range":[51708,51728],"occupied":51708,"cpuLoadWorkers":2,"loadavg":[9.373046875,6.9033203125,5.9130859375],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-web-chat/proof-logs-2"}]},{"starter":"expo-chat","kind":"expo","template":"chat","fixtureGuide":"passed","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"expo-chat","kind":"expo","attempt":1,"status":"passed","elapsedMs":1707,"range":[51866,51886],"occupied":51866,"cpuLoadWorkers":2,"loadavg":[10.2001953125,7.18896484375,6.03125],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-expo-chat/proof-logs-1"},{"starter":"expo-chat","kind":"expo","attempt":2,"status":"passed","elapsedMs":1705,"range":[51881,51901],"occupied":51881,"cpuLoadWorkers":2,"loadavg":[10.2001953125,7.18896484375,6.03125],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-expo-chat/proof-logs-2"}]},{"starter":"expo-social","kind":"expo","template":"social","fixtureGuide":"passed","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"expo-social","kind":"expo","attempt":1,"status":"passed","elapsedMs":1954,"range":[51972,51992],"occupied":51972,"cpuLoadWorkers":2,"loadavg":[10.84716796875,7.53173828125,6.1806640625],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-expo-social/proof-logs-1"},{"starter":"expo-social","kind":"expo","attempt":2,"status":"passed","elapsedMs":2039,"range":[51988,52008],"occupied":51988,"cpuLoadWorkers":2,"loadavg":[10.84716796875,7.53173828125,6.1806640625],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-UehyHi/starter-expo-social/proof-logs-2"}]}],"expoIntegrity":"sha512-Zn75Lu16YkCWgFkAsqNlcIOY3SOLaWI+w/NABNBOg+ZXb6nb3PucOTcsZ5RSDpw5csGn+5lg04HELiP5P0XOiw==","clientIntegrity":"sha512-KIsQ9PQYxbufDI9g721LnHoMQ/ZKx4HzFQIT5/kVu1JJXo+6lEWe4nd2fniXzW/f9ByjA8UIJxOVHdWFAwSSVA==","platformIntegrity":"sha512-hwy7cSYzj1DmpHr+EjPbCdztJQvQdg1n/+uwW8kFOn2ODexGohcURmxEP/ODAvojJFTIMGkocy+RHvfN2Jd+kg=="}},{"name":"snapback4-linux-x64","version":"0.4.33","filename":"snapback4-linux-x64-0.4.33.tgz","integrity":"sha512-yuyO94medY6S9gf3geiGY9oq6OV2z5oEBMQPgnvbReGMnT+lvMpEHOXBclj+dp8DFwb6ML/pR7bt98Yze5t1Lw==","bytes":12910904,"binarySha256":"a744bf6a29189dbcfd5fe1ecc9197db94ee79443eff2873cc4a3288cc3e5ce43","receiptFile":"linux-receipt.json","receiptIntegrity":"sha512-zcnaGPlnAa3qjRNSXCXcJ/+BZnRZkOdf7BdUGgR0YdaFtraXoMCBYg8STdSL94pUVufP+w2jKNHbo+PrvEzxHQ=="},{"name":"snapback4","version":"0.4.33","filename":"snapback4-0.4.33.tgz","integrity":"sha512-KIsQ9PQYxbufDI9g721LnHoMQ/ZKx4HzFQIT5/kVu1JJXo+6lEWe4nd2fniXzW/f9ByjA8UIJxOVHdWFAwSSVA==","bytes":1300706,"files":319}],"resume":"/Users/ccheever/projects/snapback-pub-0428/snapback4/target/publication/snapback4-darwin-arm64-0.4.33/resume.json","signingAuthority":"Developer ID Application: Charles Cheever (UD2ZVW5WU5)","signingTeamId":"UD2ZVW5WU5","notarized":false,"notarySubmissionId":null,"binaryBytes":23453776,"binarySha256":"35a34c0b19b40263c2cf1a8a8239448afa8e7257e500f1443e6f3ee9ba4b3ab0","publish_s":826.2,"dry":false}

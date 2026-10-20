@@ -1,0 +1,2 @@
+./publish.sh: line 11: 62452 Terminated: 15          "$S" "$@"
+STOPPED at publication-dry-run

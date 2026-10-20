@@ -1,0 +1,10 @@
+diff --git a/snapback4/metrics/witness.jsonl b/snapback4/metrics/witness.jsonl
+index 0a496b2d3f..9395de383d 100644
+--- a/snapback4/metrics/witness.jsonl
++++ b/snapback4/metrics/witness.jsonl
+@@ -92,3 +92,5 @@
+ {"at":"2026-10-16T14:38:09.003Z","witness":"published-ios","segment":"restart","simulator":"D2C67F7F-196C-439E-AEB9-3FDA4479761E","ok":true,"ms":14392,"manifest":"/Users/ccheever/projects/snapback-pub-0428/snapback4/reports/20261015-expo-0.4.29/restart-ios-run.json"}
+ {"at":"2026-10-16T18:59:21.417Z","witness":"published-ios","segment":"offline","simulator":"D2C67F7F-196C-439E-AEB9-3FDA4479761E","ok":true,"ms":10173,"manifest":"/Users/ccheever/projects/snapback-pub-0428/snapback4/reports/20261016-expo-0.4.30/offline-ios-run.json"}
+ {"at":"2026-10-16T18:59:36.424Z","witness":"published-ios","segment":"restart","simulator":"D2C67F7F-196C-439E-AEB9-3FDA4479761E","ok":true,"ms":13409,"manifest":"/Users/ccheever/projects/snapback-pub-0428/snapback4/reports/20261016-expo-0.4.30/restart-ios-run.json"}
++{"at":"2026-10-19T07:54:23.875Z","witness":"published-ios","segment":"offline","simulator":"D2C67F7F-196C-439E-AEB9-3FDA4479761E","ok":true,"ms":10452,"manifest":"/Users/ccheever/projects/snapback-pub-0428/snapback4/reports/20261019-expo-0.4.33/offline-ios-run.json"}
++{"at":"2026-10-19T07:54:40.172Z","witness":"published-ios","segment":"restart","simulator":"D2C67F7F-196C-439E-AEB9-3FDA4479761E","ok":true,"ms":14711,"manifest":"/Users/ccheever/projects/snapback-pub-0428/snapback4/reports/20261019-expo-0.4.33/restart-ios-run.json"}

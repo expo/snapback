@@ -1,0 +1,32 @@
+
+running 27 tests
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test hidden_query_count_is_dev_console_only ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test ephemeral_and_action_http_doors_apply_dev_principal_guards_and_seat_clauses ... ok
+test bare_persona_arguments_refuse_only_on_the_dev_door ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+test fixture_queries_print_hidden_counts_and_persona_arguments_have_the_same_guard ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test an_empty_persona_roster_has_a_dev_only_seed_hint_that_clears_after_seeding ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.55s
+
