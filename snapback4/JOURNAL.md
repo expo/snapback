@@ -97192,3 +97192,7 @@ Fresh Codex review of `fdd5b61fbb` identified three further composition failures
 ### 2026-10-20 — Integration 19, recapture every reverse preimage
 
 Fresh Codex found that a constant same-column down projection reused the previous cycle's native preimage after a newer committed write. The new regression reproduces restoration of 10 instead of 20 before the fix. Each staged rollback now captures its current physical newer value (including absence), rather than copying the preceding active receipt's preimage. Three cycles preserve 10, then 20, then 30. This is required by LLP 3000.000.000 §19.1; earlier interrupted full-suite and packed attempts are superseded. Muse returned READY on the reviewed predecessor.
+
+### 2026-10-20 — Integration 19, one interpretation for reverse inputs
+
+Fresh Codex found a false E_ADOPT when an optional column was physically absent and had an insert default: down evaluation recorded null, but forward validation incorrectly substituted the default. Its two-cycle regression reproduces the refusal before the fix. Forward dependency validation now calls the same metered retained source-value interpreter as down evaluation, preserving optional-null, required literal defaults, retained cells and explicit absence semantics. The preceding 80 migration tests passed; the expanded regression set and final broad runs follow this source change. Muse returned READY on the predecessor.

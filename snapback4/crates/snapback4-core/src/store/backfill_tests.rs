@@ -841,3 +841,16 @@ fn each_rollback_captures_the_latest_native_write_even_for_a_constant_projection
   adopt(&mut e,&current,2).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(expected));
  }
 }
+
+#[test]
+fn forward_down_validation_preserves_absent_optional_null_despite_an_insert_default(){
+ let base="table items:\n  count: int\n  public\n  online only\n";
+ let old=base.replace("  count: int", "  x: int ? default 7\n  count: int");
+ let current=format!("{old}down items legacy(x: int ?): {{count:x ?? 0}}\n");
+ let mut e=engine(base);seed(&mut e,"items",json!({"id":"a","count":10}));
+ adopt(&mut e,&old,2).unwrap();assert!(row(&mut e,"items","a").field("x").is_err());
+ for _ in 0..2 {
+  adopt(&mut e,&current,3).unwrap();adopt(&mut e,&old,2).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(0));
+  adopt(&mut e,&current,3).unwrap();assert_eq!(field(&mut e,"items","a","count"),Value::Int(10));assert!(row(&mut e,"items","a").field("x").is_err());
+ }
+}

@@ -1,0 +1,5 @@
+- **[P2] Unchanged absent optional inputs can block forward restoration** — [backfills.rs:135](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs:135).
+
+  Minimal trigger: create an `items` row with `count:10` before column `x` exists; add `x: int ? default 7`; then add `down items legacy(x: int ?): {count: x ?? 0}`. Roll back to the release containing `x` without the down declaration, then forward again, with no intervening writes.
+
+  Adoption leaves `x` physically absent. Down evaluation correctly interprets that optional absence as null and records it in `e.inputs`. Forward validation instead substitutes default `7`, falsely reports that `x` changed, and aborts with `E_ADOPT`. Forward validation must use the same interpretation as `source_value`/`row_image`: absent optional cells read as null; their insert defaults do not apply.

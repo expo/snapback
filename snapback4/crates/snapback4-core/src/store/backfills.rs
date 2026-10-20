@@ -125,14 +125,15 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report:
                 return Ok(())
             };
             if e.active{return Ok(())}
-            let fields=match &mut row {Value::Row(f)|Value::Map(f)=>f,_=>return Err(refusal("invalid stored row"))};
+            let fields=row.as_object()?;
             if validate {
             for (column,expected) in &e.after {
                 if fields.get(column)!=Some(expected) {bad.add(id,&format!("{}.{} changed while the older release was active; repair it under a bridge before selecting this release",fill.table,column));return Ok(())}
             }
+            let mut inputs_meter=Meter::new(Ceilings::job(),Cut::Abort);
             for (column,original) in &e.inputs.as_object()?.iter().map(|(k,v)|(k.clone(),v.clone())).collect::<BTreeMap<_,_>>() {
                 if let Some(kind)=table.columns.get(column) {
-                    let current=fields.get(column).cloned().or_else(||table.defaults.get(column).and_then(|d|if let crate::schema::ColumnDefault::Literal(v)=d{Some(v.clone())}else{None})).unwrap_or(Value::Null);
+                    let current=source_value(tx,t,id,&row,column,Some(table),&mut inputs_meter)?.unwrap_or(Value::Null);
                     if &current!=original && crate::engine::validate::validate_column(&fill.table,column,kind,Some(&current)).is_ok()
                         && !receipt_preimage(tx,next,&fill.table,t,id,column,fields.get(column),original)? {
                         bad.add(id,&format!("{}.{} changed while the older release was active; reverse dependencies cannot be recaptured",fill.table,column));return Ok(())
@@ -141,6 +142,7 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,report:&mut super::adoption_report:
             }
             return Ok(())
             }
+            let fields=match &mut row {Value::Row(f)|Value::Map(f)=>f,_=>return Err(refusal("invalid stored row"))};
             for column in e.reversed.keys() {
                 match e.reversed.get(column).cloned().flatten() {
                     Some(value)=>{

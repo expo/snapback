@@ -1,0 +1,9 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Reviewed commit `8e1fa93bcd` against its parent range `5db382795c..8e1fa93bcd` read-only. The only code change is the one-line fix in [backfills.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs): staged rollback receipts now capture `fields.get(c)` (current physical newer value or absence) instead of reusing the prior active receipt's preimage.
+
+Checked per the brief: repeated down/forward cycles for constant projections (the new `10→20→30` regression shape), dependent projections (inputs recaptured from current newer source each stage), absence vs present-null vs present-default handling in `reversed`/`after`/`inputs`, exact forward-receipt and cross-down-receipt `receipt_preimage` exceptions, pruned-preimage refusal, retained non-null precedence vs synthesized-receipt recomputation, narrowed/retained cells, two-phase validate-then-restore order independence, and older-write refusal via `after` plus dependency checks. Also inspected the interacting `insert_field_value` absent-vs-null default composition in [objects.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/bind/program/objects.rs), rename admission/conflict checks, and column-read spread/optional-field paths. No concrete remaining material defect found with a minimal trigger.
+
+No tests were run, no other reviews or reports were read, and no target/publication trees were inspected.
