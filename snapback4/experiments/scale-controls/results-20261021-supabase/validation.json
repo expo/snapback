@@ -1,0 +1,29 @@
+{
+  "release_build": "passed --release --locked -j 4; own worktree target",
+  "clippy": "passed --release --locked -j 4 -- -D warnings",
+  "native_black_box": {
+    "membership_counter_jwt_and_pooled_claim_isolation": true,
+    "post_membership_sender_and_atomic_maintains": true,
+    "raw_seed_and_http_values_equal": true,
+    "overload_arrival_accounting": true
+  },
+  "seed_equality": "both sizes match raw PG",
+  "full_audit": {
+    "cells": 132,
+    "trials": 1572,
+    "scheduled_arrivals": 5499918,
+    "cells_with_passing_rate": 132,
+    "unknown_write_outcome_trials": 287,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  "role_statement_aggregation": "counter conservation passes on all 524 independent per-rate before/after snapshot pairs",
+  "effective_configurations_identical": 132,
+  "plots": "SVGs generated with matplotlib 3.11.2 and previewed",
+  "archive": {
+    "sha256": "b4bbd1c50f22cbe363a5abbb97962323da5a8c4b239a649cacf5692aad6c96c9",
+    "zstd_integrity": true
+  },
+  "llp_reference_check": "passed: 564 LLP documents, 0 errors, 0 unchecked",
+  "lane_processes_remaining": [],
+  "bearer_token_artifact_scan": "passed"
+}

@@ -281,6 +281,10 @@ Resource queries filter the owned database, statement roles
 Counter witnesses read the owned schema. App CPU aggregates PostgREST and
 the dispatcher/proxy; generator, all owned SSH forwards, cluster CPU,
 waits/statements/WAL/I/O and before/after RTT remain the S1-H collectors.
+Statement rows with the same query ID across both roles are summed before
+taking deltas. Nested RPC execution is included, so summed executor times can
+overlap; SQL calls/executor sums are neither wire roundtrips nor request wall
+time or CPU. The independent process CPU samples remain the CPU evidence.
 Raw per-cell captures and check runs belong in compressed archives under
 `~/sb4scale/archive/`; only summaries, configurations, code and plots are
 committed. Each result directory's `ARCHIVE.md` records its SHA-256.

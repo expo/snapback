@@ -1,0 +1,1 @@
+Kernel perf_event_paranoid=4; same S1-H host restriction, no privileged stack profiling. Process CPU, waits and statement snapshots retained.

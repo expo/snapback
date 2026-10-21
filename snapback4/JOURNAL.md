@@ -100216,3 +100216,44 @@ token issuance, and these rows are labelled PostgREST-only. The full stack's
 gateway hop, matched-pool controls, idle-host qualification and advocate
 review are unmeasured. One worker, no sub-agents/clone/stash/push or paid
 resources; all subprocess PIDs and cleanup recorded outside Git.
+
+
+## 2026-10-21 — S1-SB Supabase matrix completed
+
+Completed the same 132 W1–W5 cells as S1-H, with official PostgREST 14.18,
+Supabase roles/JWT/RLS, shipped pool 10 and 1,000-entry JWT cache: 524 rates,
+1,572 trials and 5,499,918 measured arrivals. All cells bracketed, all arrivals
+and histograms accounted for, all passing trials error-free and write deltas
+exact. 287 overloaded trials retain unknown write outcomes and all fail
+qualification. Both fixture sizes match raw PG field-for-field on the shared
+seed, with the stated small UUID identity/owner-index storage additions.
+Post-run RLS EXPLAINs show expected indexes/initplans; no API sessions remain.
+
+Natural-link 1m passing brackets are 1,414/s for W1–W3, 800/s disjoint counters
+(C=16), 141/s one shared counter (C=2), 800/s the 1% mix (C=16). All 132 rows
+and 24 headlines sit beside raw PG, with matched-rate latency comparisons,
+standalone SVGs and resource evidence. These compare specific native default
+configurations: raw PG uses read pool 32 and write pool C; Supabase pool 10
+stays fixed. Serial shared-host short windows produce substantial non-monotonic
+spread; no isolated causal RTT/pool/RLS/dispatcher attribution is claimed.
+
+A postprocessing audit found pg_stat_statements rows with the same queryid
+under both authenticator and authenticated. The snapshots retain both; fixed
+the reporter to sum role/toplevel rows before differencing and checked counter
+conservation. Nested RPC execution sums can overlap and are not CPU or wire
+roundtrip counts. This changes resource derivation only; measured code, timing,
+rate qualification and counter decisions are unchanged. Derivation hashes are
+recorded separately from the measurement source commit.
+
+Raw matrix/check/smoke/inspection evidence (467 MB) is archived outside Git at
+~/sb4scale/archive/results-20261021-supabase-cells.tar.zst (17.6 MB, verified
+SHA-256 b4bbd1c50f22cbe363a5abbb97962323da5a8c4b239a649cacf5692aad6c96c9).
+Only code/configuration/summaries/provenance/plots enter the repository. Secret
+scanning finds no DB password, signing secret or SCRAM verifier in the evidence.
+All 10,422 matrix children and all final check/smoke/inspection children exited.
+The existing durable PG17.9 cluster remains running on 450a, postmaster
+2735539; no restart/reconfiguration. Owned Supabase databases/roles are retained.
+No Docker/GoTrue/Kong/Realtime; offline 24-hour JWT issuance substitutes for
+GoTrue, and full-stack gateway overhead is unmeasured. No paid service, sudo,
+sub-agent, clone, stash or push. The RFC gets one prepended Revised item and
+one short S1-SB progress note; W6 and advocate/idle-host qualification remain.

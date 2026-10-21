@@ -1,0 +1,36 @@
+[
+  {
+    "role": "anon",
+    "login": false,
+    "config": [
+      "statement_timeout=3s"
+    ],
+    "inherit": false,
+    "bypassrls": false
+  },
+  {
+    "role": "authenticated",
+    "login": false,
+    "config": [
+      "statement_timeout=8s"
+    ],
+    "inherit": false,
+    "bypassrls": false
+  },
+  {
+    "role": "service_role",
+    "login": false,
+    "config": null,
+    "inherit": false,
+    "bypassrls": true
+  },
+  {
+    "role": "authenticator",
+    "login": true,
+    "config": [
+      "statement_timeout=8s"
+    ],
+    "inherit": false,
+    "bypassrls": false
+  }
+]

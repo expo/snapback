@@ -16,6 +16,22 @@ def contents(path):
 def read(path): return json.loads(contents(path))
 
 
+STAT_FIELDS=['calls','rows','total_exec_time','shared_blks_hit','shared_blks_read','shared_blks_dirtied','wal_bytes','wal_records','wal_fpi']
+
+
+def statements_by_id(snapshot):
+    # PostgREST executes under both authenticator and authenticated. pg_stat_
+    # statements has separate rows by userid/toplevel, even with one queryid.
+    # The snapshots retain every row; aggregate them before taking a delta.
+    grouped={}
+    for statement in snapshot['statements']:
+        key=statement['queryid']
+        if key not in grouped:
+            grouped[key]=dict(queryid=key,query=statement['query'],**{k:0 for k in STAT_FIELDS})
+        for field in STAT_FIELDS: grouped[key][field]+=statement[field]
+    return grouped
+
+
 def cpu_seconds(resources,kind,ownership):
     pids={str(p['pid']) for p in ownership if p['kind']==kind}
     samples=resources['samples']
@@ -50,10 +66,10 @@ def details(directory,rate,ownership):
         r['derived']={f'{kind}_cpu_ms_per_op':cpu_seconds(resources,kind,ownership)*1000/max(1,n) for kind in ['app','load','ssh']}
         r['derived']['db_cpu_ms_per_op']=db_cpu_seconds(directory/f'{prefix}.db-cpu.jsonl')*1000/max(1,n)
         r['derived']['wal_lsn_bytes_per_op']=(after['wal_lsn']-before['wal_lsn'])/max(1,n)
-        old={s['queryid']:s for s in before['statements']}
+        old=statements_by_id(before)
         deltas=[]
-        for s in after['statements']:
-            delta={k:s[k]-old.get(s['queryid'],{}).get(k,0) for k in ['calls','rows','total_exec_time','shared_blks_hit','shared_blks_read','shared_blks_dirtied','wal_bytes','wal_records','wal_fpi']}
+        for s in statements_by_id(after).values():
+            delta={k:s[k]-old.get(s['queryid'],{}).get(k,0) for k in STAT_FIELDS}
             if delta['calls']>0: deltas.append(dict(query=s['query'],queryid=s['queryid'],**delta))
         r['derived']['statements_delta']=deltas
         r['derived']['sql_exec_ms_per_op']=sum(d['total_exec_time'] for d in deltas)/max(1,n)
@@ -134,7 +150,7 @@ def main(roots):
             text.append(f'| {label} | no passing rate | — | — | — | — |'); continue
         text.append(f"| {label} | {r['achieved_median']:.0f} ({r['achieved_min']:.0f}–{r['achieved_max']:.0f}) | {r['p50_ms']:.2f} / {r['p99_ms']:.2f} / {r['p999_ms']:.2f} | {r['p99_worst_ms']:.2f} | {r['summary']['lowest_failing_offered_per_s']} | {r['leading_active_wait']} |")
     text+=['','## Resource evidence at each passing rate','',
-           'CPU ms/op are sampled process ticks (sample edges undercount); app includes proxy. SQL execution time includes waits and is not CPU. WAL is cluster LSN growth per successful operation including warm-up.','',
+           'CPU ms/op are sampled process ticks (sample edges undercount); app includes proxy. SQL counters aggregate all captured role/toplevel rows by queryid before differencing. SQL execution sums include waits and can overlap for nested RPC calls; they are not CPU, request wall time or protocol roundtrip counts. WAL is cluster LSN growth per successful operation including warm-up.','',
            '| Workload / rows / added RTT µs / clients / keys | app CPU ms/op | load CPU | SSH CPU | DB CPU | SQL exec ms/op | WAL B/op | SQL calls/op |',
            '|---|---:|---:|---:|---:|---:|---:|---:|']
     for r in records:

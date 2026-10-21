@@ -1,0 +1,14 @@
+{
+  "measurement_source_commit": "2a249acb061746341be264c13ff6fbf60389ea71",
+  "postprocessing_sha256": {
+    "snapback4/experiments/scale-controls/scripts/report.py": "63a313910797eb5216c2a21b535f92c67b86a9a858058ebf22efb63992ec4a92",
+    "snapback4/experiments/scale-controls/scripts/compare.py": "ba1e0c19f94d8e3bdf7eaf1395cae2c6206ea39a7051c7b0095fb26da66876d3",
+    "snapback4/experiments/scale-controls/scripts/plot.py": "f55a3d9f32958bad7e177307b0ae41fbd7348a00f9cb8e2ca89b9de7825e1ee3"
+  },
+  "raw_pg_sha256": {
+    "ledger.json": "625d453df4e305ee8d43e41efa4157aade8fc953821b58b14f135878a258b648",
+    "curves.json": "b5d52afc4dfc417c793385d403d1b7440104aec25d4356b2334cb53aff21d78a"
+  },
+  "effective_configs_identical": 132,
+  "statement_aggregation": "sum all role/toplevel rows by queryid before differencing; executor sums can overlap for nested RPCs"
+}
