@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 // @ref LLP 3000.028#8 — one integrated app carries the three client recipes.
 pub(super) fn files() -> Vec<(&'static str, String)> {
     let mut files = super::expo_files();
-    files.retain(|(name, _)| matches!(*name, "package.json" | "src/native-smoke.ts" | "babel.config.js" | "metro.config.js" | "metro-wasm-transformer.cjs" | "src/intent-store.ts" | "src/intent-store.web.ts" | "src/intent-store.native.ts" | "expo-env.d.ts"));
+    files.retain(|(name, _)| matches!(*name, "package.json" | "babel.config.js" | "metro.config.js" | "src/intent-store.ts" | "src/intent-store.web.ts" | "src/intent-store.native.ts" | "expo-env.d.ts"));
     let package = files.iter_mut().find(|(name, _)| *name == "package.json").unwrap();
     let mut value: Value = serde_json::from_str(&package.1).unwrap();
     value["name"] = json!("snapback4-social-starter");

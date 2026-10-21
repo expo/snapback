@@ -1,5 +1,13 @@
 # Snapback 4 behavior changes
 
+## 0.4.36
+
+- Staging `advance()` returns `{now, fired, held}`; use `(await host.advance("49h")).now` for the old timestamp. Each schedule reports its window, run state or hold reason. Saved boundaries survive restarts: the helper and CLI explain a reused store's already-processed boundary and how to continue or use a fresh staging deployment. One fire per boundary; missed periods coalesce unless eachBoundary is explicit.
+- Lookup advice names the authored read rule for required and same-table mutation lookups too. Hidden/missing/expired rows remain indistinguishable; an assertion uses its authored code for all three. Private unique conflicts retain generic E_RULE instead of the unique declaration's else code; source diagnostics explain the clause and safe modeling alternatives without revealing stored rows.
+- Upgrade scans candidate `data --json` consumers. One-line migration: `JSON.parse(stdout).rows` replaces `JSON.parse(stdout)`; inspect `more` and `limit` for truncation. First `check` in the newly installed wrapper also prints project warnings, including when upgrade was run by an old 0.4.33/0.4.35 CLI. Captured warnings remain pending so an old quiet upgrade cannot falsely acknowledge delivery.
+- React/Expo `ReadState` renders list loading/denied/empty/data in one expression, retaining partial/stale metadata. Expo starters use packaged Metro and native smoke support and always include playwright-core. Adapt keeps a runnable frontend proof scaffold and its commands; the scaffold explicitly refuses until an app-specific write scenario is added. Edited proofs remain application-owned.
+- Security intent, campaigns and actionable exposure output: SEC5 owns the companion 0.4.36 entry.
+
 ## 0.4.35
 
 - Column privacy: append `read <- policy` to a column or share `read (a, b) <- policy`. Effective authority intersects row, column and owner-private rules for queries, write results and downloads. Whole rows omit hidden properties; explicit selections return null and generated read properties are optional. Row-local cells sync; witness-dependent cells stay server-side with automatic online fallback. Protected payloads cannot supply structural keys, authority, lifetimes or maintained inputs (E_COLUMN_READ). Existing fields keep their audience until a rule is declared; old clients receive compatibility advice for newly optional results.

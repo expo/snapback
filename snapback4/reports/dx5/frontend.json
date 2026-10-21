@@ -1,0 +1,226 @@
+{
+  "date": "2026-10-21T06:41:39.739Z",
+  "metric": "non-whitespace frontend characters; frozen wave-20 bucketOf; no looksBuilt filter",
+  "changes": "packaged Metro/native smoke; two ReadState lists in 032",
+  "results": [
+    {
+      "lane": "006-snapback-athletic-trainer-injuries",
+      "before": 15287,
+      "after": 13557,
+      "saved": 1730,
+      "listComponents": 0,
+      "typecheck": "passed",
+      "originalHashesUnchanged": true,
+      "filesBefore": [
+        {
+          "file": "App.tsx",
+          "characters": 11939,
+          "sha256": "f20f3035cc3357357be25b085b8eadbceacc1d937bd21e82a7cb45444a8fd224"
+        },
+        {
+          "file": "babel.config.js",
+          "characters": 85,
+          "sha256": "52db31902de488f2d5d368c3f449a449364d0d6d70450165c37fe7a1745838d8"
+        },
+        {
+          "file": "index.js",
+          "characters": 90,
+          "sha256": "05a43a5e4a3a033589d80b62adf020c40f8124c2fe36adb90cab5e9905ed24c0"
+        },
+        {
+          "file": "metro-wasm-transformer.cjs",
+          "characters": 475,
+          "sha256": "1d4966748dca75a942db9de1594896dc13100d87dd422c5c4777f23627d1f9f8"
+        },
+        {
+          "file": "metro.config.js",
+          "characters": 503,
+          "sha256": "f19c0ab4c2eaff2f7f80e17a0617ce87658e8d410df714da6ac1cfc74d43ec42"
+        },
+        {
+          "file": "src/client.ts",
+          "characters": 1278,
+          "sha256": "6901871378f7a371e8c41c3b98680197706f5e86dec98211ba746905a36d5960"
+        },
+        {
+          "file": "src/native-smoke.ts",
+          "characters": 917,
+          "sha256": "f51620ef1b765738623f121cb458db0fd907aec9236183d1296fdf51addf243c"
+        }
+      ],
+      "filesAfter": [
+        {
+          "file": "App.tsx",
+          "characters": 11942,
+          "sha256": "dd8ea3f1d31c4235fd24cad1552e852496545b6c97191b8d0647293a5bbc53be"
+        },
+        {
+          "file": "babel.config.js",
+          "characters": 85,
+          "sha256": "52db31902de488f2d5d368c3f449a449364d0d6d70450165c37fe7a1745838d8"
+        },
+        {
+          "file": "index.js",
+          "characters": 90,
+          "sha256": "05a43a5e4a3a033589d80b62adf020c40f8124c2fe36adb90cab5e9905ed24c0"
+        },
+        {
+          "file": "metro.config.js",
+          "characters": 162,
+          "sha256": "c321e64323227b91d5315e85f004f19081b23b0c1b1c867bef82b7cd068d9296"
+        },
+        {
+          "file": "src/client.ts",
+          "characters": 1278,
+          "sha256": "6901871378f7a371e8c41c3b98680197706f5e86dec98211ba746905a36d5960"
+        }
+      ]
+    },
+    {
+      "lane": "032-snapback-zoo-keeper-diets",
+      "before": 19544,
+      "after": 17720,
+      "saved": 1824,
+      "listComponents": 2,
+      "typecheck": "passed",
+      "originalHashesUnchanged": true,
+      "filesBefore": [
+        {
+          "file": "App.tsx",
+          "characters": 16196,
+          "sha256": "ed759eb8b27f561539925a883cca7273d938dfe237dc0996d86d103664d48763"
+        },
+        {
+          "file": "babel.config.js",
+          "characters": 85,
+          "sha256": "52db31902de488f2d5d368c3f449a449364d0d6d70450165c37fe7a1745838d8"
+        },
+        {
+          "file": "index.js",
+          "characters": 90,
+          "sha256": "05a43a5e4a3a033589d80b62adf020c40f8124c2fe36adb90cab5e9905ed24c0"
+        },
+        {
+          "file": "metro-wasm-transformer.cjs",
+          "characters": 475,
+          "sha256": "1d4966748dca75a942db9de1594896dc13100d87dd422c5c4777f23627d1f9f8"
+        },
+        {
+          "file": "metro.config.js",
+          "characters": 503,
+          "sha256": "f19c0ab4c2eaff2f7f80e17a0617ce87658e8d410df714da6ac1cfc74d43ec42"
+        },
+        {
+          "file": "src/client.ts",
+          "characters": 1278,
+          "sha256": "7bcbe5b9f17dc04f5c4cfd212333ca05d0269552b81a7eeb9d39eab20891edd5"
+        },
+        {
+          "file": "src/native-smoke.ts",
+          "characters": 917,
+          "sha256": "f51620ef1b765738623f121cb458db0fd907aec9236183d1296fdf51addf243c"
+        }
+      ],
+      "filesAfter": [
+        {
+          "file": "App.tsx",
+          "characters": 16105,
+          "sha256": "5cabd2ff8d5e1b6a916651999343a1bc58635364a04ad4c2622bebf894e94b65"
+        },
+        {
+          "file": "babel.config.js",
+          "characters": 85,
+          "sha256": "52db31902de488f2d5d368c3f449a449364d0d6d70450165c37fe7a1745838d8"
+        },
+        {
+          "file": "index.js",
+          "characters": 90,
+          "sha256": "05a43a5e4a3a033589d80b62adf020c40f8124c2fe36adb90cab5e9905ed24c0"
+        },
+        {
+          "file": "metro.config.js",
+          "characters": 162,
+          "sha256": "c321e64323227b91d5315e85f004f19081b23b0c1b1c867bef82b7cd068d9296"
+        },
+        {
+          "file": "src/client.ts",
+          "characters": 1278,
+          "sha256": "7bcbe5b9f17dc04f5c4cfd212333ca05d0269552b81a7eeb9d39eab20891edd5"
+        }
+      ]
+    },
+    {
+      "lane": "033-snapback-lead-service-swaps",
+      "before": 16444,
+      "after": 14826,
+      "saved": 1618,
+      "listComponents": 0,
+      "typecheck": "passed",
+      "originalHashesUnchanged": true,
+      "filesBefore": [
+        {
+          "file": "App.tsx",
+          "characters": 12964,
+          "sha256": "a26d43eb18c50350daac1513de97f5d3762bb9141ed6d6cf61ca8c7ba2a8a957"
+        },
+        {
+          "file": "babel.config.js",
+          "characters": 85,
+          "sha256": "52db31902de488f2d5d368c3f449a449364d0d6d70450165c37fe7a1745838d8"
+        },
+        {
+          "file": "index.js",
+          "characters": 90,
+          "sha256": "05a43a5e4a3a033589d80b62adf020c40f8124c2fe36adb90cab5e9905ed24c0"
+        },
+        {
+          "file": "metro-wasm-transformer.cjs",
+          "characters": 475,
+          "sha256": "1d4966748dca75a942db9de1594896dc13100d87dd422c5c4777f23627d1f9f8"
+        },
+        {
+          "file": "metro.config.js",
+          "characters": 503,
+          "sha256": "f19c0ab4c2eaff2f7f80e17a0617ce87658e8d410df714da6ac1cfc74d43ec42"
+        },
+        {
+          "file": "src/client.ts",
+          "characters": 1525,
+          "sha256": "81753aad13ebdb53ab25b8633ba898bf139d6fc0c007eb22daa0f1aa29a068b2"
+        },
+        {
+          "file": "src/native-smoke.ts",
+          "characters": 802,
+          "sha256": "e692a8e24f571c8f69c4e7104c86cead9654ae65f093f448409f82dbeaf2fc8a"
+        }
+      ],
+      "filesAfter": [
+        {
+          "file": "App.tsx",
+          "characters": 12964,
+          "sha256": "a26d43eb18c50350daac1513de97f5d3762bb9141ed6d6cf61ca8c7ba2a8a957"
+        },
+        {
+          "file": "babel.config.js",
+          "characters": 85,
+          "sha256": "52db31902de488f2d5d368c3f449a449364d0d6d70450165c37fe7a1745838d8"
+        },
+        {
+          "file": "index.js",
+          "characters": 90,
+          "sha256": "05a43a5e4a3a033589d80b62adf020c40f8124c2fe36adb90cab5e9905ed24c0"
+        },
+        {
+          "file": "metro.config.js",
+          "characters": 162,
+          "sha256": "c321e64323227b91d5315e85f004f19081b23b0c1b1c867bef82b7cd068d9296"
+        },
+        {
+          "file": "src/client.ts",
+          "characters": 1525,
+          "sha256": "81753aad13ebdb53ab25b8633ba898bf139d6fc0c007eb22daa0f1aa29a068b2"
+        }
+      ]
+    }
+  ]
+}

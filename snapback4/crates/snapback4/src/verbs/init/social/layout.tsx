@@ -1,4 +1,4 @@
-import { useNativeSmokeGuest } from "../src/native-smoke";
+import { useNativeSmoke } from "snapback4-expo/native-smoke";
 import { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import { Stack } from "expo-router";
@@ -9,7 +9,7 @@ export default function RootLayout() {
   return <AppProvider app={app}><Account /></AppProvider>;
 }
 function Account() {
-  useNativeSmokeGuest();
+  useNativeSmoke();
   const auth = useAuth();
   const ready = useAppReady();
   const [email, setEmail] = useState(""), [password, setPassword] = useState("");

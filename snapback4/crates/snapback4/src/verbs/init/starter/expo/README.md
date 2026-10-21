@@ -41,7 +41,7 @@ guest", then add a few todos.
   `npx snapback4 init --adapt` previews; `npx snapback4 init --adapt --apply` swaps this screen for a `Home` that compiles
   against any schema, while it is unmodified.
 - `expo-env.d.ts`: Expo's types, including `process.env.EXPO_PUBLIC_*`.
-- `metro.config.js` and `metro-wasm-transformer.cjs`: keep both; Metro then
+- `metro.config.js`: calls `snapback4-expo/metro`; the package then
   ships the web device's wasm and skips the local `.snapback4/` store.
 
 Keep the Expo and `babel-preset-expo` major versions together; mixing them can

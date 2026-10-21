@@ -146,7 +146,7 @@ test("init keeps the local default and makes a compiled online starter without s
     assert.equal(checked.status, 0, checked.stdout + checked.stderr);
     const result = JSON.parse(checked.stdout);
     assert.equal(result.synced, mode === "online" ? 0 : 1);
-    assert.deepEqual(result.notes.map(note => note.code), ["N_NO_PRODUCTION_WRITER"]);
+    assert.deepEqual(result.notes.map(note => note.code), ["N_LOOKUP_FILTERED", "N_NO_PRODUCTION_WRITER"]);
   }
   assert.equal(invoke("init", "--online", "--expo", "bad").status, 2);
   assert.equal(existsSync(join(dir, "bad")), false);
@@ -180,20 +180,32 @@ for (const template of [[], ["--template", "chat"]]) test(`Expo ${template.lengt
   const babel = { module: { exports: {} } };
   vm.runInNewContext(read(join(dir, "babel.config.js")), babel);
   assert.deepEqual(Array.from(babel.module.exports({ cache(value) { assert.equal(value, true); } }).presets), ["babel-preset-expo"]);
-  const metroRequire = Object.assign((name) => { assert.equal(name, "expo/metro-config"); return { getDefaultConfig: () => ({ resolver: { assetExts: ["png"] }, transformer: {} }) }; }, { resolve: name => join(dir, name) });
+  const metroRequire = Object.assign((name) => name === "snapback4-expo/metro" ? require(join(root,"packages/snapback4-expo/metro.cjs")) :
+    (assert.equal(name,"expo/metro-config"), { getDefaultConfig: () => ({ resolver: { assetExts: ["png"] }, transformer: {} }) }), { resolve: name => join(dir, name) });
   const metro = { module: { exports: {} }, __dirname: dir, require: metroRequire };
   vm.runInNewContext(read(join(dir, "metro.config.js")), metro);
   assert.equal(metro.module.exports.resolver.unstable_enablePackageExports, true);
   assert.ok(metro.module.exports.resolver.assetExts.includes("wasm"));
   assert.match(metro.module.exports.transformer.babelTransformerPath, /metro-wasm-transformer.cjs$/);
-  const transformer = { module: { exports: {} }, require(name) { assert.equal(name, "@expo/metro-config/babel-transformer"); return { transform: args => args }; } };
-  vm.runInNewContext(read(join(dir, "metro-wasm-transformer.cjs")), transformer);
+  assert.equal(existsSync(join(dir,"metro-wasm-transformer.cjs")),false);
+  const module = {exports:{}}, roots=[];
+  const transformer = { module, exports:module.exports, require(name) {
+    if(name==="node:path")return require(name);
+    assert.equal(name,"node:module");return {createRequire(file){
+      roots.push(file);
+      if(file===join(dir,"package.json"))return {resolve(name){assert.equal(name,"expo/metro-config");return join(dir,"isolated/expo/metro-config.js");}};
+      assert.equal(file,join(dir,"isolated/expo/metro-config.js"));
+      return name=>{assert.equal(name,"@expo/metro-config/babel-transformer");return {transform:args=>args};};
+    }};
+  } };
+  vm.runInNewContext(read(metro.module.exports.transformer.babelTransformerPath), transformer);
   const src = 'const wasm = new URL("./wasm/snapback4_device_bg.wasm", import.meta.url);';
   const transform = transformer.module.exports.transform;
-  assert.equal(transform({ src, options: { platform: "web" } }).src, 'const wasm = require("./wasm/snapback4_device_bg.wasm");');
-  assert.equal(transform({ src, options: { platform: "ios" } }).src, src);
+  assert.equal(transform({ src, options: { platform: "web", projectRoot:dir } }).src, 'const wasm = require("./wasm/snapback4_device_bg.wasm");');
+  assert.equal(transform({ src, options: { platform: "ios", projectRoot:dir } }).src, src);
   const shipped = read(join(root, "packages/snapback4/dist/web.js"));
-  assert.ok(transform({ src: shipped, options: { platform: "web" } }).src.includes('options.wasm ?? require("./wasm/snapback4_device_bg.wasm")'));
+  assert.ok(transform({ src: shipped, options: { platform: "web", projectRoot:dir } }).src.includes('options.wasm ?? require("./wasm/snapback4_device_bg.wasm")'));
+  assert.equal(roots.length,6,"every transform resolves through the consuming Expo package");
   assert.match(read(join(dir, "src/client.ts")), /createApp/);
   assert.match(read(join(dir, "App.tsx")), /AppProvider|useAuth/);
   assert.equal(actual.scripts["build:web"], chat ? "expo export -p web --max-workers 2 && snapback4 web-shell dist" : "expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist");
@@ -571,7 +583,7 @@ test("CLI and Node device share environment, platform-package and repository bin
   const platformDir = join(pkgDir, `node_modules/snapback4-${process.platform}-${process.arch}`);
   for (const path of [join(pkgDir, "dist"), join(pkgDir, "bin"), platformDir, join(dir, "target/release"), join(dir, "target/debug")]) mkdirSync(path, { recursive: true });
   writeFileSync(join(pkgDir, "package.json"), '{"type":"module"}');
-  for (const file of ["dist/native.js", "dist/resolve-binary.js", "bin/snapback4.js"]) copyFileSync(join(root, "packages/snapback4", file), join(pkgDir, file));
+  for (const file of ["dist/native.js", "dist/resolve-binary.js", "bin/snapback4.js", "bin/upgrade-warnings.js"]) copyFileSync(join(root, "packages/snapback4", file), join(pkgDir, file));
   writeFileSync(join(platformDir, "package.json"), '{"name":"fixture"}');
   const candidates = [join(dir, "override"), join(platformDir, "snapback4"), join(dir, "target/release/snapback4"), join(dir, "target/debug/snapback4")];
   for (const file of candidates) writeFileSync(file, "binary resolution fixture");

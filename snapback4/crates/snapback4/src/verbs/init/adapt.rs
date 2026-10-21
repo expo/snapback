@@ -54,9 +54,11 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
     }
     if let Some(text) = read(dir, "src/native-smoke.ts") {
         let wanted = starter::native_smoke(own.identity.is_some_and(|(password, guests)| password && !guests));
-        let recognized = super::proof_advice::native_template(&text);
+        let recognized = if std::fs::symlink_metadata(dir.join("src/native-smoke.ts")).is_ok_and(|m| m.file_type().is_symlink()) { None } else { super::proof_advice::native_template(&text) };
         if recognized.is_none() { modified.push("src/native-smoke.ts".to_owned()); }
-        if text != wanted && let Some((version, password)) = recognized && smoke_referenced(dir) {
+        if recognized.is_some() && !smoke_referenced(dir, &found) {
+            found.push(Leftover { path: "src/native-smoke.ts", why: "the unmodified helper is now supplied by snapback4-expo/native-smoke; the planned screens no longer import this copy".into(), rewrite: None });
+        } else if text != wanted && let Some((version, password)) = recognized && smoke_referenced(dir, &found) {
             let old = text != starter::native_smoke(password);
             let why = if old {
                 let mode = if password != own.identity.is_some_and(|(password, guests)| password && !guests) { "; refresh also updates its sign-in mode" } else { "" };
@@ -67,11 +69,11 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
             found.push(Leftover { path: "src/native-smoke.ts", why, rewrite: Some(wanted) });
         }
     }
-    if read(dir, "src/native-smoke.ts").is_some() && !smoke_referenced(dir) {
+    if read(dir, "src/native-smoke.ts").is_some() && !smoke_referenced(dir, &found) && !found.iter().any(|f| f.path == "src/native-smoke.ts" && f.rewrite.is_none()) {
         advice.push("info: src/native-smoke.ts has no source reference; review it before a native smoke proof".into());
     }
-    if !todos && [false, true].into_iter().any(|web| super::proof_advice::frontend_template(dir, web).is_some_and(|(_, template)| template.is_none())) {
-        found.push(Leftover { path: "scripts/frontend-proof.mjs", why: "the unmodified todo frontend proof exercises Task/Add; replace it with your own screen's write assertions".into(), rewrite: None });
+    if !todos && let Some(web) = [false, true].into_iter().find(|web| super::proof_advice::frontend_template(dir, *web).is_some_and(|(_, template)| template.is_none())) {
+        found.push(Leftover { path: "scripts/frontend-proof.mjs", why: "the unmodified todo proof needs your screen's write assertions; keep a runnable frontend scaffold that explicitly reports the missing scenario".into(), rewrite: Some(super::proof::frontend_scaffold(web)) });
     }
     readme(dir, &own, todos, &mut found, &mut modified);
     app_json(dir, &mut found);
@@ -81,24 +83,42 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
 
 // A custom entry/component/proof can reference the helper too. Generated trees
 // and dependency directories are not authored source; do not follow symlinks.
-fn smoke_referenced(root: &Path) -> bool {
-    fn walk(dir: &Path, helper: &Path) -> bool {
+fn smoke_referenced(root: &Path, changes: &[Leftover]) -> bool {
+    fn walk(root: &Path, dir: &Path, helper: &Path, changes: &[Leftover]) -> bool {
         let Ok(entries)=std::fs::read_dir(dir) else { return true; };
         for entry in entries {
             let Ok(entry)=entry else {return true;};
             let Ok(kind)=entry.file_type() else {return true;};
             let path=entry.path();
-            if kind.is_symlink() {continue;}
+            if kind.is_symlink() {
+                if matches!(entry.file_name().to_str(),Some("node_modules"|".git"|".snapback4"|".expo"|"target"|"dist"|"build"|"generated")) {continue;}
+                return true; // Unknown source may refer back to the local helper.
+            }
             if kind.is_dir() {
-                if !matches!(entry.file_name().to_str(),Some("node_modules"|".git"|".snapback4"|".expo"|"target"|"dist"|"build"|"generated")) && walk(&path,helper) {return true;}
+                if !matches!(entry.file_name().to_str(),Some("node_modules"|".git"|".snapback4"|".expo"|"target"|"dist"|"build"|"generated")) && walk(root,&path,helper,changes) {return true;}
             } else if path!=helper && !path.to_string_lossy().ends_with(".d.ts")
                 && path.extension().and_then(|e|e.to_str()).is_some_and(|e|matches!(e,"ts"|"tsx"|"js"|"jsx"|"mjs"|"cjs")) {
-                if std::fs::read_to_string(path).map_or(true,|text|text.contains("native-smoke")) {return true;}
+                let relative = path.strip_prefix(root).unwrap().to_string_lossy();
+                let text = if let Some(change) = changes.iter().find(|f| f.path == relative) {
+                    let Some(text) = &change.rewrite else { continue; }; Some(text.clone())
+                } else { std::fs::read_to_string(path).ok() };
+                if text.is_none_or(|text| {
+                    let text = text.replace("snapback4-expo/native-smoke", "");
+                    if text.contains("/native-smoke") { return true; }
+                    let compact: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+                    if ["from\"native-smoke\"", "from'native-smoke'", "import\"native-smoke\"", "import'native-smoke'"].iter().any(|s| compact.contains(*s)) { return true; }
+                    // A CLI mode named native-smoke is not a module reference.
+                    // Unknown dynamic imports/requires keep the local helper.
+                    ["import(", "require("].iter().any(|call| compact.match_indices(*call).any(|(at, _)| {
+                        let argument = &compact[at + call.len()..];
+                        !argument.starts_with(['\'', '"']) || argument.starts_with("'native-smoke'") || argument.starts_with("\"native-smoke\"")
+                    }))
+                }) {return true;}
             }
         }
         false
     }
-    walk(root,&root.join("src/native-smoke.ts"))
+    walk(root,root,&root.join("src/native-smoke.ts"),changes)
 }
 
 /// The starter README, while it is still one init wrote (for either screen,
@@ -221,8 +241,8 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let client_shape = normalized(&client);
     let matches_client = |reference: &str, personas: bool| [reference, starter::previous_client(platform, personas)].iter().any(|reference|
         client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)) || client_shape == normalized(&starter::online_web_client((*reference).to_owned())) || client_shape == normalized(&starter::expo_client((*reference).to_owned(), &journal_shape)));
-    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [0, 1, 2].into_iter().find_map(|version| {
-        let screens = |personas: Option<&[String]>, password| match version { 1 => starter::previous_screens(platform, personas, &body, password), 2 => starter::wave14_screens(platform, personas, &body, password), _ => starter::identity_screens(platform, personas, &body, password) };
+    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [0, 1, 2, 3].into_iter().find_map(|version| {
+        let screens = |personas: Option<&[String]>, password| match version { 1 => starter::previous_screens(platform, personas, &body, password), 2 => starter::wave14_screens(platform, personas, &body, password), 3 => starter::wave20_screens(platform, personas, &body, password), _ => starter::identity_screens(platform, personas, &body, password) };
         let (guest_app, guest_client) = screens(None, false);
         let (persona_app, persona_client) = screens(Some(&[]), false);
         let (password_app, password_client) = screens(None, true);

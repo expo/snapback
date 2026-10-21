@@ -15,7 +15,12 @@
       "default": "./src/witness.ts"
     },
     "./plugin": "./plugin.cjs",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./metro": "./metro.cjs",
+    "./native-smoke": {
+      "types": "./src/native-smoke.ts",
+      "default": "./src/native-smoke.ts"
+    }
   },
   "files": [
     "plugin.cjs",
@@ -23,7 +28,9 @@
     "ios",
     "expo-module.config.json",
     "README.md",
-    "export-ios.mjs"
+    "export-ios.mjs",
+    "metro.cjs",
+    "metro-wasm-transformer.cjs"
   ],
   "peerDependencies": {
     "expo": ">=57.0.22 <58",

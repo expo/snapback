@@ -19,7 +19,7 @@ export type { AssetStage, AssetWaiting } from "./asset-progress.ts";
 // Read hooks return the client card vocabulary; inspection is an opt-in diagnostic.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import type { ObserveOptions, Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, MutateOptions, Observed, PendingWrite, Principal, Query, Read, Refusal, ResultOf, Write } from "./contract.ts";
+import type { ObserveOptions, Act, Action, ActOptions, AssetRead, Client, Cursor, Link, Ephemeral, Signal, Mutation, MutateOptions, Observed, PendingWrite, Principal, Query, Read, Ready, Refusal, ResultOf, Write } from "./contract.ts";
 import type { Session } from "./auth.ts";
 import type { App, AppAuth, AuthSnapshot, Online } from "./app.ts";
 import { acquisition, type Acquisition } from "./acquisition.ts";
@@ -198,6 +198,28 @@ export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ReadHookOptio
 // @ref LLP 3000.013.002#2 — refusals must not look like an endless loading state.
 export class QueryRefusal extends Error {
   constructor(readonly why: Refusal) { super(why.message); this.name = "QueryRefusal"; }
+}
+
+/** Render a list read or page in one expression. Empty describes returned
+ * rows, including partial/stale answers; it never proves absence. This owns
+ * no observation and does not retain a previous read. Native callers supply
+ * Text/View elements in the same slots. A missing denied renderer throws the
+ * original typed QueryRefusal for an error boundary. */
+// @ref LLP 3000.000.000.001#10-wave-20-loop-repairs-dx5 — presentation preserves precise read evidence.
+export function ReadState<R extends readonly unknown[]>({ read: source, loading = null, empty = null, denied, children }: {
+  read: Read<R> | { read: Read<R> };
+  loading?: ReactNode;
+  empty?: ReactNode;
+  denied?: (why: Refusal) => ReactNode;
+  children: (items: R, read: Ready<R>) => ReactNode;
+}): ReactNode {
+  const read = "read" in source ? source.read : source;
+  if ("denied" in read) {
+    if (denied) return denied(read.denied);
+    throw new QueryRefusal(read.denied);
+  }
+  if (!("data" in read)) return loading;
+  return read.data.length === 0 ? empty : children(read.data, read);
 }
 
 /** Authorized data as it arrives, undefined while loading. Null and empty

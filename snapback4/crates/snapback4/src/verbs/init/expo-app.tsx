@@ -1,4 +1,4 @@
-import { useNativeSmokeGuest } from "./src/native-smoke";
+import { useNativeSmoke } from "snapback4-expo/native-smoke";
 import { useState } from "react";
 import { Button, SafeAreaView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
@@ -13,7 +13,7 @@ export function App() {
   </SafeAreaView></AppProvider>;
 }
 function Account() {
-  useNativeSmokeGuest();
+  useNativeSmoke();
   const auth = useAuth();
   const ready = useAppReady();
   const [problem, setProblem] = useState("");

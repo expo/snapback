@@ -40,7 +40,7 @@ SIGN_IN
   `usePage(api.list, args)` (a query that takes `c: cursor ?`), write with
   `useMutation(api.op)` (`npx snapback4 guide client`).
 - `expo-env.d.ts`: Expo's types, including `process.env.EXPO_PUBLIC_*`.
-- `metro.config.js` and `metro-wasm-transformer.cjs`: keep both; Metro then
+- `metro.config.js`: calls `snapback4-expo/metro`; the package then
   ships the web device's wasm and skips the local `.snapback4/` store.
 
 TOOLCHAIN

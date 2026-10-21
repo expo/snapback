@@ -133,7 +133,7 @@ fn historical_readmes_without_the_exact_proof_appendix_still_adapt() {
         let plan = ok(dir.run(&["init", "--adapt", "--dry-run"]));
         assert!(plan.contains("README.md") && !plan.contains("modified files"), "{plan}");
         ok(dir.run(&["init", "--adapt", "--apply"]));
-        let adapted = dir.text("README.md"); assert!(adapted.contains("Home") && !adapted.contains("frontend:proof"));
+        let adapted = dir.text("README.md"); assert!(adapted.contains("Home") && adapted.contains("frontend:proof"));
         fs::write(dir.0.join("README.md"), format!("{adapted}\nMy notes.\n")).unwrap();
         ok(dir.run(&["init", "--adapt", "--apply"])); assert!(dir.text("README.md").ends_with("My notes.\n"));
     }

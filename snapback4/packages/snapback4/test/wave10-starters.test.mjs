@@ -1,7 +1,7 @@
 import { stopChild, startDev, startServe } from "../dist/proof.js";
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, symlinkSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, symlinkSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,24 +58,17 @@ for (const identity of ['use identity password', 'use identity guests', 'use per
   const client = readFileSync(join(dir, 'src/client.ts'), 'utf8'), readme = readFileSync(join(dir, 'README.md'), 'utf8');
   assert.ok(!client.includes('webDevice') && !readme.includes('web uses the wasm'));
   assert.match(readme, /principal write journal/); assert.match(client, /principal write journal/);
-  const screen = readFileSync(join(dir, 'App.tsx'), 'utf8'), smoke = readFileSync(join(dir, 'src/native-smoke.ts'), 'utf8');
-  if (identity.includes('password')) {
-    assert.match(screen, /useNativeSmokeGuest\(\)/); assert.match(smoke, /auth\.signup/); assert.ok(!smoke.includes('auth.guest'));
-    const source = smoke.replace(/^import .*;\n/gm, '').replace('export function', 'function').replace(': string', '');
-    for (const segment of [null, 'prime', 'offline', 'restart']) {
-      const calls = [], ref = { current: false };
-      const context = vm.createContext({ useAuth: () => ({ state: 'signed-out', signup: (...args) => calls.push(args) }), useEffect: fn => fn(), useRef: () => ref, smokeSegment: () => segment, smokeAccount: () => ({ email: 'proof@example.test', password: 'test-only-password' }) });
-      vm.runInContext(source, context); vm.runInContext('useNativeSmokeGuest(); useNativeSmokeGuest()', context);
-      assert.equal(calls.length, segment === 'prime' ? 1 : 0);
-    }
-  } else if (identity.includes('personas')) assert.match(screen, /smokeSegment\(\) \? personas\[0\]/);
-  else assert.match(smoke, /auth\.guest/);
+  const screen = readFileSync(join(dir, 'App.tsx'), 'utf8');
+  assert.equal(existsSync(join(dir, 'src/native-smoke.ts')), false);
+  if (identity.includes('password')) assert.match(screen, /useNativeSmoke\(true\)/);
+  else if (identity.includes('personas')) assert.match(screen, /smokeSegment\(\) \? personas\[0\]/);
+  else assert.match(screen, /useNativeSmoke\(\)/);
 });
 
 test('adapting a guest starter to password changes the untouched smoke helper too', t => {
   const dir = project(t); success(invoke(['init', '--expo'], dir));
   const schema = join(dir, 'snapback/schema.q'); writeFileSync(schema, readFileSync(schema, 'utf8').replace('use identity ', 'use identity password '));
-  success(invoke(['init', '--adapt', '--apply'], dir)); assert.match(readFileSync(join(dir, 'src/native-smoke.ts'), 'utf8'), /auth\.signup/);
+  success(invoke(['init', '--adapt', '--apply'], dir)); assert.match(readFileSync(join(dir, 'App.tsx'), 'utf8'), /useNativeSmoke\(true\)/); assert.equal(existsSync(join(dir, 'src/native-smoke.ts')), false);
 });
 
 test('the published stopChild accepts handles and validates unknown shapes; serve launcher closes a real release', async t => {

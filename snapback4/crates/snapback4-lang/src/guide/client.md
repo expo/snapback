@@ -1,6 +1,6 @@
 # Client: answers stay on screen
 
-**Start here:** `useQueryData`/`useQueryResult` ([short screens](CLIENT-AND-OPERATIONS.md#short-screens)); metadata: `useQuery`/`usePage`; `useFollowing` (`guide feeds`).
+**Start here:** `useQueryData`/`useQueryResult` ([short screens](CLIENT-AND-OPERATIONS.md#short-screens)); metadata: `useQuery`/`usePage`; `useFollowing` (`guide feeds`); lists: `ReadState`.
 
 ```tsx
 import { matchRead, readPresentation, usePage } from "snapback4/react";

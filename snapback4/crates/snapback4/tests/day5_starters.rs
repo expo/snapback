@@ -65,13 +65,14 @@ fn custom_schema_starters_have_no_todo_proof_or_leftovers_after_adaptation() {
         let app=App::new();
         if first {app.ok(&["init",mode]);}
         app.write("snapback/schema.q",schema);
-        if first {let preview=app.ok(&["init","--adapt"]);assert!(preview.contains("remove scripts/frontend-proof.mjs"),"{preview}");app.ok(&["init","--adapt","--apply"]);} else {app.ok(&["init",mode]);}
-        assert!(!app.0.join("scripts/frontend-proof.mjs").exists());
+        if first {let preview=app.ok(&["init","--adapt"]);assert!(preview.contains("rewrite scripts/frontend-proof.mjs"),"{preview}");app.ok(&["init","--adapt","--apply"]);} else {app.ok(&["init",mode]);}
+        assert!(app.0.join("scripts/frontend-proof.mjs").exists());
+        assert!(app.read("scripts/frontend-proof.mjs").contains("E_FRONTEND_SCENARIO"));
         assert!(!app.0.join("fixtures/todos.jsonl").exists());
         assert!(!app.0.join("fixtures/test.cases.jsonl").exists());
-        let readme=app.read("README.md");assert!(!readme.contains("# Todos") && !readme.contains("npm run frontend:proof"),"{readme}");
+        let readme=app.read("README.md");assert!(!readme.contains("# Todos") && readme.contains("npm run frontend:proof"),"{readme}");
         let pkg:serde_json::Value=serde_json::from_str(&app.read("package.json")).unwrap();
-        assert!(pkg["scripts"].as_object().unwrap().values().all(|v|v!="node scripts/frontend-proof.mjs"));
+        assert_eq!(pkg["scripts"]["frontend:proof"], "node scripts/frontend-proof.mjs");
         app.ok(&["check"]);
     }}
 }
@@ -99,6 +100,7 @@ fn legacy_comparison_covers_non_schema_and_multi_module_snapshots() {
 #[test]
 fn recognized_older_native_helper_keeps_age_advice_across_a_sign_in_switch() {
     let app=App::new();app.ok(&["init","--expo"]);
+    app.write("src/custom-smoke.ts","import './native-smoke';\n");
     app.write("snapback/schema.q",&app.read("snapback/schema.q").replace("use identity","use identity password"));
     app.write("src/native-smoke.ts",include_str!("../src/verbs/init/starter/previous/wave14/native-smoke.ts"));
     for command in [&["check"][..],&["init","--adapt"][..]] {
@@ -109,4 +111,35 @@ fn recognized_older_native_helper_keeps_age_advice_across_a_sign_in_switch() {
     app.ok(&["init","--adapt","--apply"]);
     assert!(app.read("src/native-smoke.ts").contains("smokeAccount"));
     assert!(!app.ok(&["check"]).contains("src/native-smoke.ts:"));
+}
+
+#[test]
+fn old_metro_readme_is_still_owned_but_custom_readme_is_preserved() {
+    for edited in [false, true] {
+        let app=App::new();app.ok(&["init","--expo"]);
+        let old=app.read("README.md").replace("`metro.config.js`: calls `snapback4-expo/metro`; the package then", "`metro.config.js` and `metro-wasm-transformer.cjs`: keep both; Metro then");
+        let old=if edited { format!("{old}\nApp-owned prose\n") } else { old };
+        app.write("README.md",&old);
+        app.write("snapback/schema.q","use identity password\nquery alive():\n  return true\n");
+        app.ok(&["init","--adapt","--apply"]);
+        if edited {assert_eq!(app.read("README.md"),old);}
+        else {let readme=app.read("README.md");assert!(readme.contains("`Home`") && readme.contains("snapback4-expo/metro") && !readme.contains("keep both"),"{readme}");}
+    }
+}
+
+#[test]
+fn adapting_legacy_smoke_imports_removes_only_an_unused_unmodified_helper() {
+    for custody in ["unused", "custom-reference", "edited-helper"] {
+        let app=App::new();app.ok(&["init","--expo"]);
+        let old=app.read("App.tsx").replace("useNativeSmoke", "useNativeSmokeGuest").replace("snapback4-expo/native-smoke", "./src/native-smoke");
+        app.write("App.tsx",&old);
+        let helper=include_str!("../src/verbs/init/native-smoke.ts");
+        let helper=if custody=="edited-helper" {format!("{helper}\n// app-owned\n")} else {helper.into()};
+        app.write("src/native-smoke.ts",&helper);
+        if custody=="custom-reference" {app.write("src/custom.ts","import './native-smoke';\n");}
+        app.ok(&["init","--adapt","--apply"]);
+        assert!(app.read("App.tsx").contains("snapback4-expo/native-smoke"));
+        assert_eq!(app.0.join("src/native-smoke.ts").exists(),custody!="unused");
+        if custody!="unused" {assert_eq!(app.read("src/native-smoke.ts"),helper);}
+    }
 }
