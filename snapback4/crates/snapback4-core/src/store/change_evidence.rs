@@ -2,7 +2,7 @@
 // @ref LLP 3000.023#12 — incomplete evidence certifies nothing.
 use super::{Store, Tx};
 use crate::{
-    Schema,
+    Schema, RuntimeError,
     revocation::{self, ChangeEvidence, EvidenceRecord, Footprint},
 };
 use rusqlite::{Connection, params};
@@ -35,8 +35,8 @@ impl ChangeEvidence for Store {
         after: u64,
         through: u64,
         visit: impl FnMut(EvidenceRecord) -> Option<()>,
-    ) -> Option<()> {
-        read(self.conn(), after, through, visit)
+    ) -> Result<Option<()>, RuntimeError> {
+        Ok(read(self.conn(), after, through, visit))
     }
 }
 impl ChangeEvidence for Tx<'_> {
@@ -45,8 +45,8 @@ impl ChangeEvidence for Tx<'_> {
         after: u64,
         through: u64,
         visit: impl FnMut(EvidenceRecord) -> Option<()>,
-    ) -> Option<()> {
-        read(self.conn(), after, through, visit)
+    ) -> Result<Option<()>, RuntimeError> {
+        Ok(read(self.conn(), after, through, visit))
     }
 }
 

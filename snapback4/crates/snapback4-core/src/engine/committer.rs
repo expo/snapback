@@ -1,8 +1,6 @@
 //! Reference committer: a physical transaction with one savepoint-scoped member.
-use crate::{RuntimeError, store_port::{AnyTx, WriteStore}};
+use crate::{RuntimeError, store_port::{AnyTx, AnyStore}};
 use std::cell::Cell;
-#[cfg(test)]
-use crate::store_port::AnyStore;
 
 mod member_store;
 
@@ -173,17 +171,23 @@ pub(crate) struct Resolution<T, D = ()> {
 pub(crate) struct Committer;
 impl Committer {
     pub(crate) fn run<T>(
-        store: &mut impl WriteStore,
+        store: &mut AnyStore,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
     ) -> Result<T, RuntimeError> {
         Self::run_pending(store, member.pending(Pending::value)).map(|r| r.pending.value)
     }
 
     pub(crate) fn run_pending<T, D>(
-        store: &mut impl WriteStore,
+        store: &mut AnyStore,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<Pending<T, D>>>,
     ) -> Result<Resolution<T, D>, RuntimeError> {
-        let tx = store.write_transaction()?;
+        Self::run_transaction(store.transaction()?, member)
+    }
+
+    pub(crate) fn run_transaction<T, D>(
+        tx: AnyTx<'_>,
+        member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<Pending<T, D>>>,
+    ) -> Result<Resolution<T, D>, RuntimeError> {
         let disposition = Self::execute(&tx, member)?;
         let committed = disposition.end == Frame::Complete;
         if committed {
@@ -195,6 +199,13 @@ impl Committer {
             committed,
             pending: disposition.value,
         })
+    }
+
+    pub(crate) fn run_transaction_value<T>(
+        tx: AnyTx<'_>,
+        member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
+    ) -> Result<T, RuntimeError> {
+        Self::run_transaction(tx, member.pending(Pending::value)).map(|r| r.pending.value)
     }
 
     /// Host context is borrowed separately for the body and its continuation;
@@ -279,7 +290,7 @@ impl Committer {
         >,
         mut continuation: impl FnMut(&mut AnyStore, D, T) -> Result<T, RuntimeError>,
     ) -> Result<Vec<Result<T, RuntimeError>>, RuntimeError> {
-        let tx = store.write_transaction()?;
+        let tx = store.transaction()?;
         let mut resolutions = Vec::new();
         for member in members {
             let disposition = Self::execute(&tx, member)?;

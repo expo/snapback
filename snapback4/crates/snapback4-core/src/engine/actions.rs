@@ -1,10 +1,11 @@
 //! Request/response I/O outside the data plane. Durable admission is at most
 //! once; a handler's delivery is at least once, under a fenced viewer lease.
+use crate::rows::Rows;
 use super::{Context, Engine, effects::MAX_LEASE_MS, validate};
 use crate::{RuntimeError, authority::{self, AuthorityTransaction}, identity, ir::{BinaryOp, Expr, Input, Program, ProgramKind, Stmt, UnaryOp}, store_port::AnyTx, value::Value};
 use crate::schema::{ActionSpec, Schema};
 pub(crate) mod requests;
-use requests::{NewRequest, RequestSettlement, RequestsStore, RequestsTransaction, diagnostic_text, validate_text};
+use requests::{NewRequest, RequestSettlement, RequestsTransaction, diagnostic_text, validate_text};
 use serde_json::Value as Json;
 use std::collections::BTreeMap;
 

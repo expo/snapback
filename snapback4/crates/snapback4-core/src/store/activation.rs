@@ -94,7 +94,7 @@ impl Store {
     }
 
     pub(super) fn activate_transaction(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
-        self.activate_transaction_with(schema, programs, reset, now, allow_launch, |_| Ok(()), |tx, changed, report| build(tx, changed, report), |_| Ok(())).map(|committed| committed.into_inner().0)
+        self.activate_transaction_with(schema, programs, reset, now, allow_launch, |_| Ok(()), |tx, changed, report| { let crate::store_port::AnyTx::Sqlite(tx) = tx; build(tx, changed, report) }, |_| Ok(())).map(|committed| committed.into_inner().0)
     }
 
     fn activate_transaction_with<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl FnOnce(&super::release::ReleaseCheck<'_>) -> Result<(), RuntimeError>, build: impl FnOnce(&crate::store_port::AnyTx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl FnOnce(&crate::store_port::AnyTx<'_>) -> Result<R, RuntimeError>,
@@ -206,70 +206,71 @@ impl Store {
             let tx = crate::store_port::AnyTx::Sqlite(Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
                 server: store.server,
                 catalog: &catalog });
+            let crate::store_port::AnyTx::Sqlite(sqlite_tx) = &tx;
             let now = if schema.tables.values().any(|table| table.not_before.is_some()) {
-                tx.pin_time_audience_clock(now)?
+                sqlite_tx.pin_time_audience_clock(now)?
             } else {
                 now
             };
             // @ref LLP 3000.013#12.1 — occupancy belongs to successful activation,
             // never opening a legacy store that may subsequently refuse adoption.
-            let cap_counts = crate::rows::caps::required(schema) || tx.meta("cap_counts_schema")?.is_some();
+            let cap_counts = crate::rows::caps::required(schema) || sqlite_tx.meta("cap_counts_schema")?.is_some();
             if cap_counts {
-                tx.conn().execute_batch("CREATE TABLE IF NOT EXISTS _cap_counts (t INTEGER NOT NULL, k BLOB NOT NULL, n INTEGER NOT NULL CHECK(n >= 0), PRIMARY KEY(t, k)) WITHOUT ROWID;")?;
-                if reset { tx.conn().execute_batch("DELETE FROM _cap_counts;")?; }
+                sqlite_tx.conn().execute_batch("CREATE TABLE IF NOT EXISTS _cap_counts (t INTEGER NOT NULL, k BLOB NOT NULL, n INTEGER NOT NULL CHECK(n >= 0), PRIMARY KEY(t, k)) WITHOUT ROWID;")?;
+                if reset { sqlite_tx.conn().execute_batch("DELETE FROM _cap_counts;")?; }
             }
             if schema.tables.values().any(|t| !t.sequences.is_empty()) {
-                tx.ensure_sequence_table()?;
+                sqlite_tx.ensure_sequence_table()?;
             }
             if reset {
-                tx.conn().execute_batch("DELETE FROM r; DELETE FROM i;")?;
-                if tx.has_sequence_table()? { tx.conn().execute_batch("DELETE FROM _sequences;")?; }
+                sqlite_tx.conn().execute_batch("DELETE FROM r; DELETE FROM i;")?;
+                if sqlite_tx.has_sequence_table()? { sqlite_tx.conn().execute_batch("DELETE FROM _sequences;")?; }
             }
-            super::live_activation::clear_stale(&tx)?;
+            super::live_activation::clear_stale(sqlite_tx)?;
             let mut retained_through=BTreeSet::new();
-            let release_activation=programs.is_some() && tx.meta("activation_restore")?.is_some();
+            let release_activation=programs.is_some() && sqlite_tx.meta("activation_restore")?.is_some();
             if (schema_changed || release_activation) && programs.is_some() && !reset {
-                let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')", [], |r|r.get(0)).optional()?;
+                let previous: Option<String> = sqlite_tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')", [], |r|r.get(0)).optional()?;
                 let previous: Option<Schema> = previous.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
-                let restore=tx.meta("activation_restore")?.as_deref()!=Some("false");
-                retained_through=super::dormant::transition(&tx,schema,previous.as_ref(),restore,now,&mut report)?;
+                let restore=sqlite_tx.meta("activation_restore")?.as_deref()!=Some("false");
+                retained_through=super::dormant::transition(sqlite_tx,schema,previous.as_ref(),restore,now,&mut report)?;
             }
-            let population_changed=tx.meta("activation_population")?.as_deref()==Some("true");
+            let population_changed=sqlite_tx.meta("activation_population")?.as_deref()==Some("true");
             changed |= population_changed;
             let rebuilding=schema_changed || population_changed;
             if rebuilding && programs.is_some() && !reset {
                 let started = std::time::Instant::now();
-                let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
+                let previous: Option<String> = sqlite_tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
                 let previous: Option<Schema> = previous.map(|s| {
                         serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e,RuntimeError::Store))
                     }).transpose()?;
                 let shortened = crate::engine::through_activation::activate_retained(&tx,schema,previous.as_ref(),now,&retained_through)?;
-                tx.set_meta("read_through_shortened",&canonical_json(&shortened))?;
+                sqlite_tx.set_meta("read_through_shortened",&canonical_json(&shortened))?;
                 report.detail("read-through retirement", started);
             }
             if programs.is_some() { crate::engine::timeline::check_activation(&tx, schema)?; }
             if rebuilding && programs.is_some() {
                 let started = std::time::Instant::now();
-                super::timeline_launch::build(&tx, schema, &launches, now)?;
+                super::timeline_launch::build(sqlite_tx, schema, &launches, now)?;
                 report.detail("feed launch", started);
                 let started = std::time::Instant::now();
-                super::event_slots::fill(&tx, schema, now)?;
+                super::event_slots::fill(sqlite_tx, schema, now)?;
                 report.detail("event slot fill", started);
                 let started = std::time::Instant::now();
-                if super::dormant::enabled(&tx)? {
-                    let old:Option<String>=tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')",[],|r|r.get(0)).optional()?;
+                if super::dormant::enabled(sqlite_tx)? {
+                    let old:Option<String>=sqlite_tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')",[],|r|r.get(0)).optional()?;
                     let old:Option<Schema>=old.map(|s| {
                             serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))
                         }).transpose()?;
-                    super::adopt_refusals::candidate(&tx,schema,if tx.meta("activation_population")?.as_deref()==Some("true"){None}else{old.as_ref()},false)?;
+                    super::adopt_refusals::candidate(sqlite_tx,schema,if sqlite_tx.meta("activation_population")?.as_deref()==Some("true"){None}else{old.as_ref()},false)?;
                 }
-                if let Some(step) = super::successor::assess(&tx, schema)?.iter().find(|s| s.change == crate::successor::Change::Narrowing) {
+                if let Some(step) = super::successor::assess(sqlite_tx, schema)?.iter().find(|s| s.change == crate::successor::Change::Narrowing) {
                     return Err(step.refusal(schema));
                 }
                 report.detail("successor assessment", started);
             }
             let previous: Option<Schema> = if rebuilding && programs.is_some() && !reset {
-                tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |r| r.get::<_, String>(0)).optional()?
+                sqlite_tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |r| r.get::<_, String>(0)).optional()?
                     .map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?
             } else { None };
             #[cfg(test)]
@@ -287,7 +288,7 @@ impl Store {
                     }).collect();
                     if fills.is_empty() || schema.maintain_for(name).is_some() || table.ephemeral.is_some() { continue; }
                     let mut counts = vec![0u64; fills.len()];
-                    walk(&tx, catalog[name], |_, row| {
+                    walk(sqlite_tx, catalog[name], |_, row| {
                         for (i,(column,_)) in fills.iter().enumerate() { if row.field(column).is_err() { counts[i] += 1; } }
                         Ok(())
                     })?;
@@ -323,15 +324,15 @@ impl Store {
                 #[cfg(test)]
                 let ordered = ordered && !store.full_adoption;
                 if ordered {
-                    super::activation_index::create(&tx)?;
+                    super::activation_index::create(sqlite_tx)?;
                 }
                 // Removed names retain only their catalog number, never live row
                 // images. Reintroducing a name starts empty, without resurrection.
                 let active = super::activation_plan::active_names(schema);
                 for (name, num) in &catalog {
                     if !active.contains(name) {
-                        tx.conn().execute("DELETE FROM r WHERE t = ?1", [num])?;
-                        tx.conn().execute("DELETE FROM i WHERE ti = ?1", [num])?;
+                        sqlite_tx.conn().execute("DELETE FROM r WHERE t = ?1", [num])?;
+                        sqlite_tx.conn().execute("DELETE FROM i WHERE ti = ?1", [num])?;
                     }
                 }
                 for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
@@ -348,10 +349,10 @@ impl Store {
                     }) { continue; }
                     if !plan.project && plan.indexes.is_empty() { continue; }
                     let started = std::time::Instant::now();
-                    for index in &plan.indexes { tx.conn().execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
+                    for index in &plan.indexes { sqlite_tx.conn().execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
                     let work = crate::rows::adoption::Work::table(table);
                     let scratch = |row: &Value| crate::rows::adoption::contribution_bytes(row, table);
-                    walk_metered(&tx, t, work, if work.index_entries != 0 { Some(&scratch) } else { None }, |id, mut row, contribution_meter| {
+                    walk_metered(sqlite_tx, t, work, if work.index_entries != 0 { Some(&scratch) } else { None }, |id, mut row, contribution_meter| {
                         let keep = |column: &str| {
                                 table.columns.contains_key(column) || (programs.is_none() && column == "pending")
                             };
@@ -360,7 +361,7 @@ impl Store {
                         // optionals are an interpretation of the stored image.
                         if project {
                             if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.retain(|column, _| keep(column)); }
-                            tx.conn().execute("UPDATE r SET data = ?1 WHERE t = ?2 AND id = ?3", params![canonical_json(&row), t, id])?;
+                            sqlite_tx.conn().execute("UPDATE r SET data = ?1 WHERE t = ?2 AND id = ?3", params![canonical_json(&row), t, id])?;
                         }
                         materialize_optional_fields(&mut row, table);
                         // A device's prediction mark is metadata, retained in
@@ -383,7 +384,7 @@ impl Store {
                                     return Err(crate::rows::index_key_refusal(name, index_name, 1));
                                 }
                                 if contribution.is_some() { contribution_meter.charge(crate::error::MeterKind::IndexEntries, 1)?; }
-                                super::activation_index::insert(&tx, ordered, catalog[&format!("{name}.{index_name}")], &key, id)?;
+                                super::activation_index::insert(sqlite_tx, ordered, catalog[&format!("{name}.{index_name}")], &key, id)?;
                             }
                             contribution_meter.release_heap(scratch);
                         }
@@ -394,32 +395,32 @@ impl Store {
                 }
                 if ordered {
                     let started = std::time::Instant::now();
-                    tx.conn().execute_batch("INSERT INTO main.i(ti, k, id) SELECT ti, k, id FROM temp._adoption_index ORDER BY ti, k; DROP TABLE temp._adoption_index;")?;
+                    sqlite_tx.conn().execute_batch("INSERT INTO main.i(ti, k, id) SELECT ti, k, id FROM temp._adoption_index ORDER BY ti, k; DROP TABLE temp._adoption_index;")?;
                     report.detail("ordered index insertion", started);
                 }
             }
             report.phase("project and index", &mut phase);
             // Upgrade old stores and rebuild only when the schema changes. Counts
             // participate in the same activation transaction as rows and indexes.
-            if cap_counts && (population_changed || tx.meta("cap_counts_schema")?.as_deref() != Some(&schema_hash)) {
-                tx.conn().execute_batch("DELETE FROM _cap_counts;")?;
+            if cap_counts && (population_changed || sqlite_tx.meta("cap_counts_schema")?.as_deref() != Some(&schema_hash)) {
+                sqlite_tx.conn().execute_batch("DELETE FROM _cap_counts;")?;
                 for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                     if table.is_expiring() && table.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })) {
-                        walk(&tx, catalog[name], |_, row| {
-                            tx.update_cap_counts(name, table, None, Some(&row)).map(|_| ())
+                        walk(sqlite_tx, catalog[name], |_, row| {
+                            sqlite_tx.update_cap_counts(name, table, None, Some(&row)).map(|_| ())
                         })?;
                     }
                 }
-                tx.set_meta("cap_counts_schema", &schema_hash)?;
+                sqlite_tx.set_meta("cap_counts_schema", &schema_hash)?;
             }
             report.phase("cap counts", &mut phase);
             build(&tx, changed, &mut report)?;
-            if rebuilding || reset || tx.meta(super::time_audience::PUBLICATION_STATE_KEY)?.as_deref() != Some("1") {
-                tx.rebuild_time_audiences(schema, now)?;
+            if rebuilding || reset || sqlite_tx.meta(super::time_audience::PUBLICATION_STATE_KEY)?.as_deref() != Some("1") {
+                sqlite_tx.rebuild_time_audiences(schema, now)?;
             }
             report.phase("derived rebuild", &mut phase);
-            if rebuilding && programs.is_some() && super::dormant::enabled(&tx)? {
-                super::adopt_refusals::candidate(&tx,schema,if population_changed{None}else{previous.as_ref()},true)?;
+            if rebuilding && programs.is_some() && super::dormant::enabled(sqlite_tx)? {
+                super::adopt_refusals::candidate(sqlite_tx,schema,if population_changed{None}else{previous.as_ref()},true)?;
             }
             if rebuilding {
                 for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
@@ -429,18 +430,18 @@ impl Store {
                         previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m))
                     });
                     if plan.project || rebuilt {
-                    walk(&tx, catalog[name], |_, mut row| {
+                    walk(sqlite_tx, catalog[name], |_, mut row| {
                         materialize_optional_fields(&mut row, table);
                         if programs.is_none() { if let Value::Row(fields) = &mut row { fields.remove("pending"); } }
                         crate::engine::validate::validate_maintained_cache(schema, name, &row)?;
-                        for (column, kind) in &table.columns { validate_assets(&tx, kind, row.field(column).ok())?; }
+                        for (column, kind) in &table.columns { validate_assets(sqlite_tx, kind, row.field(column).ok())?; }
                         Ok(())
                     })?;
                     }
                     for (index_name, index) in table.indexes.iter().filter(|(name, i)| {
                         i.unique && (plan.project || rebuilt || plan.indexes.contains(*name))
                     }) {
-                        validate_groups(&tx, name, index_name, index.components.len(), 1, true)?;
+                        validate_groups(sqlite_tx, name, index_name, index.components.len(), 1, true)?;
                     }
                     // @ref LLP 3000.039#2.2 — a `set null` cap skips its null group; adding or removing that exemption re-validates the cap.
                     let exemption_changed = previous.as_ref().is_some_and(|old| old.tables.get(name).is_some_and(|old| old.constraints.iter().any(|c|
@@ -450,7 +451,7 @@ impl Store {
                             let (index_name, _) = table.indexes.iter().find(|(_, i)| i.is_plain() && i.columns().starts_with(by)).ok_or_else(|| {
                                     RuntimeError::Schema(format!("{name} cap has no matching index"))
                                 })?;
-                            validate_groups(&tx, name, index_name, by.len(), u64::from(*max), table.cap_exempts_null(by))?;
+                            validate_groups(sqlite_tx, name, index_name, by.len(), u64::from(*max), table.cap_exempts_null(by))?;
                         }
                     }
                 }
@@ -459,26 +460,26 @@ impl Store {
             if rebuilding {
                 // A removed asset home is retired in the same transaction as its
                 // projection. The ordinary collector removes bytes after commit.
-                let homes: Vec<(String, String)> = tx.conn().prepare("SELECT DISTINCT home_table, home_column FROM _assets WHERE home_table IS NOT NULL AND released_at IS NULL")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
+                let homes: Vec<(String, String)> = sqlite_tx.conn().prepare("SELECT DISTINCT home_table, home_column FROM _assets WHERE home_table IS NOT NULL AND released_at IS NULL")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
                 for (table, column) in homes {
-                    if schema.table(&table).and_then(|t| t.columns.get(&column)).is_none_or(|kind| !contains_asset_type(kind)) && !super::dormant::holds_home(&tx,&table,&column)? {
-                        tx.conn().execute("UPDATE _assets SET released_at = ?3 WHERE home_table = ?1 AND home_column = ?2 AND released_at IS NULL", params![table, column, crate::now_ms()])?;
+                    if schema.table(&table).and_then(|t| t.columns.get(&column)).is_none_or(|kind| !contains_asset_type(kind)) && !super::dormant::holds_home(sqlite_tx,&table,&column)? {
+                        sqlite_tx.conn().execute("UPDATE _assets SET released_at = ?3 WHERE home_table = ?1 AND home_column = ?2 AND released_at IS NULL", params![table, column, crate::now_ms()])?;
                     }
                 }
             }
-            let previous = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'generation'", [], |row| row.get::<_, String>(0)).optional()?.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
+            let previous = sqlite_tx.conn().query_row("SELECT value FROM _meta WHERE key = 'generation'", [], |row| row.get::<_, String>(0)).optional()?.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
             let generation = if programs.is_some() && changed { crate::activation::next_generation(previous, true)? } else { previous.max(1) };
-            tx.set_meta("schema_hash", &schema_hash)?;
+            sqlite_tx.set_meta("schema_hash", &schema_hash)?;
             if let Some(hash) = &activation_hash {
-                tx.set_meta("index_keys_validated", &format!("{}:{hash}", crate::rows::MAX_INDEX_KEY_BYTES))?;
+                sqlite_tx.set_meta("index_keys_validated", &format!("{}:{hash}", crate::rows::MAX_INDEX_KEY_BYTES))?;
             } else {
-                tx.conn().execute("DELETE FROM _meta WHERE key = 'index_keys_validated'", [])?;
+                sqlite_tx.conn().execute("DELETE FROM _meta WHERE key = 'index_keys_validated'", [])?;
             }
             if let (Some(hash), Some(programs)) = (&activation_hash, programs) {
-                tx.set_meta("activation_hash", hash)?;
-                tx.set_meta("generation", &generation.to_string())?;
+                sqlite_tx.set_meta("activation_hash", hash)?;
+                sqlite_tx.set_meta("generation", &generation.to_string())?;
                 if changed {
-                    tx.conn().execute("INSERT INTO _generations(generation, schema, programs, at) VALUES (?1, ?2, ?3, ?4)", params![i64::try_from(generation).map_err(|_| RuntimeError::Generation("generation overflow".into()))?, canonical_json(schema), canonical_json(programs), crate::now_ms()])?;
+                    sqlite_tx.conn().execute("INSERT INTO _generations(generation, schema, programs, at) VALUES (?1, ?2, ?3, ?4)", params![i64::try_from(generation).map_err(|_| RuntimeError::Generation("generation overflow".into()))?, canonical_json(schema), canonical_json(programs), crate::now_ms()])?;
                 }
                 // Inspection-only metadata shares the successful activation's
                 // transaction, but never its schema bytes, hash or generation.
@@ -486,13 +487,13 @@ impl Store {
                     let record = crate::schema::inspection::Record {
                         generation, schema_hash, indexes: indexes.clone(),
                     };
-                    tx.set_meta(crate::schema::inspection::META_KEY, &canonical_json(&record))?;
+                    sqlite_tx.set_meta(crate::schema::inspection::META_KEY, &canonical_json(&record))?;
                 }
             }
-            let after = identity(tx.conn())?;
-            super::live_activation::finalize(&tx)?;
+            let after = identity(sqlite_tx.conn())?;
+            super::live_activation::finalize(sqlite_tx)?;
             let result = finish(&tx)?;
-            super::live_activation::cleanup(&tx)?;
+            super::live_activation::cleanup(sqlite_tx)?;
             report.phase("metadata", &mut phase);
             let ephemeral_tables: Vec<_> = schema.tables.iter()
                 .filter(|(_, table)| table.ephemeral.is_some())

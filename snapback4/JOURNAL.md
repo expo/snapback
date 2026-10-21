@@ -100573,3 +100573,20 @@ each new store code. The refreshed 350-schema baseline has no refusals; Lean
 20,000 reproduces only the four established signatures (130 disagreements).
 Compact evidence: reports/integration21/step0.json; raw logs remain in the
 owned external integration21 scratch. No publication was performed here.
+### 2026-10-21 — S10b: finish the SQLite-only semantic boundary
+
+Lane `sb4-pg/s10b`, base `1250ea3b3d`, local worktree `sb4-s10a` on
+expo-build-450a. Implements LLP 3000.009.001.000 §3.4 without adding a
+Postgres enum arm. Owning dereferences and `WriteStore` are removed; ledger,
+receipt writes, Following reads, placement lookup, snapshots, opening,
+ownership, inspection, activation, seed/release/time and asset operations
+have explicit semantic homes. Activation retains the same concrete SQLite
+transaction inside its adapter; committer member order, rollback and
+continuations retain their original boundaries. The existing missing-evidence
+correction remains; evidence access can now return a named unavailable-family
+error, which shared certification treats as unknown.
+
+Fixture probes select the SQLite arm explicitly where they inspect physical
+state. They add no raw access to the neutral handles or the member facade.
+The source delta is split into building commits; the following qualification
+entry records final census and test results. No push or stash is authorized.

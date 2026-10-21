@@ -202,11 +202,11 @@ impl Engine {
         outcome.map(|committed| committed.pending((population.get(), release.is_some())))
         }, |store, (population, has_release), value| {
             if let Some((retained,restored))=population.filter(|(a,b)|*a>0 || *b>0) {
-                store.adoption_report.changes.insert(0,format!("{retained} newly dormant {}; {restored} narrowed {} restored", if retained == 1 { "row" } else { "rows" }, if restored == 1 { "row" } else { "rows" }));
+                store.adoption_report_mut().changes.insert(0,format!("{retained} newly dormant {}; {restored} narrowed {} restored", if retained == 1 { "row" } else { "rows" }, if restored == 1 { "row" } else { "rows" }));
             }
 
             if let Ok(items)=store.dormant_inventory(None,usize::MAX) {
-                if has_release { store.adoption_report.changes.insert(0, crate::store_port::report::AdoptionReport::dormant(&items)); }
+                if has_release { store.adoption_report_mut().changes.insert(0, crate::store_port::report::AdoptionReport::dormant(&items)); }
             }
             Ok(value)
         })

@@ -29,8 +29,8 @@ impl DevResetStore for Store {
         prime_schedules: impl FnOnce(&MemberTx<'_, '_>, i64) -> Result<(), RuntimeError>,
         seed: impl FnOnce(&MemberTx<'_, '_>, u64, i64) -> Result<u64, RuntimeError>,
     ) -> Result<Resolution<ResetState>, RuntimeError> {
-        Committer::run_pending(
-            self,
+        Committer::run_transaction(
+            crate::store_port::AnyTx::Sqlite(self.transaction()?),
             Member::new(Kind::Administrative, |tx| {
                 // @ref LLP 3000.000.000.000.000#2-fixture-semantics — a new identity cannot inherit the retired store's future clock.
                 tx.reset_clock()?;

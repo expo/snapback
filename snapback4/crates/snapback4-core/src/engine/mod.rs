@@ -2,6 +2,8 @@
 //! reads under the meter and returns `complete` or `capped`; a mutation
 //! writes under the meter and returns `sent` with its sequence or `failed`
 //! with a refusal, and applies at most once per client-minted id.
+#[cfg(feature = "sqlite")]
+use crate::receipts::ReceiptTransaction;
 
 #[cfg(feature = "sqlite")]
 use crate::rows::Rows;

@@ -5,7 +5,6 @@
 
 use super::{Engine, effects::{self, EffectStep}, steps::{self as step_core, StepClaim, StepOwner, Transition}};
 use crate::{RuntimeError, identity, store_port::AnyTx};
-use crate::store_port::EffectStepTransaction;
 use serde_json::Value as Json;
 
 fn apply<T>(tx: AnyTx<'_>, transition: Result<Transition<T>, RuntimeError>) -> Result<T, RuntimeError> {
@@ -28,7 +27,7 @@ impl Engine {
         let run = effects::strict_run(&tx, id)?;
         if !effects::contract_stands(&tx, &self.schema, &run, sample.now)? { tx.commit()?; return Err(effects::generation_error()); }
         effects::held_strict_claim(&tx, &run, &worker, lease, sample.now)?;
-        let transition = step_core::begin(&mut EffectStepTransaction { tx: &tx }, owner, &prepared, sample.now);
+        let transition = step_core::begin(&mut tx.effect_steps(), owner, &prepared, sample.now);
         apply(tx, transition)
     }
 
@@ -41,7 +40,7 @@ impl Engine {
         let run = effects::strict_run(&tx, id)?;
         if !effects::contract_stands(&tx, &self.schema, &run, sample.now)? { tx.commit()?; return Err(effects::generation_error()); }
         effects::held_strict_claim(&tx, &run, &worker, lease, sample.now)?;
-        let transition = step_core::complete(&mut EffectStepTransaction { tx: &tx }, owner, &prepared, sample.now);
+        let transition = step_core::complete(&mut tx.effect_steps(), owner, &prepared, sample.now);
         apply(tx, transition)
     }
 
@@ -54,7 +53,7 @@ impl Engine {
         let run = effects::strict_run(&tx, id)?;
         if !effects::contract_stands(&tx, &self.schema, &run, sample.now)? { tx.commit()?; return Err(effects::generation_error()); }
         effects::held_strict_claim(&tx, &run, &worker, lease, sample.now)?;
-        let transition = step_core::park(&mut EffectStepTransaction { tx: &tx }, owner, claim, name, error, sample.now);
+        let transition = step_core::park(&mut tx.effect_steps(), owner, claim, name, error, sample.now);
         apply(tx, transition)
     }
 }

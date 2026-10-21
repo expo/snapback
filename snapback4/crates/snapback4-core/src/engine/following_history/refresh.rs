@@ -287,7 +287,7 @@ impl Reader {
 }
 
 fn current(
-    tx: &AnyTx<'_>,
+    tx: &impl FollowingHistoryReader,
     t: &Timeline,
     s: &Session,
     id: &str,

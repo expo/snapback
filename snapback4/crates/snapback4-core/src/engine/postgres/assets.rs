@@ -259,28 +259,7 @@ impl AssetTransaction for Tx<'_> {
         .transpose()
     }
 
-    fn placement_record(
-        &self,
-        owner: &str,
-        id: &str,
-    ) -> Result<Option<IntentRecord>, RuntimeError> {
-        if nul(&[owner, id]) {
-            return Ok(None);
-        }
-        self.query(
-            "SELECT placement,facts,state FROM _asset_intents WHERE owner=$1 AND intent=$2",
-            &[&owner, &id],
-        )?
-        .first()
-        .map(|r| {
-            Ok(IntentRecord {
-                binding: r.try_get(0)?,
-                facts: r.try_get(1)?,
-                state: r.try_get(2)?,
-            })
-        })
-        .transpose()
-    }
+
 
     fn mutation_executed(&self, owner: &str, id: &str) -> Result<bool, RuntimeError> {
         if nul(&[owner, id]) {
@@ -387,5 +366,30 @@ impl Tx<'_> {
         }
         self.execute("INSERT INTO _asset_views(asset,principal,at) VALUES($1,$2,$3) ON CONFLICT(asset,principal) DO NOTHING", &[&id,&principal,&now])?;
         Ok(())
+    }
+}
+
+impl crate::assets::AssetPlacementReader for Tx<'_> {
+    fn placement_record(
+        &self,
+        owner: &str,
+        id: &str,
+    ) -> Result<Option<IntentRecord>, RuntimeError> {
+        if nul(&[owner, id]) {
+            return Ok(None);
+        }
+        self.query(
+            "SELECT placement,facts,state FROM _asset_intents WHERE owner=$1 AND intent=$2",
+            &[&owner, &id],
+        )?
+        .first()
+        .map(|r| {
+            Ok(IntentRecord {
+                binding: r.try_get(0)?,
+                facts: r.try_get(1)?,
+                state: r.try_get(2)?,
+            })
+        })
+        .transpose()
     }
 }

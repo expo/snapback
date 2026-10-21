@@ -85,30 +85,6 @@ impl ReceiptReader for Tx<'_> {
     }
 }
 
-impl Store {
-    pub(crate) fn replay_bound(
-        &self,
-        principal: &str,
-        id: &str,
-        name: &str,
-        args: &serde_json::Value,
-    ) -> Result<Option<String>, RuntimeError> {
-        crate::receipts::replay_bound(self, principal, id, name, args)
-    }
-}
-
-impl Tx<'_> {
-    pub(crate) fn replay_bound(
-        &self,
-        principal: &str,
-        id: &str,
-        name: &str,
-        args: &serde_json::Value,
-    ) -> Result<Option<String>, RuntimeError> {
-        crate::receipts::replay_bound(self, principal, id, name, args)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

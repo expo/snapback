@@ -305,7 +305,7 @@ fn activate(
         )
         .map_err(|e| e.to_string())?;
         pointer.finish(engine.generation())?;
-        receipt(release,engine.generation(),&engine.store().adoption_report,options);
+        receipt(release,engine.generation(),engine.store().adoption_report(),options);
 
     } else {
         let result = crate::release_control::request_observed(

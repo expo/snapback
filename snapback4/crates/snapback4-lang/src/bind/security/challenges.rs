@@ -142,7 +142,7 @@ fn hydrate(engine:&mut Engine,kind:&C,value:&Value)->Result<Value,String>{
         }
     }
 
-fn engine_on_store(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probes:Vec<Program>,store:Store)->Result<Engine,String>{
+fn engine_on_store(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probes:Vec<Program>,store:impl Into<snapback4_core::store_port::AnyStore>)->Result<Engine,String>{
     let mut programs=bound.programs.iter().map(|p|p.program.clone()).collect::<Vec<_>>();programs.extend(probes);
     let mut engine=Engine::new_at(store,bound.schema.clone(),programs,NOW).map_err(|e|e.to_string())?;
     let mut seeded=rows.iter().filter(|(name,_)|bound.schema.maintain_for(name).is_none()).map(|(name,rs)|{

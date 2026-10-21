@@ -610,23 +610,7 @@ impl Store {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize)]
-pub struct Sizes {
-    pub rows: u64,
-    pub row_count: u64,
-    pub indexes: u64,
-    pub log: u64,
-    pub log_events: u64,
-    pub ops: u64,
-    pub file: u64,
-}
-
-impl Sizes {
-    /// The log's bytes per byte of rows.
-    pub fn amplification(&self) -> f64 {
-        if self.rows == 0 { 0.0 } else { self.log as f64 / self.rows as f64 }
-    }
-}
+pub use crate::store_port::Sizes;
 
 impl<'a> Tx<'a> {
     pub(crate) fn conn(&self) -> &Connection {
@@ -866,18 +850,7 @@ impl<'a> Tx<'a> {
 }
 
 /// Log events after a watermark, oldest first.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct LogEvent {
-    pub seq: u64,
-    pub ord: u32,
-    pub table: String,
-    /// `put` (a row image), `del` (a row id), or `scope` (a group the
-    /// recipient left: `data` carries the group prefix values).
-    pub kind: String,
-    pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub data: Option<Value>,
-}
+pub use crate::store_port::LogEvent;
 
 impl Tx<'_> {
     // @ref LLP 3000.009.001.000#3.4 — the member driver resets evidence without exposing recorder storage.
