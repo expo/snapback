@@ -297,7 +297,7 @@ fn reentry_keeps_absence_distinct_from_a_later_default() {
  adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","n"),Value::Int(1));
 }
 #[test]
-fn saved_reference_inputs_keep_their_own_lifetime_after_live_retargeting() {
+fn active_reference_input_refresh_tracks_the_authorized_retargeted_lifetime() {
  for kind in ["parents","id"] {
  let parents="table parents:\n  n: int\n  public 'fixture'\n  online only\n";
  let mutation="mutation retarget():\n  update children['c'] {parent:'q'}\n";
@@ -306,7 +306,7 @@ fn saved_reference_inputs_keep_their_own_lifetime_after_live_retargeting() {
  let next=old.replace("  parent: parents","  copied: int\n  parent: parents")+&fill;
  let dropped=next.replace("  parent: parents on delete keep\n","").replace(mutation,"");
  let mut e=engine(&old);for(id,n)in[("p",3),("q",9)]{seed(&mut e,"parents",json!({"id":id,"n":n}));}seed(&mut e,"children",json!({"id":"c","parent":"p"}));adopt(&mut e,&next,2).unwrap();write(&mut e,"retarget");adopt(&mut e,&dropped,3).unwrap();
- let table=e.schema().tables["parents"].clone();{let tx=e.store_mut().transaction().unwrap();let r=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&r).unwrap();tx.commit().unwrap();}seed(&mut e,"parents",json!({"id":"p","n":77}));
+ let table=e.schema().tables["parents"].clone();{let tx=e.store_mut().transaction().unwrap();let r=tx.get("parents","q").unwrap().unwrap();tx.delete("parents",&table,&r).unwrap();tx.commit().unwrap();}seed(&mut e,"parents",json!({"id":"q","n":77}));
  adopt(&mut e,parents,4).unwrap();let error=adopt(&mut e,&dropped,3).unwrap_err().to_string();assert!(error.contains("parent lifetime"),"{error}");
 }
 }
@@ -1157,3 +1157,6 @@ fn r11_raw_existence_fragments_require_declared_plain_indexes(){
  fn corrupt(v:&mut Json,field:&str){match v {Json::Object(fs)=>{if let Some(Json::Object(scan))=fs.get_mut("Scan"){scan.insert(field.into(),Json::String("missing".into()));}for value in fs.values_mut(){corrupt(value,field);}},Json::Array(vs)=>for v in vs{corrupt(v,field)},_=>()}}
  for field in ["table","index"] {let mut fill=serde_json::to_value(&s.downfills[0]).unwrap();corrupt(&mut fill,field);let mut bad=s.clone();bad.downfills[0]=serde_json::from_value(fill).unwrap();assert!(bad.downfills[0].admit_down(&bad).is_err(),"bad {field} admitted");assert!(crate::schema::validate(&bad).iter().any(|i|i.path.starts_with("downfills")));}
 }
+
+#[path="evolution_tests.rs"]
+mod evolution_tests;

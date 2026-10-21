@@ -563,8 +563,8 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
             let physically_absent=absence(tx,t,id,"")?;
             let native=absence(tx,t,id,&format!("$native:{key}"))?;
             if prior.is_none() && !native.is_empty() {
-                let native_inputs=native_inputs(tx,t,id,&current,fill.inputs.keys().filter(|c|!fill.outputs.contains(*c)).map(String::as_str),row_source.as_deref())?;
-                if fill.inputs.iter().any(|(c,kind)|!fill.outputs.contains(c) && !physically_absent.contains(c) && crate::engine::validate::validate_column(&fill.table,c,kind,native_inputs.get(c)).is_err()) {
+                let native_image=native_inputs(tx,t,id,&current,fill.inputs.keys().filter(|c|!fill.outputs.contains(*c)).map(String::as_str),row_source.as_deref())?;
+                if fill.inputs.iter().any(|(c,kind)|!fill.outputs.contains(c) && !physically_absent.contains(c) && crate::engine::validate::validate_column(&fill.table,c,kind,native_image.get(c)).is_err()) {
                     bad.add(id,"native image has an invalid present historical input; use a typed bridge");return Ok(())
                 }
                 let mut conflict=false;
@@ -585,9 +585,18 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     bad.add(id,"native output also has a different transformation's history; resolve its intended view in a bridge");return Ok(())
                 }
                 let complete=fill.outputs.iter().all(|c|current.field(c).is_ok() && validate_output(&fill.table,table,c,current.field(c).unwrap()).is_ok());
-                let fingerprint=crate::value::digest(&native_inputs);
+                let fingerprint=crate::value::digest(&native_image);
                 if !complete {bad.add(id,"native backfill output image is missing or was explicitly pruned; use a bridge or restore a backup");return Ok(())}
-                if !native.contains(&fingerprint) {bad.add(id,"native backfill inputs changed after row creation; preserve the authored output in a bridge before re-entry");return Ok(())}
+                if !native.contains(&fingerprint) {
+                    let args=native_inputs(tx,t,id,&current,fill.inputs.keys().map(String::as_str),row_source.as_deref())?;
+                    if fill.inputs.iter().any(|(c,k)|crate::engine::validate::validate_column(&fill.table,c,k,args.get(c)).is_err()) {
+                        bad.add(id,"native backfill inputs changed outside its owning release and cannot be recomputed; use a bridge");return Ok(())
+                    }
+                    let mut context=Context::system().at(now);context.args=args;
+                    let mut runner=Runner::new(tx,&source,context,Meter::new(Ceilings::job(),Cut::Abort),0);
+                    let agrees=match runner.run(&fill.program) {Ok(Value::Row(p)|Value::Map(p)) if runner.read_cut().is_none()=>p.iter().all(|(c,v)|current.field(c).ok()==Some(v)) && p.keys().cloned().collect::<BTreeSet<_>>()==fill.outputs,_=>false};
+                    if !agrees {bad.add(id,"native backfill inputs changed outside its owning release and recomputation differs from its authored output; preserve it in a bridge");return Ok(())}
+                }
                 return Ok(())
             }
             let mut original_absence=prior.as_ref().map_or_else(||physically_absent.intersection(&fill.inputs.keys().cloned().collect()).cloned().collect(),|e|e.absent.clone());
@@ -620,7 +629,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 if let Err(e)=validate_output(&fill.table,table,c,value) {bad.add(id,&e.to_string());return Ok(())}
                 if let Some(kind)=row_source.as_deref().and_then(|t|t.columns.get(c)) {if protected(kind) && prior.as_ref().is_none_or(|e|e.before.contains_key(c)) {bad.add(id,&format!("cannot overwrite historical reference or asset {}.{c}; derive into a new column",fill.table));return Ok(())}}
                 if prior.is_none() && fill.name.starts_with("$rename:up:") {
-                    if let Some(existing)=source_value(tx,t,id,&current,c,row_source.as_deref(),&mut preimage_meter)? {
+                    if let Some(existing)=physical_value(tx,t,id,&current,c,&mut preimage_meter)? {
                         if &existing!=value {bad.add(id,&format!("rename destination {}.{c} already has a conflicting value; resolve it in a bridge",fill.table));return Ok(())}
                     }
                 }
@@ -636,13 +645,13 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     let original=prior.before.get(c);
                     let expected=prior.reversed.get(c).cloned().unwrap_or_else(||original.cloned());
                     let actual=if transformed {None}else{source_value_impl(tx,t,id,&current,c,row_source.as_deref(),&mut preimage_meter,false)?};
-                    if !transformed && actual.as_ref()!=expected.as_ref() && actual.as_ref()!=prior.after.get(c) {
+                    if !transformed && actual.as_ref()!=expected.as_ref() && actual.as_ref()!=prior.after.get(c) && actual.as_ref()!=Some(value) {
                         bad.add(id,&format!("{}.{} changed while backfill {} was absent; keep a bridge and resolve the conflict",fill.table,c,fill.name));return Ok(())
                     }
                     if deps_same && transformed && current_field.is_some() {
                         // Added columns retain edits under v1's dormant storage.
                         desired.insert(c.clone(),current_field.unwrap().clone());
-                    } else if transformed && !deps_same && current_field!=prior.after.get(c) && current_field!=original {
+                    } else if transformed && !deps_same && current_field!=prior.after.get(c) && current_field!=original && current_field!=Some(value) {
                         bad.add(id,&format!("{}.{} was edited and its historical inputs changed; keep a bridge and resolve the conflict",fill.table,c));return Ok(())
                     }
                 }
@@ -925,12 +934,32 @@ fn mark_down_native(tx:&Tx<'_>,next:&Schema)->Result<(),RuntimeError>{
 }
 pub(super) fn observe_write(tx:&Tx<'_>,t:i64,id:&str,table:&Table,row:&Value,old:Option<&Value>)->Result<(),RuntimeError>{
     if !present(tx)? {return Ok(());}
-    if old.is_none() {
-        let active:Vec<(String,String)>=tx.conn().prepare("SELECT definition,input_names FROM _backfill_active WHERE t=?1")?.query_map([t],|r|Ok((r.get(0)?,r.get(1)?)))?.collect::<Result<_,_>>()?;
-        for (key,names) in active {
-            let names:Vec<String>=decode(&names)?;
-            let fingerprint=input_fingerprint(&crate::schema::row_image(row,table),names.iter().map(String::as_str));
-            tx.conn().execute("INSERT OR IGNORE INTO _backfill_absence VALUES(?1,?2,?3,?4)",params![t,id,format!("$native:{key}"),fingerprint])?;
+    // @ref LLP 3000.000.000.002#8-wave-21-release-evolution — writes under the owning declaration refresh its accepted input image.
+    let image=crate::schema::row_image(row,table);
+    let active:Vec<(String,String)>=tx.conn().prepare("SELECT definition,input_names FROM _backfill_active WHERE t=?1")?.query_map([t],|r|Ok((r.get(0)?,r.get(1)?)))?.collect::<Result<_,_>>()?;
+    for (key,names) in active {
+        let names:Vec<String>=decode(&names)?;
+        let marker=format!("$native:{key}");
+        if old.is_none() || !absence(tx,t,id,&marker)?.is_empty() {
+            let mut meter=Meter::new(Ceilings::job(),Cut::Abort);
+            let inputs:BTreeMap<_,_>=names.iter().map(|c|Ok((c.clone(),physical_value(tx,t,id,row,c,&mut meter)?.or_else(||interpreted_absence(table,c)).unwrap_or(Value::Null)))).collect::<Result<_,RuntimeError>>()?;
+            let fingerprint=crate::value::digest(&inputs);
+            tx.conn().execute("DELETE FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,marker])?;
+            tx.conn().execute("INSERT INTO _backfill_absence VALUES(?1,?2,?3,?4)",params![t,id,marker,fingerprint])?;
+        }
+        if let Some(mut e)=evidence(tx,t,id,&key)?.filter(|e|e.active) {
+            for c in &names {
+                // Hidden historical arguments and overwritten inputs keep their
+                // original meaning. Only currently authored cells can advance.
+                if let Some(kind)=table.columns.get(c).filter(|_|old.is_none_or(|before|crate::schema::row_image(before,table).field(c).ok()!=image.field(c).ok())) {
+                    let value=image.field(c).cloned().unwrap_or(Value::Null);
+                    let changed=e.inputs.field(c).ok()!=Some(&value);
+                    if let Value::Row(inputs)|Value::Map(inputs)=&mut e.inputs {inputs.insert(c.clone(),value.clone());}
+                    if changed {e.absent.remove(c);}
+                    capture_input_refs(tx,t,id,c,&input_ref(&key,c),kind,&value,!changed)?;
+                }
+            }
+            save(tx,t,id,&key,&e,true)?;
         }
     }
     let columns:Vec<String>=tx.conn().prepare("SELECT column_name FROM _backfill_inputs WHERE t=?1")?.query_map([t],|r|r.get(0))?.collect::<Result<_,_>>()?;
@@ -959,6 +988,13 @@ fn note_omission(tx:&Tx<'_>,t:i64,id:&str,c:&str)->Result<(),RuntimeError>{
     // A provided historical cell stays provided when merely moved out of the
     // active projection. Already-recorded omission survives default freezing.
     tx.conn().execute("INSERT OR IGNORE INTO _backfill_absence SELECT ?1,?2,'',?3 WHERE NOT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3)",params![t,id,c])?;Ok(())
+}
+fn physical_value(tx:&Tx<'_>,t:i64,id:&str,row:&Value,column:&str,meter:&mut Meter)->Result<Option<Value>,RuntimeError>{
+    if let Ok(value)=row.field(column){meter.heap(value.retained_heap_bytes().saturating_mul(64).saturating_add(8192))?;return Ok(Some(value.clone()));}
+    let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0)).optional()?;
+    meter.heap((bytes.unwrap_or(0).max(0) as u64).saturating_mul(64).saturating_add(8192))?;
+    let text:Option<String>=tx.conn().query_row("SELECT data FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0)).optional()?;
+    text.map(|s|decode(&s)).transpose()
 }
 fn source_value(tx:&Tx<'_>,t:i64,id:&str,row:&Value,column:&str,table:Option<&Table>,meter:&mut Meter)->Result<Option<Value>,RuntimeError>{
     source_value_impl(tx,t,id,row,column,table,meter,true)
