@@ -1,0 +1,28 @@
+{
+  "base": "f0eed70bb3",
+  "merged": "37a707c158",
+  "seed": 0,
+  "coreCases": 20000,
+  "deviceCases": 1000,
+  "deviceSeeds": [
+    0,
+    999
+  ],
+  "leanCases": 20000,
+  "coreDisagreements": 0,
+  "deviceDisagreements": 0,
+  "leanBaselineSignatures": {
+    "lean--code--E_RULE~NOT_FOUND": 3,
+    "lean--continuation-next--next~no-next": 35,
+    "lean--next--next~no-next": 67,
+    "lean--prelude-code--E_RULE~NOT_FOUND": 25
+  },
+  "leanMergedSignatures": {
+    "lean--code--E_RULE~NOT_FOUND": 3,
+    "lean--continuation-next--next~no-next": 35,
+    "lean--next--next~no-next": 67,
+    "lean--prelude-code--E_RULE~NOT_FOUND": 25
+  },
+  "leanDisagreements": 130,
+  "newSignatures": []
+}

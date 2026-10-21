@@ -1,0 +1,138 @@
+{
+  "difftest.json": {
+    "bytes": 687,
+    "sha256": "d6239a9c0ca012e27b5383ffbed6dd97dbc854d316a5ab1ac94f08215d88d5c3"
+  },
+  "client-tests.json": {
+    "bytes": 752,
+    "sha256": "96a7b552f373cfd3450623af0203bfba04005547452ea2cd4093cb7f1ba89ce5"
+  },
+  "upgrades.json": {
+    "bytes": 1466,
+    "sha256": "5470c02556d193de50d2842083c78fa4b922773e9d7683d7cfa199b5fdbde50c"
+  },
+  "wasm.json": {
+    "bytes": 884,
+    "sha256": "6a0571af693beea2e1bb9c2a97c1b5fccb74863aaa195ef93d316ee084fede40"
+  },
+  "packed-consumer.json": {
+    "bytes": 63207,
+    "sha256": "2a689921b4cfbc3921016d4f2a85e60b49aa87d8fb6ec48b8ed71e8b61e6522e"
+  },
+  "survey.json": {
+    "bytes": 3091,
+    "sha256": "2b1544624536ba7b77e313e833f081a86e1528392c83eb5a2396d5e8de2abfab"
+  },
+  "prepare.json": {
+    "bytes": 590,
+    "sha256": "c2f3def3d396222691b5c8abc004a65b2e1aa6b496be5e9b9bf87b87913eaeac"
+  },
+  "exact.json": {
+    "bytes": 3003,
+    "sha256": "79bdcafd99faac1a5858b29809c8272214775728a0e617882356eb6609bd20c4"
+  },
+  "CONTEXT.md": {
+    "bytes": 1707,
+    "sha256": "b61aebff8d807f04cbf20427ca2cf132f93f3018b799855ab5f0ed61952252ee"
+  },
+  "logs/prepare-integrated-main.log.gz": {
+    "bytes": 3427,
+    "sha256": "fbcc37a08016f92ea15c8eb86f05ccaf11601eb0cb861879493959297d34d585"
+  },
+  "logs/exact-synced-web-current-client.log.gz": {
+    "bytes": 392,
+    "sha256": "434d278207e77379af8f18affbee2c9654fe2b7ee5e26eab5610f274ae57f04f"
+  },
+  "logs/exact-synced-wire-current-client.log.gz": {
+    "bytes": 482,
+    "sha256": "b29ddec62cde81b8f3dcdacfb525c3d5cfc44567c0e0f3680eeea836ed080e81"
+  },
+  "logs/exact-online-web-current-client.log.gz": {
+    "bytes": 292,
+    "sha256": "7eb38d0b6905a6d6747e22af037d45aa5772a37ba8bbeb1e45b8382769c967b5"
+  },
+  "logs/release-guards-integrated-main.log.gz": {
+    "bytes": 145,
+    "sha256": "50993ebefd7e02697d4377c066c4acda524f59df1d626830a1504d32e6660377"
+  },
+  "logs/upgrade-production-integrated-main.log.gz": {
+    "bytes": 903,
+    "sha256": "98a7824de72d7965a90af969e3901baa4b6d507d15172bc8f29a970e3e983b3b"
+  },
+  "logs/inventories-integrated-main.log.gz": {
+    "bytes": 951,
+    "sha256": "53314d94297ab5b8109458aeced88499effd36282fc19c6ef4d05e0d2abf4aed"
+  },
+  "logs/exact-new-synced-current-client.log.gz": {
+    "bytes": 1159,
+    "sha256": "3e29c01a8bb8614bfa51b5401a01c91b03b42ee7e66478b38a6c7f0364e56d31"
+  },
+  "logs/exact-current-client-install-fixed.log.gz": {
+    "bytes": 242,
+    "sha256": "ebb8a185a49b450bd172d5ac3b90963263c93ffe80987dc84718c62071f0e8c8"
+  },
+  "logs/authoring-census-integrated-main.log.gz": {
+    "bytes": 6749,
+    "sha256": "a67527d7fd0d10c8437366bd84dd5ee673b430d1e647a57bafe10542d52fe6d1"
+  },
+  "logs/exact-new-online-current-client.log.gz": {
+    "bytes": 970,
+    "sha256": "1dadd920a03dbec9281cffb9d6c84dc3ceb1a390398147e188c485626d7479cf"
+  },
+  "logs/guide-integrated-main.log.gz": {
+    "bytes": 4105,
+    "sha256": "f9c4beb643999fc4b7da5e35d46e4475c92c60bd018929d9685a2faef4cd1567"
+  },
+  "logs/difftest-integrated-main-lean.log.gz": {
+    "bytes": 3862,
+    "sha256": "a612afc72a132645205322b36a2d7346e999cc1c71e649344f7aafcfbe09038b"
+  },
+  "logs/docs-budget-standalone-main.log.gz": {
+    "bytes": 1586,
+    "sha256": "8eccdb2d9669133d8c72bde78761af093553f63c576e71f65cd44df6ac1a3f72"
+  },
+  "logs/difftest-integrated-main-run.log.gz": {
+    "bytes": 4043,
+    "sha256": "86226c77799f1d65ed7e1e11899788ad79a03456e184be63f717742fd2663e9e"
+  },
+  "logs/client-models-integrated-main.log.gz": {
+    "bytes": 6064,
+    "sha256": "3ed1fb92c417aaa86b68f7a715209d44c5539dc4de2a0232963929299ec54f92"
+  },
+  "logs/client-full-integrated-main.log.gz": {
+    "bytes": 294824,
+    "sha256": "b14b98599cb4ae5e2274f4f1eb680220b56dd2e3290a8d797ec5fd2f65473e70"
+  },
+  "logs/survey-integrated-main.log.gz": {
+    "bytes": 789,
+    "sha256": "cb0f32424f4808539dcebbe60b009fc3cd3af4f055c5d391093aef8bd036b622"
+  },
+  "logs/measure-wasm-final-budget.log.gz": {
+    "bytes": 10573,
+    "sha256": "0347101f49c39abd4c72a5b4a7e379fa135e78d166cb0229e2d9551bc38b7def"
+  },
+  "logs/qualify-linux-integrated-main.log.gz": {
+    "bytes": 63906,
+    "sha256": "08ff67fadc2808c78d54cd5e4bc596cbf2816bc4177ba9b916be932f951b921e"
+  },
+  "logs/earlier-strace68-refused.trace.gz": {
+    "bytes": 1124,
+    "sha256": "0c640ef8e0442940f4adba30c41f108cd4d1658934c738a23b0b551f375775b3"
+  },
+  "logs/difftest-integrated-main-devices.log.gz": {
+    "bytes": 2768,
+    "sha256": "29efeee2af2ca36eee88b86f1d3125da99518b426931ffd7d315463e0ca9e99f"
+  },
+  "logs/ref-check-integrated-main.log.gz": {
+    "bytes": 124,
+    "sha256": "cb4dc58c7247ef715158c8a50b8fb155195321c4766555e090994458ab0519cc"
+  },
+  "logs/exact-online-wire-current-client.log.gz": {
+    "bytes": 337,
+    "sha256": "08e3141e4af6c0c1a24414d15aa5a0d34061e0c2cef5b13af1f58d702535ef85"
+  },
+  "logs/exact-setup-final-check.log.gz": {
+    "bytes": 536,
+    "sha256": "bbe9289070e514c0cc668a85777725fe59aae7b348974ef60cf14a02b948736d"
+  }
+}

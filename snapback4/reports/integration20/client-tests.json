@@ -1,0 +1,36 @@
+{
+  "source": "37a707c158",
+  "poolSlots": 8,
+  "timerFiles": "drained then serial; standard runner",
+  "models": "full counts, unfiltered; one slot",
+  "results": {
+    "client-full-integrated-main": {
+      "filesPassed": 425,
+      "filesTotal": 425,
+      "filesFailed": 0,
+      "tests": {
+        "tests": 7822,
+        "pass": 7766,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 56,
+        "todo": 0
+      },
+      "exitCode": 0
+    },
+    "client-models-integrated-main": {
+      "filesPassed": 2,
+      "filesTotal": 2,
+      "filesFailed": 0,
+      "tests": {
+        "tests": 81,
+        "pass": 81,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "exitCode": 0
+    }
+  }
+}
