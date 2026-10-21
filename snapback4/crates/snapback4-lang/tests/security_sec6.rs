@@ -82,3 +82,10 @@ fn seed(e:&mut Engine){e.seed_at([("docs".into(),Value::Row([("id".into(),Value:
  let mut c=Campaign::default();challenges::operations(&b,&fixture(&b),&mut c);
  assert!(c.violations.iter().all(|v|!v.reachability.is_reachable()),"{c:?}");
 }
+
+#[test]fn another_query_return_and_an_authored_refusal_are_projection_privacy_observers(){
+ let source=format!("{TABLE}shape publicDoc = {{id,title}}\nquery publicList():\n  return docs first 10 by .id publicDoc\nquery full(doc: docs):\n  return docs[doc]\nmutation probe(doc: docs, guess: text <=40):\n  d = docs[doc] ! else MISSING\n  require d.secret = guess else WRONG\n  return null\n");
+ let b=bound(&source);let mut r=security::analyze(&b);security::add_source_notes(&mut r,&[("schema.q".into(),source)],&b);
+ for operation in ["full:","probe:"]{assert!(r.notes.iter().any(|n|n.code=="N_COLUMN_RESULT_EXPOSURE"&&n.message.starts_with(operation)&&n.message.contains("secret")),"{:?}",r.notes);}
+ assert!(!r.notes.iter().any(|n|n.code=="N_COLUMN_RESULT_EXPOSURE"&&n.message.starts_with("publicList:")));
+}

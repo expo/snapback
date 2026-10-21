@@ -71,7 +71,7 @@ pub(super) fn notes(bound:&Bound)->Vec<Diagnostic>{
                 let ruled=t.column_reads.contains_key(&c)||t.written_by.get(&c).is_some_and(|g|!g.audience);
                 if projected.is_none()&&!ruled{continue;}
                 // A query's own narrowed result is not an alternate write observer.
-                if bp.program.kind==ir::ProgramKind::Query&&kind=="return/write result"{continue;}
+                if bp.program.kind==ir::ProgramKind::Query&&kind=="return/write result"&&projected.is_none(){continue;}
                 let reason=projected.map(|qs|format!("omitted by {}",qs.iter().cloned().collect::<Vec<_>>().join(", "))).unwrap_or_else(||"column-ruled".into());
                 groups.entry(table).or_default().push(format!("{c} ({reason})"));
             }
