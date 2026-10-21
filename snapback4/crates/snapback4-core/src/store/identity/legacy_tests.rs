@@ -1,6 +1,6 @@
 //! Pre-upgrade SQLite NUL identities fail closed without creating replacements.
 use crate::identity::*;
-use crate::{Store, authority::{self, AdmissionStanding}, identity::test_cases::IdentityFixture};
+use crate::{store_port::AnyStore as Store, authority::{self, AdmissionStanding}, identity::test_cases::IdentityFixture};
 use rusqlite::params;
 
 #[test]

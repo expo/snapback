@@ -18,7 +18,7 @@ pub(super) fn classify(dir: &Path, owner: Option<&Owner>, existed: bool, checkin
             _ => Err(production()),
         }
     } else {
-        let store = snapback4_core::Store::open_read_only(&path).map_err(|e|e.to_string())?;
+        let store = snapback4_core::store_port::AnyStore::open_read_only(&path).map_err(|e|e.to_string())?;
         if store.deployment_environment().map_err(|e|e.to_string())?.as_deref() == Some("staging") { Ok(()) } else { Err(production()) }
     }
 }

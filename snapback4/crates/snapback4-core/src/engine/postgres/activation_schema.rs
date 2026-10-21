@@ -64,3 +64,22 @@ pub(super) fn verify_core(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     }
     Ok(())
 }
+
+/// Recheck ledgers under the activation's head fence: owner DDL may have
+/// changed them since open. This checks catalogs without installing any DDL.
+// @ref LLP 3000.009.001.000#3.3 — activation re-verifies its ledgers before preparation writes.
+pub(super) fn verify_activation(tx: &Tx<'_>) -> Result<(), RuntimeError> {
+    verify_core(tx)?;
+    for table in [
+        "_meta",
+        "_generations",
+        "_catalog",
+        "_release_events",
+        "_release_event_items",
+    ] {
+        super::ledger_schema::verify_relation(tx, table, |table, detail| {
+            RuntimeError::Store(format!("SNAPBACK_ACTIVATION_SCHEMA: {table}: {detail}"))
+        })?;
+    }
+    Ok(())
+}

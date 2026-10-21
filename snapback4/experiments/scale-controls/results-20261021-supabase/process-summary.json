@@ -1,0 +1,36 @@
+{
+  "results-20261021-supabase-cells": {
+    "recorded_children": 10422,
+    "still_running": [],
+    "exit_status_counts": {
+      "0": 8586,
+      "-15": 1704,
+      "-2": 132
+    }
+  },
+  "s1sb-checks-final": {
+    "recorded_children": 59,
+    "still_running": [],
+    "exit_status_counts": {
+      "0": 55,
+      "-15": 2,
+      "-2": 2
+    }
+  },
+  "s1sb-capture-smoke": {
+    "recorded_children": 109,
+    "still_running": [],
+    "exit_status_counts": {
+      "0": 94,
+      "-15": 10,
+      "-2": 5
+    }
+  },
+  "s1sb-inspection": {
+    "recorded_children": 26,
+    "still_running": [],
+    "exit_status_counts": {
+      "0": 26
+    }
+  }
+}

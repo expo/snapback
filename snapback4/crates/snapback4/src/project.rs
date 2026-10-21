@@ -2,7 +2,7 @@
 //! is built, `.snapback4/` is the data directory. Nothing here is committed
 //! except the `.q` files.
 
-use snapback4_core::{Engine, RuntimeError, Store};
+use snapback4_core::{Engine, RuntimeError, store_port::AnyStore};
 use snapback4_lang::{Bound, compile};
 use std::path::{Path, PathBuf};
 
@@ -267,7 +267,7 @@ impl Project {
 
     pub fn open_engine_with_busy_timeout(&self, bound: &Bound, timeout: std::time::Duration, now: i64) -> Result<Engine, RuntimeError> {
         snapback4_core::private_fs::directory(&self.data_dir()).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        let store = Store::open_with_busy_timeout(&self.store_path(), timeout)?;
+        let store = AnyStore::open_with_busy_timeout(&self.store_path(), timeout)?;
         if store.release_value()?.is_some() {
             return Err(RuntimeError::Generation("this store belongs to a deployment; use `deploy` to activate source and `serve` to run it".into()));
         }
@@ -278,7 +278,7 @@ impl Project {
     /// programs we attach to. Neither stale selection nor edited release
     /// source is permission to activate another backend during startup.
     // @ref LLP 3000.000#the-atomic-object-to-define — startup attaches to the persisted activation
-    pub fn open_release_engine(&self, store: Store, bound: &Bound, release: u64, now: i64) -> Result<Engine, RuntimeError> {
+    pub fn open_release_engine(&self, store: AnyStore, bound: &Bound, release: u64, now: i64) -> Result<Engine, RuntimeError> {
         if store.release_value()?.is_none() {
             return Err(RuntimeError::Generation("this deployment predates stored release activations; deploy its source once before serving".into()));
         }

@@ -1,8 +1,8 @@
-# S1-H: scale harness and raw PostgreSQL control
+# S1: scale harness, raw PostgreSQL and Supabase controls
 
 Periphery for [LLP 3000.009.001.002](../../../llp/3000.009.001.002-scale-limits-against-postgres-controls.rfc.md),
 §4–§7 and §9. Its own Cargo workspace; no engine or product changes. W6 live
-delivery and the other controls belong to later lanes.
+delivery and the remaining controls belong to later lanes.
 
 Build on **expo-build-450b**, in this worktree:
 
@@ -165,3 +165,135 @@ buckets, and the reported brackets. Omit `--full` for a partial control run.
 Database CPU samples cover this cluster's recorded Postgres processes; SSH
 server CPU and other lanes are outside that process attribution. SQL executor
 time is not CPU and excludes transaction completion outside the executor.
+
+## S1-SB: Supabase's native PostgREST path
+
+This target measures **PostgREST alone with Supabase roles, JWTs and RLS**,
+not the complete self-hosted stack. No Docker, GoTrue, Kong, Realtime, Studio,
+Storage or Supavisor is installed. No external or paid service is used.
+GoTrue is replaced by offline HS256 JWT minting before measurement; subjects
+are deterministic UUIDs, and PostgREST performs its normal JWT verification
+and role/claim transaction setup. Kong would add an HTTP gateway hop to a
+full stack request; this experiment does not estimate its unmeasured latency.
+Realtime is outside W1–W5. The shared cluster is never restarted or reconfigured.
+
+The pin follows [Supabase's compose file at
+5491fb60bc0f27b8909a83100d79499aa7667ee5](https://github.com/supabase/supabase/blob/5491fb60bc0f27b8909a83100d79499aa7667ee5/docker/docker-compose.yml):
+**PostgREST 14.18**, [official release](https://github.com/PostgREST/postgrest/releases/tag/v14.18).
+`scripts/install-postgrest.py` downloads the official static x86-64 release
+into `~/sb4scale/bin`, verifies GitHub's release asset SHA-256
+`98de1c0be7787aea5f5e11a25f303ea0077634d6fc1000b687bfa825fd27d299`,
+then verifies the executable SHA-256
+`e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee`.
+It neither builds a substitute binary nor uses a container.
+
+```sh
+python3 scripts/install-postgrest.py
+# Build above, with CARGO_TARGET_DIR inside this worktree.
+python3 scripts/check-supabase.py "$HOME/sb4scale/s1sb-checks-NEW"
+python3 scripts/run.py all --target supabase \
+  --out "$HOME/sb4scale/results-NEW-supabase-cells" \
+  --warmup-ms 500 --duration-ms 2000 --repeats 3
+# One cell, same fixture sizes/delays/writers and rate policy as S1-H:
+python3 scripts/run.py cell --target supabase --out "$HOME/sb4scale/s1sb-NEW-cell" \
+  --workload W4 --rows 1000000 --delay-us 500 --writers 32 \
+  --warmup-ms 500 --duration-ms 2000 --repeats 3
+```
+
+The runner creates only `sb4scale_supabase_100000` and
+`sb4scale_supabase_1000000`, with API schema `sb4scale` and helper schemas
+`auth`/`private`. It creates standard `anon`, `authenticated`, `service_role`
+and `authenticator` roles if absent, recording ownership outside Git. It
+refuses existing roles not in its ownership receipt. `authenticator` is a
+NOINHERIT login allowed to SET ROLE to the other three; `service_role` has
+BYPASSRLS but is never used for measured requests. `anon` has no table grants.
+Only these owned roles receive documented Supabase statement timeouts:
+anon 3 s, authenticated/authenticator 8 s; service_role inherits authenticator's
+8 s when unset ([timeout guidance](https://supabase.com/docs/guides/database/postgres/timeouts)).
+The load generator retains S1-H's 1 s HTTP/dispatch deadline, no retries, and
+unknown-outcome counter disqualification.
+
+`supabase.conf` preserves the compose configuration and PostgREST v14.18
+defaults: pool **10**, prepared statements on, no pre-request or pre-config
+hook, in-database configuration on, `pgrst` notification listener on,
+1,000-row API maximum, `public` extra search path, commit transaction end,
+10 s pool acquisition timeout, 1,800 s lifetime, 30 s idle timeout,
+automatic recovery on, `.role` claim key, no required audience, JWT cache
+1,000 entries, error logging and OpenAPI follow-privileges. All effective
+settings are dumped per cell with URI and secret redacted. The example
+configuration's commented cache-disabling example is **not** its default;
+the pinned [Config.hs](https://github.com/PostgREST/postgrest/blob/v14.18/src/PostgREST/Config.hs)
+sets the default to 1,000. The 256 repeated user tokens fit in that cache.
+JWT expiry defaults in app settings remain 3,600 s; harness-issued tokens use
+24-hour expiry to survive the complete matrix, recorded as a substitution.
+
+Host/port bindings change to loopback 58080 (API), 58082 (health) and 58081
+(DB dispatcher). `PGRST_DB_URI` selects the owned database and
+`application_name=sb4scale_supabase`. `PGRST_DB_USE_LEGACY_GUCS=false` follows
+compose (v14 uses `request.jwt.claims`). `PGOPTIONS` selects
+`search_path=sb4scale,public` for seeding/observation. URI passwords come only
+from `~/sb4scale/pw`. The generated secret and bearer-token files are mode
+600 outside the repo; tokens, secrets, URI passwords and role verifiers are
+never logged. The runner records every subprocess PID and its cleanup status.
+
+The [RLS guidance](https://supabase.com/docs/guides/database/postgres/row-level-security)
+and [policy performance guidance](https://supabase.com/docs/guides/troubleshooting/rls-performance-and-best-practices-Z5Jjwv)
+govern `supabase-schema.sql`: explicit authenticated policies, indexed
+membership predicates, an uncorrelated room-membership set, and initplans
+for claim/identity lookup. `auth.uid()` reads the UUID `sub` from
+`request.jwt.claims`. A pinned-path SECURITY DEFINER helper in **unexposed**
+`private` maps `(select auth.uid())` through an indexed `users.auth_id`.
+Policies use `(select private.principal_id())` so the lookup is per statement.
+This retains S1-H's numeric keys and identical message bodies, memberships,
+last-read offsets and maintained totals. The only added storage is one UUID
+column/unique index on 256 users and an owner index on 257 counters; table
+and index bytes are measured separately. The same `seed.sql` is reused.
+
+| Workload | Native HTTP request | Database authority |
+|---|---|---|
+| W1 | GET messages filtered by id | messages SELECT RLS |
+| W2 | GET messages filtered by room, ordered descending, limit 20 | messages SELECT RLS |
+| W3 | POST rpc/inbox | SECURITY INVOKER SQL, memberships and rooms RLS |
+| W4/W5 | POST rpc/increment | SECURITY INVOKER atomic UPDATE, counter SELECT/UPDATE RLS |
+| Post witness | POST messages | member/sender INSERT RLS; definer trigger maintains room/sender totals atomically |
+
+No extra `/op` HTTP application wraps PostgREST. The load adapter supplies
+Bearer tokens and normalizes response shapes for the existing validator;
+all arrival times, worker assignments, key mixes, histograms and SLOs stay
+in the existing scheduler. An app-core TCP dispatcher leases a distinct SSH
+stream to each physical libpq socket (including the notification listener).
+It adds a local TCP forwarding step that raw PG does not need; its CPU is
+included in app CPU together with the unchanged S0 proxy and PostgREST.
+The raw prepared-SELECT RTT controls remain independent measurements of
+SSH plus nominal proxy delay; they do not include this dispatcher or HTTP.
+
+The exact S1-H core split, 100k/1m read sizes, four delay settings, 128 read
+clients and 1–256 write clients are preserved. Supabase's default pool of
+10 stays fixed across this sweep, whereas raw PG has 32 read connections
+and one connection per writer. This is a native-default configuration
+comparison; no matched-pool or full-stack capacity claim is made. Shared
+hosts, serial short windows and coarse brackets retain all S1-H caveats.
+No different-family advocate review is performed under the lane's explicit
+one-worker/no-sub-agent instruction.
+
+Resource queries filter the owned database, statement roles
+`authenticated`/`authenticator`, and application name `sb4scale_supabase`.
+Counter witnesses read the owned schema. App CPU aggregates PostgREST and
+the dispatcher/proxy; generator, all owned SSH forwards, cluster CPU,
+waits/statements/WAL/I/O and before/after RTT remain the S1-H collectors.
+Statement rows with the same query ID across both roles are summed before
+taking deltas. Nested RPC execution is included, so summed executor times can
+overlap; SQL calls/executor sums are neither wire roundtrips nor request wall
+time or CPU. The independent process CPU samples remain the CPU evidence.
+Raw per-cell captures and check runs belong in compressed archives under
+`~/sb4scale/archive/`; only summaries, configurations, code and plots are
+committed. Each result directory's `ARCHIVE.md` records its SHA-256.
+
+Orientation: [LLP 3000](../../../llp/3000-snapback4.explainer.md)#7 and
+[LLP 3000.009.001.002](../../../llp/3000.009.001.002-scale-limits-against-postgres-controls.rfc.md)#4-controls,
+#5-workloads and #6-method-and-metrics govern this periphery. The scale RFC
+and Postgres parent are in `llp/current/`, not foundation. No product
+authoring surface or engine changes are made. Expected document updates
+are the result README, §9 progress note and append-only journal; hand-off:
+none. Advocate review, idle-host qualification, matched-pool controls and
+W6 remain open rather than being inferred from these results.

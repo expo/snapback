@@ -1,7 +1,7 @@
 // @ref LLP 3000.033#3 — the guard is tested before replay and transient effects.
 mod assets;
 use super::*;
-use snapback4_core::{Store, Value, value::object};
+use snapback4_core::{store_port::AnyStore as Store, Value, value::object};
 use sha2::{Digest, Sha256};
 const NOW: i64 = 1_790_000_000_000;
 const EXTRA: &str = "\nuse identity\nuse server\nroute declared: post \"/declared\" wait 1s\neffect notify\naction external()\ntable typing:\n  owner: principal\n  ephemeral 4s\n  read <- allow\n  insert <- .owner = viewer\nmutation typeNow():\n  insert typing {owner: viewer}\nquery typingNow():\n  return typing first 10\nquery presence():\n  return exists connected[viewer]\nmutation push():\n  if not exists connected['member:bob']:\n    emit notify {recipient: 'member:bob'}\nquery history(c: cursor ?):\n  return messages where .chat = 'c1' first 2 by .ordinal after c\n";

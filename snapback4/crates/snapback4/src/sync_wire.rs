@@ -16,7 +16,7 @@ pub(crate) struct SyncEvent<'a> {
 // Own the reply so `respond` drops its rows after encoding, before socket I/O.
 pub(crate) enum SyncEvents {
     Snapshot(Vec<snapback4_core::partition::Event>),
-    Stream(Vec<snapback4_core::store::LogEvent>),
+    Stream(Vec<snapback4_core::store_port::LogEvent>),
 }
 
 impl serde::Serialize for SyncEvents {

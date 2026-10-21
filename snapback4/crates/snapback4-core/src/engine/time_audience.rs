@@ -9,7 +9,7 @@ use super::*;
 /// Untimed schemas retain their historical clock behavior and metadata.
 pub(super) fn pin_writer_time(
     schema: &Schema,
-    tx: &crate::store::Tx<'_>,
+    tx: &crate::store_port::AnyTx<'_>,
     requested: i64,
 ) -> Result<i64, RuntimeError> {
     if schema
@@ -28,7 +28,7 @@ pub(super) fn pin_writer_time(
 /// transaction; an already-published row must not disappear in that gap.
 pub(super) fn observe_reader_time(
     schema: &Schema,
-    tx: &crate::store::Tx<'_>,
+    tx: &crate::store_port::AnyTx<'_>,
     requested: i64,
 ) -> Result<i64, RuntimeError> {
     if schema

@@ -830,7 +830,7 @@ pub fn data(options: &Options) -> i32 {
     let path = options.flags.get("release").map(|dir| Path::new(dir).join("store.sqlite"))
         .unwrap_or_else(|| project_or_exit().store_path());
     // @ref LLP 3000.019#3.4 — inspection must not acquire a writer through store initialization.
-    let mut store = match snapback4_core::Store::open_read_only(&path) {
+    let mut store = match snapback4_core::store_port::AnyStore::open_read_only(&path) {
         Ok(store) => store,
         Err(error) => {
             eprintln!("cannot open the store: {error}{}", sql::store_hint(&path, options));
@@ -921,7 +921,7 @@ pub fn doctor(options: &Options) -> i32 {
     let started = Instant::now();
     let mut lines = Vec::new();
     let mut ok = true;
-    let mut storage: Option<snapback4_core::store::Sizes> = None;
+    let mut storage: Option<snapback4_core::store_port::Sizes> = None;
     let mut latency_snapshot = None;
     let mut findings = Vec::new();
     let version = env!("CARGO_PKG_VERSION");
@@ -1011,7 +1011,7 @@ pub fn doctor(options: &Options) -> i32 {
     } else {
     // Source diagnostics and persisted backend health are independent. Even
     // broken or destructive edits must leave the active generation usable.
-    match snapback4_core::Store::open_read_only(&work_records::store_path(options)) {
+    match snapback4_core::store_port::AnyStore::open_read_only(&work_records::store_path(options)) {
         Ok(store) => {
             for status in store.inspection_worker_reports() { lines.push(format!("worker    last report: {status}")); }
             let generation = store.generation_value().ok().flatten().unwrap_or_else(|| "unrecorded".into());

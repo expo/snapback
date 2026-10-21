@@ -27,10 +27,10 @@ impl Engine {
     /// authority to restore a revoked service seat.
     pub fn route_service_generation(&self, name: &str, contract: &str) -> Result<(String, i64), RuntimeError> {
         let principal = declaration(self, name, contract)?.service.clone().ok_or_else(unknown)?;
-        let tx = self.store.authority_transaction()?;
-        let generation = identity::principal_generation(&tx, &principal)?;
-        tx.rollback()?;
+        self.store.with_authority_snapshot(|tx| {
+        let generation = identity::principal_generation(tx, &principal)?;
         Ok((principal, generation))
+        })
     }
 
     pub fn request_session_route(&mut self, name: &str, contract: &str, envelope: &RouteRequest, context: Context) -> Result<(ActionRequest, bool), RuntimeError> {
@@ -73,7 +73,7 @@ impl Engine {
             // Headers (e.g. fresh signatures/timestamps) are authentication
             // metadata, not a second intent. Retain the first admitted envelope.
             let previous = run.args.get("request").map(wire::to_json).ok_or_else(unknown)?;
-            if previous.get("bodyHex").and_then(serde_json::Value::as_str) != Some(envelope.body_hex.as_str()) { return Err(crate::store::id_reused()); }
+            if previous.get("bodyHex").and_then(serde_json::Value::as_str) != Some(envelope.body_hex.as_str()) { return Err(crate::store_port::id_reused()); }
             tx.rollback()?;
             return Ok((run, true));
         }

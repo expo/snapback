@@ -191,8 +191,8 @@ impl FreshDirectory {
         Ok(owned)
     }
     pub(super) fn path(&self) -> std::path::PathBuf { self.0.join("store.db") }
-    pub(super) fn store(&self) -> Result<snapback4_core::Store, snapback4_core::RuntimeError> {
-        snapback4_core::Store::open(&self.0.join("store.db"))
+    pub(super) fn store(&self) -> Result<snapback4_core::store_port::AnyStore, snapback4_core::RuntimeError> {
+        snapback4_core::store_port::AnyStore::open(&self.0.join("store.db"))
     }
 }
 impl Drop for FreshDirectory {

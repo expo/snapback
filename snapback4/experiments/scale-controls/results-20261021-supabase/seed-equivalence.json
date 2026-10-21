@@ -1,0 +1,22 @@
+[
+  {
+    "rows": 100000,
+    "equal": true,
+    "hashes": {
+      "rooms": "e1d413876043ac40afd51c7a9718de5f",
+      "users": "41436396ab9dc73deb2ef26ad3245efa",
+      "messages": "01bdf10bacb60d04f30a4c130a51fc8b",
+      "memberships": "3957dd70bae310b8e4bf9aeae7492000"
+    }
+  },
+  {
+    "rows": 1000000,
+    "equal": true,
+    "hashes": {
+      "rooms": "bc131c0cc1f6e9d73bee76c8fd65cd02",
+      "users": "04655b85da32a0f71141df80228e6353",
+      "messages": "0ca806387406075d78aed35cddc5e9c0",
+      "memberships": "aedc05ebc3405903076c7452481cc9d9"
+    }
+  }
+]

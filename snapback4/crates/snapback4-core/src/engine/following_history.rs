@@ -17,7 +17,7 @@ use crate::{
     RuntimeError, Value,
     meter::{Ceilings, Metered},
     schema::timeline::Timeline,
-    store::Tx,
+    store_port::AnyTx,
 };
 use budget::{Budget, ENVELOPE, SCRATCH};
 use frontier::{BLOCK_HEADS, Frontier, Head, Lane};

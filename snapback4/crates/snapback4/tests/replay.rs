@@ -2,7 +2,7 @@
 #[allow(dead_code)]
 #[path = "../src/host_limits.rs"] mod host_limits;
 use serde_json::{Value, json};
-use snapback4_core::{Engine, Store};
+use snapback4_core::{Engine, store_port::AnyStore as Store};
 use std::{fs, io::{BufRead, BufReader, Read, Write}, net::TcpStream, path::PathBuf, process::{Child, Command, Stdio}, time::Duration};
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 const SOURCE: &str = "use personas alice\neffect notify\ntable items:\n  n: int\n  public 'test'\nmutation send():\n  emit notify {n: 7}\n  return 7\njob tick():\n  chunk row in items first 10 by byId:\n    update items[row.id] {n: 1}\nschedule ticking every 1m: tick\n";

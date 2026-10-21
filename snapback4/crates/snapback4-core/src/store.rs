@@ -48,7 +48,7 @@ mod requests;
 pub(crate) mod test_race;
 mod outbox;
 mod change_evidence;
-mod release;
+pub(crate) mod release;
 mod authority;
 mod identity;
 mod receipts;
@@ -880,6 +880,11 @@ pub struct LogEvent {
 }
 
 impl Tx<'_> {
+    // @ref LLP 3000.009.001.000#3.4 — the member driver resets evidence without exposing recorder storage.
+    pub(crate) fn begin_member_evidence(&self) {
+        *self.changes.borrow_mut() = Default::default();
+    }
+
     pub fn read_log(&self, partition: &str, after: u64, limit: usize) -> Result<Vec<LogEvent>, RuntimeError> {
         self.log_rows("SELECT seq, ord, t, kind, id, data FROM _log WHERE partition = ?1 AND seq > ?2 ORDER BY seq, ord LIMIT ?3", params![partition, after as i64, limit as i64])
     }

@@ -4,7 +4,7 @@ use crate::{
     serve::{Shared, lock},
 };
 use sha2::{Digest, Sha256};
-use snapback4_core::{RuntimeError, Store, identity};
+use snapback4_core::{RuntimeError, store_port::AnyStore, identity};
 use std::{
     path::PathBuf,
     process::{Child, Command, Stdio},
@@ -59,12 +59,12 @@ const CHILD_WINDOW: Duration = Duration::from_secs(24 * 60 * 60);
 // Called only while the host holds the store's deployment lock. A previous
 // supervisor cannot still own this store; revoke its child's whole refresh
 // family, including an orphan left behind by SIGKILL. Manual seats survive.
-pub(crate) fn clear_child_session(store: &Store) -> Result<(), RuntimeError> {
+pub(crate) fn clear_child_session(store: &AnyStore) -> Result<(), RuntimeError> {
     identity::clear_worker_families(store)
 }
 
 pub(crate) fn child_session(
-    store: &Store,
+    store: &AnyStore,
     now: i64,
     revision: usize,
 ) -> Result<identity::Session, RuntimeError> {

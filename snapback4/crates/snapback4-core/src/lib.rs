@@ -49,6 +49,8 @@ pub mod search_plan;
 pub mod search_decoration;
 #[cfg(feature = "sqlite")]
 pub mod store;
+#[cfg(feature = "sqlite")]
+pub mod store_port;
 pub mod successor;
 pub mod value;
 pub mod wire;

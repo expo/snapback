@@ -218,7 +218,7 @@ fn service_read_disjunct_admits_a_service_token_over_q_and_keeps_the_namespace_r
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let token = {
-        let store = snapback4_core::Store::open(&dir.0.join(".snapback4/store.sqlite")).unwrap();
+        let store = snapback4_core::store_port::AnyStore::open(&dir.0.join(".snapback4/store.sqlite")).unwrap();
         let mut engine = snapback4_core::Engine::new(store, bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         let row = snapback4_core::wire::row_from_json(&engine.schema().tables["messages"], &json!({"id":"m1","room":"r1","body":"private"})).unwrap();
         engine.seed([("messages".into(), row)]).unwrap();
@@ -371,10 +371,10 @@ fn subprocess_probe() {
 #[test]
 fn sqlite_permissions_preserve_database_and_wal_locks() {
     let dir = Directory::new(); let path = dir.0.join("store.sqlite");
-    let store = snapback4_core::Store::open(&path).unwrap();
+    let store = snapback4_core::store_port::AnyStore::open(&path).unwrap();
     // Opening an existing store in this process must not close a raw
     // descriptor on either inode. SQLite alone owns those descriptor lives.
-    let second = snapback4_core::Store::open(&path).unwrap();
+    let second = snapback4_core::store_port::AnyStore::open(&path).unwrap();
     store.test_support_conn().execute_batch("BEGIN IMMEDIATE").unwrap();
     snapback4_core::private_fs::database_file(&path).unwrap();
     for suffix in ["", "-wal", "-shm"] {
@@ -640,7 +640,7 @@ fn sqlite_replay_survives_counter_split_and_an_offline_cli_backfill() {
     assert!(job.status.success(), "{job:?}");
     assert_eq!(serde_json::from_slice::<Value>(&job.stdout).unwrap()["state"], "done");
     let mut host = Host::start(&dir, &["dev"]);
-    let store = snapback4_core::Store::open(&dir.0.join(".snapback4/store.sqlite")).unwrap();
+    let store = snapback4_core::store_port::AnyStore::open(&dir.0.join(".snapback4/store.sqlite")).unwrap();
     assert_eq!(store.rows("entries").unwrap().len(), 1600);
     assert_eq!(store.rows("repostEdges").unwrap().len(), 62);
     assert_eq!(post(host.port, "/q/entries", json!({"args": {"c": null}}))["complete"], true);
@@ -686,7 +686,7 @@ fn watcher_keeps_serving_after_a_refused_edit_and_a_parked_backfill() {
     let refusing = repost_after().replace("first 100 by byId:\n    if", "first 1 by byId:\n    require e.at < 200 else BACKFILL_STOP\n    if");
     fs::write(&schema, refusing).unwrap();
     host.until(|h| h.log().contains("schema adopted as generation 2"));
-    let store = snapback4_core::Store::open(&dir.0.join(".snapback4/store.sqlite")).unwrap();
+    let store = snapback4_core::store_port::AnyStore::open(&dir.0.join(".snapback4/store.sqlite")).unwrap();
     let mut engine = snapback4_core::Engine::open(store).unwrap();
     let id = engine.enqueue_job("backfillRepostEdges", Default::default(), snapback4_core::now_ms()).unwrap();
     host.until(|h| h.log().contains("job backfillRepostEdges parked after 200 chunks"));
@@ -795,7 +795,7 @@ fn killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_child
     fs::write(&source, "import { writeFileSync, renameSync } from 'node:fs'; writeFileSync(new URL('../worker-pid.tmp', import.meta.url), String(process.pid)); renameSync(new URL('../worker-pid.tmp', import.meta.url), new URL('../worker-pid', import.meta.url)); setInterval(() => {}, 1000);\n").unwrap();
     let release = dir.0.join("release");
     assert!(dir.run(&["deploy", release.to_str().unwrap()]).status.success());
-    let store = snapback4_core::Store::open(&release.join("store.sqlite")).unwrap();
+    let store = snapback4_core::store_port::AnyStore::open(&release.join("store.sqlite")).unwrap();
     let manual = snapback4_core::identity::service_session(&store, "worker", snapback4_core::now_ms(), 30).unwrap();
     let mut host = Host::start(&dir, &["serve", release.to_str().unwrap(), "--worker", source.to_str().unwrap()]);
     host.until(|_| fs::read_to_string(dir.0.join("worker-pid")).ok().and_then(|text| text.parse::<u32>().ok()).is_some());

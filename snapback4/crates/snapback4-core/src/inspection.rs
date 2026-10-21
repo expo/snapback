@@ -77,3 +77,9 @@ pub fn check_output_names(columns: &[String], object_rows: bool) -> InspectionRe
     }
     Ok(())
 }
+
+pub struct InspectionRows {
+    pub columns: Vec<String>,
+    pub rows: Vec<Vec<serde_json::Value>>,
+    pub more: bool,
+}

@@ -104,7 +104,7 @@ pub(super) fn paths_changed(schema: &crate::schema::Schema, previous: Option<&cr
 
 #[cfg(feature = "sqlite")]
 impl Runner<'_> {
-    pub(super) fn rebuild_recorded_activation(&mut self, previous: Option<&crate::schema::Schema>, maintains: &[&crate::schema::Maintain], report: &mut crate::store::adoption_report::AdoptionReport) -> Result<(), RuntimeError> {
+    pub(super) fn rebuild_recorded_activation(&mut self, previous: Option<&crate::schema::Schema>, maintains: &[&crate::schema::Maintain], report: &mut crate::store_port::report::AdoptionReport) -> Result<(), RuntimeError> {
         let saved = self.event_free;
         self.event_free = true;
         let result = (|| {
@@ -119,7 +119,7 @@ impl Runner<'_> {
 
     /// Run after schema projection and before any aggregate rebuild. Only paths
     /// absent from the predecessor are captured; existing nulls are history too.
-    pub(super) fn capture_activation(&mut self, previous: Option<&crate::schema::Schema>, mut report: Option<&mut crate::store::adoption_report::AdoptionReport>) -> Result<(), RuntimeError> {
+    pub(super) fn capture_activation(&mut self, previous: Option<&crate::schema::Schema>, mut report: Option<&mut crate::store_port::report::AdoptionReport>) -> Result<(), RuntimeError> {
         use crate::rows::{Bounds, Dir};
         if self.device { return Err(RuntimeError::Prediction("recorded activation requires the server's replacement snapshot".into())); }
         for (name, table) in &self.schema.tables.clone() {

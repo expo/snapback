@@ -1,6 +1,6 @@
 //! Snapshot populations and conservative operation dependencies, grouped by table.
 // @ref LLP 3000.000.000#14-wave-14-rollback-narration — rollback names changed populations and quotas before schema mechanics.
-use snapback4_core::{Schema, Store, Value, ir, schema::ColumnType, store::DormantItem};
+use snapback4_core::{Schema, store_port::AnyStore, Value, ir, schema::ColumnType, store_port::DormantItem};
 use std::collections::{BTreeMap, BTreeSet};
 
 fn tables(value: &serde_json::Value, out: &mut BTreeSet<String>) {
@@ -34,7 +34,7 @@ fn reads(schema: &Schema, program: &ir::Program) -> BTreeSet<String> {
     reads
 }
 
-pub(super) fn capture(store: &Store) -> Result<(), String> {
+pub(super) fn capture(store: &AnyStore) -> Result<(), String> {
     store.capture_preview_active()
 }
 fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String,String)>) {
@@ -46,7 +46,7 @@ fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String,String)>) {
     }
 }
 
-pub(super) fn warnings(store: &Store, current: Option<&Schema>, schema: &Schema, programs: &BTreeMap<String, ir::Program>, items: &[DormantItem], release: u64, rollback: bool) -> Result<Vec<String>,String> {
+pub(super) fn warnings(store: &AnyStore, current: Option<&Schema>, schema: &Schema, programs: &BTreeMap<String, ir::Program>, items: &[DormantItem], release: u64, rollback: bool) -> Result<Vec<String>,String> {
     let mut query_readers = BTreeMap::<String,BTreeSet<String>>::new();
     let mut gates = BTreeMap::<String,BTreeSet<String>>::new();
     for (name, program) in programs {

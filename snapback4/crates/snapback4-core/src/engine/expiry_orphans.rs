@@ -4,7 +4,7 @@ use crate::rows::Rows;
 use super::committer::{Committer, Kind, Member};
 
 use super::{Engine, Runner};
-use crate::{Context, Value, error::RuntimeError, meter::{Ceilings, Cut, Meter}, schema::{BY_ID, Schema}, store::{Bounds, Dir}};
+use crate::{Context, Value, error::RuntimeError, meter::{Ceilings, Cut, Meter}, schema::{BY_ID, Schema}, rows::{Bounds, Dir}};
 use std::collections::BTreeSet;
 
 fn eligible(schema: &Schema, parent: &str) -> bool {

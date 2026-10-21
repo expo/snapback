@@ -5,7 +5,7 @@ use crate::rows::Rows;
 #[test]
 fn two_members_keep_the_first_on_second_rollback_drop_or_error() {
     for mode in ["rollback", "drop", "error"] {
-        let mut store = Store::memory().unwrap();
+        let mut store = AnyStore::memory().unwrap();
         let tx = store.transaction().unwrap();
         let first = Committer::execute(
             &tx,
@@ -105,7 +105,7 @@ fn two_members_keep_the_first_on_second_rollback_drop_or_error() {
 #[test]
 fn normal_abort_and_error_discard_pins_and_metadata_in_the_solo_driver() {
     for mode in ["rollback", "drop", "error"] {
-        let mut store = Store::memory().unwrap();
+        let mut store = AnyStore::memory().unwrap();
         let result = Committer::run(
             &mut store,
             Member::new(Kind::Direct, |tx| {
@@ -136,7 +136,7 @@ fn failed_abort_keeps_the_rollback_cause_and_runs_no_continuation() {
                 )
             };
             let expected = RuntimeError::Sql(failure());
-            let mut store = Store::memory().unwrap();
+            let mut store = AnyStore::memory().unwrap();
             let mut continued = false;
             let error = Committer::run_with(
                 &mut store,
@@ -181,7 +181,7 @@ fn failed_abort_keeps_the_rollback_cause_and_runs_no_continuation() {
 
 #[test]
 fn acknowledgement_and_follow_on_writer_run_after_physical_commit() {
-    let mut store = Store::memory().unwrap();
+    let mut store = AnyStore::memory().unwrap();
     let value = Committer::run_with(
         &mut store,
         |store| {
@@ -215,7 +215,7 @@ fn acknowledgement_and_follow_on_writer_run_after_physical_commit() {
 
 #[test]
 fn failed_physical_commit_has_no_acknowledgement_or_hook() {
-    let mut store = Store::memory().unwrap();
+    let mut store = AnyStore::memory().unwrap();
     store
         .conn()
         .execute_batch(
@@ -266,7 +266,7 @@ fn failed_physical_commit_has_no_acknowledgement_or_hook() {
 #[test]
 fn contradictory_dispositions_are_rejected_before_commit() {
     for end in [Frame::Complete, Frame::Abort] {
-        let mut store = Store::memory().unwrap();
+        let mut store = AnyStore::memory().unwrap();
         let result = Committer::run(
             &mut store,
             Member::new(Kind::Engine, |tx| {
@@ -300,9 +300,13 @@ fn facade_has_no_owner_connection_or_physical_control() {
     struct DerefEscape;
     impl<T: std::ops::Deref> Ambiguous<DerefEscape> for T {}
     struct RefEscape;
-    impl<'a, T: AsRef<Tx<'a>>> Ambiguous<RefEscape> for T {}
+    impl<'a, T: AsRef<AnyTx<'a>>> Ambiguous<RefEscape> for T {}
     struct BorrowEscape;
-    impl<'a, T: std::borrow::Borrow<Tx<'a>>> Ambiguous<BorrowEscape> for T {}
+    impl<'a, T: std::borrow::Borrow<AnyTx<'a>>> Ambiguous<BorrowEscape> for T {}
+    struct SqliteRefEscape;
+    impl<'a, T: AsRef<crate::store::Tx<'a>>> Ambiguous<SqliteRefEscape> for T {}
+    struct SqliteBorrowEscape;
+    impl<'a, T: std::borrow::Borrow<crate::store::Tx<'a>>> Ambiguous<SqliteBorrowEscape> for T {}
     let _ = <MemberTx<'_, '_> as Ambiguous<_>>::absent;
 
     struct Missing;
@@ -318,7 +322,7 @@ fn facade_has_no_owner_connection_or_physical_control() {
         }
     }
     impl Escapes for MemberTx<'_, '_> {}
-    let mut store = Store::memory().unwrap();
+    let mut store = AnyStore::memory().unwrap();
     Committer::run(
         &mut store,
         Member::new(Kind::Direct, |tx| {
@@ -346,7 +350,7 @@ fn two_committed_continuations_run_in_submission_order_despite_failure() {
             tx.complete(Pending::new(id, format!("member {id}")))
         })
     }
-    let mut store = Store::memory().unwrap();
+    let mut store = AnyStore::memory().unwrap();
     let mut seen = Vec::new();
     let results =
         Committer::run_batch_with(&mut store, [member(1), member(2)], |store, data, id| {
@@ -371,7 +375,7 @@ fn two_committed_continuations_run_in_submission_order_despite_failure() {
 
 #[test]
 fn normal_abort_runs_no_continuation() {
-    let mut store = Store::memory().unwrap();
+    let mut store = AnyStore::memory().unwrap();
     let mut ran = false;
     let value = Committer::run_with(
         &mut store,
@@ -397,7 +401,7 @@ fn normal_abort_runs_no_continuation() {
 
 #[test]
 fn continuation_failure_keeps_the_original_error_policy_and_durable_writes() {
-    let mut store = Store::memory().unwrap();
+    let mut store = AnyStore::memory().unwrap();
     let expected = RuntimeError::TimeAudiencePending;
     let result = Committer::run_with(
         &mut store,
@@ -441,7 +445,7 @@ fn variant_classification_strips_nested_continuation_wrappers() {
 
 #[test]
 fn failed_batch_commit_runs_neither_continuation() {
-    let mut store = Store::memory().unwrap();
+    let mut store = AnyStore::memory().unwrap();
     store
         .conn()
         .execute_batch(

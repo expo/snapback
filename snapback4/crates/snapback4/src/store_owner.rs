@@ -1,6 +1,6 @@
 //! Ownership locks the database's sidecar; stat pins its inode. `serve.lock` is only an address hint.
 use std::{fs::{self, File}, io::{Read, Seek, SeekFrom, Write}, path::{Path, PathBuf}, time::Duration};
-use snapback4_core::{Engine, RuntimeError, Store};
+use snapback4_core::{Engine, RuntimeError, store_port::AnyStore};
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
 
@@ -227,8 +227,8 @@ impl Owner {
         Err(RuntimeError::Store(failure(&self.path, "owned database moved or was replaced; stop and reopen its current path")))
     }
 
-    pub(crate) fn open_store(&self, timeout: Duration) -> Result<Store, RuntimeError> {
-        let mut store = Store::open_with_busy_timeout(self.path()?, timeout)?;
+    pub(crate) fn open_store(&self, timeout: Duration) -> Result<AnyStore, RuntimeError> {
+        let mut store = AnyStore::open_with_busy_timeout(self.path()?, timeout)?;
         #[cfg(unix)]
         store.retain_ownership(self._sidecar.clone())?;
         Ok(store)

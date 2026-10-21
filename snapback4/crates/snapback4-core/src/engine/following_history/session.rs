@@ -4,7 +4,7 @@ use super::*;
 use read::Live;
 
 pub(super) fn replay(
-    tx: &Tx<'_>,
+    tx: &AnyTx<'_>,
     schema: &crate::schema::Schema,
     t: &Timeline,
     s: &Session,
@@ -57,7 +57,7 @@ pub(super) fn replay(
 }
 
 pub(super) fn advance(
-    tx: &Tx<'_>,
+    tx: &AnyTx<'_>,
     schema: &crate::schema::Schema,
     projection: Option<&projection::Plan<'_>>,
     now: i64,

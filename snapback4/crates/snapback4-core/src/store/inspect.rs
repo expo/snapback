@@ -24,11 +24,7 @@ pub struct Inspection {
     conn: Connection,
     denied: Arc<AtomicU8>,
 }
-pub struct InspectionRows {
-    pub columns: Vec<String>,
-    pub rows: Vec<Vec<Value>>,
-    pub more: bool,
-}
+pub use crate::inspection::InspectionRows;
 impl Inspection {
     pub fn open(path: &Path) -> Result<Self> {
         let conn = Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY)

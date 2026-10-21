@@ -134,7 +134,7 @@ use crate::partition::{self, Event};
 #[cfg(feature = "sqlite")]
 use crate::schema::{ColumnType, Effect, Schema, materialize_optional_fields};
 #[cfg(feature = "sqlite")]
-use crate::store::Store;
+use crate::store_port::AnyStore;
 use crate::value::Value;
 #[cfg(feature = "sqlite")]
 use runner::Runner;
@@ -367,7 +367,7 @@ pub struct MutationOutcome {
 #[cfg(feature = "sqlite")]
 #[derive(Clone, Debug)]
 pub struct AssetGrant {
-    /// Store identity captured in the same transaction as the placement grant.
+    /// AnyStore identity captured in the same transaction as the placement grant.
     pub store_id: String,
     /// Ledger-confirmed placement; upload previews have no home.
     pub home: Option<(String, String, String)>,
@@ -386,7 +386,7 @@ pub struct AssetGrant {
 pub struct Engine {
     timeline_schedule: timeline::Schedule,
     ephemeral: std::sync::Arc<ephemeral::Hub>,
-    store: Store,
+    store: AnyStore,
     schema: Schema,
     programs: BTreeMap<String, Program>,
     ceilings: Ceilings,
@@ -411,12 +411,13 @@ pub struct Engine {
 
 #[cfg(feature = "sqlite")]
 impl Engine {
-    pub fn new(store: Store, schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<Self, RuntimeError> {
+    pub fn new(store: impl Into<AnyStore>, schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<Self, RuntimeError> {
         Self::new_at(store, schema, programs, crate::now_ms())
     }
 
     /// Activate using the owning host's clock for parent liveness and captures.
-    pub fn new_at(mut store: Store, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<Self, RuntimeError> {
+    pub fn new_at(store: impl Into<AnyStore>, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<Self, RuntimeError> {
+        let mut store = store.into();
         columns::validate_before_prepare(&schema)?;
         schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
@@ -449,15 +450,15 @@ impl Engine {
 
     /// Attach to an already activated semantic generation without installing
     /// caller source. Reads of its identity and compiled content are one snapshot.
-    pub fn open(store: Store) -> Result<Self, RuntimeError> {
+    pub fn open(store: impl Into<AnyStore>) -> Result<Self, RuntimeError> {
         Self::open_at(store, crate::now_ms())
     }
 
-    pub fn open_at(store: Store, now: i64) -> Result<Self, RuntimeError> {
-        Self::open_selected_at(store, now, None)
+    pub fn open_at(store: impl Into<AnyStore>, now: i64) -> Result<Self, RuntimeError> {
+        Self::open_selected_at(store.into(), now, None)
     }
 
-    fn open_selected_at(mut store: Store, now: i64, expected_release: Option<u64>) -> Result<Self, RuntimeError> {
+    fn open_selected_at(mut store: AnyStore, now: i64, expected_release: Option<u64>) -> Result<Self, RuntimeError> {
         let tx = store.opening_transaction()?;
         tx.check_selected_release(expected_release)?;
         let crate::activation::Backend(generation, schema, programs) = tx.opening_backend()?;
@@ -482,7 +483,7 @@ impl Engine {
                 || tx.opening_marker(crate::metadata::SchemaMarker::MaintainedIds)?.as_deref() == Some(crate::schema::MAINTAINED_ID_VERSION))
             && (!crate::rows::caps::required(&schema) || tx.opening_marker(crate::metadata::SchemaMarker::CapCounts)?.as_deref() == Some(&schema_hash))
             && (!schema.tables.values().any(|table| table.not_before.is_some())
-                || tx.opening_marker(crate::metadata::SchemaMarker::TimePublications)?.as_deref() == Some("1")) { (generation, Store::finish_open(tx)?) }
+                || tx.opening_marker(crate::metadata::SchemaMarker::TimePublications)?.as_deref() == Some("1")) { (generation, AnyStore::finish_open(tx)?) }
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))?.into_inner() };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
@@ -491,29 +492,29 @@ impl Engine {
 
     /// Serving a selected immutable release may attach only while that release
     /// is still current. A racing deployment makes startup retry, never adopt.
-    pub fn attach_release(store: Store, expected: u64) -> Result<Self, RuntimeError> {
+    pub fn attach_release(store: impl Into<AnyStore>, expected: u64) -> Result<Self, RuntimeError> {
         Self::attach_release_at(store, expected, crate::now_ms())
     }
 
-    pub fn attach_release_at(store: Store, expected: u64, now: i64) -> Result<Self, RuntimeError> {
-        let mut engine = Self::open_selected_at(store, now, Some(expected))?;
+    pub fn attach_release_at(store: impl Into<AnyStore>, expected: u64, now: i64) -> Result<Self, RuntimeError> {
+        let mut engine = Self::open_selected_at(store.into(), now, Some(expected))?;
         engine.dev_effects = false;
         Ok(engine)
     }
 
     pub fn memory(schema: Schema, programs: impl IntoIterator<Item = Program>) -> Result<Self, RuntimeError> {
-        Self::new(Store::memory()?, schema, programs)
+        Self::new(AnyStore::memory()?, schema, programs)
     }
 
     pub fn schema(&self) -> &Schema {
         &self.schema
     }
 
-    pub fn store(&self) -> &Store {
+    pub fn store(&self) -> &AnyStore {
         &self.store
     }
 
-    pub fn store_mut(&mut self) -> &mut Store {
+    pub fn store_mut(&mut self) -> &mut AnyStore {
         &mut self.store
     }
 
@@ -641,7 +642,7 @@ impl Engine {
             let mut removed = 0_u64;
             let mut visited = 0_usize;
             let mut expiry_after = engine.expiry_after.clone();
-            let due = crate::store::Bounds { gte: Some(Value::Int(i64::MIN)), lte: Some(Value::Int(now)), ..Default::default() };
+            let due = crate::rows::Bounds { gte: Some(Value::Int(i64::MIN)), lte: Some(Value::Int(now)), ..Default::default() };
             let expiring = through_activation::resume_expiry_tables(
                 expiring.into_iter().map(|(name, _)| name).collect(), &expiry_after,
             ).into_iter().map(|name| {
@@ -657,7 +658,7 @@ impl Engine {
                     if batch == 0 {
                         break 'tables;
                     }
-                    let rows = tx.scan(table_name, index, &[], &bounds, crate::store::Dir::Asc, batch)?;
+                    let rows = tx.scan(table_name, index, &[], &bounds, crate::rows::Dir::Asc, batch)?;
                     let count = rows.len();
                     for (row, key) in rows {
                         bounds.after = crate::key::decode(&key);
@@ -1363,7 +1364,7 @@ pub enum DeliveryManifest { Build, Skip }
 
 /// `/seed`'s write inside the caller's transaction: one commit when any row is written.
 #[cfg(feature = "sqlite")]
-pub(crate) fn seed_rows(schema: &Schema, tx: &crate::store::Tx<'_>, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
+pub(crate) fn seed_rows(schema: &Schema, tx: &crate::store_port::AnyTx<'_>, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
     let bounded=crate::schema::live::has_live(schema);
     let mut bulk_meter=Meter::new(if bounded {Ceilings::job()}else{Ceilings::unbounded()},Cut::Abort);
     let rows:Box<dyn Iterator<Item=(String,Value)> + '_>=if bounded {Box::new(live_bulk::collect(rows,&mut bulk_meter)?.into_iter())}else{Box::new(rows.into_iter())};

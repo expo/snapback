@@ -131,6 +131,7 @@ impl PostgresEngine {
         let programs: BTreeMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         super::supported(&schema, &programs)?;
         let tx = self.store.transaction(Some(WriteMode::Serialized))?;
+        super::activation_schema::verify_activation(&tx)?;
         let prep = Preparation(&tx);
         options.check(&prep)?;
         let previous = tx.opening_backend()?;

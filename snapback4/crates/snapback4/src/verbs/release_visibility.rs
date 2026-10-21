@@ -1,6 +1,6 @@
 //! Exact before/after population facts from the private activation snapshot.
 // @ref LLP 3000.000.000#19-dormant-visibility-and-migration-dorm — never mistake retained v2-only facts for deleted v1 records.
-use snapback4_core::{Schema, Store, Value, schema::ColumnDefault};
+use snapback4_core::{Schema, store_port::AnyStore, Value, schema::ColumnDefault};
 use serde::Serialize;
 
 #[derive(Default, Serialize)]
@@ -33,7 +33,7 @@ pub(super) struct Cells {
     pub sample_ids: Vec<String>,
 }
 
-pub(super) fn assess(store: &Store, current: Option<&Schema>, target: &Schema) -> Result<Visibility, String> {
+pub(super) fn assess(store: &AnyStore, current: Option<&Schema>, target: &Schema) -> Result<Visibility, String> {
     let mut result = Visibility::default();
     let Some(current) = current else { return Ok(result); };
     for (name, table) in current.visible_tables().filter(|(name, t)| t.ephemeral.is_none() && current.maintain_for(name).is_none()) {
@@ -104,7 +104,7 @@ mod tests {
         let old=bound("table items:\n  n: int 1..10\n  reason: text <=40 ?\n  public\n");
         let new=bound("table items:\n  n: int 0..10\n  public\ntable labels:\n  text: text <=40\n  public\n");
         let current=new.schema.clone();
-        let mut e=Engine::new_release(Store::memory().unwrap(),new.schema,new.programs.into_iter().map(|p|p.program),2,None).unwrap();
+        let mut e=Engine::new_release(AnyStore::memory().unwrap(),new.schema,new.programs.into_iter().map(|p|p.program),2,None).unwrap();
         for (name,json) in [("items",serde_json::json!({"id":"hidden","n":0})),("items",serde_json::json!({"id":"visible","n":3})),("labels",serde_json::json!({"id":"label","text":"new fact"}))] {
             let row=wire::row_from_json(&current.tables[name],&json).unwrap();e.seed([(name.into(),row)]).unwrap();
         }
@@ -124,7 +124,7 @@ mod tests {
         let source="table items:\n  reason: text <=40 ?\n  public\n";
         let old=bound(source);let new=bound(&source.replace("  reason: text <=40 ?\n",""));
         let current=new.schema.clone();
-        let mut e=Engine::new_release(Store::memory().unwrap(),old.schema.clone(),[],1,None).unwrap();
+        let mut e=Engine::new_release(AnyStore::memory().unwrap(),old.schema.clone(),[],1,None).unwrap();
         for (id,reason) in [("kept",serde_json::json!("original")),("empty",serde_json::Value::Null)] {
             let row=wire::row_from_json(&old.schema.tables["items"],&serde_json::json!({"id":id,"reason":reason})).unwrap();e.seed([("items".into(),row)]).unwrap();
         }

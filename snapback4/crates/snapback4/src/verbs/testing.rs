@@ -72,7 +72,7 @@ pub fn test(options: &Options) -> i32 {
     let opened = match &_owner {
         Some(owner) => owner.open_engine(&bound, std::time::Duration::from_secs(5), fixture_now).map_err(|e| e.to_string()),
         None if !options.flags.contains_key("fixture")&&!options.flags.contains_key("residency") => {
-            snapback4_core::Store::memory().and_then(|store|snapback4_core::Engine::new_at(store,bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone()),fixture_now)).map_err(|e|e.to_string())
+            snapback4_core::store_port::AnyStore::memory().and_then(|store|snapback4_core::Engine::new_at(store,bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone()),fixture_now)).map_err(|e|e.to_string())
         },
         None => test_fixture::engine_at(&project, &bound, options, fixture_now),
     };

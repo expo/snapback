@@ -1,0 +1,5 @@
+{
+  "files_scanned": 16103,
+  "harness_hs256_bearer_token_matches": [],
+  "method": "shared HS256 encoded header prefix in captured and committed artifacts"
+}

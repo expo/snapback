@@ -4,7 +4,7 @@ use crate::activation::{ActivationReader, ActivationTransaction, ActivationPrepa
 use crate::metadata::RestoredPopulation;
 impl Engine {
     pub(super) fn activate(
-        store: &mut Store,
+        store: &mut AnyStore,
         schema: &Schema,
         programs: &BTreeMap<String, Program>,
         release: Option<&release::ReleaseActivation>,
@@ -12,7 +12,7 @@ impl Engine {
         allow_feed_adoption: bool,
         expected_release: Option<u64>,
         expected_backend: Option<&crate::activation::Backend>,
-    ) -> Result<Committed<(u64, crate::store::opening::Metadata)>, RuntimeError> {
+    ) -> Result<Committed<(u64, crate::store_port::OpeningMetadata)>, RuntimeError> {
         if let Some(release) = release { release.validate()?; }
         schema.validate_column_owners()?;
         for program in programs.values() {
@@ -197,7 +197,7 @@ impl Engine {
                 crate::release_history::record_event(tx,crate::now_ms(),&options.operation,Some(options.release),options.expected_previous,serde_json::json!({"dormant_items":dormant_items,"restored_items":restored_items,"native_digest":options.native_digest,"narrowed_retained":tx.narrowed_retained()?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),"narrowed_restored":tx.narrowed_restored()?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)}),&items)?;
                 tx.clear_activation_metadata()?;
             }
-            crate::store::opening::Metadata::read(tx)
+            crate::store_port::OpeningMetadata::read(tx)
         });
         outcome.map(|committed| committed.pending((population.get(), release.is_some())))
         }, |store, (population, has_release), value| {
@@ -206,7 +206,7 @@ impl Engine {
             }
 
             if let Ok(items)=store.dormant_inventory(None,usize::MAX) {
-                if has_release { store.adoption_report.changes.insert(0, crate::store::adoption_report::AdoptionReport::dormant(&items)); }
+                if has_release { store.adoption_report.changes.insert(0, crate::store_port::report::AdoptionReport::dormant(&items)); }
             }
             Ok(value)
         })

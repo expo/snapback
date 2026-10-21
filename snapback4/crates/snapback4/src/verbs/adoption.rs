@@ -1,6 +1,6 @@
 //! Locate the store's successor refusals in the author's current sources.
 use crate::project::Project;
-use snapback4_core::{Schema, Store};
+use snapback4_core::{Schema, store_port::AnyStore};
 use snapback4_core::successor::Change;
 use snapback4_lang::{Diagnostic, Site};
 use std::collections::BTreeMap;
@@ -9,7 +9,7 @@ use std::path::PathBuf;
 pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&String>, detailed:bool) -> Result<(Vec<Diagnostic>, Vec<Diagnostic>), String> {
     let path = explicit.map(PathBuf::from).unwrap_or_else(|| project.store_path());
     if explicit.is_none() && !path.exists() { return Ok((Vec::new(), Vec::new())); }
-    let mut store = Store::open_read_only(&path).map_err(|e| e.to_string())?;
+    let mut store = AnyStore::open_read_only(&path).map_err(|e| e.to_string())?;
     let (estimates, timeline_error) = match store.check_timeline_activation(schema) {
         Ok(estimates) => (estimates, None),
         Err(error @ snapback4_core::RuntimeError::Structural { .. }) => (Vec::new(), Some(error)),
@@ -48,7 +48,7 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
         let name = message.strip_prefix("view ").and_then(|s| s.split_once(':')).map(|(name, _)| name);
         let site = name.and_then(|name| sites.get(&format!("timelines.{name}"))).cloned().unwrap_or_else(|| Site::new("schema.q", 1, 1));
         diagnostics.push(Diagnostic::new(&site, code, message,
-            snapback4_core::store::timeline_launch::ALTERNATIVE).guide("feeds"));
+            snapback4_core::store_port::timeline_launch::ALTERNATIVE).guide("feeds"));
     }
     let mut notes: Vec<_> = estimates.iter().filter(|e| e.sources != 0).map(|estimate| {
         let site = sites.get(&format!("timelines.{}", estimate.name)).cloned().unwrap_or_else(|| Site::new("schema.q", 1, 1));
@@ -101,7 +101,7 @@ fn host_with_legacy(project: &Project, options: &super::Options, legacy: bool) -
     // Older persisted hosts still publish their address through store ownership.
     let path=project.store_path();
     if let Some(address)=legacy.then(||crate::store_owner::inspector_address(&path)).flatten().filter(|a|!hosts.contains_key(a)) {
-        if let Some(id)=Store::open_read_only(&path).ok().and_then(|s|s.store_identity().ok().flatten()) {
+        if let Some(id)=AnyStore::open_read_only(&path).ok().and_then(|s|s.store_identity().ok().flatten()) {
             if let Some(mut status)=request(address,"GET","/dev/status").filter(|s|s["project"]==serde_json::json!(root) && s["storeId"]==id && s["temporary"]==false) {
                 status["address"]=serde_json::json!(address.to_string());hosts.insert(address,status);
             }

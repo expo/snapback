@@ -57,7 +57,7 @@ impl ReleaseActivation {
 
 impl Engine {
     pub fn new_release(
-        store: Store,
+        store: impl Into<AnyStore>,
         schema: Schema,
         programs: impl IntoIterator<Item = Program>,
         release: u64,
@@ -73,7 +73,7 @@ impl Engine {
         )
     }
     pub fn new_release_with_feed_adoption(
-        store: Store,
+        store: impl Into<AnyStore>,
         schema: Schema,
         programs: impl IntoIterator<Item = Program>,
         release: u64,
@@ -89,19 +89,20 @@ impl Engine {
         )
     }
     pub fn new_release_prepared(
-        store: Store, schema: Schema, programs: impl IntoIterator<Item = Program>,
+        store: impl Into<AnyStore>, schema: Schema, programs: impl IntoIterator<Item = Program>,
         options: &ReleaseActivation, allow_feed_adoption: bool,
     ) -> Result<Self, RuntimeError> {
         Self::new_release_prepared_at(store,schema,programs,options,allow_feed_adoption,crate::now_ms())
     }
     pub fn new_release_prepared_at(
-        mut store: Store,
+        store: impl Into<AnyStore>,
         mut schema: Schema,
         programs: impl IntoIterator<Item = Program>,
         options: &ReleaseActivation,
         allow_feed_adoption: bool,
         now: i64,
     ) -> Result<Self, RuntimeError> {
+        let mut store = store.into();
         prepare(&mut schema)?;
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let (generation, metadata) = Self::activate(

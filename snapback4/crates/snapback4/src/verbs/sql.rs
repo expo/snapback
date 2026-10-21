@@ -1,7 +1,7 @@
 //! Developer inspection, attached to the persisted generation, without an engine writer.
 
 use super::{Options, project_or_exit};
-use snapback4_core::{inspection::{InspectionCatalog, PRIVATE, CATALOG_HINT, internal}, store::inspect::Inspection};
+use snapback4_core::{inspection::{InspectionCatalog, PRIVATE, CATALOG_HINT, internal}, store_port::AnyInspection};
 use serde_json::{Value, json};
 use snapback4_core::schema::Schema;
 use std::path::Path;
@@ -45,7 +45,7 @@ fn inspect(options: &Options) -> Result<()> {
         None => project_or_exit().store_path(),
     };
     // @ref LLP 3000.007#8 — developer SQL is read-only, never rule-filtered
-    let conn = Inspection::open(&path).map_err(|error| {
+    let conn = AnyInspection::open(&path).map_err(|error| {
         let (code, message) = error;
         (code, format!("{message}{}", store_hint(&path, options)))
     })?;
@@ -67,7 +67,7 @@ fn inspect(options: &Options) -> Result<()> {
     }
     conn.build_retained_views(&schema, dormant, all_releases, |name| eprintln!("sql: skipping {name}: ephemeral rows live only in the serving process's memory"))?;
     let object_rows = options.flags.contains_key("json-objects");
-    let snapback4_core::store::inspect::InspectionRows { columns, rows, more } = conn.query(&body, limit, object_rows,
+    let snapback4_core::store_port::InspectionRows { columns, rows, more } = conn.query(&body, limit, object_rows,
         |message| snapback4_core::inspection::query_error(&schema, message),
         |columns| snapback4_core::inspection::check_output_names(columns, object_rows),
         |columns| objects::booleans(&body, &schema, columns, dormant || all_releases).map_err(|e| ("E_INPUT", e)))?;
@@ -95,7 +95,7 @@ fn inspect(options: &Options) -> Result<()> {
 // @ref LLP 3000.007#8 — bounded catalog probes never adopt or acquire a writer lock.
 pub(super) fn window_populations(path: &Path, candidate: &Schema) -> Result<Vec<(String, u32, u64)>> {
     if !candidate.visible_tables().any(|(_, table)| table.ephemeral.is_none() && table.sync.as_ref().is_some_and(|s| s.horizon.is_some())) { return Ok(Vec::new()); }
-    let conn = Inspection::open(path)?;
+    let conn = AnyInspection::open(path)?;
     conn.begin_snapshot()?;
     let adopted = conn.inspection_adopted()?;
     if !adopted { return Ok(Vec::new()); }

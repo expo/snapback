@@ -100322,3 +100322,241 @@ No product/core change, sub-agent, clone, stash, push, paid resource, sudo,
 netem, or unrelated 450a work. Other controls need native API/seed adapters,
 collector filters/counter witnesses and independent tunnel-pool integration;
 W6 and advocate review remain later work.
+
+## 2026-10-21 — S1-SB native Supabase control implemented
+
+Extended the S1-H scheduler/runner with a native PostgREST target, pinned to
+the official Supabase compose's PostgREST 14.18 static release and verified
+against its GitHub asset SHA-256. Separate sb4scale_supabase databases and
+sb4scale API schema reuse the exact numeric fixture and seed.sql; a 256-user
+UUID identity mapping supports standard authenticated JWTs and auth.uid().
+Explicit RLS policies use indexed membership sets and initplans; private
+pinned-path identity lookup avoids recursive RLS. Inbox and atomic counters
+are SECURITY INVOKER RPCs; a definer trigger maintains post totals. No HTTP
+wrapper, product/core change, cluster restart/configuration change or new
+service outside this lane. PostgREST's default ten-connection pool and
+1,000-entry JWT cache are retained, with prepared statements and no
+pre-request hook. The commented cache-disable example differs from its
+actual default; checked the pinned Config.hs before measurement.
+
+Release build and Clippy with warnings denied pass. Native black-box checks
+pass membership/ownership, spoofed sender, invalid/expired JWT, pooled claim
+isolation, private-helper invisibility, atomic room/sender maintains,
+raw-seed/HTTP value equality and intended-arrival overload accounting. A
+five-workload capture smoke passes counter equality and resource/statement
+collection with all children stopped. Full measurement follows separately.
+PostgREST uses an app-core TCP dispatcher to lease independent SSH streams;
+its CPU and unchanged S0 proxy CPU are charged to the app. The read RTT
+controls still measure the independent prepared-SELECT path. No Docker,
+GoTrue or Kong is present: offline 24-hour HS256 tokens substitute only for
+token issuance, and these rows are labelled PostgREST-only. The full stack's
+gateway hop, matched-pool controls, idle-host qualification and advocate
+review are unmeasured. One worker, no sub-agents/clone/stash/push or paid
+resources; all subprocess PIDs and cleanup recorded outside Git.
+
+
+## 2026-10-21 — S1-SB Supabase matrix completed
+
+Completed the same 132 W1–W5 cells as S1-H, with official PostgREST 14.18,
+Supabase roles/JWT/RLS, shipped pool 10 and 1,000-entry JWT cache: 524 rates,
+1,572 trials and 5,499,918 measured arrivals. All cells bracketed, all arrivals
+and histograms accounted for, all passing trials error-free and write deltas
+exact. 287 overloaded trials retain unknown write outcomes and all fail
+qualification. Both fixture sizes match raw PG field-for-field on the shared
+seed, with the stated small UUID identity/owner-index storage additions.
+Post-run RLS EXPLAINs show expected indexes/initplans; no API sessions remain.
+
+Natural-link 1m passing brackets are 1,414/s for W1–W3, 800/s disjoint counters
+(C=16), 141/s one shared counter (C=2), 800/s the 1% mix (C=16). All 132 rows
+and 24 headlines sit beside raw PG, with matched-rate latency comparisons,
+standalone SVGs and resource evidence. These compare specific native default
+configurations: raw PG uses read pool 32 and write pool C; Supabase pool 10
+stays fixed. Serial shared-host short windows produce substantial non-monotonic
+spread; no isolated causal RTT/pool/RLS/dispatcher attribution is claimed.
+
+A postprocessing audit found pg_stat_statements rows with the same queryid
+under both authenticator and authenticated. The snapshots retain both; fixed
+the reporter to sum role/toplevel rows before differencing and checked counter
+conservation. Nested RPC execution sums can overlap and are not CPU or wire
+roundtrip counts. This changes resource derivation only; measured code, timing,
+rate qualification and counter decisions are unchanged. Derivation hashes are
+recorded separately from the measurement source commit.
+
+Raw matrix/check/smoke/inspection evidence (467 MB) is archived outside Git at
+~/sb4scale/archive/results-20261021-supabase-cells.tar.zst (17.6 MB, verified
+SHA-256 b4bbd1c50f22cbe363a5abbb97962323da5a8c4b239a649cacf5692aad6c96c9).
+Only code/configuration/summaries/provenance/plots enter the repository. Secret
+scanning finds no DB password, signing secret or SCRAM verifier in the evidence.
+All 10,422 matrix children and all final check/smoke/inspection children exited.
+The existing durable PG17.9 cluster remains running on 450a, postmaster
+2735539; no restart/reconfiguration. Owned Supabase databases/roles are retained.
+No Docker/GoTrue/Kong/Realtime; offline 24-hour JWT issuance substitutes for
+GoTrue, and full-stack gateway overhead is unmeasured. No paid service, sudo,
+sub-agent, clone, stash or push. The RFC gets one prepended Revised item and
+one short S1-SB progress note; W6 and advocate/idle-host qualification remain.
+### 2026-10-21 — S10a: SQLite-only server handles and bridges
+
+First building increment of LLP 3000.009.001.000 §3.4: `AnyStore`, owning
+`AnyTx`, `ReadSnapshot`, pre-activation `AnyPreparation` and `AnyInspection`
+have only SQLite arms. Explicit family dispatch retains adapter overrides;
+the temporary owning dereference bridges are confined to the adapter. Opening
+metadata and owned adoption reports live at the neutral port. Activation still
+owns its original transaction, including the device's concrete callback API.
+The evidence reset is now available as an operation for the member driver.
+`cargo build -p snapback4 -j 10` passes with this worktree's target and the
+lane's no-incremental/line-table settings. Engine/host migration follows in
+separate building increments. No Postgres arm, producer routing or behavior
+change is claimed.
+
+S10a engine increment: `Engine` owns `AnyStore`; transaction signatures and
+restricted member forwarding now name `AnyTx`. The driver calls
+`begin_member_evidence`, and explicit activation/release/backfill bridges
+keep concrete access inside adapters. Step views borrow `AnyTx`; scan forms
+come from `rows`. Constructor `Into<AnyStore>` inputs retain concrete SQLite
+fixture/device interoperability. Three engine authority snapshots use scoped
+callbacks with their original rollback/error behavior. The adapter-internal
+reset/witness producers keep their original openers through `WriteStore`;
+this is no K0 routing claim. `cargo build -p snapback4 -j 10` passes.
+
+S10a host/identity increment: host openings and stored reader handles use
+`AnyStore`; inspection uses `AnyInspection`, and identity's three remaining
+authority reads use scoped snapshots. The snapshot adapter still opens and
+rolls back once; failure still drops that same transaction. `InspectionRows`
+is now a neutral owned record. `cargo build -p snapback4 -j 10` passes.
+An independent run of the new census matcher against base `8beeb79c52`
+reproduces **79/16 engine + 44/21 host = 123 tokens/37 files**; the migrated
+production trees have **0 tokens/0 files**. The falling census and full
+qualification results follow in the final increment.
+
+### 2026-10-21 — S10a qualification: zero concrete engine/host handles
+
+The SQLite-only handle migration meets the RFC §3.4 target: **123 concrete
+Store/Tx tokens in 37 production engine/host files → 0 in 0**. The sibling
+census has a fixed zero allowance with no raise override. The committer
+ratchet recognizes the scoped authority opener and remains **49 sites in
+11 files**; this is no new K0 producer-routing claim. Store-port access remains
+**0 production / 95 fixture sites**. Owning SQLite bridges remain for S10b;
+MemberTx still has no dereference, raw connection or physical transaction
+control, with negative borrow checks against both AnyTx and SQLite Tx.
+The device crate and the Postgres engine/family sources are unchanged.
+
+Qualification also closed inherited test setup gaps: differential fixtures
+now enable core test-support only in dev-dependencies; the experiment lock
+loses one obsolete direct device/rusqlite edge; five standalone SQLite
+calibration probes use two typed evaluation operations with the same SQL and
+order. The installed Lean 4.34.1 toolchain was added to command-local PATH and
+its no-dependency oracle built here without cache downloads. Mixed metadata
+from the standalone/main Cargo workspaces was cleared only in this worktree's
+own target before the final full differential run. No production default
+feature, Postgres algorithm, absent-evidence policy or transaction order changed.
+
+Final full suites: core **1,024 / 0 failed / 5 ignored**; host **1,398 / 3 /
+15**, with exactly the three author-supplied baseline failures; device
+**1,573 / 0 / 4**; simulator **749 / 0 / 7**; differential with the actual Lean
+oracle **99 / 0 / 0**. Both supplied load-sensitive host fixtures pass in the
+full run, so no isolated flake rerun was necessary. Both existing ratchets and
+the new census pass (12 tests), the requested guide guard passes, and the
+wasm codec census passes all 27 tests. Core no-default, device web/wasm and the
+normal binary build pass again at the end, using only this worktree's target,
+ten jobs, no incremental compilation and line-tables-only dev/test debug.
+Disk space stayed well above the 20 GB stop threshold.
+
+The final PostgreSQL 16.15 script passes: **58 experiment tests + 161 family
+tests + 19 corpus tests**, with existing exclusions retained. All three private
+clusters used during qualification were stopped and independently confirmed
+with status 3 and no postmaster.pid. No other cluster was stopped. Root
+ref-check and diff whitespace validation pass. No push, stash, clone, other
+machine or sub-agent was used. The complete result and the three baseline
+failure names are in [the S10a report](./reports/20261021-s10a-sqlite-store-handles.md).
+
+Final review also preserves ReleaseCheck's original adapter-only connection
+visibility: its conversion to AnyPreparation lives in the SQLite adapter. The
+normal binary rebuild after that visibility-only tightening passes.
+
+### 2026-10-21 — S10a fix round 1: rebase and close census/facade gaps
+
+Rebased S10a's four commits onto main mirror `4575a14e95`. Conflicts in the
+append-only journal and RFC metadata retain both histories with one Revised
+line. Activation keeps main's pre-writer validation, shared release-event
+policy and opening-marker reads on the enum handles. Explicit forwarding
+covers main's activation and release-history additions. Main's unknown change
+evidence remains unknown. The standalone experiment uses main's synchronous
+and SQLite-version methods; the duplicate evaluation wrappers are removed.
+
+The census now reads the complete core/host source export surfaces, follows
+renamed concrete imports and type aliases, and rejects both blind-review
+bypasses. Exact error-variant/foreign-type exclusions cannot hide imports
+renamed RuntimeError or wasmi. Run admission's private error variant was renamed
+without changing error/retry behavior. Explicit test filename conventions keep
+`contests.rs` in scope. The facade guard checks private fields and arbitrary
+handle-returning getters across its impls and macro declarations; mutation
+fixtures exercise public/crate-visible fields and borrowed AnyTx/SQLite Tx
+returns. The existing compiled facade checks remain in force.
+
+On rebased main the original census remains **123/37**, and on rebased S10a
+before fixes it remains **0/0**. The stronger tokens/declarations measure is
+**143/39 on main → 0/0 on fixed S10a**; the new declarations make its nonzero
+count a different measure. Store-port per-file minimums remain **0 production /
+95 fixture sites**. Full validation results follow in the same lane report.
+
+The expanded facade walk found one further census parser gap: a test-only field
+could swallow its following production impl. Field/variant delimiters and
+nested generic types now have regression fixtures, and the facade walk covers
+all core implementation files. The isolated facade rerun and all **14**
+ratchet/census tests pass, with **0 production / 95 fixture sites** and **49
+committer sites in 11 files**.
+
+Full guide qualification also refreshes the missing reviewed definition/action
+pins for main's two new store refusals, using the existing `why` paragraphs.
+The frozen JavaScript install plus local wasm/client builds restore the
+referenced generated artifacts. The complete guide suite passes **127/127**;
+the codec census passes **27/27** again. Wasm is **733,810 gzip bytes** against
+the unchanged **734,193** budget. No generated output or dependency lock change
+is committed.
+
+Final qualification passes: core **1,037 / 0 failed / 5 ignored**; host
+**1,404 / 0 / 15**; device **1,573 / 0 / 4**. All three supplied host baselines
+pass in this run. The binary build, core no-default and device web/wasm checks
+pass; the final concrete-handle census stays **0/0**. PostgreSQL qualification
+passes **58 experiment + 188 family + 19 corpus tests**, retaining the named
+corpus exclusions. The sole private cluster `/tmp/sb4-pg-eval.50psnR` is stopped:
+the script and an independent check both confirm status 3 and no
+postmaster.pid. No other cluster was stopped. The complete fix-round record is
+in [the S10a report](./reports/20261021-s10a-sqlite-store-handles.md).
+
+Root ref-check passes with **0 errors / 0 unchecked references**, and the diff
+passes whitespace validation. The fix is committed locally using the requested
+Codex author, Charlie Cheever committer and Codex co-author trailer; no push or
+stash, and no reviewer-worktree access.
+
+### 2026-10-21 — ACT-RC: activation rechecks Postgres ledgers after open
+
+Postgres release activation now re-verifies core and release ledger relations
+with the shared catalog guard inside its serialized transaction, under the
+head fence and before preparation writes. Backend publication checks the full
+`UPDATE ... RETURNING generation,schema,programs` image and refuses a missing
+or altered row with `SNAPBACK_ACTIVATION_SCHEMA`. Refusal drops the transaction,
+including any inserted generation. The verification performs no relation DDL;
+SQLite is unchanged. The P1-RL note in LLP 3000.009.001.000 §3.3 records the fix,
+and the activation-recheck ticket is resolved under `issues/closed/`.
+
+The witness installs a `BEFORE UPDATE ... RETURN OLD` backend trigger through
+another connection after a clean open. It checks the named refusal, unchanged
+backend/generation/catalog/metadata/event/head rows and in-memory generation,
+then removes the trigger, reopens release 1 and activates/reopens release 2.
+Post-open generation and metadata triggers exercise the preflight independently.
+Direct publication cases bypass preflight to prove that old images, zero rows
+and rewritten schema/programs bytes refuse and roll back generation history.
+
+Postgres qualification passes **58 experiment + 190 family + 19 corpus tests**,
+including both new witnesses; existing named corpus exclusions remain. The only
+private cluster, `/tmp/sb4-pg-eval.xt7RHR`, was stopped by the script and
+independently confirmed stopped (status 3, no `postmaster.pid`). Core no-default
+check and both ratchets pass (**3 committer + 7 store-port tests**). All Cargo
+commands use this worktree's `snapback4/target`, 16 build jobs, no incremental
+compilation and line-tables-only dev/test debug. Disk remains above 160 GB free.
+No push, stash, clone, other machine or sub-agent was used.
+
+The complete `cargo test -p snapback4-core --no-fail-fast` run passes, including
+integration tests and doctests. Root `./ref-check` passes with zero errors and
+zero unchecked references; the staged diff passes whitespace validation.

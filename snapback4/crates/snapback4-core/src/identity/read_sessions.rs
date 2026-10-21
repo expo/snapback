@@ -17,7 +17,7 @@ pub(super) fn scoped_session(principal: &str, kind: &str, now: i64, scope: Sessi
 
 // @ref LLP 3000.033#1.3 — lock, sample, authorize and mint in one writer
 // transaction; a waiting narrow cannot escape revocation or parent expiry.
-pub fn narrow_session(store: &mut Store, token: &str, sample: impl FnOnce() -> ServiceSample) -> Result<Session, RuntimeError> {
+pub fn narrow_session(store: &mut AnyStore, token: &str, sample: impl FnOnce() -> ServiceSample) -> Result<Session, RuntimeError> {
     let tx = store.transaction()?;
     let sample = sample();
     let parent = authority::live_session(&tx, &digest(token), sample.now)?

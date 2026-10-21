@@ -229,7 +229,7 @@ pub fn held_schedules(engine: &Engine, now: i64) -> Vec<String> {
 
 /// The dev clock offset that continues a store's own time: its newest
 /// recent commit stamp (or saved schedule boundary) less wall time, never negative.
-pub fn resume_offset(store: &snapback4_core::Store, wall: i64) -> Result<i64, RuntimeError> {
+pub fn resume_offset(store: &snapback4_core::store_port::AnyStore, wall: i64) -> Result<i64, RuntimeError> {
     let commit = store.recent_commit_max_at(RECENT_COMMITS as i64)?;
     let boundary = store.latest_schedule_boundary()?;
     let latest = commit.into_iter().chain(boundary).max().unwrap_or(wall);
@@ -251,7 +251,7 @@ mod tests {
     fn engine() -> Engine {
         let bound = snapback4_lang::compile(&[("schema.q".into(), "table alpha:\n  at: time\n  public\ntable beta:\n  at: time\n  public\n".into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        Engine::new_at(snapback4_core::Store::memory().unwrap(), bound.schema,
+        Engine::new_at(snapback4_core::store_port::AnyStore::memory().unwrap(), bound.schema,
             bound.programs.into_iter().map(|p| p.program), 100_000).unwrap()
     }
     fn seed(engine: &mut Engine, table: &str, commit_at: i64, row_at: i64) {
@@ -266,7 +266,7 @@ mod tests {
         for n in 0..500 { source.push_str(&format!("schedule s{n} every 1m: tick\n")); }
         let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let mut engine = Engine::new_at(snapback4_core::Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p|p.program), 0).unwrap();
+        let mut engine = Engine::new_at(snapback4_core::store_port::AnyStore::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p|p.program), 0).unwrap();
         engine.fire_schedules(0).unwrap();
         let before = saved_boundaries(&engine);
         assert_eq!(crossed_boundaries(&engine, &before, 60_000, false, true).unwrap().len(), 500);
@@ -285,7 +285,7 @@ mod tests {
         for n in 0..3000 { source.push_str(&format!("schedule s{n} every 1m: tick\n")); }
         let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let mut engine = Engine::new_at(snapback4_core::Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p|p.program), 0).unwrap();
+        let mut engine = Engine::new_at(snapback4_core::store_port::AnyStore::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p|p.program), 0).unwrap();
         engine.fire_schedules(0).unwrap();
         let before = saved_boundaries(&engine);
         let refusal = crossed_boundaries(&engine, &before, 60_000, false, true).unwrap_err();

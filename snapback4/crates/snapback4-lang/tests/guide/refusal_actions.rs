@@ -2,6 +2,8 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_STORE_UNSUPPORTED", &["Postgres schema evolution currently refuses before activation preparation writes.", "Keep the current schema or use SQLite for the schema transition.", "Repeating the same activation cannot enable the missing family."]),
+    ("E_STORE_GENERATION", &["Opening refuses before trusting that value, and a failed read does not abort its transaction.", "Restore a known-good store backup before reopening; preserve the current store for operator inspection.", "Never delete the store to make adoption pass."]),
     ("E_IDENTITY_TIMEOUT", &["Signup outcome may be unknown: inspect before retrying.", "Increase timeoutMs to allow server retryAfterMs waits.", "seedAccounts maps it to E_STAGING_TIMEOUT"]),
 
     ("E_COLUMN_READ", &["ordinary public key", "separate entity"]),
@@ -304,8 +306,6 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_TIME_AUDIENCE_PENDING", &["HTTP queries wait for encountered live publication dependencies", "rolls back without retaining its operation id", "retryable"]),
     ("E_STORE_BUSY", &["mint over loopback with its private store proof", "restore access to the named server and proof, or stop it, mint offline, then restart", "After a lost mint reply, an unused session may remain until expiry", "Other offline writers admit no work", "stop the named host (the message includes its address), run the command once, then restart it"]),
     ("E_STORE", &["release an unintended competing writer or repair disk access, then retry the same request", "Keep an uncertain mutation's original ID"]),
-    ("E_STORE_UNSUPPORTED", &["Keep the current schema or use SQLite for the schema transition", "Repeating the same activation cannot enable the missing family"]),
-    ("E_STORE_GENERATION", &["Restore a known-good store backup before reopening", "preserve the current store for operator inspection", "Never delete the store to make adoption pass"]),
     ("E_STORE_REPLACED", &["Close it and create a new client, reconciling old intents before submitting new writes", "after retiring its pending intents"]),
     ("E_STORE_RESTORE", &["For a confirmed restore, stop the client and use a fresh device store and outbox for that restored backend", "retry and adoption do not repair a regressed store identity", "a missing or invalid head is a retryable failure that neither adopts nor clears the evidence"]),
     ("E_STRUCTURAL_FANOUT", &["uses the schema cap, without restating it", "Pinning `.readerId` decides visibility; it grants no read authority over another reader's inbox"]),

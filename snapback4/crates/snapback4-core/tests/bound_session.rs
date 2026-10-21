@@ -4,7 +4,7 @@ use serde_json::json;
 use sha2::{Digest, Sha256};
 use snapback4_core::engine::actions::ActionSettled;
 use snapback4_core::ir::{Expr, Program, ProgramKind, Stmt};
-use snapback4_core::{Context, Engine, RuntimeError, Schema, Store, Value, identity};
+use snapback4_core::{Context, Engine, RuntimeError, Schema, store_port::AnyStore as Store, Value, identity};
 use std::collections::BTreeMap;
 use std::sync::{Arc, Barrier, OnceLock};
 use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};

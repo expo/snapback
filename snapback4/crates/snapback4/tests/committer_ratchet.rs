@@ -36,6 +36,7 @@ fn write_opener(tokens: &[Token<'_>]) -> bool {
                     | "transaction_with_behavior"
                     | "unchecked_transaction"
                     | "authority_transaction"
+                    | "with_authority_snapshot"
                     | "opening_transaction"
                     | "begin"
                     | "begin_transaction"
@@ -199,6 +200,7 @@ fn matcher_separates_writers_snapshots_literals_and_test_modules() {
         "transaction_with_behavior",
         "unchecked_transaction",
         "authority_transaction",
+        "with_authority_snapshot",
         "opening_transaction",
         "begin",
         "begin_transaction",

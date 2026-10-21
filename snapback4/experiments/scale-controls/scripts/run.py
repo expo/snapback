@@ -58,6 +58,11 @@ GROUP BY state,wait_event_type,wait_event) s;"""
 
 
 class Run:
+    db_prefix='sb4scale_raw'
+    db_schema='public'
+    schema_file=HERE/'schema.sql'
+    app_name='sb4scale_raw'
+    statement_roles=['scale_app']
     def __init__(self,args):
         self.args=args
         soft,hard=resource.getrlimit(resource.RLIMIT_NOFILE)
@@ -82,7 +87,7 @@ class Run:
         return sp.check_output(cmd,env=self.env,text=True)
 
     def start(self,count):
-        source=[HERE/'Cargo.toml',HERE/'Cargo.lock',HERE/'schema.sql',HERE/'seed.sql',HERE/'postgresql.conf.delta',*sorted((HERE/'src').glob('*.rs')),*sorted((HERE/'scripts').glob('*.py')),*sorted((HERE/'scripts').glob('*.sh')),HERE.parent/'postgres-commit-path/src/proxy.rs']
+        source=[HERE/'Cargo.toml',HERE/'Cargo.lock',*sorted(HERE.glob('*.sql')),*sorted(HERE.glob('*.conf')),HERE/'postgresql.conf.delta',*sorted((HERE/'src').glob('*.rs')),*sorted((HERE/'scripts').glob('*.py')),*sorted((HERE/'scripts').glob('*.sh')),HERE.parent/'postgres-commit-path/src/proxy.rs']
         write(self.out/'ownership.json',{'source_commit':sp.check_output(['git','rev-parse','HEAD'],text=True).strip(),
               'binary_sha256':hashlib.sha256(BIN.read_bytes()).hexdigest(),
               'source_sha256':{str(p.relative_to(HERE.parent)):hashlib.sha256(p.read_bytes()).hexdigest() for p in source},
@@ -104,25 +109,28 @@ class Run:
                     time.sleep(.02)
         self.env['SCALE_TUNNEL_PORTS']=','.join(str(self.base+i) for i in range(count))
         self.psql("SELECT 1")
+        self.setup_roles()
+        # Store only non-secret configuration. No role catalogs/password verifiers.
+        (self.out/'postgres.txt').write_text(self.psql("SELECT version(); SELECT name,setting,unit FROM pg_settings WHERE name IN ('port','fsync','synchronous_commit','full_page_writes','shared_buffers','max_connections','shared_preload_libraries','wal_sync_method','max_wal_size','jit','track_io_timing','track_wal_io_timing') ORDER BY name"))
+        (self.out/'host-450b.txt').write_text(sp.check_output(['bash','-c','hostname; uname -a; lscpu; free -m; df -h .; uptime'],text=True))
+
+    def setup_roles(self):
         if self.psql("SELECT count(*) FROM pg_roles WHERE rolname='scale_app'").strip()=='0':
             self.psql('CREATE ROLE scale_app LOGIN')
             # psql encrypts the password; stdin and the captured prompts are never logged.
             secret=self.pw.read_text().strip()
             result=sp.run([str(PSQL),'-X','-v','ON_ERROR_STOP=1','-d','postgres','-c','\\password scale_app'],env=self.env,input=secret+'\n'+secret+'\n',capture_output=True,text=True)
             if result.returncode: raise RuntimeError('could not set scale_app password')
-        # Store only non-secret configuration. No role catalogs/password verifiers.
-        (self.out/'postgres.txt').write_text(self.psql("SELECT version(); SELECT name,setting,unit FROM pg_settings WHERE name IN ('port','fsync','synchronous_commit','full_page_writes','shared_buffers','max_connections','shared_preload_libraries','wal_sync_method','max_wal_size','jit','track_io_timing','track_wal_io_timing') ORDER BY name"))
-        (self.out/'host-450b.txt').write_text(sp.check_output(['bash','-c','hostname; uname -a; lscpu; free -m; df -h .; uptime'],text=True))
 
     def fixture(self,rows):
-        self.db=f'sb4scale_raw_{rows}'
+        self.db=f'{self.db_prefix}_{rows}'
         self.env['SCALE_DATABASE']=self.db
         exists=self.psql(f"SELECT count(*) FROM pg_database WHERE datname='{self.db}'",database='postgres').strip()=='1'
         if not exists:
             self.psql(f'CREATE DATABASE {self.db}',database='postgres')
             try:
-                self.psql('REVOKE CREATE ON SCHEMA public FROM PUBLIC; CREATE EXTENSION pg_stat_statements')
-                self.psql(path=HERE/'schema.sql')
+                self.psql('REVOKE CREATE ON SCHEMA public FROM PUBLIC; CREATE EXTENSION pg_stat_statements WITH SCHEMA public')
+                self.psql(path=self.schema_file)
                 result=sp.check_output([str(PSQL),'-X','-v','ON_ERROR_STOP=1','-d',self.db,'-v',f'rows={rows}','-f',str(HERE/'seed.sql')],env=self.env,text=True)
                 (self.out/f'seed-{rows}.txt').write_text(result)
             except Exception:
@@ -172,16 +180,19 @@ class Run:
 
     def trial(self,directory,workload,writers,keys,rows,rate,repeat):
         prefix=f'rate-{rate}-r{repeat}'
-        before=json.loads(self.psql(STATS))
+        stats=STATS.replace("userid=(SELECT oid FROM pg_roles WHERE rolname='scale_app')", "userid IN (SELECT oid FROM pg_roles WHERE rolname IN ("+','.join("'"+r+"'" for r in self.statement_roles)+"))")
+        waits=WAITS.replace("sb4scale_raw",self.app_name)
+        before=json.loads(self.psql(stats))
         write(directory/f'{prefix}.before.json',before)
         wait_sql=directory/f'{prefix}.wait.sql'
-        wait_sql.write_text(WAITS+'\n\\watch 0.1\n')
+        wait_sql.write_text(waits+'\n\\watch 0.1\n')
         wf=(directory/f'{prefix}.waits.txt').open('x')
         monitor=sp.Popen([str(PSQL),'-X','-qAt','-v','ON_ERROR_STOP=1','-d',self.db,'-f',str(wait_sql)],env=self.env,stdin=sp.DEVNULL,stdout=wf,stderr=sp.STDOUT)
         db_cpu=(directory/f'{prefix}.db-cpu.jsonl').open('x')
         db_monitor=sp.Popen(SSH+['expo-build-450a','python3 -u ~/sb4scale/db-monitor.py'],stdin=sp.PIPE,stdout=db_cpu,stderr=sp.STDOUT)
         stdout=(directory/f'{prefix}.stdout').open('x'); stderr=(directory/f'{prefix}.stderr').open('x')
         command=['taskset','-c',getattr(self.args,'load_cores',LOAD_CORES),str(BIN),'load','--workload',workload,'--workers',str(writers),'--keys',keys,'--rows',str(rows),'--rate',str(rate),'--warmup-ms',str(self.args.warmup_ms),'--duration-ms',str(self.args.duration_ms)]
+        if getattr(self.args,'target','raw-pg')!='raw-pg': command+=['--target',self.args.target]
         start=time.time()
         p=sp.Popen(command,env=self.env,stdout=stdout,stderr=stderr)
         with (self.out/'pids.jsonl').open('a') as f:
@@ -189,7 +200,7 @@ class Run:
         samples=[]
         try:
             while p.poll() is None:
-                samples.append(cpu_sample([self.service[0].pid,p.pid,*[t.pid for t,_ in self.tunnels]]))
+                samples.append(cpu_sample([*self.app_pids(),p.pid,*[t.pid for t,_ in self.tunnels]]))
                 time.sleep(.25)
             if p.returncode: raise RuntimeError(f'load exited {p.returncode}: {directory/prefix}')
         finally:
@@ -201,10 +212,10 @@ class Run:
         # HTTP timeouts can leave an already admitted SQL write running. Drain
         # observed app statements before taking the counter/statistics snapshot.
         deadline=time.monotonic()+10
-        while self.psql("SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND application_name='sb4scale_raw' AND state<>'idle'").strip()!='0':
+        while self.psql(f"SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND application_name='{self.app_name}' AND state<>'idle'").strip()!='0':
             if time.monotonic()>deadline: raise RuntimeError('database work did not drain')
             time.sleep(.1)
-        after=json.loads(self.psql(STATS))
+        after=json.loads(self.psql(stats))
         write(directory/f'{prefix}.after.json',after)
         write(directory/f'{prefix}.resources.json',{'start':start,'end':time.time(),'clock_ticks':os.sysconf('SC_CLK_TCK'),'samples':samples})
         result=json.loads((directory/f'{prefix}.stdout').read_text())
@@ -223,13 +234,17 @@ class Run:
         print(f'{directory.name} rate={rate} r={repeat} ok={result["slo_pass"]} achieved={result["achieved_per_s"]:.0f} p99={result["latency"]["p99_ms"]:.2f} errors={result["error_count"]}',flush=True)
         return result
 
+    def app_pids(self):
+        return [self.service[0].pid]
+
     def cell(self,workload,rows,delay,writers,keys):
         name=f'{workload.lower()}-n{rows}-d{delay}-c{writers}-{keys}'
         directory=self.out/name
         directory.mkdir()
         args=['--workload',workload,'--rows',str(rows),'--delay-us',str(delay),'--writers',str(writers),'--keys',keys]
         write(directory/'cell.json',{'workload':workload,'rows':rows,'delay_us':delay,'writers':writers,'keys':keys,
-              'rerun':['python3','scripts/run.py','cell','--out',f'results-NEW-{name}',*args,'--load-cores',getattr(self.args,'load_cores',LOAD_CORES),'--warmup-ms',str(self.args.warmup_ms),'--duration-ms',str(self.args.duration_ms)],
+              'target':getattr(self.args,'target','raw-pg'),
+              'rerun':['python3','scripts/run.py','cell','--out',f'results-NEW-{name}',*args,'--target',getattr(self.args,'target','raw-pg'),'--load-cores',getattr(self.args,'load_cores',LOAD_CORES),'--warmup-ms',str(self.args.warmup_ms),'--duration-ms',str(self.args.duration_ms),'--repeats',str(self.args.repeats)],
               'rate_policy':'double/halve to bracket, one geometric midpoint; all repetitions must meet SLO'})
         (directory/'vmstat-before.txt').write_text(sp.check_output(['vmstat','1','2'],text=True))
         self.ping(delay,directory/'rtt-before.json')
@@ -293,6 +308,7 @@ def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('mode',choices=['smoke','reads','writes','all','cell'])
     p.add_argument('--out',required=True)
+    p.add_argument('--target',choices=['raw-pg','supabase'],default='raw-pg')
     p.add_argument('--tunnel-base',type=int,default=63000)
     p.add_argument('--load-cores',default=LOAD_CORES)
     p.add_argument('--warmup-ms',type=int,default=1000)
@@ -308,12 +324,15 @@ def main():
     args=p.parse_args()
     assert args.repeats>0 and args.duration_ms>0 and args.warmup_ms>=0
     matrix=list(cells(args))
-    run=Run(args)
+    if args.target=='supabase':
+        from supabase import SupabaseRun
+        run=SupabaseRun(args)
+    else: run=Run(args)
     try:
-        run.start(max(33,max(c[3] for c in matrix if c[0] in ('W4','W5'))+1) if any(c[0] in ('W4','W5') for c in matrix) else 33)
+        run.start(33 if args.target=='supabase' else (max(33,max(c[3] for c in matrix if c[0] in ('W4','W5'))+1) if any(c[0] in ('W4','W5') for c in matrix) else 33))
         for rows in dict.fromkeys(c[1] for c in matrix): run.fixture(rows)
         for w,rows,delay,writers,keys in matrix:
-            run.db=f'sb4scale_raw_{rows}'; run.env['SCALE_DATABASE']=run.db
+            run.db=f'{run.db_prefix}_{rows}'; run.env['SCALE_DATABASE']=run.db
             run.cell(w,rows,delay,writers,keys)
     finally:
         run.close()

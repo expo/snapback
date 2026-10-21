@@ -1,8 +1,10 @@
 mod db;
 mod load;
+mod supabase;
 // Same per-chunk, per-direction delay implementation used by S0.
 #[path = "../../postgres-commit-path/src/proxy.rs"]
 #[allow(dead_code)]
+#[rustfmt::skip]
 mod proxy;
 
 use clap::{Parser, Subcommand};
@@ -27,6 +29,11 @@ enum Command {
         delay_us: u64,
     },
     Load(load::Options),
+    /// Give each physical PostgREST connection its own independent SSH stream.
+    Dispatch {
+        #[arg(long, default_value_t = 0)]
+        delay_us: u64,
+    },
     Ping {
         #[arg(long, default_value_t = 0)]
         delay_us: u64,
@@ -97,6 +104,7 @@ async fn main() -> anyhow::Result<()> {
             axum::serve(listener, app).await?;
         }
         Command::Load(options) => load::run(options).await?,
+        Command::Dispatch { delay_us } => supabase::dispatch(delay_us).await?,
         Command::Ping { delay_us, count } => db::ping(delay_us, count).await?,
     }
     Ok(())

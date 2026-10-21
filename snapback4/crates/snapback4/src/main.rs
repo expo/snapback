@@ -181,7 +181,7 @@ fn main() -> ExitCode {
                 }
                 let path = project.store_path();
                 if path.exists() {
-                    let store = snapback4_core::Store::open_read_only(&path).map_err(|e| e.to_string())?;
+                    let store = snapback4_core::store_port::AnyStore::open_read_only(&path).map_err(|e| e.to_string())?;
                     clock_offset = dev_clock_store::resume_offset(&store, snapback4_core::now_ms()).map_err(|e| e.to_string())?;
                 }
                 eprintln!("clock     --resume-clock: offset {clock_offset:+}ms from the store's newest commit stamp or schedule boundary");

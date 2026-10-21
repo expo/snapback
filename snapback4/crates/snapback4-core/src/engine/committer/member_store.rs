@@ -1,6 +1,6 @@
-//! Store-only member surface. No method returns a Tx or accepts a raw-Tx callback.
+//! AnyStore-only member surface. No method returns a AnyTx or accepts a raw-AnyTx callback.
 use super::MemberTx;
-use crate::{RuntimeError, Value, store::Tx, rows::{Rows, Bounds, Dir}, schema::{Index, Table, Schema}};
+use crate::{RuntimeError, Value, store_port::AnyTx, rows::{Rows, Bounds, Dir}, schema::{Index, Table, Schema}};
 use crate::engine::job::{JobTransaction, Head, JobChunkUpdate};
 #[cfg(feature = "native")]
 use crate::engine::job::JobState;
@@ -9,71 +9,71 @@ use std::collections::BTreeMap;
 
 impl Rows for MemberTx<'_, '_> {
     fn walk_adoption(&self, table:&str, _decode:u64, scratch:u64, work:[u64;3], visit:&mut dyn FnMut(Value)->Result<(),RuntimeError>) -> Result<(),RuntimeError> {
-        <Tx<'_> as Rows>::walk_adoption(self.tx, table, _decode, scratch, work, visit)
+        <AnyTx<'_> as Rows>::walk_adoption(self.tx, table, _decode, scratch, work, visit)
     }
     fn change_footprint(&self) -> crate::revocation::Footprint {
-        <Tx<'_> as Rows>::change_footprint(self.tx)
+        <AnyTx<'_> as Rows>::change_footprint(self.tx)
     }
     fn widen_change_evidence(&self) {
-        <Tx<'_> as Rows>::widen_change_evidence(self.tx)
+        <AnyTx<'_> as Rows>::widen_change_evidence(self.tx)
     }
     fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {
-        <Tx<'_> as Rows>::sequence_value(self.tx, parent, id)
+        <AnyTx<'_> as Rows>::sequence_value(self.tx, parent, id)
     }
     fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> {
-        <Tx<'_> as Rows>::set_sequence(self.tx, parent, id, value)
+        <AnyTx<'_> as Rows>::set_sequence(self.tx, parent, id, value)
     }
     fn sequence_ids(&self, parent: &str) -> Result<Vec<String>, RuntimeError> {
-        <Tx<'_> as Rows>::sequence_ids(self.tx, parent)
+        <AnyTx<'_> as Rows>::sequence_ids(self.tx, parent)
     }
     fn rewrite_sequence_ids(&self, ids: &BTreeMap<String, BTreeMap<String, String>>) -> Result<u64, RuntimeError> {
-        <Tx<'_> as Rows>::rewrite_sequence_ids(self.tx, ids)
+        <AnyTx<'_> as Rows>::rewrite_sequence_ids(self.tx, ids)
     }
     fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
-        <Tx<'_> as Rows>::effect_once(self.tx, effect, key)
+        <AnyTx<'_> as Rows>::effect_once(self.tx, effect, key)
     }
     fn has_restored_live_authority(&self,table:&str)->Result<bool,RuntimeError> {
-        <Tx<'_> as Rows>::has_restored_live_authority(self.tx, table)
+        <AnyTx<'_> as Rows>::has_restored_live_authority(self.tx, table)
     }
     fn restored_live_authority(&self,table:&str,id:&str)->Result<bool,RuntimeError> {
-        <Tx<'_> as Rows>::restored_live_authority(self.tx, table, id)
+        <AnyTx<'_> as Rows>::restored_live_authority(self.tx, table, id)
     }
     fn restored_authority_mode(&self,table:&str,id:&str)->Result<Option<u8>,RuntimeError> {
-        <Tx<'_> as Rows>::restored_authority_mode(self.tx, table, id)
+        <AnyTx<'_> as Rows>::restored_authority_mode(self.tx, table, id)
     }
     fn restored_narrowed(&self,table:&str,id:&str)->Result<bool,RuntimeError> {
-        <Tx<'_> as Rows>::restored_narrowed(self.tx, table, id)
+        <AnyTx<'_> as Rows>::restored_narrowed(self.tx, table, id)
     }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
-        <Tx<'_> as Rows>::get(self.tx, table, id)
+        <AnyTx<'_> as Rows>::get(self.tx, table, id)
     }
     fn lookup(&self, table: &str, index_name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
-        <Tx<'_> as Rows>::lookup(self.tx, table, index_name, index, key)
+        <AnyTx<'_> as Rows>::lookup(self.tx, table, index_name, index, key)
     }
     fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        <Tx<'_> as Rows>::scan(self.tx, table, index_name, prefix, bounds, dir, limit)
+        <AnyTx<'_> as Rows>::scan(self.tx, table, index_name, prefix, bounds, dir, limit)
     }
     fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
-        <Tx<'_> as Rows>::index_head(self.tx, table, index, prefix, bounds, dir)
+        <AnyTx<'_> as Rows>::index_head(self.tx, table, index, prefix, bounds, dir)
     }
     #[cfg(feature = "server-search")]
     fn scan_selected(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        <Tx<'_> as Rows>::scan_selected(self.tx, table, index, prefix, bounds, dir, fields)
+        <AnyTx<'_> as Rows>::scan_selected(self.tx, table, index, prefix, bounds, dir, fields)
     }
     fn scan_metered(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize, scope: &crate::engine::Authorization, meter: &mut crate::engine::InternalMeter<'_>) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        <Tx<'_> as Rows>::scan_metered(self.tx, table, index_name, prefix, bounds, dir, limit, scope, meter)
+        <AnyTx<'_> as Rows>::scan_metered(self.tx, table, index_name, prefix, bounds, dir, limit, scope, meter)
     }
     fn cap_count(&self, table: &str, by: &[String], group: &[Value]) -> Result<u64, RuntimeError> {
-        <Tx<'_> as Rows>::cap_count(self.tx, table, by, group)
+        <AnyTx<'_> as Rows>::cap_count(self.tx, table, by, group)
     }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
-        <Tx<'_> as Rows>::count_prefix(self.tx, table, index_name, prefix, limit)
+        <AnyTx<'_> as Rows>::count_prefix(self.tx, table, index_name, prefix, limit)
     }
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> {
-        <Tx<'_> as Rows>::put(self.tx, table_name, table, row, old)
+        <AnyTx<'_> as Rows>::put(self.tx, table_name, table, row, old)
     }
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
-        <Tx<'_> as Rows>::delete(self.tx, table_name, table, old)
+        <AnyTx<'_> as Rows>::delete(self.tx, table_name, table, old)
     }
     fn track_time_audience(
         &self,
@@ -84,25 +84,25 @@ impl Rows for MemberTx<'_, '_> {
         now: i64,
         published: bool,
     ) -> Result<(), RuntimeError> {
-        <Tx<'_> as Rows>::track_time_audience(self.tx, table_name, table, id, row, now, published)
+        <AnyTx<'_> as Rows>::track_time_audience(self.tx, table_name, table, id, row, now, published)
     }
     fn time_audience_pending(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
-        <Tx<'_> as Rows>::time_audience_pending(self.tx, table_name, id)
+        <AnyTx<'_> as Rows>::time_audience_pending(self.tx, table_name, id)
     }
     fn time_audience_published(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
-        <Tx<'_> as Rows>::time_audience_published(self.tx, table_name, id)
+        <AnyTx<'_> as Rows>::time_audience_published(self.tx, table_name, id)
     }
     fn holds_assets(&self) -> bool {
-        <Tx<'_> as Rows>::holds_assets(self.tx)
+        <AnyTx<'_> as Rows>::holds_assets(self.tx)
     }
     fn asset(&self, id: &str) -> Result<Option<crate::assets::Asset>, RuntimeError> {
-        <Tx<'_> as Rows>::asset(self.tx, id)
+        <AnyTx<'_> as Rows>::asset(self.tx, id)
     }
     fn claim_asset(&self, id: &str, by: &str, table: &str, row_id: &str, column: &str) -> Result<crate::assets::Asset, RuntimeError> {
-        <Tx<'_> as Rows>::claim_asset(self.tx, id, by, table, row_id, column)
+        <AnyTx<'_> as Rows>::claim_asset(self.tx, id, by, table, row_id, column)
     }
     fn release_asset(&self, id: &str, table: &str, row_id: &str, column: &str, now: i64) -> Result<(), RuntimeError> {
-        <Tx<'_> as Rows>::release_asset(self.tx, id, table, row_id, column, now)
+        <AnyTx<'_> as Rows>::release_asset(self.tx, id, table, row_id, column, now)
     }
 }
 
@@ -125,8 +125,8 @@ impl MemberTx<'_, '_> {
         #[cfg(test)]
         fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError>;
         fn pin_time_audience_clock(&self, requested: i64) -> Result<i64, RuntimeError>;
-        fn selected_time_audience(&self, table: &str, id: &str, now: i64) -> Result<Option<crate::store::time_audience::Opening>, RuntimeError>;
-        fn due_time_audience(&self, now: i64) -> Result<Option<crate::store::time_audience::Opening>, RuntimeError>;
+        fn selected_time_audience(&self, table: &str, id: &str, now: i64) -> Result<Option<crate::store_port::TimeOpening>, RuntimeError>;
+        fn due_time_audience(&self, now: i64) -> Result<Option<crate::store_port::TimeOpening>, RuntimeError>;
         fn remove_time_audience(&self, table: &str, id: &str) -> Result<(), RuntimeError>;
         fn set_time_audience_published(&self, table: &str, id: &str, published: bool) -> Result<(), RuntimeError>;
         fn head_job(&self) -> Result<Option<Head>, RuntimeError>;
@@ -164,7 +164,7 @@ impl MemberTx<'_, '_> {
         super::super::seed_rows(schema, self.tx, rows, now)
     }
     pub(crate) fn prepare_seed_inputs(&self, schema: &Schema) -> Result<(), RuntimeError> {
-        if crate::store::backfills::has_evidence(self.tx)? { crate::store::backfills::prepare_inputs(self.tx, schema, None)?; }
+        self.tx.prepare_seed_inputs(schema)?;
         Ok(())
     }
 }
