@@ -1,0 +1,6 @@
+{
+  "membership_counter_jwt_and_pooled_claim_isolation": true,
+  "post_membership_sender_and_atomic_maintains": true,
+  "raw_seed_and_http_values_equal": true,
+  "overload_arrival_accounting": true
+}

@@ -290,6 +290,14 @@ def cells(args):
     if args.mode=='cell':
         yield args.workload,args.rows,args.delay_us,args.writers,args.keys
         return
+    if args.mode=='advocate':
+        # Headline cells: 1m messages, natural link and +0.5 ms, matrix writer counts.
+        for delay in (0,500):
+            for w in ('W1','W2','W3'): yield w,1000000,delay,128,'disjoint'
+        for delay in (0,500):
+            for writers in (1,2,4,8,16,32,64,128,256):
+                for w,keys in (('W4','disjoint'),('W5','same'),('W5','hot1')): yield w,1000000,delay,writers,keys
+        return
     if args.mode=='smoke':
         for w in ['W1','W2','W3','W4','W5']:
             yield w,100000,0,4,'same' if w=='W5' else 'disjoint'
@@ -306,7 +314,7 @@ def cells(args):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('mode',choices=['smoke','reads','writes','all','cell'])
+    p.add_argument('mode',choices=['smoke','reads','writes','all','cell','advocate'])
     p.add_argument('--out',required=True)
     p.add_argument('--target',choices=['raw-pg','supabase'],default='raw-pg')
     p.add_argument('--tunnel-base',type=int,default=63000)
@@ -327,9 +335,15 @@ def main():
     if args.target=='supabase':
         from supabase import SupabaseRun
         run=SupabaseRun(args)
-    else: run=Run(args)
+        # Observer tunnel, schema-cache listener, and a query pool equal to raw PG.
+        query_pool=max(32 if c[0] in ('W1','W2','W3') else c[3] for c in matrix)
+        run.query_pool_budget=query_pool
+        tunnels=query_pool+2
+    else:
+        run=Run(args)
+        tunnels=max(33,max(c[3] for c in matrix if c[0] in ('W4','W5'))+1) if any(c[0] in ('W4','W5') for c in matrix) else 33
     try:
-        run.start(33 if args.target=='supabase' else (max(33,max(c[3] for c in matrix if c[0] in ('W4','W5'))+1) if any(c[0] in ('W4','W5') for c in matrix) else 33))
+        run.start(tunnels)
         for rows in dict.fromkeys(c[1] for c in matrix): run.fixture(rows)
         for w,rows,delay,writers,keys in matrix:
             run.db=f'{run.db_prefix}_{rows}'; run.env['SCALE_DATABASE']=run.db

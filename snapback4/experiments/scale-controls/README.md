@@ -154,9 +154,9 @@ one unused SSH stream per physical connection; pointing every pooled socket
 at one forward would reintroduce S1b's multiplexing difference. The raw pool
 already implements the independent allocation. Use separate databases/roles,
 record the actual RTT, and serialize the controls' measurements on this pair.
-Advocate review from another model family remains outstanding under this
-lane's explicit one-worker/no-sub-agent instruction; no reviewed-control or
-idle-host qualification is claimed here.
+The Supabase advocate review is the `advocate` measurement on this branch.
+Convex's review, idle-host qualification, and a reviewed-control claim for
+the other systems are still outstanding.
 
 `python3 scripts/audit.py RESULTS_DIR --full` verifies the complete 132-cell
 raw matrix after cleanup: every repetition, offered-arrival accounting,
@@ -194,6 +194,10 @@ python3 scripts/check-supabase.py "$HOME/sb4scale/s1sb-checks-NEW"
 python3 scripts/run.py all --target supabase \
   --out "$HOME/sb4scale/results-NEW-supabase-cells" \
   --warmup-ms 500 --duration-ms 2000 --repeats 3
+# Advocate headline cells: W1–W5 at 1m, natural and +0.5 ms, matrix writer counts.
+python3 scripts/run.py advocate --target supabase \
+  --out "$HOME/sb4scale/results-NEW-supabase-advocate-cells" \
+  --warmup-ms 500 --duration-ms 2000 --repeats 3
 # One cell, same fixture sizes/delays/writers and rate policy as S1-H:
 python3 scripts/run.py cell --target supabase --out "$HOME/sb4scale/s1sb-NEW-cell" \
   --workload W4 --rows 1000000 --delay-us 500 --writers 32 \
@@ -214,8 +218,18 @@ The load generator retains S1-H's 1 s HTTP/dispatch deadline, no retries, and
 unknown-outcome counter disqualification.
 
 `supabase.conf` preserves the compose configuration and PostgREST v14.18
-defaults: pool **10**, prepared statements on, no pre-request or pre-config
-hook, in-database configuration on, `pgrst` notification listener on,
+defaults except the pool. Prepared statements stay on. There is no pre-request
+or pre-config hook. In-database configuration stays on, and the `pgrst`
+notification listener stays on. The runner sets `PGRST_DB_POOL` to the raw-PG
+budget for that cell: **32** for W1–W3 and **one connection per writer** for
+W4–W5, plus the listener connection. PostgREST's pool guidance is to start
+from the database's cores (`(cores * 2) + spindles`; this host has 12 threads)
+and raise the pool while HTTP requests wait and Postgres is idle, without
+exceeding `max_connections`. The first measured pool of 10 did that waiting.
+The official binary is linked with `-N -I0 -qg`, so one process uses every
+core in the app affinity mask. The pinned compose runs one PostgREST; a
+second process on the same three cores is not the documented scale-out.
+The file still sets a
 1,000-row API maximum, `public` extra search path, commit transaction end,
 10 s pool acquisition timeout, 1,800 s lifetime, 30 s idle timeout,
 automatic recovery on, `.role` claim key, no required audience, JWT cache
@@ -243,7 +257,8 @@ membership predicates, an uncorrelated room-membership set, and initplans
 for claim/identity lookup. `auth.uid()` reads the UUID `sub` from
 `request.jwt.claims`. A pinned-path SECURITY DEFINER helper in **unexposed**
 `private` maps `(select auth.uid())` through an indexed `users.auth_id`.
-Policies use `(select private.principal_id())` so the lookup is per statement.
+Policies use `(select private.principal_id())` and `(select private.member_rooms())`
+so identity and the membership set are each computed once per statement.
 This retains S1-H's numeric keys and identical message bodies, memberships,
 last-read offsets and maintained totals. The only added storage is one UUID
 column/unique index on 256 users and an owner index on 257 counters; table
@@ -253,8 +268,8 @@ and index bytes are measured separately. The same `seed.sql` is reused.
 |---|---|---|
 | W1 | GET messages filtered by id | messages SELECT RLS |
 | W2 | GET messages filtered by room, ordered descending, limit 20 | messages SELECT RLS |
-| W3 | POST rpc/inbox | SECURITY INVOKER SQL, memberships and rooms RLS |
-| W4/W5 | POST rpc/increment | SECURITY INVOKER atomic UPDATE, counter SELECT/UPDATE RLS |
+| W3 | POST rpc/inbox | SECURITY DEFINER SQL with the same principal filter |
+| W4/W5 | POST rpc/increment | SECURITY DEFINER atomic UPDATE; same owner/member predicate; service_role still unrestricted |
 | Post witness | POST messages | member/sender INSERT RLS; definer trigger maintains room/sender totals atomically |
 
 No extra `/op` HTTP application wraps PostgREST. The load adapter supplies
@@ -268,13 +283,13 @@ The raw prepared-SELECT RTT controls remain independent measurements of
 SSH plus nominal proxy delay; they do not include this dispatcher or HTTP.
 
 The exact S1-H core split, 100k/1m read sizes, four delay settings, 128 read
-clients and 1–256 write clients are preserved. Supabase's default pool of
-10 stays fixed across this sweep, whereas raw PG has 32 read connections
-and one connection per writer. This is a native-default configuration
-comparison; no matched-pool or full-stack capacity claim is made. Shared
+clients and 1–256 write clients are preserved. The query pool now matches
+raw PG's budget on each cell (32 reads, one connection per writer) instead
+of the compose default of 10. `supabase-align.sql` applies the same policies
+and definer functions to an existing fixture without reseeding. Shared
 hosts, serial short windows and coarse brackets retain all S1-H caveats.
-No different-family advocate review is performed under the lane's explicit
-one-worker/no-sub-agent instruction.
+The advocate review is the `advocate` mode above; it is one worker and does
+not retune the cluster. Convex's advocate review is still outstanding.
 
 Resource queries filter the owned database, statement roles
 `authenticated`/`authenticator`, and application name `sb4scale_supabase`.
