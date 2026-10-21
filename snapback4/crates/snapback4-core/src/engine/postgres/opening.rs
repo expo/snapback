@@ -103,6 +103,14 @@ impl Handle {
 
 pub(super) fn initialize(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> {
     super::activation_schema::verify_core(tx)?;
+    // Apply the evaluator's portable key bound before accepting an existing
+    // generation, as well as on each shared row/index write.
+    if let Some(row) = tx.query(
+        "SELECT t, ix, COUNT(*) FROM i WHERE octet_length(k) > $1 GROUP BY t, ix ORDER BY t, ix LIMIT 1",
+        &[&(crate::rows::MAX_INDEX_KEY_BYTES as i32)],
+    )?.first() {
+        return Err(crate::rows::index_key_refusal(row.get(0), row.get(1), row.get::<_, i64>(2) as u64));
+    }
     super::identity_schema::verify_existing(tx)?;
     super::metadata::initialize(tx)?;
     super::receipts::initialize(tx)?;

@@ -100970,3 +100970,12 @@ ordinary execution leaves the tail pending. Real-Postgres facade rollback/error,
 flush failure, contiguous heads, slot, nested/cache, terminal-NUL and batched
 effect-call-count probes pass. Production remains single-member; no producer
 is newly routed through K0.
+
+### 2026-10-22 — S10c: retain the opening key bound
+
+The common Postgres opener now repeats the evaluator's existing portable
+index-key bound before accepting stored data. The isolated real-Postgres
+regression inserts an over-bound raw index entry and confirms the same
+`E_INDEX_KEY_BYTES` opening refusal. No bound or retry policy changes. Additional
+opening probes pass the evaluator-admitted aggregate, expiring-count and
+recorded-attribution shapes on the common engine.

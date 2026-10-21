@@ -113,3 +113,30 @@ fn process_local_ephemeral_mutations_and_queries_are_admitted() {
     assert_eq!(engine.store().seq().unwrap(), 0);
     assert!(engine.store().rows("typing").unwrap().is_empty());
 }
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn evaluator_admitted_aggregate_and_recorded_shapes_open_on_common_engine() {
+    for source in [
+        include_str!("../../../../../snapback4-lang/tests/fixtures/recorded-attribution.q"),
+        include_str!("../../../../../snapback4-lang/tests/fixtures/expiring-counts.q"),
+        "table entries:\n  bucket: int\n  public\nview totals: count entries by .bucket\n  public\n",
+    ] {
+        let (schema, programs) = bound(source);
+        let map: BTreeMap<_,_> = programs.iter().cloned().map(|p| (p.name.clone(), p)).collect();
+        super::super::supported(&schema, &map).unwrap();
+        let engine = Engine::new_at(AnyStore::create_postgres(&connection(), &name()).unwrap(), schema, programs, 1000).unwrap();
+        assert_eq!(engine.generation(), 1);
+    }
+}
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn common_open_preserves_the_portable_index_key_refusal() {
+    let connection = connection(); let name = name(); let (schema, programs) = bound(SOURCE);
+    let mut engine = Engine::new_at(AnyStore::create_postgres(&connection, &name).unwrap(), schema, programs, 1000).unwrap();
+    if let AnyStore::Postgres(handle) = engine.store_mut() {
+        handle.store.get_mut().client.execute("INSERT INTO i(t,ix,k,id) VALUES ('notes','byId',$1,'raw')", &[&vec![0u8; crate::rows::MAX_INDEX_KEY_BYTES + 1]]).unwrap();
+    }
+    drop(engine);
+    let error = Engine::open(AnyStore::open_postgres(&connection, &name).unwrap()).err().unwrap();
+    assert_eq!(error.code(), "E_INDEX_KEY_BYTES");
+}
