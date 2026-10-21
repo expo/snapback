@@ -121,6 +121,18 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
         pending=retry;if pending.len()==before{break;}
     }
     for (table,_) in pending{out.unsupported.insert(format!("generated fixture {table}: no admitted insert/bootstrap; population uncovered"));}
+    // Try principals in the admitted authority rosters before outsider probes.
+    // This only orders candidates: every creator and recipient guard still
+    // executes normally, and outsider actors remain in the finite campaign.
+    // Avoid spending the short check budget hydrating media for absent roles.
+    let mut creator_actors=actors.clone();
+    let admitted=readback(&engine)?;
+    let roster_principals=rosters.iter().flat_map(|name|admitted.get(name).into_iter().flatten().flat_map(|row|{
+        bound.schema.tables[name].columns.iter().filter_map(move |(column,kind)|{
+            if matches!(kind.required(),C::Principal){match row.field(column){Ok(Value::Id(p))=>Some(p.clone()),_=>None}}else{None}
+        })
+    })).collect::<BTreeSet<_>>();
+    creator_actors.sort_by_key(|actor|!roster_principals.contains(actor));
     // Authored insertion bodies preserve requires, immutable copies, defaults,
     // role checks on principal arguments and multi-table creation invariants.
     let mut attempts=0usize;
@@ -133,8 +145,8 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             let current=readback(&engine)?;
             let targets=writes.iter().filter(|(_,kind)|matches!(*kind,"insert"|"upsert")).map(|(t,_)|t).collect::<Vec<_>>();
             if targets.iter().all(|t|current.get(*t).map_or(0,Vec::len)>=2){continue;}
-            let cases=histories::fixture_cases(p,&current,&actors,out);
-            'cases:for args in cases.into_iter().take(16){for actor in &actors{
+            let cases=histories::fixture_cases(p,&current,&creator_actors,out);
+            'cases:for args in cases.into_iter().take(16){for actor in &creator_actors{
                 if attempts>=2048||!out.reserve(1){out.unsupported.insert("generated authored initialization capped at 2048 calls; remaining creators uncovered".into());validate_fixture(bound,&mut engine)?;return Ok(engine);}
                 attempts+=1;
                 if targets.len()==1{

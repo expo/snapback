@@ -99723,3 +99723,24 @@ updated questionnaire wording; the CLI test retains refusal, column and concrete
 trace checks while expecting FIX. Packed Linux consumer qualification passed on
 06dbfea690; this coverage-reporting restoration receives affected-target and
 fresh packed-security verification separately. No publication receipt is claimed.
+
+
+## 2026-10-21 — Integration 20 qualification repairs
+
+DX5 and SEC5 merge into 0.4.36 with one changes entry. The merged checks
+repaired the ReadState API/React indexes, README packaged native-smoke import,
+the installed wrapper fixture's new module, and precise cleanup-recipe note
+expectations. Lookup and private-unique advice now lead with an authority
+review action rather than performance-only wording. Packed React qualification
+installs its peer explicitly instead of borrowing an ancestor checkout's copy.
+
+The Mac Studio exposed fixture construction spending the short check budget on
+outsider recipients before admitted role holders. Creator candidate ordering
+now tries principals in successfully bootstrapped authority rosters first.
+Every creator/recipient guard still executes, outsider candidates remain, and
+the 512 reservations / 1500 ms check budget and proof kernel are unchanged.
+The original CLI regression, including absent and empty fixture directories,
+passes on the Mac without weakening its concrete-refutation assertions. This
+is implementation ordering within LLP 3000.036.004 §§13.7/14.3, not a stronger
+reachability or universal-security claim. Full post-repair validation is
+recorded in the integration report. No push or publication.
