@@ -582,7 +582,7 @@ pub(crate) mod test_cases {
             (
                 "refused",
                 ActionSettled::Refused {
-                    code: "E_REFUSED",
+                    code: "E_ACTION_FAILED",
                     error: "provider\0refused".into(),
                 },
                 None,
