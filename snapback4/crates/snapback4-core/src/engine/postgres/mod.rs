@@ -14,13 +14,13 @@ mod requests;
 mod outbox;
 mod outbox_schema;
 mod outbox_store;
-mod assets;
-mod assets_schema;
 mod prefetch;
 mod tail;
 mod through;
 mod jobs;
 mod jobs_schema;
+mod assets;
+mod assets_schema;
 #[cfg(test)]
 mod tests;
 pub use store::{SCAN_MEMORY_GUARD, WriteMode};
@@ -153,10 +153,10 @@ impl PostgresEngine {
         tx.batch(identity::DDL)?;
         requests::initialize(&tx)?;
         outbox_schema::install(&tx)?;
-        assets_schema::initialize(&tx)?;
         tx.batch("DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;")?;
         caps::install(&tx, &schema)?;
         jobs::initialize(&tx)?;
+        assets_schema::initialize(&tx)?;
         let generation = contribution_upgrade::install(&tx, &mut schema)?;
         let generation = maintained_identity_upgrade::install(&tx, &schema, create.is_some(), generation)?;
         // Retain the adapter's ordinary connection limits on successful open.

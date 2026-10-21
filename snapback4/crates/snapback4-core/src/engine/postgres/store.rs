@@ -247,6 +247,15 @@ impl Tx<'_> {
         Ok(self.inner.borrow_mut().execute(&statement, params)?)
     }
 
+    // Unconditional inserts/upserts must not acknowledge a suppressed write.
+    pub(super) fn execute_one(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<(), RuntimeError> {
+        let rows = self.execute(sql, params)?;
+        if rows != 1 {
+            return Err(RuntimeError::Store(format!("expected one affected row, got {rows}")));
+        }
+        Ok(())
+    }
+
     pub fn batch(&self, sql: &str) -> Result<(), RuntimeError> {
         self.ensure_active()?;
         if sql.to_ascii_uppercase().contains("ROLLBACK") {

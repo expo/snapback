@@ -91,7 +91,7 @@ impl JobTransaction for Tx<'_> {
         now: i64,
     ) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("insert job")?;
-        self.execute("INSERT INTO _jobs(id,name,args,program_hash,state,sweep,chunks,rows_written,created_at,updated_at) VALUES ($1,$2,$3,$4,'queued',0,0,0,$5,$5)",
+        self.execute_one("INSERT INTO _jobs(id,name,args,program_hash,state,sweep,chunks,rows_written,created_at,updated_at) VALUES ($1,$2,$3,$4,'queued',0,0,0,$5,$5)",
             &[&id, &name, &canonical_json(&Value::Map(args.clone().into())), &program_hash, &now])?;
         Ok(())
     }
@@ -218,7 +218,7 @@ fn meta(tx: &Tx<'_>, key: &str) -> Result<Option<String>, RuntimeError> {
 }
 fn set_meta(tx: &Tx<'_>, key: &str, value: &str) -> Result<(), RuntimeError> {
     tx.require_serialized_head_fence("set schedule metadata")?;
-    tx.execute("INSERT INTO _meta(key,value) VALUES ($1,$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value", &[&key, &value])?;
+    tx.execute_one("INSERT INTO _meta(key,value) VALUES ($1,$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value", &[&key, &value])?;
     Ok(())
 }
 

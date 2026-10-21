@@ -88,15 +88,17 @@ fn verify(
     columns: &[Column],
     primary: &[&str],
 ) -> Result<(), RuntimeError> {
-    let relation = tx.query("SELECT relkind::text, relrowsecurity, relforcerowsecurity FROM pg_class WHERE oid=to_regclass($1)", &[&table])?;
+    let relation = tx.query("SELECT relkind::text, relpersistence::text, relrowsecurity OR relforcerowsecurity, EXISTS(SELECT 1 FROM pg_rewrite WHERE ev_class=pg_class.oid AND rulename<>'_RETURN'), EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=pg_class.oid AND NOT tgisinternal) FROM pg_class WHERE oid=to_regclass($1)", &[&table])?;
     let Some(relation) = relation.first() else {
         return Ok(());
     };
-    if relation.get::<_, &str>(0) != "r" || relation.get::<_, bool>(1) || relation.get::<_, bool>(2)
+    if relation.get::<_, &str>(0) != "r"
+        || relation.get::<_, &str>(1) != "p"
+        || (2..=4).any(|i| relation.get::<_, bool>(i))
     {
         return Err(incompatible(
             table,
-            "expected an ordinary table without row security",
+            "expected a persistent ordinary table without row security, rules or triggers",
         ));
     }
     let actual = tx.query("SELECT a.attname::text,format_type(a.atttypid,a.atttypmod),a.attnotnull,a.attcollation='pg_catalog.\"C\"'::regcollation,a.atthasdef,a.attgenerated::text,a.attidentity::text FROM pg_attribute a WHERE a.attrelid=to_regclass($1) AND a.attnum>0 AND NOT a.attisdropped", &[&table])?;
@@ -120,7 +122,7 @@ fn verify(
             ));
         }
     }
-    let keys = tx.query("SELECT c.contype::text,c.condeferrable,ARRAY(SELECT a.attname::text FROM unnest(c.conkey) WITH ORDINALITY k(attnum,ord) JOIN pg_attribute a ON a.attrelid=c.conrelid AND a.attnum=k.attnum ORDER BY k.ord) FROM pg_constraint c WHERE c.conrelid=to_regclass($1)", &[&table])?;
+    let keys = tx.query("SELECT c.contype::text,c.condeferrable,ARRAY(SELECT a.attname::text FROM unnest(c.conkey) WITH ORDINALITY k(attnum,ord) JOIN pg_attribute a ON a.attrelid=c.conrelid AND a.attnum=k.attnum ORDER BY k.ord) FROM pg_constraint c WHERE c.conrelid=to_regclass($1) AND c.contype<>'n'", &[&table])?;
     if keys.len() != 1
         || keys[0].get::<_, &str>(0) != "p"
         || keys[0].get::<_, bool>(1)
@@ -143,10 +145,6 @@ fn verify(
             table,
             "incompatible primary or extra unique index",
         ));
-    }
-    let triggers = tx.query("SELECT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=to_regclass($1) AND NOT tgisinternal)", &[&table])?[0].get::<_, bool>(0);
-    if triggers {
-        return Err(incompatible(table, "unexpected trigger"));
     }
     Ok(())
 }

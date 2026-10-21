@@ -99536,3 +99536,26 @@ clone, remote command, other worktree, stash, git configuration change or
 push was used. P1b remains responsible for wiring the Postgres host: asset
 schemas are still refused there, and no public Postgres upload/serve path
 reaches these ledger methods today.
+
+## 2026-10-21 — P1-AS fix round 1: attach catalog audit
+
+Rebased both asset commits onto sb4-pg/main-mirror at bf9c1ccc55. Conflicts
+were unions in postgres/mod.rs, the port RFC, this journal and the existing
+serializable-stress ticket. The tests module list merged automatically.
+Every family's modules and attach calls remain; assets attach after jobs
+and outbox. The RFC keeps one Revised line, with this round prepended.
+
+Assets and outbox now ignore catalog NOT NULL constraints; identity and
+jobs already filtered their primary/unique constraint queries. All tables
+covered by those four shape checkers require persistent ordinary tables
+and reject user rewrite rules; their shared metadata table is covered too.
+Requests receive matching persistence/rewrite guards.
+Unconditional Postgres inserts/upserts now verify exactly one affected row;
+conditional publication, insert-ignore and optional updates keep their
+existing no-op semantics. The audit also rejects row security and user
+triggers in identity/jobs/outbox. Asset refusal fixtures include generated
+and identity columns, a suppressing trigger, every unlogged asset ledger
+and every suppressing rule. Every named sibling ledger receives persistence
+and rule refusal witnesses. A rule installed after attach exercises the
+asset writer's affected-row defense. Verification is recorded below after
+the complete repair and requested PostgreSQL runs.

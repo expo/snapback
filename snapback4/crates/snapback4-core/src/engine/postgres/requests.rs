@@ -17,6 +17,12 @@ use std::collections::BTreeMap;
 /// Called by attach after locking `_head`, in its physical-upgrade transaction.
 // @ref LLP 3000.009.001.000#4.1 — request upgrades join the existing head-fenced adoption.
 pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
+    let table = "_requests";
+    let relation = tx.query("SELECT relkind::text,relpersistence::text,EXISTS(SELECT 1 FROM pg_rewrite WHERE ev_class=pg_class.oid AND rulename<>'_RETURN') FROM pg_class WHERE oid=to_regclass($1)", &[&table])?;
+    if relation.first().is_some_and(|row| row.get::<_, &str>(0) != "r" || row.get::<_, &str>(1) != "p" || row.get::<_, bool>(2)) {
+        return Err(RuntimeError::Store(format!("SNAPBACK_REQUESTS_SCHEMA: {table}: expected a persistent ordinary table without rewrite rules")));
+    }
+
     for (column, kind) in [
         ("family", "TEXT COLLATE \"C\""),
         ("principal_generation", "BIGINT"),
@@ -116,7 +122,7 @@ impl RequestsTransaction for Tx<'_> {
     fn insert_request(&self, request: &NewRequest<'_>) -> Result<(), RuntimeError> {
         request.validate()?;
         self.require_serialized_head_fence("insert request")?;
-        self.execute("INSERT INTO _requests(id, name, args, principal, at, state, family, principal_generation, admitted_expires_at, args_digest, spec, contract, deadline, release, service_generation) VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7, $8, $9, $10, $11, $12, $13, $14)",
+        self.execute_one("INSERT INTO _requests(id, name, args, principal, at, state, family, principal_generation, admitted_expires_at, args_digest, spec, contract, deadline, release, service_generation) VALUES ($1, $2, $3, $4, $5, 'queued', $6, $7, $8, $9, $10, $11, $12, $13, $14)",
             &[&request.id, &request.action, &request.args, &request.principal, &request.at,
                 &request.authority.map(|a| &a.family), &request.authority.map(|a| a.generation), &request.authority.map(|a| a.expires_at), &request.args_digest,
                 &request.spec, &request.contract, &request.deadline, &request.release, &request.service_generation])?;

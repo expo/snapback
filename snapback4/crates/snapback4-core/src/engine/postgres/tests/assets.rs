@@ -407,6 +407,17 @@ fn asset_writers_take_no_ddl_locks() {
 #[ignore = "SKIP_POSTGRES_ASSETS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
 fn asset_attach_refuses_incompatible_shapes_by_name() {
     for (table, ddl) in [
+        ("_assets", "ALTER TABLE _assets SET UNLOGGED"),
+        ("_asset_intents", "ALTER TABLE _asset_intents SET UNLOGGED"),
+        ("_asset_views", "ALTER TABLE _asset_views SET UNLOGGED"),
+        ("_asset_gc", "ALTER TABLE _asset_gc SET UNLOGGED"),
+        ("_assets", "CREATE RULE discard AS ON INSERT TO _assets DO INSTEAD NOTHING"),
+        ("_asset_intents", "CREATE RULE discard AS ON INSERT TO _asset_intents DO INSTEAD NOTHING"),
+        ("_asset_views", "CREATE RULE discard AS ON INSERT TO _asset_views DO INSTEAD NOTHING"),
+        ("_asset_gc", "CREATE RULE discard AS ON INSERT TO _asset_gc DO INSTEAD NOTHING"),
+        ("_assets", "CREATE FUNCTION discard() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NULL; END'; CREATE TRIGGER discard BEFORE INSERT ON _assets FOR EACH ROW EXECUTE FUNCTION discard()"),
+        ("_assets", "ALTER TABLE _assets DROP COLUMN bytes; ALTER TABLE _assets ADD COLUMN bytes BIGINT GENERATED ALWAYS AS (created_at) STORED NOT NULL"),
+        ("_asset_views", "ALTER TABLE _asset_views ALTER COLUMN at ADD GENERATED ALWAYS AS IDENTITY"),
         (
             "_assets",
             "ALTER TABLE _assets ALTER COLUMN bytes TYPE INTEGER",
@@ -493,4 +504,17 @@ fn asset_snapshot_and_committed_reopen() {
     let tx = reopened.store.transaction(None).unwrap();
     assert!(tx.intent_cancelled("alice", "snapshot").unwrap());
     assert_eq!(tx.pinned_asset_bytes("alice").unwrap(), 0);
+}
+
+#[test]
+#[ignore = "SKIP_POSTGRES_ASSETS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
+fn asset_record_refuses_a_write_suppressed_after_attach() {
+    let mut e = engine();
+    e.store.client.batch_execute("CREATE RULE discard AS ON INSERT TO _assets DO INSTEAD NOTHING").unwrap();
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    let error = tx.record_asset(&test_cases::asset("discarded")).unwrap_err();
+    assert!(error.to_string().contains("expected one affected row, got 0"), "{error}");
+    drop(tx);
+    let tx = e.store.transaction(None).unwrap();
+    assert!(tx.asset("discarded").unwrap().is_none());
 }

@@ -5,14 +5,14 @@ use crate::RuntimeError;
 
 pub(super) fn verify_existing(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     let relation = tx.query(
-        "SELECT relkind::text FROM pg_class WHERE oid=to_regclass('_jobs')",
+        "SELECT relkind::text, relpersistence::text, relrowsecurity OR relforcerowsecurity, EXISTS(SELECT 1 FROM pg_rewrite WHERE ev_class=pg_class.oid AND rulename<>'_RETURN'), EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=pg_class.oid AND NOT tgisinternal) FROM pg_class WHERE oid=to_regclass('_jobs')",
         &[],
     )?;
     let Some(relation) = relation.first() else {
         return Ok(());
     };
-    if relation.get::<_, &str>(0) != "r" {
-        return Err(incompatible("expected an ordinary table"));
+    if relation.get::<_, &str>(0) != "r" || relation.get::<_, &str>(1) != "p" || (2..=4).any(|i| relation.get::<_, bool>(i)) {
+        return Err(incompatible("expected a persistent ordinary table without row security, rules or triggers"));
     }
     let actual = tx.query(
         "SELECT a.attname::text,format_type(a.atttypid,a.atttypmod),a.attnotnull,

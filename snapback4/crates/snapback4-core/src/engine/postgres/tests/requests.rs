@@ -500,3 +500,17 @@ fn request_out_of_range_attempts_end_transaction_with_sql_error() {
         assert!(e.store.request_counts().unwrap().is_empty());
     }
 }
+
+#[test]
+#[ignore = "SKIP_POSTGRES_REQUESTS_DATABASE: requires private SNAPBACK4_EVAL_POSTGRES"]
+fn request_attach_refuses_volatile_or_rewritten_ledgers() {
+    let table = "_requests";
+    for ddl in [format!("ALTER TABLE {table} SET UNLOGGED"), format!("CREATE RULE discard AS ON INSERT TO {table} DO INSTEAD NOTHING")] {
+        let mut e = engine();
+        let name: String = e.store.client.query_one("SELECT current_schema()", &[]).unwrap().get(0);
+        e.store.client.batch_execute(&ddl).unwrap();
+        drop(e);
+        let error = PostgresEngine::open(client(), &name).err().expect("incompatible request ledger must refuse");
+        assert!(error.to_string().contains(&format!("SNAPBACK_REQUESTS_SCHEMA: {table}:")), "{error}");
+    }
+}

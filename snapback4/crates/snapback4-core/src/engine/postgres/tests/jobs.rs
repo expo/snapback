@@ -415,3 +415,17 @@ fn nul_key_lookups_do_not_query_postgres() {
         assert_eq!(tx.calls.get(), before);
     });
 }
+
+#[test]
+#[ignore = "P1-JB_POSTGRES_UNAVAILABLE: requires private SNAPBACK4_EVAL_POSTGRES; scripts/test-postgres.sh"]
+fn attach_refuses_volatile_or_rewritten_jobs() {
+    for ddl in [
+        "ALTER TABLE _jobs SET UNLOGGED",
+        "CREATE RULE discard AS ON INSERT TO _jobs DO INSTEAD NOTHING",
+    ] {
+        let mut f = Pg::new();
+        f.engine.store.client.batch_execute(ddl).unwrap();
+        let error = PostgresEngine::open(connect(), &f.name).err().expect("incompatible jobs must refuse");
+        assert!(error.to_string().contains("SNAPBACK_JOBS_SCHEMA: _jobs:"), "{error}");
+    }
+}

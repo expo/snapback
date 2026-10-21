@@ -35,7 +35,7 @@ impl OutboxTransaction for Tx<'_> {
     }
     fn suppress_effects(&self, count: usize) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("suppress effects")?;
-        self.execute("INSERT INTO _meta(key,value) VALUES ('dev:suppressed-effects',$1) ON CONFLICT(key) DO UPDATE SET value = ((_meta.value::bigint) + (excluded.value::bigint))::text", &[&count.to_string()])?;
+        self.execute_one("INSERT INTO _meta(key,value) VALUES ('dev:suppressed-effects',$1) ON CONFLICT(key) DO UPDATE SET value = ((_meta.value::bigint) + (excluded.value::bigint))::text", &[&count.to_string()])?;
         Ok(())
     }
     fn effect_release(&self) -> Result<Option<String>, RuntimeError> {
@@ -43,12 +43,12 @@ impl OutboxTransaction for Tx<'_> {
     }
     fn insert_effect(&self, effect: &NewEffect<'_>) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("insert effect")?;
-        self.execute("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at,work_spec,deadline,release,contract) VALUES ($1,$2,$3,$4,'queued',0,$5,$6,$7,$8,$9,$10)", &[&effect.id, &signed(effect.seq)?, &effect.effect, &canonical_json(effect.payload), &effect.now, &effect.next_at, &canonical_json(effect.work), &effect.deadline, &effect.release, &effect.contract])?;
+        self.execute_one("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at,work_spec,deadline,release,contract) VALUES ($1,$2,$3,$4,'queued',0,$5,$6,$7,$8,$9,$10)", &[&effect.id, &signed(effect.seq)?, &effect.effect, &canonical_json(effect.payload), &effect.now, &effect.next_at, &canonical_json(effect.work), &effect.deadline, &effect.release, &effect.contract])?;
         Ok(())
     }
     fn insert_effect_presence(&self, principal: &str, id: &str, deadline: i64) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("insert effect presence")?;
-        self.execute("INSERT INTO _effect_presence(principal,id,deadline) VALUES ($1,$2,$3)", &[&principal, &id, &deadline])?;
+        self.execute_one("INSERT INTO _effect_presence(principal,id,deadline) VALUES ($1,$2,$3)", &[&principal, &id, &deadline])?;
         Ok(())
     }
     fn park_effect_generation(&self, id: &str, now: i64) -> Result<(), RuntimeError> {

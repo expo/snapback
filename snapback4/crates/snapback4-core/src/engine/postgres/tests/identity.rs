@@ -371,6 +371,20 @@ fn identity_read_insert_does_not_block_peer_authority_reads() {
 #[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
 fn identity_attach_refuses_incompatible_existing_tables() {
     for (table, drift) in [
+        ("_principals", "ALTER TABLE _principals SET UNLOGGED"),
+        ("_principals", "CREATE RULE discard AS ON INSERT TO _principals DO INSTEAD NOTHING"),
+        ("_credentials", "ALTER TABLE _credentials SET UNLOGGED"),
+        ("_credentials", "CREATE RULE discard AS ON INSERT TO _credentials DO INSTEAD NOTHING"),
+        ("_session_mint_bindings", "ALTER TABLE _session_mint_bindings SET UNLOGGED"),
+        ("_session_mint_bindings", "CREATE RULE discard AS ON INSERT TO _session_mint_bindings DO INSTEAD NOTHING"),
+        ("_read_sessions", "ALTER TABLE _read_sessions SET UNLOGGED"),
+        ("_read_sessions", "CREATE RULE discard AS ON INSERT TO _read_sessions DO INSTEAD NOTHING"),
+        ("_sessions", "ALTER TABLE _sessions SET UNLOGGED"),
+        ("_sessions", "CREATE RULE discard AS ON INSERT TO _sessions DO INSTEAD NOTHING"),
+        ("_principal_generations", "ALTER TABLE _principal_generations SET UNLOGGED"),
+        ("_principal_generations", "CREATE RULE discard AS ON INSERT TO _principal_generations DO INSTEAD NOTHING"),
+        ("_meta", "ALTER TABLE _meta SET UNLOGGED"),
+        ("_meta", "CREATE RULE discard AS ON INSERT TO _meta DO INSTEAD NOTHING"),
         ("_principals", "ALTER TABLE _principals ALTER COLUMN created_at TYPE TEXT"),
         ("_credentials", "ALTER TABLE _credentials ALTER COLUMN email TYPE TEXT COLLATE \"default\""),
         ("_session_mint_bindings", "ALTER TABLE _session_mint_bindings DROP COLUMN scope"),

@@ -49,7 +49,7 @@ impl IdentityTransaction for Tx<'_> {
         if session.scope == SessionScope::Read {
             return self.insert_read_session(session, now, None);
         }
-        self.execute(
+        self.execute_one(
             "INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES ($1,$2,$3,$4,$5,$1)",
             &[&digest(&session.token), &session.principal, &session.kind, &now, &session.expires_at],
         )?;
@@ -70,7 +70,7 @@ impl IdentityTransaction for Tx<'_> {
             Some((_, generation)) => generation,
             None => self.principal_generation(&session.principal)?,
         };
-        self.execute(
+        self.execute_one(
             "INSERT INTO _read_sessions(token_digest,principal,kind,family,created_at,expires_at,cap_expires_at,principal_generation) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
             &[&digest, &session.principal, &session.kind, &family.map_or(digest.as_str(), |f| f.0), &now, &session.expires_at, &session.cap_expires_at.expect("read cap"), &generation],
         )?;
@@ -105,7 +105,7 @@ impl IdentityTransaction for Tx<'_> {
         record: &SessionMintRecord,
     ) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("record session mint")?;
-        self.execute(
+        self.execute_one(
             "INSERT INTO _session_mint_bindings(invocation,intent,input_digest,principal,kind,days,expires_at,family,principal_generation,scope) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'full')",
             &[&invocation, &intent, &record.input_digest, &record.principal, &record.kind, &record.days, &record.expires_at, &record.family, &record.principal_generation],
         )?;
@@ -235,11 +235,11 @@ impl IdentityStore for RefCell<&mut Store> {
                 .first()
                 .map(|row| row.get(0));
             validate(taken)?;
-            tx.execute(
+            tx.execute_one(
                 "INSERT INTO _principals(id,kind,name,created_at) VALUES ($1,'user',$2,$3)",
                 &[&session.principal, &prepared.email, &now],
             )?;
-            tx.execute(
+            tx.execute_one(
                 "INSERT INTO _credentials(principal,email,hash) VALUES ($1,$2,$3)",
                 &[&session.principal, &prepared.email, &prepared.hash],
             )?;
@@ -332,7 +332,7 @@ impl IdentityStore for RefCell<&mut Store> {
 
     fn revoke_identity_principal(&self, principal: &str) -> Result<u64, RuntimeError> {
         write(self, |tx| {
-            tx.execute("INSERT INTO _principal_generations(principal,generation) VALUES ($1,1) ON CONFLICT(principal) DO UPDATE SET generation = _principal_generations.generation + 1", &[&principal])?;
+            tx.execute_one("INSERT INTO _principal_generations(principal,generation) VALUES ($1,1) ON CONFLICT(principal) DO UPDATE SET generation = _principal_generations.generation + 1", &[&principal])?;
             let mut removed =
                 tx.execute("DELETE FROM _sessions WHERE principal = $1", &[&principal])?;
             if read_sessions_present(tx)? {
@@ -421,10 +421,10 @@ impl IdentityStore for RefCell<&mut Store> {
             tx.insert_identity_session(&session, now)?;
             let family = digest(&session.token);
             if named {
-                tx.execute("INSERT INTO _meta(key,value) VALUES ($1,$2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", &[&format!("worker:family:{family}"), &revision.to_string()])?;
+                tx.execute_one("INSERT INTO _meta(key,value) VALUES ($1,$2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", &[&format!("worker:family:{family}"), &revision.to_string()])?;
             } else {
-                tx.execute("INSERT INTO _meta(key,value) VALUES ('worker:session-family',$1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", &[&family])?;
-                tx.execute("INSERT INTO _meta(key,value) VALUES ('worker:session-revision',$1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", &[&revision.to_string()])?;
+                tx.execute_one("INSERT INTO _meta(key,value) VALUES ('worker:session-family',$1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", &[&family])?;
+                tx.execute_one("INSERT INTO _meta(key,value) VALUES ('worker:session-revision',$1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", &[&revision.to_string()])?;
             }
             Ok(session)
         })

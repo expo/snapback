@@ -48,7 +48,7 @@ impl OutboxStore for RefCell<&mut Store> {
         let mut store = self.borrow_mut();
         let tx = store.transaction(Some(WriteMode::Serialized))?;
         check(tx.replay_deployed()?)?;
-        tx.execute("INSERT INTO _meta(key,value) VALUES ('dev:replay',$1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", &[&if replay { "true" } else { "false" }])?;
+        tx.execute_one("INSERT INTO _meta(key,value) VALUES ('dev:replay',$1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", &[&if replay { "true" } else { "false" }])?;
         tx.commit()
     }
 }

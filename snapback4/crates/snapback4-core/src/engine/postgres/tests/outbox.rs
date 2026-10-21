@@ -86,6 +86,10 @@ fn outbox_attach_upgrades_evaluation_rows_and_reopens() {
 #[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
 fn outbox_attach_refuses_incompatible_shapes() {
     for ddl in [
+        "ALTER TABLE _outbox SET UNLOGGED",
+        "CREATE RULE discard AS ON INSERT TO _outbox DO INSTEAD NOTHING",
+        "ALTER TABLE _effect_presence SET UNLOGGED",
+        "CREATE RULE discard AS ON INSERT TO _effect_presence DO INSTEAD NOTHING",
         "ALTER TABLE _outbox ADD COLUMN surprise TEXT",
         "ALTER TABLE _outbox ALTER COLUMN attempts TYPE INTEGER",
         "ALTER TABLE _outbox ALTER COLUMN cancelled DROP DEFAULT",

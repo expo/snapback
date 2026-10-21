@@ -124,7 +124,7 @@ impl AssetTransaction for Tx<'_> {
     ) -> Result<(), RuntimeError> {
         assets::validate_ledger_text(&[owner, id, fingerprint])?;
         self.require_serialized_head_fence("declare asset intent")?;
-        self.execute("INSERT INTO _asset_intents(owner,intent,fingerprint,placement,state) VALUES($1,$2,$3,$4,'declared')", &[&owner,&id,&fingerprint,&placement])?;
+        self.execute_one("INSERT INTO _asset_intents(owner,intent,fingerprint,placement,state) VALUES($1,$2,$3,$4,'declared')", &[&owner,&id,&fingerprint,&placement])?;
         Ok(())
     }
 
@@ -192,7 +192,7 @@ impl AssetTransaction for Tx<'_> {
         if !self.asset_intent_exists(owner, id)? {
             assets::validate_ledger_text(&[owner, id])?;
         }
-        self.execute("INSERT INTO _asset_intents(owner,intent,state) VALUES($1,$2,'cancelled') ON CONFLICT(owner,intent) DO UPDATE SET state='cancelled'", &[&owner,&id])?;
+        self.execute_one("INSERT INTO _asset_intents(owner,intent,state) VALUES($1,$2,'cancelled') ON CONFLICT(owner,intent) DO UPDATE SET state='cancelled'", &[&owner,&id])?;
         Ok(())
     }
 
@@ -304,7 +304,7 @@ impl Tx<'_> {
             asset.name.as_deref().unwrap_or(""),
         ])?;
         self.require_serialized_head_fence("record asset")?;
-        self.execute("INSERT INTO _assets(id,owner,kind,content_type,bytes,width,height,duration,created_at,home_table,home_id,home_column,released_at,name) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL,NULL,NULL,NULL,$10)", &[&asset.id,&asset.owner,&asset.kind.word(),&asset.content_type,&(asset.bytes as i64),&asset.width.map(i64::from),&asset.height.map(i64::from),&asset.duration.map(|d| d as i64),&asset.created_at,&asset.name])?;
+        self.execute_one("INSERT INTO _assets(id,owner,kind,content_type,bytes,width,height,duration,created_at,home_table,home_id,home_column,released_at,name) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,NULL,NULL,NULL,NULL,$10)", &[&asset.id,&asset.owner,&asset.kind.word(),&asset.content_type,&(asset.bytes as i64),&asset.width.map(i64::from),&asset.height.map(i64::from),&asset.duration.map(|d| d as i64),&asset.created_at,&asset.name])?;
         Ok(())
     }
 
@@ -329,7 +329,7 @@ impl Tx<'_> {
                 "INSERT INTO _asset_gc(asset) VALUES($1) ON CONFLICT(asset) DO NOTHING",
                 &[&asset.id],
             )?;
-            self.execute(
+            self.execute_one(
                 "UPDATE _assets SET released_at=COALESCE(released_at,$2) WHERE id=$1",
                 &[&asset.id, &now],
             )?;

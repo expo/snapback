@@ -41,9 +41,9 @@ fn incompatible(table: &str, reason: &str) -> RuntimeError {
 // Return columns only after validating every existing constraint/default. Missing
 // lifecycle columns are allowed, but the seven original columns are mandatory.
 fn verify(tx: &Tx<'_>, table: &str, required: &[Column], optional: &[Column], primary: &[&str]) -> Result<Vec<String>, RuntimeError> {
-    let rows = tx.query("SELECT relkind::text FROM pg_class WHERE oid = to_regclass($1)", &[&table])?;
+    let rows = tx.query("SELECT relkind::text, relpersistence::text, relrowsecurity OR relforcerowsecurity, EXISTS(SELECT 1 FROM pg_rewrite WHERE ev_class=pg_class.oid AND rulename<>'_RETURN'), EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=pg_class.oid AND NOT tgisinternal) FROM pg_class WHERE oid=to_regclass($1)", &[&table])?;
     let Some(row) = rows.first() else { return Ok(Vec::new()) };
-    if row.get::<_, &str>(0) != "r" { return Err(incompatible(table, "expected ordinary table")); }
+    if row.get::<_, &str>(0) != "r" || row.get::<_, &str>(1) != "p" || (2..=4).any(|i| row.get::<_, bool>(i)) { return Err(incompatible(table, "expected persistent ordinary table without row security, rules or triggers")); }
     let columns = tx.query("SELECT a.attname::text,format_type(a.atttypid,a.atttypmod),a.attnotnull,pg_get_expr(d.adbin,d.adrelid),a.attgenerated::text,a.attidentity::text FROM pg_attribute a LEFT JOIN pg_attrdef d ON d.adrelid = a.attrelid AND d.adnum = a.attnum WHERE a.attrelid = to_regclass($1) AND a.attnum > 0 AND NOT a.attisdropped", &[&table])?;
     for column in &columns {
         let name: &str = column.get(0);
@@ -58,7 +58,7 @@ fn verify(tx: &Tx<'_>, table: &str, required: &[Column], optional: &[Column], pr
     for &(name, _, _) in required {
         if !columns.iter().any(|c| c.get::<_, &str>(0) == name) { return Err(incompatible(table, &format!("missing column {name}"))); }
     }
-    let keys = tx.query("SELECT c.contype::text,c.condeferrable,ARRAY(SELECT a.attname::text FROM unnest(c.conkey) WITH ORDINALITY k(num,ord) JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.num ORDER BY k.ord),c.confrelid = to_regclass('_commits'),ARRAY(SELECT a.attname::text FROM unnest(c.confkey) WITH ORDINALITY k(num,ord) JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.num ORDER BY k.ord),NOT c.condeferrable AND c.convalidated AND c.confupdtype = 'a' AND c.confdeltype = 'a' AND c.confmatchtype = 's' FROM pg_constraint c WHERE c.conrelid = to_regclass($1)", &[&table])?;
+    let keys = tx.query("SELECT c.contype::text,c.condeferrable,ARRAY(SELECT a.attname::text FROM unnest(c.conkey) WITH ORDINALITY k(num,ord) JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.num ORDER BY k.ord),c.confrelid = to_regclass('_commits'),ARRAY(SELECT a.attname::text FROM unnest(c.confkey) WITH ORDINALITY k(num,ord) JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.num ORDER BY k.ord),NOT c.condeferrable AND c.convalidated AND c.confupdtype = 'a' AND c.confdeltype = 'a' AND c.confmatchtype = 's' FROM pg_constraint c WHERE c.conrelid = to_regclass($1) AND c.contype<>'n'", &[&table])?;
     let mut primaries = 0;
     for key in keys {
         let kind: &str = key.get(0);
