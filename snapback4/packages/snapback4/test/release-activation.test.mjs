@@ -800,7 +800,8 @@ test('hot release replaces, adds and retires named workers without restarting se
   run('deploy',deployment);
   const statuses=()=>{const db=new DatabaseSync(join(deployment,'store.sqlite'),{readOnly:true});try{return Object.fromEntries(db.prepare("SELECT key,value FROM _meta WHERE key LIKE 'worker:status:%'").all().map(r=>[r.key,JSON.parse(r.value)]));}finally{db.close();}};
   await serve(deployment,async(_url,_headers,_session,logs)=>{
-    await waitFor(()=>logs().includes('ROLL_ALPHA_V1'),'first named worker starts',{diagnostics:logs});
+    // The log line can precede the host's committed status row under load: wait for both.
+    await waitFor(()=>logs().includes('ROLL_ALPHA_V1')&&statuses()['worker:status:alpha']?.pid,'first named worker starts',{diagnostics:()=>logs()+JSON.stringify(statuses())});
     const first=statuses()['worker:status:alpha'].pid;
     const before=JSON.parse(run('releases',deployment));
     writeFileSync(join(workers,'alpha.mjs'),"// snapback4 secrets: NOT_DECLARED\n"+worker('ROLL_BAD_SECRET'));
@@ -813,7 +814,7 @@ test('hot release replaces, adds and retires named workers without restarting se
     writeFileSync(join(workers,'alpha.mjs'),worker('ROLL_ALPHA_V2'));
     writeFileSync(join(workers,'beta.mjs'),worker('ROLL_BETA_V2'));
     run('deploy',deployment);
-    await waitFor(()=>logs().includes('ROLL_ALPHA_V2')&&logs().includes('ROLL_BETA_V2'),'replacement and added worker start',{diagnostics:logs});
+    await waitFor(()=>logs().includes('ROLL_ALPHA_V2')&&logs().includes('ROLL_BETA_V2')&&statuses()['worker:status:alpha']?.pid&&statuses()['worker:status:alpha'].pid!==first&&statuses()['worker:status:beta']?.pid,'replacement and added worker start',{diagnostics:()=>logs()+JSON.stringify(statuses())});
     assert.notEqual(statuses()['worker:status:alpha'].pid,first);
     rmSync(join(workers,'alpha.mjs'));writeFileSync(join(workers,'beta.mjs'),worker('ROLL_BETA_V3'));
     run('deploy',deployment);
