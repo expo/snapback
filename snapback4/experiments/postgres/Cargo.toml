@@ -8,7 +8,7 @@ publish = false
 [workspace]
 
 [dependencies]
-snapback4-core = { path = "../../crates/snapback4-core", default-features = false, features = ["postgres"] }
+snapback4-core = { path = "../../crates/snapback4-core", default-features = false, features = ["postgres", "evaluation-support"] }
 snapback4-lang = { path = "../../crates/snapback4-lang" }
 snapback4-device = { path = "../../crates/snapback4-device" }
 postgres = "0.19.14"

@@ -8,7 +8,6 @@ use super::*;
 use crate::engine::committer::{Committed, Committer, Kind, Pending};
 use crate::ir::Program;
 use crate::schema::{Constraint, materialize_optional_fields};
-use crate::value::digest;
 use std::collections::BTreeSet;
 
 pub(super) type Identity = (Option<String>, Option<String>, Option<String>, Option<String>,
@@ -115,7 +114,12 @@ impl Store {
         report.phase("read-only advice", &mut phase);
         Committer::run_committed_with(self, |store| Committer::run_solo(Kind::Administrative, |commit| {
             store.check_ownership()?;
-            let sql = commit.open_solo_with(|| Ok(store.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?))?;
+            let sql = commit.open_solo_with(|| {
+                #[cfg(test)]
+                { super::test_race::begin_activation(&mut store.conn) }
+                #[cfg(not(test))]
+                { Ok(store.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?) }
+            })?;
             // Low-level preparation may precede a writer-lock wait. Recheck all
             // opening admission under the lock that owns the upgrades.
             Self::check_version(&sql)?;
@@ -157,7 +161,7 @@ impl Store {
             let schema_hash = schema.hash();
             // @ref LLP 3000.000.000#6-devices-and-partitions — executable native content changes the existing semantic generation.
             let native: Option<String> = sql.query_row("SELECT value FROM _meta WHERE key='release_native_digest'", [], |r|r.get(0)).optional()?;
-            let activation_hash = programs.map(|programs| match &native {Some(native)=>digest(&(schema,programs,native)),None=>digest(&(schema,programs))});
+            let activation_hash = programs.map(|programs| crate::activation::activation_hash(schema, programs, native.as_deref()));
             let schema_changed = before.0.as_deref() != Some(&schema_hash);
             let mut changed = schema_changed || activation_hash.as_ref().is_some_and(|hash| before.1.as_ref() != Some(hash));
             // The address function is part of the semantic generation even when
@@ -186,12 +190,13 @@ impl Store {
                 let Tx { tx: sql, .. } = preflight;
                 (launches, sql)
             };
-            let mut next = catalog.values().copied().max().unwrap_or(0) + 1;
+            let mut next = catalog.values().copied().max().unwrap_or(0);
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 for full in std::iter::once(name.clone()).chain(table.indexes.keys().map(|index| format!("{name}.{index}"))) {
                     if !catalog.contains_key(&full) {
+                        next = crate::activation::next_catalog_number(next)?;
                         sql.execute("INSERT INTO _catalog(name, num) VALUES (?1, ?2)", params![full, next])?;
-                        catalog.insert(full, next); next += 1;
+                        catalog.insert(full, next);
                     }
                 }
             }
@@ -462,7 +467,7 @@ impl Store {
                 }
             }
             let previous = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'generation'", [], |row| row.get::<_, String>(0)).optional()?.and_then(|s| s.parse::<u64>().ok()).unwrap_or(0);
-            let generation = if programs.is_some() && changed { previous.checked_add(1).ok_or_else(|| RuntimeError::Generation("generation overflow".into()))? } else { previous.max(1) };
+            let generation = if programs.is_some() && changed { crate::activation::next_generation(previous, true)? } else { previous.max(1) };
             tx.set_meta("schema_hash", &schema_hash)?;
             if let Some(hash) = &activation_hash {
                 tx.set_meta("index_keys_validated", &format!("{}:{hash}", crate::rows::MAX_INDEX_KEY_BYTES))?;

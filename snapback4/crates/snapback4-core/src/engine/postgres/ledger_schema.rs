@@ -15,6 +15,7 @@ pub(super) fn verify_relation(
          EXISTS(SELECT 1 FROM pg_rewrite WHERE ev_class=pg_class.oid AND rulename<>'_RETURN'),
          EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=pg_class.oid AND NOT tgisinternal),
          EXISTS(SELECT 1 FROM pg_inherits WHERE inhrelid=pg_class.oid OR inhparent=pg_class.oid)
+         , EXISTS(SELECT 1 FROM pg_constraint WHERE conrelid=pg_class.oid AND condeferrable)
          FROM pg_class WHERE oid=to_regclass($1)",
         &[&table],
     )?;
@@ -32,6 +33,9 @@ pub(super) fn verify_relation(
             table,
             "expected a persistent table without row security, rules or triggers",
         ));
+    }
+    if row.get::<_, bool>(6) {
+        return Err(incompatible(table, "expected immediate keys"));
     }
     Ok(true)
 }

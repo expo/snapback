@@ -15,7 +15,8 @@ retryable? }`: `code` and `family` are stable, `rewrite` compiles, `guide`
 names a card, `rule` is the program's own code on a `require` or named unique refusal, and
 `retryable` says the same request may succeed later. The engine's families:
 input, schema, auth, rule (your `require` codes), constraint, bound, op,
-asset, action, route, prediction, generation, store; HTTP admission adds limit.
+asset, action, route, prediction, generation, store and evolution (an unavailable
+store capability); HTTP admission adds limit.
 The client adds link (a transport or HTTP response failure) and client (the client itself refused, as after `close()`).
 Optional reads do not raise a rule refusal: a hidden row is null, and a page
 omits it. An asserted read (`! else CODE`) can refuse in a query as well as a mutation.

@@ -33,6 +33,8 @@ pub mod meter;
 #[cfg(feature = "sqlite")]
 pub mod metadata;
 #[cfg(feature = "sqlite")]
+pub mod release_history;
+#[cfg(feature = "sqlite")]
 pub(crate) mod activation;
 pub mod maintain;
 pub mod partition;

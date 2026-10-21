@@ -1,0 +1,71 @@
+{
+  "version": "PostgreSQL 17.9 (Ubuntu 17.9-1.pgdg24.04+1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0, 64-bit",
+  "settings": [
+    {
+      "name": "fsync",
+      "unit": null,
+      "setting": "on"
+    },
+    {
+      "name": "full_page_writes",
+      "unit": null,
+      "setting": "on"
+    },
+    {
+      "name": "jit",
+      "unit": null,
+      "setting": "off"
+    },
+    {
+      "name": "listen_addresses",
+      "unit": null,
+      "setting": "127.0.0.1"
+    },
+    {
+      "name": "max_connections",
+      "unit": null,
+      "setting": "320"
+    },
+    {
+      "name": "password_encryption",
+      "unit": null,
+      "setting": "scram-sha-256"
+    },
+    {
+      "name": "port",
+      "unit": null,
+      "setting": "55440"
+    },
+    {
+      "name": "shared_buffers",
+      "unit": "8kB",
+      "setting": "1048576"
+    },
+    {
+      "name": "synchronous_commit",
+      "unit": null,
+      "setting": "on"
+    },
+    {
+      "name": "wal_sync_method",
+      "unit": null,
+      "setting": "fdatasync"
+    }
+  ],
+  "extensions": [
+    {
+      "name": "plpgsql",
+      "version": "1.0"
+    },
+    {
+      "name": "pg_stat_statements",
+      "version": "1.11"
+    }
+  ],
+  "start_time": "2026-10-21T13:55:37.846284+02:00",
+  "raw_databases": [
+    "sb4scale_raw_1000000",
+    "sb4scale_raw_100000"
+  ],
+  "data_directory": "/home/ccheever/sb4scale/pg17"
+}

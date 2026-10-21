@@ -94,3 +94,12 @@ writers! {
     set_deployment_environment() => "deployment_environment";
     set_worker_status(worker: Option<&str>) => worker_status_key(worker);
 }
+
+impl Tx<'_> {
+    pub(super) fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
+        read(self, key)
+    }
+    pub(super) fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
+        write(self, key, value)
+    }
+}

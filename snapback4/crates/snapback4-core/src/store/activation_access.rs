@@ -7,16 +7,20 @@ use crate::metadata::RestoredPopulation;
 
 impl ActivationReader for Tx<'_> {
     fn opening_backend(&self) -> Result<Backend, RuntimeError> {
+        let generation = crate::activation::stored_generation(self.meta("generation")?.as_deref())?;
         self.conn().query_row(
-            "SELECT g.generation, g.schema, g.programs FROM _generations g JOIN _meta m ON m.key = 'generation' AND g.generation = CAST(m.value AS INTEGER)",
-            [], |row| Ok(Backend(row.get(0)?, row.get(1)?, row.get(2)?)))
+            "SELECT generation, schema, programs FROM _generations WHERE generation = ?1",
+            [generation], |row| Ok(Backend(row.get(0)?, row.get(1)?, row.get(2)?)))
             .map_err(|e| RuntimeError::Store(format!("no readable activated backend in this store: {e}")))
     }
     fn check_selected_release(&self, expected: Option<u64>) -> Result<(), RuntimeError> {
         Store::check_selected_release(self.conn(), expected)
     }
+    fn time_audience_clock(&self) -> Result<i64, RuntimeError> { self.time_audience_clock() }
+    fn opening_marker(&self, marker: crate::metadata::SchemaMarker) -> Result<Option<String>, RuntimeError> { self.schema_marker(marker) }
     fn previous_schema(&self) -> Result<Option<String>, RuntimeError> {
-        Ok(self.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?)
+        let generation = crate::activation::stored_generation(self.meta("generation")?.as_deref())?;
+        Ok(self.conn().query_row("SELECT schema FROM _generations WHERE generation = ?1", [generation], |row| row.get(0)).optional()?)
     }
     fn live_sum_marker(&self) -> Result<Option<String>, RuntimeError> {
         Ok(self
@@ -66,7 +70,7 @@ impl ActivationReader for Tx<'_> {
     ) -> Result<bool, RuntimeError> {
         let mut statement = self
             .conn()
-            .prepare("SELECT data FROM r WHERE t = (SELECT num FROM _catalog WHERE name = ?1)")?;
+            .prepare("SELECT data FROM r WHERE t = (SELECT num FROM _catalog WHERE name = ?1) ORDER BY id")?;
         let mut rows = statement.query([table])?;
         while let Some(row) = rows.next()? {
             let image: Value = crate::json_codec::from_text(
@@ -156,7 +160,7 @@ impl ActivationPreparation for super::release::ReleaseCheck<'_> {
 impl TimelineWorkReader for Store {
     fn timeline_work_count(&self, table: &str, state: &str) -> Result<u64, RuntimeError> {
         self.conn().query_row(
-            "SELECT count(*) FROM r JOIN _catalog c ON r.t = c.num WHERE c.name = ?1 AND json_extract(r.data, '$.Row.status.String') = ?2",
+            "SELECT count(*) FROM r JOIN _catalog c ON r.t = c.num WHERE c.name = ?1 AND CASE WHEN json_valid(r.data) THEN json_extract(r.data, '$.Row.status.String') END = ?2",
             [table, state], |row| row.get::<_, i64>(0).map(|n| n as u64)).map_err(RuntimeError::from)
     }
 }

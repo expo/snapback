@@ -1,0 +1,5 @@
+{
+  "read_and_counter_rules": true,
+  "post_rule_and_atomic_maintains": true,
+  "overload_preserves_arrivals_and_queue_latency": true
+}

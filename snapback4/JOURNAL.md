@@ -100136,3 +100136,189 @@ fairness, withdrawal or negative-control assertion was removed or widened.
 The complete pool and packed checks are repeated after this repair; scratch
 command logs left by a completed test are preserved outside the source tree
 before qualification, without weakening its clean-source check.
+## 2026-10-21 — P1-RL task 1: Postgres opening and activation facts
+
+Added the activation reader/writer/preparation and scoped timeline count
+adapters. Attach persists immutable generation records and a catalog under
+the head fence, plus the opening markers. Store-neutral backend captures and
+inventory records remove SQLite types from that contract. Epoch/time facts
+and typed metadata reads are available; timed publication and dormant schema
+evolution remain unadmitted. Reused the strict asset shape guard for these
+relations, including refusal of parent/child inheritance. Shared generation
+hashing and opening selection/capture checks retain SQLite semantics.
+Validation: Postgres-enabled core compilation; complete contract and required
+suites follow in task 3. One local worker, requested build environment, no push.
+
+
+## 2026-10-21 — P1-RL task 2: release history and selected reopen
+
+Moved event/status operations behind a neutral history contract and supplied
+both adapters. Shared recording checks bounded identities and revision
+exhaustion before writes. Shared release admission refuses NUL in newly
+recorded operation/digest strings. The Postgres evaluator can create a selected
+first release atomically, activate a program-only successor, inspect history
+and reopen with a selected-release fence. Equal-content activations advance
+history revision without advancing generation. Schema-changing activation
+refuses before preparation writes until dormant evolution is ported. Local
+source/host matching, serve/deploy wiring and production fencing remain S10d.
+Postgres-enabled core compilation passed. Task 3 supplies dual-adapter and
+real-cluster evidence; no push or other-machine work.
+
+
+## 2026-10-21 — P1-RL task 3: one release/activation contract on two adapters
+
+Shared cases cover first adoption and selected restart, matching executed
+programs after a second generation/rollback, exact-byte backend refusal,
+all opening markers, clock/epoch boundaries, NUL admission and JSON values,
+history paging, terminal statement-error rollback and signed identity
+exhaustion. Generation/catalog/event identities use shared checked allocation;
+SQLite's catalog overflow and random rowid fallback at the signed limit now
+refuse. Ordinary assigned ids are unchanged; event allocation is explicit
+and fenced. The catalog retains unique ordinals. Finalization
+and event recording cross the neutral contract; SQLite delegates the same
+restoration algorithm. Postgres counts timeline statuses from streamed text
+JSON to preserve escaped NUL and folds metadata patterns in ASCII to match
+SQLite even under en_US.utf8.
+
+Two full activation calls overlap through the shared physical fence witness,
+with changed and equal-content generations on both stores. The holder waits
+for a real SQLite busy callback or pg_blocking_pids evidence before committing.
+Exactly one activation survives. PostgreSQL relation-shape cases refuse
+inheritance in both directions, partitioning, UNLOGGED storage, rewrite rules,
+triggers, RLS, defaults and incompatible immediate/deferrable/extra keys.
+
+The complete core suite passes with five existing ignores. Core no-default,
+7 + 3 ratchets, guide code census, 27 WASM census tests and root refs pass.
+The final forwarding/boundary delta passes 18 affected SQLite release cases
+and 15 fresh-cluster family cases (9 Postgres, 6 SQLite). Both complete
+Postgres scripts pass: 58 experiment + 170 core + 19 harness tests per locale;
+the serialized corpus reports 207 passed and 88 named skips. All six owned
+clusters, including preliminary attempts and the final family cluster, are
+stopped with status=3 and no postmaster.pid. The standalone experiment's
+inherited stale lock edge and private conn calls are corrected without
+exposing raw access. The required Clippy command has only the two inherited
+errors at read.rs:780 / row_views.rs:1014; both files equal the base. Allowing
+only those two lints on the command line lets the complete test check pass.
+No source lint setting changes.
+
+The evaluator reaches create_release/activate_release/open_selected/status;
+serve/deploy remain unchanged. Full schema-changing evolution refuses before
+preparation writes. S10d still owns immutable local source/host binding,
+configuration/enum/host integration, production owner fencing and ambiguity/
+worker completion policy. BlobStore and artifact digests remain out of scope.
+Detailed per-rule results, dialect resolutions and limits are in
+reports/20261021-p1-rl-release-activation.md. One local worker; 8 Cargo jobs,
+requested target/debug/incremental settings, lowest sampled free disk about 180 GiB;
+no sub-agents, clones, remote commands, stash or push.
+
+
+## 2026-10-21 — P1-RL fix round 1: opening repairs and foundation integration
+
+Rebased the three P1-RL commits onto main's foundation metadata, receipt and
+change-evidence families and experiment fixes. Resolved the RFC and journal by
+union, retaining one Revised header. Kept main's validated metadata adapters and
+experiment durability calls, with the lane's activation/release additions.
+Foundation, assets and release share the exact column/key checker; it delegates
+to main's relation guard, which now also rejects deferrable keys. Opening checks
+backend/head and every core relation used by its upgrades and rebuilds before
+trusting them; user triggers cannot suppress backend or head publication.
+
+Postgres now rebuilds missing/stale cap occupancy and missing legacy live-sum
+candidates inside the opening writer before committing their markers. The
+shared reopen fixtures remove a live zero-sum candidate or empty counters with
+one live row under cap 2, then require restoration and refusal of the third row
+on both stores. Evolution returns structured E_STORE_UNSUPPORTED with family
+`evolution`. Both stores skip malformed timeline JSON and refuse invalid stored
+generation metadata as E_STORE_GENERATION without a dialect cast; the shared
+fixture restores a valid value and rereads in the same transaction. Added
+mixed-case scratch-key read-back, ordered worker-history fixtures and catalog
+unique-key mutation, plus unlogged backend/head and update-suppressing trigger
+witnesses. The opening writer records its held head fence so main's metadata
+writer can enforce ownership; foundation's empty-metadata fixture explicitly
+clears bootstrap facts before exercising missing values.
+
+Validation and cluster stop receipts are recorded in the fix-round section of
+reports/20261021-p1-rl-release-activation.md. One local worker, at most 16 Cargo
+jobs, only this worktree's target, incremental disabled and line-table debug;
+no stash or push.
+
+### P1-RL fix round 1 — refusal explanation follow-through
+
+The complete host run found that registering the two new refusal codes also
+requires dedicated `why` excerpts. Added their explanations, routed them to the
+refusals card and named `evolution` in that card's family list. The doctor
+renderer and all-code `why` CLI coverage tests each pass when rerun alone.
+This guide-only follow-through leaves the qualified store behavior unchanged;
+the report distinguishes the original full-run failures from their reruns.
+
+## 2026-10-21 — S1-H raw-Postgres scale harness
+
+Implemented an isolated Rust workspace under experiments/scale-controls for
+LLP 3000.009.001.002 W1–W5: typed chat tables, SQL membership/ownership rules,
+prepared pooled HTTP service, maintained room/sender totals, deterministic
+100k/1m-message fixtures, intended-arrival open-loop timing with explicit
+expiry/error accounting and HDR histograms. Uses S1b's independent SSH streams
+and S0's unchanged delay proxy. Local taskset separates app/proxy, load and SSH
+cores; this remains a two-host, shared-fleet experiment, not the RFC's idle
+three-host qualification. No W6 or other-system performance claim.
+
+Created only the private durable PG17.9 cluster at ~/sb4scale/pg17 on 450a,
+port 55440, 8 GiB shared buffers, pg_stat_statements. jit=off records the missing
+LLVM19 runtime in the relocated package. Passwords stay in mode-600 files.
+Cluster start/stop checks recorded postmaster ownership. Resource capture
+includes /proc process CPU, SQL statement/WAL/I/O deltas and sampled wait events.
+perf stack profiling is unavailable with perf_event_paranoid=4.
+
+Black-box checks pass non-member reads/posts, own/shared counter authority,
+atomic room/sender maintains and open-loop overload accounting; a low-rate
+proxy smoke confirms counter deltas and the capture files. Release build and
+Clippy with warnings denied pass. Initial failed setup records retain the
+missing-role and LLVM dependency findings; neither enters the limits ledger.
+The measurement results follow in their own commit. No push, clone, stash,
+sub-agent, paid resource or unrelated 450a work.
+
+S1-H measurement correction, same date: the initial read cells exposed the
+one-core generator's CPU limit (~1.7–1.9 logical CPU seconds per second across
+that core's SMT siblings). Kept the partial run as generator-core1, then gave
+the generator all three physical cores outside the app, sharing two with SSH.
+App/proxy affinity, SQL, cluster, durability, intended arrivals and SLOs are
+unchanged. This is a measured harness limit, not a raw-Postgres database limit.
+Verbose capture can be losslessly gzip-archived; the report reads either form.
+
+
+## 2026-10-21 — S1-H raw-PG matrix completed
+
+Completed 132 cells / 513 rate settings / 1,539 repetitions / 15,214,986
+measured scheduled arrivals, all independently accounted for. W1–W3 at 100k
+and 1m messages; W4/W5 at 1m with writers 1,2,4,8,16,32,64,128,256; natural
+SSH RTT and S0 proxy additions 0.2/0.5/1.0 ms. Three 0.5 s warm-up + 2 s
+measurement repetitions per rate; every repetition must meet the SLO/error
+rule and write counter equality. Lossless gzip retains original stdout and
+histograms; the audit checks all bucket counts, brackets and decisions.
+
+At 1m, natural-link passing offered/cohort-acknowledgement brackets are W1
+22,627/s, W2 11,313/s, W3 8,000/s, W4 18,101/s at 256 writers, W5 single
+counter 282/s, and W5 1% mix 12,800/s. This is an exploratory shared-host
+matrix, not idle-host or advocate-reviewed capacity. Measured SELECT 1 RTT
+medians are p50 0.601 ms / p99 0.800 ms, rising to 1.756 / 2.077 ms at the
+largest added delay. Some writer/size comparisons are non-monotonic across
+time; the report keeps the spread and makes no causal growth/RTT claim.
+
+The inherited descriptor soft limit was raised on the recorded harness PID
+from 1024 to 8192 before high-connection proxy cells; the runner reproduces it
+without privileges. PID-bound service readiness and bounded startup waits
+prevent an unrelated listener from masquerading as the service. The final
+black-box checks and smoke pass. Forty-six overloaded trials retain unknown
+write outcomes; none qualifies. Every app/load/tunnel/observer process ended.
+The owned durable PG17.9 cluster remains running on 450a at ~/sb4scale/pg17,
+port 55440, postmaster PID 2735539; pg_stat_statements 1.11, 8GB buffers,
+SCRAM, all three durability settings on, jit off for the absent LLVM19 library.
+Its recorded-PID stop command and effective configuration are in the report.
+
+Source, full Raw PG ledger, rate curves, standalone SVG figures, provenance,
+cluster handoff and all caveats live under experiments/scale-controls. The
+RFC receives only a short S1-H progress note and a prepended Revised item.
+No product/core change, sub-agent, clone, stash, push, paid resource, sudo,
+netem, or unrelated 450a work. Other controls need native API/seed adapters,
+collector filters/counter witnesses and independent tunnel-pool integration;
+W6 and advocate review remain later work.

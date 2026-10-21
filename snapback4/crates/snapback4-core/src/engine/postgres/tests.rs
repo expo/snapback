@@ -14,6 +14,7 @@ mod requests;
 mod nul;
 mod assets;
 mod foundation;
+mod release;
 
 #[test]
 fn maintained_columns_are_outside_postgres_evaluation() {

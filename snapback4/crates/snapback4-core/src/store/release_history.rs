@@ -1,37 +1,8 @@
 //! Database-authoritative release history and explicit dormant pruning.
 // @ref LLP 3000.000.000#4-explicit-pruning-and-audit — no implicit collector or unaudited data loss.
 use super::*;
-use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct DormantItem {
-    /// Stable cursor; column/index names may coincide.
-    pub key: String,
-    pub path: String,
-    pub kind: String,
-    pub action: String,
-    pub rows: u64,
-    pub bytes: u64,
-    pub asset_bytes: u64,
-    /// Internal audit distinction: zero standalone cells may still be covered by a dormant row.
-    #[serde(skip)]
-    pub(crate) definition_only: bool,
-    pub sample_ids: Vec<String>,
-    #[serde(default,skip_serializing_if="Option::is_none")]
-    pub before_rows:Option<u64>,
-    #[serde(default,skip_serializing_if="Option::is_none")]
-    pub after_rows:Option<u64>,
-    #[serde(default,skip_serializing_if="Option::is_none")]
-    pub restored_rows:Option<u64>,
-    #[serde(default,skip_serializing_if="Option::is_none")]
-    pub before_sample_ids:Option<Vec<String>>,
-}
-
-impl DormantItem {
-    pub fn unit(&self) -> &'static str {
-        match (self.kind.as_str(), self.rows) { ("backfill", 1) => "preimage", ("backfill", _) => "preimages", ("column", 1) => "cell", ("column", _) => "cells", ("index", 1) => "entry", ("index", _) => "entries", (_, 1) => "row", _ => "rows" }
-    }
-}
+pub use crate::release_history::DormantItem;
 
 impl Store {
     /// Values presently in active rows, independently of table population or other columns.
@@ -57,12 +28,6 @@ impl Store {
         }
         Ok((count, samples.into_iter().collect()))
     }
-}
-
-fn sql_number(n: u64) -> Result<i64, RuntimeError> {
-    i64::try_from(n).map_err(|_| {
-        RuntimeError::Generation("release counter exceeds SQLite integer range".into())
-    })
 }
 
 pub(super) fn present(conn: &Connection) -> Result<bool, RuntimeError> {
@@ -220,26 +185,7 @@ pub(crate) fn event(
     summary: serde_json::Value,
     items: &[DormantItem],
 ) -> Result<u64, RuntimeError> {
-    let revision = tx
-        .meta("release_revision")?
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(0)
-        .checked_add(1)
-        .ok_or_else(|| RuntimeError::Generation("release revision exhausted".into()))?;
-    tx.set_meta("release_revision", &revision.to_string())?;
-    let generation = tx
-        .meta("generation")?
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(1);
-    tx.conn().execute("INSERT INTO _release_events(at,operation,release,previous,generation,revision,summary) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![crate::now_ms(),operation,release.map(sql_number).transpose()?,previous.map(sql_number).transpose()?,sql_number(generation)?,sql_number(revision)?,summary.to_string()])?;
-    let id = tx.conn().last_insert_rowid();
-    for item in items {
-        tx.conn().execute(
-            "INSERT INTO _release_event_items VALUES(?1,?2,?3)",
-            params![id, item.key, canonical_json(item)],
-        )?;
-    }
-    Ok(revision)
+    crate::release_history::record_event(tx, crate::now_ms(), operation, release, previous, summary, items)
 }
 
 impl Store {
@@ -261,34 +207,7 @@ impl Store {
         event_id: Option<u64>,
     ) -> Result<serde_json::Value, RuntimeError> {
         let tx = self.read_transaction()?;
-        let mut events = Vec::new();
-        let mut inventory_page = Vec::<serde_json::Value>::new();
-        if present(tx.conn())? {
-            let mut s=tx.conn().prepare("SELECT id,at,operation,release,previous,generation,revision,summary FROM _release_events WHERE id>?1 ORDER BY id LIMIT 16")?;
-            let mut rows = s.query([sql_number(after)?])?;
-            while let Some(r) = rows.next()? {
-                events.push(serde_json::json!({"id":r.get::<_,i64>(0)?,"at":r.get::<_,i64>(1)?,"operation":r.get::<_,String>(2)?,"release":r.get::<_,Option<i64>>(3)?,"previous":r.get::<_,Option<i64>>(4)?,"generation":r.get::<_,i64>(5)?,"revision":r.get::<_,i64>(6)?,"summary":serde_json::from_str::<serde_json::Value>(&r.get::<_,String>(7)?).map_err(|e|RuntimeError::Store(e.to_string()))?}));
-            }
-            if let Some(event) = event_id {
-                let mut s=tx.conn().prepare("SELECT detail FROM _release_event_items WHERE event=?1 AND (?2 IS NULL OR path>?2) ORDER BY path LIMIT 16")?;
-                for item in s.query_map(params![sql_number(event)?, items_after], |r| {
-                    r.get::<_, String>(0)
-                })? {
-                    inventory_page.push(
-                        serde_json::from_str(&item?)
-                            .map_err(|e| RuntimeError::Store(e.to_string()))?,
-                    );
-                }
-            } else {
-                inventory_page = inventory(tx.conn(), items_after, 16)?
-                    .into_iter()
-                    .map(|i| serde_json::to_value(i).unwrap())
-                    .collect();
-            }
-        }
-        let workers:Vec<(String,String)>=tx.conn().prepare("SELECT key,value FROM _meta WHERE key='worker:status' OR key LIKE 'worker:status:%' ORDER BY key LIMIT 16")?.query_map([],|r|Ok((r.get(0)?,r.get(1)?)))?.collect::<Result<_,_>>()?;
-        let previous_active: Option<u64> = if present(tx.conn())? {tx.conn().query_row("SELECT previous FROM _release_events WHERE release IS NOT NULL AND previous != release AND operation != 'prune' ORDER BY id DESC LIMIT 1",[],|r|r.get::<_,Option<i64>>(0)).optional()?.flatten().map(|n|n as u64)} else {None};
-        let result = serde_json::json!({"previous_active":previous_active,"release":tx.meta("release")?.and_then(|v|v.parse::<u64>().ok()),"revision":tx.meta("release_revision")?.and_then(|v|v.parse::<u64>().ok()).unwrap_or(0),"generation":tx.meta("generation")?.and_then(|v|v.parse::<u64>().ok()).unwrap_or(1),"native_digest":tx.meta("release_native_digest")?,"events_after":events.last().map(|e|e["id"].clone()),"events":events,"items_after":inventory_page.last().map(|i|i["key"].clone()),"items":inventory_page,"event":event_id,"workers":workers});
+        let result = crate::release_history::status(&tx, after, items_after, event_id)?;
         tx.rollback()?;
         Ok(result)
     }

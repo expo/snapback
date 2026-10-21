@@ -1,0 +1,73 @@
+{
+  "achieved_per_s": 100.0,
+  "completed_in_window_per_s": 100.0,
+  "dispatch_lag": {
+    "count": 40,
+    "max_ms": 0.031375,
+    "p50_ms": 0.018527,
+    "p999_ms": 0.031375,
+    "p99_ms": 0.031375,
+    "buckets_ns_file": "rate-100-r0.histograms.json.gz",
+    "buckets_ns_key": "dispatch_lag"
+  },
+  "elapsed_with_warmup_and_drain_s": 0.491273134,
+  "error_count": 0,
+  "errors": {},
+  "format": "sb4-scale-open-loop-v1",
+  "http_service": {
+    "count": 40,
+    "max_ms": 1.431551,
+    "p50_ms": 0.982527,
+    "p999_ms": 1.431551,
+    "p99_ms": 1.431551,
+    "buckets_ns_file": "rate-100-r0.histograms.json.gz",
+    "buckets_ns_key": "http_service"
+  },
+  "latency": {
+    "count": 40,
+    "max_ms": 1.449983,
+    "p50_ms": 0.998911,
+    "p999_ms": 1.449983,
+    "p99_ms": 1.449983,
+    "buckets_ns_file": "rate-100-r0.histograms.json.gz",
+    "buckets_ns_key": "latency"
+  },
+  "options": {
+    "deadline_ms": 1000,
+    "duration_ms": 400,
+    "keys": "disjoint",
+    "rate": 100,
+    "rows": 100000,
+    "url": "http://127.0.0.1:58080",
+    "warmup_ms": 100,
+    "workers": 4,
+    "workload": "W1"
+  },
+  "scheduled": 40,
+  "sent": 40,
+  "slo_ms": 50.0,
+  "slo_pass": true,
+  "success": 40,
+  "total_success_including_warmup": 50,
+  "command": [
+    "taskset",
+    "-c",
+    "3-5,9-11",
+    "/home/ccheever/projects/sb4-s1h/snapback4/experiments/scale-controls/target/release/sb4-scale-controls",
+    "load",
+    "--workload",
+    "W1",
+    "--workers",
+    "4",
+    "--keys",
+    "disjoint",
+    "--rows",
+    "100000",
+    "--rate",
+    "100",
+    "--warmup-ms",
+    "100",
+    "--duration-ms",
+    "400"
+  ]
+}

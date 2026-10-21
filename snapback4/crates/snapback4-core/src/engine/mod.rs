@@ -477,12 +477,12 @@ impl Engine {
         // backend, never a caller's source. The repair logs its row changes.
         // @ref LLP 3000.007#20.9.3 — expiry index adoption is required even without physical cap counters.
         let (generation, metadata) = if stored_schema_hash == schema_hash
-            && tx.schema_marker(crate::metadata::SchemaMarker::LiveSumCandidates)?.as_deref() == Some("1")
+            && tx.opening_marker(crate::metadata::SchemaMarker::LiveSumCandidates)?.as_deref() == Some("1")
             && (!schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
-                || tx.schema_marker(crate::metadata::SchemaMarker::MaintainedIds)?.as_deref() == Some(crate::schema::MAINTAINED_ID_VERSION))
-            && (!crate::rows::caps::required(&schema) || tx.schema_marker(crate::metadata::SchemaMarker::CapCounts)?.as_deref() == Some(&schema_hash))
+                || tx.opening_marker(crate::metadata::SchemaMarker::MaintainedIds)?.as_deref() == Some(crate::schema::MAINTAINED_ID_VERSION))
+            && (!crate::rows::caps::required(&schema) || tx.opening_marker(crate::metadata::SchemaMarker::CapCounts)?.as_deref() == Some(&schema_hash))
             && (!schema.tables.values().any(|table| table.not_before.is_some())
-                || tx.schema_marker(crate::metadata::SchemaMarker::TimePublications)?.as_deref() == Some("1")) { (generation, Store::finish_open(tx)?) }
+                || tx.opening_marker(crate::metadata::SchemaMarker::TimePublications)?.as_deref() == Some("1")) { (generation, Store::finish_open(tx)?) }
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))?.into_inner() };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);

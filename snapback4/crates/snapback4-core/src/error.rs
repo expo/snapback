@@ -100,6 +100,8 @@ pub enum RuntimeError {
     SearchOpening { site: String, memberships: usize, unfinished: &'static str, resource: &'static str, ceiling: u64, rewrite: Option<String> },
     #[error("{code}: {message}")]
     Structural { code: &'static str, message: String },
+    #[error("E_STORE_UNSUPPORTED: {family} is not yet available on Postgres")]
+    StoreUnsupported { family: &'static str },
     #[error("E_INPUT: {0}")]
     Input(String),
     #[error("E_SCHEMA: {0}")]
@@ -189,6 +191,7 @@ impl RuntimeError {
             #[cfg(feature = "server-search")]
             Self::SearchOpening { .. } => "E_SEARCH_OPEN".into(),
             Self::Structural { code, .. } => (*code).into(),
+            Self::StoreUnsupported { .. } => "E_STORE_UNSUPPORTED".into(),
             Self::Input(_) => "E_INPUT".into(),
             Self::Schema(_) => "E_SCHEMA".into(),
             Self::Value(ValueError::Overflow(_)) | Self::AggregateOverflow { .. } => "E_OVERFLOW".into(),
@@ -220,12 +223,13 @@ impl RuntimeError {
     }
 
     /// Every family `family()` answers, for the guide's refusals card.
-    pub const FAMILIES: &'static [&'static str] = &["input", "schema", "auth", "rule", "constraint", "bound", "op", "asset", "action", "route", "prediction", "generation", "store"];
+    pub const FAMILIES: &'static [&'static str] = &["input", "schema", "auth", "rule", "constraint", "bound", "op", "asset", "action", "route", "prediction", "generation", "store", "evolution"];
 
     pub fn family(&self) -> &'static str {
         match self {
             #[cfg(feature = "sqlite")]
             Self::Continuation(source) => source.family(),
+            Self::StoreUnsupported { family } => family,
             Self::Input(_) | Self::Value(_) | Self::AggregateOverflow { .. } => "input",
             Self::Structural { code: "E_WRITE_ID_REUSE" | "E_ID_REUSED", .. } => "input",
             #[cfg(feature = "sqlite")]

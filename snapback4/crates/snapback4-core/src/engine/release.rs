@@ -27,7 +27,18 @@ impl ReleaseActivation {
             operation: "activate".into(),
         }
     }
+    // @ref LLP 3000.009.001.000#9.1 — validate new text keys before opening an activation writer.
+    pub(crate) fn validate(&self) -> Result<(), RuntimeError> {
+        if self.operation.contains('\0') || self.native_digest.as_deref().is_some_and(|s| s.contains('\0')) {
+            return Err(RuntimeError::Input("release operation and native digest cannot contain U+0000".into()));
+        }
+        crate::release_history::counter(self.release)?;
+        self.expected_previous.map(crate::release_history::counter).transpose()?;
+        self.expected_revision.map(crate::release_history::counter).transpose()?;
+        Ok(())
+    }
     pub(crate) fn check(&self, tx: &impl ReleaseTransaction) -> Result<(), RuntimeError> {
+        self.validate()?;
         let actual = tx.selected_release()?;
         if actual
             .as_ref()

@@ -1,0 +1,10 @@
+{
+  "tunnels": [
+    {
+      "pid": 3706000,
+      "exit_status": 0
+    }
+  ],
+  "cluster_left_running": true,
+  "fixture_databases_retained": true
+}

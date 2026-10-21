@@ -1,0 +1,138 @@
+{
+  "tunnels": [
+    {
+      "pid": 4175602,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175624,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175626,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175642,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175662,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175667,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175681,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175694,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175706,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175712,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175733,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175740,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175752,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175765,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175776,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175782,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175797,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175809,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175831,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175852,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175864,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175885,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175893,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175915,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175917,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175935,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175938,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175949,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175960,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175968,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175985,
+      "exit_status": 0
+    },
+    {
+      "pid": 4175995,
+      "exit_status": 0
+    },
+    {
+      "pid": 4176010,
+      "exit_status": 0
+    }
+  ],
+  "cluster_left_running": true,
+  "fixture_databases_retained": true
+}

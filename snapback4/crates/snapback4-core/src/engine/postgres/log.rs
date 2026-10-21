@@ -26,6 +26,12 @@ impl Tx<'_> {
 }
 
 impl PartitionRows for Tx<'_> {
+    fn audience_epoch(&self, table: &str) -> Result<u64, RuntimeError> {
+        Ok(self.meta(&crate::partition::audience_epoch_key(table))?.and_then(|v| v.parse().ok()).unwrap_or(0))
+    }
+    fn audience_epoch_time(&self, table: &str) -> Result<Option<i64>, RuntimeError> {
+        self.meta(&crate::partition::audience_epoch_time_key(table))?.map(|v| v.parse().map_err(|_| RuntimeError::Store("invalid audience epoch time".into()))).transpose()
+    }
     fn next_seq(&self) -> Result<u64, RuntimeError> {
         if let Some(head) = self.head.get() { return Ok(head + 1); }
         Ok(self.query("SELECT seq FROM _head WHERE singleton", &[])?[0].get::<_, i64>(0) as u64 + 1)

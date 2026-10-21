@@ -1,0 +1,21 @@
+# Appended to initdb defaults; PG17.9, expo-build-450a, 128 GiB RAM.
+listen_addresses = '127.0.0.1'
+port = 55440
+unix_socket_directories = '/home/ccheever/sb4scale'
+password_encryption = 'scram-sha-256'
+fsync = on
+synchronous_commit = on
+full_page_writes = on
+wal_sync_method = 'fdatasync'
+shared_buffers = '8GB'
+max_connections = 320
+max_wal_size = '4GB'
+min_wal_size = '1GB'
+shared_preload_libraries = 'pg_stat_statements'
+pg_stat_statements.track = all
+track_io_timing = on
+track_wal_io_timing = on
+log_checkpoints = on
+log_lock_waits = on
+# Relocated PG17 package lacks libLLVM.so.19.1; keep every control identical.
+jit = off

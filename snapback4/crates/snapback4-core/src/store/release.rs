@@ -2,21 +2,12 @@
 // @ref LLP 3000.000.000#5-hot-activation-and-ownership — retain the selected-release check before the revision check.
 use crate::{
     RuntimeError,
-    engine::release::{ReleaseActivation, ReleaseTransaction},
+    engine::release::ReleaseTransaction,
 };
 use rusqlite::{Connection, OptionalExtension};
 
 /// Borrowed before activation constructs its row-access transaction.
 pub(crate) struct ReleaseCheck<'a>(pub(super) &'a Connection);
-
-impl ReleaseCheck<'_> {
-    pub(crate) fn check_release_activation(
-        &self,
-        options: &ReleaseActivation,
-    ) -> Result<(), RuntimeError> {
-        options.check(self)
-    }
-}
 
 impl ReleaseTransaction for ReleaseCheck<'_> {
     fn selected_release(&self) -> Result<Option<String>, RuntimeError> {
@@ -37,4 +28,9 @@ impl ReleaseTransaction for ReleaseCheck<'_> {
             )
             .optional()?)
     }
+}
+
+impl ReleaseTransaction for super::Tx<'_> {
+    fn selected_release(&self) -> Result<Option<String>, RuntimeError> { self.meta("release") }
+    fn release_revision(&self) -> Result<Option<String>, RuntimeError> { self.meta("release_revision") }
 }

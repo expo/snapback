@@ -1,4 +1,6 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_STORE_UNSUPPORTED", "the named family is not yet available on the selected store; evolution on Postgres currently refuses before activation writes. Keep the current schema or use SQLite."),
+    ("E_STORE_GENERATION", "stored generation metadata is malformed or outside the positive signed integer domain; restore valid store metadata before reopening."),
     ("E_IDENTITY_TIMEOUT", "identity request deadline expired; signup outcome may be unknown. Inspect before retrying; raise timeoutMs for rate-limit waits. SDK reports E_OFFLINE; seedAccounts reports E_STAGING_TIMEOUT with partial-setup recovery. guide staging."),
     ("E_STAGING", "bulk password account setup requires serve on a store created with deploy --staging. Existing unmarked production/legacy stores cannot be relabelled. Use a separate fresh staging deployment, or explicitly provision intended production users with the local operator token. guide staging."),
     ("E_STAGING_INPUT", "invalid staging account plan; provide 1..100 accounts, named roles, a declared mutation handle and positive timeoutMs. guide staging."),

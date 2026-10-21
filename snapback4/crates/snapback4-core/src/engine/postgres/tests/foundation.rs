@@ -36,6 +36,8 @@ fn name(e: &mut PostgresEngine) -> String {
 #[ignore = "requires private Postgres; scripts/test-postgres.sh"]
 fn metadata_shared_contract() {
     let mut e = engine();
+    // Exercise missing/raw metadata independently of the opening bootstrap facts.
+    e.store.client.batch_execute("DELETE FROM _meta").unwrap();
     test_cases::missing(&RefCell::new(&mut e.store));
     let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
     for (key, value) in [
@@ -193,6 +195,9 @@ fn shape_refusals(table: &str, alterations: &[&str]) {
     for alteration in alterations {
         let mut e = engine();
         let namespace = name(&mut e);
+        // Shape mutations need an empty ledger: opening now installs several
+        // bootstrap facts with identical values, which would block this DDL.
+        if table == "_meta" { e.store.client.batch_execute("DELETE FROM _meta").unwrap(); }
         e.store.client.batch_execute(alteration).unwrap();
         let error = PostgresEngine::open(client(), &namespace)
             .err()

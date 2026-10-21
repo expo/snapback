@@ -26,6 +26,11 @@ mod receipts;
 mod change_evidence;
 mod foundation_schema;
 mod ledger_schema;
+mod shape;
+mod activation;
+mod activation_schema;
+mod release;
+mod release_schema;
 #[cfg(test)]
 mod tests;
 pub use store::{SCAN_MEMORY_GUARD, WriteMode};
@@ -85,35 +90,35 @@ impl PostgresEngine {
         schema.prepare_contribution_indexes();
         let programs: BTreeMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         supported(&schema, &programs)?;
-        Self::attach(client, schema, programs, Some(&name))
+        Self::attach(client, schema, programs, Some(&name), None, None)
     }
 
     /// Reopen the persisted compiled generation; subsequent transactions refuse
     /// if another connection activates a successor.
-    pub fn open(mut client: Client, name: &str) -> Result<Self, RuntimeError> {
+    pub fn open(client: Client, name: &str) -> Result<Self, RuntimeError> {
+        Self::open_with_expected(client, name, None)
+    }
+
+    fn open_with_expected(mut client: Client, name: &str, expected_release: Option<u64>) -> Result<Self, RuntimeError> {
         let name = namespace(name)?;
         client.batch_execute(&format!("SET search_path = {name}, pg_catalog;"))?;
-        let row = client.query_one("SELECT version,schema,programs FROM _backend WHERE singleton", &[])?;
+        let mut store = Store::new(client);
+        let tx = store.opening_transaction()?;
+        activation_schema::verify_core(&tx)?;
+        let row = tx.query("SELECT version,schema,programs FROM _backend WHERE singleton", &[])?.remove(0);
         if row.get::<_, &str>(0) != store::VERSION {
             return Err(RuntimeError::Store("not this Postgres evaluation store version".into()));
         }
         let schema = decode(row.get(1))?;
         let programs = decode(row.get(2))?;
-        supported(&schema, &programs)?;
-        // Existing immutable stores adopt this portable admission policy at open.
-        // Return one offending index and its exact count, never its row payloads.
-        if let Some(row) = client.query(
-            "SELECT t, ix, COUNT(*) FROM i WHERE octet_length(k) > $1 GROUP BY t, ix ORDER BY t, ix LIMIT 1",
-            &[&(crate::rows::MAX_INDEX_KEY_BYTES as i32)],
-        )?.first() {
-            return Err(crate::rows::index_key_refusal(row.get(0), row.get(1), row.get::<_, i64>(2) as u64));
-        }
-        Self::attach(client, schema, programs, None)
+        tx.rollback()?;
+        let client = store.client;
+        Self::attach(client, schema, programs, None, None, expected_release)
     }
 
     // @ref LLP 3000.033#1.3 — read-session storage and all other upgrades
     // commit together, only after every open/adoption check has succeeded.
-    fn attach(client: Client, mut schema: Schema, programs: BTreeMap<String, Program>, create: Option<&str>) -> Result<Self, RuntimeError> {
+    fn attach(client: Client, mut schema: Schema, programs: BTreeMap<String, Program>, create: Option<&str>, release: Option<&super::release::ReleaseActivation>, expected_release: Option<u64>) -> Result<Self, RuntimeError> {
         let mut store = Store::new(client);
         let tx = store.opening_transaction()?;
         tx.batch("SET LOCAL statement_timeout = '5s'; SET LOCAL lock_timeout = '5s';")?;
@@ -123,7 +128,10 @@ impl PostgresEngine {
             tx.execute("INSERT INTO _backend VALUES (true,$1,$2,$3)",
                 &[&store::VERSION, &canonical_json(&schema), &canonical_json(&programs)])?;
         }
-        tx.query("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?;
+        activation_schema::verify_core(&tx)?;
+        let head = tx.query("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?[0].get::<_, i64>(0);
+        tx.head.set(Some(head as u64));
+        tx.serialized_head.set(true);
         // Admission must use the backend that survived the wait for the head.
         // A format change can leave schema/program bytes unchanged.
         let held = tx.query("SELECT version,schema,programs FROM _backend WHERE singleton", &[])?.remove(0);
@@ -168,6 +176,18 @@ impl PostgresEngine {
         assets_schema::initialize(&tx)?;
         let generation = contribution_upgrade::install(&tx, &mut schema)?;
         let generation = maintained_identity_upgrade::install(&tx, &schema, create.is_some(), generation)?;
+        use crate::activation::{ActivationReader, ActivationPreparation};
+        tx.check_selected_release(expected_release)?;
+        release_schema::initialize(&tx)?;
+        if let Some(options) = release {
+            let prep = activation::Preparation(&tx);
+            options.check(&prep)?;
+            prep.enable_dormant()?;
+            prep.prepare_release_metadata(options.native_digest.as_deref().unwrap_or(""), options.restore_dormant)?;
+        }
+        let now = crate::now_ms();
+        activation::initialize(&tx, &schema, &programs, generation, now)?;
+        if let Some(options) = release { self::release::finish(&tx, options, now)?; }
         // Retain the adapter's ordinary connection limits on successful open.
         tx.batch("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
         tx.commit()?;
@@ -488,7 +508,7 @@ fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<()
     if schema.tables.values().any(|t| t.not_before.is_some()) {
         return Err(RuntimeError::Schema("Postgres evaluation does not implement timed-publication state; use the SQLite server for `not before` tables".into()));
     }
-    // @ref LLP 3000.036.000.000#9 — the evaluation adapter records no audience epoch; unions stay on SQLite.
+    // @ref LLP 3000.036.000.000#9 — opening persists audience epochs, but union delivery is not admitted by this evaluator.
     if schema.tables.values().any(|t| t.sync.as_ref().is_some_and(crate::schema::Sync::is_union)) {
         return Err(RuntimeError::Structural { code: "E_SYNC", message: "Postgres evaluation does not support union sync audiences; use the SQLite server".into() });
     }
