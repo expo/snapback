@@ -1,0 +1,1 @@
+Review the SEC6 semantic amendment in llp/3000.036.004-security-invariants-and-exposure.rfc.md section 15 only, using code as needed to assess feasibility and soundness. Read section 13.7 for prior semantics. Be independent. Report material concerns and finish with READY or NOT READY. Do not edit files. User authorized this review.

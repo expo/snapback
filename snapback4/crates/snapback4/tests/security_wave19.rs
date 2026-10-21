@@ -42,10 +42,10 @@ fn check_invalidates_positive_test_evidence_when_source_or_fixture_changes(){
 #[test]
 fn rule_changing_deploy_preview_demands_a_campaign_and_prints_exposure(){
  let app=App::new();let source="table docs:\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery alive():\n  return true\n";app.write("snapback/schema.q",source);let out=app.run(&["deploy","deployment"]);assert!(out.status.success(),"{}",text(&out));
- app.write("snapback/schema.q",&source.replace("read <- .owner = viewer","read <- allow"));let preview=app.run(&["deploy","deployment","--check"]);assert!(preview.status.success(),"{}",text(&preview));let body=text(&preview);assert!(body.contains("security rules changed: run `snapback4 test`"),"{body}");assert!(body.contains("security exposure:"),"{body}");
+ app.write("snapback/schema.q",&source.replace("read <- .owner = viewer","read <- allow"));let preview=app.run(&["deploy","deployment","--check"]);assert!(preview.status.success(),"{}",text(&preview));let body=text(&preview);assert!(body.contains("SECURITY REVIEW — rules changed")&&body.contains("last test: NEVER RECORDED"),"{body}");assert!(body.contains("security exposure:"),"{body}");
  let test=app.run(&["test"]);assert!(test.status.success(),"{}",text(&test));let preview=app.run(&["deploy","deployment","--check"]);assert!(text(&preview).contains("matching test campaign recorded"),"{}",text(&preview));
  // A second source change invalidates the record, including a newly added table.
- app.write("snapback/schema.q",&format!("{source}table extra:\n  read <- allow\n  online only\n"));let preview=app.run(&["deploy","deployment","--check"]);assert!(text(&preview).contains("security rules changed: run `snapback4 test`"),"{}",text(&preview));
+ app.write("snapback/schema.q",&format!("{source}table extra:\n  read <- allow\n  online only\n"));let preview=app.run(&["deploy","deployment","--check"]);assert!(text(&preview).contains("SECURITY REVIEW — rules changed")&&text(&preview).contains("STALE"),"{}",text(&preview));
 }
 
 #[test]
@@ -101,4 +101,18 @@ fn column_only_policy_change_is_in_the_combined_json_release_preview(){
  assert!(report["security"].as_str().unwrap().contains("run `snapback4 test`"),"{report}");
  for field in ["visibility","rollbackVisibility","clientCompatibility","backfills"]{assert!(report.get(field).is_some(),"{field}: {report}");}
  assert!(report["clientCompatibility"].as_array().unwrap().iter().any(|x|x.as_str().unwrap().contains("RESULT REVIEW")),"{report}");
+}
+
+#[test]
+fn strict_rule_change_refuses_preview_and_activation_with_prominent_review(){
+ let app=App::new();let safe="table docs:\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery inspect(doc: docs):\n  return docs[doc]\n";
+ app.write("snapback/schema.q",safe);let first=app.run(&["deploy","deployment"]);assert!(first.status.success(),"{}",text(&first));
+ app.write("fixtures/docs.jsonl","{\"id\":\"private\",\"owner\":\"dev:owner\"}\n");
+ app.write("snapback/schema.q",&(safe.replace("read <- .owner = viewer","read <- allow")+"invariant docs.read only .owner = viewer\n"));
+ let tested=app.run(&["test","--fixture-only"]);assert_eq!(tested.status.code(),Some(1),"{}",text(&tested));
+ for args in [&["deploy","deployment","--check","--strict"][..],&["deploy","deployment","--strict"][..]]{
+  let out=app.run(args);let body=text(&out);assert_eq!(out.status.code(),Some(1),"{body}");
+  for expected in ["SECURITY REVIEW — rules changed","FIX","last test:","FAILED","age ","E_SECURITY_REVIEW"]{assert!(body.contains(expected),"missing {expected}: {body}");}
+ }
+ let preview=app.run(&["deploy","deployment","--check"]);let body=text(&preview);assert!(preview.status.success(),"{body}");assert!(body.contains("release 2 would be current"),"strict attempts did not activate: {body}");
 }

@@ -1,6 +1,10 @@
 pub const CODES: &[(&str, &str)] = &[
     ("E_STORE_UNSUPPORTED", "the named family is not yet available on the selected store; evolution on Postgres currently refuses before activation writes. Keep the current schema or use SQLite."),
     ("E_STORE_GENERATION", "stored generation metadata is malformed or outside the positive signed integer domain; restore valid store metadata before reopening."),
+    ("E_SECURITY_REVIEW", "strict rule-changing deployment refused reachable refuted security intent; repair enforcement and rerun test for the selected source and fixtures. Unproved notes and synthetic-only observations stay advisory. guide security."),
+    ("E_SESSION", "a supplied client session is malformed; pass a complete Session from guest/login/signup or service minting, including positive integer expiresAt milliseconds. The online token option accepts a bare bearer. guide security."),
+    ("N_INSERT_WRITE_INTENT", "an insert/upsert can supply columns without an authored edit restriction. Confirm creation authority from the specification; guard all write verbs and declare column write only intent. Advisory only. guide security."),
+    ("N_COLUMN_RESULT_EXPOSURE", "columns omitted by a query projection or guarded by column rules can reach another authored return, write result or refusal. Confirm each observer audience; declare column read intent and run test. Advisory only. guide security."),
     ("E_IDENTITY_TIMEOUT", "identity request deadline expired; signup outcome may be unknown. Inspect before retrying; raise timeoutMs for rate-limit waits. SDK reports E_OFFLINE; seedAccounts reports E_STAGING_TIMEOUT with partial-setup recovery. guide staging."),
     ("E_STAGING", "bulk password account setup requires serve on a store created with deploy --staging. Existing unmarked production/legacy stores cannot be relabelled. Use a separate fresh staging deployment, or explicitly provision intended production users with the local operator token. guide staging."),
     ("E_STAGING_INPUT", "invalid staging account plan; provide 1..100 accounts, named roles, a declared mutation handle and positive timeoutMs. guide staging."),

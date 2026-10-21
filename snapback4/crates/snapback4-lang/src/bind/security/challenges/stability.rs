@@ -26,22 +26,3 @@ pub(super) fn dependencies(bound:&Bound,rule:&RuleExpr)->BTreeSet<String>{
     let mut deps=kernel::dependencies(rule);
     loop{let before=deps.len();for name in deps.clone(){if let Some(t)=bound.schema.table(&name){deps.extend(kernel::dependencies(&t.rules.read));if let Some(edge)=&t.through{deps.insert(edge.parent.clone());}}}if before==deps.len(){return deps;}}
 }
-/// A stable necessary condition may refute an intent even when another
-/// conjunct changes. Dropping a requirement never proves the full policy.
-pub(super) fn necessary(bound:&Bound,p:&Program,inv:&Invariant)->Option<Invariant>{
-    let policy=inv.policy.as_ref()?;let implicit=implicit(bound,p);
-    if implicit.contains(&inv.table){return None;}
-    let mut changed=implicit;
-    changed.extend(ir::write_tables(p).into_iter().filter(|(t,_)|t!=&inv.table).map(|(t,_)|t));
-    fn weak(bound:&Bound,r:&RuleExpr,changed:&BTreeSet<String>)->RuleExpr{
-        match r{
-            RuleExpr::And(xs)=>RuleExpr::And(xs.iter().map(|r|weak(bound,r,changed)).collect()),
-            RuleExpr::Or(xs)=>RuleExpr::Or(xs.iter().map(|r|weak(bound,r,changed)).collect()),
-            _ if dependencies(bound,r).iter().any(|d|changed.contains(d))=>RuleExpr::Allow,
-            _=>r.clone(),
-        }
-    }
-    let weaker=weak(bound,policy,&changed);
-    if kernel::implies(policy,&weaker)!=Ok(true){return None;}
-    let mut judged=inv.clone();judged.policy=Some(weaker);Some(judged)
-}

@@ -151,6 +151,67 @@ mutation ping():
   checked(editsOnly); campaign(editsOnly, true);
   command(["test"], editsOnly); // No personas, developer store or handwritten fixtures.
 
+  // New SEC6 examples exercise packed constructors and both observation paths.
+  const validation = join(cwd, "session-validation.mjs");
+  writeFileSync(validation, `import assert from 'node:assert/strict';
+import { createClient } from 'snapback4/client';
+import { createLocalClient } from 'snapback4/local';
+let effects=0;
+const options={url:'https://unused.invalid',fetch:async()=>{effects++;throw Error('unexpected transport');},device:{open:async()=>{effects++;throw Error('unexpected device');}}};
+for(const expiresAt of [undefined,NaN,Infinity,0]){
+ const session={principal:'user:test',kind:'user',token:'private',expiresAt};
+ assert.throws(()=>createClient({...options,session}),/E_SESSION.*expiresAt/);
+ await assert.rejects(createLocalClient({...options,session}),/E_SESSION.*expiresAt/);
+}
+assert.equal(effects,0);
+const c=createClient({url:options.url,session:{principal:'user:test',kind:'user',token:'valid',expiresAt:Date.now()+86400000}});
+assert.equal(c.session().token,'valid');await c.close();
+`);
+  await runToolchainCommand(process.execPath, [validation], { cwd, env, timeout: 30_000 });
+  const creation = schemaProject("sec6-multi-write", `table docs:
+  owner: principal
+  body: text <=40 ?
+  read <- allow
+  insert <- allow
+  update <- viewer = 'service:editor'
+  online only
+mutation add(owner: principal, body: text <=40 ?):
+  d = insert docs {owner,body}
+  insert docs {owner,body}
+  return d
+mutation edit(doc: docs, body: text <=40 ?):
+  require viewer = 'service:editor' else NO
+  update docs[doc] {body}
+invariant docs.body write only .owner = viewer
+`);
+  const creationCheck = JSON.parse(command(["check", "--json"], creation, 1));
+  assert.ok(creationCheck.security.notes.some(n => n.code === "N_INSERT_WRITE_INTENT"));
+  const creationOutput = command(["test", "--fixture-only"], creation, 1);
+  assert.match(creationOutput, /security violation:/);
+  assert.match(creationOutput, /"operation":"add"/);
+  const privacy = schemaProject("sec6-write-result", `table docs:
+  owner: principal
+  title: text <=40
+  secret: text <=40
+  read <- allow
+  insert <- allow
+  update <- allow
+  online only
+shape publicDoc = {id,title}
+query list():
+  return docs first 10 by .id publicDoc
+mutation create():
+  return insert docs {owner:viewer,title:'public',secret:'private'}
+mutation edit(doc: docs):
+  update docs[doc] {title:'changed'}
+invariant docs.secret read only .owner = viewer
+`);
+  const privacyOutput = command(["test", "--fixture-only"], privacy, 1);
+  assert.match(privacyOutput, /"effect":"mutation result"/);
+  const privacyCheck = JSON.parse(command(["check", "--json"], privacy, 1));
+  assert.ok(privacyCheck.security.notes.some(n => n.code === "N_COLUMN_RESULT_EXPOSURE"));
+  const sec6 = { suppliedSession: "passed before side effects", multiWrite: "refuted by authored add", mutationResult: "refuted by authored edit" };
+
   const sessions = [];
   for (const method of ["guests", "password"]) {
     const project = schemaProject(`revocation-${method}`, `use identity ${method}
@@ -195,7 +256,7 @@ mutation add():
   assert.equal(sha256(native), binarySha256, "installed CLI binary is unchanged");
   assert.equal(sha256(client), artifacts.clientSha256, "supplied client tarball is unchanged");
   assert.equal(sha256(platform), artifacts.platformSha256, "supplied platform tarball is unchanged");
-  const result = { status: "passed", guide: "verbatim installed security card", artifacts: { ...artifacts, binarySha256 }, guideCases, sessions, starters,
+  const result = { status: "passed", guide: "verbatim installed security card", artifacts: { ...artifacts, binarySha256 }, guideCases, sessions, starters, sec6,
     scope: "finite campaigns and declared policy checks; no zero-hole or disconnected-device revocation claim", commands };
   writeFileSync(join(cwd, "security-evidence.json"), JSON.stringify(result, null, 2) + "\n");
   return result;

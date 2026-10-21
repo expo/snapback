@@ -102,7 +102,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                         serde_json::Value::Array(xs)=>xs.iter().any(opaque),_=>false,
                     }}
                     if opaque(&json){out.unsupported.insert(format!("{}: generated-id/opaque effects excluded from paired determinism",p.name));continue;}
-                    let cases=histories::fixture_cases(p,present,&[VIEWER.into(),OTHER.into()],out);
+                    let cases=histories::fixture_cases(bound,p,present,&[VIEWER.into(),OTHER.into()],out);
                     if cases.len()>32{out.unsupported.insert(format!("{}: paired observer arguments capped at 32; remaining combinations not covered",p.name));}
                     for args in cases.into_iter().take(32){
                     if !out.reserve(12){return;}

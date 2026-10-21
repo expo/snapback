@@ -10,7 +10,8 @@ pub(super) fn unauthenticated(bound:&Bound,sources:&[(String,String)])->bool {
 }
 pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],options:&Options)->Report{
     let mut selection=options.clone();
-    if !selection.flags.contains_key("fixture")&&project.root.join("fixtures").is_dir(){selection.flags.insert("fixture".into(),project.root.join("fixtures").to_string_lossy().into_owned());}
+    let selected_fixture=record::selected_fixture(project,options);
+    if selected_fixture.is_dir(){selection.flags.insert("fixture".into(),selected_fixture.to_string_lossy().into_owned());}
     let inputs=match selection.flags.get("fixture"){
         Some(path)=>match super::test_fixture::snapshot(std::path::Path::new(path)){Ok(snapshot)=>Some(snapshot),Err(why)=>{let mut report=security::analyze_rules(bound);security::add_source_notes(&mut report,sources,bound);report.campaign_coverage.insert(format!("fixture reachability not covered: {why}"));return report;}},None=>None,
     };
@@ -79,18 +80,42 @@ pub(super) fn summary(report:&Report,verbose:bool){
 
 /// A rule-changing preflight demands a current campaign, without pretending
 /// finite tests or undeclared intent certify a deployment.
-pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,String)],prior:Option<&Bound>,options:&Options)->Option<String>{
-    let changed=prior.is_some_and(|old|bound.schema.tables.iter().any(|(name,t)|old.schema.tables.get(name).is_none_or(|o|serde_json::to_value((&o.rules,&o.column_reads,&o.written_by)).ok()!=serde_json::to_value((&t.rules,&t.column_reads,&t.written_by)).ok()))||old.schema.tables.keys().any(|t|!bound.schema.tables.contains_key(t)));
-    if !changed{return None;}
-    let report=security::analyze(bound);exposure(&report);
-    let notice=release_notice(project,bound,sources,options);
-    eprintln!("{notice}");Some(notice)
+pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,String)],prior:Option<&Bound>,options:&Options)->Result<Option<String>,String>{
+    let changed=prior.is_none_or(|old|bound.schema.tables.iter().any(|(name,t)|old.schema.tables.get(name).is_none_or(|o|serde_json::to_value((&o.rules,&o.column_reads,&o.written_by)).ok()!=serde_json::to_value((&t.rules,&t.column_reads,&t.written_by)).ok()))||old.schema.tables.keys().any(|t|!bound.schema.tables.contains_key(t)));
+    if !changed{return Ok(None);}
+    // @ref LLP 3000.036.004#153-rule-changing-deployment-review — review is prominent, strictness is explicit and failure-origin aware.
+    let report=report(project,bound,sources,options);
+    let mut notice=String::from("SECURITY REVIEW — rules changed\n");
+    for v in report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())){
+        let c=v.counterexample.as_ref().unwrap();
+        notice.push_str(&format!("  FIX {} {}: refuted via {} as {} ({:?}); repair enforcement to match intent, then run snapback4 test\n",v.invariant.site,v.invariant.target_label(),c.operation,c.viewer,c.reachability));
+    }
+    for v in report.invariants.iter().filter(|v|v.status!=security::Status::Proved&&!v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())){
+        notice.push_str(&format!("  REVIEW {} {}: unproved — {}; run snapback4 audit for all paths; preserve spec intent\n",v.invariant.site,v.invariant.target_label(),v.reasons.first().map(String::as_str).unwrap_or("finite observations do not prove intent")));
+    }
+    for n in &report.notes{notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}
+    notice.push_str(&format!("  {}\n",release_notice(project,bound,sources,options)));
+    notice.push_str(&format!("  {} independent invariants; {} coverage gaps; finite campaigns are not proof",bound.invariants.len(),report.campaign_coverage.len()));
+    exposure(&report);eprintln!("{notice}");
+    if options.flags.contains_key("strict")&&report.refuted(){return Err("E_SECURITY_REVIEW: --strict refuses reachable refuted security intent; repair the named rules and rerun snapback4 test before deploy".into());}
+    Ok(Some(notice))
+}
+fn age(timestamp:Option<i64>,now:i64)->String{
+    timestamp.map(|t|format!("at {t} ms since Unix epoch, age {}s",now.saturating_sub(t).max(0)/1000)).unwrap_or_else(||"time/age unknown (legacy record)".into())
 }
 fn release_notice(project:&Project,bound:&Bound,sources:&[(String,String)],options:&Options)->String{
     let selection=options.flags.get("schema").map(|s|format!(" --source {s:?}")).unwrap_or_default();
     let fixture=options.flags.get("fixture").map(|s|format!(" --fixture {s:?}")).unwrap_or_default();
-    match record::matching(project,options,sources){
-        Some(record) if record.complete=>format!("security rules changed: matching test campaign recorded; {} reachable refutations; {} coverage gaps; {} independent invariants (finite, not proof)",record.violations.len(),record.coverage_gaps,bound.invariants.len()),
-        _=>format!("security rules changed: run `snapback4 test{selection}{fixture}` before deployment; no matching completed campaign for this source, fixtures and CLI; {} independent invariants",bound.invariants.len()),
+    let now=snapback4_core::now_ms();
+    let matching=record::matching(project,options,sources);
+    let matches=matching.is_some();
+    match matching.or_else(||record::latest(project)){
+        Some(record)=>{
+            let result=if !record.complete{"incomplete"}else if record.run_violations.unwrap_or(record.violations.len())>0{"FAILED"}else{"completed, no observed violation"};
+            let current=if matches{"matches selected source/fixtures/CLI"}else{"STALE: source, fixtures or CLI differ; does not qualify selected release"};
+            let next=if matches&&record.complete{"matching test campaign recorded (finite, not proof)".into()}else{format!("run `snapback4 test{selection}{fixture}` before deployment")};
+            format!("last test: {result}, {}; {current}; {} retained reachable refutations, {} coverage gaps; last completed test {}; {next}",age(record.recorded_at,now),record.violations.len(),record.coverage_gaps,age(record.last_completed_at,now))
+        },
+        None=>format!("last test: NEVER RECORDED; run `snapback4 test{selection}{fixture}` before deployment; no matching completed campaign for this source, fixtures and CLI; {} independent invariants",bound.invariants.len()),
     }
 }

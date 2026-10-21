@@ -13,6 +13,8 @@ pub mod actions;
 mod activation;
 #[cfg(feature = "sqlite")]
 mod fixture;
+#[cfg(feature = "sqlite")]
+pub mod fixture_trace;
 #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
 pub mod admission;
 #[cfg(feature = "sqlite")]
@@ -175,6 +177,8 @@ pub struct Context {
     pub(crate) migration_assets: Option<std::path::PathBuf>,
     #[cfg(feature = "sqlite")]
     pub(crate) refusal_trace: Option<refusal_trace::RefusalTrace>,
+    #[cfg(feature = "sqlite")]
+    pub(crate) fixture_trace: Option<fixture_trace::Trace>,
     pub retained_search: bool,
     /// Bounded retained ordering keys supplied by the coordinator, never authority.
     #[cfg(feature = "server-search")]
@@ -208,7 +212,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { #[cfg(feature="sqlite")] migration_assets: None, #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minter: crate::ids::Mint::default(), minted_ids: Vec::new(), presence: None }
+        Self { #[cfg(feature = "sqlite")] fixture_trace: None, #[cfg(feature="sqlite")] migration_assets: None, #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minter: crate::ids::Mint::default(), minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]

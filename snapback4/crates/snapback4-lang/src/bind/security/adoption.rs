@@ -27,6 +27,9 @@ pub fn draft(bound:&Bound)->String{
                 out.push_str(&format!("-- Q {name}.{column} ({kind}) / {audience}: may this audience read this value, including downloads and derived values? On which related rows and in which states? If not, which independently confirmed column-read invariant excludes it?\n"));
             }
         }
+        for inv in bound.invariants.iter().filter(|i|i.table==*name&&i.column.is_some()&&i.target=="update"){
+            out.push_str(&format!("-- {}: update-only intent excludes creation. Does the specification allow callers to supply this column at insert/upsert too? Use write only if creation shares the restriction.\n",inv.target_label()));
+        }
         for effect in ["insert","update","delete"] {
             if covered(bound,name,effect){continue;}
             out.push_str(&format!("-- Q {name}.{effect}: who may {effect}, who appoints that authority, and which relationship/state must hold? Can callers claim the relationship themselves?\n"));

@@ -18,7 +18,7 @@ pub(crate) fn tier(code: &str) -> Tier {
     match code {
         "N_IMMUTABLE_PATCH" | "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_FILTERED" | "N_UNIQUE_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_QUERY_FILTERED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_SWEEP_DEADLINE" | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
-        | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" | "N_PRIVILEGE_ESCALATION" | "N_SELF_CLAIMED_RELATIONSHIP" | "N_CALLER_TIME" | "N_ROLE_WIDE_READ" | "N_INVARIANT_RESTATES_RULE" | "N_ARGUMENT_GRANT" | "N_BROAD_READ" | "N_SECURITY_INTENT" => Tier::Review,
+        | "N_INSERT_WRITE_INTENT" | "N_COLUMN_RESULT_EXPOSURE" | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" | "N_PRIVILEGE_ESCALATION" | "N_SELF_CLAIMED_RELATIONSHIP" | "N_CALLER_TIME" | "N_ROLE_WIDE_READ" | "N_INVARIANT_RESTATES_RULE" | "N_ARGUMENT_GRANT" | "N_BROAD_READ" | "N_SECURITY_INTENT" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
         "N_SYNC_ORDER" | "N_NO_HORIZON" | "N_MAINTAIN_SYNCED" | "N_TIMELINE_COMPAT" | "N_NO_CURSOR" => Tier::Design,
         _ => Tier::Performance,
@@ -28,7 +28,7 @@ pub(crate) fn tier(code: &str) -> Tier {
 /// Security findings that can grant authority stay ahead of repeated advice.
 pub(crate) fn summary_order(code:&str)->(Tier,u8){
     (tier(code),match code{
-        "N_PRIVILEGE_ESCALATION" | "N_SELF_CLAIMED_RELATIONSHIP"=>0,"N_ROLE_WIDE_READ" | "N_BROAD_READ"=>1,
+        "N_INSERT_WRITE_INTENT" | "N_COLUMN_RESULT_EXPOSURE" | "N_PRIVILEGE_ESCALATION" | "N_SELF_CLAIMED_RELATIONSHIP"=>0,"N_ROLE_WIDE_READ" | "N_BROAD_READ"=>1,
         "N_INVARIANT_RESTATES_RULE"=>3,"N_SECURITY_INTENT"=>5,_=>2,
     })
 }
@@ -71,6 +71,8 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_UNIQUE_HIDDEN" => "review: hidden unique conflicts retain generic E_RULE",
         "N_PROBE_ONLY_READ" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" => "review: who can read this",
         "N_VACUOUS_RULE" => "review: who can write this",
+        "N_INSERT_WRITE_INTENT" => "review: confirm creation authority as well as edit authority",
+        "N_COLUMN_RESULT_EXPOSURE" => "review: confirm every result/refusal audience",
         "N_IMMUTABLE_PATCH" => "review: readable conflicts require the original immutable value",
         "N_NO_CURSOR" => "no action for a top-N list",
         _ => match tier(code) {
@@ -325,6 +327,15 @@ mod tests {
         ]);
         assert!(render(Vec::new()).is_empty());
     }
+    #[test]
+    fn insert_and_result_privacy_are_review_actions_not_performance_advice(){
+        for code in ["N_INSERT_WRITE_INTENT","N_COLUMN_RESULT_EXPOSURE"]{
+            assert_eq!(tier(code),Tier::Review);
+            assert!(summary_order(code)<summary_order("N_INVARIANT_RESTATES_RULE"));
+            assert!(verdict(code,"",false).starts_with("review:"));
+        }
+    }
+
 }
 
 #[cfg(test)]

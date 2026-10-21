@@ -367,3 +367,49 @@ test("mintId does not publish timestamp state when secure entropy throws", async
   Object.defineProperty(globalThis, "crypto", { configurable: true, value: { getRandomValues(bytes) { bytes.fill(0); return bytes; } } });
   assert.doesNotThrow(() => isolated.mintId(now));
 });
+
+
+test("supplied sessions fail at construction before transport or local side effects", async () => {
+  const valid = session("secret-that-must-not-appear");
+  let effects = 0;
+  const options = { url: "https://card.invalid", fetch: async () => { effects++; throw Error("unexpected network"); },
+    device: { open: async () => { effects++; throw Error("unexpected device"); } },
+    sessionStore: { get: async () => { effects++; return null; }, set: async () => { effects++; }, remove: async () => { effects++; } } };
+  const malformed = [null, [], "token", {}, { principal: valid.principal, token: valid.token },
+    ...["principal", "kind", "token"].flatMap(field => [undefined, "", "  ", 1].map(value => ({ ...valid, [field]: value }))),
+    ...[undefined, NaN, Infinity, -Infinity, 0, -1, 1.5, "123", Number.MAX_SAFE_INTEGER + 1].map(expiresAt => ({ ...valid, expiresAt })),
+    { ...valid, scope: "admin" }, { ...valid, capExpiresAt: NaN }];
+  for (const supplied of malformed) {
+    const error = e => e instanceof TypeError && /E_SESSION.*session\./.test(e.message) && /complete Session/.test(e.message) && !e.message.includes(valid.token);
+    assert.throws(() => createClient({ ...options, session: supplied }), error);
+    await assert.rejects(createLocalClient({ ...options, session: supplied }), error);
+  }
+  assert.equal(effects, 0);
+});
+
+test("online session input is a stable snapshot; legacy scope and a bare token remain supported", async () => {
+  const original = session("unchanged");
+  const client = createClient({ url: "https://card.invalid", session: original });
+  original.expiresAt = NaN; original.token = "changed"; original.principal = "another";
+  assert.equal(client.session().token, "unchanged");
+  assert.ok(Number.isFinite(client.session().expiresAt));
+  assert.equal(client.session().principal, "user:alice");
+  assert.throws(() => { client.session().expiresAt = NaN; }, TypeError);
+  await client.close();
+  const bearerOnly = createClient({ url: "https://card.invalid", token: "bare" });
+  assert.equal(bearerOnly.session(), null);
+  await bearerOnly.close();
+  // Server clocks may differ; structural validation does not invent expiry authority.
+  for (const extra of [{ expiresAt: 1 }, { kind: "action" }, { scope: "read", token: "ro.read", capExpiresAt: Date.now() + 86400_000 }]) {
+    const c = createClient({ url: "https://card.invalid", session: { ...session("valid"), ...extra } });
+    await c.close();
+  }
+});
+
+
+test("session snapshots preserve explicitly undefined legacy metadata", async () => {
+  const supplied = { ...session("legacy"), scope: undefined, capExpiresAt: undefined };
+  const c = createClient({ url: "https://card.invalid", session: supplied });
+  assert.deepEqual(c.session(), supplied);
+  await c.close();
+});

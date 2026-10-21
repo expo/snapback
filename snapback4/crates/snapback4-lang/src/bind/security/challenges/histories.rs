@@ -25,7 +25,7 @@ pub(super) fn actors(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>)->Vec<String
     }}}
     out
 }
-pub(super) fn fixture_cases(p:&Program,rows:&BTreeMap<String,Vec<Value>>,actors:&[String],out:&mut Campaign)->Vec<BTreeMap<String,Value>>{
+pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>,actors:&[String],out:&mut Campaign)->Vec<BTreeMap<String,Value>>{
     let args=&p.args;
     let mut literals=BTreeMap::<String,Vec<Value>>::new();
     fn collect(value:&serde_json::Value,out:&mut BTreeMap<String,Vec<Value>>){
@@ -69,26 +69,42 @@ pub(super) fn fixture_cases(p:&Program,rows:&BTreeMap<String,Vec<Value>>,actors:
             if !next.contains(&case){next.push(case);}if next.len()==LIMIT{out.unsupported.insert("history arguments capped at 512 combinations".into());break 'product;}
         }}
         cases=next;
-    }cases
+    }
+    let focused=super::executed::write_arguments(bound,p).into_iter().filter(|a|matches!(p.args.get(a),Some(ir::ArgType::Optional(_)))).collect::<Vec<_>>();
+    if focused.is_empty(){return cases;}
+    let mut prioritized=Vec::new();
+    for case in cases{
+        if !prioritized.contains(&case){prioritized.push(case.clone());}
+        for name in &focused{if let Some(value)=arguments(&BTreeMap::from([(name.clone(),p.args[name].clone())]),4).and_then(|mut a|a.remove(name))&&value!=Value::Null{
+            let mut alternate=case.clone();alternate.insert(name.clone(),value);if !prioritized.contains(&alternate){prioritized.push(alternate);}
+        }}
+        if prioritized.len()>=LIMIT{prioritized.truncate(LIMIT);out.unsupported.insert("column-write argument frontier capped at 512; remaining combinations uncovered".into());break;}
+    }prioritized
 }
 pub(super) fn trace_key(steps:&[Step])->Vec<(&str,&str)>{steps.iter().map(|s|(s.operation.as_str(),s.viewer.as_str())).collect()}
-fn violation(out:&mut Campaign,inv:&Invariant,steps:&[Step],viewer:&str,row:&Value,old:Option<&Value>,initial:&BTreeMap<String,Vec<Value>>,effect:&str)->bool{
+pub(super) fn violation(out:&mut Campaign,inv:&Invariant,steps:&[Step],viewer:&str,row:&Value,old:Option<&Value>,initial:&BTreeMap<String,Vec<Value>>,effect:&str)->bool{
     if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.viewer==viewer&&v.reachability==Reachability::AuthoredFixtureTrace&&trace_key(&v.history)==trace_key(steps)){return false;}
     out.violations.push(Counterexample{reachability:Reachability::AuthoredFixtureTrace,observations:None,history:steps.to_vec(),invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:steps.last().map(|s|s.operation.clone()).unwrap_or("$fixture.read".into()),effect:effect.into(),row:row.clone(),old:old.cloned(),supporting_rows:initial.clone(),rule_path:"actual authored operation/read from the trusted fixture".into(),scope:"reachable from recorded trusted fixture; finite trace, not an all-history proof".into()});true
 }
-fn typed_disclosure(ty:&crate::types::Ty,data:&Value,table:&str,key:&Value,column:Option<&str>,physical:&Value)->bool{
+pub(super) fn typed_disclosure(ty:&crate::types::Ty,data:&Value,table:&str,key:&Value,column:Option<&str>,physical:&Value)->bool{
+    typed_disclosure_image(ty,data,table,key,column,physical,None)
+}
+pub(super) fn typed_disclosure_image(ty:&crate::types::Ty,data:&Value,table:&str,key:&Value,column:Option<&str>,physical:&Value,policy:Option<&RuleExpr>)->bool{
     use crate::types::Ty;
-    let payload=|data:&Value|matches!(data,Value::Row(_))&&data.field("id").ok()==Some(key)&&column.is_none_or(|c|data.field(c).ok().is_some_and(|v|physical.field(c).ok()==Some(v)));
+    let payload=|data:&Value|matches!(data,Value::Row(_))&&data.field("id").ok()==Some(key)&&column.is_none_or(|c|data.field(c).ok().is_some_and(|v|physical.field(c).ok()==Some(v)))&&policy.is_none_or(|p|!p.any_term(&|term|{
+        let column=match term{RuleTerm::Field(c)|RuleTerm::OldField(c)|RuleTerm::NextField(c)=>Some(c.as_str()),RuleTerm::Reference{column,..}|RuleTerm::ReferenceChain{column,..}=>Some(column.as_str()),_=>None};
+        column.filter(|c|*c!="$security:server-clock").is_some_and(|c|data.field(c).is_err()||data.field(c).ok()!=physical.field(c).ok())
+    }));
     match ty{
         Ty::Row(t)|Ty::WriteRow(t) if t==table=>payload(data),
-        Ty::Optional(inner)|Ty::Omittable(inner)=>typed_disclosure(inner,data,table,key,column,physical),
+        Ty::Optional(inner)|Ty::Omittable(inner)=>typed_disclosure_image(inner,data,table,key,column,physical,policy),
         Ty::Page(t,_) if t==table=>matches!(data,Value::Array(xs) if xs.iter().any(payload)),
-        Ty::List(inner,_)|Ty::Collection(inner,_)=>matches!(data,Value::Array(xs) if xs.iter().any(|r|typed_disclosure(inner,r,table,key,column,physical))),
-        Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>fields.iter().any(|(name,ty)|data.field(name).ok().is_some_and(|v|typed_disclosure(ty,v,table,key,column,physical))),
+        Ty::List(inner,_)|Ty::Collection(inner,_)=>matches!(data,Value::Array(xs) if xs.iter().any(|r|typed_disclosure_image(inner,r,table,key,column,physical,policy))),
+        Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>fields.iter().any(|(name,ty)|data.field(name).ok().is_some_and(|v|typed_disclosure_image(ty,v,table,key,column,physical,policy))),
         _=>false,
     }
 }
-fn typed_source(ty:&crate::types::Ty,table:&str)->bool{
+pub(super) fn typed_source(ty:&crate::types::Ty,table:&str)->bool{
     use crate::types::Ty;
     match ty{Ty::Row(t)|Ty::WriteRow(t)|Ty::Page(t,_)=>t==table,Ty::Optional(inner)|Ty::Omittable(inner)|Ty::List(inner,_)|Ty::Collection(inner,_)=>typed_source(inner,table),Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>fields.values().any(|ty|typed_source(ty,table)),_=>false}
 }
@@ -130,7 +146,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
             // A typed authored row return is already a payload witness. It does
             // not require an invalid absent world that deletes referenced data.
             for bp in queries.iter().copied().filter(|p|typed_source(&p.result,&inv.table)){
-                let cases=fixture_cases(&bp.program,rows,actors,out);
+                let cases=fixture_cases(bound,&bp.program,rows,actors,out);
                 if cases.len()>32{out.unsupported.insert(format!("{}: typed read-observer arguments capped at 32",bp.program.name));}
                 for args in cases.into_iter().take(32){
                     if !reserve_observers(out,2){return;}
@@ -158,7 +174,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
             if policy_in(bound,inv,&absent_rows,viewer,None,row,&mut absent)!=Ok(false){continue;}
             for bp in queries.iter().copied().filter(|p|observing.iter().any(|t|super::super::audit::mentions(&serde_json::to_value(&p.program).unwrap(),t))){
                 let p=&bp.program;
-                let cases=fixture_cases(p,rows,actors,out);
+                let cases=fixture_cases(bound,p,rows,actors,out);
                 if cases.len()>32{out.unsupported.insert(format!("{}: read-observer arguments capped at 32; remaining combinations not covered",p.name));}
                 for args in cases.into_iter().take(32){
                     if !reserve_observers(out,4){return;}
@@ -199,45 +215,17 @@ fn assertions(bound:&Bound,before:&BTreeMap<String,Vec<Value>>,after:&BTreeMap<S
         }
     }
 }
-fn changed(bound:&Bound,p:&Program,before:&BTreeMap<String,Vec<Value>>,after:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,viewer:&str,steps:&[Step],prior:&mut Option<Engine>,current:&mut Engine,out:&mut Campaign){
+fn changed(bound:&Bound,_p:&Program,before:&BTreeMap<String,Vec<Value>>,after:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,viewer:&str,steps:&[Step],prior:&mut Option<Engine>,current:&mut Engine,out:&mut Campaign){
     assertions(bound,before,after,initial,viewer,steps,prior,current,out);
-    if !super::super::census::body(&p.body){out.unsupported.insert(format!("{}: loop/opaque write boundary requires executed-effect tracing",p.name));return;}
-    for inv in &bound.invariants{
-        if matches!(inv.target.as_str(),"read"|"always")||inv.operation.as_ref().is_some_and(|op|op!=&p.name){continue;}
-        let judged;
-        let inv=if inv.target=="always"{inv}else{
-            let Some(stable)=stability::necessary(bound,p,inv)else{out.unsupported.insert(format!("{} / {}: unknown/implicit policy changes need executed-effect tracing",p.name,inv.target_label()));continue;};
-            judged=stable;&judged
-        };
-        // A net image cannot identify an intermediate write or implicit effect.
-        let writes=ir::write_tables(p).into_iter().filter(|(t,_)|t==&inv.table).collect::<Vec<_>>();
-        if writes.len()!=1 {out.unsupported.insert(format!("{} / {}.{}: multiple or implicit writes require executed-effect tracing",p.name,inv.table,inv.target));continue;}
-        if (inv.target=="delete"||inv.operation.is_some())&&writes[0].1!="delete"&&before.get(&inv.table).into_iter().flatten().any(|old|!after.get(&inv.table).into_iter().flatten().any(|r|r.field("id").ok()==old.field("id").ok())){out.unsupported.insert(format!("{}: commit-end/implicit retirement is not an executed delete",p.name));}
-        if (inv.target=="delete"||inv.operation.is_some())&&writes[0].1=="delete"{
-            for old in before.get(&inv.table).into_iter().flatten().filter(|old|!bound.schema.tables[&inv.table].expired(old,NOW)&&!after.get(&inv.table).into_iter().flatten().any(|r|r.field("id").ok()==old.field("id").ok())){
-                let deps=inv.policy.as_ref().map(kernel::dependencies).unwrap_or_default();
-                if ir::write_tables(p).iter().any(|(t,_)|deps.contains(t)&&t!=&inv.table){out.unsupported.insert(format!("{}: delete policy dependency changes before disclosure",p.name));continue;}
-                if prior_policy(bound,inv,before,viewer,Some(old),old,prior)==Ok(false){violation(out,inv,steps,viewer,old,Some(old),initial,"delete");}
-            }
-        }
-        for row in after.get(&inv.table).into_iter().flatten(){
-            let old=before.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok()&&!bound.schema.tables[&inv.table].expired(r,NOW));
-            if old==Some(row){continue;}
-            let effect=if old.is_some(){"update"}else{"insert"};
-            if !super::super::effects(inv).contains(&effect){continue;}
-            if inv.column.as_ref().is_some_and(|c|old.is_some_and(|o|o.field(c).ok()==row.field(c).ok())){continue;}
-            if inv.target=="always" {
-                if policy_in(bound,inv,after,viewer,old,row,current)==Ok(false){violation(out,inv,steps,viewer,row,old,initial,effect);}
-            }else{
-                let deps=inv.policy.as_ref().map(kernel::dependencies).unwrap_or_default();
-                if ir::write_tables(p).iter().any(|(t,_)|deps.contains(t)&&t!=&inv.table) {out.unsupported.insert(format!("{}: write policy dependency changes within the operation; tracing required",p.name));continue;}
-                if prior_policy(bound,inv,before,viewer,old,row,prior)==Ok(false)||old.is_some_and(|old|prior_policy(bound,inv,before,viewer,Some(old),old,prior)==Ok(false)){
-                    violation(out,inv,steps,viewer,row,old,initial,effect);
-                }
-            }
+    // Disappearance is coverage evidence only. Actual delete authority is
+    // judged by the executed-write trace, never by a commit-end image diff.
+    for inv in bound.invariants.iter().filter(|i|matches!(i.target.as_str(),"delete"|"write")){
+        if bound.schema.tables[&inv.table].is_expiring()&&before.get(&inv.table).into_iter().flatten().any(|old|!after.get(&inv.table).into_iter().flatten().any(|new|new.field("id").ok()==old.field("id").ok())){
+            out.unsupported.insert(format!("{}: implicit retirement is not an executed delete; delete intent requires an authored write boundary",inv.target_label()));
         }
     }
 }
+
 fn role_candidates<'a>(bound:&Bound,p:&'a Program,initial:&BTreeMap<String,Vec<Value>>,actors:&[String],cases:&[BTreeMap<String,Value>],fixture:&Engine,campaign:&mut Campaign)->Vec<(&'a Program,String,BTreeMap<String,Value>)>{
     let mut out=Vec::new();let mut groups=Vec::new();
     let json=serde_json::to_string(p).unwrap();
@@ -343,19 +331,21 @@ pub(super) fn lifecycle_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign
             let Ok(before)=readback(&base)else{continue;};
             for bp in &transitions{
                 let p=&bp.program;
-                let cases=fixture_cases(p,&before,&actors,out);
+                let cases=fixture_cases(bound,p,&before,&actors,out);
                 if cases.len()>32{out.unsupported.insert(format!("{}: lifecycle arguments capped at 32",p.name));}
                 for args in cases.into_iter().take(32){for viewer in &actors{
                     if visited>=256||!out.reserve(1){out.unsupported.insert("lifecycle successors capped at 256 attempts; remaining state transitions uncovered".into());return;}visited+=1;
                     let Ok(mut engine)=base.fork_fixture()else{continue;};
                     let Ok(args)=materialize_arguments(&mut engine,&p.args,&args,viewer)else{continue;};
                     out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
-                    let Ok(result)=engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(NOW))else{continue;};
+                    let trace=super::executed::trace(bound,p);
+                    let Ok(result)=engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone()))else{continue;};
                     if !matches!(result.state,snapback4_core::WriteState::Sent{..}){out.refused+=1;continue;}
                     let Ok(after)=readback(&engine)else{continue;};
+                    let mut history=steps.clone();history.push(Step{operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
+                    super::executed::record(bound,p,&trace,&result.state,&after,&initial,viewer,&history,&mut engine,out);
                     let changed=ir::write_tables(p).iter().any(|(name,_)|before.get(name).into_iter().flatten().any(|old|after.get(name).into_iter().flatten().find(|r|r.field("id").ok()==old.field("id").ok()).is_some_and(|new|bound.schema.tables[name].columns.iter().any(|(c,k)|matches!(k.required(),C::Enum{..})&&old.field(c).ok()!=new.field(c).ok()))));
                     if !changed||!seen.insert(serde_json::to_string(&after).unwrap()){continue;}
-                    let mut history=steps.clone();history.push(Step{operation:p.name.clone(),viewer:viewer.clone(),args,result:serde_json::to_value(&result.state).unwrap()});
                     out.sequences+=1;
                     observe(bound,&mut engine,&after,&initial,&actors,&history,out);
                     column_reads::after_history(bound,&engine,&initial,&history,out);
@@ -376,7 +366,7 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     let probes=Vec::new();
     let mut groups=Vec::new();
     for bp in bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native&&!bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral)){
-        let cases=fixture_cases(&bp.program,&initial,&actors,out);
+        let cases=fixture_cases(bound,&bp.program,&initial,&actors,out);
         let mut group=relationship_candidates(bound,&bp.program,&initial,&actors,&cases,fixture,out);
         group.extend(role_candidates(bound,&bp.program,&initial,&actors,&cases,fixture,out));
         // Diagonal order gives both actors and argument values an early turn.
@@ -444,12 +434,14 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     // Breadth first, then targeted and diagonal pairs: no first step owns the cap.
     let history_limit=if out.history_limit==0{LIMIT}else{out.history_limit.min(LIMIT)};
     let singles=candidates.len().min(history_limit);
-    let mut setups=Vec::new();let mut role_changes=Vec::new();
+    let mut setups=Vec::new();let mut role_changes=Vec::new();let mut committed=Vec::new();
     let mut setup_seen=BTreeSet::new();let mut role_seen=BTreeSet::new();let mut pair_plan=Vec::new();
     for n in 0..singles+history_limit {
         if !out.reserve(1){break;}
         if n==singles&&!candidates.is_empty(){
+            let disclosures=super::executed::pairs(bound,&candidates,&committed);
             let mut seen=BTreeSet::new();
+            for pair in disclosures.into_iter().take(LIMIT/2){if seen.insert(pair){pair_plan.push(pair);}}
             'setup:for &second in &role_changes{for &first in &setups{if seen.insert((first,second)){pair_plan.push((first,second));if pair_plan.len()==LIMIT/2{break 'setup;}}}}
             for &(first,second) in &role_pairs{if pair_plan.len()==LIMIT{break;}if seen.insert((first,second)){pair_plan.push((first,second));}}
             let mut k=0;
@@ -464,12 +456,17 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
             let args=match materialize_arguments(&mut engine,&p.args,args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{}: history asset arguments: {why}",p.name));break;}};
             let mut prior=if bound.invariants.iter().any(|i|i.target!="read"&&i.policy.as_ref().is_some_and(RuleExpr::has_reference)){if !out.reserve(1){break;}match fork(bound,&engine,Vec::new()){Ok(e)=>Some(e),Err(why)=>{out.unsupported.insert(why);None}}}else{None};
             out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
-            match engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(NOW)){
+            let trace=super::executed::trace(bound,p);
+            match engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                 Ok(result)=>{
                     let sent=matches!(result.state,snapback4_core::WriteState::Sent{..});
                     steps.push(Step{operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
                     let after=match readback(&engine){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);break;}};
                     if sent&&n<singles{
+                        if before!=after{
+                            let transition=bound.schema.tables.iter().any(|(name,t)|before.get(name).into_iter().flatten().any(|old|after.get(name).into_iter().flatten().find(|r|r.field("id").ok()==old.field("id").ok()).is_some_and(|new|t.columns.iter().any(|(c,k)|matches!(k.required(),C::Enum{..})&&old.field(c).ok()!=new.field(c).ok()))));
+                            if transition{committed.insert(0,i);}else{committed.push(i);}
+                        }
                         let signature=serde_json::to_string(&(&p.name,viewer,&candidates[i].2)).unwrap();
                         let new_media=bound.invariants.iter().filter(|inv|inv.target=="read"&&initial.get(&inv.table).is_none_or(Vec::is_empty)).any(|inv|{
                             let table=&bound.schema.tables[&inv.table];
@@ -482,7 +479,7 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
                         });
                         if changed_role&&role_seen.insert(signature){role_changes.push(i);}
                     }
-                    if sent{changed(bound,p,&before,&after,&initial,viewer,&steps,&mut prior,&mut engine,out);}else{out.refused+=1;}
+                    if sent{super::executed::record(bound,p,&trace,&result.state,&after,&initial,viewer,&steps,&mut engine,out);changed(bound,p,&before,&after,&initial,viewer,&steps,&mut prior,&mut engine,out);}else{out.refused+=1;}
                     if sent&&before!=after{observe(bound,&mut engine,&after,&initial,&actors,&steps,out);column_reads::after_history(bound,&engine,&initial,&steps,out);}
                 },Err(e)=>{out.unsupported.insert(format!("{}: history engine error {e}",p.name));break;}
             }

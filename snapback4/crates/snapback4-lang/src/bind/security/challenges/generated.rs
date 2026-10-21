@@ -145,7 +145,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             let current=readback(&engine)?;
             let targets=writes.iter().filter(|(_,kind)|matches!(*kind,"insert"|"upsert")).map(|(t,_)|t).collect::<Vec<_>>();
             if targets.iter().all(|t|current.get(*t).map_or(0,Vec::len)>=2){continue;}
-            let cases=histories::fixture_cases(p,&current,&creator_actors,out);
+            let cases=histories::fixture_cases(bound,p,&current,&creator_actors,out);
             'cases:for args in cases.into_iter().take(16){for actor in &creator_actors{
                 if attempts>=2048||!out.reserve(1){out.unsupported.insert("generated authored initialization capped at 2048 calls; remaining creators uncovered".into());validate_fixture(bound,&mut engine)?;return Ok(engine);}
                 attempts+=1;
