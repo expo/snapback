@@ -1,0 +1,51 @@
+{
+  "rootSetup": {
+    "commands": [
+      "bun install --frozen-lockfile",
+      "node scripts/ensure-workspace-hoist.mjs",
+      "scripts/check-generated-artifacts"
+    ],
+    "exitCode": 0,
+    "log": "test-logs/dx5-root-setup-complete.log.gz"
+  },
+  "inventories": {
+    "command": "timeout 600s node scripts/check-inventories.mjs",
+    "exitCode": 0,
+    "packageTests": 365,
+    "scriptTests": 35,
+    "demos": 31,
+    "publicationLeaves": 487,
+    "pages": 162,
+    "snippets": 1937,
+    "log": "test-logs/dx5-inventory-complete.log.gz"
+  },
+  "guide": {
+    "command": "timeout 900s node scripts/check-guide.mjs",
+    "exitCode": 0,
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "preconditions": 0,
+    "pages": 162,
+    "snippets": 1937,
+    "existingWarnings": 121,
+    "log": "test-logs/dx5-guide-complete.log.gz"
+  },
+  "refs": {
+    "command": "timeout 600s ./ref-check",
+    "exitCode": 0,
+    "documents": 564,
+    "refs": 12222,
+    "errors": 0,
+    "unchecked": 0,
+    "log": "test-logs/dx5-ref-complete.log.gz"
+  },
+  "docsBudget": {
+    "command": "timeout 600s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/docs-budget.mjs",
+    "exitCode": 0,
+    "readmeLines": 319,
+    "budget": 320,
+    "guideTestPassed": 1,
+    "log": "test-logs/dx5-docs-budget-complete.log.gz"
+  }
+}
