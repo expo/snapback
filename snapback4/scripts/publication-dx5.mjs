@@ -22,7 +22,7 @@ export async function proveDX5(directory, client, platform, expo) {
     const cwd=join(scratch,"adapt");mkdirSync(cwd);
     await run([cli,"init","--expo"],cwd);
     assert.equal(JSON.parse(readFileSync(join(cwd,"package.json"))).devDependencies["playwright-core"],"1.55.1");
-    assert.match(readFileSync(join(cwd,"metro.config.js"),"utf8"),/snapback4-expo\/metro/);
+    assert.match(readFileSync(join(cwd,"metro.config.cjs"),"utf8"),/snapback4-expo\/metro/);
     assert.match(readFileSync(join(cwd,"App.tsx"),"utf8"),/snapback4-expo\/native-smoke/);
     writeFileSync(join(cwd,"snapback/schema.q"),"use identity\nquery alive():\n  return true\n");
     await run([cli,"init","--adapt","--apply"],cwd);
