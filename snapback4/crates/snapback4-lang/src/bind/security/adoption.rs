@@ -25,6 +25,9 @@ pub fn draft(bound:&Bound)->String{
                 if !(kernel::implies(&gate,candidate)==Ok(true)&&kernel::implies(candidate,&gate)==Ok(true)) {out.push_str(&format!("-- Confirm/combine audience alternative: invariant {name}.{column} read only {}\n",candidate.quarry()));}
             }
         }
+        for inv in bound.invariants.iter().filter(|i|i.table==*name&&i.column.is_some()&&i.target=="update"){
+            out.push_str(&format!("-- {}: update-only intent excludes creation. Does the specification allow callers to supply this column at insert/upsert too? Use write only if creation shares the restriction.\n",inv.target_label()));
+        }
         for effect in ["insert","update","delete"] {
             if covered(bound,name,effect){continue;}
             out.push_str(&format!("-- {name}.{effect}: name the permitted appointer/owner and lifecycle condition from the spec.\n"));

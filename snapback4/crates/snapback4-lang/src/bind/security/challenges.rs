@@ -13,6 +13,7 @@ const PNG:[u8;24]=[137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1
 mod paired;
 mod timed;
 mod histories;
+mod executed;
 mod assets;
 mod column_reads;
 mod stability;
@@ -365,7 +366,7 @@ pub fn apply(report:&mut Report,campaign:&Campaign){
 fn arguments(args:&BTreeMap<String,ir::ArgType>,variant:usize)->Option<BTreeMap<String,Value>>{
     use ir::ArgType as A;
     fn one(k:&A,v:usize)->Option<Value>{Some(match k{
-        A::Ref{table}=>id(table),A::Principal=>Value::Id(if v&1==0{OTHER}else{VIEWER}.into()),A::Id=>Value::Id("security-argument".into()),A::Cursor|A::Optional(_)=>Value::Null,
+        A::Ref{table}=>id(table),A::Principal=>Value::Id(if v&1==0{OTHER}else{VIEWER}.into()),A::Id=>Value::Id("security-argument".into()),A::Cursor=>Value::Null,A::Optional(inner)=>if v&4==0{Value::Null}else{one(inner,v)?},
         A::Text{min,max,..}=>Value::String("z".repeat((*min).max(1).min(*max) as usize)),A::Enum{variants}=>Value::String(variants.get(v%variants.len())?.clone()),A::Int|A::Decimal{..}|A::Money{..}=>Value::Int(1),A::IntRange{min,max}=>Value::Int(1i64.clamp(*min,*max)),A::Time=>Value::Int(NOW+86_400_000),A::Bool=>Value::Bool(v&2==0),A::List{of:Some(inner),..}=>Value::Array(vec![one(inner,v)?]),A::ListRange{of:Some(inner),min,..}=>Value::Array((0..*min).map(|_|one(inner,v)).collect::<Option<_>>()?),A::List{..}=>Value::Array(Vec::new()),A::Json{..}=>Value::Null,A::Bytes{..}=>Value::Bytes(Vec::new()),A::Image{..}=>Value::String("$security:image".into()),A::File{..}=>Value::String("$security:file".into()),_=>return None,
     })}
     args.iter().map(|(n,k)|one(k,variant).map(|v|(n.clone(),v))).collect()
@@ -413,6 +414,7 @@ pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
     }}
 }
 pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
+    let first=campaign.violations.len();
     fixture_observers(bound,fixture,campaign);
     assets::run(bound,fixture,campaign);
     let fixtures=match readback(fixture){Ok(r)=>r,Err(e)=>{campaign.unsupported.insert(e);return;}};
@@ -442,11 +444,22 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
                 if p.program.kind==ProgramKind::Query{
                     match engine.query(&p.program.name,Context::new(viewer,args.clone()).at(NOW)){Ok(_)=>{},Err(e) if e.code=="E_INPUT"=>{campaign.unsupported.insert(format!("{}: generated arguments rejected as E_INPUT",p.program.name));},Err(_)=>campaign.refused+=1,}
                 }else{
-                    match engine.mutate(&p.program.name,None,Context::new(viewer,args.clone()).at(NOW)){Ok(result) if matches!(result.state,snapback4_core::WriteState::Failed{..})=>campaign.refused+=1,Err(e)=>{campaign.unsupported.insert(format!("{}: matrix engine error {e}",p.program.name));},_=>{},}
+                    let trace=executed::trace(bound,&p.program);
+                    match engine.mutate(&p.program.name,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
+                        Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
+                            if let Ok(after)=readback(&engine){
+                                let steps=vec![histories::Step{operation:p.program.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()}];
+                                executed::record(bound,&p.program,&trace,&result.state,&after,&rows,viewer,&steps,&mut engine,campaign);
+                            }
+                        },
+                        Ok(_)=>campaign.refused+=1,
+                        Err(e)=>{campaign.unsupported.insert(format!("{}: matrix engine error {e}",p.program.name));},
+                    }
                 }
             }
         }
     }
+    if campaign.generated_fixture{for witness in &mut campaign.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored matrix observation from validated generated fixture; initialization not claimed application-reachable".into();}}}
 }
 
 fn ephemeral_operation(bound:&Bound,p:&Program,out:&mut Campaign)->bool{

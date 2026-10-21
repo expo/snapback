@@ -9,6 +9,8 @@ pub mod kernel;
 mod audit;
 pub mod challenges;
 mod lints;
+mod write_advice;
+mod result_advice;
 mod operation;
 mod concrete;
 mod census;
@@ -231,6 +233,8 @@ fn blockers(bound:&Bound,inv:&Invariant)->Vec<String> {
 
 pub fn add_source_notes(report:&mut Report,sources:&[(String,String)],bound:&Bound){
     report.notes.extend(lints::source_notes(sources,bound));
+    report.notes.extend(write_advice::notes(sources,bound));
+    report.notes.extend(result_advice::notes(bound));
     let mut sites=BTreeMap::new();
     for (file,source) in sources{let (doc,_)=crate::parse_document(file,source);for t in doc.tables{
         sites.insert(t.name.clone(),t.site.clone());for c in t.columns{sites.insert(format!("{}.{}",t.name,c.name),c.site);}

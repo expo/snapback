@@ -69,7 +69,7 @@ fn retained_assignment_advice_survives_absent_independent_role_intent(){
 
 #[test]
 fn an_alternate_copied_immutable_owner_cannot_invent_a_disclosure(){
- let b=bind("table homes:\n  owner: principal\n  read <- allow\n  insert <- allow\n  online only\ntable reports:\n  home: homes\n  homeowner: principal\n  immutable home,homeowner\n  read <- .homeowner = viewer\n  insert <- allow\n  online only\nmutation file(home: homes):\n  h = homes[home] ! else MISSING\n  return insert reports {home,homeowner: h.owner}\nquery mine():\n  return reports where .homeowner = viewer first 50 by .id\ninvariant reports.homeowner read only .home.owner = viewer\n");
+ let b=bind("table homes:\n  owner: principal\n  read <- allow\n  insert <- allow\n  online only\ntable reports:\n  home: homes\n  homeowner: principal\n  immutable home,homeowner\n  read <- .homeowner = viewer\n  insert <- allow\n  online only\nmutation file(home: homes):\n  h = homes[home] ! else MISSING\n  r = insert reports {home,homeowner: h.owner}\n  return {id:r.id}\nquery mine():\n  return reports where .homeowner = viewer first 50 by .id\ninvariant reports.homeowner read only .home.owner = viewer\n");
  let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);assert!(c.violations.is_empty(),"{c:?}");assert!(c.unsupported.iter().any(|s|s.contains("creator/guard coupling")),"{c:?}");
 }
 
@@ -82,7 +82,7 @@ fn optional_role_columns_still_get_two_active_principals_per_role(){
 
 #[test]
 fn a_post_insert_guard_through_the_returned_row_preserves_owner_coupling(){
- let b=bind("table homes:\n  owner: principal\n  read <- allow\n  insert <- allow\n  online only\ntable reports:\n  home: homes\n  homeowner: principal\n  immutable home,homeowner\n  read <- .homeowner = viewer\n  insert <- allow\n  online only\nmutation file(home: homes, homeowner: principal):\n  r = insert reports {home,homeowner}\n  h = homes[home] ! else MISSING\n  require r.homeowner = h.owner else WRONG_OWNER\n  return r\nquery mine():\n  return reports where .homeowner = viewer first 50 by .id\ninvariant reports.homeowner read only .home.owner = viewer\n");
+ let b=bind("table homes:\n  owner: principal\n  read <- allow\n  insert <- allow\n  online only\ntable reports:\n  home: homes\n  homeowner: principal\n  immutable home,homeowner\n  read <- .homeowner = viewer\n  insert <- allow\n  online only\nmutation file(home: homes, homeowner: principal):\n  r = insert reports {home,homeowner}\n  h = homes[home] ! else MISSING\n  require r.homeowner = h.owner else WRONG_OWNER\n  return {id:r.id}\nquery mine():\n  return reports where .homeowner = viewer first 50 by .id\ninvariant reports.homeowner read only .home.owner = viewer\n");
  let mut e=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
  e.seed_at([("homes".into(),row(vec![("id",id("h")),("owner",id("dev:owner"))])),("reports".into(),row(vec![("id",id("r")),("home",id("h")),("homeowner",id("dev:owner"))]))],challenges::NOW).unwrap();
  let args=std::collections::BTreeMap::from([("home".into(),id("h")),("homeowner".into(),id("dev:security-a"))]);
@@ -121,7 +121,7 @@ fn ephemeral_mutations_are_uncovered_in_every_column_observer_phase(){
 
 #[test]
 fn a_copied_related_value_cannot_make_public_ids_disclose_a_protected_column(){
- let b=bind("table docs:\n  body: int\n  read <- allow\n  insert <- allow\n  online only\ntable markers:\n  code: int\n  unique code\n  read <- allow\n  insert <- allow\n  online only\nmutation file(body: int):\n  d = insert docs {body}\n  insert markers {code: d.body} if absent\n  return d\nquery publicIds():\n  return docs where exists markers[code = .body] first 50 by .id {id}\ninvariant docs.body read only deny\n");
+ let b=bind("table docs:\n  body: int\n  read <- allow\n  insert <- allow\n  online only\ntable markers:\n  code: int\n  unique code\n  read <- allow\n  insert <- allow\n  online only\nmutation file(body: int):\n  d = insert docs {body}\n  insert markers {code: d.body} if absent\n  return {id:d.id}\nquery publicIds():\n  return docs where exists markers[code = .body] first 50 by .id {id}\ninvariant docs.body read only deny\n");
  let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
  assert!(c.violations.is_empty(),"{c:?}");assert!(c.unsupported.iter().any(|s|s.contains("creator/guard coupling")),"{c:?}");
 }

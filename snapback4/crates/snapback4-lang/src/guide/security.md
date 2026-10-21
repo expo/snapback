@@ -46,11 +46,13 @@ role/row/effect exposures. Declaring one effect does not cover the others.
 
 ## Reference
 
-`invariant table.column read only P` protects a column value, derived values and value-dependent counts/existence/refusals. An authored projection excluding the column does not by itself disclose that value; filtering, ordering or copying it can. Audit JSON includes `column_audiences` (effective row rule plus private-owner gate). Unknown derived and opaque paths remain unproved.
+`invariant table.column read only P` protects a column value, derived values and value-dependent counts/existence/refusals. Mutation results, implicit final writes and explicit returned row objects are observers too. A query projection alone is not privacy: use column read rules to protect every operation. An authored projection excluding the column does not by itself disclose that value; filtering, ordering or copying it can. Audit JSON includes `column_audiences` (effective row rule plus private-owner gate). Unknown derived and opaque paths remain unproved.
 
 `invariant table.read only P` protects read intent; insert, update and delete
 name authority. `invariant table.column write only P` covers writes to a
-column (both insert and update). `invariant table.column update only P` checks
+column (insert, inserted insert-if-absent, update and both upsert arms).
+Creation is not exempt from write intent; tests judge each executed write in
+a committed mutation, including intermediate writes in a multi-write operation. `invariant table.column update only P` checks
 only edits, retaining old-and-next-image semantics; use it when creation is permitted
 to a different role (for example counter staff creating a ticket price). `invariant table always P` states row integrity.
 An update policy over `.field` constrains **both old and next images**.
@@ -238,3 +240,20 @@ fixture bytes and CLI identity bind the record; edits invalidate it. No cached
 passing result proves security. Every escalation note stays visible in short
 output. Rule-changing deploy previews print exposure counts and demand a test
 for the selected source/fixtures when a matching full finite campaign is absent.
+
+### N_INSERT_WRITE_INTENT
+
+N_INSERT_WRITE_INTENT names creation paths that supply a column without an
+edit operation's restriction. Confirm whether creation is deliberately broader;
+otherwise guard insert and both upsert arms and declare column write intent.
+
+### N_COLUMN_RESULT_EXPOSURE
+
+N_COLUMN_RESULT_EXPOSURE names columns omitted by query projections or guarded
+by column rules that another result/refusal may observe. Review that operation's
+intended audience; this is advice, not proof of a leak.
+
+Rule-changing deploy and deploy --check lead with outstanding FIX/REVIEW items
+and the last test result, timestamp and age. Stale evidence is labeled explicitly.
+Deploy --strict refuses reachable refutations; unproved intent and advice still
+need review. A matching completed finite campaign is evidence, never proof.

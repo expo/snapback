@@ -504,3 +504,27 @@ impl<'a> Runner<'a> {
         self.decoration_expiry = child.next_expiry.get();
     }
 }
+
+
+#[cfg(feature = "sqlite")]
+impl Runner<'_> {
+    // A fresh, isolated reader shares this exact provisional transaction but
+    // never the application's meter, caches, allowance or observation state.
+    pub(super) fn fixture_judgment(&self, policy: &crate::schema::RuleExpr, old: Option<&Value>, next: &Value) -> Result<super::rules::Verdict, RuntimeError> {
+        use crate::schema::RuleExpr;
+        fn created(rule: &RuleExpr) -> bool { match rule {
+            RuleExpr::Created { .. } => true, RuleExpr::And(xs) | RuleExpr::Or(xs) => xs.iter().any(created), RuleExpr::Not(x) => created(x), _ => false,
+        } }
+        if created(policy) { return Ok(super::rules::Verdict::Unknown); }
+        let context = crate::Context::new(self.context.viewer.clone(), Default::default()).at(self.context.now.unwrap_or(0));
+        let mut judge = Runner::new(self.tx.raw, self.schema, context, Meter::new(Ceilings::unbounded(), Cut::Abort), self.seq);
+        let mut image=next.clone();
+        if let Value::Row(fields)|Value::Map(fields)=&mut image{fields.insert("$security:server-clock".into(),Value::Int(self.context.now.unwrap_or(0)));}
+        let bytes = judge.rule_scratch(policy);
+        let viewer = self.context.viewer.clone();
+        judge.authorized_scratch(bytes, &[], |runner, allowance| {
+            let mut probe = super::read::RuleProbe { runner, allowance };
+            super::rules::evaluate_verdict(policy, &viewer, old, &image, false, &mut probe)
+        })
+    }
+}

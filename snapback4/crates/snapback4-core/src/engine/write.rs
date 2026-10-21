@@ -258,6 +258,8 @@ impl Runner<'_> {
             let hidden: Vec<_> = table.column_reads.keys().filter(|field| !table.local_column_readable(field, &row, Some(&self.context.viewer))).cloned().collect();
             if let Value::Row(fields) | Value::Map(fields) = &mut row { for field in hidden { fields.remove(&field); } }
         }
+        #[cfg(feature = "sqlite")]
+        self.fixture_write(table_name, Effect::Insert, None, Some(&row));
         let entries = self.maintain_scratch(self.contribution_heap(table), |runner| {
             runner.tx.put(table_name, table, &row, None)
         })?;
@@ -400,6 +402,8 @@ impl Runner<'_> {
         // A predicting device keeps another owner's omitted private field as an omission.
         super::validate::validate_projection(self.schema, table_name, &new, self.device.then_some(self.context.viewer.as_str()))?;
         let table = self.schema.table(table_name).expect("validated");
+        #[cfg(feature = "sqlite")]
+        self.fixture_write(table_name, Effect::Update, Some(&old), Some(&new));
         let entries = self.maintain_scratch(self.contribution_heap(table), |runner| {
             runner.tx.put(table_name, table, &new, Some(&old))
         })?;
@@ -462,6 +466,8 @@ impl Runner<'_> {
         self.receipt_member_removed(table_name, &old)?;
         self.refuse_live_children(table_name,old.field("id")?)?;
         self.check_constraints(table_name, Some(&old), &old, Effect::Delete)?;
+        #[cfg(feature = "sqlite")]
+        self.fixture_write(table_name, Effect::Delete, Some(&old), None);
         let entries = self.maintain_scratch(self.contribution_heap(table), |runner| {
             runner.tx.delete(table_name, table, &old)
         })?;
