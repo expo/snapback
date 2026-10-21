@@ -99579,3 +99579,73 @@ now records asset_ids byte order and replaces its old NUMERIC-cast claim
 with the streaming checked-fold contract. The test script's optional
 SNAPBACK4_PG_SHARE supplies initdb -L for extracted PostgreSQL packages;
 the default path is unchanged. Required verification follows below.
+
+## 2026-10-21 — P1-AS fix round 1: final verification
+
+The two repair commits keep the cross-family catalog/write-count audit
+separate from the asset policy and test-script changes. The rebased lane
+commits are 51195718c2 and 6b503b6730 on bf9c1ccc55; repair commits are
+18027d335d and 40e0d0d91b. No further source changes were needed during
+qualification. All Cargo commands were sequential, with at most four build
+jobs, CARGO_INCREMENTAL=0 and line-tables-only dev/test debug information.
+The private-database scripts used RUST_TEST_THREADS=1; their contention
+witnesses still create overlapping transactions internally. The default
+core suite and host ratchets used four test threads. Sampled disk space
+remained above the 15 GB stop threshold (32 GB free at final verification).
+
+All three full scripts exit 0. Each reports 229 passed, zero failed and
+zero ignored: 58 evaluation tests, 152 selected core Postgres tests and
+19 corpus harness tests. Every one of the 24 Postgres asset cases runs and
+passes in every script, including intermediate quota overflow with rollback,
+signed stale-cutoff boundaries, all shape refusals and post-attach insert
+suppression. The sibling identity, jobs, outbox and request persistence/rule
+refusals all execute. Corpus exclusions remain named exclusions, not passes.
+
+- PostgreSQL 16.15, C/C: /tmp/p1as-r1-pg16.log.
+  Owned cluster: /tmp/sb4-pg-eval.qy9g2k.
+- PostgreSQL 17.9, C/C, using SNAPBACK4_PG_SHARE for initdb -L:
+  /tmp/p1as-r1-pg17.log. Owned cluster: /tmp/sb4-pg-eval.dAmSAe.
+- PostgreSQL 16.15, en_US.utf8/en_US.utf8, using SNAPBACK4_PG_LOCALE:
+  /tmp/p1as-r1-pg16-locale.log. Owned cluster: /tmp/sb4-pg-eval.wSfLRn.
+
+Server queries confirm each version and locale. Every script confirms its
+cluster stopped; a final independent pg_ctl status for all three returns 3,
+and all three postmaster.pid files are absent. No other cluster was touched.
+The serialized concurrency witness records 65 increments with zero retries
+in each script; serializable also records 65 with no lost updates, using
+63, 90 and 89 retries respectively. No retry bound or durability setting
+changed.
+
+The provided 17.9 server has zero pg_constraint rows with contype='n', even
+with the installed NOT NULL ledger columns. Therefore the review's precise
+NOT NULL-row reopen failure was not reproduced on this server. Assets and
+outbox now explicitly ignore that constraint type as requested; identity
+and jobs already filter primary/unique rows. Reopen and all refusal cases
+pass on both actual server versions. A separate temporary-table probe also
+confirms PostgreSQL forbids naming a non-view INSERT rule _RETURN; the
+implicit-view-rule exception cannot hide a suppressing insert rule.
+
+The full cargo test -p snapback4-core passes: 944 passed, zero failed, five
+existing ignores, including all 17 doctests. The unit portion is 547 passed
+and three ignored. The 45 printed result summaries include the isolated
+one-test allocation-probe child; its pass is counted once in the 944 total.
+Log: /tmp/p1as-r1-core.log. The focused asset run passes 27 SQLite/core cases
+and reports the 24 named Postgres ignores without a database; the
+legacy-NUL-home claim regression passes. Log: /tmp/p1as-r1-assets.log.
+
+Both host ratchets pass unchanged: committer 3/3 and store-port 5/5.
+Log: /tmp/p1as-r1-ratchets.log. The exact requested Clippy command reports
+only the two inherited errors, while_immutable_condition at engine/read.rs:780
+and never_loop at engine/row_views.rs:1013; neither file changed. A diagnostic
+run allowing only those two lints completes all library/test checking with
+no diagnostic in the new helpers or regression cases. Existing warnings
+remain. Logs: /tmp/p1as-r1-clippy.log and
+/tmp/p1as-r1-clippy-diagnostic.log. No source lint suppression was added.
+Root ref-check and git diff --check pass; the final reference count is
+recorded by /tmp/p1as-r1-refcheck.log. The RFC keeps its single Revised line
+with P1-AS fix round 1 prepended and documents ordered asset_ids.
+
+No push, stash, git configuration change, sub-agent, other worktree, remote
+machine, new gate, allowance increase, publication or Postgres host wiring
+was used. The remaining verification limitation is the absent contype='n'
+catalog shape on the supplied 17.9 server, as recorded above.
