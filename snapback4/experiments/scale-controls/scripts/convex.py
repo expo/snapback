@@ -22,6 +22,14 @@ def private(path, text):
     assert stat.S_IMODE(path.stat().st_mode)==0o600
 
 
+def native_inflight(text):
+    names=['convex_local_backend_backend_http_service_concurrent_requests',
+           'convex_local_backend_committer_concurrent_commits']
+    values={line.split(' ',1)[0]:float(line.rsplit(' ',1)[1]) for line in text.splitlines() if line.split(' ',1)[0] in names}
+    if any(name not in values for name in names):raise RuntimeError('native drain metric missing')
+    return {name:values[name] for name in names}
+
+
 class ConvexRun(Run):
     db_prefix='sb4scale_convex'
     app_name='sb4scale_convex'
@@ -141,7 +149,7 @@ process.stdout.write(JSON.stringify({jwks:'data:text/plain;charset=utf-8;base64,
         write(directory/'effective.json',dict(instance=instance,persistence='postgres-v5',database=self.db,postgres_url=safe_url,pool=pool,
              APPLICATION_MAX_CONCURRENT_QUERIES=pool,APPLICATION_MAX_CONCURRENT_MUTATIONS=pool,DOCUMENT_RETENTION_DELAY=172800,
              DISABLE_BEACON=True,DISABLE_METRICS_ENDPOINT=False,RUST_LOG='info',interface='127.0.0.1',port=58080,site_proxy_port=58083,
-             require_ssl=False,local_storage=str(ROOT/(instance+'-storage')),auth='offline RS256 fixture JWT; customJwt data URI JWKS',delay_us=delay))
+             require_ssl=False,drain='HTTP outstanding and committer unpublished gauges; two zeros 100ms apart; 30s bound; background SQL may continue',local_storage=str(ROOT/(instance+'-storage')),auth='offline RS256 fixture JWT; customJwt data URI JWKS',delay_us=delay))
 
     def ready_tcp(self,p,port):
         deadline=time.monotonic()+30
@@ -167,6 +175,22 @@ process.stdout.write(JSON.stringify({jwks:'data:text/plain;charset=utf-8;base64,
             p,log,err=self.dispatcher
             if p.poll() is None:p.terminate()
             p.wait(timeout=10);log.close();err.close();self.dispatcher=None
+
+    # @ref LLP 3000.009.001.002#6-method-and-metrics — settle request/commit outcomes without demanding that persistence maintenance stop
+    def drain(self,directory,prefix):
+        start=time.monotonic();observations=[];quiet=0
+        while True:
+            with urllib.request.urlopen('http://127.0.0.1:58080/metrics',timeout=10) as response:values=native_inflight(response.read().decode())
+            observations.append(dict(elapsed_s=time.monotonic()-start,**values))
+            quiet=quiet+1 if all(value==0 for value in values.values()) else 0
+            if quiet>=2:
+                background=int(super().psql("SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND pid<>pg_backend_pid() AND application_name<>'sb4scale_observer' AND state='active'").strip())
+                write(directory/(prefix+'.drain.json'),dict(ok=True,criterion='two consecutive zero outstanding HTTP requests and unpublished commits',background_sql_active=background,observations=observations))
+                return
+            if time.monotonic()-start>30:
+                write(directory/(prefix+'.drain.json'),dict(ok=False,observations=observations))
+                raise RuntimeError('Convex request/commit work did not drain')
+            time.sleep(.1)
 
     def app_pids(self):return [x[0].pid for x in [self.service,self.dispatcher] if x]
 

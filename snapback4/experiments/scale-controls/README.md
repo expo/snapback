@@ -405,3 +405,10 @@ derived from the scheduler's exact arrival count and total acknowledgements;
 request is an unknown outcome even when the measured window has zero errors.
 Counter inequality always disqualifies the trial; an excess with no failures
 anywhere in the cohort, or fewer commits than acknowledgements, still aborts.
+
+Convex's post-load drain uses its current outstanding-HTTP and unpublished-commit
+gauges: two consecutive zero samples 100 ms apart, with a 30 s bound. The
+committer gauge includes queued/prevalidation/persistence work. Persistence
+maintenance can keep SQL active after every request settles, so SQL-wide idle
+is not a Convex readiness condition. Raw PG/Supabase retain their existing
+application-SQL drain. Native drain samples remain in each raw trial record.

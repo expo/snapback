@@ -231,10 +231,7 @@ class Run:
         if db_monitor.returncode: raise RuntimeError('DB CPU monitor failed')
         # HTTP timeouts can leave an already admitted SQL write running. Drain
         # observed app statements before taking the counter/statistics snapshot.
-        deadline=time.monotonic()+10
-        while self.psql(f"SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND application_name='{self.app_name}' AND state<>'idle'").strip()!='0':
-            if time.monotonic()>deadline: raise RuntimeError('database work did not drain')
-            time.sleep(.1)
+        self.drain(directory,prefix)
         after=json.loads(self.psql(stats))
         write(directory/f'{prefix}.after.json',after)
         write(directory/f'{prefix}.resources.json',{'start':start,'end':time.time(),'clock_ticks':os.sysconf('SC_CLK_TCK'),'samples':samples})
@@ -247,6 +244,12 @@ class Run:
         write(directory/f'{prefix}.json',result)
         print(f'{directory.name} rate={rate} r={repeat} ok={result["slo_pass"]} achieved={result["achieved_per_s"]:.0f} p99={result["latency"]["p99_ms"]:.2f} errors={result["error_count"]}',flush=True)
         return result
+
+    def drain(self,directory,prefix):
+        deadline=time.monotonic()+10
+        while self.psql(f"SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND application_name='{self.app_name}' AND state<>'idle'").strip()!='0':
+            if time.monotonic()>deadline: raise RuntimeError('database work did not drain')
+            time.sleep(.1)
 
     def app_pids(self):
         return [self.service[0].pid]
