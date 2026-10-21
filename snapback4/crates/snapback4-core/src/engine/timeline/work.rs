@@ -201,7 +201,7 @@ impl Engine {
                 let mut runner = runner.timeline_scope(super::super::timeline_authority::Authority::Transition(timeline.name.clone()));
                 let pending = vec![Value::String("pending".into())];
                 let (mut rows, _) = runner.timeline_page(&timeline.table("Work"), "byStatusTime", pending, 1, false, None)?;
-                let Some(work) = rows.pop() else { drop(runner); return Ok(tx.abort(None)); };
+                let Some(work) = rows.pop() else { drop(runner); return tx.abort(None); };
                 let outcome = runner.timeline_work(&timeline, &work, started, budget, rotate).and_then(|()| runner.check_final_exists());
                 let events = runner.events.take();
                 let tables: Vec<_> = runner.written_tables.iter().cloned().collect();

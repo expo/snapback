@@ -99371,3 +99371,73 @@ queue or retry; host wake selection retains its original caller boundary.
 Physical ROLLBACK I/O failures were not fault-injected, and K0b's inherited physical transaction
 drop error handling is unchanged. No performance measurement or optimization is
 claimed in this slice.
+
+
+## 2026-10-21 — K0c fix round 1
+
+The blind Sol/Grok reviews found a misplaced SQLite import guard, a lost
+rollback cause on normal abort, a borrowed activation filter and the need to
+audit variant classification through continuation errors. The row-view
+committer import is SQLite-only again. The no-default-features core check and
+the build script's web device configuration now typecheck, including the wasm
+profile and wasm32-unknown-unknown target.
+
+Normal abort now uses the same fallible path as explicit rollback. A failed
+ROLLBACK TO member returns the original RuntimeError::Sql and rusqlite source,
+then drops the owning physical transaction without acknowledgement or a
+continuation. K0b returned the member value after this failure; under the new
+member protocol, a failed frame rollback cannot prove the isolation needed to
+acknowledge an abort in a shared batch. Returning the original error preserves
+busy and retry classification while refusing durability. Test-only injection
+of SQLITE_BUSY and SQLITE_IOERR compares normal abort with explicit rollback,
+including the source, refusal envelope, busy flag, discarded metadata/clock
+and skipped continuation. The hook uses RuntimeError, keeping database-driver
+types out of the production census surface. Physical transaction-drop rollback
+I/O failure is still outside this witness.
+
+Activation collects owned ephemeral table names and dotted prefixes before
+COMMIT and carries them, with the changed-or-reset announcement flag, in the
+pending tuple. Its continuation captures no schema or reset borrow. Job status,
+expiry/publication, timeline, entropy, store acceptance, narration, adoption,
+release and reset now have owned continuation inputs with driver-supplied
+context. Host durable publication still captures &Shared; that capture and
+queued owned commands remain for the queue slice, with no Send + 'static
+callback claim here.
+
+RuntimeError::underlying strips nested continuation wrappers for variant tests
+while leaving the original durable-outcome marker available. The audit changes
+serve_adoption::retryable's Generation test to use it. Focused witnesses cover
+nested Generation, Sql/busy and TimeAudiencePending, plus host retryability.
+Job-status and sweep-publication callers propagate errors or use existing
+code/refusal/Display/busy methods, so none has a reachable raw variant test to
+change. Runner matches precede COMMIT and still see unwrapped errors. The raw
+Sql/OutOfMemory activation-cache retry and Generation adoption-reopen matches
+stay pre-commit-only: a continuation failure must not replay a committed
+activation. The committer RFC records this choice and ownership boundary, with
+K0c fix round 1 prepended to its single Revised line.
+
+The required binary build, no-default-features core check and web device wasm
+check all pass. The wasm check uses --no-default-features --features web
+--profile wasm --target wasm32-unknown-unknown, matching build-wasm.sh's Cargo
+configuration; this is a typecheck, not an optimized artifact/budget claim.
+The complete core suite passes, including all 17 doctests and the existing
+durable-to-ephemeral activation regression. After the test-only hook's type
+changed, all fourteen committer witnesses passed again on final source, and
+the binary/no-default/wasm checks were repeated successfully; production
+semantics did not change in that test-hook adjustment.
+
+The complete host run used --no-fail-fast and executed every target. Its only
+failures are the three known fixtures: w11r1c_toolchain_why_explains_node_start_failure_too
+and farm2_typescript_7_is_refused_by_version_not_crashed_on (missing application
+TypeScript), and web_witness_help_and_invalid_input (built client fixture).
+The stalled-resolver SIGINT timing fixture passed in this run. Host unit tests
+pass with 495 passed and five ignored, including the new retry classifier test.
+Both census ratchets pass (three committer tests and five store-port tests),
+with no allowance edits or raise override. ref-check --verbose passes with
+zero errors/unchecked references; git diff --check passes.
+
+Commands used the supplied Cargo target, incremental-off and line-table debug
+settings and at most -j 32. A three-second disk guard surrounded every Cargo
+check; minimum observed free space was about 38 GiB, above the 20 GB stop
+threshold. All work stayed in this worktree. No sub-agent, additional worktree,
+remote command, stash or push was used.

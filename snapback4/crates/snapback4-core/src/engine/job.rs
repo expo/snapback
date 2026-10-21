@@ -394,7 +394,7 @@ impl Engine {
             // their writer transaction, for Quarry and native chunks alike.
             let now = tx.pin_writer_time(&engine.schema, now)?;
             let head = tx.head_job()?;
-            let Some(mut head) = head else { return Ok(tx.abort(None)) };
+            let Some(mut head) = head else { return tx.abort(None) };
             let program = engine.programs.get(&head.run.name).cloned();
             #[cfg(feature = "native")]
             let current_hash = program.as_ref().map(|program| job_admission_hash(program, engine.native.as_deref().map(super::native::Module::digest)));

@@ -66,6 +66,8 @@ enum Frame {
 pub(crate) struct MemberTx<'member, 'store> {
     tx: &'member Tx<'store>,
     frame: &'member Cell<Frame>,
+    #[cfg(test)]
+    rollback_failure: Cell<Option<RuntimeError>>,
 }
 impl MemberTx<'_, '_> {
     /// Release this member; the driver still owes the physical COMMIT.
@@ -87,19 +89,19 @@ impl MemberTx<'_, '_> {
         })
     }
 
-    /// Normal early returns historically ignored rollback errors. The driver
-    /// still rejects a failed frame rollback before it can commit any batch.
-    pub(crate) fn abort<T>(self, value: T) -> Disposition<T> {
-        let _ = self.rollback_frame();
-        Disposition {
-            end: Frame::Abort,
-            value,
-        }
+    /// A normal early return must prove its frame rolled back before it can
+    /// acknowledge the value or share a batch. Preserve any original SQL error.
+    pub(crate) fn abort<T>(self, value: T) -> MemberResult<T> {
+        self.rollback(value)
     }
 
     fn rollback_frame(&self) -> Result<(), RuntimeError> {
         if self.frame.get() == Frame::Active {
             self.frame.set(Frame::Failed);
+            #[cfg(test)]
+            if let Some(error) = self.rollback_failure.take() {
+                return Err(error);
+            }
             self.tx.rollback_to("member")?;
             self.frame.set(Frame::Abort);
         }
@@ -251,7 +253,12 @@ impl Committer {
         *tx.changes.borrow_mut() = Default::default();
         tx.savepoint("member")?;
         let frame = Cell::new(Frame::Active);
-        let disposition = run(MemberTx { tx, frame: &frame })?;
+        let disposition = run(MemberTx {
+            tx,
+            frame: &frame,
+            #[cfg(test)]
+            rollback_failure: Cell::new(None),
+        })?;
         if !matches!(frame.get(), Frame::Complete | Frame::Abort) || frame.get() != disposition.end
         {
             return Err(RuntimeError::Store(

@@ -969,7 +969,7 @@ impl Engine {
                 return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
             }
             if let Err(error) = validate::validate_inputs(&engine.schema, &program, &mut context.args) {
-                return Ok(tx.abort((MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }, None)));
+                return tx.abort((MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }, None));
             }
             if context.presence.is_none() {
                 context.presence = engine.presence.clone();
@@ -1000,7 +1000,7 @@ impl Engine {
                     if (asset.kind == AssetKind::File) != matches!(inner, crate::ir::ArgType::File { .. }) {
                         let wanted = if matches!(inner, crate::ir::ArgType::File { .. }) { "a file" } else { "an image or video" };
                         let error = RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("{name} takes {wanted} and {id} is {}; upload it as {wanted}", asset.kind.word()) };
-                        return Ok(tx.abort((MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }, None)));
+                        return tx.abort((MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }, None));
                     }
                     context.args.insert(name.clone(), asset.column_value());
                 }

@@ -4,7 +4,15 @@ use crate::project::Project;
 use snapback4_core::RuntimeError;
 use std::{sync::Arc, time::{Duration, Instant}};
 
-fn retryable(error: &RuntimeError) -> bool { error.is_busy() || matches!(error, RuntimeError::Generation(_)) }
+fn retryable(error: &RuntimeError) -> bool { error.is_busy() || matches!(error.underlying(), RuntimeError::Generation(_)) }
+
+#[test]
+fn retryable_sees_through_continuation_errors() {
+    let error = RuntimeError::Continuation(Box::new(RuntimeError::Generation("changed".into())));
+    assert!(retryable(&error));
+    let error = RuntimeError::Continuation(Box::new(RuntimeError::Store("failed".into())));
+    assert!(!retryable(&error));
+}
 
 pub(super) fn open(owner: &crate::store_owner::Owner, bound: &snapback4_lang::Bound, clock: &crate::dev_clock::Clock) -> Result<snapback4_core::Engine, RuntimeError> {
     let mut reported = None;

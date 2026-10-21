@@ -2,6 +2,7 @@
 // @ref LLP 3000.015#3 — a mark write commits even when its changed range needs background work.
 #[cfg(feature = "sqlite")]
 use crate::rows::Rows;
+#[cfg(feature = "sqlite")]
 use super::committer::{Committer, Kind, Member};
 
 use super::{runner::Runner, write::Origin};
@@ -1024,7 +1025,7 @@ impl super::Engine {
                         )?
                         .pop()
                     else {
-                        return Ok(tx.abort(None));
+                        return tx.abort(None);
                     };
                     let private = m.row_count_needs_live_basis(&self.schema);
                     let seq = if private { 0 } else { tx.next_seq()? };

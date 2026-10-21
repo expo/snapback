@@ -156,6 +156,16 @@ pub enum RuntimeError {
 }
 
 impl RuntimeError {
+    /// Original error beneath any committed-continuation wrappers, for variant
+    /// classification. The original value still records the durable outcome.
+    pub fn underlying(&self) -> &Self {
+        #[cfg(feature = "sqlite")]
+        if let Self::Continuation(source) = self {
+            return source.underlying();
+        }
+        self
+    }
+
     pub(crate) fn authorization_context(self, table: &str, effect: Effect) -> Self {
         match self {
             Self::AuthorizationBudget { .. } => Self::AuthorizationBudget { table: table.into(), effect },

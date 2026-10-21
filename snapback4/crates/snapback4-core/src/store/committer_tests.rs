@@ -113,7 +113,7 @@ fn normal_abort_and_error_discard_pins_and_metadata_in_the_solo_driver() {
                 tx.set_meta("discarded", "body")?;
                 match mode {
                     "rollback" => tx.rollback(7),
-                    "drop" => Ok(tx.abort(7)),
+                    "drop" => tx.abort(7),
                     _ => Err(RuntimeError::Store("body failed".into())),
                 }
             }),
@@ -122,6 +122,60 @@ fn normal_abort_and_error_discard_pins_and_metadata_in_the_solo_driver() {
         assert!(store.conn().is_autocommit());
         assert_eq!(store.meta("time_audience_clock").unwrap(), None);
         assert_eq!(store.meta("discarded").unwrap(), None);
+    }
+}
+
+#[test]
+fn failed_abort_keeps_the_rollback_cause_and_runs_no_continuation() {
+    for code in [rusqlite::ffi::SQLITE_BUSY, rusqlite::ffi::SQLITE_IOERR] {
+        for explicit in [false, true] {
+            let failure = || {
+                rusqlite::Error::SqliteFailure(
+                    rusqlite::ffi::Error::new(code),
+                    Some("injected member rollback failure".into()),
+                )
+            };
+            let expected = RuntimeError::Sql(failure());
+            let mut store = Store::memory().unwrap();
+            let mut continued = false;
+            let error = Committer::run_with(
+                &mut store,
+                |store| {
+                    Committer::run_pending(
+                        store,
+                        Member::new(Kind::Engine, |tx| {
+                            tx.set_meta("failed_abort", "discard")?;
+                            tx.pin_time_audience_clock(30)?;
+                            tx.rollback_failure.set(Some(RuntimeError::Sql(failure())));
+                            if explicit {
+                                tx.rollback(Pending::value(7))
+                            } else {
+                                tx.abort(Pending::value(7))
+                            }
+                        }),
+                    )
+                },
+                |_, (), value| {
+                    continued = true;
+                    Ok(value)
+                },
+            )
+            .unwrap_err();
+            assert!(matches!(&error, RuntimeError::Sql(source)
+                if source.sqlite_error().unwrap().extended_code == code));
+            assert!(
+                std::error::Error::source(&error)
+                    .unwrap()
+                    .is::<rusqlite::Error>()
+            );
+            assert_eq!(error.to_string(), expected.to_string());
+            assert_eq!(error.refusal(), expected.refusal());
+            assert_eq!(error.is_busy(), code == rusqlite::ffi::SQLITE_BUSY);
+            assert!(!continued);
+            assert!(store.conn().is_autocommit());
+            assert_eq!(store.meta("failed_abort").unwrap(), None);
+            assert_eq!(store.meta("time_audience_clock").unwrap(), None);
+        }
     }
 }
 
@@ -326,7 +380,7 @@ fn normal_abort_runs_no_continuation() {
                 store,
                 Member::new(Kind::Direct, |tx| {
                     tx.set_meta("aborted", "discard")?;
-                    Ok(tx.abort(Pending::new(7, String::from("unused"))))
+                    tx.abort(Pending::new(7, String::from("unused")))
                 }),
             )
         },
@@ -360,11 +414,29 @@ fn continuation_failure_keeps_the_original_error_policy_and_durable_writes() {
     );
     let error = result.unwrap_err();
     assert!(matches!(error, RuntimeError::Continuation(_)));
+    assert!(matches!(error.underlying(), RuntimeError::TimeAudiencePending));
     assert_eq!(error.to_string(), expected.to_string());
     assert_eq!(error.refusal(), expected.refusal());
     assert_eq!(error.is_refusal(), expected.is_refusal());
     assert_eq!(error.is_busy(), expected.is_busy());
     assert_eq!(store.meta("durable").unwrap().as_deref(), Some("yes"));
+}
+
+#[test]
+fn variant_classification_strips_nested_continuation_wrappers() {
+    let error = RuntimeError::Continuation(Box::new(RuntimeError::Continuation(Box::new(
+        RuntimeError::Generation("changed during follow-up".into()),
+    ))));
+    assert!(
+        matches!(error.underlying(), RuntimeError::Generation(message)
+        if message == "changed during follow-up")
+    );
+    let error = RuntimeError::Continuation(Box::new(RuntimeError::Sql(
+        rusqlite::Error::SqliteFailure(rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY), None),
+    )));
+    assert!(matches!(error.underlying(), RuntimeError::Sql(_)));
+    assert!(error.is_busy());
+    assert!(matches!(error, RuntimeError::Continuation(_)));
 }
 
 #[test]

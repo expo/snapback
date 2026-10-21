@@ -485,17 +485,19 @@ impl Store {
             let result = finish(&tx)?;
             super::live_activation::cleanup(&tx)?;
             report.phase("metadata", &mut phase);
+            let ephemeral_tables: Vec<_> = schema.tables.iter()
+                .filter(|(_, table)| table.ephemeral.is_some())
+                .map(|(name, _)| (name.clone(), format!("{name}.")))
+                .collect();
             commit.commit(tx)?;
-            Ok(Pending::new((generation, result), (report, phase, catalog, after, changed)))
-        }), |store, (mut report, mut phase, mut catalog, after, changed), value| {
+            Ok(Pending::new((generation, result), (report, phase, catalog, after, changed || reset, ephemeral_tables)))
+        }), |store, (mut report, mut phase, mut catalog, after, announce, ephemeral_tables), value| {
                 report.phase("commit", &mut phase);
                 // Reopening an unchanged backend must not announce a new adoption.
-                store.adoption_report = if changed || reset { report } else { Default::default() };
+                store.adoption_report = if announce { report } else { Default::default() };
                 // Historical ordinals stay in _catalog, but no runtime transaction can address memory tables.
                 catalog.retain(|name,_| {
-                    !schema.tables.iter().any(|(table,t)| {
-                        t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))
-                    })
+                    !ephemeral_tables.iter().any(|(table, prefix)| name == table || name.starts_with(prefix))
                 });
                 store.catalog = catalog;
                 store.identity = after;
