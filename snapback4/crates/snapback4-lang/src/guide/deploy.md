@@ -167,7 +167,6 @@ import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { cli, deploy, rollback, startServe } from "snapback4/proof";
 import { signup } from "snapback4/auth";
-
 const directory = resolve(process.env.PRODUCTION_DIR ?? "production-day-two");
 const v1 = `use identity password
 table roles:
@@ -207,7 +206,6 @@ const v2 = v1
   {vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}
 -- Spec: only the ticket owner may revise its weight.
 invariant tickets.revise only .owner = viewer
-
 invariant tickets.read only .owner = viewer
 down tickets legacyText(body: text 1..200): {legacy:body}
 `;
@@ -278,7 +276,5 @@ try {
   console.log(JSON.stringify({status:"passed", persistent:true, before:before.size, after:changed.size, backfill:"car → commercial after v1 edit", privacy:"v1 broad → v2 private → v1 broad → v2 private"}));
 } finally { await host.stop(); }
 ```
-
 Storage, users and rows survive. Resolve reported conflicts through a truthful bridge.
-
 When table rules change, deploy and deploy --check print a short security exposure summary. Without a matching completed security campaign they demand `snapback4 test` for the selected source and fixtures (saved-source previews name `test --source`). Known refutations and coverage gaps remain visible; a finite campaign is not proof. This reminder does not change activation authority.

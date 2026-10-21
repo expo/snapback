@@ -99684,3 +99684,9 @@ asset-root marker was being inserted/deleted even when no migration ran. The
 unchanged regression passes at pre-EVOL 86303f71df and failed on this branch;
 scoping the marker to the actual server transition restores all seven residency
 tests. File-derived migration context remains inside that same atomic transition.
+
+EVOL guide verification caught and corrected three editorial regressions: restore
+the first paragraph break, locate the expanded parcels example without assuming
+the old table header, and compact prose/blank recipe lines within unchanged
+budgets. All 127 guide tests pass; language is 824/825 lines, deploy 280/280,
+and the appendix remains within its 100-word allowance. No budget increased.
