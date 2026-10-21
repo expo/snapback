@@ -3,7 +3,7 @@ import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Real HTTP projection, both client stores, watch invalidation and cold restoration.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { once } from "node:events";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -12,6 +12,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createLocalClient } from "../dist/local.js";
 import { processDevice } from "../dist/native.js";
+import { command as runCommand } from "../dist/proof.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 
 const root = fileURLToPath(new URL("../../../", import.meta.url));
@@ -49,19 +50,20 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
   assert.equal(Object.keys(projection.schema.tables).length,2);
   assert.equal(projection.schema.maintains.length,0);
   assert.equal(Object.keys(projection.schema.tables.posts.maintained).length,3);
-  const command=args=>spawnSync(binary,args,{cwd:directory,encoding:"utf8",timeout:hangBudget()});
+  // Drain the live host and HTTP keep-alive sockets while CLI inspections run.
+  const command=async args=>{const result=await runCommand(binary,args,{cwd:directory,timeoutMs:hangBudget()});return {...result,status:result.code};};
   for(const args of [["check","--json"],["doctor","--json"]]) {
-    const out=command(args);assert.equal(out.status,0,out.stdout+out.stderr);assert.doesNotMatch(out.stdout,/\$column/);
+    const out=await command(args);assert.equal(out.status,0,out.stdout+out.stderr);assert.doesNotMatch(out.stdout,/\$column/);
     if(args[0]==="check")assert.equal(JSON.parse(out.stdout).tables,2);
     else assert.match(JSON.parse(out.stdout).lines.find(line=>line.startsWith("schema")),/2 tables/);
   }
   assert.doesNotMatch(readFileSync(join(directory,"snapback/generated/api.ts"),"utf8"),/\$column/);
-  const privateData=command(["data",privateTarget]);
+  const privateData=await command(["data",privateTarget]);
   assert.notEqual(privateData.status,0);assert.match(privateData.stderr,/posts\.likeCount/);assert.doesNotMatch(privateData.stderr,/\$column/);
-  const privateSql=command(["sql",`select * from "${privateTarget}"`,"--json"]);
+  const privateSql=await command(["sql",`select * from "${privateTarget}"`,"--json"]);
   assert.notEqual(privateSql.status,0);assert.match(privateSql.stdout,/posts\.likeCount/);assert.doesNotMatch(privateSql.stdout,/\$column/);
   for(const alias of ["\\d", ".schema"]) for(const target of [privateTarget, privateTarget.toUpperCase()]) for(const json of [false,true]) {
-    const refused=command(["sql",`${alias} ${target}`,...(json?["--json"]:[])]);
+    const refused=await command(["sql",`${alias} ${target}`,...(json?["--json"]:[])]);
     assert.equal(refused.status,1,refused.stdout+refused.stderr);
     const output=json?refused.stdout:refused.stderr;
     assert.match(output,/E_MAINTAINED_COLUMN_PRIVATE/);assert.match(output,/posts\.likeCount/);
@@ -70,14 +72,14 @@ for (const family of ["sqlite","web"]) for (const queuedTail of [false,true]) te
     assert.ok(message.includes(JSON.parse(privateSql.stdout).denied.message));
     assert.ok(message.includes("`\\dt` lists tables; `\\d messages` describes one"));
   }
-  const catalog=command(["sql","\\dt","--json"]);
+  const catalog=await command(["sql","\\dt","--json"]);
   assert.equal(catalog.status,0,catalog.stderr);assert.doesNotMatch(catalog.stdout,/\$column/);
   assert.equal(JSON.parse(catalog.stdout).tables.length,2);
-  const described=command(["sql","\\d posts","--json"]);
+  const described=await command(["sql","\\d posts","--json"]);
   assert.equal(described.status,0,described.stderr);assert.doesNotMatch(described.stdout,/\$column/);
   assert.equal(JSON.parse(described.stdout).tables[0].columns.find(c=>c.name==="likeCount").maintained,true);
-  const why=command(["why",privateTarget]);assert.notEqual(why.status,0);assert.match(why.stderr,/posts\.likeCount/);assert.doesNotMatch(why.stderr,/\$column/);
-  const sql=command(["sql","select likeCount from posts","--json"]);assert.equal(sql.status,0,sql.stderr);assert.deepEqual(JSON.parse(sql.stdout).rows,[[0]]);
+  const why=await command(["why",privateTarget]);assert.notEqual(why.status,0);assert.match(why.stderr,/posts\.likeCount/);assert.doesNotMatch(why.stderr,/\$column/);
+  const sql=await command(["sql","select likeCount from posts","--json"]);assert.equal(sql.status,0,sql.stderr);assert.deepEqual(JSON.parse(sql.stdout).rows,[[0]]);
   const opener=family==="sqlite"?processDevice({dir:join(directory,"devices"),binary}):webDevice({wasm:readFileSync(join(root,"packages/snapback4/src/wasm/snapback4_device_bg.wasm")),persist:memoryPersistence()});
   const receivedPages=[];
   let offline=false,interrupt=false,interruptions=0,delivered=0,interruptedPage,tailPosted=false;

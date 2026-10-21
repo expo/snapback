@@ -5,13 +5,14 @@ import {mkdtempSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, rmSyn
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {pathToFileURL, fileURLToPath} from 'node:url';
-import {spawnSync} from 'node:child_process';
+import {command as runCommand} from '../dist/proof.js';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const binary = process.env.SNAPBACK4_BIN || join(root, 'target/debug/snapback4');
 const png = Buffer.from('89504e470d0a1a0a0000000d494844520000000100000001', 'hex');
-const invoke = (command, args, cwd, env = process.env) => {
-  const out = spawnSync(command, args, {cwd, env, encoding:'utf8', timeout:120000});
-  assert.equal(out.status, 0, `${command} ${args.join(' ')}\n${out.stdout}\n${out.stderr}`);
+// Keep live-host output and HTTP socket closure observable during CLI work.
+const invoke = async (command, args, cwd, env = process.env) => {
+  const out = await runCommand(command, args, {cwd, env, timeoutMs:120000});
+  assert.equal(out.code, 0, `${command} ${args.join(' ')}\n${out.stdout}\n${out.stderr}`);
   return out.stdout;
 };
 
@@ -20,20 +21,20 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
   t.after(() => rmSync(dir, {recursive:true, force:true}));
   const env = {...process.env}; delete env.SNAPBACK4_BIN;
   const nodeModules = join(dir, 'node_modules'); mkdirSync(nodeModules);
-  const pack = (source, destination) => {
-    const result = JSON.parse(invoke('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', dir], source));
+  const pack = async (source, destination) => {
+    const result = JSON.parse(await invoke('npm', ['pack', '--ignore-scripts', '--json', '--pack-destination', dir], source));
     mkdirSync(destination, {recursive:true});
-    invoke('tar', ['-xzf', join(dir, result[0].filename), '-C', destination, '--strip-components=1'], dir);
+    await invoke('tar', ['-xzf', join(dir, result[0].filename), '-C', destination, '--strip-components=1'], dir);
     return join(dir,result[0].filename);
   };
-  const unpack = (tarball, destination) => {
+  const unpack = async (tarball, destination) => {
     mkdirSync(destination, {recursive:true});
-    invoke('tar', ['-xzf', tarball, '-C', destination, '--strip-components=1'], dir);
+    await invoke('tar', ['-xzf', tarball, '-C', destination, '--strip-components=1'], dir);
     return tarball;
   };
   const clientTarball = process.env.SNAPBACK4_RULES_CLIENT_TARBALL
-    ? unpack(process.env.SNAPBACK4_RULES_CLIENT_TARBALL, join(nodeModules,'snapback4'))
-    : pack(join(root, 'packages/snapback4'), join(nodeModules,'snapback4'));
+    ? await unpack(process.env.SNAPBACK4_RULES_CLIENT_TARBALL, join(nodeModules,'snapback4'))
+    : await pack(join(root, 'packages/snapback4'), join(nodeModules,'snapback4'));
   const nativeName = `snapback4-${process.platform}-${process.arch}`;
   const nativeSource = join(dir, 'native');
   if (!process.env.SNAPBACK4_RULES_PLATFORM_TARBALL) {
@@ -42,13 +43,13 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     copyFileSync(binary, join(nativeSource, 'snapback4'));
   }
   const nativeTarball = process.env.SNAPBACK4_RULES_PLATFORM_TARBALL
-    ? unpack(process.env.SNAPBACK4_RULES_PLATFORM_TARBALL, join(nodeModules,nativeName))
-    : pack(nativeSource, join(nodeModules,nativeName));
-  invoke('npm',['install','--ignore-scripts','--omit=optional','--no-audit','--no-fund',clientTarball,nativeTarball],dir,env);
+    ? await unpack(process.env.SNAPBACK4_RULES_PLATFORM_TARBALL, join(nodeModules,nativeName))
+    : await pack(nativeSource, join(nodeModules,nativeName));
+  await invoke('npm',['install','--ignore-scripts','--omit=optional','--no-audit','--no-fund',clientTarball,nativeTarball],dir,env);
   const cliPath = join(nodeModules, 'snapback4/bin/snapback4.js');
   const guide = name => invoke(process.execPath, [cliPath, 'guide', name, '--full'], dir, env);
-  const blocks = name => [...guide(name).matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]);
-  const recipes = blocks('rule-recipes'), rules = blocks('rules');
+  const blocks = async name => [...(await guide(name)).matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]);
+  const recipes = await blocks('rule-recipes'), rules = await blocks('rules');
   const {startDev} = await import(pathToFileURL(join(nodeModules,'snapback4/dist/proof.js')));
   const {createClient}=await import(pathToFileURL(join(nodeModules,'snapback4/dist/client.js')));
   const {createLocalClient} = await import(pathToFileURL(join(nodeModules,'snapback4/dist/local.js')));
@@ -62,7 +63,7 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     const source = sourceBlocks.find(s=>s.includes(marker)); assert.ok(source, marker);
     const cwd = join(dir, marker.replace(/\W/g,'_')+'-'+Math.random().toString(36).slice(2)); mkdirSync(join(cwd,'snapback'),{recursive:true});
     writeFileSync(join(cwd,'snapback/schema.q'), source);
-    const checked = JSON.parse(invoke(process.execPath,[cliPath,'check','--json'],cwd,env));
+    const checked = JSON.parse(await invoke(process.execPath,[cliPath,'check','--json'],cwd,env));
     assert.equal(checked.ok,true);
     const dx5 = {
       'table rosterFolders:':['N_LOOKUP_FILTERED','mutation addRosterFile:'],
@@ -149,7 +150,7 @@ query oversized(c: cursor ?):
   return queryPathRows last 50 by .at after c
 `;
     const p=await project(t,'table queryPathRoles:',[source], {expectedNotes:['N_QUERY_FALLTHROUGH','N_QUERY_RESERVATION']});
-    const consoleCheck=invoke(process.execPath,[cliPath,'check'],p.cwd,env);
+    const consoleCheck=await invoke(process.execPath,[cliPath,'check'],p.cwd,env);
     assert.match(consoleCheck,/N_QUERY_FALLTHROUGH/);assert.match(consoleCheck,/is false.*end/);
     await p.seed([
       {table:'queryPathRoles',row:{id:'role',principal:'dev:alice',role:'staff'}},
@@ -246,7 +247,7 @@ query oversized(c: cursor ?):
     assert.equal((await replicas[0].query(a.id)).data.body,'private');
     assert.equal((await replicas[1].query(a.id)).data,null);
     await p.failed('transferRosterFolder','alice',{folder:'folder',department:'new'},'OPERATOR_ONLY');
-    const token=invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env).trim();
+    const token=(await invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env)).trim();
     const moved=await fetch(p.host.url+'/m/transferRosterFolder',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify({args:{folder:'folder',department:'new'}}),signal:AbortSignal.timeout(15000)}).then(r=>r.json());
     assert.equal(moved.state,'sent',JSON.stringify(moved));
     for(const row of [a,b]) {
@@ -288,7 +289,7 @@ query oversized(c: cursor ?):
     const unsubscribe=watch.subscribe(()=>{});t.after(()=>{unsubscribe();watch.close();});
     await until(()=>watch.getSnapshot()?.data?.body==='private','live held point starts authorized');
     await p.failed('transferLiveRosterFolder','alice',{folder:'folder',department:'new'},'OPERATOR_ONLY');
-    const token=invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env).trim();
+    const token=(await invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env)).trim();
     const moved=await fetch(p.host.url+'/m/transferLiveRosterFolder',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify({args:{folder:'folder',department:'new'}}),signal:AbortSignal.timeout(15000)}).then(r=>r.json());
     assert.equal(moved.state,'sent',JSON.stringify(moved));
     for(const row of [a,b]) {
@@ -324,7 +325,7 @@ query oversized(c: cursor ?):
     const row=await p.sent('addLiveRosterFile','alice',{folder:'folder',body:'placed',image:upload.asset});
     const get=who=>fetch(p.host.url+'/assets/'+upload.asset.id,{headers:{'x-snapback-persona':who},signal:AbortSignal.timeout(15000)});
     assert.equal((await get('alice')).status,200);assert.equal((await get('bob')).status,404);assert.equal((await get('carol')).status,200);
-    const token=invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env).trim();
+    const token=(await invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env)).trim();
     const moved=await fetch(p.host.url+'/m/transferLiveRosterFolder',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify({args:{folder:'folder',department:'new'}}),signal:AbortSignal.timeout(15000)}).then(r=>r.json());
     assert.equal(moved.state,'sent',JSON.stringify(moved));
     assert.equal((await get('alice')).status,404);assert.equal((await get('bob')).status,200);assert.equal((await get('carol')).status,200);
@@ -358,7 +359,7 @@ query oversized(c: cursor ?):
     await p.failed('memberPage','alice',{room:'room',body:'Expired'},'E_RULE');
   });
   await t.test('bare union has an explicit cold-start tradeoff and both audiences read', async t=>{
-    assert.match(guide('rule-recipes'),/cold-start work and storage grow/);
+    assert.match(await guide('rule-recipes'),/cold-start work and storage grow/);
     const p = await project(t,'table unionNotes:');
     await p.seed([{table:'unionTeams',row:{id:'team',label:'Team'}},{table:'unionRoster',row:{id:'a',team:'team',principal:'dev:alice'}},{table:'unionRoster',row:{id:'b',team:'team',principal:'dev:bob'}}]);
     await p.sent('unionNote','alice',{team:'team',body:'Both'});
@@ -409,8 +410,8 @@ query oversized(c: cursor ?):
     assert.ok(logs.includes('SNAPBACK4_READY'));
     const path=join(p.cwd,'snapback/schema.q');
     writeFileSync(path,readFileSync(path,'utf8').replace('require false else AFTER_WRITE','require false else DISK_NEW'));
-    const run=spawnSync(process.execPath,[cliPath,'run','ladderPut','{"owner":"dev:bob"}','--as','bob','--port',new URL(p.host.url).port],{cwd:p.cwd,env,encoding:'utf8',timeout:15000});
-    assert.equal(run.status,1,run.stdout+run.stderr);assert.match(run.stderr,/mutation require/);assert.match(run.stderr,/require false else AFTER_WRITE/);assert.doesNotMatch(run.stderr,/DISK_NEW/);
+    const run=await runCommand(process.execPath,[cliPath,'run','ladderPut','{"owner":"dev:bob"}','--as','bob','--port',new URL(p.host.url).port],{cwd:p.cwd,env,timeoutMs:15000});
+    assert.equal(run.code,1,run.stdout+run.stderr);assert.match(run.stderr,/mutation require/);assert.match(run.stderr,/require false else AFTER_WRITE/);assert.doesNotMatch(run.stderr,/DISK_NEW/);
   });
   await t.test('asserted hidden read precedes the business refusal', async t=>{
     const p=await project(t,'table ladderTickets:',rules);
@@ -447,7 +448,7 @@ query oversized(c: cursor ?):
   await t.test('presence gates durable writes across poll grace and reconnect', async t=>{
     const p=await project(t,'table durableHandoffs:');
     await p.failed('enrollHandoffPeer','alice',{principal:'dev:bob'},'OPERATOR_ONLY');
-    const token=invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env).trim();
+    const token=(await invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env)).trim();
     const enrolled=await fetch(p.host.url+'/m/enrollHandoffPeer',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify({args:{principal:'dev:bob'}}),signal:AbortSignal.timeout(15000)}).then(r=>r.json());
     assert.equal(enrolled.state,'sent',JSON.stringify(enrolled));
     await p.failed('handoff','alice',{recipient:'dev:bob',body:'away'},'PEER_AWAY');
@@ -520,7 +521,7 @@ query oversized(c: cursor ?):
     const row=await p.sent('addAncestorFile','alice',{folder:f.id,body:'private'});
     assert.equal(await p.read('ancestorFile','bob',{file:row.id}),null);
     await p.failed('transferAncestor','alice',{project:'root',owner:'dev:bob'},'OPERATOR_ONLY');
-    const token=invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env).trim();
+    const token=(await invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env)).trim();
     const moved=await fetch(p.host.url+'/m/transferAncestor',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify({args:{project:'root',owner:'dev:bob'}}),signal:AbortSignal.timeout(15000)}).then(r=>r.json());
     assert.equal(moved.state,'sent',JSON.stringify(moved));
     assert.equal(await p.read('ancestorFolder','alice',{folder:f.id}),null);
