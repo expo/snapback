@@ -1,0 +1,266 @@
+{
+  "at": "2026-10-21T00:20:49.685234+00:00",
+  "source": "3fe924cd9bc8b83e2f8faf1fceaa309e11b610ee",
+  "version": "0.4.35",
+  "merge": "07b210d2ff4f0e27635b2e2cb983f84ae7dc58ce",
+  "wasmRecord": "389347100bfcb5656aad7f60e4aeaaeb65c77f04",
+  "sqlCorrection": "3fe924cd9b",
+  "rust": {
+    "command": {
+      "label": "cargo-final",
+      "command": [
+        "timeout",
+        "10800",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "-p",
+        "snapback4-lang",
+        "-p",
+        "snapback4-device",
+        "-p",
+        "snapback4-sim",
+        "-p",
+        "snapback4",
+        "--no-fail-fast"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 5676.753
+    },
+    "groups": 439,
+    "passed": 6999,
+    "failed": 0,
+    "ignored": 45,
+    "logSha256": "f801d1399b451dbc89d7ac2fde48ee574be39f397140a9f26429d22abba3f0b2"
+  },
+  "clients": {
+    "ordinaryFiles": 423,
+    "modelFiles": 2,
+    "sessionSequences": 5000,
+    "onlineSequences": 3000,
+    "counts": {
+      "tests": 7901,
+      "pass": 7845,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 56,
+      "todo": 0
+    },
+    "groups": [
+      {
+        "group": "clients-fixtures-clean",
+        "files": 1,
+        "nativeTapCounts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "diagnosticIpcCounts": {
+          "tests": 9,
+          "pass": 9,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "logSha256": "421c9aae45e2e4839039aee7eb43ccedb2600653bfad67e21a30b32d121525bb"
+      },
+      {
+        "group": "clients-pool-clean",
+        "files": 423,
+        "nativeTapCounts": {
+          "tests": 7811,
+          "pass": 7755,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 56,
+          "todo": 0
+        },
+        "diagnosticIpcCounts": {
+          "tests": 7811,
+          "pass": 7755,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 56,
+          "todo": 0
+        },
+        "logSha256": "f7493271fe8cad1329e127e6eb0e84a2d8a6d8d3373f8846407cf2ab0f26edf0"
+      },
+      {
+        "group": "clients-models-clean",
+        "files": 2,
+        "nativeTapCounts": {
+          "tests": 81,
+          "pass": 81,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "diagnosticIpcCounts": {
+          "tests": 81,
+          "pass": 81,
+          "fail": 0,
+          "cancelled": 0,
+          "skipped": 0,
+          "todo": 0
+        },
+        "logSha256": "951f2deb6432364458523998652b6403a894eb791adc158d6f71239a079640bf"
+      }
+    ],
+    "binary": {
+      "version": "snapback4 0.4.35",
+      "sha256": "412830f3b784c73ede722d8cea68f7a631d00fa9d72f15e9b2dce53f145340d5",
+      "bytes": 63023184,
+      "path": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/merge035-r2-pinned/snapback4",
+      "source": "3fe924cd9bc8b83e2f8faf1fceaa309e11b610ee"
+    }
+  },
+  "qualification": {
+    "source": "3fe924cd9bc8b83e2f8faf1fceaa309e11b610ee",
+    "route": "proot",
+    "publicationQualified": false,
+    "consumerSha256": "5da5015115ca273c2dde420b0ef3332cda14aff90bf21637a205b7595e4f25ac",
+    "clientIntegrity": "sha512-Pl5E3PQ1o1ARgBd9GOH7J/kYyt/N0nVUJRv6ZVC0/nOO/UjZ1oVNvcMXYGBX+tU58URSFKCgmCvlzKs8TyX/jQ==",
+    "expoIntegrity": "sha512-VG2aYE4ebdc/8Jnd73Oekep+68tJc+SpwtF9fwJG8V44ZJigrdupJSmkC/tMDSJhjOG1RfJzLPyBK1ZVYkACxQ==",
+    "binarySha256": "05b5089973cf8d5e4154c8eda1857f0c0561bf7c1b035e248d7e9a163a7e3e3e",
+    "command": {
+      "label": "qualify-linux-72",
+      "command": [
+        "timeout",
+        "14300",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "env",
+        "npm_config_cache=/home/ccheever/sb4-loop/merge035/r2/npm-cache",
+        "node",
+        "scripts/qualify-linux.mjs",
+        "--client",
+        "/home/ccheever/sb4-loop/merge035/r2/fresh-pack/snapback4-0.4.35.tgz",
+        "--expo",
+        "/home/ccheever/sb4-loop/merge035/r2/fresh-pack/snapback4-expo-0.4.35.tgz",
+        "--out",
+        "/home/ccheever/sb4-loop/merge035/r2/qualified-72",
+        "--consumer-only"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 1684.493
+    }
+  },
+  "root": {
+    "command": {
+      "label": "root-checks-final",
+      "command": [
+        "timeout",
+        "1700",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "bash",
+        "-c",
+        "bun install --frozen-lockfile && node scripts/ensure-workspace-hoist.mjs && node scripts/generate-guide-manifest.mjs && node scripts/check-inventories.mjs && node scripts/check-guide.mjs && ./ref-check"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop",
+      "exit": 0,
+      "seconds": 535.738
+    },
+    "logSha256": "f01722a90ab697dd794df77a695f3716abb50eb7d4f0c802835dbe361fcff51f"
+  },
+  "wasm": {
+    "rawBytes": 2404722,
+    "gzipBytes": 733690,
+    "sha256": "e0a2762497dc6b5296359f4968c4a22b57476ecb008cd054c0b60b32dfe27f76",
+    "packedPath": "package/dist/wasm/snapback4_device_bg.wasm",
+    "packedEqualsMeasuredSource": true,
+    "budgetBytes": 734190,
+    "finalPackedSource": "3fe924cd9b",
+    "coreCompilerDeviceSdkUnchangedBySqlCorrection": true
+  },
+  "docsBudget": {
+    "command": {
+      "label": "docs-budget-final",
+      "command": [
+        "timeout",
+        "1100",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "node",
+        "scripts/docs-budget.mjs"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 18.457
+    },
+    "logSha256": "066defbc6d7a67496c821a97cf96c8430be2f0b463350f335ad9131ef2bb210b"
+  },
+  "columnLean": {
+    "command": {
+      "label": "column-lean-final",
+      "command": [
+        "timeout",
+        "1100",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "env",
+        "SNAPBACK4_REQUIRE_LEAN=1",
+        "SNAPBACK4_LEAN_ORACLE=/home/ccheever/projects/snapback-sb4loop/snapback4/lean/.lake/build/bin/quarry-oracle",
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-difftest",
+        "--test",
+        "column_reads_lean"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 6.477
+    },
+    "logSha256": "e076eb731afed5ee7fe783dc367d9b209a1b4b08529cd86391699e9826989024"
+  },
+  "mac": "Not required by user; not run",
+  "supplementalCaps": {
+    "status": "inherited red; unchanged source sizes from both parents",
+    "violations": 15,
+    "workingSet": 107,
+    "workingSetBudget": 59,
+    "oversizeFiles": 218,
+    "oversizeBaseline": 204,
+    "logSha256": "1aab6dc9d5e0df9c9785174306338e181447588dbe136eb49d4a2f99d6d767d8"
+  },
+  "infrastructure": {
+    "tracer": {
+      "source": {
+        "release": "https://api.github.com/repos/strace/strace/releases/tags/v7.2",
+        "download": "https://strace.io/files/7.2/strace-7.2.tar.xz",
+        "sha256": "4bde6246926890dcee824f6e6ac42a06752f47d77e5097d86e3c0d6d4b709fe5",
+        "bytes": 2810844
+      },
+      "path": "/home/ccheever/sb4-loop/merge035/tools/strace-7.2-installed/bin/strace",
+      "binarySha256": "6e18e294308a641afb1dd419414a141d51ef6c69f605db032d5da4433885a292",
+      "version": "strace -- version 7.2"
+    },
+    "previousPackedAttempts": [
+      "qualify-linux-complete: malformed strace 6.8 listener record",
+      "qualify-linux-retry: malformed strace 6.8 listener record"
+    ],
+    "listenerAudit": "Unchanged strict listener audit; isolated exact frontend helpers passed and complete consumer run repeated with task-local strace 7.2",
+    "tracerRelease": "https://github.com/strace/strace/releases/tag/v7.2"
+  }
+}

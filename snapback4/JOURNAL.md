@@ -97687,3 +97687,35 @@ existing CLI inspection regression now checks both misplaced flags and all
 three mode labels; the expanded test fails before the correction. Earlier
 partial broad attempts are excluded; full final Linux qualification restarts
 after this correction.
+
+
+## 2026-10-21 — Integration 19 storage-port merge: complete Linux qualification
+
+The merge at 07b210d2ff preserves the incoming typed store boundaries and
+0.4.35 behavior. SQL mode/flag reporting correction 3fe924cd9b has fail-before
+and pass-after regression evidence. The full requested five-crate command
+completed after that correction: 6,999 passed, zero failed, 45 existing ignores
+across 439 result groups. No host-test flake was substituted for a green run.
+The full client pool, fixtures and both full-count models report 7,845 passed,
+zero failed and 56 platform skips. The unchanged 250-schema survey accepts
+every schema, with zero false refusals. Native 20k and device seeds 0–999 have
+zero disagreements; Lean 20k exactly reproduces the four existing signatures
+and counts (130 total), with no new signature. Three required column-rule Lean
+witnesses pass. Docs budget, root inventories/guide/ref checks and regenerated
+authoring/delivery censuses pass. No generated file was hand-merged.
+
+A fresh official pack passes the complete Linux consumer-only qualification,
+including strict frontend listener audits, Ubuntu and Alpine consumers. Two
+earlier complete attempts failed on malformed system-strace 6.8 trace records;
+exact isolated helpers passed, and the entire qualification was repeated with
+a task-local source/hash-verified strace 7.2. Neither audit parser nor assertion
+was relaxed. This is consumer evidence, not a publication receipt.
+The pack contains the measured wasm: 2,404,722 raw / 733,690 gzip / 552,771
+Brotli bytes; budget 734,190 = gzip + 500. Mac checks were explicitly excluded
+by this task. Sanitized records: reports/integration19-storage-port/. Raw logs
+and tool provenance: /home/ccheever/sb4-loop/merge035/r2/.
+
+A supplemental repository-wide caps audit retains inherited oversize/working-set
+violations, proven against both parents; its fixture tests pass. This merge
+introduces no oversized file and does not raise those limits. New main changes
+will be merged and checked at their affected scope before delivery.

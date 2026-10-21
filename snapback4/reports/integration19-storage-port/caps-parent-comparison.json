@@ -1,0 +1,86 @@
+[
+  {
+    "path": "snapback4/packages/snapback4/src/local.ts",
+    "merged": 1503,
+    "integration19": 1503,
+    "incoming": 1503
+  },
+  {
+    "path": "crates/snapback-tools/src/bin/snapback-agent-safe-paired.rs",
+    "merged": 1504,
+    "integration19": 1504,
+    "incoming": 1504
+  },
+  {
+    "path": "packages/snapback-contract/agent-authority-contract.test.mjs",
+    "merged": 1508,
+    "integration19": 1508,
+    "incoming": 1508
+  },
+  {
+    "path": "packages/snapback-codegen/graph-query.mjs",
+    "merged": 1514,
+    "integration19": 1514,
+    "incoming": 1514
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/serve_tests.rs",
+    "merged": 1515,
+    "integration19": 1515,
+    "incoming": 1515
+  },
+  {
+    "path": "snapback4/crates/snapback4/src/serve.rs",
+    "merged": 1516,
+    "integration19": 1516,
+    "incoming": 1527
+  },
+  {
+    "path": "scripts/guide-lib.mjs",
+    "merged": 1521,
+    "integration19": 1521,
+    "incoming": 1521
+  },
+  {
+    "path": "packages/snapback-codegen/provider-introspection.mjs",
+    "merged": 1522,
+    "integration19": 1522,
+    "incoming": 1522
+  },
+  {
+    "path": "packages/snapback-expo/provider-auth-bootstrap.test.mjs",
+    "merged": 1525,
+    "integration19": 1525,
+    "incoming": 1525
+  },
+  {
+    "path": "snapback2/packages/snapback2/tests/twin.test.ts",
+    "merged": 1525,
+    "integration19": 1525,
+    "incoming": 1525
+  },
+  {
+    "path": "snapback4/crates/snapback4-lang/src/parser.rs",
+    "merged": 1527,
+    "integration19": 1527,
+    "incoming": 1511
+  },
+  {
+    "path": "packages/snapback-contract/client-store-authority.test.mjs",
+    "merged": 1541,
+    "integration19": 1541,
+    "incoming": 1541
+  },
+  {
+    "path": "clients/swift/SnapbackClient/Sources/SnapbackClient/StateMachine.swift",
+    "merged": 1543,
+    "integration19": 1543,
+    "incoming": 1543
+  },
+  {
+    "path": "demos/_kit/tests/auth-coordinator-client.mjs",
+    "merged": 1544,
+    "integration19": 1544,
+    "incoming": 1544
+  }
+]

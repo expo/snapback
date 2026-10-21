@@ -1,0 +1,2025 @@
+{
+  "binarySha256": "412830f3b784c73ede722d8cea68f7a631d00fa9d72f15e9b2dce53f145340d5",
+  "apps": 250,
+  "accepted": 250,
+  "refusals": 0,
+  "falseRefusals": 0,
+  "perWave": {
+    "15": 100,
+    "16": 50,
+    "18": 50,
+    "19": 50
+  },
+  "allOriginalHashesUnchanged": true,
+  "rawLogSha256": "5b163bccecde71ae3f4362a809002c68b497fb92fa09981fc87927b29ca1bf65",
+  "sources": [
+    {
+      "wave": 16,
+      "lane": "001-snapback-ferry-deck-manifest",
+      "hashes": [
+        "ecf8fb45f30a3c97eed9c5de5c15d12f2c5abbb4f37f5094d0ddd209519f9544"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "002-snapback-orchard-spray-reentry",
+      "hashes": [
+        "e9fba52a9a60ca443c682ba46fd98f056661390ec30692c968f83e757a123a3f"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "003-snapback-specimen-courier-chain",
+      "hashes": [
+        "5fde205b1b706636c1fe50b3922e6cdeaf2abc3a4cba51b61b572971dbeb5f5f"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "004-snapback-fly-rail-cue-locks",
+      "hashes": [
+        "b380c002cdc8835764fbf1c01bcda56c3c9187bf2f0959b31e6dd864561d0748"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "005-snapback-kiln-firing-queue",
+      "hashes": [
+        "aff811f525352e8c5249cbf2246c9c67b862e4f29588a7d6b375ed1032aed633"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "006-snapback-dive-boat-buddy-log",
+      "hashes": [
+        "67e7f936b4109d8cea3d115a2b2d4e3f38425a8e450f56185842224ec14bea2b"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "007-snapback-farrier-hoof-rota",
+      "hashes": [
+        "5622cd648fd058260a50fed034682f14befff320552cbfaf0620ba7a28857dc9"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "008-snapback-sublet-key-escrow",
+      "hashes": [
+        "23a7eafc8504e04f1e2234935cb4698a0eca608c49865a5374b690e9f0da30c4"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "009-snapback-choir-part-tracks",
+      "hashes": [
+        "e0c969d8acc685e20c6fb166771fbd43c1bee73b956fa0ca9f90c932d81c8452"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "010-snapback-allotment-water-turns",
+      "hashes": [
+        "b22c456b04ceeef14c57bdc0bae6e1ec1af02215f9bb63138d73f14ecd83fb3e"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "011-snapback-freezer-rack-ledger",
+      "hashes": [
+        "558795b86dfdabe403f0d7902b90ae2e8909eec53732a9ce8b96bd07fc265980"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "012-snapback-court-interpreter-slots",
+      "hashes": [
+        "fc59516459c97944f27e7dec65674efa0d9fb8482f893dd190e21390eee9ff06"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "013-snapback-hackathon-rubric-judging",
+      "hashes": [
+        "cca90a1a5b901961bc869141f9df6eb2a68f7068a14461d17e2ae1bb320fa2db"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "014-snapback-ice-rink-resurface-slots",
+      "hashes": [
+        "ae89ce3bd1dd213c53e9924bcdbf034bbf4ff33ac8dd2c2af3484cee9acc2b30"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "015-snapback-foster-pet-handoffs",
+      "hashes": [
+        "7f08764f9c9e5fe628a011a768c973dc76c959813e5cd0458896befd7ad8029c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "016-snapback-coworking-locker-leases",
+      "hashes": [
+        "87518479c0ed7a9ed43208220dc4982beecf15e1452f8808f7e7daa32111b6e3"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "017-snapback-trial-symptom-diary",
+      "hashes": [
+        "ce9c5c6d211bf9335b925757462332d76eba15f98c182f7f51bfc1be559a0fbf"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "018-snapback-film-dailies-notes",
+      "hashes": [
+        "a5ae54d00bae345528298bbf771f64f519cffa9e2bc955ae5d9f50b48a07b522"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "019-snapback-apiary-hive-inspections",
+      "hashes": [
+        "67b76528e9ec9f7a3038440f8b53785339bb94a3c02451ec5de6242a545f6162"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "020-snapback-tow-yard-release",
+      "hashes": [
+        "d170bd17498ce0672cf5161caab879d96084eb4fb65d26d1a51c1875b5e90996"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "021-snapback-moot-court-scoring",
+      "hashes": [
+        "3908c6b10791d3ef3b42ed4c621beecf9fa5894186de2fc496b194b8e33dc6ec"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "022-snapback-glacier-rope-teams",
+      "hashes": [
+        "122b3b745460f47c93affe7a21d63a1a6537ffcf4e36fa51d21dc38747ffd856"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "023-snapback-brew-comp-blind-flights",
+      "hashes": [
+        "8a7b6cd1e0ce6b9410b4840e83ed8d3be192664acc30af804b74247b73d9ea6f"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "024-snapback-cycle-count-tasks",
+      "hashes": [
+        "257f19f3e78f39ec8b8987fe85836037460c0bc996349d2cdbd857839f23508b"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "025-snapback-cemetery-plot-deeds",
+      "hashes": [
+        "7aac39a072a2a73c99a433456bea55500d503fcea99a62bfb42330638cbddda8"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "026-snapback-dorm-noise-reports",
+      "hashes": [
+        "80f3b7e7c005078a5c411d15f8124a804a7c03f0cdbb209dfb165cd760ca5a58"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "027-snapback-podcast-guest-releases",
+      "hashes": [
+        "6b7b951188cdfa933d498b82373bb00dfb42d45c8db3e3ecfcffbdd6e0600b83"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "028-snapback-tool-library-deposits",
+      "hashes": [
+        "d560ff479479c2b4e5e163ff7cd4bceb8000415c94f6b99873fc6e1e4d664b2c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "029-snapback-fire-lookout-shifts",
+      "hashes": [
+        "737c5c02d6804ecba657dd6bda719e78fd1529f5cb61defebab32bf4e8981bdc"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "030-snapback-harvest-bin-tickets",
+      "hashes": [
+        "f04b5d130ff5bc172e5a48c137cafaa4038572c0ce5ced67c5a5ce4325d79ac0"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "031-snapback-piano-tuning-route",
+      "hashes": [
+        "95f7575f32350be36a185645b5026b2dc7ee3502fa2ff90639496fb868559508"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "032-snapback-scrim-vod-reviews",
+      "hashes": [
+        "bfdf87d2359ed91158eb14fad34ab00e72b5a5d1b8b3d30124734b9c2c94f9fb"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "033-snapback-compounding-dual-check",
+      "hashes": [
+        "e324a7d3af40c33db3bb586d724c68835fc03c4f893b5daf2180100e0032ad98"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "034-snapback-marina-liveaboard-slips",
+      "hashes": [
+        "3dc1e1b20bac91606bc542cc8291295b1c38a0de4ba06774778a5846e959be2e"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "035-snapback-archive-reading-requests",
+      "hashes": [
+        "e9fa46081bde0695a9b8ec9b4dd2d7fc4e201217eb035ea5f480e1ea6d2019e0"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "036-snapback-robotics-parts-ledger",
+      "hashes": [
+        "f030278f529b787b500743d275bb91e61710c10ffed039d7f062d4313c8f803a"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "037-snapback-bus-roster-changes",
+      "hashes": [
+        "61e6f3945baab017c397c7eb0ec5a0b3a4e03bac1fdcf6c0399abcfb3c4225e3"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "038-snapback-hotel-lost-property",
+      "hashes": [
+        "0b354587abc338d1f8e0e6cf2e6a95e28a0a2834797c374303deba39ee74d8e9"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "039-snapback-glossary-term-reviews",
+      "hashes": [
+        "15122c08f32eba9acbdb406dacfaeba75b4f88de42e83e1ce371a1040714ae0a"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "040-snapback-route-setting-rotation",
+      "hashes": [
+        "ee92be1bfe9cee89be173bc61a62e89a516d35520fc959ac3a6bb01391594ee8"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "041-snapback-community-fridge-restocks",
+      "hashes": [
+        "7d9717606822cf8a4a9b7f4a40bb8bd930da12cab6cf59de0f8bc128cc8f9434"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "042-snapback-sterile-tray-tracking",
+      "hashes": [
+        "ad4940acac89e0c8b5ed724cf96c0064fad7e17b05196e89a1134a68c80b82db"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "043-snapback-wedding-vendor-timeline",
+      "hashes": [
+        "28dcf16a4fec2bbda166513a2c9343c458f448458b799ce29aa1c386dd1f7587"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "044-snapback-ham-net-checkins",
+      "hashes": [
+        "f201fffb3f76288fd297320fbbd7ee5336b6eee075037a6b357a688ce629be0a"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "045-snapback-instrument-loan-bank",
+      "hashes": [
+        "7e9d7debe84fc24ee26d45b3c005373b0c879108f9d2031b30308e3065a0b717"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "046-snapback-greenhouse-climate-alarms",
+      "hashes": [
+        "f3abffe9524773aa984c0dcfbd7991e532b06015fe66ac263608dcf2f4d3a7d3"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "047-snapback-mural-wall-permits",
+      "hashes": [
+        "0157a5de1b8e3e9338314c9c04dae5810cbbc8bc81e76b723f0d9631a9844027"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "048-snapback-boiler-room-rounds",
+      "hashes": [
+        "ae682a6d3f3b279f23526f1a85ed81f46518f1e02ec540534f11c7d96d48a420"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "049-snapback-cheese-cave-wheels",
+      "hashes": [
+        "15490e514d8c3b74db3d5874ea934929f16c4e9ecd59d18a30a5c0c288451581"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 16,
+      "lane": "050-snapback-ambulance-crew-checkout",
+      "hashes": [
+        "9e61aaeb3bc3515be38b76088549c2859e5c2d6f4838122738fabe1627024564"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "001-weld-coupon-quals",
+      "hashes": [
+        "32e2b4256c6e5ffee6a3bbf3562e81818e7a8908f5c02b79baf74eb877ce138b"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "002-day2-scaffold-tag-board",
+      "hashes": [
+        "159821b8f52af76bbf136d342550067cf9db0cbc39252b4283c005f3ea76048d"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "003-tile-dye-lot-holds",
+      "hashes": [
+        "c74cda974aa3bf26d01d0978091a9100e07552c36486da6382925b939451e9f4"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "004-day2-arc-reviewer-copies",
+      "hashes": [
+        "c7db46ce7fcbc130752e87e11a90a6a77871202021431e9392ff03506836c0ad"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "005-arborist-hazard-tags",
+      "hashes": [
+        "70cd48a4d6121aaf39ddb5dade30d2286060c4f7b642b2be9779861844b6a3db"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "006-day2-duplicate-bridge-boards",
+      "hashes": [
+        "18fa67f31841f9a65e6606428e3602427d0d2331288073aad8912bf7a44fd84a"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "007-med-pass-cosign",
+      "hashes": [
+        "7fa55ff866f800df99ee8c7d79bc5afb4b5fe09dc48133fbaed66452acfcb454"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "008-day2-docket-deadline-calendar",
+      "hashes": [
+        "7d3df110b9e983d1d7801017829dd05e3be64997e22fe0d6fc31b4fecfa59349"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "009-lactation-room-queue",
+      "hashes": [
+        "902d67f79de31fd2277497e81e451e536665b02ca703a72cd442c29e66c5beb9"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "010-day2-propane-tank-readings",
+      "hashes": [
+        "7ba57b75787e7969b42723d1b30a2b5bad42c8ab0c9644034ef78ca03a2eff8f"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "011-school-vision-screens",
+      "hashes": [
+        "06d7de5369d4e5643d433c67000ab4ef032121e986ef6d168e05bf5dfe0841b5"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "012-day2-pet-addendum-approvals",
+      "hashes": [
+        "8756b25e8f44313f7d097fd67f9382568359c73d5c8fb3f23e831b3b0916b3ba"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "013-stroke-rehab-contracts",
+      "hashes": [
+        "581bb2ff451a253687221e40f9a7a2d9d0f152c65aee8422ae341f77057678d2"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "014-day2-venue-date-holds",
+      "hashes": [
+        "aff3617903f30f154db366ee86420ac0ad34225d73631d9bd6bb8d9acc82a24e"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "015-lab-bench-breakage",
+      "hashes": [
+        "cbfeb20f93e3bc99880eb1634500a43704ac0c43607d7bb93a8b968831ee46fa"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "016-day2-waste-accumulation-clock",
+      "hashes": [
+        "99e78ef30e63501f56c5a505d80e5dd3974461bb12fbfe6eea1d0e5debc73f82"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "017-peer-grading-calibration",
+      "hashes": [
+        "76758a6321d69d57bad13661af24d9ea33a95f8c5806064bd05f60873f8176f0"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "018-day2-bike-serial-registry",
+      "hashes": [
+        "a8b76c8915814e4386df2aa29e0fb93b10c95e38e3ed6d76a93d19f775f2fa41"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "019-sidewalk-cafe-permits",
+      "hashes": [
+        "0ea40ee69c634050db43d75cd4a16ffaeb714f0a6c9d45527827265fc3795c0a"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "020-day2-four-h-project-records",
+      "hashes": [
+        "118d53549112bc1aacb4e2bb7928d8c3d4e9740595dc33cb864190450bdbb0db"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "021-block-party-closures",
+      "hashes": [
+        "253562de256e293f8e014e4599175d8ef58c690d00e47c71f130d097aa54d95c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "022-day2-barrel-shipment-consolidation",
+      "hashes": [
+        "fd4e6c3995ccb179722662b69699a06028aef1514928b1e8135f699513a1c3eb"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "023-hydrant-adoption",
+      "hashes": [
+        "eb605989b5f5722d1794d559eef5f5ac2651ac8c23e10b4aacf2472bb088ea91"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "024-day2-reading-room-pulls",
+      "hashes": [
+        "71859c71e78c7ce44a3b6c67ff9c30e54808983e875efdb2b50874b620300ae8"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "025-homebrew-comp-flights",
+      "hashes": [
+        "31a1d92094e642da76fc1b8bc63a70fea2ffbabaf04b85d6257a9f7e4b14da85"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "026-day2-dropzone-load-manifest",
+      "hashes": [
+        "21063ab0d09130ea1d1e863b14abeaa6ce871158425ecb7b07e234b0d4f1b1a3"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "027-agility-trial-run-order",
+      "hashes": [
+        "8eefcd03c93fc91ed739f9792fbc8c0e2310e25858244fa87f11a6ae4ae5e223"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "028-day2-understudy-readiness",
+      "hashes": [
+        "67cd197b0c7effb450fabb8c750dcdec9e766f2e9249ed884971d04c8c7ac6e8"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "029-rc-lap-timer",
+      "hashes": [
+        "c7153eddc0e8ac79c2b9e6667f1d2490cfb76b60f8bf220720b3269d16d1469a"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "030-day2-color-formula-cards",
+      "hashes": [
+        "183249717aa3c05c7e7d7d77f364b3dfa4f6958571031ccce7a42d5f14f097cb"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "031-pinball-league-scores",
+      "hashes": [
+        "20797c29ac2704211f7802281178660891b8dfc701c2be514fd2ee4e0c6c55ee"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "032-day2-dismissal-change-requests",
+      "hashes": [
+        "95ac4e6014abc1596f34790b2059b65fa1a5ae8f6333ce9d17737bf4670e671e"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "033-go-ladder-handicaps",
+      "hashes": [
+        "87a0b2cb8c6c49fc0a1ffcef1ccac959b8215312ec069adbee78c4e0c21a6420"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "034-day2-cla-signature-ledger",
+      "hashes": [
+        "2ddf1fb610925642ec387c7454817c7e894cfaaf91325c3e2cd9abdcaa112331"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "035-dry-clean-rack-tickets",
+      "hashes": [
+        "702f1f6eca1f72ac8164f31e0b36be3cb15a452f991f97afec437f00308d3a47"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "036-day2-jersey-number-requests",
+      "hashes": [
+        "71e670f894501d23c686b15f6df7e457c157e16867449cc3b6e487d92b322cc1"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "037-flavor-rotation-board",
+      "hashes": [
+        "b19eb25cab59caaf422f1befd69ae7eab26491a67e45a0af2028e2f57509fcf1"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "038-day2-magic-method-vault",
+      "hashes": [
+        "e87cccabdcec6d2cafd84ccd787e3d59bc126d9f56135d335d054cbb15907728"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "039-photo-booth-galleries",
+      "hashes": [
+        "40ba787579c259424c29821c90b1eddc806e72c8e9398a388bfd6c70e4579efc"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "040-day2-doula-backup-rotation",
+      "hashes": [
+        "29432124b8995a89e5232e6f658d6dfcc8f71d407d7a74c3ef14683d100ce0cc"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "041-clothing-closet-visits",
+      "hashes": [
+        "06444e1bb0d55fd6b58292fff7df9b178101ffc017a8e72f2d6131e8daa000b8"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "042-day2-bite-quarantine-checks",
+      "hashes": [
+        "f41c392a6a12454442bf98093b2547c9f9a0f474f9badb4700f3b3c49742cd13"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "043-warming-center-tonight",
+      "hashes": [
+        "7d868661cb84d34e7d3dc2628be70416411682c1b13fac53cc590605b4199a27"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "044-day2-screen-time-tokens",
+      "hashes": [
+        "ff4a82ee5f86c20fef35d7977396474d62166d5703d97a0272ccb5b42173b587"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "045-memory-care-playlists",
+      "hashes": [
+        "6757af5c6b1fc5e76e9e0e4cce4bc66bde2c9d8ee578ca42ea986bc1fca1ce98"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "046-day2-heritage-plaque-applications",
+      "hashes": [
+        "57ea51c7b1bf58df529fa78b52d517934d21829a0d0b9498c941c89e2e735ae7"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "047-walkathon-lap-pledges",
+      "hashes": [
+        "6cc6003d9d11824de72ed015da2cf9086dc9bbe69b837b63573afa810d0c3062"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "048-day2-hot-work-permits",
+      "hashes": [
+        "262344c39fcc3a583ef1d3b67d1aa57a1abcf62b62fe2d4ec0342f9d44e343ac"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "049-radiation-badge-doses",
+      "hashes": [
+        "f89b6efc13b795e015ee100fe3eb635dcfd7a920b5228a2ab9f2bac1dd3faed7"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "050-day2-impound-release-desk",
+      "hashes": [
+        "e68dc8a5ec9227844ccd83629fee14b3785cab77212a813676e8bb1c7e46f9b1"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "051-wildlife-crossing-reports",
+      "hashes": [
+        "30f91340633bbddd3f4968d911aef9821d1545f9e0e76eafab53f06541ce99da"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "052-day2-furniture-bank-pickups",
+      "hashes": [
+        "39f376b6d2a085eaa1b9d6cf48f458c50863528fff9740dce1bb2811f38d8607"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "053-effort-certification",
+      "hashes": [
+        "03d0a96137b1074bef68ef2e86d48a71737c310148353feb485ce3da284372a5"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "054-day2-ballot-drop-box-sweeps",
+      "hashes": [
+        "c863431508ae5d7ec79bd0f327ff51223248c814344e9760a42c61946bfc6e98"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "055-tryout-blind-scoring",
+      "hashes": [
+        "d18c13159d175b8d5126c62da171c2bcfe6e237f21f5133b81940a2aacff3b8b"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "056-day2-shellfish-harvest-closures",
+      "hashes": [
+        "c8113f422874b69baf65d9c8700d74d2c394aef631e8a0ffc05b19049e2960bb"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "057-helmet-recert-tracker",
+      "hashes": [
+        "5306c6648e13f9ea5c7b0369b2ce1c29fb9be12974ab2c13a583dca602974f15"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "058-day2-guest-stay-limits",
+      "hashes": [
+        "9ebcb812e136eacb1bce0c1a8dc818d76d6f7cebe9df1c2b137f2aa10e081708"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "059-curbside-pickup-lanes",
+      "hashes": [
+        "dad4f20fd35c7d9d511c6e868d70c0e62a06881397402c29a21801992e22d294"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "060-day2-poster-session-gallery",
+      "hashes": [
+        "7832c5c249e1e982a789f0399f31fa33ef7dcaaaae92e794ed5e7dcd9e741d2a"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "061-sled-dog-checkpoints",
+      "hashes": [
+        "93fe6e7a89839bf3a8c2900b22fe4ecafd953f6c62fc8c4509de666f76abf71f"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "062-day2-burn-permit-days",
+      "hashes": [
+        "e7acca6d418523d5fd650b8923d398bc4491dbd7aff1bb3a1f43c0d0f2c92240"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "063-audio-description-review",
+      "hashes": [
+        "0070aecfb4a41a9536a3ca61b974a1a96d2e07652d58525fdf6ef49385986a1b"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "064-day2-exhibit-label-review",
+      "hashes": [
+        "b58689573db2c154c6c69d26c29df2de70d38ccef67b6d2f2b4728a90f2fb690"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "065-medicine-cabinet-expiry",
+      "hashes": [
+        "2009615ab435b854b1722bf05c652ed80739870acf3b266437512a077afb77cb"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "066-day2-quiz-pack-exchange",
+      "hashes": [
+        "81347a82c9d6392253c36aa417f49522068c5d80b5e915135c6e100b789c09ba"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "067-curfew-extension-requests",
+      "hashes": [
+        "3fea1c9b1a5c16730cce37e0f62e6ada98a8464bd28c8efe6a433beba65bb0f0"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "068-day2-two-bin-reorder-cards",
+      "hashes": [
+        "937c1281cb91e258d78d8d9459c6a9cb046fc95fc30d59aa82fadbb7426940b8"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "069-newborn-shift-log",
+      "hashes": [
+        "a4f28a10b73ad13aaaafc8bbc0707af28ced6438056c11854af81d232e43f396"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "070-day2-sealed-preregistration",
+      "hashes": [
+        "763eb883bcb7d59258c18e11d9d697173779db80cd2b74377114c5788d04102d"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "071-instrument-lockout-leases",
+      "hashes": [
+        "5a420e441f5219b344405b3cde1ea7cb3492d42b95ef7da2b65be3f9a231356b"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "072-day2-daycare-milk-bottles",
+      "hashes": [
+        "3674e06429bb9bedfb25ddc4ad6aab759a090f23c21e93ce6eb93a7267092eb5"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "073-crop-scouting-reports",
+      "hashes": [
+        "d60ee5b8583ddf5931b16756725d8db2c2e0ab61a9ee4a4ea1083b68b2bc0313"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "074-day2-ditch-rider-water-turns",
+      "hashes": [
+        "7868e3d80ca65f55af81b6a805b5b99115d3d6b5321cca40e2b0dc82e275ec98"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "075-tire-hotel-storage",
+      "hashes": [
+        "e802efbeaf31c6f60cbb25757e2f490278e2602eff74143af4aa9c59cd2bc515"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "076-day2-rain-check-desk",
+      "hashes": [
+        "05525d4549f1b356476b5441711fa5f32e62d0e674c1db7417a6dd1fc96dcd46"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "077-rfp-response-desk",
+      "hashes": [
+        "fe42b744ba7547cbcf54368cc1f9bf8d9cad636da21df04f11c4bd4d9b2cf3de"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "078-day2-practicum-placements",
+      "hashes": [
+        "6a5f50ac669b2325ab3e31b9783ab3513beb369508dd9d3d46d6f17a0957b147"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "079-supervised-teen-chat",
+      "hashes": [
+        "368b5e5a2e5ead0354ba16c10cf63b801945c44d7ad7d78e4c74e1d5829088fc"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "080-day2-stop-headcount-tally",
+      "hashes": [
+        "3e37895548cedd6e3d615c1b7f59903bbc2197b9fb0c696fb95f8696d65ad0c4"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "081-press-release-signoff",
+      "hashes": [
+        "feefdeba3c541fb2acedf4a49a6d15935757805c09b6ce59a56af42a0bf7252a"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "082-day2-roster-lock-window",
+      "hashes": [
+        "467cd5ab174887be98cf15296380667de69bea8301b8c8f319a1239ff09cda14"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "083-syllabus-approval-chain",
+      "hashes": [
+        "7497326df18ddeb04442731c69efbaa7cb744b4311ab84c82d99837ac75b48f2"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "084-day2-cube-comp-scrambles",
+      "hashes": [
+        "a06e136374118c45c8880a1a4208af73d16bb9870f7117f80c2adc44472be35c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "085-hymn-index-search",
+      "hashes": [
+        "364ac3643a41c23413a399ad28ff2518b8edbb9eaf6e10aaffc0ef6a62e61043"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "086-day2-patient-grievance-clock",
+      "hashes": [
+        "84d8c25ccadfc98001ef64fc3deb0d2f0eb50c6b64999e51ad57ada2ee7bd8c8"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "087-typing-race-ladder",
+      "hashes": [
+        "d092bf5449fc71f4cecf67e3dfe983e09473c008971ad516a8c04eb152a297e9"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "088-day2-ppe-issue-ledger",
+      "hashes": [
+        "4beaaa206e6bf6426af5cac766e225c66bd1f18169059dc51998c9bee45f0ff7"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "089-block-captain-roster",
+      "hashes": [
+        "3eb7ae013adf44d5bd156dfa51e98d1357646110d2c31635ba94a1e537841adb"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "090-day2-custody-handoff-bag",
+      "hashes": [
+        "9600705b549bfa62f3584e79fcc92e08038dd94981516fce674a6b51da4c64d1"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "091-ice-shanty-registry",
+      "hashes": [
+        "83b828457ff9a7453455efc57f362dac9cdcb23e294d74f3af88c5618e211d2c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "092-day2-summit-register-book",
+      "hashes": [
+        "5eed95dbb15ca646d1ac597cc561774493e6e2a0337b3778ef726f23989b0024"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "093-housekeeping-room-status",
+      "hashes": [
+        "e61d9fcb71d98a782f0a8ec0d3be65160437eb32bcafa876948c42f6ccb54f41"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "094-day2-backflow-test-reports",
+      "hashes": [
+        "56a020e5ea405c5d18b119bacdc1cd807027c462b6d63a046354f469359dfc5c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "095-book-club-kit-loans",
+      "hashes": [
+        "e838d8e477f0099744fea8cd17cd610b0f0fda05d16804f8e55271df8e027a11"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "096-day2-litter-pick-order",
+      "hashes": [
+        "0d807d809c077e945529755bc743d8a0f50b4a32aba562ea1e9de8ee72bf46b8"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "097-friendly-call-circle",
+      "hashes": [
+        "e45b33a028eba2af50f34722937161f08b1fa76586f5c4ecf541b83383186889"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "098-day2-giving-circle-pitches",
+      "hashes": [
+        "890b86170fa1ac9aacdf1f96d5f2e8f6e48f208c409488fd2378a891d4455477"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "099-rain-barrel-rebates",
+      "hashes": [
+        "f24dae10efde558835256bc26530cc7ed3b054306dbd4a312c97408c5eaded5c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 15,
+      "lane": "100-day2-busking-pitch-rota",
+      "hashes": [
+        "4f440920ae10e4ad0c210009aa653f66b18f01a2aa60221effaf62ad703ba7ca"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "001-snapback-falconry-mews-weights",
+      "hashes": [
+        "7794a512b01072e21ae306ff2a7212052ddce79f720044ea31fc97a25c50fa2a"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "002-snapback-venison-processing-tags",
+      "hashes": [
+        "157c384384129caa1ca348c2fcf49fcfb9bfffa0c1da14c631a75ef28bc97e10"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "003-snapback-sawmill-custom-cuts",
+      "hashes": [
+        "d8e7b9ab6f5347235b388ec9d4ef2c83c2ed20f95fe2e9cb6df5d14922b0b139"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "004-snapback-mass-spec-sample-queue",
+      "hashes": [
+        "18fadf22eb88efe7700bd78e00091238404c1891aac650e1b5cf9afd3e96d80b"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "005-snapback-recording-studio-lockouts",
+      "hashes": [
+        "de66fcd2cb325b36bc80f568bf5224c47c5c5f5286605c844c818ce61b84fec5",
+        "e0dd9e76f6cad512f22c1c020b2350c05d0eff12732b60c78d7315c0b8ba74b1"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "006-snapback-trampoline-park-incidents",
+      "hashes": [
+        "0ba152d1a6184a517f60fbe8d327eb1f979f6cca5726e042df5444f1bd8fe4cd"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "007-snapback-circus-rigging-inspections",
+      "hashes": [
+        "bcea83b6022cf448e77c04c7084ffd3b9b228ae686cc8315f3dbc0db2bbedd44"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "008-snapback-fish-hatchery-raceways",
+      "hashes": [
+        "40a8435a29d3e32877ce4694c7b68e83cc50df543d143d31c2a37dd34a07ff7a"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "009-snapback-distillery-cask-gauging",
+      "hashes": [
+        "c8b960052807a917e2df25ac8eb9e9adc09a85dd10df853bef727c4f99485033"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "hashes": [
+        "6fbdd77d23997954443e30bd3b45b7a88d2a461a99fae692510802e64e12889c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "011-snapback-gem-lab-certificates",
+      "hashes": [
+        "d65015c574e4ccf0a6dd837702f5fb08c435357fc280bd05f25f82be5f66dc08"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "012-snapback-airfield-debris-walks",
+      "hashes": [
+        "684432a79574a7a1fdb4f32f476edbd94891083949f64012c752c98e195bdabb"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "013-snapback-drawbridge-opening-log",
+      "hashes": [
+        "766a117100df69d3c60d721438a5d0e5e0c5ce47b455e99e549a5fd67ffffb91"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "014-snapback-transfer-station-tickets",
+      "hashes": [
+        "770723a9328e85141348d642935b70de9f635631b871322237d9c30536218b6c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "015-snapback-substation-switching-orders",
+      "hashes": [
+        "94c11c391c60349592a7b634c4b468656edc595cc8bbfa3d89a248fe827c78f8"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "016-snapback-turbine-climb-permits",
+      "hashes": [
+        "89288fa82609527186db2859816d10b63c8fd192ea81cca93ecd1e3b7455079b"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "017-snapback-quarry-blast-notices",
+      "hashes": [
+        "2a13a37ad8d2c8d6b230407c9c731aaa3d92af87d0b4863eae6afae43e36766e"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "018-snapback-asbestos-air-clearances",
+      "hashes": [
+        "d4c2c2181d952fb7079435c78d60f3cd2738ec94e6522d8b1a27da2f0dcbe452"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "019-snapback-chimney-sweep-reports",
+      "hashes": [
+        "8ab8cf7fdc337841a4d3d88084f13ccc461e3c2cdb64f6713e162dfc9259984a"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "020-snapback-septic-pumpout-compliance",
+      "hashes": [
+        "362a6ab81d59069b0d6059e68638b590364306681668e2daaa656a73e57ce83d",
+        "ee514ced29c4fec9d720c4b5ed02b7e0a6c820da2a49906b9067acc33990b4dc"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "021-snapback-storage-lien-auctions",
+      "hashes": [
+        "b376ad9bd068d18d57cd9ad373e0ac35f3f6438159775b81901ea01fad844bcc"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "022-snapback-allergy-shot-observation",
+      "hashes": [
+        "4280a990f9af48b8926f752f6bda4d426bdef03ecb0b920bfb53ea426796ff42"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "023-snapback-donor-milk-batches",
+      "hashes": [
+        "7482a634d776c6338731b6f0dff1cff025c8c9f9bb70802b08a236d1eac02c89"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "024-snapback-teleradiology-read-queue",
+      "hashes": [
+        "6b307767515277331927e66fae188d6d35fa38f0c18da25360e1eba0c0c37145"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "hashes": [
+        "09c08aa6b49bd91884ad74f5d72eb0c347b20d79453b3751fce8e9363bc6cdf8"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "026-snapback-extinguisher-service-tags",
+      "hashes": [
+        "9a4d1f3214bfefa2ececf85af17c1a84ec4ecdf7a7fb57b496c85729a5ff9035"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "027-snapback-costume-rental-fittings",
+      "hashes": [
+        "01ea51e486e5b7400f7e8d6ded45b4d712e9e900bbc61a785fb0d72ce66f4723"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "028-snapback-survey-monument-records",
+      "hashes": [
+        "153ffdf0b4d2210bebcf39acd2dcd15146131d75ad9f648da76a6f394afffc98"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "029-snapback-coin-grading-submissions",
+      "hashes": [
+        "cd6072adff9ea1e8ed6feacef4c3db3a0ac145d0ed862a6c10994ec749a42396"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "030-snapback-cat-show-ring-judging",
+      "hashes": [
+        "91027d692641b354cc0295a9a5f1e7a54c2c7b8fc779627f6f499d465cb39d27"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "031-snapback-rodeo-stock-draw",
+      "hashes": [
+        "660b7a2b4adc13aa607a3b20a4566f0a275f9ff8815d29c96ebc10af4a86554c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "032-snapback-squash-ladder-challenges",
+      "hashes": [
+        "57b1d725be3094184c3970edc13fe41b94619db6ed45a346e3c8f4ed575c5225"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "033-snapback-fencing-bout-pools",
+      "hashes": [
+        "0bda7139813d4f861fa6616f72ad68308501f7e4e85e1fe66735eeaf69477302"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "034-snapback-gymnastics-meet-scoring",
+      "hashes": [
+        "1df28bba8a7d2e1c73f0990271186f3493da20a10f174182fca982e2c487023e"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "035-snapback-research-vessel-berths",
+      "hashes": [
+        "0d6029800808d3353f169ca28b8eb9a72c730b229e77a00224754fa3ef36fd7d"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "036-snapback-feed-mill-medicated-batches",
+      "hashes": [
+        "9dbf710f1212b3b64e43aa2c15f89b328ae6587dfe0124c4602ea17f9b0ddccf",
+        "bd1f1328359ea379f3def09961c503751a90d4fe7bcb89ac18618fc8fb2e7ca1"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "037-snapback-dairy-tanker-pickups",
+      "hashes": [
+        "7c5e16e125262d3e93d825e912e6f2d86a9f02039f23a9c0352d84aaff4b09df"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "038-snapback-dye-house-lab-dips",
+      "hashes": [
+        "a0c6e1cb76fb5aa4026b49515d714bb0c572ce9623181535f12641d5cc7f42db"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "039-snapback-countertop-slab-layouts",
+      "hashes": [
+        "008b8d60100dfd0e41c3d59101abda4ec24899b4e3d0d3ab6b89e9acaa7e8cde"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "040-snapback-lifeboat-crew-pagers",
+      "hashes": [
+        "edd7df4aaebf27f4c0031296c73411ea353b66be4936861091ece640619f29ea"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "041-snapback-fire-watch-patrols",
+      "hashes": [
+        "3fba82cfeca32c237d48efffa053f69ff9bde27e800487d515bae625bd85a8fd"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "042-snapback-datacenter-cage-escorts",
+      "hashes": [
+        "e6f0d0562cf219d567c84afcb877276fb444677f501c23ef8cb5c41c869c5b74"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "043-snapback-safe-deposit-access",
+      "hashes": [
+        "08b3b75bba6394a7e83ed5edcc25cb405fd45042b7eb7d6367bfb713b6bba0b0"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "044-snapback-prison-book-mailings",
+      "hashes": [
+        "01cea263bce6244952144cccf18cd3f0f703ef436b851cd4550db5197acd7c96"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "045-snapback-honor-guard-details",
+      "hashes": [
+        "b14217e01f1d592cf7555accf1b273b78a145323b5420f1d39a37a3b1b910718"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "046-snapback-respirator-fit-tests",
+      "hashes": [
+        "706aaf95841c810e67b98975281d80f6b6167fb526bbd0cda3c0ad72601ccd54"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "047-snapback-hyperbaric-chamber-log",
+      "hashes": [
+        "4b9a0d7e2d1dd04550b20fbae03ddc3717427eaef45af8bc34f19ffe02f2aa9b"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "048-snapback-repair-cafe-intake",
+      "hashes": [
+        "5986e8c18077193e1309bde53b3b356698cdc4204019cb8e409cad60f0e14226"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "049-snapback-park-pavilion-deposits",
+      "hashes": [
+        "7da00eac9979c3a991e4c060a05a3f83e98ae15de9cb9875b0f4f0acd06fbb68",
+        "c9d6f77f53e3c0548639865dabf85cc242b00babb542388b981e7fb0d19a6a48"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 18,
+      "lane": "050-snapback-zipline-harness-checks",
+      "hashes": [
+        "065bf2e3654649bce40a790de13cdafc7d707b62b06822351472885c1507bbaa"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "001-snapback-falconry-mews-weights",
+      "hashes": [
+        "1156bd4f06498ccbc61a54000a53ee9e8922700b40ec3cb180d83eaf41af19aa"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "002-snapback-venison-processing-tags",
+      "hashes": [
+        "8e1d7059880f7ed6c9af22195bee48f95fb3e506ca1dd6dbd108dc32876f4aa2"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "003-snapback-sawmill-custom-cuts",
+      "hashes": [
+        "23d58b9b90f9b4efabf61b099b345809444c7d1b78ea9b0338246a5366e1789b"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "004-snapback-mass-spec-sample-queue",
+      "hashes": [
+        "64464e2ad79b271d5caebe2ec589167d1020c99d177e671ff6c60dc98d569bf3"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "005-snapback-recording-studio-lockouts",
+      "hashes": [
+        "0fc1190ee7a703cf1d19b794a8358b0bb6cb3ad98fe203d99fb079faeff8dd45",
+        "12d42ff8ca5be1fa6c371d89684fa224a0ea1502b2058bd00af7c1be5d3873eb"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "006-snapback-trampoline-park-incidents",
+      "hashes": [
+        "50efbc83edf03e995f9ef1293b0be92f1d6e4cd7b164272ace05bcb94d512d4d"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "007-snapback-circus-rigging-inspections",
+      "hashes": [
+        "25d8eb17c06ed6d5661ab4af05b392f620abe8b2607b2d912bc3ff4808c4c287"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "008-snapback-fish-hatchery-raceways",
+      "hashes": [
+        "11252f77c7dfb6150504501cb2a0dca1d7a0bb37f4c77ecd7d6c154f526ec63c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "009-snapback-distillery-cask-gauging",
+      "hashes": [
+        "543400614e0445956e8499162e44abc39d6e0f5c3bb995ad3496d6859168a9eb"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "hashes": [
+        "fd0d3c3caed1754b8d8967d97f5b2547e087b9b58a97f105e4dba022f5701d65"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "011-snapback-gem-lab-certificates",
+      "hashes": [
+        "de29876bfe325d523af0f891a63e15106350a837c9fe75702d1ffc1e04dbc611"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "012-snapback-airfield-debris-walks",
+      "hashes": [
+        "439eb453183f810ec5e85a5f52df8c0e02086813825ba4079e3c3413e661cd96"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "013-snapback-drawbridge-opening-log",
+      "hashes": [
+        "b94ed9994490bf2640b59ae79e68696d967d11a34447adc78faf5ee4639aed12"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "014-snapback-transfer-station-tickets",
+      "hashes": [
+        "d8b1413182f669ffe6e911bb3fd299288d8442de465662c90bc493ceb0825336"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "015-snapback-substation-switching-orders",
+      "hashes": [
+        "3cbd93737b2330d6b384737e3416e1e806aa446731b0bd10255b8934425a90ab"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "016-snapback-turbine-climb-permits",
+      "hashes": [
+        "8ed55b210c60295a9675052139f88c513c9d56cd0e859cdd04f507d8ad90cdb2"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "017-snapback-quarry-blast-notices",
+      "hashes": [
+        "8377396ab5766d55d8bbea7514148dbf4d9749c2bab216de4e49e6e7bd3dc25f"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "018-snapback-asbestos-air-clearances",
+      "hashes": [
+        "d136be070eaf924f7e70eab1b0fb1438fa3ce6803c2645e2699f26f914a2e63f"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "019-snapback-chimney-sweep-reports",
+      "hashes": [
+        "f07c9db9e86c3acf8c59068560790349a4ae5ca8737848bbb1c27fc6422f925b"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "020-snapback-septic-pumpout-compliance",
+      "hashes": [
+        "b53daec07e529c71e011fcead72d77a7370c268b64624274376ed6129a69d618",
+        "8269b14936c580adadde924f2b5195d3f8e33269e2c6f6e9c049df7783e16adf"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "021-snapback-storage-lien-auctions",
+      "hashes": [
+        "47e10a378e0e6a4690d32696d4e7695b5ceed228c427960b6e334d9d39614f05"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "022-snapback-allergy-shot-observation",
+      "hashes": [
+        "7de2ca4e0b4e19c1196593bdd37221e880717a340f8e86b289fa16d96f2545b5"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "023-snapback-donor-milk-batches",
+      "hashes": [
+        "efc59fd557e39f2d538b115080986d285949f437f88fa00c044b65cc1c955c45"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "024-snapback-teleradiology-read-queue",
+      "hashes": [
+        "3ffd3f869b545ca380380a92061c2cacf8c6bb92100f41f2e258bd121af8d713"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "hashes": [
+        "48749f3932efafc43839ea4e20041916145da2662a4c4f82708474a0025c4e5c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "026-snapback-extinguisher-service-tags",
+      "hashes": [
+        "e134ebbbea2b35e4a2297a268a23152c5d7fd74598f66f5d7b2cf4271ac0330a"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "027-snapback-costume-rental-fittings",
+      "hashes": [
+        "41ce5edad223360f5786cb8ee219df03b593d392e2de72871b85df17278bd60e"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "028-snapback-survey-monument-records",
+      "hashes": [
+        "de2affdf9c968f8603451f7400d053dc8276414e9604452e50ca87527fc0f06d"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "029-snapback-coin-grading-submissions",
+      "hashes": [
+        "6ec37ab27d2c356640687e514b2eabd9d9674ff8f3e05b66cb3d4bb853e4464f"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "030-snapback-cat-show-ring-judging",
+      "hashes": [
+        "d9bdeaa1ac949317b72abed2a016a7b0de6795ea413d45f54ef831ecbbb9201b"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "031-snapback-rodeo-stock-draw",
+      "hashes": [
+        "fa61cf4fa261f2c862e0cae90becf24c7500156993f60346f688ee3fca7f07ee"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "032-snapback-squash-ladder-challenges",
+      "hashes": [
+        "910e5ab86c9c6edc3adca2944393a921f20f31a0246b640203f86b287f5f69bc"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "033-snapback-fencing-bout-pools",
+      "hashes": [
+        "683ebca76c30cf16c8de05cb7769dfc3874801e43a5df5e872594a7ecc0a4b33"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "034-snapback-gymnastics-meet-scoring",
+      "hashes": [
+        "af28b8dc6569bd5d4c040a60991cc4ba4492a5e8a487f32a093a792e639d899d"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "035-snapback-research-vessel-berths",
+      "hashes": [
+        "39768d583c516528cd01b3906cd6fc543e1b31e8d84508a03c8ffc00b50438da"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "036-snapback-feed-mill-medicated-batches",
+      "hashes": [
+        "f4dfeffb0c3b6c69370b78fc8620dc005255783c831b7ce29ae0b118eb81d1f2",
+        "6cc80f7979c144ba81ded1a566b11f1cc00ab57d5fdf8239a0d0582ec4fc0b4c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "037-snapback-dairy-tanker-pickups",
+      "hashes": [
+        "19d893b02bce24f41dd98b9fa4370f302e39312df93e2902b18230cd68983271"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "038-snapback-dye-house-lab-dips",
+      "hashes": [
+        "82021187730be9511fe933d9a01526e1d253b916f0ee1c9ed26a7143186cf911"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "039-snapback-countertop-slab-layouts",
+      "hashes": [
+        "b8860779d2135cfee15e89c727bf09f1c2ac57da578cc921e2768a6e941f403c"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "040-snapback-lifeboat-crew-pagers",
+      "hashes": [
+        "c0589c69e7217bb03b10fd609bfd6c56a4b08ace3af60017a789ec1942e38e53"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "041-snapback-fire-watch-patrols",
+      "hashes": [
+        "9da591cde325ff6cb5fda768903c32db401be46e5e6ae1f9fff207c8aed4f580"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "042-snapback-datacenter-cage-escorts",
+      "hashes": [
+        "5cddc1319c9da9967eff1c9dd04de5aa2b669ed1c07676610db557ad769fde07"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "043-snapback-safe-deposit-access",
+      "hashes": [
+        "611c9dbd9109649ce95ede00b507cebaccbc8d1cce8b1b7be24910d4004b2075"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "044-snapback-prison-book-mailings",
+      "hashes": [
+        "a2fc1163187665628df05d5b481bb666a89327e60f147b0d87eb9bf003f6d854"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "045-snapback-honor-guard-details",
+      "hashes": [
+        "bba50954cdd8cc5aa63d9d9f9b2e640861af6bde8ed842be8e9ba69eddace19e"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "046-snapback-respirator-fit-tests",
+      "hashes": [
+        "678b54f1b133335ce80928aad214ae61489e885015531b9425eacc1032248cc2"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "047-snapback-hyperbaric-chamber-log",
+      "hashes": [
+        "481c8220a6df3386a3decf6d18b94ce0a0ea1e7aa0ab1c46fd39b6f9030aabb6"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "048-snapback-repair-cafe-intake",
+      "hashes": [
+        "c24eaa3f1e8d4181aab336d46268bb832b45d13fba122cdc9dbf203dc0a6e68f"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "049-snapback-park-pavilion-deposits",
+      "hashes": [
+        "d249e584612fba7f364d2520ec93f7bb1b81a4f572d29e81eec6bc2ede6e0a42",
+        "5be30e602a9d3eddbb3d7a6344a1cfba39c230c7f888b28a91c788d8beeb9925"
+      ],
+      "exit": 0
+    },
+    {
+      "wave": 19,
+      "lane": "050-snapback-zipline-harness-checks",
+      "hashes": [
+        "9d9f1718d9801ac3eb623de8ee2887745b5008707a255a14cd3134a4ad6b467f"
+      ],
+      "exit": 0
+    }
+  ]
+}
