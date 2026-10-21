@@ -100945,3 +100945,15 @@ placement reader and insert-then-bind receipts dispatch through the enum.
 Schema evolution outside this initial subset refuses before preparation writes.
 The binary and Postgres-feature library builds pass. Real-cluster qualification
 and the tail/witness results are recorded after completion.
+
+### 2026-10-22 — S10c: refuse unused families and retain opening atomicity
+
+Real enum probes exposed the shared row-change path's unconditional timed-ledger
+call. Untimed row changes and imports now skip that family, matching SQLite's
+existing early return; direct unsupported calls still refuse. Opening upgrades
+now remain inside the validated opening transaction, after selected-release
+checks, and readers never upgrade. Private-Postgres probes pass ordinary
+mutations, reopen/readers, receipt replay/id reuse, capability refusal without
+id consumption, ephemeral hub writes/reads with no durable rows, and a refused
+selected release with no committed opening upgrade. No public serving or lease
+claim follows.

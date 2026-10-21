@@ -1,7 +1,7 @@
 //! Internal Postgres opening/activation for S10c. Namespace selection is a
 //! library test seam; public deployment configuration and fencing remain S10d.
 // @ref LLP 3000.009.001.000#3.4 — shared builders own semantic activation; the adapter owns physical installation.
-use super::{Handle, activation::Preparation, store::{self, Tx, WriteMode}};
+use super::{Handle, activation::Preparation, store::{self, Tx}};
 use crate::{RuntimeError, Schema, Program, activation::Backend, metadata::MetadataReader,
     store_port::{AnyStore, AnyTx, AnyPreparation, report::AdoptionReport},
     engine::committer::{Committer, Committed, Kind, Pending}};
@@ -28,9 +28,6 @@ impl AnyTx<'_> {
 
 impl Handle {
     pub(super) fn connect(config: postgres::Config, name: &str, fresh: bool) -> Result<Self, RuntimeError> {
-        Self::connect_with_upgrade(config, name, fresh, true)
-    }
-    pub(super) fn connect_with_upgrade(config: postgres::Config, name: &str, fresh: bool, upgrade: bool) -> Result<Self, RuntimeError> {
         let quoted = store::namespace(name)?;
         let mut client = config.connect(postgres::NoTls)?;
         if fresh {
@@ -50,13 +47,7 @@ impl Handle {
             let generation = u64::try_from(row.get::<_, i64>(3)).map_err(|_| RuntimeError::Generation("negative generation".into()))?;
             tx.rollback()?;
             store.generation = generation;
-            if upgrade {
-            let tx = store.transaction(Some(WriteMode::Serialized))?;
-            // Admission is repeated after the generation/head check and before upgrades.
-            super::profile::admit(&schema, &programs)?;
-            initialize(&tx, &schema)?;
-            tx.commit()?;
-            }
+
         }
         Ok(Self { store: RefCell::new(store), report: AdoptionReport::default(), connection: (config, name.into()), fresh })
     }
@@ -110,7 +101,7 @@ impl Handle {
     }
 }
 
-fn initialize(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> {
+pub(super) fn initialize(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> {
     super::activation_schema::verify_core(tx)?;
     super::identity_schema::verify_existing(tx)?;
     super::metadata::initialize(tx)?;
@@ -125,4 +116,22 @@ fn initialize(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> {
     super::assets_schema::initialize(tx)?;
     super::activation_schema::initialize(tx)?;
     super::release_schema::initialize(tx)
+}
+
+impl Tx<'_> {
+    pub(crate) fn finish_open(self) -> Result<crate::store_port::OpeningMetadata, RuntimeError> {
+        // A detached reader never upgrades. A writer retains its head fence and
+        // all validated construction facts until the opening transaction commits.
+        if self.serialized_head.get() {
+            let schema: Schema = store::decode(&crate::activation::ActivationReader::opening_backend(&self)?.1)?;
+            initialize(&self, &schema)?;
+            let metadata = crate::store_port::OpeningMetadata::read(&self)?;
+            self.commit()?;
+            Ok(metadata)
+        } else {
+            let metadata = crate::store_port::OpeningMetadata::read(&self)?;
+            self.rollback()?;
+            Ok(metadata)
+        }
+    }
 }

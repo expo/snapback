@@ -86,3 +86,30 @@ fn defensive_family_refusal_aborts_without_consuming_operation_id() {
     engine.schema.tables.get_mut("notes").unwrap().columns.remove("photo");
     assert!(matches!(engine.mutate("put", Some("reserved"), context(7)).unwrap().state, WriteState::Sent { seq: 1, .. }));
 }
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn selected_release_refusal_does_not_commit_opening_upgrades() {
+    use crate::activation::ActivationTransaction;
+    let connection = connection(); let name = name(); let (schema, programs) = bound(SOURCE);
+    let mut engine = Engine::new_at(AnyStore::create_postgres(&connection, &name).unwrap(), schema, programs, 1000).unwrap();
+    let tx = engine.store_mut().transaction().unwrap(); tx.set_active_release(1).unwrap(); tx.commit().unwrap();
+    if let AnyStore::Postgres(handle) = engine.store_mut() { handle.store.get_mut().client.batch_execute("DROP TABLE _read_sessions").unwrap(); }
+    drop(engine);
+    assert!(Engine::attach_release(AnyStore::open_postgres(&connection, &name).unwrap(), 2).is_err());
+    let mut client = Client::connect(&connection, postgres::NoTls).unwrap();
+    client.batch_execute(&format!("SET search_path = {}", super::super::store::namespace(&name).unwrap())).unwrap();
+    assert!(!client.query_one("SELECT to_regclass('_read_sessions') IS NOT NULL", &[]).unwrap().get::<_, bool>(0));
+    assert_eq!(client.query_one("SELECT value FROM _meta WHERE key='release'", &[]).unwrap().get::<_, &str>(0), "1");
+}
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn process_local_ephemeral_mutations_and_queries_are_admitted() {
+    let source = "table typing:\n  principal: principal\n  unique principal\n  cap 50\n  read <- allow\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  delete <- .principal = viewer\n  ephemeral 4s\nmutation mark():\n  upsert typing[viewer] {}\nquery who():\n  return typing { principal }\n";
+    let (schema, programs) = bound(source);
+    let mut engine = Engine::new_at(AnyStore::create_postgres(&connection(), &name()).unwrap(), schema, programs, 1000).unwrap();
+    let result = engine.mutate("mark", Some("typing"), Context::new("alice", BTreeMap::new()).at(1000)).unwrap();
+    assert!(matches!(result.state, WriteState::Sent { .. }));
+    assert_eq!(engine.query("who", Context::new("alice", BTreeMap::new()).at(1001)).unwrap().data.as_array().unwrap().len(), 1);
+    assert_eq!(engine.store().seq().unwrap(), 0);
+    assert!(engine.store().rows("typing").unwrap().is_empty());
+}

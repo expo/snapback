@@ -191,14 +191,16 @@ pub(super) fn restore(
             new.as_ref(),
             super::write::Origin::Source,
         )?;
-        tx.track_time_audience(
-            &name,
-            table,
-            &id,
-            new.as_ref(),
-            now,
-            new.as_ref().is_some_and(|r| table.live(r, now)),
-        )?;
+        if table.not_before.is_some() {
+            tx.track_time_audience(
+                &name,
+                table,
+                &id,
+                new.as_ref(),
+                now,
+                new.as_ref().is_some_and(|r| table.live(r, now)),
+            )?;
+        }
         runner.written_tables.insert(name);
     }
     let tables = runner.written_tables.iter().cloned().collect();

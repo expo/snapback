@@ -14,7 +14,8 @@ pub enum AnyTx<'store> {
     Postgres(crate::engine::postgres::store::Tx<'store>),
 }
 
-/// A deferred read snapshot retains its physical transaction until closed.
+/// A read snapshot retains its physical transaction until closed: SQLite
+/// DEFERRED or Postgres REPEATABLE READ, pinning head and generation together.
 pub struct ReadSnapshot<'store> {
     tx: AnyTx<'store>,
 }

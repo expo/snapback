@@ -28,10 +28,10 @@ impl AnyStore {
         match self { Self::Sqlite(store) => store.read_transaction().map(|tx| ReadSnapshot { tx: AnyTx::Sqlite(tx) }), #[cfg(feature = "postgres")] Self::Postgres(handle) => handle.store.get_mut().transaction(None).map(|tx| ReadSnapshot { tx: AnyTx::Postgres(tx) }) }
     }
     pub(crate) fn opening_transaction(&mut self) -> Result<AnyTx<'_>, RuntimeError> {
-        match self { Self::Sqlite(store) => store.opening_transaction().map(AnyTx::Sqlite), #[cfg(feature = "postgres")] Self::Postgres(handle) => handle.store.get_mut().transaction(None).map(AnyTx::Postgres) }
+        match self { Self::Sqlite(store) => store.opening_transaction().map(AnyTx::Sqlite), #[cfg(feature = "postgres")] Self::Postgres(handle) => { let store = handle.store.get_mut(); let mode = if store.read_only { None } else { Some(crate::engine::postgres::WriteMode::Serialized) }; store.transaction(mode).map(AnyTx::Postgres) } }
     }
     pub(crate) fn finish_open(tx: AnyTx<'_>) -> Result<OpeningMetadata, RuntimeError> {
-        match tx { AnyTx::Sqlite(tx) => sqlite::Store::finish_open(tx), #[cfg(feature = "postgres")] AnyTx::Postgres(tx) => { let metadata = OpeningMetadata::read(&tx)?; tx.rollback()?; Ok(metadata) } }
+        match tx { AnyTx::Sqlite(tx) => sqlite::Store::finish_open(tx), #[cfg(feature = "postgres")] AnyTx::Postgres(tx) => tx.finish_open() }
     }
     pub(crate) fn with_authority_snapshot<T>(&self, run: impl FnOnce(&AnyTx<'_>) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         match self { Self::Sqlite(store) => {

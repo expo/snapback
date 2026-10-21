@@ -1051,18 +1051,21 @@ impl Runner<'_> {
         if origin != Origin::LiveAuthority {
             if let Some(image)=new { self.maintain_live(table_name,image)?; }
         }
-        self.tx.track_time_audience(
-            table_name,
-            table,
-            id,
-            new,
-            self.context.now.unwrap_or(i64::MIN),
-            if self.event_free {
-                new.is_some() && self.tx.time_audience_published(table_name, id)?
-            } else {
-                new.is_some_and(|row| table.live(row, self.context.now.unwrap_or(i64::MIN)))
-            },
-        )?;
+        // @ref LLP 3000.009.001.000#3.4 — untimed writes do not request the time-publication family.
+        if table.not_before.is_some() {
+            self.tx.track_time_audience(
+                table_name,
+                table,
+                id,
+                new,
+                self.context.now.unwrap_or(i64::MIN),
+                if self.event_free {
+                    new.is_some() && self.tx.time_audience_published(table_name, id)?
+                } else {
+                    new.is_some_and(|row| table.live(row, self.context.now.unwrap_or(i64::MIN)))
+                },
+            )?;
+        }
         Ok(())
     }
 

@@ -1193,14 +1193,16 @@ impl Engine {
                     row = captured;
                 }
                 partition::row_changed(&mut runner, &name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
-                tx.track_time_audience(
-                    &name,
-                    table,
-                    &id,
-                    Some(&row),
-                    now,
-                    table.live(&row, now),
-                )?;
+                if table.not_before.is_some() {
+                    tx.track_time_audience(
+                        &name,
+                        table,
+                        &id,
+                        Some(&row),
+                        now,
+                        table.live(&row, now),
+                    )?;
+                }
                 runner.written_tables.insert(name);
             }
             if count > 0 { runner.rebuild_imported_columns()?; }
@@ -1247,14 +1249,16 @@ impl Engine {
                 let old = tx.get(&table_name, &id)?;
                 tx.put(&table_name, &table, &row, old.as_ref())?;
                 partition::row_changed(&mut runner, &table_name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
-                tx.track_time_audience(
-                    &table_name,
-                    &table,
-                    &id,
-                    Some(&row),
-                    now,
-                    table.live(&row, now),
-                )?;
+                if table.not_before.is_some() {
+                    tx.track_time_audience(
+                        &table_name,
+                        &table,
+                        &id,
+                        Some(&row),
+                        now,
+                        table.live(&row, now),
+                    )?;
+                }
                 if self.schema.visible(&table_name) { runner.written_tables.insert(table_name); }
                 count += 1;
             }

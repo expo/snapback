@@ -28,7 +28,7 @@ impl Handle {
     pub(crate) fn reader(&self) -> Result<Self, RuntimeError> {
         if self.fresh { return Err(RuntimeError::StoreUnsupported { family: "opening" }); }
         let before = self.read(|tx| Ok((crate::metadata::MetadataReader::store_identity(tx)?, crate::activation::ActivationReader::opening_backend(tx)?)))?;
-        let mut reader = Self::connect_with_upgrade(self.connection.0.clone(), &self.connection.1, false, false)?;
+        let mut reader = Self::connect(self.connection.0.clone(), &self.connection.1, false)?;
         let after = reader.read(|tx| Ok((crate::metadata::MetadataReader::store_identity(tx)?, crate::activation::ActivationReader::opening_backend(tx)?)))?;
         if before != after { return Err(RuntimeError::Generation("reader store identity or generation changed; reopen".into())); }
         reader.store.get_mut().read_only = true;
