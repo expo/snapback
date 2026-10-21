@@ -18,6 +18,14 @@ impl Fixture for Sqlite {
             tx.rollback().unwrap();
         }
     }
+    fn try_write(
+        &mut self,
+        work: impl FnOnce(&Tx<'_>) -> Result<(), RuntimeError>,
+    ) -> Result<(), RuntimeError> {
+        let tx = self.0.transaction()?;
+        work(&tx)?;
+        tx.commit()
+    }
     fn savepoint(tx: &Tx<'_>) {
         tx.savepoint("program").unwrap();
     }
@@ -73,10 +81,15 @@ shared!(
     summary_utf8,
     summary_cap_and_name_ties,
     schedule_metadata,
-    park_finish_and_missing_rows
+    park_finish_and_missing_rows,
+    nul_admission_and_absent_lookups,
+    park_chunk_normalizes_diagnostics,
+    signed_counter_boundary,
+    statement_error_is_terminal,
+    oversized_limits
 );
 #[cfg(feature = "native")]
-shared!(native_continuation);
+shared!(native_continuation, native_signed_counter_boundary);
 
 #[test]
 fn two_connections_advance_the_same_job_under_the_writer_fence() {
@@ -130,4 +143,44 @@ fn two_connections_advance_the_same_job_under_the_writer_fence() {
     tx.rollback().unwrap();
     drop(first);
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn legacy_nul_rows_remain_addressable() {
+    let mut store = Store::memory().unwrap();
+    let tx = store.transaction().unwrap();
+    tx.insert_job("a", "job", &BTreeMap::new(), "hash", 0)
+        .unwrap();
+    // A pre-upgrade SQLite row, including a malformed saved boundary.
+    tx.conn()
+        .execute(
+            "UPDATE _jobs SET id=?1,name=?2",
+            params!["a\0id", "job\0name"],
+        )
+        .unwrap();
+    tx.set_meta("schedule:pulse\0name", "broken").unwrap();
+    tx.commit().unwrap();
+    assert!(store.job("a\0id").unwrap().is_some());
+    let tx = store.transaction().unwrap();
+    assert_eq!(tx.head_job().unwrap().unwrap().run.id, "a\0id");
+    tx.record_job_chunk(cases::counter_chunk("a\0id", 1))
+        .unwrap();
+    tx.park_job_chunk("a\0id", "reason\0detail", 1, 1, 0, 0)
+        .unwrap();
+    tx.park_job("a\0id", "reason\0detail", 2).unwrap();
+    tx.finish_job_sweeps("a\0id", 1, 3).unwrap();
+    tx.set_schedule_boundary("pulse\0name", 2).unwrap();
+    tx.set_schedule_shape("pulse\0name", "shape").unwrap();
+    tx.commit().unwrap();
+    let run = store.job("a\0id").unwrap().unwrap();
+    assert_eq!(
+        (run.state, run.rows_written),
+        (crate::engine::job::JobState::Done, 1)
+    );
+    assert_eq!(run.error.as_deref(), Some("reason\u{fffd}detail"));
+    assert_eq!(store.schedule_boundary("pulse\0name").unwrap(), Some(2));
+    assert_eq!(
+        store.schedule_shape("pulse\0name").unwrap().as_deref(),
+        Some("shape")
+    );
 }

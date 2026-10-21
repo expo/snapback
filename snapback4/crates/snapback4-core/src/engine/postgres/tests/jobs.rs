@@ -59,6 +59,14 @@ impl Fixture for Pg {
             tx.rollback().unwrap();
         }
     }
+    fn try_write(
+        &mut self,
+        work: impl FnOnce(&Tx<'_>) -> Result<(), RuntimeError>,
+    ) -> Result<(), RuntimeError> {
+        let tx = self.engine.store.transaction(Some(WriteMode::Serialized))?;
+        work(&tx)?;
+        tx.commit()
+    }
     fn savepoint(tx: &Tx<'_>) {
         tx.batch("SAVEPOINT program").unwrap();
     }
@@ -118,10 +126,15 @@ shared!(
     summary_utf8,
     summary_cap_and_name_ties,
     schedule_metadata,
-    park_finish_and_missing_rows
+    park_finish_and_missing_rows,
+    nul_admission_and_absent_lookups,
+    park_chunk_normalizes_diagnostics,
+    signed_counter_boundary,
+    statement_error_is_terminal,
+    oversized_limits
 );
 #[cfg(feature = "native")]
-shared!(native_continuation);
+shared!(native_continuation, native_signed_counter_boundary);
 
 #[test]
 #[ignore = "P1-JB_POSTGRES_UNAVAILABLE: requires private SNAPBACK4_EVAL_POSTGRES; scripts/test-postgres.sh"]
@@ -303,4 +316,102 @@ fn a_refused_attach_rolls_back_job_table_creation() {
             .get(0);
         assert!(!present, "refused attach must roll back {table}");
     }
+}
+
+#[test]
+#[ignore = "P1-JB_POSTGRES_UNAVAILABLE: requires private SNAPBACK4_EVAL_POSTGRES; scripts/test-postgres.sh"]
+fn attach_refuses_legacy_text_errors_even_when_null() {
+    for error in [None, Some("legacy é")] {
+        let mut f = Pg::new();
+        f.write(true, |tx| {
+            tx.insert_job("a", "job", &BTreeMap::new(), "hash", 0)
+                .unwrap();
+            if let Some(error) = error {
+                tx.park_job("a", error, 1).unwrap();
+            }
+        });
+        f.engine
+            .store
+            .client
+            .batch_execute(
+                "ALTER TABLE _jobs ALTER COLUMN error TYPE TEXT USING convert_from(error,'UTF8')",
+            )
+            .unwrap();
+        let failure = PostgresEngine::open(connect(), &f.name)
+            .err()
+            .expect("attach must reject the earlier TEXT layout");
+        assert!(
+            failure
+                .to_string()
+                .contains("SNAPBACK_JOBS_SCHEMA: _jobs: incompatible column error"),
+            "{failure}"
+        );
+        let row = f
+            .engine
+            .store
+            .client
+            .query_one("SELECT error FROM _jobs WHERE id='a'", &[])
+            .unwrap();
+        assert_eq!(
+            row.get::<_, Option<&str>>(0),
+            error,
+            "refusal preserves legacy data"
+        );
+    }
+}
+
+#[test]
+#[ignore = "P1-JB_POSTGRES_UNAVAILABLE: requires private SNAPBACK4_EVAL_POSTGRES; scripts/test-postgres.sh"]
+fn cached_reads_survive_additive_upgrade_on_another_connection() {
+    let mut a = Pg::new();
+    a.write(true, |tx| {
+        tx.insert_job("a", "job", &BTreeMap::new(), "hash", 0)
+            .unwrap()
+    });
+    let expected = a.store().job("a").unwrap().unwrap();
+    assert_eq!(
+        a.store().jobs(1).unwrap().as_slice(),
+        std::slice::from_ref(&expected)
+    );
+    a.write(false, |tx| {
+        assert_eq!(tx.head_job().unwrap().unwrap().run, expected)
+    });
+    let mut b = PostgresEngine::open(connect(), &a.name).unwrap();
+    let tx = b.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.batch("ALTER TABLE _jobs ADD COLUMN additive_witness TEXT")
+        .unwrap();
+    tx.commit().unwrap();
+    assert_eq!(a.store().job("a").unwrap(), Some(expected.clone()));
+    assert_eq!(
+        a.store().jobs(1).unwrap().as_slice(),
+        std::slice::from_ref(&expected)
+    );
+    a.write(false, |tx| {
+        assert_eq!(tx.head_job().unwrap().unwrap().run, expected)
+    });
+    // Attach accepts compatible additional columns too.
+    PostgresEngine::open(connect(), &a.name).unwrap();
+}
+
+#[test]
+#[ignore = "P1-JB_POSTGRES_UNAVAILABLE: requires private SNAPBACK4_EVAL_POSTGRES; scripts/test-postgres.sh"]
+fn nul_key_lookups_do_not_query_postgres() {
+    let mut f = Pg::new();
+    let before = f.engine.store.calls.get();
+    assert!(f.store().job("missing\0id").unwrap().is_none());
+    assert!(f.store().schedule_shape("missing\0name").unwrap().is_none());
+    assert!(
+        f.store()
+            .schedule_boundary("missing\0name")
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(f.engine.store.calls.get(), before);
+    f.write(false, |tx| {
+        let before = tx.calls.get();
+        assert!(tx.schedule_shape("missing\0name").unwrap().is_none());
+        assert!(tx.schedule_boundary("missing\0name").unwrap().is_none());
+        assert!(tx.job_counters("missing\0id").unwrap().is_none());
+        assert_eq!(tx.calls.get(), before);
+    });
 }

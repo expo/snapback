@@ -9,6 +9,11 @@ pub(crate) trait Fixture {
         Self: 'a;
     fn store(&mut self) -> &mut Self::Store;
     fn write(&mut self, commit: bool, work: impl FnOnce(&Self::Tx<'_>));
+    /// Own the transaction: an adapter error propagates and drops it before commit.
+    fn try_write(
+        &mut self,
+        work: impl FnOnce(&Self::Tx<'_>) -> Result<(), RuntimeError>,
+    ) -> Result<(), RuntimeError>;
     fn savepoint(tx: &Self::Tx<'_>);
     fn rollback_to(tx: &Self::Tx<'_>);
     fn seed_chunks(tx: &Self::Tx<'_>, chunks: i64);
@@ -231,13 +236,14 @@ pub(crate) fn summary_utf8(f: &mut impl Fixture) {
         tx.insert_job("b", "no-error", &BTreeMap::new(), "hash", 10)
             .unwrap();
     });
-    // NUL survives full error inspection but ends SQLite's summary prefix.
+    // Shared policy replaces NUL before either inspection or truncation.
     // Include empty errors separately from the NULL error of the queued run.
     for error in ["abé🦀z", "ab\0é🦀z", "\0🦀", "a🦀🦀🦀🦀tail", ""] {
         f.write(true, |tx| tx.park_job("a", error, 20).unwrap());
+        let normalized = error.replace('\0', "\u{fffd}");
         assert_eq!(
             f.store().job("a").unwrap().unwrap().error.as_deref(),
-            Some(error)
+            Some(normalized.as_str())
         );
         for count in [0, 1, 2, 3, 4, 5, error.len(), usize::MAX] {
             let summaries = f.store().job_summaries(count).unwrap();
@@ -247,18 +253,12 @@ pub(crate) fn summary_utf8(f: &mut impl Fixture) {
             );
             assert_eq!(summaries[0].state, "queued");
             assert!(summaries[0].error.is_none() && !summaries[0].error_truncated);
-            let n = (count as i64).max(0) as usize;
-            let prefix = error
-                .split('\0')
-                .next()
-                .unwrap()
-                .chars()
-                .take(n)
-                .collect::<String>();
+            let n = job_error_limit(count) as usize;
+            let prefix = normalized.chars().take(n).collect::<String>();
             assert_eq!(summaries[1].error.as_deref(), Some(prefix.as_str()));
             assert_eq!(
                 summaries[1].error_truncated,
-                error.len() as i64 > count as i64
+                normalized.len() as i64 > job_error_limit(count)
             );
             assert_eq!(summaries[1].state, "parked");
         }
@@ -519,4 +519,186 @@ pub(crate) fn assert_committed(store: &mut impl JobStore) {
     assert_eq!(run.error.as_deref(), Some("E_JOB_GENERATION: fixture"));
     assert_eq!(store.schedule_boundary("pulse").unwrap(), Some(60_000));
     assert_eq!(store.latest_schedule_boundary().unwrap(), Some(60_000));
+}
+
+pub(crate) fn nul_admission_and_absent_lookups(f: &mut impl Fixture) {
+    f.write(true, |tx| {
+        for (id, name) in [("bad\0id", "job"), ("good", "bad\0name")] {
+            assert_eq!(
+                tx.insert_job(id, name, &BTreeMap::new(), "hash", 0)
+                    .unwrap_err()
+                    .code(),
+                "E_INPUT"
+            );
+        }
+        assert_eq!(
+            tx.set_schedule_shape("bad\0schedule", "shape")
+                .unwrap_err()
+                .code(),
+            "E_INPUT"
+        );
+        assert_eq!(
+            tx.set_schedule_boundary("bad\0boundary", 1)
+                .unwrap_err()
+                .code(),
+            "E_INPUT"
+        );
+        assert_eq!(tx.schedule_shape("missing\0name").unwrap(), None);
+        assert_eq!(tx.schedule_boundary("missing\0name").unwrap(), None);
+        tx.park_job("missing\0id", "reason\0detail", 0).unwrap();
+        tx.finish_job_sweeps("missing\0id", 1, 0).unwrap();
+    });
+    assert_eq!(f.store().job_count().unwrap(), 0);
+    assert_eq!(f.store().job("missing\0id").unwrap(), None);
+    assert_eq!(f.store().schedule_shape("missing\0name").unwrap(), None);
+    assert_eq!(f.store().schedule_boundary("missing\0name").unwrap(), None);
+}
+
+pub(crate) fn park_chunk_normalizes_diagnostics(f: &mut impl Fixture) {
+    f.write(true, |tx| {
+        tx.insert_job("a", "job", &BTreeMap::new(), "hash", 0)
+            .unwrap();
+        tx.park_job_chunk("a", "ab\0🦀", 1, 1, 0, 0).unwrap();
+    });
+    assert_eq!(
+        f.store().job("a").unwrap().unwrap().error.as_deref(),
+        Some("ab\u{fffd}🦀")
+    );
+    let summary = f.store().job_summaries(3).unwrap().remove(0);
+    assert_eq!(summary.error.as_deref(), Some("ab\u{fffd}"));
+    assert!(summary.error_truncated);
+}
+
+pub(crate) fn signed_counter_boundary<F: Fixture>(f: &mut F) {
+    for initial in [i64::MAX - 1, i64::MAX] {
+        f.write(true, |tx| {
+            tx.insert_job(&initial.to_string(), "counts", &BTreeMap::new(), "hash", 0)
+                .unwrap();
+            tx.record_job_chunk(counter_chunk(&initial.to_string(), initial as u64))
+                .unwrap();
+            F::seed_chunks(tx, initial);
+        });
+        for added in [1, u64::MAX] {
+            f.write(true, |tx| {
+                tx.record_job_chunk(counter_chunk(&initial.to_string(), added))
+                    .unwrap()
+            });
+            let run = f.store().job(&initial.to_string()).unwrap().unwrap();
+            assert_eq!(
+                (run.chunks, run.rows_written, run.retries, run.heap_peak),
+                (
+                    i64::MAX as u64,
+                    i64::MAX as u64,
+                    i64::MAX as u64,
+                    i64::MAX as u64
+                )
+            );
+        }
+    }
+}
+
+pub(crate) fn counter_chunk(id: &str, rows: u64) -> JobChunkUpdate<'_> {
+    JobChunkUpdate {
+        id,
+        state: JobState::Running,
+        sweep: 0,
+        cursor: Some(&[1]),
+        upper: None,
+        rows_written: rows,
+        now: 1,
+        size: 1,
+        retries: u64::MAX,
+        heap_peak: u64::MAX,
+        domain: None,
+    }
+}
+
+#[cfg(feature = "native")]
+pub(crate) fn native_signed_counter_boundary<F: Fixture>(f: &mut F) {
+    for initial in [i64::MAX - 1, i64::MAX] {
+        f.write(true, |tx| {
+            tx.insert_job(&initial.to_string(), "native", &BTreeMap::new(), "hash", 0)
+                .unwrap();
+            tx.record_native_job_chunk(
+                &initial.to_string(),
+                JobState::Running,
+                Some(&[0]),
+                initial as u64,
+                0,
+            )
+            .unwrap();
+            F::seed_chunks(tx, initial);
+        });
+        for added in [1, u64::MAX] {
+            f.write(true, |tx| {
+                tx.record_native_job_chunk(
+                    &initial.to_string(),
+                    JobState::Running,
+                    Some(&[1]),
+                    added,
+                    1,
+                )
+                .unwrap()
+            });
+            let run = f.store().job(&initial.to_string()).unwrap().unwrap();
+            assert_eq!(
+                (run.chunks, run.rows_written),
+                (i64::MAX as u64, i64::MAX as u64)
+            );
+        }
+    }
+}
+
+pub(crate) fn statement_error_is_terminal(f: &mut impl Fixture) {
+    let after_error = std::cell::Cell::new(false);
+    let result = f.try_write(|tx| {
+        tx.insert_job("a", "job", &BTreeMap::new(), "hash", 0)?;
+        tx.set_schedule_boundary("pulse", 1)?;
+        // A real adapter statement failure: the primary key already exists.
+        tx.insert_job("a", "duplicate", &BTreeMap::new(), "hash", 0)?;
+        after_error.set(true);
+        tx.park_job("a", "must not run", 1)?;
+        Ok(())
+    });
+    assert!(result.is_err());
+    assert!(
+        !after_error.get(),
+        "adapter errors must propagate out of their owning transaction"
+    );
+    assert_eq!(
+        f.store().job_count().unwrap(),
+        0,
+        "earlier successful writes rolled back"
+    );
+    assert_eq!(f.store().schedule_boundary("pulse").unwrap(), None);
+    f.try_write(|tx| tx.insert_job("a", "new transaction", &BTreeMap::new(), "hash", 1))
+        .unwrap();
+    assert_eq!(f.store().job_count().unwrap(), 1);
+}
+
+pub(crate) fn oversized_limits(f: &mut impl Fixture) {
+    f.write(true, |tx| {
+        for id in ["a", "b", "c"] {
+            tx.insert_job(id, id, &BTreeMap::new(), "hash", 0).unwrap();
+        }
+        tx.park_job("a", "é\0🦀", 1).unwrap();
+    });
+    let expected = f.store().jobs(3).unwrap();
+    for limit in [
+        (i32::MAX as usize) + 1,
+        i64::MAX as usize,
+        (i64::MAX as usize).saturating_add(1),
+        usize::MAX,
+    ] {
+        assert_eq!(f.store().jobs(limit).unwrap(), expected);
+        let summary = f
+            .store()
+            .job_summaries(limit)
+            .unwrap()
+            .into_iter()
+            .find(|s| s.id == "a")
+            .unwrap();
+        assert_eq!(summary.error.as_deref(), Some("é\u{fffd}🦀"));
+        assert!(!summary.error_truncated);
+    }
 }

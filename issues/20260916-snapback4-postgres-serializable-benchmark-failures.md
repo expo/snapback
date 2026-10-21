@@ -28,3 +28,23 @@ Next: preserve underlying SQLSTATE in future failure reports, then attribute
 retry exhaustion under same/disjoint contention. Keep retry limits and
 durability explicit. A changed retry policy is new work, not a retroactive
 repair of this measurement. The separate unbound-replay issue remains C3.
+
+## 2026-10-21 — evaluation conformance under the P1-JB checks
+
+On expo-build-450a, the P1-JB fix-round-1 run of
+`snapback4/scripts/test-postgres.sh` (main-mirror 1791e1a22b plus this lane)
+finished the evaluation conformance target at 17 passed / 1 failed / 0 ignored.
+`concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+completed Serialized (65 increments, zero retries), then two Serializable
+writers returned SQLSTATE `40001` (`could not serialize access due to concurrent
+update`) from the increment mutation at `tests/conformance.rs:244`. It was not
+an attach failure or a jobs operation. The script stopped before its core stage.
+
+An explicit isolated rerun with `--include-ignored --exact --nocapture` passed:
+65 increments in each mode, zero serialized retries and 64 aggregate serializable
+retries, no lost updates. This records the same serializable stress-failure
+class in conformance; it does not establish a new root cause or change the
+retry policy. All 86 core Postgres cases (including 25 jobs cases) and the
+19-test Postgres corpus target passed when the skipped stages ran separately.
+All were run with four Cargo jobs, incremental off and dev/test line-table debug
+info. The private cluster was stopped and `pg_ctl status` confirmed no server.

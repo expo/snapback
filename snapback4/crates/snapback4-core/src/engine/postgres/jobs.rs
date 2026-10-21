@@ -4,7 +4,10 @@
 use super::store::{Store, Tx, decode};
 use crate::{
     RuntimeError, Value,
-    engine::job::{Head, JobChunkUpdate, JobRun, JobState, JobStore, JobSummary, JobTransaction},
+    engine::job::{
+        Head, JobChunkUpdate, JobRun, JobState, JobStore, JobSummary, JobTransaction, job_counter,
+        job_error_limit, job_limit,
+    },
     value::canonical_json,
 };
 use std::collections::{BTreeMap, BTreeSet};
@@ -12,6 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 /// Attach calls this after locking the head and validating the held backend.
 /// Catalog guards avoid even a no-op DDL table lock on ordinary reopen.
 pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
+    super::jobs_schema::verify_existing(tx)?;
     for (table, ddl) in [
         (
             "_jobs",
@@ -78,7 +82,7 @@ fn read_head(row: &postgres::Row) -> Result<Head, RuntimeError> {
 }
 
 impl JobTransaction for Tx<'_> {
-    fn insert_job(
+    fn insert_job_record(
         &self,
         id: &str,
         name: &str,
@@ -93,11 +97,14 @@ impl JobTransaction for Tx<'_> {
     }
 
     fn head_job(&self) -> Result<Option<Head>, RuntimeError> {
-        self.query("SELECT * FROM _jobs WHERE state IN ('queued','running') ORDER BY created_at,id LIMIT 1", &[])?.first().map(read_head).transpose()
+        self.query("SELECT id,name,args,program_hash,state,sweep,cursor,upper,chunks,rows_written,created_at,updated_at,error,chunk_size,retries,heap_peak,domain FROM _jobs WHERE state IN ('queued','running') ORDER BY created_at,id LIMIT 1", &[])?.first().map(read_head).transpose()
     }
 
-    fn park_job(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
+    fn park_job_record(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("park job")?;
+        if id.contains('\0') {
+            return Ok(());
+        }
         self.execute(
             "UPDATE _jobs SET state='parked',error=$2,updated_at=$3 WHERE id=$1",
             &[&id, &error.as_bytes(), &now],
@@ -106,20 +113,39 @@ impl JobTransaction for Tx<'_> {
     }
 
     fn finish_job_sweeps(&self, id: &str, sweeps: usize, now: i64) -> Result<(), RuntimeError> {
-        self.require_serialized_head_fence("record job chunk")?;
+        self.require_serialized_head_fence("finish job sweeps")?;
+        if id.contains('\0') {
+            return Ok(());
+        }
         self.execute("UPDATE _jobs SET state='done',sweep=$2,cursor=NULL,upper=NULL,updated_at=$3 WHERE id=$1", &[&id, &(sweeps as i64), &now])?;
         Ok(())
     }
 
-    fn record_job_chunk(&self, chunk: JobChunkUpdate<'_>) -> Result<(), RuntimeError> {
+    fn job_counters(&self, id: &str) -> Result<Option<(i64, i64)>, RuntimeError> {
+        self.require_serialized_head_fence("read job counters for update")?;
+        if id.contains('\0') {
+            return Ok(None);
+        }
+        Ok(self
+            .query("SELECT chunks,rows_written FROM _jobs WHERE id=$1", &[&id])?
+            .first()
+            .map(|row| (row.get(0), row.get(1))))
+    }
+
+    fn write_job_chunk(
+        &self,
+        chunk: JobChunkUpdate<'_>,
+        chunks: i64,
+        rows: i64,
+    ) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("record job chunk")?;
-        self.execute("UPDATE _jobs SET state=$2,sweep=$3,cursor=$4,upper=$5,chunks=chunks+1,rows_written=rows_written+$6,updated_at=$7,chunk_size=$8,retries=$9,heap_peak=$10,domain=$11 WHERE id=$1",
+        self.execute("UPDATE _jobs SET state=$2,sweep=$3,cursor=$4,upper=$5,chunks=$12,rows_written=$6,updated_at=$7,chunk_size=$8,retries=$9,heap_peak=$10,domain=$11 WHERE id=$1",
             &[&chunk.id, &chunk.state.word(), &(chunk.sweep as i64), &chunk.cursor, &chunk.upper,
-                &(chunk.rows_written as i64), &chunk.now, &i64::from(chunk.size), &(chunk.retries as i64), &(chunk.heap_peak as i64), &chunk.domain.map(canonical_json)])?;
+                &rows, &chunk.now, &i64::from(chunk.size), &job_counter(chunk.retries), &job_counter(chunk.heap_peak), &chunk.domain.map(canonical_json), &chunks])?;
         Ok(())
     }
 
-    fn park_job_chunk(
+    fn park_job_chunk_record(
         &self,
         id: &str,
         error: &str,
@@ -128,24 +154,28 @@ impl JobTransaction for Tx<'_> {
         retries: u64,
         heap_peak: u64,
     ) -> Result<(), RuntimeError> {
-        self.require_serialized_head_fence("record native job chunk")?;
+        self.require_serialized_head_fence("park job chunk")?;
+        if id.contains('\0') {
+            return Ok(());
+        }
         self.execute("UPDATE _jobs SET state='parked',error=$2,updated_at=$3,chunk_size=$4,retries=$5,heap_peak=$6 WHERE id=$1",
-            &[&id, &error.as_bytes(), &now, &i64::from(size), &(retries as i64), &(heap_peak as i64)])?;
+            &[&id, &error.as_bytes(), &now, &i64::from(size), &job_counter(retries), &job_counter(heap_peak)])?;
         Ok(())
     }
 
     #[cfg(feature = "native")]
-    fn record_native_job_chunk(
+    fn write_native_job_chunk(
         &self,
         id: &str,
         state: JobState,
         cursor: Option<&[u8]>,
-        rows_written: u64,
+        chunks: i64,
+        rows: i64,
         now: i64,
     ) -> Result<(), RuntimeError> {
-        self.require_serialized_head_fence("set schedule shape")?;
-        self.execute("UPDATE _jobs SET state=$2,cursor=$3,chunks=chunks+1,rows_written=rows_written+$4,updated_at=$5 WHERE id=$1",
-            &[&id, &state.word(), &cursor, &(rows_written as i64), &now])?;
+        self.require_serialized_head_fence("record native job chunk")?;
+        self.execute("UPDATE _jobs SET state=$2,cursor=$3,chunks=$6,rows_written=$4,updated_at=$5 WHERE id=$1",
+            &[&id, &state.word(), &cursor, &rows, &now, &chunks])?;
         Ok(())
     }
 
@@ -155,22 +185,39 @@ impl JobTransaction for Tx<'_> {
     fn schedule_boundary(&self, name: &str) -> Result<Option<i64>, RuntimeError> {
         Ok(meta(self, &format!("schedule:{name}"))?.and_then(|value| value.parse().ok()))
     }
-    fn set_schedule_shape(&self, name: &str, shape: &str) -> Result<(), RuntimeError> {
+    fn schedule_exists(&self, name: &str) -> Result<bool, RuntimeError> {
+        if name.contains('\0') {
+            return Ok(false);
+        }
+        Ok(self.query(
+            "SELECT EXISTS(SELECT 1 FROM _meta WHERE key IN ($1,$2))",
+            &[
+                &format!("schedule-shape:{name}"),
+                &format!("schedule:{name}"),
+            ],
+        )?[0]
+            .get(0))
+    }
+
+    fn write_schedule_shape(&self, name: &str, shape: &str) -> Result<(), RuntimeError> {
         set_meta(self, &format!("schedule-shape:{name}"), shape)
     }
-    fn set_schedule_boundary(&self, name: &str, boundary: i64) -> Result<(), RuntimeError> {
+    fn write_schedule_boundary(&self, name: &str, boundary: i64) -> Result<(), RuntimeError> {
         set_meta(self, &format!("schedule:{name}"), &boundary.to_string())
     }
 }
 
 fn meta(tx: &Tx<'_>, key: &str) -> Result<Option<String>, RuntimeError> {
+    if key.contains('\0') {
+        return Ok(None);
+    }
     Ok(tx
         .query("SELECT value FROM _meta WHERE key=$1", &[&key])?
         .first()
         .map(|row| row.get(0)))
 }
 fn set_meta(tx: &Tx<'_>, key: &str, value: &str) -> Result<(), RuntimeError> {
-    tx.require_serialized_head_fence("set schedule boundary")?;
+    tx.require_serialized_head_fence("set schedule metadata")?;
     tx.execute("INSERT INTO _meta(key,value) VALUES ($1,$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value", &[&key, &value])?;
     Ok(())
 }
@@ -187,7 +234,8 @@ fn inspect<T>(
 }
 
 /// The driver fetched at most four UTF-8 bytes per requested character. Clip
-/// a partial final character, then retain SQLite substr(TEXT)'s NUL boundary.
+/// a partial final character. New diagnostics normalize NUL in shared policy;
+/// a legacy stored NUL retains SQLite substr's prefix boundary.
 fn summary_error(bytes: Option<&[u8]>, characters: i64) -> Result<Option<String>, RuntimeError> {
     bytes
         .map(|bytes| {
@@ -212,8 +260,11 @@ fn summary_error(bytes: Option<&[u8]>, characters: i64) -> Result<Option<String>
 
 impl JobStore for Store {
     fn job(&mut self, id: &str) -> Result<Option<JobRun>, RuntimeError> {
+        if id.contains('\0') {
+            return Ok(None);
+        }
         inspect(self, |tx| {
-            tx.query("SELECT * FROM _jobs WHERE id=$1", &[&id])?
+            tx.query("SELECT id,name,args,program_hash,state,sweep,cursor,upper,chunks,rows_written,created_at,updated_at,error,chunk_size,retries,heap_peak,domain FROM _jobs WHERE id=$1", &[&id])?
                 .first()
                 .map(read_head)
                 .transpose()
@@ -222,12 +273,12 @@ impl JobStore for Store {
     }
     fn jobs(&mut self, limit: usize) -> Result<Vec<JobRun>, RuntimeError> {
         // @ref LLP 3000.009.001.000#3.3 — preserve SQLite's rowid/insertion tie order, distinct from head_job's id tie.
-        // SQLite treats a negative (cast) LIMIT as unlimited.
-        let limit = limit as i64;
+        // Shared policy clamps oversized limits to the signed storage maximum.
+        let limit = job_limit(limit);
         inspect(self, |tx| {
             tx.query(
-                "SELECT * FROM _jobs ORDER BY created_at DESC,insertion_order LIMIT $1",
-                &[&(if limit < 0 { None } else { Some(limit) })],
+                "SELECT id,name,args,program_hash,state,sweep,cursor,upper,chunks,rows_written,created_at,updated_at,error,chunk_size,retries,heap_peak,domain FROM _jobs ORDER BY created_at DESC,insertion_order LIMIT $1",
+                &[&limit],
             )?
             .iter()
             .map(|row| read_head(row).map(|head| head.run))
@@ -235,9 +286,15 @@ impl JobStore for Store {
         })
     }
     fn schedule_shape(&mut self, name: &str) -> Result<Option<String>, RuntimeError> {
+        if name.contains('\0') {
+            return Ok(None);
+        }
         inspect(self, |tx| JobTransaction::schedule_shape(tx, name))
     }
     fn schedule_boundary(&mut self, name: &str) -> Result<Option<i64>, RuntimeError> {
+        if name.contains('\0') {
+            return Ok(None);
+        }
         inspect(self, |tx| JobTransaction::schedule_boundary(tx, name))
     }
     fn latest_schedule_boundary(&mut self) -> Result<Option<i64>, RuntimeError> {
@@ -251,10 +308,10 @@ impl JobStore for Store {
     }
     fn job_summaries(&mut self, error_bytes: usize) -> Result<Vec<JobSummary>, RuntimeError> {
         inspect(self, |tx| {
-            // @ref LLP 3000.009.001.000#3.3 — UTF-8 error bytes retain NUL; prefixes count characters, flags count all bytes.
+            // @ref LLP 3000.009.001.000#3.3 — diagnostics normalize NUL before storage; prefixes count characters, flags count bytes.
             // Bound the driver prefix by 4*N and by Postgres' 1 GiB datum
             // limit without overflowing a BIGINT or substring's integer count.
-            let rows = tx.query("SELECT id,name,state,rows_written,substring(error FROM 1 FOR (LEAST(GREATEST($1::bigint,0),268435456)*4)::integer),octet_length(error)>$1 FROM _jobs ORDER BY created_at DESC,id DESC LIMIT 64", &[&(error_bytes as i64)])?;
+            let rows = tx.query("SELECT id,name,state,rows_written,substring(error FROM 1 FOR (LEAST(GREATEST($1::bigint,0),268435456)*4)::integer),octet_length(error)>$1 FROM _jobs ORDER BY created_at DESC,id DESC LIMIT 64", &[&job_error_limit(error_bytes)])?;
             let mut names = BTreeSet::new();
             rows.iter()
                 .filter(|row| names.insert(row.get::<_, String>(1)))
@@ -264,7 +321,7 @@ impl JobStore for Store {
                         name: row.get(1),
                         state: row.get(2),
                         rows_written: row.get(3),
-                        error: summary_error(row.get(4), error_bytes as i64)?,
+                        error: summary_error(row.get(4), job_error_limit(error_bytes))?,
                         error_truncated: row.get::<_, Option<bool>>(5).unwrap_or(false),
                     })
                 })

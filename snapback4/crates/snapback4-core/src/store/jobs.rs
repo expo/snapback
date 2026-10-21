@@ -2,7 +2,8 @@
 // @ref LLP 3000.009.001.000#3.3 — retain SQLite transactions and job-ordering semantics behind the family contract.
 use super::{Store, Tx};
 use crate::engine::job::{
-    Head, JobChunkUpdate, JobRun, JobState, JobStore, JobSummary, JobTransaction,
+    Head, JobChunkUpdate, JobRun, JobState, JobStore, JobSummary, JobTransaction, job_counter,
+    job_error_limit, job_limit,
 };
 use crate::value::{canonical_json, decode_bytes_hex, encode_bytes_hex};
 use crate::{RuntimeError, Value};
@@ -77,7 +78,7 @@ fn insert_job(
 }
 
 impl JobTransaction for Tx<'_> {
-    fn insert_job(
+    fn insert_job_record(
         &self,
         id: &str,
         name: &str,
@@ -92,7 +93,7 @@ impl JobTransaction for Tx<'_> {
         Ok(self.conn().query_row(&format!("SELECT {COLUMNS} FROM _jobs WHERE state IN ('queued', 'running') ORDER BY created_at, id LIMIT 1"), [], read_head).optional()?)
     }
 
-    fn park_job(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
+    fn park_job_record(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
         self.conn().execute(
             "UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3 WHERE id = ?1",
             params![id, error, now],
@@ -105,15 +106,31 @@ impl JobTransaction for Tx<'_> {
         Ok(())
     }
 
-    fn record_job_chunk(&self, chunk: JobChunkUpdate<'_>) -> Result<(), RuntimeError> {
+    fn job_counters(&self, id: &str) -> Result<Option<(i64, i64)>, RuntimeError> {
+        Ok(self
+            .conn()
+            .query_row(
+                "SELECT chunks,rows_written FROM _jobs WHERE id=?1",
+                [id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .optional()?)
+    }
+
+    fn write_job_chunk(
+        &self,
+        chunk: JobChunkUpdate<'_>,
+        chunks: i64,
+        rows: i64,
+    ) -> Result<(), RuntimeError> {
         self.conn().execute(
-            "UPDATE _jobs SET state = ?2, sweep = ?3, cursor = ?4, upper = ?5, chunks = chunks + 1, rows_written = rows_written + ?6, updated_at = ?7, chunk_size = ?8, retries = ?9, heap_peak = ?10, domain = ?11 WHERE id = ?1",
-            params![chunk.id, chunk.state.word(), chunk.sweep as i64, chunk.cursor.map(encode_bytes_hex), chunk.upper.map(encode_bytes_hex), chunk.rows_written as i64, chunk.now, chunk.size, chunk.retries as i64, chunk.heap_peak as i64, chunk.domain.map(canonical_json)],
+            "UPDATE _jobs SET state = ?2, sweep = ?3, cursor = ?4, upper = ?5, chunks = ?12, rows_written = ?6, updated_at = ?7, chunk_size = ?8, retries = ?9, heap_peak = ?10, domain = ?11 WHERE id = ?1",
+            params![chunk.id, chunk.state.word(), chunk.sweep as i64, chunk.cursor.map(encode_bytes_hex), chunk.upper.map(encode_bytes_hex), rows, chunk.now, chunk.size, job_counter(chunk.retries), job_counter(chunk.heap_peak), chunk.domain.map(canonical_json), chunks],
         )?;
         Ok(())
     }
 
-    fn park_job_chunk(
+    fn park_job_chunk_record(
         &self,
         id: &str,
         error: &str,
@@ -122,22 +139,23 @@ impl JobTransaction for Tx<'_> {
         retries: u64,
         heap_peak: u64,
     ) -> Result<(), RuntimeError> {
-        self.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3, chunk_size = ?4, retries = ?5, heap_peak = ?6 WHERE id = ?1", params![id, error, now, size, retries as i64, heap_peak as i64])?;
+        self.conn().execute("UPDATE _jobs SET state = 'parked', error = ?2, updated_at = ?3, chunk_size = ?4, retries = ?5, heap_peak = ?6 WHERE id = ?1", params![id, error, now, size, job_counter(retries), job_counter(heap_peak)])?;
         Ok(())
     }
 
     #[cfg(feature = "native")]
-    fn record_native_job_chunk(
+    fn write_native_job_chunk(
         &self,
         id: &str,
         state: JobState,
         cursor: Option<&[u8]>,
-        rows_written: u64,
+        chunks: i64,
+        rows: i64,
         now: i64,
     ) -> Result<(), RuntimeError> {
         self.conn().execute(
-            "UPDATE _jobs SET state = ?2, cursor = ?3, chunks = chunks + 1, rows_written = rows_written + ?4, updated_at = ?5 WHERE id = ?1",
-            params![id, state.word(), cursor.map(encode_bytes_hex), rows_written as i64, now],
+            "UPDATE _jobs SET state = ?2, cursor = ?3, chunks = ?6, rows_written = ?4, updated_at = ?5 WHERE id = ?1",
+            params![id, state.word(), cursor.map(encode_bytes_hex), rows, now, chunks],
         )?;
         Ok(())
     }
@@ -165,11 +183,19 @@ impl JobTransaction for Tx<'_> {
             .and_then(|value| value.parse().ok()))
     }
 
-    fn set_schedule_shape(&self, name: &str, shape: &str) -> Result<(), RuntimeError> {
+    fn schedule_exists(&self, name: &str) -> Result<bool, RuntimeError> {
+        Ok(self.conn().query_row(
+            "SELECT EXISTS(SELECT 1 FROM _meta WHERE key IN (?1,?2))",
+            params![format!("schedule-shape:{name}"), format!("schedule:{name}")],
+            |row| row.get(0),
+        )?)
+    }
+
+    fn write_schedule_shape(&self, name: &str, shape: &str) -> Result<(), RuntimeError> {
         self.set_meta(&format!("schedule-shape:{name}"), shape)
     }
 
-    fn set_schedule_boundary(&self, name: &str, boundary: i64) -> Result<(), RuntimeError> {
+    fn write_schedule_boundary(&self, name: &str, boundary: i64) -> Result<(), RuntimeError> {
         self.set_meta(&format!("schedule:{name}"), &boundary.to_string())
     }
 }
@@ -191,7 +217,7 @@ impl Store {
         let mut statement = self.conn().prepare(&format!(
             "SELECT {COLUMNS} FROM _jobs ORDER BY created_at DESC, rowid LIMIT ?1"
         ))?;
-        let rows = statement.query_map([limit as i64], read_head)?;
+        let rows = statement.query_map([job_limit(limit)], read_head)?;
         Ok(rows
             .map(|head| head.map(|head| head.run))
             .collect::<Result<_, _>>()?)
@@ -225,7 +251,7 @@ impl Store {
     pub fn job_summaries(&self, error_bytes: usize) -> Result<Vec<JobSummary>, RuntimeError> {
         let mut statement = self.conn().prepare(
             "SELECT name, state, rows_written, substr(error, 1, ?1), octet_length(error) > ?1, id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 64")?;
-        let mut rows = statement.query([error_bytes as i64])?;
+        let mut rows = statement.query([job_error_limit(error_bytes)])?;
         let mut summaries = Vec::new();
         let mut names = std::collections::BTreeSet::new();
         while let Some(row) = rows.next()? {

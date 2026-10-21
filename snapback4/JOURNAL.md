@@ -98206,3 +98206,87 @@ cluster at /tmp/sb4-p1-jb.XuLl5s was stopped through its exact data directory;
 its data/logs remain available for inspection. /home has 30 GB free. The
 expanded all-ignored audit and helper-lockfile limitations remain recorded
 above; no new jobs/schedules failure or unresolved family disagreement remains.
+
+
+## 2026-10-21 — P1-JB fix round 1: adapter parity after blind review
+
+Rebased both lane commits onto main-mirror 1791e1a22b. Conflicts in the RFC,
+journal, Postgres module registrations, authority fence helper and test module
+registrations retain both identity and jobs families, all append-only journal
+entries and one combined Revised line. Identity verification/DDL precedes jobs
+attach; every jobs fence now names its operation. A faulty initial conflict
+script was caught in the diff and the rebase restarted before implementation;
+no removed main content survives that attempt. The local llp-orient skill is
+still an unavailable vendor link (filesystem search found no implementation).
+Orientation used the governing port RFC including today's §9.1, the Snapback 4
+root/rules and jobs/native guide cards directly.
+
+Attach now refuses incompatible existing jobs storage with SNAPBACK_JOBS_SCHEMA,
+including error TEXT with NULL or non-NULL data. Required shape/default/key
+facts are checked under the attach head lock; compatible extra columns remain
+allowed. Explicit cached projections survive a second connection's additive
+upgrade. No per-operation writer contains DDL.
+
+JobTransaction's shared policy rejects NUL in new ids/names and new schedule
+names. Schedule existence is a raw key fact (even malformed saved boundaries
+count), preserving updates to legacy SQLite rows; existing job updates never
+revalidate their keys. Postgres NUL-key lookups short-circuit without a driver
+query. Both park paths normalize U+0000 to U+FFFD before storage and summary
+truncation, replacing this lane's superseded NUL-preservation behavior.
+
+Shared chunk accounting reads totals under the current writer and saturates
+at i64::MAX before writing absolute integers. This applies to Quarry/native
+chunks, unsigned increments, retries and heap peaks; SQLite cannot promote an
+addition to REAL and Postgres cannot overflow BIGINT. Oversized unsigned
+row limits explicitly clamp to i64::MAX; summary prefixes clamp to i32::MAX
+on both stores. A probe of the older host SQLite found a 32-bit substr length
+wraparound; the repository's bundled SQLite uses 64 bits, but the explicit
+32-bit prefix bound is portable across both and Postgres. Zero remains zero. The explicit SQLite rowid / Postgres
+insertion ordinal tie ordering is retained and noted as an allowed SQLite ordering change in the RFC.
+
+The shared real-statement-error case duplicates a job primary key after a
+successful job and schedule write. The owner propagates the adapter error and
+drops the transaction before commit; earlier writes vanish and later work
+requires a fresh transaction. SQLite's driver can continue after some statement
+errors, but callers may not do so under §9.1 rule 4. The separate successful
+savepoint/refusal case remains useful and is not presented as error evidence.
+
+Validation follows below. All cargo commands use four build jobs, incremental
+disabled and dev/test line-table debug info, with one lane-owned cargo command
+at a time. No other lane, git config, stash or push is used.
+
+Validation for fix round 1: the final complete `cargo test -p snapback4-core`
+passes every integration and doc target (891 tests plus one isolated child
+probe passed, five existing ignores). Its 19 SQLite jobs cases all pass.
+`cargo test -p snapback4 --test store_port_ratchet --test committer_ratchet`
+passes 5/5 and 3/3 respectively.
+
+The exact Postgres helper reaches its evaluation tests with no lockfile change:
+17 passed / 1 failed / 0 ignored. The concurrent increment case completed
+Serialized, then returned SQLSTATE 40001 in Serializable mode. Its explicit
+isolated rerun passes 1/1, with 65 increments per mode and 64 aggregate
+serializable retries. The observation is appended to the existing serializable
+stress issue (20260916-snapback4-postgres-serializable-benchmark-failures.md);
+the original helper run remains a failure, not a green qualification.
+
+The helper's skipped core/corpus stages were then run separately with its
+`--locked` flags and the same private database: core Postgres module **86 passed /
+0 failed / 0 ignored**, including all **25 jobs cases passed / 0 failed /
+0 ignored**, native included; corpus **19 passed / 0 failed / 0 ignored** with
+its existing named per-case translations/skips reported normally. The old
+maintained-id fixture now passes on the rebased main. The generic eight-attacher
+witness also passes with jobs attach installed. The private cluster at
+`/tmp/sb4-pg-eval.JldRSE` was stopped after each of three starts; `pg_ctl status`
+confirmed no server running each time. No other cluster was touched.
+
+The exact required Clippy command reports only the two expected inherited
+errors: while_immutable_condition at engine/read.rs:780 and never_loop at
+engine/row_views.rs:1013. A final supplemental pass allowing only those two
+lints on the command line succeeds. Two unnecessary clones in the new cached
+read witness were removed; that witness was rerun explicitly and passes 1/1,
+with zero ignored. Its fourth start of the same private cluster was stopped
+and confirmed stopped too. No source suppression or retry-budget change was
+made. Final ref-check passes (564 LLP documents, 11,519 refs, zero errors and
+zero unchecked references); git diff --check passes. No unresolved jobs-family
+failure remains. The original helper's transient Serializable stress failure
+remains recorded as a limitation, with its separate isolated pass distinguished.

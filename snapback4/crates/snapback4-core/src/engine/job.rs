@@ -104,6 +104,7 @@ pub struct JobSummary {
 #[allow(dead_code)] // P1a conformance seam; the mutable Postgres host joins in P1b.
 pub(crate) trait JobStore {
     fn job(&mut self, id: &str) -> Result<Option<JobRun>, RuntimeError>;
+    /// Limits above i64::MAX clamp to i64::MAX.
     fn jobs(&mut self, limit: usize) -> Result<Vec<JobRun>, RuntimeError>;
     fn schedule_shape(&mut self, name: &str) -> Result<Option<String>, RuntimeError>;
     fn schedule_boundary(&mut self, name: &str) -> Result<Option<i64>, RuntimeError>;
@@ -117,18 +118,147 @@ pub(crate) trait JobStore {
 // @ref LLP 3000.009.001.000#3.3 — the boundary and admitted job stay in one transaction.
 // Postgres writes require the existing serialized shared-head fence.
 pub(crate) trait JobTransaction {
-    fn insert_job(&self, id: &str, name: &str, args: &BTreeMap<String, Value>, program_hash: &str, now: i64) -> Result<(), RuntimeError>;
+    fn insert_job(
+        &self,
+        id: &str,
+        name: &str,
+        args: &BTreeMap<String, Value>,
+        program_hash: &str,
+        now: i64,
+    ) -> Result<(), RuntimeError> {
+        validate_job_key(id)?;
+        validate_job_key(name)?;
+        self.insert_job_record(id, name, args, program_hash, now)
+    }
+    fn insert_job_record(
+        &self,
+        id: &str,
+        name: &str,
+        args: &BTreeMap<String, Value>,
+        program_hash: &str,
+        now: i64,
+    ) -> Result<(), RuntimeError>;
     fn head_job(&self) -> Result<Option<Head>, RuntimeError>;
-    fn park_job(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError>;
+    fn park_job(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
+        self.park_job_record(id, &job_diagnostic(error), now)
+    }
+    fn park_job_record(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError>;
     fn finish_job_sweeps(&self, id: &str, sweeps: usize, now: i64) -> Result<(), RuntimeError>;
-    fn record_job_chunk(&self, chunk: JobChunkUpdate<'_>) -> Result<(), RuntimeError>;
-    fn park_job_chunk(&self, id: &str, error: &str, now: i64, size: u32, retries: u64, heap_peak: u64) -> Result<(), RuntimeError>;
+    fn job_counters(&self, id: &str) -> Result<Option<(i64, i64)>, RuntimeError>;
+    fn record_job_chunk(&self, chunk: JobChunkUpdate<'_>) -> Result<(), RuntimeError> {
+        let Some((chunks, rows)) = self.job_counters(chunk.id)? else {
+            return Ok(());
+        };
+        let total = add_job_counter(rows, chunk.rows_written);
+        self.write_job_chunk(chunk, add_job_counter(chunks, 1), total)
+    }
+    fn write_job_chunk(
+        &self,
+        chunk: JobChunkUpdate<'_>,
+        chunks: i64,
+        rows: i64,
+    ) -> Result<(), RuntimeError>;
+    fn park_job_chunk(
+        &self,
+        id: &str,
+        error: &str,
+        now: i64,
+        size: u32,
+        retries: u64,
+        heap_peak: u64,
+    ) -> Result<(), RuntimeError> {
+        self.park_job_chunk_record(id, &job_diagnostic(error), now, size, retries, heap_peak)
+    }
+    fn park_job_chunk_record(
+        &self,
+        id: &str,
+        error: &str,
+        now: i64,
+        size: u32,
+        retries: u64,
+        heap_peak: u64,
+    ) -> Result<(), RuntimeError>;
     #[cfg(feature = "native")]
-    fn record_native_job_chunk(&self, id: &str, state: JobState, cursor: Option<&[u8]>, rows_written: u64, now: i64) -> Result<(), RuntimeError>;
+    fn record_native_job_chunk(
+        &self,
+        id: &str,
+        state: JobState,
+        cursor: Option<&[u8]>,
+        rows_written: u64,
+        now: i64,
+    ) -> Result<(), RuntimeError> {
+        let Some((chunks, rows)) = self.job_counters(id)? else {
+            return Ok(());
+        };
+        self.write_native_job_chunk(
+            id,
+            state,
+            cursor,
+            add_job_counter(chunks, 1),
+            add_job_counter(rows, rows_written),
+            now,
+        )
+    }
+    #[cfg(feature = "native")]
+    fn write_native_job_chunk(
+        &self,
+        id: &str,
+        state: JobState,
+        cursor: Option<&[u8]>,
+        chunks: i64,
+        rows: i64,
+        now: i64,
+    ) -> Result<(), RuntimeError>;
     fn schedule_shape(&self, name: &str) -> Result<Option<String>, RuntimeError>;
     fn schedule_boundary(&self, name: &str) -> Result<Option<i64>, RuntimeError>;
-    fn set_schedule_shape(&self, name: &str, shape: &str) -> Result<(), RuntimeError>;
-    fn set_schedule_boundary(&self, name: &str, boundary: i64) -> Result<(), RuntimeError>;
+    fn schedule_exists(&self, name: &str) -> Result<bool, RuntimeError>;
+    fn set_schedule_shape(&self, name: &str, shape: &str) -> Result<(), RuntimeError> {
+        if name.contains('\0') && !self.schedule_exists(name)? {
+            validate_job_key(name)?;
+        }
+        self.write_schedule_shape(name, shape)
+    }
+    fn set_schedule_boundary(&self, name: &str, boundary: i64) -> Result<(), RuntimeError> {
+        if name.contains('\0') && !self.schedule_exists(name)? {
+            validate_job_key(name)?;
+        }
+        self.write_schedule_boundary(name, boundary)
+    }
+    fn write_schedule_shape(&self, name: &str, shape: &str) -> Result<(), RuntimeError>;
+    fn write_schedule_boundary(&self, name: &str, boundary: i64) -> Result<(), RuntimeError>;
+}
+
+// @ref LLP 3000.009.001.000#9.1 — new keys reject NUL; stored keys remain addressable, diagnostics normalize before truncation.
+fn validate_job_key(key: &str) -> Result<(), RuntimeError> {
+    if key.contains('\0') {
+        return Err(RuntimeError::Input(
+            "job and schedule identifiers cannot contain U+0000".into(),
+        ));
+    }
+    Ok(())
+}
+fn job_diagnostic(error: &str) -> std::borrow::Cow<'_, str> {
+    if error.contains('\0') {
+        error.replace('\0', "\u{fffd}").into()
+    } else {
+        error.into()
+    }
+}
+
+// @ref LLP 3000.009.001.000#3.3 — accounting saturates at the signed storage maximum, before any adapter write.
+pub(crate) fn job_counter(value: u64) -> i64 {
+    value.min(i64::MAX as u64) as i64
+}
+fn add_job_counter(previous: i64, added: u64) -> i64 {
+    job_counter(previous as u64).saturating_add(job_counter(added))
+}
+/// Oversized unsigned inspection limits clamp to the largest signed value.
+pub(crate) fn job_limit(value: usize) -> i64 {
+    i64::try_from(value).unwrap_or(i64::MAX)
+}
+/// Summary prefix lengths use an explicit signed 32-bit bound on both stores.
+pub(crate) fn job_error_limit(value: usize) -> i64 {
+    job_limit(value).min(i64::from(i32::MAX))
 }
 
 /// Durable admission identity for a queued run. Quarry jobs retain their
