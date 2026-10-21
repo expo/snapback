@@ -1,0 +1,8 @@
+READY — no material findings in `05b7e9b7be..49ff4203ce`.
+
+- Authored removal fixtures forward actual preservation certificates and sequences. Synthetic known events explicitly supply `[]` in the correct durable or ephemeral envelope.
+- Missing versus empty touched-table controls remain distinct. Withdrawal, deadline, fairness, queue-pressure and negative-control assertions remain meaningful; no assertions or bounds were relaxed.
+- Unchanged [revocation-retention controls](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/test/revocation-retention.test.mjs:9) cover missing/null retention, known-empty withdrawal, malformed/opaque evidence, protected dependencies and real disclosure revocation.
+- The journal change is append-only. Production runtime code is unchanged.
+
+Review was read-only; no builds or tests were run. The reported 139-test pass was not independently rerun. The complete 425-file pool, 81 models, Rust command and packed qualification remain unfinished and are not certified by this review.

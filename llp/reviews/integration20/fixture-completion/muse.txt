@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — independent read-only diff review of `05b7e9b7be..49ff4203ce` (5 files, no `src/` changes; production runtime unchanged).
+
+Findings:
+
+- Scope is exactly the four remaining withdrawal/queue fixtures plus an append-only [JOURNAL.md](/home/ccheever/projects/snapback-sb4loop/snapback4/JOURNAL.md) note. No runtime, gate, or qualification code touched.
+- Policy alignment is correct per `change-evidence.ts`: `preserved null/undefined` cannot revoke; known `[]` may. Unchanged [revocation-retention.test.mjs](/home/ccheever/projects/snapback-sb4loop/snapback4/test/revocation-retention.test.mjs) still covers `null`/`undefined`/`legacy`/`malformed`/`opaque`/`insert`, so unknown-evidence controls remain.
+- [answers-stay-review.test.mjs](/home/ccheever/projects/snapback-sb4loop/snapback4/test/answers-stay-review.test.mjs): ephemeral-only `/changes` now carries `preserved: []` in the ephemeral envelope (durable/envelope lists kept separate); durable `tables: []` with missing durable `preserved` correctly does not certify via the durable path. `committed(..., undefined, [])` makes the local commit known-empty; commit/replacement deadline assertions (`2000`, loading) unchanged.
+- Three receipt-forwarding fixtures ([review pre-change](/home/ccheever/projects/snapback-sb4loop/snapback4/test/answers-stay-review.test.mjs), [round2 ×2](/home/ccheever/projects/snapback-sb4loop/snapback4/test/answers-stay-round2.test.mjs), [round3 quiet presence](/home/ccheever/projects/snapback-sb4loop/snapback4/test/answers-stay-round3.test.mjs)) forward `receipt.seq` + `receipt.preserved` with a fail-fast `assert.ok(Array.isArray(...))`. No assertions removed.
+- [round3 missing/empty tables](/home/ccheever/projects/snapback-sb4loop/snapback4/test/answers-stay-round3.test.mjs): both arms now send `preserved: []`, renamed `known nonpreservation`; missing-tables still refreshes all/revalidates/deadlines/withdraws, empty-tables still intersects neither. Scope ambiguity vs preservation-unknown correctly separated.
+- [pressure-round1 queue test](/home/ccheever/projects/snapback-sb4loop/snapback4/test/subscription-pressure-round1.test.mjs): hardcoded `seq: 100` replaced with the authored `evidence.seq` + `preserved`; 8 slots, `hangBudget(8)`, `active.size === 8`, `queued`/`loading` assertions unchanged. Still a valid queue-pressure control, now on known evidence.
+- No bounds/assertions relaxed: all `assert.equal`/`deepEqual`, deadlines (1001ms/2000), timeouts, and slot counts are identical; diff only adds `preserved` fields, `assert.ok` guards, and `known` renames.
+- Journal note correctly states the complete 425-file pool / 81 models / Rust / packed qualification is being repeated and claims no unfinished success; scratch-log handling is described as outside the source tree without weakening the clean-source check.
+
+Not verified here (per instructions, no build/test run): the reported focused 5-file/139-test pass and the rerun of the complete pool.
+

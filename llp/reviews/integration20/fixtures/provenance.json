@@ -1,0 +1,30 @@
+{
+  "recordedAtUTC": "2026-10-21T13:56:33.517596+00:00",
+  "scope": "fixtures",
+  "base": "f34441c148",
+  "reviewedCommit": "05b7e9b7be",
+  "briefSha256": "7034aa7f5687c16e00c0f828df4900dd61f2cb003b0125729b648210025ee936",
+  "reviews": [
+    {
+      "family": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
+      "freshSession": true,
+      "exitCode": 0,
+      "reviewSha256": "b9947f9e9fba976356b93447d1e2228735ffa45ee0d7b52ec864914f8cdbb005",
+      "stderrSha256": "adf390bd239ad717b55ae003971dda89e7c2c4d8cb3632848fcdb2d9dc508df5",
+      "invocation": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief.md"
+    },
+    {
+      "family": "muse",
+      "model": "muse-spark-1.3-contributor",
+      "reasoningEffort": "high",
+      "freshSession": true,
+      "exitCode": 0,
+      "reviewSha256": "5ad97cea45f971bd835d2642309daaf2d85d3767ba5c30c99dbfd4bda566bd59",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "invocation": "~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file brief.md"
+    }
+  ],
+  "acceptance": "Review verdicts only; no acceptance on the author behalf."
+}

@@ -1,0 +1,14 @@
+{
+  "base": "f34441c148",
+  "reviewedCommit": "05b7e9b7be",
+  "fileSha256": {
+    "snapback4/JOURNAL.md": "04486051d00b950cd0d5ff6134bc449b97433d4cfef457ea112c610be0d76eb3",
+    "snapback4/crates/snapback4-lang/src/guide/testing.md": "3a11b586816fa065ccd0498c5414f1188bb1e7f16c623ccf36f37fc73e5c3929",
+    "snapback4/crates/snapback4-lang/src/guide/wire.md": "53f21e8ecf192aa0b9a623053566411f7678936dd5bdaf0b9484c352ab7c0901",
+    "snapback4/packages/snapback4/test/answers-stay-bound.test.mjs": "ac63803accba16be1889830474068b2fff2cb295a1ad4da4b11797aafcefbc8e",
+    "snapback4/packages/snapback4/test/per-row-inflight.test.mjs": "d9c2a3d27bfb595b09eabcc355dccf7a20ca358ed1fbc2113070777f8ae2b87a",
+    "snapback4/packages/snapback4/test/per-row-work.test.mjs": "21f2dc3790c6084e0629620e06fc5db247cbde4bff03c266c5e793291fdd4877",
+    "snapback4/packages/snapback4/test/retention-episode.test.mjs": "eef4fdad34da50ca13ccc848cd6be11e2d95b30ec270e4355a5fa4daebd2c762",
+    "snapback4/packages/snapback4/test/retention-online-boundaries.test.mjs": "f8d5a5a6266ae14c41c1d170809d9b1cb63852a6e6c25e8dd922ef5ac4930a3b"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "base": "05b7e9b7be",
+  "reviewedCommit": "49ff4203ce",
+  "fileSha256": {
+    "snapback4/JOURNAL.md": "7a2d67cac1bc369254bd8c695c31863a875cbd696b20c27d889a6a731012353e",
+    "snapback4/packages/snapback4/test/answers-stay-review.test.mjs": "8e54dba29e36b40324327a9a6c04a32fd4da2fcfa22e003eb3cc82b81d862952",
+    "snapback4/packages/snapback4/test/answers-stay-round2.test.mjs": "8f073d0cf1d5cbbb7206ae0d85d69635737b9df76ecfe1ece3b9ed9115df194b",
+    "snapback4/packages/snapback4/test/answers-stay-round3.test.mjs": "ec9a9524e838b53192a4452c869a4980ee980512ba0d9283517f35d4787ccfbe",
+    "snapback4/packages/snapback4/test/subscription-pressure-round1.test.mjs": "d91707103df587a3f00a01cb4d0474d4af3a03640a2baa8dcbc01e11d80db48e"
+  }
+}

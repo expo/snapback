@@ -1,0 +1,12 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — delta `f34441c148..05b7e9b7be` is fixture/guide alignment only; policy not reopened.
+
+Concrete findings from actual diff (8 files, no `.rs`/budget/production-code changes):
+
+- Wire policy match: `snapback4/crates/snapback4-lang/src/guide/wire.md` (2 hunks) and `testing.md` (1 hunk) change only failed/refused writes `preserved: []` → `preserved: null`. Sent writes stay `preserved: ["notes"]`. This is exactly accepted LLP 3000.009.001.0003.4/9.1: unknown `null`/absent keeps prior read while refreshing; certified known `[]` may revoke.
+- Known-evidence withdrawal preserved: `answers-stay-bound`, both `per-row-work` `/changes` fixtures, and both `retention-online-boundaries` `/changes` fixtures add `preserved: []` with overlapping `tables` (`rows`/`cards`/`private`). Under `change-evidence.ts:5-6,19-20` (`null`/`undefined` → `canRevoke=false`), the old absent-`preserved` fixtures would now exercise the unknown/keep path; `[]` restores the intended revoking-change precondition. No assertion/deadline/queue/link-loss line changed; only the test title `actual` → `known` was renamed.
+- Actual `mutation.preserved` obtained: `per-row-inflight.test.mjs` adds `assert.ok(Array.isArray(result.preserved))` and forwards `result.preserved` into `f.change(...)` for both the transfer and add paths (online tier keeps its `sync()` path, no fabrication). Additive assert only; dirty/reads/snapshot/episode bounds untouched.
+- Local-commit retention: `retention-episode.test.mjs` `committed([watch], op)` → `committed([watch], op, undefined, [])` matches `committed(watches, op, touched?, preserved?)` signature; `[]` drives the bounded `watchCanRevoke` path the deadline assertions (`undefined` → `2000`) require. Unknown-evidence coverage is not lost: unchanged `revocation-retention.test.mjs:12-14,33` still pins `null`/`undefined` → `false` vs `[]` → revoke plus legacy/malformed cases.
+- Bounds intact: all changed hunks are fixture JSON or the two added `assert.ok`s; withdrawal deadlines, queue-fairness, ready-batching (`episode`/`old-row`/`new-row`/`empty`/`null` data bodies untouched), and link-loss notification assertions are byte-identical.
+- Scope clean: `JOURNAL.md` entry claims only alignment via `KIT3_UPDATE_WIRE`/`KIT4_UPDATE_WIRE`, no test-success claim for the still-running full client/Rust/packed-consumer qualification.

@@ -1,0 +1,8 @@
+READY — no material findings in `f34441c148..05b7e9b7be`.
+
+- All five fixtures retain their assertions and bounds. Explicit `preserved: []` keeps withdrawal scenarios meaningful under the accepted policy.
+- Inflight fixtures forward actual `mutation.preserved` and assert it is known. The authored mutations change read-rule ownership, preserving meaningful revocation coverage.
+- Queue timing, fairness, ready batching, retention, and link-loss checks remain intact. Separate null/absent-evidence controls remain.
+- All three changed guide responses use `preserved: null` for refused mutations, matching the HTTP implementation.
+
+Read-only inspection only; no builds or tests run. Ongoing client, Rust, and packed-consumer qualification remains unverified by this review.

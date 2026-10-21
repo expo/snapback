@@ -1,0 +1,37 @@
+{
+  "recordedAtUTC": "2026-10-21T14:37:50.776003+00:00",
+  "scope": "fixture-completion",
+  "base": "05b7e9b7be",
+  "reviewedRevision": "49ff4203ce",
+  "briefSha256": "c7f107449c652bdec322051e768b6b44aa61f95fd63a0c0aff8ed1e1240167ce",
+  "sources": {
+    "snapback4/JOURNAL.md": "7a2d67cac1bc369254bd8c695c31863a875cbd696b20c27d889a6a731012353e",
+    "snapback4/packages/snapback4/test/answers-stay-review.test.mjs": "8e54dba29e36b40324327a9a6c04a32fd4da2fcfa22e003eb3cc82b81d862952",
+    "snapback4/packages/snapback4/test/answers-stay-round2.test.mjs": "8f073d0cf1d5cbbb7206ae0d85d69635737b9df76ecfe1ece3b9ed9115df194b",
+    "snapback4/packages/snapback4/test/answers-stay-round3.test.mjs": "ec9a9524e838b53192a4452c869a4980ee980512ba0d9283517f35d4787ccfbe",
+    "snapback4/packages/snapback4/test/subscription-pressure-round1.test.mjs": "d91707103df587a3f00a01cb4d0474d4af3a03640a2baa8dcbc01e11d80db48e"
+  },
+  "reviews": [
+    {
+      "family": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
+      "freshSession": true,
+      "exitCode": 0,
+      "reviewSha256": "970080cc035d101b7b14bd31d7037a4599acb70d3d3eabadb11f578d2c72b361",
+      "stderrSha256": "6a72254e5543d9f2a041d0725994135d826fd5e9f08cbf1557457d6821f46acb",
+      "invocation": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief.md"
+    },
+    {
+      "family": "muse",
+      "model": "muse-spark-1.3-contributor",
+      "reasoningEffort": "high",
+      "freshSession": true,
+      "exitCode": 0,
+      "reviewSha256": "c1ccb9fb74302071f2b835a6c54f402d79239a78f91b02728db29d398860c93c",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "invocation": "~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file brief.md"
+    }
+  ],
+  "acceptance": "Review verdicts only. The documentation reconciliation records existing incoming policy and adds no policy decision or author acceptance."
+}

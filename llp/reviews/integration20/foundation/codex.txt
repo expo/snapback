@@ -1,0 +1,8 @@
+READY — no material findings in `58f9c20905..f34441c148`.
+
+- Unknown evidence remains explicit through `/changes`, streaming `/sync` and mutation acknowledgements. Null/absent evidence triggers refresh without certifying preservation or revocation; known `[]` retains bounded withdrawal.
+- Shared receipt decoding applies the acknowledgement cut before decoding. Metadata admission rejects new NUL text/keys while preserving legacy SQLite reads and status-key updates.
+- Postgres additions preserve SQLite defaults. No regression found in DX5 clocks, diagnostics, starters or upgrade-warning delivery, or SEC5 invariant/provenance behavior.
+- README and the single `0.4.36` changelog remain consistent. Budgets, runtime access policy and finite-counterexample assumptions are preserved.
+
+Read-only review only; no builds/tests run. Recorded incoming qualification was not treated as proof of integrated verification.
