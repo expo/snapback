@@ -38,9 +38,10 @@ pub(super) fn compatibility(store: &Store, current: &Schema, target: &Schema, cu
         let (name, column) = path.split_once('.').unwrap();
         let (count, values) = store.rollback_incompatible_values(current, target, name, column).map_err(|e| e.to_string())?;
         if count > 0 {
-            lines.push(format!("WARNING {path}: {count} {} {} {}, which {target_label} cannot hold directly; without a fitting declared reverse projection, {} dormant on this switch and {} restored on compatible forward; accept their absence or preserve these values in a bridge release",
-                if count == 1 { "row" } else { "rows" }, if count == 1 { "holds" } else { "hold" }, values.join(", "),
-                if count == 1 { "it becomes" } else { "they become" }, if count == 1 { "is" } else { "are" }));
+            let projected=current.downfills.iter().any(|fill|fill.table==name && fill.outputs.contains(column));
+            let remedy=if projected {"the declared down projection runs before compatibility is decided; exact preview reports remaining hidden rows"} else {"exact preview reports which rows remain incompatible; generate a loosened bridge to preserve their actual values"};
+            lines.push(format!("{} {path}: {count} {} {} {}, outside {target_label}'s raw column domain; {remedy}",if projected {"note:"}else{"WARNING"},
+                if count == 1 { "row" } else { "rows" }, if count == 1 { "holds" } else { "hold" }, values.join(", ")));
         } else {
             lines.push(format!("note: {path}: no stored values are incompatible with {target_label}; no value repair is needed for this switch"));
         }
@@ -54,7 +55,7 @@ pub(super) fn compatibility(store: &Store, current: &Schema, target: &Schema, cu
                 variants.iter().filter(|v| !old.contains(v)).map(|v| snapback4_lang::print::quote(v)).collect::<Vec<_>>().join(", "),
             _ => format!("values outside release {current_release}'s column declaration"),
         };
-        lines.push(format!("note: {path} admits {admission}; rows that later use those values become dormant on rollback to release {current_release}; keep this value domain in a bridge if those rows must stay available"));
+        lines.push(format!("note: {path} admits {admission}; rollback to release {current_release} must represent those writes through declared projections or a loosened bridge; run the exact rollback preview after writes"));
     }
     Ok(lines)
 }

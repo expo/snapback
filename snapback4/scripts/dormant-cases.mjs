@@ -179,6 +179,7 @@ async function identityCycles({cli,startServe},parent) {
 table orders:
   owner: principal
   names: file <=1000
+  legacyQuantity: int default 0
   read <- .owner = viewer
   insert <- .owner = viewer
   update <- .owner = viewer
@@ -198,6 +199,7 @@ query all():
 `;
     const newer=old.replace('table orders:','table consignments renamed from orders:')
       .replace('  names: file <=1000','  roster: file <=1000 ? renamed from names\n  quantity: int\n  hasReceipt: bool default false')
+      .replace('  legacyQuantity: int default 0\n','')
       .replaceAll('parent: orders','parent: consignments')
       .replace('mutation add(names: file <=1000):','mutation add(names: file <=1000 ?, quantity: int):')
       .replace('insert orders {owner:viewer,names}','insert consignments {owner:viewer,roster:names,quantity}')
@@ -207,6 +209,8 @@ query all():
   {quantity:nonemptyLines(fileText(roster)) if roster != null else 0}
 backfill consignments receiptStatus(id: id):
   {hasReceipt:exists receipts where .parent = id}
+down consignments oldQuantity(roster: file <=1000 ?):
+  {legacyQuantity:nonemptyLines(fileText(roster)) if roster != null else 0}
 `;
     writeFileSync(schema,old);await run(['deploy',deployment]);host=await startServe(deployment,{cwd,timeoutMs:60_000});
     const auth=await(await fetch(host.url+'/auth/guest',{method:'POST',body:'{}',signal:AbortSignal.timeout(30_000)})).json();assert.ok(auth.session?.token);
@@ -215,14 +219,17 @@ backfill consignments receiptStatus(id: id):
     const uploaded=await client.upload(new TextEncoder().encode('Ada\n \nAda\nLin\r\n'),{file:{name:'names.txt',type:'text/plain'}});assert.equal(uploaded.ok,true,JSON.stringify(uploaded));
     const historical=await post('/m/add',{names:{id:uploaded.asset.id}});assert.equal(historical.state,'sent');
     assert.equal((await post('/m/receipt',{parent:historical.result.id})).state,'sent');
-    writeFileSync(schema,newer);const preview=JSON.parse((await run(['deploy',deployment,'--check','--json'])).stdout);assert.equal(preview.visibility.hiddenRows,0);
+    writeFileSync(schema,newer);const preview=JSON.parse((await run(['deploy',deployment,'--check','--json'])).stdout);assert.equal(preview.visibility.hiddenRows,0);assert.ok(!preview.hazards.some(h=>h.includes('table orders:')&&h.includes('become dormant')),JSON.stringify(preview));
     await run(['deploy',deployment]);let rows=(await post('/q/all')).data;assert.equal(rows[0].quantity,3);assert.equal(rows[0].hasReceipt,true);assert.equal(rows[0].roster.id,uploaded.asset.id);
     const native=await post('/m/add',{names:null,quantity:0});assert.equal(native.state,'sent');assert.equal((await post('/m/receipt',{parent:native.result.id})).state,'sent');
+    const second=await client.upload(new TextEncoder().encode('Bo\nCy\n'),{file:{name:'later.txt',type:'text/plain'}});assert.equal(second.ok,true);
+    const nativeFile=await post('/m/add',{names:{id:second.asset.id},quantity:2});assert.equal(nativeFile.state,'sent');
     const strict=JSON.parse((await run(['rollback',deployment,'--to','1','--check','--json'])).stdout);
     assert.equal(strict.visibility.hiddenRows,2,'required file hides its row and its typed child');assert.equal(strict.visibility.newerOnlyRows,0,'renamed identity is an old table');
     assert.ok(strict.visibility.tables.some(t=>t.causes.some(([cause])=>cause.includes('hidden parent'))));
     const bridge=join(cwd,'bridge');await run(['rollback',deployment,'--to','1','--check','--bridge',bridge]);await run(['deploy',deployment,'--schema',bridge,'--restore-dormant']);
-    rows=(await post('/q/all')).data;assert.equal(rows.length,2);assert.equal(rows.find(r=>r.id===historical.result.id).names.id,uploaded.asset.id);
+    rows=(await post('/q/all')).data;assert.equal(rows.length,3);assert.equal(rows.find(r=>r.id===historical.result.id).names.id,uploaded.asset.id);
+    assert.equal(rows.find(r=>r.id===nativeFile.result.id).legacyQuantity,2,'native-v2 down reads retained file bytes in exact previews and activation');
     assert.equal(rows.find(r=>r.id===native.result.id).names,null,'bridge preserves absence without fabricating a file');
     await run(['deploy',deployment]);rows=(await post('/q/all')).data;assert.equal(rows.find(r=>r.id===historical.result.id).quantity,3);assert.equal(rows.find(r=>r.id===native.result.id).quantity,0);
     const readable=await client.asset(uploaded.asset.id);assert.ok(!('denied'in readable),JSON.stringify(readable));readable.revoke();

@@ -32,7 +32,8 @@ fn trailing_new_column_guard_tightens_and_rollback_leads_with_its_code() {
     app.ok(&["deploy","deployment"]);
     let text=app.ok(&["rollback","deployment","--to","1","--check","--bridge","bridge"]);
     let first=text.lines().find(|line|line.contains("WARNING")).unwrap();assert!(first.contains("book.require") && first.contains("UNAVAILABLE"),"{text}");
-    assert_eq!(app.read("bridge/schema.q"),v2);
+    assert_eq!(app.read("bridge/schema.q"),v1,"loosened bridges preserve target operations; safety restoration is explicit");
+    assert!(app.read("bridge/ROLLBACK-CHECKLIST.md").contains("restore any current safety guards absent from the target"));
     assert!(app.read("bridge/ROLLBACK-CHECKLIST.md").contains("UNAVAILABLE"));
     app.ok(&["deploy","deployment","--schema","bridge","--check"]);
     let out=app.run(&["rollback","deployment","--to","1","--check","--bridge","bridge"]);assert!(!out.status.success());
@@ -107,4 +108,17 @@ fn missing_owner_sidecar_refuses_preview_until_canonical_ownership_is_reestablis
     // Rollback owns the canonical command guard already; preview reuses it.
     app.ok(&["rollback","deployment","--to","1","--check"]);assert!(owner.exists());app.ok(&["deploy","deployment","--check"]);
  }
+}
+
+#[test]
+fn an_old_operation_routing_new_writes_into_a_new_table_names_the_old_read_gap() {
+    let app=App::new();
+    let old="table notes:\n  text: text <=40\n  public\n  online only\nmutation add(text: text <=40):\n  return insert notes {text}\nquery oldRead():\n  return notes first 10 by .id\n";
+    app.write("snapback/schema.q",old);app.ok(&["deploy","deployment"]);
+    let new=old.replace("insert notes {text}","insert observations {text}")+"table observations:\n  text: text <=40\n  public\n  online only\n";
+    app.write("snapback/schema.q",&new);
+    let preview=app.ok(&["deploy","deployment","--check","--json"]);
+    let json:serde_json::Value=serde_json::from_str(&preview).unwrap();
+    assert!(json["hazards"].as_array().unwrap().iter().any(|h|h.as_str().unwrap().contains("operation add remains callable by old clients but now writes newer-only table observations")),"{preview}");
+    assert_eq!(json["visibility"]["hiddenRows"],0);
 }

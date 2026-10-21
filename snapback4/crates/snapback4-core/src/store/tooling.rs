@@ -23,6 +23,19 @@ impl Tx<'_> {
     }
 }
 impl Store {
+    /// Current public spellings mapped to the target spelling of the same retained identity.
+    pub fn release_table_mapping(&self,current:&crate::Schema,target:&crate::Schema)->Result<std::collections::BTreeMap<String,String>,String> {
+        let mut names=std::collections::BTreeMap::<String,String>::new();
+        let exists:bool=self.conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_table_renames')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+        if exists {names=self.conn.prepare("SELECT name,origin FROM _table_renames").map_err(|e|e.to_string())?.query_map([],|r|Ok((r.get(0)?,r.get(1)?))).map_err(|e|e.to_string())?.collect::<Result<_,_>>().map_err(|e|e.to_string())?;}
+        for (new,old) in &target.table_renames {let origin=names.get(old).cloned().unwrap_or_else(||old.clone());names.insert(old.clone(),origin.clone());names.insert(new.clone(),origin);}
+        let mut map=std::collections::BTreeMap::new();
+        for name in current.tables.keys().filter(|name|!target.tables.contains_key(*name)) {
+            let root=names.get(name).unwrap_or(name);
+            if let Some(next)=target.tables.keys().find(|next|names.get(*next).unwrap_or(*next)==root) {map.insert(name.clone(),next.clone());}
+        }
+        Ok(map)
+    }
     pub fn snapshot_to(&self, path: &Path) -> Result<(), String> {
         self.conn
             .execute("VACUUM INTO ?1", [path.to_string_lossy().as_ref()])

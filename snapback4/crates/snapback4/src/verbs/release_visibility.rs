@@ -163,6 +163,7 @@ mod tests {
         let new=bound("table records renamed from items:\n  n: int ?\n  public\n  online only\n");
         let current=new.schema.clone();let mut e=Engine::new_release(Store::memory().unwrap(),new.schema,[],2,None).unwrap();
         let row=wire::row_from_json(&current.tables["records"],&serde_json::json!({"id":"hidden","n":null})).unwrap();e.seed([("records".into(),row)]).unwrap();
+        assert_eq!(e.store().release_table_mapping(&current,&old.schema).unwrap().get("records").map(String::as_str),Some("items"));
         super::super::release_safeguards::capture(e.store()).unwrap();e.adopt_release(old.schema.clone(),[],&ReleaseActivation::new(1,Some(2)),false).unwrap();
         let v=assess(e.store(),Some(&current),&old.schema).unwrap();assert_eq!((v.hidden_rows,v.newer_only_rows),(1,0));
         assert_eq!(v.tables[0].target_table.as_deref(),Some("items"));assert!(v.lines(2,1).join("\n").contains("records → items"));

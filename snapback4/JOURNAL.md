@@ -99668,3 +99668,12 @@ file lines, cross-table backfill, typed-parent closure and nullable-file bridge.
 SEC6 owns identity/session security and rule-review behavior. Version unchanged;
 user-visible changes are recorded under 0.4.37 in the packaged changelog.
 Final commands, results and limits are recorded in WORKSTREAM-REPORT.md.
+
+EVOL final preview audit: pre-activation raw-domain messages no longer predict
+hiding before declared down executes. Retained alias identities also govern
+step/removal narration; an old callable operation writing a genuinely newer-only
+table names the missing old read path. Reverse snapshots borrow the same
+immutable asset directory as forward previews. Packed coverage now includes
+file-derived down for a native v2 record and the lost-guard checklist contract.
+The former day5 source-copy assertion is updated to the reviewed loosened-target
+contract, preserving guard warnings and the explicit restoration checklist.

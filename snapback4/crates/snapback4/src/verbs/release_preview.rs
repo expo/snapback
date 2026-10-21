@@ -87,7 +87,9 @@ pub(super) fn preview(
     let prior_schema=prior.as_ref().map(|(schema,_)|serde_json::from_str::<snapback4_core::Schema>(schema).map_err(|e|e.to_string())).transpose()?;
     if let Some((schema,programs))=prior {
         let prior:snapback4_core::Schema=serde_json::from_str(&schema).map_err(|e|e.to_string())?;
-        steps=snapback4_core::successor::classify(&prior,&candidate_schema);
+        let table_names=store.release_table_mapping(&prior,&candidate_schema)?;
+        steps=snapback4_core::successor::classify(&prior.with_table_names(&table_names).map_err(|e|e.to_string())?,&candidate_schema);
+        for (old,new) in &table_names {notes.push(format!("table {old} → {new}: the same retained identity and references; review operations and rules at the target spelling"));}
         let programs:std::collections::BTreeMap<String,snapback4_core::ir::Program>=serde_json::from_str(&programs).map_err(|e|e.to_string())?;
         let target_label = format!("release {release}");
         let compatibility = super::release_narration::compatibility(&store, &prior, &candidate_schema, held["release"].as_u64().unwrap_or(0), &target_label, options.flags.contains_key("deploy-direction"))?;
@@ -95,10 +97,18 @@ pub(super) fn preview(
             if let Some(warning) = line.strip_prefix("WARNING ") { hazards.push(warning.to_owned()); }
             else { notes.push(line.trim_start_matches("note: ").to_owned()); }
         }
+        for (name,program) in &candidate_programs {
+            if !programs.contains_key(name) {continue;}
+            for (table,_) in snapback4_core::ir::write_tables(program) {
+                if prior.table(&table).is_none() && !table_names.values().any(|new|new==&table) && candidate_schema.maintain_for(&table).is_none() {
+                    hazards.push(format!("operation {name} remains callable by old clients but now writes newer-only table {table}; the old target has no read path for these records; declare a table rename for one identity, or retain the table and adapt the old read operation in a bridge"));
+                }
+            }
+        }
         let rollback=!options.flags.contains_key("deploy-direction");
         let (behavior_warnings, behavior_notes) = super::release_narration::behavior(store_path, &store, &prior, &candidate_schema, &programs, &candidate_programs, &project, held["release"].as_u64(), &target_label, rollback)?;
         hazards.extend(behavior_warnings); notes.extend(behavior_notes);
-        for name in prior.tables.keys().filter(|name|!candidate_schema.tables.contains_key(*name) && prior.maintain_for(name).is_none() && prior.tables[*name].ephemeral.is_none()) {
+        for name in prior.tables.keys().filter(|name|!candidate_schema.tables.contains_key(*name) && !table_names.contains_key(*name) && prior.maintain_for(name).is_none() && prior.tables[*name].ephemeral.is_none()) {
             let count:u64=store.inspection_table_population(name)?;
             if count>0 {hazards.push(format!("table {name}: {count} rows become dormant; {target_label} lacks this table's behavior; preserve it in a bridge or accept its absence"));}
         }
@@ -163,7 +173,8 @@ pub(super) fn preview(
             // Exact reverse adoption tests today's post-deploy image, separately from future-write risks.
             let reverse_path=snapshot.0.join("reverse.sqlite");
             engine.store().snapshot_to(&reverse_path).map_err(|e|e.to_string())?;
-            let reverse_store=snapback4_core::Store::open(&reverse_path).map_err(|e|e.to_string())?;
+            let mut reverse_store=snapback4_core::Store::open(&reverse_path).map_err(|e|e.to_string())?;
+            reverse_store.preview_asset_root(&store_path.parent().unwrap().join("assets")).map_err(|e|e.to_string())?;
             super::release_safeguards::capture(&reverse_store)?;
             let native=crate::native::prepare(&Project {root:old_root},&old).map_err(|e|e.to_string())?;
             let mut reverse=snapback4_core::engine::release::ReleaseActivation::new(current,Some(release));
