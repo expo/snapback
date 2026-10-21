@@ -1,5 +1,6 @@
 //! Server clock crossings for `not before` tables.
 
+use crate::rows::Rows;
 use super::committer::{Committer, Kind, Member};
 
 use super::*;
@@ -77,7 +78,7 @@ impl Engine {
         }
         Committer::run(&mut self.store, Member::new(Kind::Direct, |tx| {
             let now = tx.pin_time_audience_clock(requested)?;
-            tx.commit(now)
+            tx.complete(now)
         }))
     }
 
@@ -113,7 +114,7 @@ impl Engine {
             let now = tx.pin_time_audience_clock(requested)?;
             let opening = match selected { Some((table, id)) => tx.selected_time_audience(table, id, now)?, None => tx.due_time_audience(now)? };
             let Some(opening) = opening else {
-                return tx.commit(now);
+                return tx.complete(now);
             };
 
             let row = tx.get(&opening.table, &opening.id)?;
@@ -133,12 +134,12 @@ impl Engine {
                 // Stale/rescheduled/deleted and never-live rows advance only the
                 // private ledger and clock, with no public commit or invalidation.
                 tx.set_time_audience_published(&opening.table, &opening.id, false)?;
-                return tx.commit(now);
+                return tx.complete(now);
             };
 
             let seq = tx.next_seq()?;
             let mut runner = Runner::new(
-                &*tx,
+                &tx,
                 &self.schema,
                 Context::system().at(now),
                 // Structural admission proves one opening fits the ordinary
@@ -179,8 +180,8 @@ impl Engine {
                 &tables,
                 0,
             )?;
-            partition::append(&*tx, seq, &events)?;
-            tx.commit(now)
+            tx.append(seq, &events)?;
+            tx.complete(now)
         }))
     }
 }

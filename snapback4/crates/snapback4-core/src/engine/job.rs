@@ -7,6 +7,7 @@
 //! boundary across restarts: the boundary it fired for is committed with
 //! the job row.
 
+use crate::rows::Rows;
 use super::committer::{Committer, Kind, Member};
 
 use super::runner::{Flow, Runner};
@@ -15,7 +16,6 @@ use super::{Context, Engine};
 use crate::error::RuntimeError;
 use crate::ir::{Expr, LoopDomain, ProgramKind, Scan, Stmt};
 use crate::meter::{Ceilings, Cut, Meter};
-use crate::partition;
 use crate::store::{Bounds, Dir};
 use crate::value::{Value, canonical_json, digest};
 use serde::{Deserialize, Serialize};
@@ -392,7 +392,7 @@ impl Engine {
             // @ref LLP 3000.036.003#3.2 — a job's
             // runner, partition events and commit share the floor pinned inside
             // their writer transaction, for Quarry and native chunks alike.
-            let now = super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
+            let now = tx.pin_writer_time(&self.schema, now)?;
             let head = tx.head_job()?;
             let Some(mut head) = head else { return Ok(tx.abort(None)) };
             let program = self.programs.get(&head.run.name).cloned();
@@ -402,7 +402,7 @@ impl Engine {
             let current_hash = program.as_ref().map(|program| job_admission_hash(program, None));
             let Some(program) = program.filter(|_| current_hash.as_deref() == Some(&head.program_hash)) else {
                 tx.park_job(&head.run.id, &format!("E_JOB_GENERATION: job {} or its native module changed (or the run predates module binding) since this run was queued; queue it again", head.run.name), now)?;
-                return tx.commit(Some(head.run.id));
+                return tx.complete(Some(head.run.id));
             };
             if program.native {
                 let id = head.run.id.clone();
@@ -436,11 +436,11 @@ impl Engine {
                     |(position, binding)| format!("has an unsupported top-level loop at statement {position} (`for {binding}`)"));
                 tx.park_job(&head.run.id,
                     &format!("E_JOB_SWEEP: job {} {reason}; bind its work as `for row in table:` and put optional filters inside the loop", program.name), now)?;
-                return tx.commit(Some(head.run.id));
+                return tx.complete(Some(head.run.id));
             }
             if sweep >= sweeps.len() {
                 tx.finish_job_sweeps(&head.run.id, sweeps.len(), now)?;
-                return tx.commit(Some(head.run.id));
+                return tx.complete(Some(head.run.id));
             }
             let (binding, domain, body, setup) = sweeps[sweep];
             let adaptive = domain.take == crate::ir::Bound::Meter;
@@ -453,7 +453,7 @@ impl Engine {
                 let mut context = Context::system().at(now).with_presence(presence.clone()).with_minter(self.minter.clone());
                 context.args = head.args.clone();
                 context = context.with_generation(self.generation);
-                let mut runner = Runner::new(&*tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
+                let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
                 runner.job_read_scope = 1;
                 runner.insert_uses = Some(crate::ir::effects::Effects::variable_uses(&program.body));
 
@@ -504,8 +504,8 @@ impl Engine {
                     Ok((chunk, upper)) => {
                         if rows_written > 0 || !events.is_empty() || !outbox.is_empty() {
                             tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &tables, rows_written)?;
-                            partition::append(&*tx, seq, &events)?;
-                            super::effects::record(&*tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
+                            tx.append(seq, &events)?;
+                            tx.record_effects(&outbox, seq, now, self.dev_effects, &self.schema)?;
                         }
                         let (next_sweep, cursor, upper) = if chunk.finished { (sweeps.len(), None, None) } else if chunk.ended { (sweep + 1, None, None) } else { (sweep, chunk.last_key, upper) };
                         let state = if next_sweep >= sweeps.len() { JobState::Done } else { JobState::Running };
@@ -515,7 +515,7 @@ impl Engine {
                             size, retries: head.run.retries, heap_peak: head.run.heap_peak,
                             domain: if next_sweep == sweep { frozen.as_ref() } else { None },
                         })?;
-                        return tx.commit(Some(head.run.id));
+                        return tx.complete(Some(head.run.id));
                     }
                     Err(error) if error.is_refusal() => {
                         tx.rollback_to("job_chunk")?;
@@ -527,7 +527,7 @@ impl Engine {
                         }
                         let refusal = error.refusal();
                         tx.park_job_chunk(&head.run.id, &format!("{}: {}", refusal.code, refusal.message), now, size, head.run.retries, head.run.heap_peak)?;
-                        return tx.commit(Some(head.run.id));
+                        return tx.complete(Some(head.run.id));
                     }
                     Err(error) => {
                         tx.rollback(())?;
@@ -644,7 +644,7 @@ fn native_chunk(tx: super::committer::MemberTx<'_, '_>, schema: &crate::schema::
     let seq = tx.next_seq()?;
     let mut context = Context::system().at(now).with_minter(minter);
     context.args = head.args.clone();
-    let runner = Runner::new(&*tx, schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
+    let runner = Runner::new(&tx, schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
     let state: Option<serde_json::Value> = head.cursor.as_deref().and_then(|bytes| serde_json::from_slice(bytes).ok());
     let outcome = match module {
         Some(module) => native::run_chunk(module, runner, &program.name, &head.args, state, now),
@@ -655,21 +655,21 @@ fn native_chunk(tx: super::committer::MemberTx<'_, '_>, schema: &crate::schema::
         Ok(step) => {
             if outcome.rows_written > 0 || !outcome.events.is_empty() {
                 tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &outcome.tables, outcome.rows_written)?;
-                partition::append(&*tx, seq, &outcome.events)?;
-                super::effects::record(&*tx, &outcome.outbox, seq, now, dev, schema)?;
+                tx.append(seq, &outcome.events)?;
+                tx.record_effects(&outcome.outbox, seq, now, dev, schema)?;
             }
             let (state, cursor) = match step {
                 Step::Done => (JobState::Done, None),
                 Step::Again(state) => (JobState::Running, Some(state.to_string().into_bytes())),
             };
             tx.record_native_job_chunk(&head.run.id, state, cursor.as_deref(), outcome.rows_written, now)?;
-            tx.commit(())
+            tx.complete(())
         }
         Err(error) if error.is_refusal() => {
             tx.rollback_to("job_chunk")?;
             let refusal = error.refusal();
             tx.park_job(&head.run.id, &format!("{}: {}", refusal.code, refusal.message), now)?;
-            tx.commit(())
+            tx.complete(())
         }
         Err(error) => {
             tx.rollback(())?;
@@ -682,7 +682,7 @@ fn native_chunk(tx: super::committer::MemberTx<'_, '_>, schema: &crate::schema::
 #[cfg(not(feature = "native"))]
 fn native_chunk(tx: super::committer::MemberTx<'_, '_>, head: Head, program: &crate::ir::Program, now: i64) -> Result<super::committer::Disposition<()>, RuntimeError> {
     tx.park_job(&head.run.id, &format!("E_NATIVE: job {} is native and this server was built without native jobs", program.name), now)?;
-    tx.commit(())
+    tx.complete(())
 }
 
 /// Adapter-neutral cases: each adapter supplies its own transaction lifecycle.

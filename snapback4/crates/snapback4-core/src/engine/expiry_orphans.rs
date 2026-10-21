@@ -1,8 +1,9 @@
 //! Explicit recovery for physically missing expiry parents; absence has no provenance.
 // @ref LLP 3000.039#13-wave-13-expiry-orphan-recovery — inspect without writes; only an operator-selected missing identity can trigger recovery.
+use crate::rows::Rows;
 use super::committer::{Committer, Kind, Member};
 
-use super::{Engine, Runner, time_audience};
+use super::{Engine, Runner};
 use crate::{Context, Value, error::RuntimeError, meter::{Ceilings, Cut, Meter}, schema::{BY_ID, Schema}, store::{Bounds, Dir}};
 use std::collections::BTreeSet;
 
@@ -53,9 +54,9 @@ impl Engine {
             if tx.get(parent, id)?.is_some() {
                 return Err(RuntimeError::Schema("expiry orphan recovery requires a physically missing parent; an existing expired parent uses the ordinary sweep".into()));
             }
-            let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
+            let now = tx.pin_writer_time(&self.schema, now)?;
             let seq = tx.next_seq()?;
-            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
             let identity = crate::value::object([("id", Value::Id(id.into()))]);
             runner.apply_missing_reference_actions(parent, &identity)?;
             let events = runner.events.take();
@@ -64,9 +65,9 @@ impl Engine {
             drop(runner);
             if written > 0 {
                 tx.record_commit(seq, now, "repair expiry orphan", crate::SYSTEM_PRINCIPAL, &format!("{parent}:{id}"), &tables, written)?;
-                super::partition::append(&*tx, seq, &events)?;
+                tx.append(seq, &events)?;
             }
-            tx.commit(written)
+            tx.complete(written)
         }))
     }
 }

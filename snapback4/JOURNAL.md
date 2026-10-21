@@ -99294,3 +99294,14 @@ core/host runs to avoid counting their tests twice.
   11,530 references / 0 errors. (The executable is at the repository root;
   its default corpus root is the current directory.) `git diff --check`
   passed.
+## 2026-10-21 — K0c, frame boundary
+
+The member facade now exposes only rows and narrow store-family methods.
+Owning transaction dereference, raw connection access and physical abandon are
+gone; nested frame names have a four-name allowlist. Disposition tokens are
+opaque and the driver checks their agreement with the frame before COMMIT.
+Reset's SQL stays in the adapter behind fixed reset operations. Two new tests
+check the actual facade's absent escapes and forged contradictory dispositions.
+The binary builds; continuation conversion and full verification follow in the
+next K0c commit. SAVEPOINT + RELEASE remains two SQLite statements per completed
+member, an accepted inherent cost, with a lone-member optimization deferred.

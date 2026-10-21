@@ -4,6 +4,8 @@
 //! with a refusal, and applies at most once per client-minted id.
 
 #[cfg(feature = "sqlite")]
+use crate::rows::Rows;
+#[cfg(feature = "sqlite")]
 use crate::activation::ActivationReader;
 #[cfg(feature = "sqlite")]
 pub mod actions;
@@ -631,9 +633,9 @@ impl Engine {
             return Ok(0);
         }
         let (expiry_after, now, removed) = Committer::run(&mut self.store, Member::new(Kind::Engine, |tx| {
-            let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
+            let now = tx.pin_writer_time(&self.schema, now)?;
             let seq = tx.next_seq()?;
-            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
             let mut removed = 0_u64;
             let mut visited = 0_usize;
             let mut expiry_after = self.expiry_after.clone();
@@ -688,9 +690,9 @@ impl Engine {
             drop(runner);
             if written > 0 {
                 tx.record_commit(seq, now, "expire", crate::SYSTEM_PRINCIPAL, "sweep", &tables, written)?;
-                partition::append(&*tx, seq, &events)?;
+                tx.append(seq, &events)?;
             }
-            tx.commit((expiry_after, now, removed))
+            tx.complete((expiry_after, now, removed))
         }))?;
         self.expiry_after = expiry_after;
         self.advance_time_audience(now)?;
@@ -949,12 +951,8 @@ impl Engine {
                 let outcome = MutationOutcome::from_receipt(&outcome)?;
                 return tx.rollback((outcome, None));
             }
-            if let Some(op)=op{assets::require_placement(&*tx,&context.viewer,op,name,&wire_args)?;}
-            context.now = Some(time_audience::pin_writer_time(
-                &self.schema,
-                &tx,
-                context.now.unwrap_or(0),
-            )?);
+            if let Some(op)=op{tx.require_placement(&context.viewer,op,name,&wire_args)?;}
+            context.now = Some(tx.pin_writer_time(&self.schema, context.now.unwrap_or(0))?);
             self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
             let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
             if program.kind == ProgramKind::Query {
@@ -1004,7 +1002,7 @@ impl Engine {
                 }
             }
             tx.savepoint("program")?;
-            let mut runner = Runner::new(&*tx, &self.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
+            let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
             let ran = runner.run(&program).and_then(|value| {
                 runner.charge_output(&value)?;
                 Ok(value)
@@ -1034,8 +1032,8 @@ impl Engine {
                     read_tables.extend(tables.iter().cloned());
                     if !receipt_only {
                         tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
-                        partition::append(&*tx, seq, &events)?;
-                        effects::record(&*tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
+                        tx.append(seq, &events)?;
+                        tx.record_effects(&outbox, seq, now, self.dev_effects, &self.schema)?;
                     }
                     MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events, &action_tables), replayed: false }
                 }
@@ -1043,7 +1041,7 @@ impl Engine {
                     tx.rollback_to("program")?;
                     let current = match &error {
                         RuntimeError::Conflict { current } => {
-                            let mut probe = Runner::new(&*tx, &self.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
+                            let mut probe = Runner::new(&tx, &self.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
                             let value = probe.get(current).ok();
                             value
                         }
@@ -1065,7 +1063,7 @@ impl Engine {
                 tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.receipt(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
                 tx.bind_applied(&viewer, op, name, &wire_args, now)?;
             }
-            tx.commit((outcome, Some(entropy)))
+            tx.complete((outcome, Some(entropy)))
         }))?;
         // @ref LLP 3000.009.001.000.000#3.7 — entropy follows the durable COMMIT, not the member savepoint release.
         if let Some(entropy) = entropy { self.entropy = entropy; }
@@ -1082,9 +1080,9 @@ impl Engine {
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
         let now = self.advance_time_audience(now)?;
         Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
-            let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
-            let count = seed_rows(&self.schema, &tx, rows, now)?;
-            tx.commit(count)
+            let now = tx.pin_writer_time(&self.schema, now)?;
+            let count = tx.seed_rows(&self.schema, rows, now)?;
+            tx.complete(count)
         }))
     }
 
@@ -1099,9 +1097,9 @@ impl Engine {
         timeline::check_import(&self.schema, table)?;
         let now = self.advance_time_audience(now)?;
         Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
-            let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
+            let now = tx.pin_writer_time(&self.schema, now)?;
             let seq = tx.next_seq()?;
-            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(if crate::schema::live::has_live(&self.schema) {Ceilings::job()}else{Ceilings::unbounded()}, Cut::Abort), seq);
+            let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(if crate::schema::live::has_live(&self.schema) {Ceilings::job()}else{Ceilings::unbounded()}, Cut::Abort), seq);
             if crate::schema::live::has_live(&self.schema) {runner.reserve_bulk_source(table)?;}
             let removed = match runner.delete(table, id) {
                 Ok(()) => 1,
@@ -1113,9 +1111,9 @@ impl Engine {
             drop(runner);
             if removed > 0 {
                 tx.record_commit(seq, now, "seed", crate::SYSTEM_PRINCIPAL, "seed", &tables, removed)?;
-                partition::append(&*tx, seq, &events)?;
+                tx.append(seq, &events)?;
             }
-            tx.commit(removed)
+            tx.complete(removed)
         }))
     }
 
@@ -1138,9 +1136,9 @@ impl Engine {
         if mode == LoadMode::Restore || self.schema.tables.values().all(|table| table.recorded.is_empty() && table.maintained.is_empty()) { return self.load_stored_rows(rows, mode); }
         let now = self.advance_time_audience(crate::now_ms())?;
         Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
-            let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
+            let now = tx.pin_writer_time(&self.schema, now)?;
             let seq = tx.next_seq()?;
-            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
             let mut imported = BTreeMap::new();
             let mut count = 0;
             for (name, row) in rows {
@@ -1191,9 +1189,9 @@ impl Engine {
             drop(runner);
             if count > 0 {
                 tx.record_commit(seq, now, "load", crate::SYSTEM_PRINCIPAL, "load", &tables, count)?;
-                partition::append(&*tx, seq, &events)?;
+                tx.append(seq, &events)?;
             }
-            tx.commit(count)
+            tx.complete(count)
         }))
     }
 
@@ -1203,18 +1201,18 @@ impl Engine {
         if crate::schema::live::has_live(&self.schema) {
             let now=self.advance_time_audience(crate::now_ms())?;
             return Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
-                let now=time_audience::pin_writer_time(&self.schema,&tx,now)?;
+                let now=tx.pin_writer_time(&self.schema,now)?;
                 let seq=tx.next_seq()?;
-                let (count,events,tables,seq)=live_bulk::restore(&*tx,&self.schema,rows,seq,now)?;
-                if count>0 {tx.record_commit(seq,now,"restore",crate::SYSTEM_PRINCIPAL,"restore",&tables,count)?;partition::append(&*tx,seq,&events)?;}
-                tx.commit(count)
+                let (count,events,tables,seq)=live_bulk::restore(&tx,&self.schema,rows,seq,now)?;
+                if count>0 {tx.record_commit(seq,now,"restore",crate::SYSTEM_PRINCIPAL,"restore",&tables,count)?;tx.append(seq,&events)?;}
+                tx.complete(count)
             }));
         }
         let now = self.advance_time_audience(crate::now_ms())?;
         Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
-            let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
+            let now = tx.pin_writer_time(&self.schema, now)?;
             let mut seq = tx.next_seq()?;
-            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
             let mut count = 0;
             for (table_name, mut row) in rows {
                 self.schema.refuse_ephemeral_import(&table_name)?;
@@ -1240,15 +1238,15 @@ impl Engine {
                 if self.schema.visible(&table_name) { runner.written_tables.insert(table_name); }
                 count += 1;
             }
-            through_activation::validate_restore(&*tx,&self.schema,now)?;
+            through_activation::validate_restore(&tx,&self.schema,now)?;
             let events = runner.events.take();
             let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
             drop(runner);
             if count > 0 {
                 tx.record_commit(seq, now, "load", crate::SYSTEM_PRINCIPAL, "load", &tables, count)?;
-                partition::append(&*tx, seq, &events)?;
+                tx.append(seq, &events)?;
             }
-            tx.commit(count)
+            tx.complete(count)
         }))
     }
 

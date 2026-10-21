@@ -1,6 +1,8 @@
 //! Reference committer: a physical transaction with one savepoint-scoped member.
 use crate::{RuntimeError, Store, store::Tx};
-use std::{cell::Cell, ops::Deref};
+use std::cell::Cell;
+
+mod member_store;
 
 // @ref LLP 3000.009.001.000.000#3.2 — kinds describe durable units, including writes that publish no sequence.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -26,69 +28,94 @@ impl<F> Member<F> {
     }
 }
 
-/// Selected by the body, independently of whether its caller-facing result is Ok.
-pub(crate) enum Disposition<T> {
-    Complete(T),
-    Abort(T),
+/// Only a facade that has ended its frame can produce this token.
+pub(crate) struct Disposition<T> {
+    end: Frame,
+    value: T,
 }
 impl<T> Disposition<T> {
     pub(crate) fn map<R>(self, map: impl FnOnce(T) -> R) -> Disposition<R> {
-        match self {
-            Self::Complete(value) => Disposition::Complete(map(value)),
-            Self::Abort(value) => Disposition::Abort(map(value)),
+        Disposition {
+            end: self.end,
+            value: map(self.value),
         }
     }
 }
 
-/// Borrows the committer's transaction; it cannot consume or commit that owner.
-/// Deref preserves the existing Tx read/write surface and nested savepoints.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Frame {
+    Active,
+    Complete,
+    Abort,
+    Failed,
+}
+
+/// Restricted store operations, with no owning Tx or connection access.
 // @ref LLP 3000.009.001.000.000#3.7 — rollback/drop undo only this member, never a preceding member.
 pub(crate) struct MemberTx<'member, 'store> {
     tx: &'member Tx<'store>,
-    active: Cell<bool>,
-}
-impl<'member, 'store> Deref for MemberTx<'member, 'store> {
-    type Target = Tx<'store>;
-    fn deref(&self) -> &Self::Target {
-        self.tx
-    }
+    frame: &'member Cell<Frame>,
 }
 impl MemberTx<'_, '_> {
     /// Release this member; the driver still owes the physical COMMIT.
-    pub(crate) fn commit<T>(self, value: T) -> Result<Disposition<T>, RuntimeError> {
-        if !self.active.get() {
-            return Err(RuntimeError::Store(
-                "member transaction already ended".into(),
-            ));
-        }
+    pub(crate) fn complete<T>(self, value: T) -> Result<Disposition<T>, RuntimeError> {
         self.tx.release("member")?;
-        self.active.set(false);
-        Ok(Disposition::Complete(value))
+        self.frame.set(Frame::Complete);
+        Ok(Disposition {
+            end: Frame::Complete,
+            value,
+        })
     }
 
     /// Explicit rollback keeps its fallible contract, including replay paths.
     pub(crate) fn rollback<T>(self, value: T) -> Result<Disposition<T>, RuntimeError> {
-        self.abandon()?;
-        Ok(Disposition::Abort(value))
+        self.rollback_frame()?;
+        Ok(Disposition {
+            end: Frame::Abort,
+            value,
+        })
     }
 
-    /// A normal early return used to drop Tx and ignore rollback errors.
-    pub(crate) fn abort<T>(&self, value: T) -> Disposition<T> {
-        Disposition::Abort(value)
+    /// Normal early returns historically ignored rollback errors. The driver
+    /// still rejects a failed frame rollback before it can commit any batch.
+    pub(crate) fn abort<T>(self, value: T) -> Disposition<T> {
+        let _ = self.rollback_frame();
+        Disposition {
+            end: Frame::Abort,
+            value,
+        }
     }
 
-    /// Match Tx's borrowed rollback surface without escaping the member frame.
-    pub(crate) fn abandon(&self) -> Result<(), RuntimeError> {
-        if self.active.get() {
+    fn rollback_frame(&self) -> Result<(), RuntimeError> {
+        if self.frame.get() == Frame::Active {
+            self.frame.set(Frame::Failed);
             self.tx.rollback_to("member")?;
-            self.active.set(false);
+            self.frame.set(Frame::Abort);
         }
         Ok(())
+    }
+
+    fn nested(name: &str) -> Result<&str, RuntimeError> {
+        match name {
+            "program" | "job_chunk" | "timeline_chunk" | "seed_sequences" => Ok(name),
+            _ => Err(RuntimeError::Store(
+                "invalid nested member savepoint".into(),
+            )),
+        }
+    }
+    pub(crate) fn savepoint(&self, name: &str) -> Result<(), RuntimeError> {
+        self.tx.savepoint(Self::nested(name)?)
+    }
+    pub(crate) fn release(&self, name: &str) -> Result<(), RuntimeError> {
+        self.tx.release(Self::nested(name)?)
+    }
+    pub(crate) fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> {
+        self.tx.rollback_to(Self::nested(name)?)
     }
 }
 impl Drop for MemberTx<'_, '_> {
     fn drop(&mut self) {
-        let _ = self.abandon();
+        let _ = self.rollback_frame();
     }
 }
 
@@ -111,15 +138,22 @@ impl Committer {
     ) -> Result<T, RuntimeError> {
         let tx = store.transaction()?;
         match Self::execute(&tx, member)? {
-            Disposition::Complete(value) => {
+            Disposition {
+                end: Frame::Complete,
+                value,
+            } => {
                 tx.commit()?;
                 Ok(value)
             }
-            Disposition::Abort(value) => {
+            Disposition {
+                end: Frame::Abort,
+                value,
+            } => {
                 // Tx's drop issues ROLLBACK, as on the old normal early returns.
                 drop(tx);
                 Ok(value)
             }
+            _ => unreachable!("execute validates the frame"),
         }
     }
 
@@ -132,10 +166,15 @@ impl Committer {
         let _kind = kind;
         *tx.changes.borrow_mut() = Default::default();
         tx.savepoint("member")?;
-        run(MemberTx {
-            tx,
-            active: Cell::new(true),
-        })
+        let frame = Cell::new(Frame::Active);
+        let disposition = run(MemberTx { tx, frame: &frame })?;
+        if !matches!(frame.get(), Frame::Complete | Frame::Abort) || frame.get() != disposition.end
+        {
+            return Err(RuntimeError::Store(
+                "member disposition contradicts its frame".into(),
+            ));
+        }
+        Ok(disposition)
     }
 
     /// Reset has no normal abort result; acknowledge only after physical COMMIT.
@@ -146,8 +185,11 @@ impl Committer {
         Self::run(
             store,
             Member::new(member.kind, |tx| match (member.run)(tx)? {
-                Disposition::Complete(value) => Ok(Disposition::Complete(value)),
-                Disposition::Abort(_) => Err(RuntimeError::Store(
+                disposition @ Disposition {
+                    end: Frame::Complete,
+                    ..
+                } => Ok(disposition),
+                _ => Err(RuntimeError::Store(
                     "commit acknowledgement requires completion".into(),
                 )),
             }),

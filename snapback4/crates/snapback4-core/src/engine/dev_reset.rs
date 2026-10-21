@@ -2,9 +2,7 @@
 //! store identity, optionally reseeded, in one SQLite transaction.
 // @ref LLP 3000.007#20.25 — what "fresh" keeps and what it empties; why the head keeps counting.
 use super::*;
-use crate::assets::AssetTransaction;
 
-use crate::engine::job::JobTransaction;
 
 pub(crate) struct ResetState {
     pub previous_store_id: String,
@@ -19,10 +17,10 @@ pub(crate) struct ResetState {
 pub(crate) trait DevResetStore {
     fn dev_reset(
         &mut self,
-        pin_clock: impl FnOnce(&crate::store::Tx<'_>) -> Result<i64, RuntimeError>,
-        inventory_assets: impl FnOnce(&crate::store::Tx<'_>) -> Result<Vec<String>, RuntimeError>,
-        prime_schedules: impl FnOnce(&crate::store::Tx<'_>, i64) -> Result<(), RuntimeError>,
-        seed: impl FnOnce(&crate::store::Tx<'_>, u64, i64) -> Result<u64, RuntimeError>,
+        pin_clock: impl FnOnce(&committer::MemberTx<'_, '_>) -> Result<i64, RuntimeError>,
+        inventory_assets: impl FnOnce(&committer::MemberTx<'_, '_>) -> Result<Vec<String>, RuntimeError>,
+        prime_schedules: impl FnOnce(&committer::MemberTx<'_, '_>, i64) -> Result<(), RuntimeError>,
+        seed: impl FnOnce(&committer::MemberTx<'_, '_>, u64, i64) -> Result<u64, RuntimeError>,
     ) -> Result<Committed<ResetState>, RuntimeError>;
 }
 
@@ -53,7 +51,7 @@ impl Engine {
         drop(self.ephemeral.lock()?);
         let schema = &self.schema;
         let committed = self.store.dev_reset(
-            |tx| time_audience::pin_writer_time(schema, tx, now),
+            |tx| tx.pin_writer_time(schema, now),
             |tx| tx.asset_ids(),
             |tx, now| {
                 for schedule in &schema.schedules {
@@ -65,8 +63,8 @@ impl Engine {
             |tx, head, now| {
                 let touched: Vec<String> = schema.visible_tables().map(|(name, _)| name.clone()).collect();
                 tx.record_commit(head + 1, now, "dev reset", crate::SYSTEM_PRINCIPAL, "reset", &touched, 0)?;
-                if crate::store::backfills::has_evidence(tx)? {crate::store::backfills::prepare_inputs(tx,schema,None)?;}
-                seed_rows(schema, tx, rows, now)
+                tx.prepare_seed_inputs(schema)?;
+                tx.seed_rows(schema, rows, now)
             },
         )?;
         Ok(committed.after_commit(|ResetState { previous_store_id, store_id, seq, seeded, assets }| {

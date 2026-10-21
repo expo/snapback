@@ -187,7 +187,7 @@ impl Store {
         crate::engine::committer::Committer::run(self, crate::engine::committer::Member::new(crate::engine::committer::Kind::Engine, |tx| {
         let seq = tx.next_seq()?;
         tx.record_commit(seq, at(), "native-smoke", "system", "witness", &[], 0)?;
-        tx.commit(seq)
+        tx.complete(seq)
         }))
     }
     pub fn inspection_column_populated(
