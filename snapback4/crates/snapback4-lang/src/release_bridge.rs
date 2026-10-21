@@ -18,7 +18,7 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
             for column in &table.columns {
                 let Some(candidate)=next.columns.iter().find(|c|c.name==column.name || c.renamed_from.as_ref()==Some(&column.name)) else {continue};
                 if candidate.name!=column.name {affected.insert(table.name.clone());changes.push(format!("{}.{}: current column spelling {}; target spelling routes the same cell",table.name,column.name,candidate.name));}
-                let Some(joined)=join(&column.type_,&candidate.type_) else {changes.push(format!("{}.{}: incompatible types {} / {}; target domain retained, explicit typed repair required",table.name,column.name,print::scalar_type(&column.type_),print::scalar_type(&candidate.type_)));continue};
+                let Some(joined)=join(&column.type_,&candidate.type_,&new) else {changes.push(format!("{}.{}: incompatible types {} / {}; target domain retained, explicit typed repair required",table.name,column.name,print::scalar_type(&column.type_),print::scalar_type(&candidate.type_)));continue};
                 if joined==column.type_ {continue;}
                 affected.insert(table.name.clone());
                 if let Some((start,end))=type_span(file,text,column) {
@@ -69,7 +69,7 @@ fn declaration(text:&str,line:u32)->String {
     while end<lines.len() {let s=lines[end];if !s.trim().is_empty() && !s.starts_with(char::is_whitespace) && !s.starts_with("--"){break;}end+=1;}
     lines[start..end].join("\n")+"\n"
 }
-fn join(old:&ast::ScalarType,new:&ast::ScalarType)->Option<ast::ScalarType> {
+fn join(old:&ast::ScalarType,new:&ast::ScalarType,tables:&BTreeMap<String,(&String,&String,ast::TableDecl)>)->Option<ast::ScalarType> {
     let kind=match (&old.kind,&new.kind) {
         (TypeKind::Int|TypeKind::IntRange{..},TypeKind::Int|TypeKind::IntRange{..})=>{
             let bounds=|k:&TypeKind|match k{TypeKind::IntRange{min,max}=>(min.unwrap_or(i64::MIN),max.unwrap_or(i64::MAX)),_=>(i64::MIN,i64::MAX)};
@@ -81,7 +81,10 @@ fn join(old:&ast::ScalarType,new:&ast::ScalarType)->Option<ast::ScalarType> {
         (TypeKind::File{max:a,types:b},TypeKind::File{max:x,types:y}) if b==y=>TypeKind::File{max:(*a).max(*x),types:b.clone()},
         (TypeKind::Text{min:a,max:b,format:c},TypeKind::Text{min:x,max:y,format:z}) if c==z=>TypeKind::Text{min:Some(a.unwrap_or(0).min(x.unwrap_or(0))).filter(|v|*v>0),max:(*b).max(*y),format:c.clone()},
         (TypeKind::Enum{variants:a},TypeKind::Enum{variants:b})=>{let mut v=a.clone();for x in b {if !v.contains(x){v.push(x.clone());}}TypeKind::Enum{variants:v}},
-        (TypeKind::List{item:a,min:b,max:c},TypeKind::List{item:x,min:y,max:z})=>TypeKind::List{item:Box::new(join(a,x)?),min:(*b).min(*y),max:(*c).max(*z)},
+        (TypeKind::List{item:a,min:b,max:c},TypeKind::List{item:x,min:y,max:z})=>TypeKind::List{item:Box::new(join(a,x,tables)?),min:(*b).min(*y),max:(*c).max(*z)},
+        // Only an explicit rename provides nominal identity; structural similarity
+        // or independently declared replacement tables cannot justify a bridge.
+        (TypeKind::Ref{table:a},TypeKind::Ref{table:b}) if a==b || tables.get(a).is_some_and(|(_,_,t)| t.name==*b && t.renamed_from.as_ref()==Some(a))=>TypeKind::Ref{table:a.clone()},
         (a,b) if a==b=>a.clone(),
         // Other conversions require an explicit typed migration. A bridge never
         // guesses a nominal reference, money currency or asset policy.
