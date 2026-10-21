@@ -265,6 +265,12 @@ pub fn backoff_ms(attempts: u32) -> i64 {
     (2_000_i64.saturating_mul(1_i64 << attempts.min(20))).min(MAX_BACKOFF_MS)
 }
 
+// @ref LLP 3000.009.001.000#33-extraction-first-with-no-behavior-change — lease shifts saturate before either SQL dialect can overflow.
+pub(crate) fn lease_shift_bounds(milliseconds: i64) -> (i64, i64) {
+    let end = if milliseconds >= 0 { i64::MAX } else { i64::MIN };
+    (end - milliseconds, end)
+}
+
 impl Engine {
     /// A held-effects poll still authenticates at a writer boundary. The host
     /// sample is taken once after BEGIN IMMEDIATE; no work is claimed.

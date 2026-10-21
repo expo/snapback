@@ -9,6 +9,11 @@ macro_rules! runs {
 
 pub(super) use runs;
 
+// @ref LLP 3000.009.001.000#91-adapter-parity-rules — impossible Postgres keys are absent without a statement.
+pub(super) fn absent_key(key: Option<&str>) -> bool {
+    key.is_some_and(|key| key.contains('\0'))
+}
+
 pub(super) fn read_run(row: postgres::Row) -> Result<EffectRun, RuntimeError> {
     let payload: &str = row.get(2);
     let result: Option<&str> = row.get(10);
@@ -52,18 +57,23 @@ impl OutboxTransaction for Tx<'_> {
         Ok(())
     }
     fn effect_run(&self, id: &str) -> Result<Option<EffectRun>, RuntimeError> {
+        if absent_key(Some(id)) { return Ok(None); }
         self.query(runs!("WHERE id = $1"), &[&id])?.into_iter().next().map(read_run).transpose()
     }
     fn effect_lease_digest(&self, id: &str) -> Result<Option<String>, RuntimeError> {
+        if absent_key(Some(id)) { return Err(RuntimeError::Sql(rusqlite::Error::QueryReturnedNoRows)); }
         self.query("SELECT lease_digest FROM _outbox WHERE id = $1", &[&id])?.first().map(|r| r.get(0)).ok_or_else(|| RuntimeError::Sql(rusqlite::Error::QueryReturnedNoRows))
     }
     fn effect_candidates(&self, effect: Option<&str>, now: i64, limit: u64) -> Result<Vec<String>, RuntimeError> {
+        if absent_key(effect) { return Ok(Vec::new()); }
         Ok(self.query("SELECT id FROM _outbox WHERE state = 'queued' AND (next_at IS NULL OR next_at <= $1) AND ($2::text IS NULL OR effect = $2) ORDER BY seq, id LIMIT $3", &[&now, &effect, &(limit.min(i64::MAX as u64) as i64)])?.into_iter().map(|r| r.get(0)).collect())
     }
     fn strict_effect_candidates(&self, effect: Option<&str>, now: i64, limit: u64) -> Result<Vec<String>, RuntimeError> {
+        if absent_key(effect) { return Ok(Vec::new()); }
         Ok(self.query("SELECT id FROM _outbox WHERE state = 'queued' AND NOT cancelled AND (next_at IS NULL OR next_at <= $1) AND ($2::text IS NULL OR effect = $2) ORDER BY seq, id LIMIT $3", &[&now, &effect, &(limit.min(i64::MAX as u64) as i64)])?.into_iter().map(|r| r.get(0)).collect())
     }
     fn effect_presence_satisfied(&self, id: &str) -> Result<bool, RuntimeError> {
+        if absent_key(Some(id)) { return Ok(false); }
         Ok(self.query("SELECT EXISTS(SELECT 1 FROM _effect_presence WHERE id = $1 AND reconnected)", &[&id])?[0].get(0))
     }
     fn clear_effect_presence(&self, id: &str) -> Result<(), RuntimeError> {
@@ -90,13 +100,16 @@ impl OutboxTransaction for Tx<'_> {
         self.effect_run(id)?.ok_or_else(|| RuntimeError::Sql(rusqlite::Error::QueryReturnedNoRows))
     }
     fn effect_presence(&self, id: &str) -> Result<Vec<(String, bool)>, RuntimeError> {
+        if absent_key(Some(id)) { return Ok(Vec::new()); }
         Ok(self.query("SELECT principal,reconnected FROM _effect_presence WHERE id = $1 ORDER BY principal", &[&id])?.into_iter().map(|r| (r.get(0), r.get(1))).collect())
     }
     fn pending_effect_presence(&self, principal: &str, now: i64) -> Result<bool, RuntimeError> {
+        if absent_key(Some(principal)) { return Ok(false); }
         Ok(self.query("SELECT EXISTS(SELECT 1 FROM _effect_presence WHERE principal = $1 AND deadline >= $2 AND NOT reconnected)", &[&principal, &now])?[0].get(0))
     }
     fn reconnect_effect_presence(&self, principal: &str, now: i64) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("reconnect effect presence")?;
+        if absent_key(Some(principal)) { return Ok(()); }
         self.execute("UPDATE _effect_presence SET reconnected = true WHERE principal = $1 AND deadline >= $2", &[&principal, &now])?;
         Ok(())
     }
@@ -146,11 +159,12 @@ impl OutboxTransaction for Tx<'_> {
         Ok(())
     }
     fn shift_worker_leases(&self, milliseconds: i64, before: i64) -> Result<(), RuntimeError> {
+        let (bound, end) = crate::engine::effects::lease_shift_bounds(milliseconds);
         self.require_serialized_head_fence("shift worker leases")?;
         // SQLite LIKE folds ASCII only. C-collated ILIKE preserves that marker rule.
-        self.execute("UPDATE _sessions SET expires_at = expires_at + $1 WHERE expires_at > $2 AND COALESCE(family,token_digest) IN (SELECT value FROM _meta WHERE key = 'worker:session-family' UNION SELECT substr(key,15) FROM _meta WHERE key ILIKE 'worker:family:%' COLLATE \"C\")", &[&milliseconds, &before])?;
-        self.execute("UPDATE _outbox SET lease_until = lease_until + $1 WHERE state = 'running' AND lease_until IS NOT NULL", &[&milliseconds])?;
-        self.execute("UPDATE _requests SET lease_until = CASE WHEN family IS NULL OR principal_generation IS NULL OR admitted_expires_at IS NULL THEN lease_until + $1 ELSE LEAST(lease_until + $1, COALESCE((SELECT MAX(s.expires_at) FROM _sessions s WHERE s.principal = _requests.principal AND COALESCE(s.family,s.token_digest) = _requests.family), lease_until)) END WHERE state = 'running' AND lease_until IS NOT NULL", &[&milliseconds])?;
+        self.execute("UPDATE _sessions SET expires_at = CASE WHEN ($1::bigint >= 0 AND expires_at > $2) OR ($1::bigint < 0 AND expires_at < $2) THEN $3 ELSE expires_at + $1 END WHERE expires_at > $4 AND COALESCE(family,token_digest) IN (SELECT value FROM _meta WHERE key = 'worker:session-family' UNION SELECT substr(key,15) FROM _meta WHERE key ILIKE 'worker:family:%' COLLATE \"C\")", &[&milliseconds, &bound, &end, &before])?;
+        self.execute("UPDATE _outbox SET lease_until = CASE WHEN ($1::bigint >= 0 AND lease_until > $2) OR ($1::bigint < 0 AND lease_until < $2) THEN $3 ELSE lease_until + $1 END WHERE state = 'running' AND lease_until IS NOT NULL", &[&milliseconds, &bound, &end])?;
+        self.execute("UPDATE _requests SET lease_until = CASE WHEN family IS NULL OR principal_generation IS NULL OR admitted_expires_at IS NULL THEN CASE WHEN ($1::bigint >= 0 AND lease_until > $2) OR ($1::bigint < 0 AND lease_until < $2) THEN $3 ELSE lease_until + $1 END ELSE LEAST(CASE WHEN ($1::bigint >= 0 AND lease_until > $2) OR ($1::bigint < 0 AND lease_until < $2) THEN $3 ELSE lease_until + $1 END, COALESCE((SELECT MAX(s.expires_at) FROM _sessions s WHERE s.principal = _requests.principal AND COALESCE(s.family,s.token_digest) = _requests.family), lease_until)) END WHERE state = 'running' AND lease_until IS NOT NULL", &[&milliseconds, &bound, &end])?;
         self.execute("UPDATE _sessions SET expires_at = (SELECT lease_until FROM _requests WHERE session_digest = _sessions.token_digest AND state = 'running') WHERE token_digest IN (SELECT session_digest FROM _requests WHERE state = 'running' AND lease_until IS NOT NULL)", &[])?;
         Ok(())
     }

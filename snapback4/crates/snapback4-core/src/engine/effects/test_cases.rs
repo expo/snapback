@@ -334,3 +334,115 @@ pub(crate) fn race_seed(tx: &impl OutboxTransaction, running: bool) {
 pub(crate) fn deployed_replay_refusal(store: &impl OutboxStore) {
     assert_eq!(store.set_effect_replay(true,require_dev_store).unwrap_err().code(),"E_GENERATION");
 }
+
+// Every lookup must leave earlier writes committable, including presence updates.
+pub(crate) fn nul_lookups(tx: &impl OutboxTransaction) {
+    emit(tx, "lookup-survivor", 1);
+    tx.insert_effect_presence("alice", "lookup-survivor", 200).unwrap();
+    let missing = "missing\0key";
+    assert!(tx.effect_run(missing).unwrap().is_none());
+    assert!(tx.effect_candidates(Some("mail\0"), 100, 10).unwrap().is_empty());
+    assert!(tx.strict_effect_candidates(Some("mail\0"), 100, 10).unwrap().is_empty());
+    assert!(!tx.pending_effect_presence("alice\0", 100).unwrap());
+    tx.reconnect_effect_presence("alice\0", 100).unwrap();
+    assert!(!tx.effect_presence_satisfied(missing).unwrap());
+    assert!(tx.effect_presence(missing).unwrap().is_empty());
+    assert_eq!(strict_run(tx, missing).unwrap_err().code(), "E_EFFECT_UNKNOWN");
+    assert_eq!(cancel(tx, missing, 100).unwrap_err().code(), "E_EFFECT_UNKNOWN");
+    assert!(tx.effect_lease_digest(missing).is_err());
+    assert_eq!(tx.effect_presence("lookup-survivor").unwrap(), [("alice".into(), false)]);
+    assert!(tx.pending_effect_presence("alice", 100).unwrap());
+    tx.reconnect_effect_presence("alice", 100).unwrap();
+    assert!(tx.effect_presence_satisfied("lookup-survivor").unwrap());
+}
+
+pub(crate) fn nul_snapshot_reads(store: &impl OutboxStore) {
+    assert!(!store.effects_due(Some("mail\0"), 100).unwrap());
+    assert!(store.list_effects(Some("queued\0"), 10).unwrap().is_empty());
+    assert!(store.effects_due(Some("mail"), 100).unwrap());
+}
+
+// The compatibility claim's exact expire-before-filter sequence.
+pub(crate) fn nul_filter_after_expiry(tx: &impl OutboxTransaction) {
+    assert_eq!(expire(tx, 101).unwrap(), 1);
+    assert!(tx.effect_candidates(Some("mail\0"), 101, 1).unwrap().is_empty());
+}
+
+pub(crate) use sqlite_oracle::sqlite_nul_claim_oracle;
+
+pub(crate) const LEASE_BOUNDARY_SEED: &str = "
+    INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES
+        ('worker-near','worker','service',0,9223372036854775806,'worker-family'),
+        ('worker-max','worker','service',0,9223372036854775807,'worker-family'),
+        ('ordinary-near','member','member',0,9223372036854775806,'ordinary'),
+        ('ordinary-max','member','member',0,9223372036854775807,'ordinary-max-family'),
+        ('delegate-near','worker','service',0,10,'delegated'),
+        ('delegate-max','worker','service',0,10,'delegated');
+    INSERT INTO _meta(key,value) VALUES ('worker:family:worker-family','1');
+    INSERT INTO _requests(id,name,args,principal,at,state,attempts,lease_until,session_digest,family,principal_generation,admitted_expires_at) VALUES
+        ('legacy-near','action','null','worker',0,'running',1,9223372036854775806,NULL,NULL,NULL,NULL),
+        ('legacy-max','action','null','worker',0,'running',1,9223372036854775807,NULL,NULL,NULL,NULL),
+        ('bound-near','action','null','worker',0,'running',1,9223372036854775806,'delegate-near','worker-family',0,9223372036854775807),
+        ('bound-max','action','null','worker',0,'running',1,9223372036854775807,'delegate-max','worker-family',0,9223372036854775807),
+        ('capped','action','null','member',0,'running',1,9223372036854775807,NULL,'ordinary',0,9223372036854775807);
+";
+
+pub(crate) fn lease_shift_saturates(tx: &impl OutboxTransaction) {
+    emit(tx, "near", 1);
+    emit(tx, "max", 2);
+    tx.claim_effect("near", "worker", i64::MAX - 1, None).unwrap();
+    tx.claim_effect("max", "worker", i64::MAX, None).unwrap();
+    // First reach MAX exactly, then attempt to cross it.
+    for _ in 0..2 {
+        tx.shift_worker_leases(1, 100).unwrap();
+        for id in ["near", "max"] {
+            assert_eq!(tx.required_effect_run(id).unwrap().lease_until, Some(i64::MAX));
+        }
+    }
+}
+
+pub(crate) fn lease_boundary_rows(sessions: Vec<(String, i64)>, requests: Vec<(String, i64)>) {
+    assert_eq!(sessions, [
+        ("delegate-max".into(), i64::MAX), ("delegate-near".into(), i64::MAX),
+        ("ordinary-max".into(), i64::MAX), ("ordinary-near".into(), i64::MAX - 1),
+        ("worker-max".into(), i64::MAX), ("worker-near".into(), i64::MAX),
+    ]);
+    assert_eq!(requests, [
+        ("bound-max".into(), i64::MAX), ("bound-near".into(), i64::MAX),
+        ("capped".into(), i64::MAX - 1), ("legacy-max".into(), i64::MAX),
+        ("legacy-near".into(), i64::MAX),
+    ]);
+}
+
+pub(crate) fn signed_lease_shift_boundaries(tx: &impl OutboxTransaction) {
+    for (id, lease) in [("min", i64::MIN), ("near-min", i64::MIN + 1)] {
+        emit(tx, id, 1);
+        tx.claim_effect(id, "worker", lease, None).unwrap();
+    }
+    for delta in [-1, -1, 0] {
+        tx.shift_worker_leases(delta, 0).unwrap();
+        for id in ["min", "near-min"] {
+            assert_eq!(tx.required_effect_run(id).unwrap().lease_until, Some(i64::MIN));
+        }
+    }
+    tx.shift_worker_leases(i64::MAX, 0).unwrap();
+    assert_eq!(tx.required_effect_run("min").unwrap().lease_until, Some(-1));
+    tx.shift_worker_leases(i64::MIN, 0).unwrap();
+    assert_eq!(tx.required_effect_run("min").unwrap().lease_until, Some(i64::MIN));
+}
+
+#[cfg(test)]
+mod sqlite_oracle {
+    use super::*;
+
+    pub(crate) fn sqlite_nul_claim_oracle() -> EffectRun {
+        let schema = Schema { effects: vec!["mail".into()], ..Schema::default() };
+        let mut engine = Engine::memory(schema, []).unwrap();
+        let tx = engine.store.transaction().unwrap();
+        race_seed(&tx, true);
+        tx.commit().unwrap();
+        assert!(engine.claim_effects("worker", Some("mail\0"), 1, 1_000, 101).unwrap().is_empty());
+        engine.presence_reconnected("alice\0", 101).unwrap();
+        engine.effects(None, 10).unwrap().remove(0)
+    }
+}

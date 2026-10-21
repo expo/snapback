@@ -122,6 +122,7 @@ fn outbox_shared_snapshots_replay_and_leases() {
     effects::test_cases::snapshot_seed(&tx);
     tx.commit().unwrap();
     effects::test_cases::snapshot_reads(&RefCell::new(&mut engine.store));
+    effects::test_cases::nul_snapshot_reads(&RefCell::new(&mut engine.store));
     let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
     effects::test_cases::replay_suppression(&tx);
     tx.commit().unwrap();
@@ -145,7 +146,7 @@ macro_rules! contract {
         tx.commit().unwrap();
     })* };
 }
-contract!(candidate_ordering,lifecycle_variants,text_and_wide_values,presence_satisfaction,deadline_and_attempt_limits);
+contract!(signed_lease_shift_boundaries,nul_lookups,candidate_ordering,lifecycle_variants,text_and_wide_values,presence_satisfaction,deadline_and_attempt_limits);
 
 #[test]
 #[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
@@ -221,5 +222,63 @@ fn outbox_lease_shift_error_rolls_back_all_families_and_deployed_replay_refuses(
     effects::test_cases::deployed_replay_refusal(&RefCell::new(&mut engine.store));
     let tx = engine.store.transaction(None).unwrap();
     assert!(!tx.replay_suppresses().unwrap());
+    tx.rollback().unwrap();
+}
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn outbox_nul_lookups_issue_no_statements() {
+    use crate::engine::effects::OutboxStore;
+    use std::cell::RefCell;
+    let mut engine = authority_engine();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    let before = tx.calls.get();
+    assert!(tx.effect_run("id\0").unwrap().is_none());
+    assert!(tx.effect_candidates(Some("mail\0"), 0, 10).unwrap().is_empty());
+    assert!(tx.strict_effect_candidates(Some("mail\0"), 0, 10).unwrap().is_empty());
+    assert!(!tx.pending_effect_presence("p\0", 0).unwrap());
+    tx.reconnect_effect_presence("p\0", 0).unwrap();
+    assert!(!tx.effect_presence_satisfied("id\0").unwrap());
+    assert!(tx.effect_presence("id\0").unwrap().is_empty());
+    assert!(tx.effect_lease_digest("id\0").is_err());
+    assert_eq!(tx.calls.get(), before);
+    tx.commit().unwrap();
+    // Holding the RefCell borrow proves snapshot guards precede even BEGIN.
+    let view = RefCell::new(&mut engine.store);
+    let _held = view.borrow_mut();
+    assert!(!view.effects_due(Some("mail\0"), 0).unwrap());
+    assert!(view.list_effects(Some("queued\0"), 10).unwrap().is_empty());
+}
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn outbox_nul_filter_claim_commits_expiry_and_matches_sqlite() {
+    let mut engine = authority_engine();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    effects::test_cases::race_seed(&tx, true);
+    tx.commit().unwrap();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    effects::test_cases::nul_filter_after_expiry(&tx);
+    tx.commit().unwrap();
+    let tx = engine.store.transaction(None).unwrap();
+    let run = tx.required_effect_run("race").unwrap();
+    tx.rollback().unwrap();
+    assert_eq!(run, effects::test_cases::sqlite_nul_claim_oracle());
+}
+
+#[test]
+#[ignore = "requires SNAPBACK4_EVAL_POSTGRES (private PostgreSQL; scripts/test-postgres.sh)"]
+fn outbox_lease_shift_saturates_all_families() {
+    let mut engine = authority_engine();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    tx.batch(effects::test_cases::LEASE_BOUNDARY_SEED).unwrap();
+    effects::test_cases::lease_shift_saturates(&tx);
+    tx.commit().unwrap();
+    let tx = engine.store.transaction(None).unwrap();
+    let sessions = tx.query("SELECT token_digest, expires_at FROM _sessions ORDER BY token_digest", &[]).unwrap()
+        .into_iter().map(|r| (r.get(0), r.get(1))).collect();
+    let requests = tx.query("SELECT id, lease_until FROM _requests ORDER BY id", &[]).unwrap()
+        .into_iter().map(|r| (r.get(0), r.get(1))).collect();
+    effects::test_cases::lease_boundary_rows(sessions, requests);
     tx.rollback().unwrap();
 }

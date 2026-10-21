@@ -65,11 +65,15 @@ From `snapback4/`, with Rust and PostgreSQL 16+ (`initdb`, `pg_ctl`) on PATH:
 ```sh
 bash scripts/test-postgres.sh
 bash scripts/test-postgres.sh --bench
+# Pick an installed UTF-8 locale from locale -a to exercise attach/reopen:
+SNAPBACK4_PG_LOCALE=en_US.utf8 bash scripts/test-postgres.sh
 ```
 
 The script creates a private temporary, Unix-socket-only database with host
 connections rejected, runs every evaluation test (including ignored tests),
-then stops only that cluster. It retains the database and prints its path for
+then stops only that cluster and confirms no server or postmaster.pid remains.
+The default uses C; `SNAPBACK4_PG_LOCALE` passes an explicit locale to
+`initdb` with UTF-8 encoding for a private cluster. It retains the database and prints its path for
 inspection. It does not discover, modify or stop a pre-existing database.
 The benchmark also retains its separate temporary SQLite database.
 

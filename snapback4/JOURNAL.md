@@ -98442,3 +98442,143 @@ Final owned-cluster cleanup is confirmed for the second run as well:
 `/tmp/p1-ob-pg-v4midlq7/data/postmaster.pid` is absent. Both starts belonged
 to this lane and used that same private cluster; no other cluster was
 stopped. The data and raw logs remain for inspection.
+
+### 2026-10-21 — P1-OB fix round 1
+
+Rebased the three outbox commits onto mirror 805fb4599a. Conflicts were the
+RFC's Revised line (all histories retained on one line), the append-only
+journal (union), and postgres/mod.rs (all modules and attach calls retained,
+identity then requests then outbox). Tail merged without a conflict. The
+rebased commits are 696d32bdae, 4a9392025e and aff7745d58. The resulting
+lane diff has the same file and line counts as the original three commits;
+main's identity, requests and committer changes remain present. An initial
+conflict-resolution edit was caught and the rebase restarted before keeping
+this final resolution. No rebase work or code was pushed.
+
+Scoped context: the root, design brief, NOT-DOING, port RFC sections 3 and
+9.1, current effects guide, both outbox adapters and the two reviews in
+/tmp/p1-ob-review.md. The llp-orient skill target is still absent here, so
+the context was assembled directly. This remains one local worker in this
+worktree, with no delegation, stash, git-config change or push. Cargo uses
+four jobs, no incremental output, and line-tables-only dev/test debug info.
+
+NUL-key lookups now use one Postgres helper to return absent/empty before
+issuing a statement. This includes candidate filters, presence reads and
+reconnect, and due/list snapshots before even borrowing the store to BEGIN.
+SQLite retains legacy-key access. Shared cases exercise every affected
+method; a Postgres call-count/borrow witness proves no access. The claim
+regression commits an expired lease's requeue despite a NUL effect filter,
+then compares the persisted full row with SQLite's public claim_effects
+result. The public SQLite presence_reconnected path also accepts an absent
+NUL key. Unknown-id cancellation and strict lookup keep E_EFFECT_UNKNOWN.
+
+All shift additions use shared signed saturation bounds and SQL CASE before
+adding: effect and request leases plus supervised session expiries saturate
+at i64::MAX. Negative shifts floor at i64::MIN as well. This changes SQLite
+only at overflow boundaries, where its former REAL promotion broke typed
+reads; Postgres no longer aborts with 22003. Common seeds cover MAX-1/MAX,
+exact arrival followed by overflow, legacy and capped requests, delegated
+sessions, and ordinary sessions that must not move. Typed session/request
+reads occur after commit. Existing ordinary-shift and rollback cases remain.
+The new signed-boundary case also covers zero, MIN and MAX shift deltas.
+Outbox races now reuse main's store/test_race.rs head-blocking witness.
+
+Locale qualification uses the installed en_US.utf8 (locale -a also lists C,
+C.utf8 and POSIX). scripts/test-postgres.sh now accepts SNAPBACK4_PG_LOCALE,
+retains UTF-8 encoding and reports the locale, and confirms owned-cluster
+shutdown with independent pg_ctl status=3 plus absent postmaster.pid. A
+PostgreSQL 16.15 catalog probe with both datcollate and datctype=en_US.utf8
+returns bare {state,effect,seq} for pg_get_indexdef's column definitions,
+even with effect COLLATE C. Its first metadata query incorrectly tried a
+locale GUC; a corrected pg_database query succeeded. Both private probe
+clusters stopped and were independently confirmed:
+/tmp/p1-ob-locale-probe.GEleHL and /tmp/p1-ob-locale-probe.EU8xnN. The full
+outbox and identity attach/reopen witnesses will decide the suspected schema
+compare issue; no speculative identity change was made.
+
+Initial focused SQLite verification passes 14/14, zero failed/ignored,
+including the claim and saturation cases. Root ref-check passes 564 LLPs,
+11,531 references, zero errors and zero unchecked. Final full verification
+follows below; the signed-boundary addition is included in that rebuild.
+
+### P1-OB fix round 1 — core, ratchets and default Postgres verification
+
+The full default-feature core command passes 909 tests across 44 unfiltered
+unit/integration/doc targets, zero failures and five explicit scale/measurement
+ignores; the total includes 17 doctests. The unit target is 512 passed and
+three ignored. All 15 SQLite outbox cases pass, including the signed extremes.
+
+The first host-ratchet command found the new public-SQLite claim oracle's
+transaction opener in effects/test_cases.rs. That whole file is loaded only
+under cfg(test), but the lexical census does not infer a parent module's cfg.
+Put the oracle in an explicit inline cfg(test) module without changing its
+behavior. The final affected SQLite rerun passes 15/15, and the requested
+host command then passes committer 3/3 and store-port 5/5, with zero failures
+or ignores. No matcher, allowlist or production transaction opener changed.
+The full core run precedes this test-only module move; the final focused
+rerun validates the moved helper without repeating the long generated cases.
+
+The default C (--no-locale) private PostgreSQL 16.15 script passes 178 tests:
+58 evaluation, 101 core adapter and 19 corpus harness tests, zero failures
+and zero ignored. All 22 outbox/race cases run and pass, as do identity's
+attach/reopen and incompatible-storage tests. The four-writer case retains
+65 increments in both modes, no lost updates, zero serialized retries and
+84 total serializable retries. The 40001 exhaustion does not reproduce;
+no retry limit, backoff, timeout or durability setting changed. The script
+uses RUST_TEST_THREADS=1 for test scheduling; each concurrency witness still
+runs its own overlapping threads. All Cargo commands keep four build jobs.
+
+The default cluster's fast stop succeeds and its independent status is 3,
+with postmaster.pid absent: /tmp/sb4-pg-eval.MNWLfr. The full en_US.utf8
+script is now running separately; its concurrency case has also passed
+(65/65 increments, 79 serializable retries), with no product policy change.
+Raw evidence: /tmp/p1-ob-fix-core.log,
+/tmp/p1-ob-fix-sqlite-final.log, /tmp/p1-ob-fix-ratchets-final.log and
+/tmp/p1-ob-fix-postgres-default.log. All checks and generated data stay local.
+
+### P1-OB fix round 1 — locale qualification
+
+The full en_US.utf8 private-cluster run also passes 178/0/0
+(passed/failed/ignored): 58 evaluation, 101 core adapter, 19 corpus harness.
+All 22 outbox/race cases execute and pass under both database locales.
+In particular, outbox_attach_upgrades_evaluation_rows_and_reopens,
+outbox_attach_refuses_incompatible_shapes, identity_attach_installs_missing_tables_and_reopens_without_changing_rows
+and identity_attach_refuses_incompatible_existing_tables all pass under
+both C and en_US.utf8. The suspected locale-dependent index compare does
+not reproduce on PostgreSQL 16.15. Its deparser omits collation when an index
+inherits the column's collation, as the earlier catalog probe showed. No
+schema-compare relaxation or identity fix is needed, so there is no separate
+identity commit. The opt-in locale remains available for future runs.
+
+The locale cluster's fast stop succeeds at /tmp/sb4-pg-eval.mx8Ppo. After
+both full scripts finish, a separate pg_ctl status check of all four owned
+data directories (both probes and both full runs) returns 3 for each, and
+all four postmaster.pid files are absent. No unrelated cluster was stopped.
+The locale run's concurrency case retains 65 increments in each mode and
+uses 79 serializable retries. Neither full run reproduces the known 40001
+exhaustion, so no isolated failure rerun or retry-policy edit is needed.
+The existing exhaustion ticket remains open; these passes do not resolve it.
+Raw locale evidence: /tmp/p1-ob-fix-postgres-locale.log. Final Clippy and
+reference results follow below.
+
+### P1-OB fix round 1 — final static checks
+
+The exact requested Clippy command exits on only the two inherited
+default-deny errors: while_immutable_condition in engine/read.rs:780 and
+never_loop in engine/row_views.rs:1013. Both files are unchanged from the
+rebased mirror. A follow-up allowing exactly those two lints passes all
+core test targets. It initially exposed one new test-layout warning; moving
+the explicit SQLite oracle module to the end of its test-only file removes
+that warning. The final allowed-two run passes, with no warning sites in
+outbox or effects/test_cases.rs. No repository lint configuration changed.
+This last move only reorders the unchanged test module; all product code
+remains the code exercised by the full core and both Postgres runs. The
+host ratchets are rerun on that final test layout as well.
+
+Root ref-check passes: 564 LLP documents, 11,531 references, zero errors,
+zero unchecked. The RFC has exactly one Revised line, headed P1-OB fix
+round 1. Raw static-check logs are /tmp/p1-ob-fix-clippy.log and
+/tmp/p1-ob-fix-clippy-allowed-final.log. All owned clusters are stopped as
+confirmed above. Observed free disk never fell below 52 GB during these
+checks, comfortably above the commissioned 15 GB stop threshold. No push,
+stash, extra agent, other worktree change or git-config mutation occurred.

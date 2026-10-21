@@ -170,13 +170,14 @@ impl OutboxTransaction for Tx<'_> {
     }
 
     fn shift_worker_leases(&self, milliseconds: i64, before: i64) -> Result<(), RuntimeError> {
+        let (bound, end) = crate::engine::effects::lease_shift_bounds(milliseconds);
         let supervised: bool = self.conn().query_row("SELECT EXISTS(SELECT 1 FROM _meta WHERE key = 'worker:session-family' OR key LIKE 'worker:family:%')", [], |row| row.get(0))?;
         if supervised {
-        self.conn().execute("UPDATE _sessions SET expires_at = expires_at + ?1 WHERE expires_at > ?2 AND COALESCE(family, token_digest) IN (SELECT value FROM _meta WHERE key = 'worker:session-family' UNION SELECT substr(key, 15) FROM _meta WHERE key LIKE 'worker:family:%')", [milliseconds, before])?;
+        self.conn().execute("UPDATE _sessions SET expires_at = CASE WHEN (?1 >= 0 AND expires_at > ?2) OR (?1 < 0 AND expires_at < ?2) THEN ?3 ELSE expires_at + ?1 END WHERE expires_at > ?4 AND COALESCE(family, token_digest) IN (SELECT value FROM _meta WHERE key = 'worker:session-family' UNION SELECT substr(key, 15) FROM _meta WHERE key LIKE 'worker:family:%')", [milliseconds, bound, end, before])?;
         }
-        self.conn().execute("UPDATE _outbox SET lease_until = lease_until + ?1 WHERE state = 'running' AND lease_until IS NOT NULL", [milliseconds])?;
+        self.conn().execute("UPDATE _outbox SET lease_until = CASE WHEN (?1 >= 0 AND lease_until > ?2) OR (?1 < 0 AND lease_until < ?2) THEN ?3 ELSE lease_until + ?1 END WHERE state = 'running' AND lease_until IS NOT NULL", [milliseconds, bound, end])?;
         // Advancing the dev clock cannot extend a claim past its admitting family.
-        self.conn().execute("UPDATE _requests SET lease_until = CASE WHEN family IS NULL OR principal_generation IS NULL OR admitted_expires_at IS NULL THEN lease_until + ?1 ELSE MIN(lease_until + ?1, COALESCE((SELECT MAX(s.expires_at) FROM _sessions s WHERE s.principal = _requests.principal AND COALESCE(s.family, s.token_digest) = _requests.family), lease_until)) END WHERE state = 'running' AND lease_until IS NOT NULL", [milliseconds])?;
+        self.conn().execute("UPDATE _requests SET lease_until = CASE WHEN family IS NULL OR principal_generation IS NULL OR admitted_expires_at IS NULL THEN CASE WHEN (?1 >= 0 AND lease_until > ?2) OR (?1 < 0 AND lease_until < ?2) THEN ?3 ELSE lease_until + ?1 END ELSE MIN(CASE WHEN (?1 >= 0 AND lease_until > ?2) OR (?1 < 0 AND lease_until < ?2) THEN ?3 ELSE lease_until + ?1 END, COALESCE((SELECT MAX(s.expires_at) FROM _sessions s WHERE s.principal = _requests.principal AND COALESCE(s.family, s.token_digest) = _requests.family), lease_until)) END WHERE state = 'running' AND lease_until IS NOT NULL", [milliseconds, bound, end])?;
         self.conn().execute("UPDATE _sessions SET expires_at = (SELECT lease_until FROM _requests WHERE session_digest = _sessions.token_digest AND state = 'running') WHERE token_digest IN (SELECT session_digest FROM _requests WHERE state = 'running' AND lease_until IS NOT NULL)", [])?;
         Ok(())
     }
@@ -267,7 +268,7 @@ mod tests {
             tx.commit().unwrap();
         })* };
     }
-    contract!(candidate_ordering,lifecycle_variants,text_and_wide_values,presence_satisfaction,deadline_and_attempt_limits);
+    contract!(signed_lease_shift_boundaries,nul_lookups,candidate_ordering,lifecycle_variants,text_and_wide_values,presence_satisfaction,deadline_and_attempt_limits);
 
     #[test]
     fn lease_shift_error_rolls_back_all_families_and_deployed_replay_refuses() {
@@ -345,6 +346,7 @@ mod tests {
         crate::engine::effects::test_cases::snapshot_seed(&tx);
         tx.commit().unwrap();
         crate::engine::effects::test_cases::snapshot_reads(&store);
+        crate::engine::effects::test_cases::nul_snapshot_reads(&store);
         let tx = store.transaction().unwrap();
         crate::engine::effects::test_cases::replay_suppression(&tx);
         tx.commit().unwrap();
@@ -367,5 +369,37 @@ mod tests {
         crate::engine::effects::test_cases::presence_and_bounded_maintenance(&tx);
         tx.commit().unwrap();
         assert_eq!(store.effect_counts().unwrap().get("queued"), Some(&2));
+    }
+
+    #[test]
+    fn nul_filter_claim_commits_expiry_and_matches_public_engine() {
+        use crate::engine::effects::test_cases;
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        test_cases::race_seed(&tx, true);
+        tx.commit().unwrap();
+        let tx = store.transaction().unwrap();
+        test_cases::nul_filter_after_expiry(&tx);
+        tx.commit().unwrap();
+        let tx = store.transaction().unwrap();
+        let run = tx.required_effect_run("race").unwrap();
+        tx.rollback().unwrap();
+        assert_eq!(run, test_cases::sqlite_nul_claim_oracle());
+    }
+
+    #[test]
+    fn lease_shift_saturates_all_families() {
+        use crate::engine::effects::test_cases;
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        tx.conn().execute_batch(test_cases::LEASE_BOUNDARY_SEED).unwrap();
+        test_cases::lease_shift_saturates(&tx);
+        tx.commit().unwrap();
+        // Typed reads after commit must remain INTEGER, never SQLite REAL.
+        let sessions = store.conn().prepare("SELECT token_digest, expires_at FROM _sessions ORDER BY token_digest").unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+        let requests = store.conn().prepare("SELECT id, lease_until FROM _requests ORDER BY id").unwrap()
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+        test_cases::lease_boundary_rows(sessions, requests);
     }
 }

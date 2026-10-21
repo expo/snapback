@@ -1,6 +1,6 @@
 //! Outbox snapshots use one repeatable-read transaction; replay uses the head.
 // @ref LLP 3000.009.001.000#33-extraction-first-with-no-behavior-change — one family snapshot, shared replay authority.
-use super::{WriteMode, outbox::{read_run, runs}, store::{Store, Tx}};
+use super::{WriteMode, outbox::{absent_key, read_run, runs}, store::{Store, Tx}};
 use crate::{RuntimeError, engine::effects::{EffectHealth, EffectRun, OutboxStore, OutboxTransaction}};
 use std::{cell::RefCell, collections::BTreeMap};
 
@@ -13,6 +13,7 @@ fn counts(tx: &Tx<'_>) -> Result<BTreeMap<String, u64>, RuntimeError> {
 
 impl OutboxStore for RefCell<&mut Store> {
     fn effects_due(&self, effect: Option<&str>, now: i64) -> Result<bool, RuntimeError> {
+        if absent_key(effect) { return Ok(false); }
         let mut store = self.borrow_mut();
         let tx = store.transaction(None)?;
         let due = tx.query("SELECT EXISTS(SELECT 1 FROM _outbox WHERE state = 'queued' AND (next_at IS NULL OR next_at <= $1) AND ($2::text IS NULL OR effect = $2))", &[&now, &effect])?[0].get(0);
@@ -20,6 +21,7 @@ impl OutboxStore for RefCell<&mut Store> {
         Ok(due)
     }
     fn list_effects(&self, state: Option<&str>, limit: u64) -> Result<Vec<EffectRun>, RuntimeError> {
+        if absent_key(state) { return Ok(Vec::new()); }
         let mut store = self.borrow_mut();
         let tx = store.transaction(None)?;
         let rows = tx.query(runs!("WHERE ($1::text IS NULL OR state = $1) ORDER BY seq DESC, id DESC LIMIT $2"), &[&state, &(limit.min(i64::MAX as u64) as i64)])?.into_iter().map(read_run).collect::<Result<_, _>>()?;
