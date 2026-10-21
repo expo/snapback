@@ -99781,3 +99781,40 @@ lowest observed free space is 28 GB. Every Cargo command used four jobs,
 disabled incremental compilation and the requested line-table debug settings;
 one Cargo command ran at a time. No Clippy or `scripts/test.sh` rerun, other
 worktree changes, git configuration changes, stash, push or publication.
+
+
+## 2026-10-21 — P0-S8: finish the rebase onto main mirror
+
+`land-s8` now contains the five lane commits through `714d073571`, replayed
+onto `7beb568132`. The lead's first-commit owner-path and token-clock choices
+remain. The remaining inspection conflicts combine main's retained schema,
+mode/flag behavior and retained-mode boolean inference with S8's shared error/
+column policy and single `internal()`. Both RFC conflicts preserve the union
+under one Revised line. The S8 report records each conflict and commit mapping.
+
+New NUL/action/HTTP fixtures use the debug-only raw hooks. Shared job cases
+seed named schedule fixtures; both adapters retain the original keys, values,
+statement order and separate writes. Owner, catalog and device upgrade
+witnesses use typed dev metadata, inspection provenance and schema markers.
+A new `SchemaHash` marker covers the server's existing schema-hash key.
+Main's shared authority accidentally depended on a SQLite-only NUL helper;
+the unchanged predicate now lives in authority and identity re-exports it.
+No Postgres family algorithm, SQL statement, NUL rule or committer facade
+is changed by this integration correction.
+
+Full suites passed: core **996 / 0 failed / 5 ignored** (45 targets), host
+**1,385 / 0 / 15** (57), device **1,573 / 0 / 4** (104). All three supplied
+baseline host cases and both supplied load-sensitive fixtures passed; none
+needed an isolated rerun. Core no-default and wasm device checks pass after
+the helper correction. Postgres-enabled workspace test compilation and affected
+authority/schedule/metadata/NUL/savepoint reruns pass. Both Cargo ratchets and
+no-raise regeneration pass: **0 production / 95 fixture store-port sites**,
+**49 committer sites**. Both release/wasm negative guards pass. The last Cargo
+command is an ordinary binary build; its core artifact has no test-support,
+and an external probe observes six private generic methods and six absent
+fixture hooks. Final root corpus validation is recorded in the S8 report.
+
+All Cargo work uses this worktree's own `snapback4/target`, six build jobs,
+no incremental compilation and line-tables-only dev/test debug. No push,
+stash, sub-agents or reviewer-worktree access. Detailed commands, results and
+scope are in `reports/20261020-p0-s8-store-port.md`.

@@ -18,7 +18,7 @@ pub(crate) trait Fixture {
     fn rollback_to(tx: &Self::Tx<'_>);
     fn seed_chunks(tx: &Self::Tx<'_>, chunks: i64);
     fn raw(&mut self, id: &str) -> RawJob;
-    fn set_meta(&mut self, key: &str, value: &str);
+    fn seed_schedule_metadata(&mut self, legacy_prefix: bool);
 }
 
 pub(crate) struct RawJob {
@@ -282,16 +282,27 @@ pub(crate) fn summary_cap_and_name_ties(f: &mut impl Fixture) {
     );
 }
 
+// Physical fixtures stay behind each adapter's named test operation.
+pub(crate) fn schedule_metadata_seed(legacy_prefix: bool) -> &'static [(&'static str, &'static str)] {
+    if legacy_prefix {
+        &[("SCHEDULE:legacy", "7")]
+    } else {
+        &[
+            ("schedule:broken", "9223372036854775808"),
+            ("schedule:not-a-time", "NaN"),
+            ("schedule-shape:unrelated", "9223372036854775807"),
+            ("release", "9223372036854775807"),
+        ]
+    }
+}
+
 pub(crate) fn schedule_metadata(f: &mut impl Fixture) {
     assert_eq!(f.store().latest_schedule_boundary().unwrap(), None);
-    f.set_meta("schedule:broken", "9223372036854775808");
-    f.set_meta("schedule:not-a-time", "NaN");
-    f.set_meta("schedule-shape:unrelated", "9223372036854775807");
-    f.set_meta("release", "9223372036854775807");
+    f.seed_schedule_metadata(false);
     assert_eq!(f.store().schedule_boundary("broken").unwrap(), None);
     assert_eq!(f.store().latest_schedule_boundary().unwrap(), None);
     // SQLite LIKE folds the ASCII prefix even for legacy/raw metadata keys.
-    f.set_meta("SCHEDULE:legacy", "7");
+    f.seed_schedule_metadata(true);
     assert_eq!(f.store().latest_schedule_boundary().unwrap(), Some(7));
     assert_eq!(f.store().schedule_boundary("legacy").unwrap(), None);
     f.write(true, |tx| {

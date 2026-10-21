@@ -5,6 +5,15 @@
 
 use crate::RuntimeError;
 
+// Authority is also compiled without a server store (including the web device).
+// @ref LLP 3000.009.001.000#9.1 — identity fails closed on both stores, including pre-upgrade SQLite rows.
+pub(crate) fn refuse_nul(values: &[(&str, &str)]) -> Result<(), RuntimeError> {
+    for (value, message) in values {
+        if value.contains('\0') { return Err(RuntimeError::Auth((*message).into())); }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 pub(crate) mod test_cases;
 

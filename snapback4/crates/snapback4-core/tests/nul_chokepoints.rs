@@ -16,14 +16,14 @@ fn nul_mutation_id_and_viewer_are_refused_before_writes_or_clock_advance() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut e = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-    let changes = e.store().conn().total_changes();
+    let changes = e.store().test_support_conn().total_changes();
     for (viewer, id, code) in [("dev:alice", Some("op\0id"), "E_INPUT"), ("dev:bad\0viewer", Some("op"), "E_AUTH"), ("dev:bad\0viewer", None, "E_AUTH")] {
         let ctx = Context::new(viewer, BTreeMap::new()).at(1_000);
         assert_eq!(e.mutate("ping", id, ctx).unwrap_err().code(), code);
-        assert_eq!(e.store().conn().total_changes(), changes, "refusal must precede the timed-schema clock pin too");
+        assert_eq!(e.store().test_support_conn().total_changes(), changes, "refusal must precede the timed-schema clock pin too");
     }
     for table in ["_ops", "_commits"] {
-        assert_eq!(e.store().conn().query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+        assert_eq!(e.store().test_support_conn().query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get::<_, i64>(0)).unwrap(), 0);
     }
 }
 
@@ -32,20 +32,20 @@ fn nul_asset_intent_owner_and_id_are_refused_before_writes() {
     let mut e = engine();
     let placement = serde_json::json!({"op":"send", "args":{}, "argument":"file"});
     let why = snapback4_core::error::Refusal::new("E_INPUT", "input", "invalid argument");
-    let changes = e.store().conn().total_changes();
+    let changes = e.store().test_support_conn().total_changes();
     for (owner, id, code) in [("dev:alice", "intent\0id", "E_INPUT"), ("dev:bad\0owner", "intent", "E_AUTH")] {
         assert_eq!(e.declare_asset_intent(owner, id, "fingerprint", &placement).unwrap_err().code(), code);
         assert_eq!(e.finish_asset_intent(owner, id, "send", &serde_json::json!({}), &why).unwrap_err().code(), code);
-        assert_eq!(e.store().conn().total_changes(), changes);
+        assert_eq!(e.store().test_support_conn().total_changes(), changes);
     }
 }
 
 #[test]
 fn nul_action_invocation_is_refused_before_any_write() {
     let mut e = engine();
-    let changes = e.store().conn().total_changes();
+    let changes = e.store().test_support_conn().total_changes();
     assert_eq!(e.request_action("work", "inv\0ocation", context(1)).unwrap_err().code(), "E_INPUT");
-    assert_eq!(e.store().conn().total_changes(), changes);
+    assert_eq!(e.store().test_support_conn().total_changes(), changes);
     assert!(e.action_counts().unwrap().is_empty());
 }
 
@@ -56,10 +56,10 @@ fn nul_dev_route_viewer_is_refused_before_any_write() {
     schema.routes.insert("test".into(), route.clone());
     let mut e = Engine::memory(schema, []).unwrap();
     let envelope = RouteRequest { method: "POST".into(), path: route.path.clone(), headers: vec![], body_hex: String::new() };
-    let changes = e.store().conn().total_changes();
+    let changes = e.store().test_support_conn().total_changes();
     let ctx = Context::new("dev:bad\0principal", BTreeMap::new()).at(1);
     assert_eq!(e.request_session_route("test", &route.contract("test"), &envelope, ctx).unwrap_err().code(), "E_AUTH");
-    assert_eq!(e.store().conn().total_changes(), changes);
+    assert_eq!(e.store().test_support_conn().total_changes(), changes);
     assert!(e.action_counts().unwrap().is_empty());
 }
 
@@ -69,11 +69,11 @@ fn nul_action_worker_is_refused_before_expiry_or_claim() {
     e.request_action("work", "expired", context(0)).unwrap();
     let lease = e.claim_actions("service:worker", None, 1, 1_000, 1, 0).unwrap().remove(0).session.token;
     e.request_action("work", "queued", context(1)).unwrap();
-    let changes = e.store().conn().total_changes();
+    let changes = e.store().test_support_conn().total_changes();
     assert_eq!(e.claim_actions("service:bad\0worker", None, 10, 1_000, 1, 2_000).unwrap_err().code(), "E_AUTH");
-    assert_eq!(e.store().conn().total_changes(), changes);
+    assert_eq!(e.store().test_support_conn().total_changes(), changes);
     assert_eq!(e.action_counts().unwrap(), BTreeMap::from([("queued".into(), 1), ("running".into(), 1)]));
-    let delegated: i64 = e.store().conn().query_row("SELECT count(*) FROM _sessions WHERE token_digest = ?1", [format!("{:x}", Sha256::digest(lease.as_bytes()))], |r| r.get(0)).unwrap();
+    let delegated: i64 = e.store().test_support_conn().query_row("SELECT count(*) FROM _sessions WHERE token_digest = ?1", [format!("{:x}", Sha256::digest(lease.as_bytes()))], |r| r.get(0)).unwrap();
     assert_eq!(delegated, 1, "refusal must precede expired-lease cleanup");
 }
 
@@ -82,14 +82,14 @@ fn nul_effect_worker_is_refused_before_expiry_or_claim() {
     let mut e = engine();
     for id in ["one", "two"] { e.mutate("send", Some(id), context(0)).unwrap(); }
     e.claim_effects_fenced("service:worker", None, 1, 1_000, 0).unwrap();
-    let changes = e.store().conn().total_changes();
+    let changes = e.store().test_support_conn().total_changes();
     for fenced in [false, true] {
         let result = if fenced { e.claim_effects_fenced("service:bad\0worker", None, 10, 1_000, 2_000) }
             else { e.claim_effects("service:bad\0worker", None, 10, 1_000, 2_000) };
         assert_eq!(result.unwrap_err().code(), "E_AUTH");
     }
-    assert_eq!(e.store().conn().total_changes(), changes);
-    let states: String = e.store().conn().query_row("SELECT group_concat(state, ',') FROM (SELECT state FROM _outbox ORDER BY state)", [], |r| r.get(0)).unwrap();
+    assert_eq!(e.store().test_support_conn().total_changes(), changes);
+    let states: String = e.store().test_support_conn().query_row("SELECT group_concat(state, ',') FROM (SELECT state FROM _outbox ORDER BY state)", [], |r| r.get(0)).unwrap();
     assert_eq!(states, "queued,running");
 }
 
@@ -102,7 +102,7 @@ fn direct_effect_claims_keep_unbounded_nul_free_worker_labels() {
         let claims = if fenced { e.claim_effects_fenced(&worker, None, 1, 1_000, 0) }
             else { e.claim_effects(&worker, None, 1, 1_000, 0) }.unwrap();
         assert_eq!(claims.len(), 1);
-        let stored: String = e.store().conn().query_row("SELECT claimed_by FROM _outbox WHERE id=?1", [&claims[0].id], |r| r.get(0)).unwrap();
+        let stored: String = e.store().test_support_conn().query_row("SELECT claimed_by FROM _outbox WHERE id=?1", [&claims[0].id], |r| r.get(0)).unwrap();
         assert_eq!(stored, worker);
     }
 }
@@ -115,11 +115,11 @@ fn legacy_nul_step_names_complete_park_and_reconcile_but_new_names_refuse() {
         e.request_action("work", "invocation", context(0)).unwrap();
         let first = e.claim_actions("service:worker", None, 1, 1_000, 1, 0).unwrap().remove(0).session.token;
         assert_eq!(e.begin_action_step("invocation", "service:worker", &first, name, &serde_json::json!({}), false, 1).unwrap_err().code(), "E_STEP_INPUT");
-        assert_eq!(e.store().conn().query_row("SELECT count(*) FROM _action_steps", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+        assert_eq!(e.store().test_support_conn().query_row("SELECT count(*) FROM _action_steps", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
         // Seed through the old, valid spelling, then preserve its binding and
         // provider key while installing the pre-upgrade SQLite name.
         let begun = e.begin_action_step("invocation", "service:worker", &first, "legacy", &serde_json::json!({}), false, 1).unwrap();
-        e.store().conn().execute("UPDATE _action_steps SET name=?1 WHERE invocation='invocation'", [name]).unwrap();
+        e.store().test_support_conn().execute("UPDATE _action_steps SET name=?1 WHERE invocation='invocation'", [name]).unwrap();
         match mode {
             "complete" => {
                 let result = serde_json::json!({"receipt": 1});
@@ -142,7 +142,7 @@ fn legacy_nul_step_names_complete_park_and_reconcile_but_new_names_refuse() {
                 }
             }
         }
-        let state: String = e.store().conn().query_row("SELECT state FROM _action_steps WHERE name=?1", [name], |r| r.get(0)).unwrap();
+        let state: String = e.store().test_support_conn().query_row("SELECT state FROM _action_steps WHERE name=?1", [name], |r| r.get(0)).unwrap();
         assert_eq!(state, if ["park", "uncertain"].contains(&mode) { "parked" } else { "done" });
     }
 }
@@ -153,8 +153,8 @@ fn nul_scheduled_service_seat_is_refused_before_activation_writes() {
     let mut schema = e.schema().clone();
     schema.schedules.push(Schedule { name: "hourly".into(), every_ms: 60_000, offset_ms: 0,
         target: "work".into(), service: Some("service:bad\0seat".into()), months: 0 });
-    let changes = e.store().conn().total_changes();
+    let changes = e.store().test_support_conn().total_changes();
     let programs = e.programs().cloned().collect::<Vec<_>>();
     assert_eq!(e.adopt_at(schema, programs, 0).unwrap_err().code(), "E_SCHEMA");
-    assert_eq!(e.store().conn().total_changes(), changes);
+    assert_eq!(e.store().test_support_conn().total_changes(), changes);
 }

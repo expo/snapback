@@ -46,13 +46,13 @@ fn pre_upgrade_nul_principal_bearers_get_the_existing_auth_refusal() {
             identity::narrow_session(&mut store, &full.token, || ServiceSample { now: NOW, supervisor_revision: 0 }).unwrap().token
         };
         // Model a pre-upgrade SQLite identity, bypassing current admission.
-        store.conn().execute("UPDATE _principals SET id = ?1", ["member:\0legacy"]).unwrap();
+        store.test_support_conn().execute("UPDATE _principals SET id = ?1", ["member:\0legacy"]).unwrap();
         let table = if scope == SessionScope::Full { "_sessions" } else { "_read_sessions" };
-        store.conn().execute(&format!("UPDATE {table} SET principal = ?1"), ["member:\0legacy"]).unwrap();
+        store.test_support_conn().execute(&format!("UPDATE {table} SET principal = ?1"), ["member:\0legacy"]).unwrap();
         let h = Host::with_store(false, store, super::SCHEMA);
         lock(&h.shared.clock).freeze(NOW);
         let before = snapshot(&h);
-        let changes = lock(&h.shared.engine).store().conn().total_changes();
+        let changes = lock(&h.shared.engine).store().test_support_conn().total_changes();
         let header = format!("Authorization: Bearer {token}\r\n");
         for path in ["/q/who", "/auth/logout", "/auth/logout-all", "/auth/narrow", "/auth/refresh"] {
             let response = h.request("POST", path, &header, "{}");
@@ -61,7 +61,7 @@ fn pre_upgrade_nul_principal_bearers_get_the_existing_auth_refusal() {
             assert!(response.contains("this session is not live; sign in again"), "{response}");
         }
         assert_eq!(snapshot(&h), before);
-        assert_eq!(lock(&h.shared.engine).store().conn().total_changes(), changes);
+        assert_eq!(lock(&h.shared.engine).store().test_support_conn().total_changes(), changes);
     }
 }
 

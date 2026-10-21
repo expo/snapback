@@ -416,13 +416,13 @@ mod tests {
         let table = engine.schema().tables["messages"].clone();
         engine.seed((0..2).map(|n| ("messages".into(), wire::row_from_json(&table,
             &json!({"id":format!("m{n}"), "body":format!("b{n}"), "owner":"alice"})).unwrap()))).unwrap();
-        let previous = engine.store().test_support_meta(META_KEY).unwrap().unwrap();
+        let previous = engine.store().inspection_provenance().unwrap().unwrap().1;
         let generation = engine.generation();
         let next = snapback4_lang::compile(&[("schema.q".into(), SOURCE.replace("by byOwner: owner, id", "unique owner"))]);
         assert!(next.diagnostics.is_empty(), "{:?}", next.diagnostics);
         assert!(engine.adopt(next.schema, next.programs.into_iter().map(|p| p.program)).is_err());
         assert_eq!(engine.generation(), generation);
-        assert_eq!(engine.store().test_support_meta(META_KEY).unwrap().unwrap(), previous);
+        assert_eq!(engine.store().inspection_provenance().unwrap().unwrap().1, previous);
         let conn = engine.store().test_support_conn();
         let (_, schema) = active_schema(engine.store()).unwrap();
         for stale_generation in [true, false] {

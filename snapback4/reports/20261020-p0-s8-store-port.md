@@ -265,3 +265,125 @@ are complete and pass. Logs are under the ignored `snapback4/target/`:
 `p0-s8-fix-test-support-guard.log`, `p0-s8-fix-ratchets-regenerate.log`,
 `p0-s8-fix-ratchets-final.log`, `p0-s8-fix-build-final.log`, and
 `p0-s8-fix-ref-check.log`.
+
+
+## 2026-10-21 — finish rebase onto main
+
+`land-s8` rebases all five original lane commits (through `714d073571`)
+onto main mirror `7beb568132ed46178e00351ebe9809f374e3c762`. Work stays in
+`/home/ccheever/projects/sb4-p0-s8` on expo-build-450a, with this worktree's
+`snapback4/target`, six Cargo jobs, no incremental compilation and
+line-tables-only dev/test debug. No stash, push, sub-agents or reviewer-worktree
+access.
+
+Conflict resolutions:
+
+- The lead's first-commit resolution retains main's owner-path argument to
+  `dev_hosts::register` with typed `store_identity()`, and main's `serve_token`
+  using `shared.now()` without reading deployment metadata.
+- `916516fdfb`, `store/inspect.rs`: merge imports to retain both `Table` for
+  retained schema reconstruction and shared `internal()`. Keep main's retained
+  view construction, authorizer and schema reconstruction, plus S8's shared
+  error/column policy and preparation-order regression.
+- `916516fdfb`, `verbs/sql.rs`: retain dormant/all-release options, retained
+  schema, mode output and misplaced retained-flag handling. Call S8's policy
+  callbacks, then main's boolean inference with the retained-mode argument.
+- `916516fdfb` and `714d073571`, store-port RFC: union all main NUL/identity/
+  outbox records with S8 boundary and guard records; retain one Revised line.
+- Allowances use per-file minimums from main mirror and the lane, followed by
+  regeneration without a raise override. Store-port production stays 0,
+  fixtures stay 95; the committer census retains main's 49 sites.
+
+Additional integration corrections:
+
+- Main's new NUL and action-context core fixtures, and HTTP mutation/read-only
+  fixtures, now use explicitly named debug-only raw hooks.
+- The ownership witness writes its cross-connection marker through typed dev
+  metadata; catalog atomicity reads use `inspection_provenance()`.
+- Shared job conformance exposes `seed_schedule_metadata` rather than a generic
+  metadata writer. Both adapter fixtures retain the same five keys, values,
+  statement order and separate transaction per write.
+- Device upgrade witnesses use typed `SchemaMarker::CapCounts` and the new
+  `SchemaMarker::SchemaHash` variant for server metadata. Device trait metadata
+  remains the independent device contract.
+- Main's authority module called `identity::refuse_nul` even when SQLite, and
+  therefore identity, was disabled. Move the unchanged helper into authority
+  and re-export it from identity; this preserves the one predicate and refusal
+  semantics in server, no-default and web builds.
+
+Replayed lane commits, in order:
+
+| Original | Rebased | Change |
+| --- | --- | --- |
+| `f89bbe904b` | `52a3d4d46c` | Named host metadata families |
+| `06d8bb5262` | `1e39ebec7c` | Native device adapter custody |
+| `b2ec2b5b90` | `7f617b723e` | Debug-only fixture access |
+| `916516fdfb` | `b5fa5e3d27` | Closed raw access and shared inspection policy |
+| `714d073571` | `fb97a82922` | Device/fixture ratchet and savepoint guards |
+
+Post-rebase validation logs are under `/tmp/p0-s8-rebase-checks/`. Counts
+below use primary Cargo target summaries, excluding nested subprocess summaries.
+
+- `cargo test -p snapback4-core --no-fail-fast -j 6`: passed,
+  **996 passed / 0 failed / 5 ignored**, 45 primary targets including doctests.
+- `cargo test -p snapback4 --no-fail-fast -j 6`: passed,
+  **1,385 passed / 0 failed / 15 ignored**, 57 primary targets. All three
+  supplied baseline cases passed: `w11r1c_toolchain_why_explains_node_start_failure_too`,
+  `farm2_typescript_7_is_refused_by_version_not_crashed_on`, and
+  `web_witness_help_and_invalid_input`. Both supplied load-sensitive fixtures
+  passed too (`stalled_resolver_sigint_is_bounded_journalled_and_drained` and
+  `stopping_admission_flushes_console_entries_that_cannot_expire`), so no
+  isolated flake rerun was needed. The large initializer/residency case passed.
+
+- `cargo test -p snapback4-device --no-fail-fast -j 6`: passed,
+  **1,573 passed / 0 failed / 4 ignored**, 104 primary targets including
+  doctests. The full disclosure, generated admission/outbox/settlement,
+  native persistence, repair/adoption, retained-release and savepoint consumers
+  passed; no isolated flake rerun was needed.
+- `cargo check -p snapback4-core --no-default-features -j 6`: passed after
+  moving the unchanged NUL helper out of the SQLite-gated identity module.
+- `cargo check -p snapback4-device --no-default-features --features web
+  --target wasm32-unknown-unknown -j 6`: passed after the same correction.
+- Both normal Cargo ratchets passed: store-port **0 production / 95 fixture
+  sites**, committer **49 sites**. Standalone regeneration without a raise
+  override also passed; final Cargo regeneration follows below.
+- `bash scripts/check-test-support-guard.sh`: passed, observing the intended
+  release-host refusal for explicit raw-fixture feature activation.
+
+- `cargo check --workspace --tests --features snapback4-difftest/postgres
+  --keep-going -j 6`: passed, including both job fixture implementations and
+  the standalone evaluator's typed physical operations.
+- Final authority, schedule and metadata unit selections, and the full
+  `nul_chokepoints` and `rows` integration targets: passed after the helper
+  relocation and typed schema-marker addition. These supplement the full
+  suites above; no heavy unchanged suite was repeated.
+- Final `SNAPBACK4_RATCHET_UPDATE=1 cargo test -p snapback4 --test
+  store_port_ratchet --test committer_ratchet -j 6 -- --nocapture`: passed,
+  **7 store-port / 3 committer tests**, with no allowance raises or remaining
+  data diff. Production remains 0, fixtures 95, committer 49.
+- `bash scripts/check-release-guard.sh`: passed both intended refusals:
+  raw fixture access on the release host and `web-device-check` under the
+  wasm profile. No source lint or refusal expectation was suppressed.
+- Final `cargo build -p snapback4 -j 6`: passed. It ran after all Cargo test
+  and feature-check commands, leaving an ordinary artifact with features
+  `default,native,server-search,sqlite,wasm-host`; neither fixture nor
+  evaluation support is selected.
+- An external compile probe against that ordinary core artifact passed its
+  negative assertions: **6 E0624 private-method errors** for generic Store/Tx
+  access and **6 E0599 absent-method errors** for the raw fixture hooks.
+- `git diff --check`: passed; no unresolved conflicts remain. The RFC retains
+  exactly one Revised line. All rebased commits retain Codex authorship and
+  Charlie Cheever committer attribution. The integration correction and this
+  verification record land together in one further local commit.
+
+The first no-default/core and web checks failed because main's shared authority
+code referenced the SQLite-only identity module. Their successful final reruns
+above qualify the unchanged NUL predicate in its store-neutral home. No other
+required check failed. All source changes were settled before the complete host
+and device suites began; the final core selections specifically recheck the
+relocated predicate and related metadata/savepoint boundaries.
+
+- Final repository-root `./ref-check`: passed, **564 LLP documents / 11,599
+  references / 0 errors / 0 unchecked references**.
+
+No push, stash, other-worktree build directory or reviewer-worktree access.

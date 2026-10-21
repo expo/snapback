@@ -228,7 +228,7 @@ fn seeded_changes_match_the_old_live_recomputation() {
 fn sqlite_041_store_rebuilds_expiry_index_at_open() {
     use snapback4_core::{Store, rows::{Dir, Bounds}};
     fn assert_no_cap_counters(store: &Store) {
-        assert!(store.meta("cap_counts_schema").unwrap().is_none());
+        assert!(store.schema_marker(snapback4_core::metadata::SchemaMarker::CapCounts).unwrap().is_none());
         let present: bool = store.test_support_conn().query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_cap_counts')", [], |row| row.get(0)).unwrap();
         assert!(!present, "expiry index adoption must not introduce unused cap counters");
@@ -269,7 +269,7 @@ fn sqlite_041_store_rebuilds_expiry_index_at_open() {
     assert_eq!(server.generation(),generation+1);
     assert_no_cap_counters(server.store());
     let schema_hash = server.schema().hash();
-    assert_eq!(server.store().meta("schema_hash").unwrap().as_deref(), Some(schema_hash.as_str()));
+    assert_eq!(server.store().schema_marker(snapback4_core::metadata::SchemaMarker::SchemaHash).unwrap().as_deref(), Some(schema_hash.as_str()));
     for maintain in &server.schema().maintains {
         assert_eq!(server.schema().tables[&maintain.source].indexes[&maintain.contribution_index()].components.len(), 2);
     }

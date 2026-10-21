@@ -19,6 +19,7 @@ fn worker_status_key(worker: Option<&str>) -> String {
 
 fn schema_key(marker: SchemaMarker) -> &'static str {
     match marker {
+        SchemaMarker::SchemaHash => "schema_hash",
         SchemaMarker::LiveSumCandidates => "live_sum_candidates",
         SchemaMarker::MaintainedIds => crate::schema::MAINTAINED_ID_META,
         SchemaMarker::CapCounts => "cap_counts_schema",

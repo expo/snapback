@@ -94,18 +94,20 @@ impl Fixture for Pg {
             upper: row.get(3),
         }
     }
-    fn set_meta(&mut self, key: &str, value: &str) {
-        let tx = self
-            .engine
-            .store
-            .transaction(Some(WriteMode::Serialized))
+    fn seed_schedule_metadata(&mut self, legacy_prefix: bool) {
+        for &(key, value) in cases::schedule_metadata_seed(legacy_prefix) {
+            let tx = self
+                .engine
+                .store
+                .transaction(Some(WriteMode::Serialized))
+                .unwrap();
+            tx.execute(
+                "INSERT INTO _meta(key,value) VALUES ($1,$2)",
+                &[&key, &value],
+            )
             .unwrap();
-        tx.execute(
-            "INSERT INTO _meta(key,value) VALUES ($1,$2)",
-            &[&key, &value],
-        )
-        .unwrap();
-        tx.commit().unwrap();
+            tx.commit().unwrap();
+        }
     }
 }
 

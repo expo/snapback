@@ -24,14 +24,14 @@ fn claim(engine: &mut Engine, at: i64) -> String { engine.claim_actions("service
 #[test]
 fn never_stored_nul_viewer_is_refused_before_action_admission() {
     let mut engine = engine();
-    let changes = engine.store().conn().total_changes();
+    let changes = engine.store().test_support_conn().total_changes();
     let error = engine.request_action("work", "nul-viewer", Context::new("member:\0new", BTreeMap::new()).at(1_000)).unwrap_err();
     assert_eq!(error.to_string(), "E_AUTH: an action needs a signed-in principal");
     for table in ["_requests", "_principals", "_principal_generations", "_sessions"] {
-        let rows: i64 = engine.store().conn().query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0)).unwrap();
+        let rows: i64 = engine.store().test_support_conn().query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get(0)).unwrap();
         assert_eq!(rows, 0, "{table} changed after refusal");
     }
-    assert_eq!(engine.store().conn().total_changes(), changes);
+    assert_eq!(engine.store().test_support_conn().total_changes(), changes);
     assert!(engine.claim_actions("service:worker", None, 1, 1_000, 1, 1_000).unwrap().is_empty());
 }
 

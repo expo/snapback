@@ -177,10 +177,10 @@ fn removed_or_replaced_sidecar_ends_exclusion_documented_boundary() {
         store.reader().unwrap();
         let second = command(&path).unwrap();
         let other = second.open_store(Duration::ZERO).unwrap();
-        other.test_support_set_meta("boundary", "second").unwrap();
-        assert_eq!(store.test_support_meta("boundary").unwrap().as_deref(), Some("second"));
-        store.test_support_set_meta("boundary", "first").unwrap();
-        assert_eq!(other.test_support_meta("boundary").unwrap().as_deref(), Some("first"));
+        other.set_dev_value(snapback4_core::metadata::DevMetadata::Replay, "second").unwrap();
+        assert_eq!(store.dev_value(snapback4_core::metadata::DevMetadata::Replay).unwrap().as_deref(), Some("second"));
+        store.set_dev_value(snapback4_core::metadata::DevMetadata::Replay, "first").unwrap();
+        assert_eq!(other.dev_value(snapback4_core::metadata::DevMetadata::Replay).unwrap().as_deref(), Some("first"));
         first.open_store(Duration::ZERO).unwrap();
         assert!(command(&path).err().unwrap().contains("E_STORE_BUSY"));
         drop(other);
