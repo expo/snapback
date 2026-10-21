@@ -2,6 +2,7 @@
 //! Bytes retain the local-file custody path; the Postgres host is P1b.
 // @ref LLP 3000.009.001.000#3.1 — policy is shared; this adapter only stores ledger facts.
 use super::store::{Store, Tx};
+use crate::receipts::ReceiptReader;
 use crate::{
     RuntimeError,
     assets::{
@@ -285,11 +286,7 @@ impl AssetTransaction for Tx<'_> {
         if nul(&[owner, id]) {
             return Ok(false);
         }
-        Ok(self.query(
-            "SELECT EXISTS(SELECT 1 FROM _ops WHERE principal=$1 AND id=$2)",
-            &[&owner, &id],
-        )?[0]
-            .get(0))
+        self.receipt_exists(owner, id)
     }
 }
 

@@ -99847,3 +99847,31 @@ were used, and the missing source was requested. No sub-agents, clones,
 remote commands, stash or push. Build target is this checkout's target only,
 with incremental off, line-tables-only debug and 12 build jobs. Focused checks
 and final qualification are recorded in subsequent entries.
+
+
+## 2026-10-21 — P1-MR: one receipt reader and replay policy
+
+Removed Postgres Tx's inherent applied/applied_bound readers. PostgresEngine
+replay now uses ReceiptReader; bound mutation replay uses receipts::replay_bound
+with the original wire JSON both before input validation and after taking the
+writer fence. The admission digest recorded with a receipt is unchanged.
+Asset mutation_executed also uses receipt_exists. The inherent record_applied
+writer remains: this task adds a reader, not a new write protocol.
+
+Both stores run the same bound, absent, legacy-unbound, partial-binding, NUL
+lookup, signed-cut and outcome-state cases. Shared Rust state decoding avoids
+SQLite/Postgres duplicate-key and state-coercion differences; malformed JSON
+is E_STORE only when the cut selects it. Legacy SQLite receipt keys/values
+are not revalidated. Postgres NUL keys skip all queries and store-level BEGIN.
+Attach validates _ops and conditionally drops the old name/args_digest NOT
+NULL constraints to admit unbound legacy receipts. No ALTER runs when the
+columns are already nullable. Snapshots, recorded replay, cached explicit
+columns after additive DDL, held-reader reopen and shape refusals are covered.
+No receipt list exists. Postgres sent_sequence awaits a host caller in S10.
+
+The first full private-cluster script passed 58 evaluation tests and 19 corpus
+harness tests but its core-test compilation crossed the in-progress receipt
+API adaptation and caught one remaining NUL-test caller using a digest string.
+That caller was adapted; this run is not counted as full qualification.
+Cluster /tmp/sb4-pg-eval.pgGL6Q stopped with status=3 and no postmaster.pid;
+an independent pg_ctl status returned 3. Final checks are recorded below.

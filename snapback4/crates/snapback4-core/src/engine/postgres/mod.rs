@@ -22,6 +22,7 @@ mod jobs_schema;
 mod assets;
 mod assets_schema;
 mod metadata;
+mod receipts;
 mod foundation_schema;
 #[cfg(test)]
 mod tests;
@@ -40,6 +41,7 @@ use postgres::{Client, error::SqlState};
 use std::collections::BTreeMap;
 use store::{Store, decode, namespace};
 use crate::rows::Rows;
+use crate::receipts::ReceiptReader;
 
 #[derive(Clone, Copy, Debug, Default, serde::Serialize)]
 pub struct Stats {
@@ -152,6 +154,7 @@ impl PostgresEngine {
         tx.batch("CREATE TABLE IF NOT EXISTS _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value BIGINT NOT NULL, PRIMARY KEY(parent, id));")?;
         identity_schema::verify_existing(&tx)?;
         metadata::initialize(&tx)?;
+        receipts::initialize(&tx)?;
         tx.batch(store::READ_SESSIONS_DDL)?;
         tx.batch(identity::DDL)?;
         requests::initialize(&tx)?;
@@ -244,7 +247,7 @@ impl PostgresEngine {
     pub fn replay(&mut self, viewer: &str, op: &str) -> Result<Option<MutationOutcome>, RuntimeError> {
         if store::absent_text_key(&[viewer, op]) { return Ok(None); }
         let tx = self.store.transaction(None)?;
-        let receipt = tx.applied(viewer, op)?;
+        let receipt = tx.receipt(viewer, op)?.map(|r| r.outcome);
         tx.rollback()?;
         receipt.as_deref().map(MutationOutcome::from_receipt).transpose()
     }
@@ -252,10 +255,10 @@ impl PostgresEngine {
     /// Compare wire identity before decoding against the installed program.
     // @ref LLP 3000.009#5.1 — an id binds the admitted operation and arguments.
     /// A NUL receipt key is absent without opening a snapshot or querying.
-    fn replay_mutation(&mut self, viewer: &str, id: &str, name: &str, args_digest: &str) -> Result<Option<MutationOutcome>, RuntimeError> {
+    fn replay_mutation(&mut self, viewer: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<MutationOutcome>, RuntimeError> {
         if store::absent_text_key(&[viewer, id]) { return Ok(None); }
         let tx = self.store.transaction(None)?;
-        let receipt = tx.applied_bound(viewer, id, name, args_digest)?;
+        let receipt = crate::receipts::replay_bound(&tx, viewer, id, name, args)?;
         tx.rollback()?;
         receipt.as_deref().map(MutationOutcome::from_receipt).transpose()
     }
@@ -269,7 +272,7 @@ impl PostgresEngine {
         // Preserve the bound replay-before-validation contract, including
         // unknown or renamed programs. Never return a historical result row.
         if let Some(op) = op
-            && let Some(outcome) = self.replay_mutation(&context.viewer, op, name, &args_digest)?
+            && let Some(outcome) = self.replay_mutation(&context.viewer, op, name, &wire_args)?
         {
             return Ok(outcome);
         }
@@ -284,7 +287,7 @@ impl PostgresEngine {
         }
         // @ref LLP 3000#7-decisions-during-execution — retries rerun Quarry, rules, maintains, and bookkeeping together
         for attempt in 0..=32 {
-            match self.mutate_once(&program, op, context.clone(), &args_digest) {
+            match self.mutate_once(&program, op, context.clone(), &args_digest, &wire_args) {
                 Err(error) if retry_transaction(&error) && attempt < 32 => {
                     self.retries += 1;
                     let delay = (100_u64 << attempt.min(6)) + crate::ids::seed() % 250;
@@ -296,10 +299,10 @@ impl PostgresEngine {
         unreachable!()
     }
 
-    fn mutate_once(&mut self, program: &Program, op: Option<&str>, mut context: Context, args_digest: &str) -> Result<MutationOutcome, RuntimeError> {
+    fn mutate_once(&mut self, program: &Program, op: Option<&str>, mut context: Context, args_digest: &str, wire_args: &serde_json::Value) -> Result<MutationOutcome, RuntimeError> {
         let tx = self.store.transaction(Some(self.mode))?;
         if let Some(op) = op
-            && let Some(receipt) = tx.applied_bound(&context.viewer, op, &program.name, args_digest)?
+            && let Some(receipt) = crate::receipts::replay_bound(&tx, &context.viewer, op, &program.name, wire_args)?
         {
             let outcome = MutationOutcome::from_receipt(&receipt)?;
             tx.rollback()?;

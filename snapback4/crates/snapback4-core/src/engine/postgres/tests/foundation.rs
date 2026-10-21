@@ -242,3 +242,139 @@ fn metadata_statement_error_discards_the_writer() {
         None
     );
 }
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn receipts_shared_contract() {
+    use crate::receipts::{ReceiptReader, test_cases};
+    let mut e = engine();
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    for row in test_cases::fixtures() {
+        tx.execute("INSERT INTO _ops(principal,id,seq,outcome,name,args_digest,at) VALUES ('alice',$1,$2,$3,$4,$5,0)", &[&row.id,&row.seq,&row.outcome,&row.name,&row.digest]).unwrap();
+    }
+    tx.commit().unwrap();
+    test_cases::replay_and_acknowledgement(&RefCell::new(&mut e.store));
+    let tx = e.store.transaction(None).unwrap();
+    test_cases::replay_and_acknowledgement(&tx);
+    let before = tx.calls.get();
+    for (principal, id) in [("alice", "nul\0id"), ("nul\0principal", "bound")] {
+        assert!(tx.receipt(principal, id).unwrap().is_none());
+        assert!(!tx.receipt_exists(principal, id).unwrap());
+        assert_eq!(tx.sent_sequence(principal, id, i64::MAX).unwrap(), None);
+        assert!(
+            crate::receipts::replay_bound(&tx, principal, id, "send", &serde_json::Value::Null)
+                .unwrap()
+                .is_none()
+        );
+    }
+    assert_eq!(tx.calls.get(), before);
+    tx.rollback().unwrap();
+    let before = e.stats().database_calls;
+    let handle = RefCell::new(&mut e.store);
+    assert!(handle.receipt("alice", "nul\0id").unwrap().is_none());
+    assert!(!handle.receipt_exists("nul\0principal", "bound").unwrap());
+    assert_eq!(
+        handle.sent_sequence("alice", "nul\0id", i64::MAX).unwrap(),
+        None
+    );
+    drop(handle);
+    assert_eq!(e.stats().database_calls, before);
+}
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn receipts_record_replay_snapshot_additive_reads_and_reopen() {
+    use crate::receipts::{ReceiptReader, payload_digest, replay_bound};
+    let mut e = engine();
+    let namespace = name(&mut e);
+    let mut peer = PostgresEngine::open(client(), &namespace).unwrap();
+    let tx = e.store.transaction(None).unwrap();
+    assert!(tx.receipt("alice", "recorded").unwrap().is_none());
+    let write = peer.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    let args = serde_json::json!({"nested": ["escaped\0text"]});
+    write
+        .record_applied(
+            "alice",
+            "recorded",
+            7,
+            r#"{"state":"sent","result":"escaped\u0000text"}"#,
+            "send",
+            &payload_digest(&args),
+            0,
+        )
+        .unwrap();
+    write.commit().unwrap();
+    assert!(!tx.receipt_exists("alice", "recorded").unwrap());
+    let reopened = PostgresEngine::open(client(), &namespace).unwrap();
+    drop(reopened);
+    tx.rollback().unwrap();
+    let handle = RefCell::new(&mut e.store);
+    assert_eq!(
+        replay_bound(&handle, "alice", "recorded", "send", &args)
+            .unwrap()
+            .as_deref(),
+        Some(r#"{"state":"sent","result":"escaped\u0000text"}"#)
+    );
+    drop(handle);
+    e.store
+        .client
+        .batch_execute("ALTER TABLE _ops ADD COLUMN future TEXT")
+        .unwrap();
+    let tx = e.store.transaction(None).unwrap();
+    assert!(tx.receipt("alice", "recorded").unwrap().is_some());
+    assert_eq!(tx.sent_sequence("alice", "recorded", 7).unwrap(), Some(7));
+    tx.rollback().unwrap();
+}
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn receipts_attach_upgrades_old_binding_nullability_and_installs_missing_ledger() {
+    use crate::receipts::ReceiptReader;
+    let mut e = engine();
+    let namespace = name(&mut e);
+    e.store.client.batch_execute("ALTER TABLE _ops ALTER COLUMN name SET NOT NULL; ALTER TABLE _ops ALTER COLUMN args_digest SET NOT NULL").unwrap();
+    let mut reopened = PostgresEngine::open(client(), &namespace).unwrap();
+    reopened
+        .store
+        .client
+        .batch_execute(
+            "INSERT INTO _ops(principal,id,seq,outcome,at) VALUES ('alice','legacy',8,'{}',0)",
+        )
+        .unwrap();
+    assert!(
+        RefCell::new(&mut reopened.store)
+            .receipt("alice", "legacy")
+            .unwrap()
+            .is_some()
+    );
+    reopened
+        .store
+        .client
+        .batch_execute("DROP TABLE _ops")
+        .unwrap();
+    let mut reopened = PostgresEngine::open(client(), &namespace).unwrap();
+    assert!(
+        !RefCell::new(&mut reopened.store)
+            .receipt_exists("alice", "legacy")
+            .unwrap()
+    );
+}
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn receipts_attach_refuses_incompatible_shapes() {
+    shape_refusals(
+        "_ops",
+        &[
+            "ALTER TABLE _ops ALTER COLUMN seq TYPE integer",
+            "ALTER TABLE _ops ALTER COLUMN outcome DROP NOT NULL",
+            "ALTER TABLE _ops ALTER COLUMN id TYPE text COLLATE \"POSIX\"",
+            "ALTER TABLE _ops ADD CONSTRAINT extra CHECK (seq >= 0)",
+            "CREATE UNIQUE INDEX extra ON _ops(id)",
+            "ALTER TABLE _ops ALTER COLUMN outcome SET DEFAULT '{}'",
+            "ALTER TABLE _ops SET UNLOGGED",
+            "CREATE RULE suppress AS ON INSERT TO _ops DO INSTEAD NOTHING",
+            "ALTER TABLE _ops ENABLE ROW LEVEL SECURITY",
+        ],
+    );
+}
