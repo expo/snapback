@@ -1,0 +1,30 @@
+{
+  "format": 1,
+  "source": "37a707c158",
+  "recordedAt": "2026-10-21T11:07:01.137224+00:00",
+  "promptSha256": "ab7813732b7aaccf063efafa0950062839bc074c78cf3c2245dab9724e41c222",
+  "reviews": [
+    {
+      "family": "codex",
+      "requestedModel": "gpt-6.1-sol",
+      "effort": "high",
+      "freshSession": true,
+      "readOnly": true,
+      "verdict": "READY",
+      "sha256": "ab1294a76358deea4f3b273451654a48302637432dc27c99b9fd54a12927730b",
+      "bytes": 2071,
+      "exitStatus": 0
+    },
+    {
+      "family": "muse",
+      "requestedModel": "muse-spark-1.3-contributor",
+      "effort": "high",
+      "freshSession": true,
+      "readOnly": true,
+      "verdict": "READY",
+      "sha256": "ba5416f1fe2dd6c33e4d593827892daea3b0fe266eb063a9305dd79faf18c4cf",
+      "bytes": 5456,
+      "exitStatus": 0
+    }
+  ]
+}

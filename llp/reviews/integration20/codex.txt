@@ -1,0 +1,13 @@
+**READY** — no material integration defects found at committed `37a707c158`.
+
+Concrete review findings:
+
+- [generated.rs:128](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/bind/security/challenges/generated.rs:128): candidate ordering uses admitted roster principals while retaining outsiders, ordinary creator guards, bounded reservations, and fixture provenance.
+- [verbs.rs:437](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs.rs:437): default output combines compiler and security notes in one ranked block. The lookup/hidden-unique tier repair keeps that advice actionable.
+- [serve_maintenance.rs:446](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/serve_maintenance.rs:446): fired/held reports survive the typed-store merge, including incomplete-maintenance reporting. Staging authorization and persisted schedule keys remain intact.
+- [upgrade-warnings.js:38](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/bin/upgrade-warnings.js:38): migration advice explicitly names `.rows`, `more`, and `limit`; captured old-CLI warnings remain pending.
+- [publication-dx5.mjs:22](/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/publication-dx5.mjs:22): explicit React installation supplies the packed consumer’s peer. Async fixture repairs preserve assertions and timeouts; the historical guide assertion correctly requests `--full`.
+
+Also verified ReadState exports/indexes, packaged Metro/native-smoke paths, current registered starter digests and invariants, help/parser consistency, exact `0.4.36` pins, and the single coherent [changelog entry](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/CHANGELOG.md:3). Concrete refutations retain their fixture assumptions; exhaustion remains unproved. No runtime disclosure-boundary regression found.
+
+Independent, read-only review. No edits, builds, test execution, additional agents, publication-state access, or pushes. Qualification results were not treated as semantic proof.
