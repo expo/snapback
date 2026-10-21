@@ -2,6 +2,18 @@ use super::*;
 use crate::{RuntimeError, ledger::{LedgerReader, LedgerTransaction}, revocation::{self, ChangeEvidence}};
 
 #[test]
+fn sqlite_asset_location_retains_paths_and_cleanup_policy_without_creating_files() {
+    let store = AnyStore::memory().unwrap();
+    let location = store.asset_location().unwrap();
+    let AnyStore::Sqlite(sqlite) = &store;
+    assert_eq!(location.directory(), sqlite.assets_dir());
+    assert_eq!(location.path("asset-id"), sqlite.asset_path("asset-id"));
+    assert_eq!(location.ephemeral(), sqlite.ephemeral_assets());
+    assert!(location.ephemeral());
+    assert!(!location.directory().exists());
+}
+
+#[test]
 fn owning_handles_have_no_implicit_backend_access() {
     trait Ambiguous<A> { fn absent() {} }
     impl<T: ?Sized> Ambiguous<()> for T {}

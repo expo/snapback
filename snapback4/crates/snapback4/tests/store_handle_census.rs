@@ -1,6 +1,13 @@
 //! Concrete SQLite handles above the port, including aliases on the export
 //! surface. The historical spelling census was 123/37; the target stays zero.
 //! This is a conservative lexical guard, not Rust name or macro resolution.
+//! Known limits: macros can generate concrete aliases, raw calls or MemberTx
+//! methods without spelling their types here; cross-crate/procedural expansion
+//! and arbitrary type inference are not resolved. Associated-type assignments
+//! and aliases in member signatures are followed by name (not Rust scope).
+//! Non-test compiled checks in crates/snapback4-core/tests/store_handle_traits.rs cover
+//! macro-generated and cfg(not(test)) owning Deref/AsRef/Borrow implementations;
+//! the private preparation/member traits also have library unit checks.
 //! @ref LLP 3000.009.001.000#3.4 — server handles stay neutral across imports and exports.
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -228,22 +235,8 @@ fn use_tree(
 fn bindings(source: &str) -> Vec<Binding> {
     let tokens = production_tokens(source);
     let mut out = Vec::new();
-    let (mut header, mut associated) = (0, Vec::new());
     for (i, token) in tokens.iter().enumerate() {
-        if token.text == "{" {
-            associated.push(
-                associated.last().copied().unwrap_or(false)
-                    || tokens[header..i]
-                        .iter()
-                        .any(|t| matches!(t.text, "impl" | "trait")),
-            );
-        } else if token.text == "}" {
-            associated.pop();
-        }
-        if matches!(token.text, ";" | "{" | "}") {
-            header = i + 1;
-        }
-        // Include pub(crate)/pub(super), and every alias at crate/module scope.
+        // Include restricted exports, ordinary aliases and associated types.
         let boundary = tokens[..i]
             .iter()
             .rposition(|t| matches!(t.text, ";" | "{" | "}"))
@@ -263,7 +256,7 @@ fn bindings(source: &str) -> Vec<Binding> {
                 exported,
                 line: token.line,
             }));
-        } else if token.text == "type" && !associated.last().copied().unwrap_or(false) {
+        } else if token.text == "type" {
             let end = tokens[i..]
                 .iter()
                 .position(|t| t.text == ";")
@@ -560,7 +553,22 @@ fn renamed_error_module_and_renamed_exports_cannot_bypass_census() {
 // Complements core's compile-time Deref/AsRef/Borrow and named-method negatives:
 // inspect private fields and arbitrary getter names, including forwarding macros.
 // @ref LLP 3000.009.001.000.000#3.7 — a member never receives the physical transaction handle.
-fn closed_member_facade(source: &str) -> bool {
+fn member_handle_names(sources: &[(PathBuf, String)]) -> BTreeSet<String> {
+    let mut names: BTreeSet<String> = ["AnyTx", "Tx", "Connection"].map(String::from).into();
+    loop {
+        let before = names.len();
+        for (_, source) in sources {
+            for binding in bindings(source) {
+                if binding.path.iter().any(|part| names.contains(part)) {
+                    names.insert(binding.name);
+                }
+            }
+        }
+        if names.len() == before { return names; }
+    }
+}
+
+fn closed_member_facade(source: &str, names: &BTreeSet<String>) -> bool {
     let tokens = production_tokens(source);
     for (i, token) in tokens.iter().enumerate() {
         if token.text != "impl" && !starts(&tokens[i..], &["struct", "MemberTx"]) {
@@ -587,13 +595,10 @@ fn closed_member_facade(source: &str) -> bool {
                     .iter()
                     .position(|t| matches!(t.text, "{" | ";"))
                     .map_or(body.len(), |k| j + k);
-                if let Some(arrow) = body[j..end].windows(2).position(|w| starts(w, &["-", ">"])) {
-                    if body[j + arrow + 2..end]
-                        .iter()
-                        .any(|t| matches!(t.text, "AnyTx" | "Tx" | "Connection"))
-                    {
-                        return false;
-                    }
+                // Inspect the entire signature: a callback parameter can lend
+                // the owner just as a return value can. Include where clauses.
+                if body[j + 1..end].iter().any(|t| names.contains(t.text)) {
+                    return false;
                 }
             }
         }
@@ -609,9 +614,10 @@ fn member_facade_field_visibility_and_arbitrary_getters_are_closed() {
     let core_src = core.parent().unwrap();
     let mut sources = Vec::new();
     walk(core_src, core_src, &mut sources);
+    let names = member_handle_names(&sources);
     for (path, source) in sources {
         assert!(
-            closed_member_facade(&source),
+            closed_member_facade(&source, &names),
             "{} exposes a member handle",
             path.display()
         );
@@ -621,7 +627,7 @@ fn member_facade_field_visibility_and_arbitrary_getters_are_closed() {
             "    tx: &'member AnyTx",
             &format!("    {visibility} tx: &'member AnyTx"),
         );
-        assert!(!closed_member_facade(&attack), "{visibility}");
+        assert!(!closed_member_facade(&attack, &names), "{visibility}");
     }
     for returned in [
         "&AnyTx<'_>",
@@ -633,10 +639,37 @@ fn member_facade_field_visibility_and_arbitrary_getters_are_closed() {
         let attack = format!(
             "impl MemberTx<'_, '_> {{ pub(crate) fn arbitrary_name(&self) -> {returned} {{ self.tx }} }}"
         );
-        assert!(!closed_member_facade(&attack), "{returned}");
+        assert!(!closed_member_facade(&attack, &names), "{returned}");
         let forwarding_attack = format!(
             "impl MemberTx<'_, '_> {{ methods! {{ fn arbitrary_name(&self) -> {returned}; }} }}"
         );
-        assert!(!closed_member_facade(&forwarding_attack), "{returned}");
+        assert!(!closed_member_facade(&forwarding_attack, &names), "{returned}");
     }
+}
+
+#[test]
+fn associated_handles_and_member_alias_or_callback_escapes_are_counted() {
+    let port = PathBuf::from("crates/snapback4-core/src/store_port.rs");
+    let engine = PathBuf::from("crates/snapback4-core/src/engine/attack.rs");
+    let sources = vec![
+        (port, "impl Factory for Provider { type Handle = sqlite::Store; }".into()),
+        (engine.clone(), "fn open() -> <Provider as Factory>::Handle {}".into()),
+    ];
+    assert!(census(&sources).contains_key(&engine));
+    for signature in [
+        "fn arbitrary(&self) -> Alias<'_>",
+        "fn arbitrary(&self, callback: impl FnOnce(&AnyTx<'_>))",
+        "fn arbitrary<F: FnOnce(Alias<'_>)>(&self, callback: F)",
+        "fn arbitrary<F>(&self, callback: F) where F: FnOnce(Alias<'_>)",
+    ] {
+        let aliases = "type Hidden<'a> = &'a AnyTx<'a>; type Alias<'a> = Hidden<'a>;";
+        let source = format!("{aliases} impl MemberTx<'_, '_> {{ {signature} {{}} }}");
+        let names = member_handle_names(&[(engine.clone(), source.clone())]);
+        assert!(!closed_member_facade(&source, &names), "{signature}");
+    }
+    let names = member_handle_names(&[
+        (engine.clone(), "use crate::hidden::Alias;".into()),
+        (PathBuf::from("hidden.rs"), "pub type Alias<'a> = &'a AnyTx<'a>;".into()),
+    ]);
+    assert!(!closed_member_facade("impl MemberTx<'_, '_> { fn escape(&self) -> Alias<'_> {} }", &names));
 }

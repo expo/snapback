@@ -23,6 +23,22 @@ pub enum AnyInspection {
     Sqlite(sqlite::inspect::Inspection),
 }
 
+/// A local byte location, available only after the store admits asset storage.
+/// A store without blob storage must return `StoreUnsupported { family: "assets" }`
+/// from `asset_location`, before callers stage bytes or prepare file cleanup.
+// @ref LLP 3000.009.001.000#3.4 — asset bytes wait for P1b; no dummy filesystem paths.
+#[derive(Clone, Copy, Debug)]
+pub struct AssetLocation<'store> {
+    directory: &'store std::path::Path,
+    ephemeral: bool,
+}
+
+impl<'store> AssetLocation<'store> {
+    pub fn directory(&self) -> &'store std::path::Path { self.directory }
+    pub fn path(&self, id: &str) -> std::path::PathBuf { self.directory.join(id) }
+    pub fn ephemeral(&self) -> bool { self.ephemeral }
+}
+
 pub(crate) struct OpeningMetadata {
     pub store_id: String,
     pub dev_effects: bool,

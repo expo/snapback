@@ -166,7 +166,7 @@ fn asset_narrowing_and_removed_homes_share_the_activation_commit() {
     let source="table items:\n  photo: image <=1000\n  read <- allow\nquery q():\n  return 1\n";
     let mut e=engine(source);
     let mut png=b"\x89PNG\r\n\x1a\n".to_vec();png.extend_from_slice(&13u32.to_be_bytes());png.extend_from_slice(b"IHDR");png.extend_from_slice(&1u32.to_be_bytes());png.extend_from_slice(&1u32.to_be_bytes());
-    let asset=e.store_asset("dev:alice",&png,1000).unwrap();let path=e.store().asset_path(&asset.id);
+    let asset=e.store_asset("dev:alice",&png,1000).unwrap();let path=e.store().asset_location().unwrap().path(&asset.id);
     e.seed([("items".into(),snapback4_core::value::object([("id",Value::Id("a".into())),("photo",asset.column_value())]))]).unwrap();
     let generation=e.generation();
     // Development adoption reports E_ADOPT and preserves the asset ledger atomically.

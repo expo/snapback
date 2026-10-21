@@ -183,13 +183,13 @@ fn staged_upload_cleans_up_when_its_generation_changes() {
     let bytes = png(30, 20);
     let upload = e.prepare_asset("dev:alice", snapback4_core::assets::sniff(&bytes).unwrap(), bytes.len() as u64, 1).unwrap();
     let upload = upload.write(&bytes).unwrap();
-    assert_eq!(std::fs::read_dir(e.store().assets_dir()).unwrap().count(), 1);
+    assert_eq!(std::fs::read_dir(e.store().asset_location().unwrap().directory()).unwrap().count(), 1);
     let mut schema = e.schema().clone(); schema.auth.password = !schema.auth.password;
     e.adopt(schema, []).unwrap();
     assert_eq!(e.finish_asset(upload).unwrap_err().code(), "E_GENERATION");
     // The failed upload's drop removes its files, and the directory too when
     // that leaves a store-in-memory's directory empty.
-    let dir = e.store().assets_dir();
+    let dir = e.store().asset_location().unwrap().directory();
     assert!(!dir.exists() || std::fs::read_dir(dir).unwrap().count() == 0);
 }
 
@@ -197,7 +197,7 @@ fn staged_upload_cleans_up_when_its_generation_changes() {
 fn asset_sweep_separates_catalog_guards_from_file_io() {
     let mut e = chat_engine_from(CHAT, &["dev:alice"]);
     let upload = e.store_asset("dev:alice", &png(30, 20), 1).unwrap();
-    let path = e.store().asset_path(&upload.id);
+    let path = e.store().asset_location().unwrap().path(&upload.id);
     let sweep = e
         .prepare_asset_sweep(1 + snapback4_core::assets::UNCLAIMED_TTL_MS + 1)
         .unwrap();
@@ -258,16 +258,16 @@ fn an_in_memory_store_leaves_no_assets_directory_behind() {
     // after a week of test runs. Now nothing exists until the first upload,
     // and the store's drop removes whatever it made.
     let e = chat_engine_from(CHAT, &["dev:alice"]);
-    let dir = e.store().assets_dir().to_path_buf();
+    let dir = e.store().asset_location().unwrap().directory().to_path_buf();
     assert!(dir.starts_with(std::env::temp_dir()), "{}", dir.display());
     assert!(!dir.exists(), "an in-memory store made {} before any upload", dir.display());
     drop(e);
     assert!(!dir.exists());
 
     let mut e = chat_engine_from(CHAT, &["dev:alice"]);
-    let dir = e.store().assets_dir().to_path_buf();
+    let dir = e.store().asset_location().unwrap().directory().to_path_buf();
     let upload = e.store_asset("dev:alice", &png(30, 20), 1).unwrap();
-    assert!(e.store().asset_path(&upload.id).is_file());
+    assert!(e.store().asset_location().unwrap().path(&upload.id).is_file());
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -283,7 +283,7 @@ fn a_detached_upload_cannot_resurrect_a_dropped_stores_directory() {
     // the engine is dropped first, the upload's write recreates the directory
     // and its drop must take it away again (review finding, 2026-09-19).
     let mut e = chat_engine_from(CHAT, &["dev:alice"]);
-    let dir = e.store().assets_dir().to_path_buf();
+    let dir = e.store().asset_location().unwrap().directory().to_path_buf();
     let bytes = png(30, 20);
     let upload = e.prepare_asset("dev:alice", snapback4_core::assets::sniff(&bytes).unwrap(), bytes.len() as u64, 1).unwrap();
     drop(e);

@@ -134,7 +134,7 @@ fn clearing_or_deleting_the_home_stops_serving_and_the_sweep_removes_bytes() {
     assert!(e.asset_access("alice", &a.id, 2).is_ok());
     sent(&mutate(&mut e, "clear", vec![("receipt", id.clone())], 3));
     assert_eq!(e.asset_access("alice", &a.id, 4).unwrap_err().code(), "E_ASSET_UNKNOWN");
-    let path = e.store().asset_path(&a.id);
+    let path = e.store().asset_location().unwrap().path(&a.id);
     assert!(e.sweep_assets(5).unwrap() >= 1);
     assert!(!path.exists(), "released file bytes are swept");
     let b = e.store_file("alice", PDF, Some("application/pdf"), "b.pdf", 6).unwrap();
@@ -145,7 +145,7 @@ fn clearing_or_deleting_the_home_stops_serving_and_the_sweep_removes_bytes() {
     let c = e.store_file("alice", PDF, Some("application/pdf"), "c.pdf", 10).unwrap();
     assert_eq!(e.asset_access("alice", &c.id, 11).unwrap().name.as_deref(), Some("c.pdf"));
     assert_eq!(e.asset_access("bob", &c.id, 11).unwrap_err().code(), "E_ASSET_UNKNOWN");
-    let path = e.store().asset_path(&c.id);
+    let path = e.store().asset_location().unwrap().path(&c.id);
     e.sweep_assets(10 + snapback4_core::assets::UNCLAIMED_TTL_MS + 1).unwrap();
     assert!(!path.exists());
 }

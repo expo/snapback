@@ -2,7 +2,6 @@
 // @ref LLP 3000.009.001.000#3.4 — inherent operations dispatch explicitly inside the port.
 use crate::{RuntimeError, Value, Schema};
 use crate::store_port::{AnyStore, AnyTx};
-use std::path::Path;
 use crate::store_port::timeline_launch;
 use crate::store_port::Sizes;
 impl AnyTx<'_> {
@@ -27,8 +26,14 @@ impl AnyTx<'_> {
     pub(crate) fn reset_identity(&self) -> Result<(), RuntimeError> { match self { Self::Sqlite(inner) => inner.reset_identity() } }
 }
 impl AnyStore {
-    pub fn assets_dir(&self) -> &Path { match self { Self::Sqlite(inner) => inner.assets_dir() } }
-    pub fn ephemeral_assets(&self) -> bool { match self { Self::Sqlite(inner) => inner.ephemeral_assets() } }
+    pub fn asset_location(&self) -> Result<crate::store_port::AssetLocation<'_>, RuntimeError> {
+        match self {
+            Self::Sqlite(inner) => Ok(crate::store_port::AssetLocation {
+                directory: inner.assets_dir(),
+                ephemeral: inner.ephemeral_assets(),
+            }),
+        }
+    }
     pub(crate) fn exclude_ephemeral(&mut self, schema: &Schema) { match self { Self::Sqlite(inner) => inner.exclude_ephemeral(schema) } }
     pub fn is_read_only(&self) -> Result<bool, RuntimeError> { match self { Self::Sqlite(inner) => inner.is_read_only() } }
     pub fn is_memory(&self) -> bool { match self { Self::Sqlite(inner) => inner.is_memory() } }
@@ -48,7 +53,6 @@ impl AnyStore {
     pub fn check_timeline_activation_at(&mut self, schema: &Schema, now: i64, allow_launch: bool) -> Result<Vec<timeline_launch::Estimate>, RuntimeError> { match self { Self::Sqlite(inner) => inner.check_timeline_activation_at(schema, now, allow_launch) } }
     pub(crate) fn resolve_session_snapshot(&self, digest: &str, now: i64, expected_store_id: Option<&str>, supervisor_revision: Option<usize>) -> Result<Option<crate::identity::Capability>, RuntimeError> { match self { Self::Sqlite(inner) => inner.resolve_session_snapshot(digest, now, expected_store_id, supervisor_revision) } }
     pub(crate) fn invalidate_expired_authority_session(&self, digest: &str, now: i64) -> Result<(), RuntimeError> { match self { Self::Sqlite(inner) => inner.invalidate_expired_authority_session(digest, now) } }
-    pub fn asset_path(&self, id: &str) -> std::path::PathBuf { match self { Self::Sqlite(inner) => inner.asset_path(id) } }
     pub fn retain_ownership(&mut self, owner: std::sync::Arc<std::fs::File>) -> Result<(), RuntimeError> { match self { Self::Sqlite(inner) => inner.retain_ownership(owner) } }
     pub fn check_ownership(&self) -> Result<(), RuntimeError> { match self { Self::Sqlite(inner) => inner.check_ownership() } }
 }

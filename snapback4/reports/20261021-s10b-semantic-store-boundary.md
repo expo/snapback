@@ -129,3 +129,113 @@ at completion; the 20 GB stop threshold was never reached. The final commit
 uses the requested author, committer and co-author metadata. No push or stash.
 
 No semantic decision outside the RFC was required.
+
+## Fix round 1 — 2026-10-21
+
+Rebased first with `git fetch -q origin sb4-pg/main-mirror` and
+`git rebase FETCH_HEAD`, onto `f72f6c5c92`. The sole conflict was the journal
+append; both histories were retained. The RFC retains one Revised line,
+now headed `S10b fix round 1`. Main's activation recheck is byte-identical
+in `engine/postgres/release.rs`; its measurement commits remain ancestors.
+The three prior lane commits rebased as follows:
+
+| Original | Rebased |
+| --- | --- |
+| `15bf3b8bf1` | `3aa5d86aa0` |
+| `0ad24c906a` | `217441b829` |
+| `bb7e8f1db1` | `a5cf658c87` |
+
+1. **Asset location and remaining bridges (Grok Major).** Removed the three
+   infallible path/directory/ephemeral methods from `AnyStore`. The fallible
+   `asset_location` returns the admitted SQLite directory and its cleanup
+   policy; a store without blob storage can return the typed `assets`
+   unsupported-family error. Upload staging checks before minting/staging,
+   delivery before time advancement, sweep before ledger staging, and reset
+   before its reset transaction. Reset captures the directory for its
+   post-commit cleanup. Existing concrete SQLite methods remain intact.
+   The new SQLite location regression checks exact path/cleanup parity and
+   that location resolution creates no directory. Existing upload, delivery,
+   reset, sweep and detached-custody tests use the admitted location.
+   RFC §3.4 records S10c returns and safety for busy timeout, database path,
+   ownership, backup and every inspection error surface.
+2. **Actual non-test trait implementations (Sol P2).** Added the integration
+   test `store_handle_traits.rs`, using dependency-free trait-overlap checks
+   against the library built without `cfg(test)`. It rejects `Deref`,
+   `DerefMut` and `AsRef`/`AsMut`/`Borrow`/`BorrowMut` of the SQLite store,
+   transaction, inspection and raw driver types for all four public owning
+   handles. Private preparation/member unit checks and the fast lexical
+   census remain. Three temporary mutation probes each generated a legal
+   implementation by macro under `cfg(not(test))`: `Deref`, `AsRef` and
+   `Borrow` through an associated-type alias. Each failed in the integration
+   assertion with E0283. Every probe was removed afterward; the normal
+   integration target builds. Probe transcripts are `/tmp/s10b-r1-probe-*.log`.
+3. **Cheap inherited census gaps (Sol P3).** Alias propagation now includes
+   associated-type assignments. Member checks follow signature aliases across
+   scanned files and inspect arguments, callback bounds and where clauses as
+   well as returns. The driver matcher follows file-local `use` and
+   `extern crate` renames, including chained renames. Regression probes cover
+   the supplied bypasses. The census headers and RFC explicitly retain the
+   limits of unexpanded member macros, cross-file raw-driver aliases,
+   procedural/cross-crate expansion and arbitrary type inference.
+
+The lexical checks pass: **0 concrete handles, 0 owning dereferences,
+0 production raw-access sites**; fixture raw access remains **95 sites in
+13 files**. The wasm codec census passes **27/27**. Initial root ref-check
+passes with **0 errors / 0 unchecked references**. Full qualification for
+this fix round is recorded below; earlier qualification above is historical.
+
+### Fix-round qualification
+
+All commands for this round completed successfully. Cargo commands used
+`--locked`, this lane's own `snapback4/target`, and ten build jobs. The earlier
+profile note describes the original qualification: this fix round used Cargo's
+default debug/incremental profile settings.
+
+| Check | Fix-round result |
+| --- | --- |
+| `cargo build -p snapback4` | Pass |
+| Core without default features | Pass |
+| Device web/wasm without default features | Pass |
+| Full core suite, including doctests | **1,042 passed / 0 failed / 5 ignored** |
+| Full host suite | **1,406 passed / 0 failed / 15 ignored** |
+| Full device suite, including doctests | **1,573 passed / 0 failed / 4 ignored** |
+| Explicit committer/store-port ratchets and handle census | **16 passed** |
+| Complete language guide test target | **127 passed** |
+| Wasm codec census | **27 passed** |
+| Affected simulator security/review fixtures | **44 passed** |
+| Affected language security histories | **28 passed** |
+| Complete Postgres script | **58 experiment + 190 family + 19 corpus passed**, exit 0 |
+
+Counts include test executions reported by subprocess witnesses. All three
+supplied host baseline cases passed in the full run. No unexpected failure
+needed an isolated rerun. The known Postgres four-writer case also passed
+in the full script: 65 increments per mode, no lost updates, and 106 aggregate
+serializable retries. No retry policy, workload, assertion or timeout changed.
+Existing named corpus exclusions remain unchanged.
+
+The only owned Postgres cluster was `/tmp/sb4-pg-eval.IK9iWs`. The script
+stopped it, and an independent `pg_ctl status` returned **3**, with no
+`postmaster.pid`. Its data is retained for inspection. The full script log
+and independent stop receipt are `/tmp/s10b-r1-checks/postgres.log` and
+`postgres-result.json`; the main command transcripts and exit statuses are
+in the same directory. Initial codec and mutation-probe logs are under
+`/tmp/s10b-r1-*.log`.
+
+The standalone device command uses a different dependency feature graph from
+the combined host/device warm-up. To keep disk headroom, only completed or
+superseded test executables named in this round's logs were reclaimed from
+this lane's target. Current device binaries and all `.rlib`/`.rmeta` files
+were retained; cleanup receipts are in the transcript directory. No library
+metadata repair was needed, and all full commands, including doctests, passed.
+The final filesystem has about 52 GB free.
+
+Final census: **0 concrete handles, 0 owning dereferences, 0 production raw
+sites**; raw fixture access remains **95 sites in 13 files** and the committer
+opener census remains **49 sites in 11 files**. The journal union and this
+round's journal updates are append-only. Root reference validation and
+whitespace validation are rerun after this qualification record is written.
+The fix is committed locally with the requested identities and co-author
+trailer; no push or stash, and no reviewer-worktree changes.
+
+Final root `./ref-check` passes: **564 LLP documents, 11,645 references,
+0 errors / 0 unchecked**. Diff whitespace validation passes.

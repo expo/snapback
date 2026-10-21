@@ -86,9 +86,10 @@ impl Engine {
     }
 
     fn stage_upload(&mut self, mut asset: Asset) -> Result<assets::Upload, RuntimeError> {
+        let location = self.store.asset_location()?;
         assets::validate_ledger_text(&[&asset.owner, &asset.content_type, asset.name.as_deref().unwrap_or("")])?;
         asset.id = crate::ids::mint(asset.created_at, &mut self.minter)?;
-        let path = self.store.asset_path(&asset.id);
+        let path = location.path(&asset.id);
         Ok(assets::Upload {
             asset,
             path,
@@ -97,7 +98,7 @@ impl Engine {
             intent: None,
             placement: None,
             committed: false,
-            ephemeral_directory: self.store.ephemeral_assets(),
+            ephemeral_directory: location.ephemeral(),
         })
     }
 
@@ -253,9 +254,9 @@ impl Engine {
         now: i64,
         range: bool,
     ) -> Result<AssetGrant, RuntimeError> {
+        let path = self.store.asset_location()?.path(id);
         let now = self.advance_time_audience(now)?;
         let unknown = || RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: "no asset is served under that id to this viewer".into() };
-        let path = self.store.asset_path(id);
         let tx = self.store.transaction()?;
         let now = super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let Some(asset) = crate::assets::AssetTransaction::asset(&tx, id)? else { return Err(unknown()) };
@@ -337,7 +338,7 @@ impl Engine {
     }
 
     pub fn prepare_asset_sweep_for(&mut self, now: i64, budget: std::time::Duration) -> Result<assets::AssetSweep, RuntimeError> {
-        let directory = self.store.assets_dir().to_path_buf();
+        let directory = self.store.asset_location()?.directory().to_path_buf();
         let tx = self.store.transaction()?;
         let stale = tx.stage_stale_assets_for(now, budget)?;
         let sweep = assets::AssetSweep::new(&stale, &directory);

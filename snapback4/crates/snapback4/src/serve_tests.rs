@@ -1161,7 +1161,7 @@ fn upload_disk_work_is_bounded_and_does_not_hold_the_query_engine() {
             .lock()
             .unwrap()
             .store()
-            .assets_dir()
+            .asset_location().unwrap().directory()
             .join(id);
         assert_eq!(std::fs::read(&path).unwrap().len(), 24);
         let missed = host.request(
@@ -1232,7 +1232,7 @@ fn opening_a_development_project_protects_its_data_directory_and_store() {
         0o600
     );
     assert_eq!(
-        std::fs::metadata(engine.store().assets_dir())
+        std::fs::metadata(engine.store().asset_location().unwrap().directory())
             .unwrap()
             .permissions()
             .mode()

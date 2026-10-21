@@ -47,6 +47,7 @@ impl Engine {
     /// writes them, in the same transaction. Development only: the release
     /// host never calls this.
     pub fn dev_reset_at(&mut self, rows: Vec<(String, Value)>, now: i64) -> Result<DevReset, RuntimeError> {
+        let directory = self.store.asset_location()?.directory().to_path_buf();
         // Like adoption: no ephemeral program runs across the identity change.
         drop(self.ephemeral.lock()?);
         Ok(Committer::run_committed_with(self, |engine| {
@@ -74,7 +75,7 @@ impl Engine {
             engine.expiry_after.clear();
             engine.timeline_schedule = timeline::Schedule::default();
             engine.ephemeral.rebind_committed(store_id.clone(), engine.generation, &engine.schema);
-            Ok(DevReset { previous_store_id, store_id, seq, seeded, assets: assets::AssetSweep::named(assets, engine.store.assets_dir()) })
+            Ok(DevReset { previous_store_id, store_id, seq, seeded, assets: assets::AssetSweep::named(assets, &directory) })
         })?.into_inner())
     }
 }

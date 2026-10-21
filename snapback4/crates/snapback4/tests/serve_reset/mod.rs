@@ -77,7 +77,7 @@ fn reset_empties_rows_views_sequences_and_assets_under_a_new_identity() {
         for text in ["a", "b"] { post(&host, "/m/addItem", ALICE, json!({"args": {"list": "L1", "text": text}})); }
         let asset = upload(&host);
         assert_eq!(post(&host, "/m/setPhoto", ALICE, json!({"args": {"list": "L1", "photo": {"id": asset}}}))["state"], "sent");
-        let path = lock(&host.shared.engine).store().asset_path(&asset);
+        let path = lock(&host.shared.engine).store().asset_location().unwrap().path(&asset);
         assert!(path.exists());
         assert_eq!(post(&host, "/q/count", ALICE, json!({"args": {"list": "L1"}}))["data"], 2);
         let before = body(&host.request("GET", "/dev/status", "", ""));
