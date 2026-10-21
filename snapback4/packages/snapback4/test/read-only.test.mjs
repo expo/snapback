@@ -108,7 +108,7 @@ for (const scope of [undefined, 'full', 'forged']) test(`offline device admissio
   let network = 0, opened = 0;
   const session = { ...read(), scope }, device = { async open() { opened++; throw Error('unexpected open'); } };
   const fetcher = async () => { network++; throw Error('offline'); };
-  await assert.rejects(createLocalClient({ url, session, device, fetch: fetcher }), /E_READ_ONLY_DEVICE/);
+  await assert.rejects(createLocalClient({ url, session, device, fetch: fetcher }), scope === "forged" ? /E_SESSION.*scope/ : /E_READ_ONLY_DEVICE/);
   const store = alphabetStore([[sessionKey(url), JSON.stringify(session)]]);
   await assert.rejects(createLocalClient({ url, sessionStore: store, device, fetch: fetcher }), /E_READ_ONLY_DEVICE/);
   const app = createApp({ url, sessionStore: store, device, fetch: fetcher });

@@ -405,3 +405,11 @@ test("online session input is a stable snapshot; legacy scope and a bare token r
     await c.close();
   }
 });
+
+
+test("session snapshots preserve explicitly undefined legacy metadata", async () => {
+  const supplied = { ...session("legacy"), scope: undefined, capExpiresAt: undefined };
+  const c = createClient({ url: "https://card.invalid", session: supplied });
+  assert.deepEqual(c.session(), supplied);
+  await c.close();
+});

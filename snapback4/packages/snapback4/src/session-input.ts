@@ -16,5 +16,5 @@ export function suppliedSession(value: unknown, constructor: string): Session | 
   if (typeof expiresAt !== "number" || !Number.isSafeInteger(expiresAt) || expiresAt <= 0) invalid("expiresAt (positive integer milliseconds)");
   if (scope !== undefined && scope !== "full" && scope !== "read") invalid("scope (full or read)");
   if (capExpiresAt !== undefined && (typeof capExpiresAt !== "number" || !Number.isSafeInteger(capExpiresAt) || capExpiresAt <= 0)) invalid("capExpiresAt (positive integer milliseconds)");
-  return Object.freeze({ principal, kind, token, expiresAt, ...(scope === undefined ? {} : { scope }), ...(capExpiresAt === undefined ? {} : { capExpiresAt }) }) as Session;
+  return Object.freeze({ principal, kind, token, expiresAt, ...(Object.prototype.hasOwnProperty.call(input, "scope") ? { scope } : {}), ...(Object.prototype.hasOwnProperty.call(input, "capExpiresAt") ? { capExpiresAt } : {}) }) as Session;
 }
