@@ -87,8 +87,12 @@ fn apply_returns_publication_without_a_second_store_read() {
 
 #[cfg(feature = "native")]
 pub(super) fn with_sqlite(test: impl FnOnce(snapback4_core::store::Store)) {
+    // Parallel callers can observe the same clock tick on macOS. A process
+    // counter makes the fixture name unique without weakening any test bounds.
+    static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let serial = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let directory = std::env::temp_dir().join(format!("sb4-publication-{}-{nonce}", std::process::id()));
+    let directory = std::env::temp_dir().join(format!("sb4-publication-{}-{nonce}-{serial}", std::process::id()));
     std::fs::create_dir(&directory).unwrap();
     let mut store = crate::sqlite::open(&directory.join("device.sqlite")).unwrap();
     // Storage-only probes need an accepted installation before side-table use.

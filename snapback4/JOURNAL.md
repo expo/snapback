@@ -100675,3 +100675,10 @@ sync arm outside the original physical-line rewrite. Five focused regressions
 pass, including the independent-identity negative control and guarded/unsafe
 creation campaigns. Review artifacts preserve both model families and prior
 negative findings; reviewer verdicts do not accept an RFC for its author.
+
+Mac qualification found a test-only directory collision in publication fixtures.
+A process counter now supplements their clock and pid; assertions and bounds
+remain intact. Installed-consumer and Exact evidence stays bound to 4b824a6fe6;
+this follow-up changes only cfg(test) fixture source and review/incident records.
+The final Linux repeat and affected Mac rerun include it. Both fresh final bridge
+reviewers returned READY; their verbatim artifacts are preserved.

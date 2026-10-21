@@ -53,6 +53,27 @@
       "source": "review-r2-muse.txt",
       "artifact": "llp/reviews/3000.000.000.002-integration21-r2.muse.txt.gz",
       "sha256": "424d0ca9d492e1de013711f2447738091ce7750805c5f970c60391b5afbabe1d"
+    },
+    {
+      "round": "r3",
+      "kind": "brief",
+      "source": "review-r3-brief.txt",
+      "artifact": "llp/reviews/3000.000.000.002-integration21-r3.brief.txt",
+      "sha256": "35ec8195e5cffe52e82755d7b795ec2594fc8fc76e8e1713fb148d7164d30966"
+    },
+    {
+      "round": "r3",
+      "kind": "codex",
+      "source": "review-r3-codex.txt",
+      "artifact": "llp/reviews/3000.000.000.002-integration21-r3.codex.txt.gz",
+      "sha256": "451921b9b9e81305acdff6d00041206e5f7161731c37eab1564c58066013fe75"
+    },
+    {
+      "round": "r3",
+      "kind": "muse",
+      "source": "review-r3-muse.txt",
+      "artifact": "llp/reviews/3000.000.000.002-integration21-r3.muse.txt.gz",
+      "sha256": "8565295ea68e6dc54e20d298764df680da1d3309433c50b258879297050b5a61"
     }
   ],
   "attempts": [
@@ -61,5 +82,10 @@
       "round": "r1",
       "outcome": "first owned wrapper was bounded to 30 seconds and terminated before a review; fresh full retry preserved, no review fabricated"
     }
-  ]
+  ],
+  "finalVerdicts": {
+    "codex": "READY",
+    "muse": "READY",
+    "scope": "final five-case bridge delta at 4b824a6fe6; no RFC author acceptance"
+  }
 }
