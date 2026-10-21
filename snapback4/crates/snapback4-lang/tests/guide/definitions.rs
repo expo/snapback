@@ -437,6 +437,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_TIME_AUDIENCE_PENDING", "E_TIME_AUDIENCE_PENDING means an opened row is still waiting for its bounded server publication"),
     ("E_STORE_BUSY", "E_STORE_BUSY at store.sqlite means a live host or another CLI owns this database."),
     ("E_STORE", "E_STORE means the database operation failed, such as a SQLite writer lock held by another process."),
+    ("E_STORE_UNSUPPORTED", "E_STORE_UNSUPPORTED names a family the selected store does not yet implement."),
+    ("E_STORE_GENERATION", "E_STORE_GENERATION means the persisted generation metadata is malformed, non-positive or outside the signed integer range."),
     ("E_STORE_REPLACED", "The online client permanently denies reads and fails queued and in-flight writes on an identity change (`E_STORE_REPLACED`)"),
     ("E_STORE_RESTORE", "The client adopts `/schema` only when that watermark is a finite, nonnegative integer at or above its retained image-head evidence (equal adopts); a lower head halts with `E_STORE_RESTORE`, and a missing or invalid head is a retryable failure that neither adopts nor clears the evidence."),
     ("E_STRUCTURAL_FANOUT", "`matching` and merges stay refused, and predicting mutations still cannot scan expiring tables."),
