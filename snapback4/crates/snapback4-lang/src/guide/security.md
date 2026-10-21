@@ -25,11 +25,20 @@ mutation writePrivateNote(body: text 1..2000):
 
 Run `snapback4 check` → `snapback4 test` → `snapback4 audit`. Check reports
 invariant counts and five actionable notes; `--verbose` retains every reason.
-A mirror invariant cannot catch a wrong rule: the advisory asks
-for the spec's audience, resource relationship and lifecycle condition instead.
-A legitimate simple owner policy can be equivalent; the advisory never refuses it.
-Review `snapback/generated/security-invariants.q.draft`: it offers unconfirmed
-per-role/per-column alternatives and questions, never auto-accepted policy.
+Answer the rule questions from the product specification before editing intent.
+The restating advisory names each admitted role and its row conditions: for
+example, a coach branch with no assignment check asks whether coaches should
+see other coaches' athletes. For every role, answer which rows, which columns,
+and which status/consent conditions the spec permits. Include derived values
+and downloads: hiding a diagnosis but exposing its category can reveal it.
+Write that answer as independent read intent; repair a rule that admits more.
+A matching or weaker assertion may still be the right simple owner policy:
+keep confirmed intent. The advisory never refuses it or changes its verdict.
+Review `snapback/generated/security-invariants.q.draft`: each role gets a row
+question and a question for every column, including roles absent from the rule.
+It proposes no policy. Run check, test and audit again after confirming intent;
+a refutation means fix the enforcement or the independently verified spec,
+without widening intent just to make the result green.
 
 Test synthesizes two users per discovered role/seat and related ownership rows
 without fixture files, including password-only apps. These private in-memory
@@ -212,13 +221,15 @@ staging clock control for day-two qualification.
 
 ### N_INVARIANT_RESTATES_RULE
 
-N_INVARIANT_RESTATES_RULE means intent and the effective rule admit the same cases
-in the bounded predicate kernel. Check the original requirement before rewriting; an equivalent policy
-may be correct, but cannot detect a mistake copied into both declarations.
+N_INVARIANT_RESTATES_RULE identifies matching enforcement or a weaker copy made
+from the same predicates. Its per-branch questions name admitted roles, row
+relationships and lifecycle conditions. Read the original requirement and answer
+those questions before editing: a simple confirmed policy may be correct.
+The advisory comparison never adds proof assumptions or changes a verdict.
 
 ### N_ROLE_WIDE_READ
 
-N_ROLE_WIDE_READ means a role-wide branch gated by a row value exposes every column
+N_ROLE_WIDE_READ means a role-wide branch exposes every matching row and column
 on matching rows.
 Use a board/projection table for a public rating; declare intent for the private
 notes, principals, images and files separately.
@@ -238,3 +249,19 @@ fixture bytes and CLI identity bind the record; edits invalidate it. No cached
 passing result proves security. Every escalation note stays visible in short
 output. Rule-changing deploy previews print exposure counts and demand a test
 for the selected source/fixtures when a matching full finite campaign is absent.
+
+### N_SELF_CLAIMED_RELATIONSHIP
+
+A caller can write their own principal into a relationship that another table's
+raw read rule trusts. The note names the mutation, relationship column and
+reader rule. Require an invitation or approval by the resource owner before
+assigning that relationship; a caller's role alone does not establish parenthood
+or membership. Confirm intentional open enrollment against the spec.
+
+### N_CALLER_TIME
+
+A caller-supplied time reaches a field used by a deadline comparison with the
+server clock. The note follows aliases and helper writes and names the field
+and mutation. Use server `now` for the event time, or require an explicit
+server-relative bound before the write when the spec allows historical input.
+Staging clock and schedule diagnostics are owned by DX5; see `guide time`.

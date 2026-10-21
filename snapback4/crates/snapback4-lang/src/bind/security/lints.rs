@@ -59,14 +59,18 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
         if inv.operation.is_some()||inv.target=="always" {continue;}
         let Some(policy)=&inv.policy else{continue;};
         let table=&bound.schema.tables[&inv.table];
+        let mut questions=Vec::new();
         let restates=super::effects(inv).iter().all(|word|{
             if matches!(*word,"insert"|"update")&&!table.written_by.is_empty(){return false;}
             let gate=if *word=="read"{super::columns::admission(table,inv.column.as_deref())}else if *word=="update"{super::images::stable(table,&table.update_rule_judged())}else{table.rules.for_effect(super::effect(word)).clone()};
             let intent=if *word=="update"{super::images::stable(table,&policy.old_and_next())}else{policy.clone()};
-            kernel::implies(&gate,&intent)==Ok(true)&&kernel::implies(&intent,&gate)==Ok(true)
+            let target=inv.column.as_ref().map(|c|format!("{}.{c}",inv.table)).unwrap_or(inv.table.clone());
+            questions.push(super::intent::questions(bound,&target,word,&gate));
+            super::intent::restates(bound,&inv.table,word,&gate,&intent)
         });
-        if restates {note(&mut notes,&inv.site,"N_INVARIANT_RESTATES_RULE",format!("{}: this invariant restates the rule and can't catch a mistake in it; state the spec's intent instead",inv.target_label()),"rewrite from the spec: who may see/do what, for which resource and lifecycle state? Declare sensitive-column intent and current-role/relationship conditions independently; review security-invariants.q.draft");}
+        if restates {note(&mut notes,&inv.site,"N_INVARIANT_RESTATES_RULE",format!("{} matches or weakens current enforcement. {}",inv.target_label(),questions.join(" ")),"answer each audience question from the app specification; keep confirmed intent, and narrow unintended access in the rule. Review the per-role/per-column questionnaire in snapback/generated/security-invariants.q.draft; run check -> test -> audit");}
     }
+
     for (name,t) in bound.schema.visible_tables(){
         if t.rules.read.is_uniformly_readable(){note(&mut notes,&Site::default(),"N_BROAD_READ",format!("{name} is readable by every signed-in user: {}",t.rules.read.quarry()),"confirm the spec permits these columns always, or only while a lifecycle condition holds, and declare read intent; snapback4 audit lists inherited grants and their writers");}
         if let RuleExpr::Exists{table:roster,key,equalities,..}=&t.rules.read

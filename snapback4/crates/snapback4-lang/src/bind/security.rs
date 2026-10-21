@@ -15,6 +15,7 @@ mod census;
 mod observers;
 mod temporal;
 mod adoption;
+mod intent;
 mod images;
 mod columns;
 mod privilege;

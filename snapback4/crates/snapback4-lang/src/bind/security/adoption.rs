@@ -9,58 +9,32 @@ pub(super) fn missing(bound:&Bound)->Vec<String>{
     }).map(|(name,_)|name.clone()).collect()
 }
 
-/// Questions and independent role/column candidates, never copies of a gate.
+/// Specification questions, never proposed enforcement or accepted policy.
 /// The caller must keep this outside the compiled .q source set.
 pub fn draft(bound:&Bound)->String{
-    let mut out=String::from("-- DRAFT: NOT ACCEPTED. Confirm intent against the APP SPECIFICATION.\n-- These role/column alternatives are questions, not inferred policy.\n-- Select intended audiences, resource relationships and lifecycle conditions.\n-- Copy confirmed declarations into authored snapback/*.q; this draft is never compiled.\n-- snapback4 guide security\n\n");
+    let mut out=String::from("-- DRAFT: NOT ACCEPTED. Answer from the APP SPECIFICATION, not from the rules.\n-- Each answer needs an audience, a resource relationship and lifecycle/consent conditions.\n-- Write confirmed declarations in authored snapback/*.q, then run check -> test -> audit.\n-- This questionnaire is never compiled and does not propose policy.\n-- snapback4 guide security\n\n");
+    let roles=super::intent::roles(bound);
     for (name,t) in bound.schema.visible_tables(){
-        let roles=role_candidates(bound,name,t);
-        out.push_str(&format!("-- {name}: who may read each field, create, edit, delete? Which current relationship must still hold?\n"));
+        out.push_str(&format!("-- {name}: {}\n",super::intent::row_context(t)));
+        let audiences=std::iter::once("a signed-in user with no role or relationship".to_owned())
+            .chain(roles.iter().cloned()).collect::<Vec<_>>();
+        for audience in &audiences {
+            out.push_str(&format!("-- Q {name}.read / {audience}: which rows may this audience see according to the spec? Own, assigned, team-wide, or none? Which state/consent conditions must hold now?\n"));
+        }
         for (column,kind) in &t.columns {
             if column=="id"||t.engine_field(column){continue;}
-            out.push_str(&format!("-- {name}.{column} ({kind}): which roles may see this value? May outsiders see its existence?\n"));
-            for candidate in &roles {
-                // Keep candidates commented: mutually exclusive roles cannot all be requirements.
-                let gate=super::columns::admission(t,Some(column));
-                if !(kernel::implies(&gate,candidate)==Ok(true)&&kernel::implies(candidate,&gate)==Ok(true)) {out.push_str(&format!("-- Confirm/combine audience alternative: invariant {name}.{column} read only {}\n",candidate.quarry()));}
+            for audience in &audiences {
+                out.push_str(&format!("-- Q {name}.{column} ({kind}) / {audience}: may this audience read this value, including downloads and derived values? On which related rows and in which states? If not, which independently confirmed column-read invariant excludes it?\n"));
             }
         }
         for effect in ["insert","update","delete"] {
             if covered(bound,name,effect){continue;}
-            out.push_str(&format!("-- {name}.{effect}: name the permitted appointer/owner and lifecycle condition from the spec.\n"));
+            out.push_str(&format!("-- Q {name}.{effect}: who may {effect}, who appoints that authority, and which relationship/state must hold? Can callers claim the relationship themselves?\n"));
         }
-        for (column,authority) in &t.written_by {out.push_str(&format!("-- {name}.{column}: is .{} still the intended editor? Use column update intent for edits only; write also includes creation.\n",authority.owner));}
+        for (column,authority) in &t.written_by {out.push_str(&format!("-- Q {name}.{column}: may .{} edit this value in every state? Column update intent covers edits; write also covers creation.\n",authority.owner));}
+        out.push('\n');
     }
     out
-}
-
-fn role_candidates(bound:&Bound,target:&str,row:&snapback4_core::schema::Table)->Vec<RuleExpr>{
-    use snapback4_core::{schema::ColumnType as C,Value};
-    let mut out=Vec::new();
-    for (roster,t) in bound.schema.visible_tables(){
-        let mut columns=super::privilege::role_columns(bound,roster);
-        columns.extend(["role","kind"].into_iter().filter(|c|t.columns.contains_key(*c)).map(str::to_owned));
-        for column in columns {for role in super::privilege::role_values(bound,roster,&column) {
-            for (index,idx) in t.indexes.iter().filter(|(_,idx)|idx.unique){
-                let mut key=Vec::new();let mut principals=0;
-                for component in &idx.components {
-                    let Some(c)=component.column()else{break;};
-                    let term=if c==&column{RuleTerm::Literal(Value::String(role.clone()))}else{match t.columns.get(c).map(C::required){
-                        Some(C::Principal)=>{principals+=1;RuleTerm::Viewer},
-                        Some(C::Ref{table}) if table==target=>RuleTerm::Field("id".into()),
-                        Some(C::Ref{table})=>{
-                            let refs=row.columns.iter().filter(|(_,k)|matches!(k.required(),C::Ref{table:parent} if parent==table)).collect::<Vec<_>>();
-                            if refs.len()!=1{break;}RuleTerm::Field(refs[0].0.clone())
-                        },_=>break,
-                    }};key.push(term);
-                }
-                if principals!=1||key.len()!=idx.components.len(){continue;}
-                let equalities=if idx.components.iter().any(|c|c.column()==Some(&column)){Vec::new()}else{vec![(column.clone(),RuleTerm::Literal(Value::String(role.clone())))]};
-                let policy=RuleExpr::Exists{table:roster.clone(),index:index.clone(),key,provenance:snapback4_core::ir::KeyProvenance::Computed,equalities};
-                if !out.contains(&policy){out.push(policy);}break;
-            }
-        }}
-    }out
 }
 
 fn covered(bound:&Bound,table:&str,effect:&str)->bool{

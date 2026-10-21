@@ -91,6 +91,43 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     guideCases.push({ block: index, invariants: security.invariants.length, audit: "passed", finite, broadRead: "refuted", expectedFailureExits: [1, 1, 1] });
   }
 
+  // The installed start/README/security loop must lead to independent answers,
+  // including excluded roles. No generated declaration may silently copy rules.
+  const start = command(["guide", "start", "--full"]);
+  const readme = readFileSync(join(cwd, "node_modules/snapback4/README.md"), "utf8");
+  for (const text of [guide, start, readme]) {
+    assert.match(text, /spec/i); assert.match(text, /per-role\/per-column/);
+    assert.match(text, /check/); assert.match(text, /test/); assert.match(text, /audit/);
+  }
+  const questions = schemaProject("intent-questions", `table roles:
+  principal: principal
+  role: enum('coach','parent','clinician')
+  unique principal
+  read <- .principal = viewer
+  insert <- viewer = 'service:operator'
+  online only
+table notes:
+  athlete: principal
+  status: enum('draft','shared')
+  diagnosis: text <=80
+  read <- exists roles[viewer, role = 'coach'] and .status = 'shared'
+  online only
+invariant notes.read only exists roles[viewer, role = 'coach']
+`);
+  const questionReport = checked(questions);
+  const restating = questionReport.notes.find(note => note.code === "N_INVARIANT_RESTATES_RULE");
+  assert.ok(restating?.message.includes("roles.role = 'coach'") && restating.message.includes(".status"), "installed check names the admitted role and state condition");
+  const questionnaire = readFileSync(join(questions, "snapback/generated/security-invariants.q.draft"), "utf8");
+  for (const role of ["coach", "parent", "clinician"]) {
+    for (const target of ["notes.read /", "notes.diagnosis ("]) {
+      assert.ok(questionnaire.split("\n").some(line => line.includes(target) && line.includes(`'${role}'`)), `${target} asks about ${role}, including excluded roles`);
+    }
+  }
+  assert.ok(!questionnaire.includes("invariant notes."), "questionnaire proposes no policy copies");
+  assert.ok(questionnaire.split("\n").every(line => !line || line.startsWith("--")));
+  command(["test", "--fixture-only"], questions);
+  command(["audit", "--json"], questions);
+
   const editsOnly = schemaProject("column-update-intent", `use identity password
  table tickets:
   price: int

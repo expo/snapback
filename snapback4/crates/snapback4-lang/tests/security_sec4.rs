@@ -89,7 +89,9 @@ fn draft_candidates_are_never_equivalent_to_the_read_gate(){
     let b=bound(&format!("{ROLES}table docs:\n  body: text <=80\n  read <- exists roles[viewer, role = 'doctor']\n  insert <- allow\n  online only\n"));
     let draft=security::draft(&b);
     assert!(!draft.lines().any(|line|line.contains("invariant docs.body")&&line.contains("'doctor'")));
-    assert!(draft.lines().any(|line|line.contains("invariant docs.body")&&line.contains("'volunteer'")));
+    assert!(draft.lines().any(|line|line.contains("Q docs.body")&&line.contains("'volunteer'")));
+    assert!(draft.lines().any(|line|line.contains("Q docs.body")&&line.contains("'doctor'")));
+    assert!(!draft.contains("invariant docs.body"));
 }
 
 #[test]
