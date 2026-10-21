@@ -25,6 +25,7 @@ fn checked(body: &str) -> snapback4_lang::Bound {
 #[test]
 fn optional_private_side_reads_name_the_hiding_rule_and_null_consequence() {
     for body in [
+        "mutation required(who: principal):\n  return funding[who] ! else NO\n",
         "mutation approve(who: principal):\n  row = funding[who]\n  require (row.limit ?? 0) > 1 else NEEDS_APPROVAL\n  return null\n",
         "fn threshold(who: principal): funding[who]\nmutation approve(who: principal):\n  return threshold(who)\n",
         "fn threshold(who: principal): funding[who]\nmutation approve(who: principal, other: principal):\n  x = who\n  require x = viewer else NO\n  x = other\n  return threshold(x)\n",
@@ -36,6 +37,32 @@ fn optional_private_side_reads_name_the_hiding_rule_and_null_consequence() {
         assert_eq!(notes[0].site.file, "schema.q");
         assert!(notes[0].site.line > 0);
         assert!(notes[0].rewrite.contains("projection"));
+    }
+}
+
+#[test]
+fn required_same_table_lookup_explains_its_read_gate_but_blind_writes_do_not() {
+    let bound = checked("mutation patch(who: principal):\n  row = funding[who] ! else NO_ROW\n  update funding[row] {limit: 1}\n  return null\nmutation blind(who: principal):\n  update funding[owner = who] {limit: 1}\n  return null\n");
+    let notes: Vec<_> = bound.notes.iter().filter(|n| n.code == "N_LOOKUP_FILTERED").collect();
+    assert_eq!(notes.len(), 1, "{:?}", bound.notes);
+    assert!(notes[0].message.contains("mutation patch") && notes[0].message.contains("read <- .owner = viewer"));
+    assert!(notes[0].message.contains("! else CODE") && notes[0].rewrite.contains("do not widen private rows"));
+}
+
+#[test]
+fn named_unique_advice_is_source_only_and_does_not_warn_on_public_keys() {
+    for read in ["read <- .owner = viewer", "public"] {
+        let source = format!("table claims:\n  key: text 1..80\n  owner: principal\n  unique key else TAKEN\n  {read}\n  insert <- allow\n  online only\nmutation add(key: text 1..80):\n  return insert claims {{key, owner:viewer}}\n");
+        let bound = compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let notes: Vec<_> = bound.notes.iter().filter(|n| n.code == "N_UNIQUE_HIDDEN").collect();
+        if read == "public" { assert!(notes.is_empty()); }
+        else {
+            assert_eq!(notes.len(), 1);
+            assert_eq!(notes[0].site.line, 4);
+            assert!(notes[0].message.contains("else TAKEN") && notes[0].message.contains("generic E_RULE"));
+            assert!(notes[0].rewrite.contains("operator-mediated claim"));
+        }
     }
 }
 
@@ -60,7 +87,6 @@ fn exact_read_authority_guards_assertions_and_blind_writes_stay_quiet() {
         "mutation mine():\n  return funding[viewer]\n",
         "mutation guarded(who: principal):\n  require who = viewer else NO\n  return funding[who]\n",
         "mutation guarded(who: principal):\n  require exists funding[who] else NO\n  return funding[who]\n",
-        "mutation required(who: principal):\n  return funding[who] ! else NO\n",
         "mutation blind(w: work):\n  update work[w] { n: 1 }\n",
         "query optional(who: principal):\n  return funding[who]\n",
         "fn threshold(who: principal): funding[who]\nmutation guarded(who: principal):\n  require who = viewer else NO\n  return threshold(who)\n",
@@ -117,19 +143,22 @@ fn optional_and_required_lookups_keep_hidden_absent_and_expired_equivalent() {
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     engine.seed([
         ("funding".into(), object([("id", Value::Id("a".into())), ("owner", Value::Id("hidden".into())), ("limit", Value::Int(3)), ("expires", Value::Null)])),
-        ("funding".into(), object([("id", Value::Id("b".into())), ("owner", Value::Id("expired".into())), ("limit", Value::Int(3)), ("expires", Value::Int(10))])),
+        ("funding".into(), object([("id", Value::Id("b".into())), ("owner", Value::Id("expiry".into())), ("limit", Value::Int(3)), ("expires", Value::Int(10))])),
         ("funding".into(), object([("id", Value::Id("c".into())), ("owner", Value::Id("viewer".into())), ("limit", Value::Int(3)), ("expires", Value::Null)])),
     ]).unwrap();
     let mut refusals = Vec::new();
-    for who in ["hidden", "missing", "expired"] {
-        let viewer = if who == "expired" { "expired" } else { "viewer" };
+    let mut meters = Vec::new();
+    for who in ["hidden", "absent", "expiry"] {
+        let viewer = if who == "expiry" { "expiry" } else { "viewer" };
         let ctx = || Context::new(viewer, [("who".into(), Value::Id(who.into()))].into()).at(20);
         let optional = engine.query("optional", ctx()).unwrap();
         assert_eq!(optional.data, Value::Null);
         assert!(optional.complete);
+        meters.push(optional.metered);
         refusals.push(engine.query("required", ctx()).unwrap_err());
     }
     assert!(refusals.iter().all(|refusal| refusal.code == "NOT_FOUND"));
+    assert!(meters.iter().all(|meter| *meter == meters[0]), "{meters:?}");
     assert_eq!(serde_json::to_value(&refusals[0]).unwrap(), serde_json::to_value(&refusals[1]).unwrap());
     assert_eq!(serde_json::to_value(&refusals[0]).unwrap(), serde_json::to_value(&refusals[2]).unwrap());
     let visible = engine.query("required", Context::new("viewer", [("who".into(), Value::Id("viewer".into()))].into()).at(20)).unwrap();

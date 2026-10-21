@@ -92,6 +92,23 @@ fn body(catalog:&Catalog,schema:&Schema,program:&ProgramDecl,statements:&[Stmt],
                     }
                 }
                 if program.kind!=ProgramKind::Mutation { return; }
+                // @ref LLP 3000.000.000.001#10-wave-20-loop-repairs-dx5 — source advice can name a private unique clause; public failures cannot.
+                if matches!(op, WriteOp::Insert | WriteOp::Update | WriteOp::Upsert)
+                    && (def.through.is_some() || def.not_before.is_some() || !matches!(def.rules.read, RuleExpr::Allow | RuleExpr::Public { .. }))
+                    && !(def.through.is_none() && def.not_before.is_none() && gate.as_deref().is_some_and(|seat| admits_seat(&def.rules.read, seat)))
+                    && let Some(refusals) = schema.unique_refusals.get(table) {
+                    for (index_name, refusal) in refusals {
+                        let Some(index) = def.index(index_name) else { continue; };
+                        if *op == WriteOp::Update && !payload.iter().any(|field| field.spread || index.columns().contains(&field.name)) { continue; }
+                        let location = catalog.tables.get(table).and_then(|t| t.indexes.iter().find(|i| &i.name == index_name)).map(|i| &i.site).unwrap_or(site);
+                        if out.iter().any(|n| n.code == "N_UNIQUE_HIDDEN" && n.site == *location) { continue; }
+                        let mut read = def.through.as_ref().map_or_else(|| format!("read <- {}", def.rules.read.quarry()), |through| format!("read through .{}", through.reference));
+                        if let Some(column) = &def.not_before { read.push_str(&format!("; not before .{column}")); }
+                        out.push(Diagnostic::new(location, "N_UNIQUE_HIDDEN",
+                            format!("{table}'s unique {} declares else {}, but conflicts the caller cannot read under `{read}` use generic E_RULE (or an undisclosed target miss), never that named code. No stored conflict is inferred by this source note", index.columns().join(", "), refusal.code),
+                            "keep private-row existence undisclosed; if the product requires a public availability check, model a minimal readable key projection or an operator-mediated claim. Test readable conflicts separately; do not widen private rows to obtain the named code").guide("rules"));
+                    }
+                }
                 let Some(seat)=gate.as_deref() else { return; };
                 let effect=match op { WriteOp::Insert=>"insert",WriteOp::Update=>"update", _=>return };
                 let rule=if effect=="insert" { &def.rules.insert } else { &def.rules.update };

@@ -39,7 +39,7 @@ fn engine() -> Engine {
 }
 fn engine_from(source: &str) -> Engine {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
-    assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?} {:?}", b.diagnostics, b.notes);
+    assert!(b.diagnostics.is_empty() && b.notes.iter().all(|n| n.code == "N_UNIQUE_HIDDEN"), "{:?} {:?}", b.diagnostics, b.notes);
     Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()
 }
 fn seed(e: &mut Engine, id: &str, owner: &str, amount: i64, writable: bool, deletable: bool) {
@@ -177,8 +177,12 @@ fn declared_unique_refusal_does_not_disclose_hidden_collision() {
                 // A hidden collision is indistinguishable from an ordinary rule denial.
                 let mut refused = engine();
                 seed(&mut refused, "target", "bob", 7, false, false);
-                let rule = denied(&call(&mut refused, op, json!({"id":"target", "amount":42})), "E_RULE");
+                let ordinary = call(&mut refused, op, json!({"id":"target", "amount":42}));
+                let rule = denied(&ordinary, "E_RULE");
                 assert_eq!(body["why"], rule["why"]);
+                // Refusal presentation adds no meter or hidden-row payload to the wire.
+                assert!(body.get("metered").is_none() && rule.get("metered").is_none());
+                assert_eq!(out.receipt(None), ordinary.receipt(None));
             } else {
                 let body = denied(&out, "AMOUNT_TAKEN");
                 let detail = body["why"]["detail"].as_str().unwrap();

@@ -355,6 +355,9 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     // @ref LLP 3000.036#16.4 — wave 6 #22: authorization shapes that compile but grant or withhold more than meant.
     notes.extend(sweep_deadline::notes(&catalog));
     notes.extend(auth_lints::notes(&catalog, &schema));
+    // Keep the more specific required write-target explanation at a shared site.
+    let hidden: std::collections::BTreeSet<_> = notes.iter().filter(|n| n.code == "N_LOOKUP_HIDDEN").map(|n| n.site.to_string()).collect();
+    notes.retain(|n| n.code != "N_LOOKUP_FILTERED" || !hidden.contains(&n.site.to_string()));
     notes.extend(write_affordances::notes(&catalog, &schema));
     notes.extend(rule_composition::notes(&catalog));
     notes.extend(query_branches::notes(&catalog, &schema));

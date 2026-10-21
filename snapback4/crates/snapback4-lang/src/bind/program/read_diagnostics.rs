@@ -108,8 +108,7 @@ impl Binder<'_> {
         let equal = A::Binary { op: "=".into(), left: Box::new(value.clone()), right: Box::new(A::Name { name: "viewer".into(), site: value.site().clone() }), site: value.site().clone() };
         self.point_guard_safe(value) && self.authorization_proved(&equal, true)
     }
-    // @ref LLP 3000.036.002#152-lookup-contract-and-diagnostics — only
-    // authored reads get advice; blind write targets never pass this method.
+    // @ref LLP 3000.000.000.001#10-wave-20-loop-repairs-dx5 — asserted and same-table reads still need reader authority; blind writes do not pass here.
     pub(super) fn optional_lookup_note(&mut self, read: &ReadExpr, point: &Read) {
         if self.caller_kind != ProgramKind::Mutation || self.point_present(read) || self.lookup_point_present(read)
             || self.row_independent_read_proved(&read.table) { return; }
@@ -142,9 +141,8 @@ impl Binder<'_> {
         let location = self.catalog.tables[&read.table].decl.rules.iter().find(|rule| rule.effect == ast::Effect::Read)
             .map(|rule| rule.site.to_string()).unwrap_or_else(|| self.catalog.tables[&read.table].decl.site.to_string());
         if self.notes.iter().any(|note| note.code == "N_LOOKUP_FILTERED" && note.site == read.site) { return; }
-        self.optional_lookups.insert(read.site.to_string(), read.table.clone());
         self.notes.push(Diagnostic::new(&read.site, "N_LOOKUP_FILTERED",
-            format!("mutation {}: optional lookup of {} uses `{rule}` ({location}); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null, so a later field/default or require may report a different business condition", self.name, read.table),
+            format!("mutation {}: lookup of {} uses `{rule}` ({location}); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null; `! else CODE` refuses with that authored code for all three. A later field/default or require may report a different business condition", self.name, read.table),
             "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field").guide("rules"));
     }
 }
