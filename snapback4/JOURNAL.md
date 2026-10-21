@@ -98700,3 +98700,296 @@ checks pass, with zero skips/preconditions. Ref-check passes 564 LLP documents
 and 12,193 references, zero errors and zero unchecked. Full-battery and later
 main-delta scopes are recorded separately in reports/integration19-storage-port/
 and WORKSTREAM-REPORT.md. No Mac/private-Postgres/publication claim is added.
+
+### 2026-10-21 — P1-OB (a), layout and lifecycle
+
+Resumed the uncommitted partial lane at 954b705e9b after the lead reclaimed
+disk. Context pack: LLP 3000 and 2000.000, Snapback 4 NOT-DOING, the port
+RFC §3/§9.1, the current identity adapter and SQLite outbox. The llp-orient
+skill link targets an unavailable submodule in this worktree; assembled the
+scoped context directly without cloning. All work is local, one worker.
+
+Attach verifies and additively upgrades the evaluation outbox to the full
+lifecycle, installs presence and keeps replay state in `_meta`. The named
+incompatibility error is SNAPBACK_OUTBOX_SCHEMA. The old evaluation seq FK
+is removed to match SQLite. The tail stays a single CTE flight, with shared
+admission preparation and full rows rather than per-effect insert calls.
+OutboxTransaction now implements lifecycle transitions under the existing head
+fence; the presence/lease methods needed by that trait accompany it. Snapshot
+store access follows in (b). Host delivery remains P1b.
+
+Shared policy now rejects NUL only at new admission, normalizes diagnostic NUL
+before its 2,000-character bound, and takes unsigned adapter limits. Bounded
+expiry selection now orders by seq/id on SQLite as well as Postgres; presence
+readback and strict expiry are ordered too. Legacy stored rows remain usable.
+Focused lifecycle, tail equivalence and attach fixtures precede this commit;
+full requested verification and the wider shared contract follow in (c).
+
+Part (a) checkpoint: the Postgres-enabled core library run passes 487 tests
+with 64 explicit database-required skips. Running the five built outbox
+fixtures against the owned PostgreSQL 16 cluster passes all five, zero
+failed/ignored. Ref-check passes (564 documents, 11,516 refs). The final
+collation-refusal tightening and its extra fixture will be rebuilt with the
+remaining lane work. This checkpoint is well under the 1,500-line diff stop.
+
+### 2026-10-21 — P1-OB (b), presence, leases and snapshots
+
+Added the Postgres OutboxStore view using identity's scoped RefCell pattern.
+Every read uses a repeatable-read transaction; health counts and presence
+deferrals share it. Replay checks deployment authority in the head-fenced
+writer, so a refused change rolls back. Replay state stays in `_meta`.
+
+The shared fixtures distinguish grace deferral from retry backoff, check list
+ordering and unsigned bounds, and preserve suppression across replay changes.
+Lease fixtures cover both marker spellings (including ASCII case folding),
+the exact expired-worker boundary, ordinary sessions, a legacy request, a
+family-capped request/delegated bearer, an absent family and an unclaimed
+request. Session extension, both work tables and delegated bearer adjustment
+all use the same transaction. Overdue outbox leases still shift; this is
+SQLite's existing behavior, retained deliberately.
+
+### 2026-10-21 — P1-OB (c), one outbox contract on both adapters
+
+Part (b)'s rebuilt focused run passes 9/9 (six Postgres fixtures and three
+SQLite fixtures), including the tightened attach collation check.
+
+Moved the shared cases out of effects.rs and expanded them to cover all
+applicable §9.1 rules. The cancellation decision moved verbatim into a shared
+policy helper so the race witness uses the same terminal-row behavior as the
+public SQLite engine. Strict and compatibility claims/settlements deliberately
+retain their existing differences. Settlement timestamps, lease digests,
+terminal immutability, presence satisfaction, deadline/attempt limits, tied
+selection bounds, wide values, NULL versus absent fields and legacy policy
+fall-through have shared assertions. New NUL admissions validate the entire
+batch before recording; SQLite legacy identifiers remain actionable.
+
+Races use adapter operations on two Postgres handles. A barrier holds the
+first operation's transaction while a separate catalog observer proves the
+second adapter is blocked on its head fence. Two workers yield one claim;
+cancel-first rejects the settlement; settle-first leaves sent evidence intact
+when cancellation follows. Each result is compared with SQLite executing the
+observed order. No harness SQL performs either competing write.
+
+The reference differences found were the evaluation's seven-column rows and
+commit FK, missing lifecycle/presence, database key collation, NUL diagnostic
+handling, signed limits and unordered bounded expiry. They now have full rows
+and guarded upgrade, SQLite-equivalent constraints/key ordering, shared text
+policy, unsigned limits and total order. Storage booleans differ physically
+(INTEGER/BOOLEAN), while typed reads and NULL/JSON cases compare exactly.
+Postgres records effects through the ordinary mutation tail, but its public
+engine/host still exposes no worker delivery lifecycle: this lane implements
+family capabilities for P1b to wire. Final verification follows.
+
+The first expanded run executed 28 outbox cases: 27 passed, one exposed a
+Postgres parameter-inference difference in compatibility settlement time.
+CASE with an untyped timestamp parameter and NULL inferred TEXT before
+assignment to BIGINT. Added the explicit BIGINT cast. Both forced-overlap
+race tests and all SQLite cases passed in that run.
+
+The corrected focused run passes all 28 cases (17 Postgres, 11 SQLite),
+with zero failures or ignored cases. Attach review also tightened the
+recognized evaluation FK to its immediate/validated/default-action shape
+and made same-name indexes on another table a named schema refusal even
+when the expected table is absent. The attach fixture covers both cases.
+
+The final §9.1 audit also made EffectHealth's grace-deferral count unsigned,
+matching its state counts and adapter limits. Both stores convert their
+nonnegative COUNT result to u64. The broad core run had already compiled
+the earlier signed return type; its long unrelated generated cases continue.
+The final adapter/host checks and an affected outbox follow-up validate this
+representation-only adjustment without repeating the broad generated work.
+
+### P1-OB verification — broad checks and serializable stress observation
+
+The complete default-feature core test run passes all targets, including
+17 doctests. Both host ratchets pass: committer 3/3 and store-port 5/5,
+without any allowlist change. The exact requested Clippy command reaches
+only the two inherited default-deny errors (while_immutable_condition and
+never_loop); a follow-up allowing exactly those two succeeds for all core
+tests. Neither source file changed, and there are no new outbox warnings.
+
+The first stock Postgres run hit the existing 32-retry serializable budget
+in its four-writer conformance case (SQLSTATE 40001); the long prefetch cases
+then passed. The script stopped before the adapter target. Isolating that
+concurrency case passes, retaining four overlapping writers: both modes
+produce 65 increments, no lost updates, and serializable uses 84 total
+transaction retries. In the full rerun scheduled with RUST_TEST_THREADS=1,
+that same case passes with 86 retries; the full script is still completing.
+No retry bound or durability setting changed. Appended this evidence to the
+existing open serializable benchmark-exhaustion ticket rather than creating
+a duplicate. The first owned-cluster stop succeeds; independent status is
+3 (no server), and postmaster.pid is absent. The same owned cluster is
+restarted for the full serial rerun and will be stopped again.
+
+### P1-OB (c) — final verification results
+
+The unmodified stock Postgres script, with RUST_TEST_THREADS=1 scheduling
+(the concurrency witnesses retain their own overlapping threads), passes
+155 tests: 58 evaluation, 78 core adapters and 19 corpus harness tests;
+zero failed, zero ignored. Every one of the 17 gated outbox tests executes
+and passes, including both race witnesses and all incompatible-layout
+fixture variations. Corpus unsupported-case reasons remain explicit.
+
+After the broad core run, the final affected no-database outbox run passes
+11 SQLite cases and reports 17 named Postgres ignores, zero failures. This
+checks the final unsigned health count on SQLite and proves a missing
+database is never counted as Postgres success. The full core battery, host
+ratchets, Clippy with exactly the two inherited errors allowed, and root
+reference check all pass as recorded above. Ref-check reports 564 LLPs,
+11,518 references, zero errors and zero unchecked.
+
+Remaining uncertainty is the open serializable stress retry-exhaustion
+question, now recorded in the existing 20260916 ticket with the first
+parallel failure and both successful reruns. No retry or timeout policy was
+changed. Public Postgres delivery/claim/settlement and dev-host wiring remain
+P1b; only emission through the ordinary Postgres mutation tail is currently
+reachable through its public engine. No owner-fence or deployment claim is
+made. All lane commands stayed local, no additional worker/clone/stash/push
+was used, every Cargo build had incremental disabled, line-table debug data
+and at most six build jobs, and free disk space never approached 15 GB.
+
+Final owned-cluster cleanup is confirmed for the second run as well:
+`pg_ctl stop` exits 0, a separate `pg_ctl status` exits 3 (no server), and
+`/tmp/p1-ob-pg-v4midlq7/data/postmaster.pid` is absent. Both starts belonged
+to this lane and used that same private cluster; no other cluster was
+stopped. The data and raw logs remain for inspection.
+
+### 2026-10-21 — P1-OB fix round 1
+
+Rebased the three outbox commits onto mirror 805fb4599a. Conflicts were the
+RFC's Revised line (all histories retained on one line), the append-only
+journal (union), and postgres/mod.rs (all modules and attach calls retained,
+identity then requests then outbox). Tail merged without a conflict. The
+rebased commits are 696d32bdae, 4a9392025e and aff7745d58. The resulting
+lane diff has the same file and line counts as the original three commits;
+main's identity, requests and committer changes remain present. An initial
+conflict-resolution edit was caught and the rebase restarted before keeping
+this final resolution. No rebase work or code was pushed.
+
+Scoped context: the root, design brief, NOT-DOING, port RFC sections 3 and
+9.1, current effects guide, both outbox adapters and the two reviews in
+/tmp/p1-ob-review.md. The llp-orient skill target is still absent here, so
+the context was assembled directly. This remains one local worker in this
+worktree, with no delegation, stash, git-config change or push. Cargo uses
+four jobs, no incremental output, and line-tables-only dev/test debug info.
+
+NUL-key lookups now use one Postgres helper to return absent/empty before
+issuing a statement. This includes candidate filters, presence reads and
+reconnect, and due/list snapshots before even borrowing the store to BEGIN.
+SQLite retains legacy-key access. Shared cases exercise every affected
+method; a Postgres call-count/borrow witness proves no access. The claim
+regression commits an expired lease's requeue despite a NUL effect filter,
+then compares the persisted full row with SQLite's public claim_effects
+result. The public SQLite presence_reconnected path also accepts an absent
+NUL key. Unknown-id cancellation and strict lookup keep E_EFFECT_UNKNOWN.
+
+All shift additions use shared signed saturation bounds and SQL CASE before
+adding: effect and request leases plus supervised session expiries saturate
+at i64::MAX. Negative shifts floor at i64::MIN as well. This changes SQLite
+only at overflow boundaries, where its former REAL promotion broke typed
+reads; Postgres no longer aborts with 22003. Common seeds cover MAX-1/MAX,
+exact arrival followed by overflow, legacy and capped requests, delegated
+sessions, and ordinary sessions that must not move. Typed session/request
+reads occur after commit. Existing ordinary-shift and rollback cases remain.
+The new signed-boundary case also covers zero, MIN and MAX shift deltas.
+Outbox races now reuse main's store/test_race.rs head-blocking witness.
+
+Locale qualification uses the installed en_US.utf8 (locale -a also lists C,
+C.utf8 and POSIX). scripts/test-postgres.sh now accepts SNAPBACK4_PG_LOCALE,
+retains UTF-8 encoding and reports the locale, and confirms owned-cluster
+shutdown with independent pg_ctl status=3 plus absent postmaster.pid. A
+PostgreSQL 16.15 catalog probe with both datcollate and datctype=en_US.utf8
+returns bare {state,effect,seq} for pg_get_indexdef's column definitions,
+even with effect COLLATE C. Its first metadata query incorrectly tried a
+locale GUC; a corrected pg_database query succeeded. Both private probe
+clusters stopped and were independently confirmed:
+/tmp/p1-ob-locale-probe.GEleHL and /tmp/p1-ob-locale-probe.EU8xnN. The full
+outbox and identity attach/reopen witnesses will decide the suspected schema
+compare issue; no speculative identity change was made.
+
+Initial focused SQLite verification passes 14/14, zero failed/ignored,
+including the claim and saturation cases. Root ref-check passes 564 LLPs,
+11,531 references, zero errors and zero unchecked. Final full verification
+follows below; the signed-boundary addition is included in that rebuild.
+
+### P1-OB fix round 1 — core, ratchets and default Postgres verification
+
+The full default-feature core command passes 909 tests across 44 unfiltered
+unit/integration/doc targets, zero failures and five explicit scale/measurement
+ignores; the total includes 17 doctests. The unit target is 512 passed and
+three ignored. All 15 SQLite outbox cases pass, including the signed extremes.
+
+The first host-ratchet command found the new public-SQLite claim oracle's
+transaction opener in effects/test_cases.rs. That whole file is loaded only
+under cfg(test), but the lexical census does not infer a parent module's cfg.
+Put the oracle in an explicit inline cfg(test) module without changing its
+behavior. The final affected SQLite rerun passes 15/15, and the requested
+host command then passes committer 3/3 and store-port 5/5, with zero failures
+or ignores. No matcher, allowlist or production transaction opener changed.
+The full core run precedes this test-only module move; the final focused
+rerun validates the moved helper without repeating the long generated cases.
+
+The default C (--no-locale) private PostgreSQL 16.15 script passes 178 tests:
+58 evaluation, 101 core adapter and 19 corpus harness tests, zero failures
+and zero ignored. All 22 outbox/race cases run and pass, as do identity's
+attach/reopen and incompatible-storage tests. The four-writer case retains
+65 increments in both modes, no lost updates, zero serialized retries and
+84 total serializable retries. The 40001 exhaustion does not reproduce;
+no retry limit, backoff, timeout or durability setting changed. The script
+uses RUST_TEST_THREADS=1 for test scheduling; each concurrency witness still
+runs its own overlapping threads. All Cargo commands keep four build jobs.
+
+The default cluster's fast stop succeeds and its independent status is 3,
+with postmaster.pid absent: /tmp/sb4-pg-eval.MNWLfr. The full en_US.utf8
+script is now running separately; its concurrency case has also passed
+(65/65 increments, 79 serializable retries), with no product policy change.
+Raw evidence: /tmp/p1-ob-fix-core.log,
+/tmp/p1-ob-fix-sqlite-final.log, /tmp/p1-ob-fix-ratchets-final.log and
+/tmp/p1-ob-fix-postgres-default.log. All checks and generated data stay local.
+
+### P1-OB fix round 1 — locale qualification
+
+The full en_US.utf8 private-cluster run also passes 178/0/0
+(passed/failed/ignored): 58 evaluation, 101 core adapter, 19 corpus harness.
+All 22 outbox/race cases execute and pass under both database locales.
+In particular, outbox_attach_upgrades_evaluation_rows_and_reopens,
+outbox_attach_refuses_incompatible_shapes, identity_attach_installs_missing_tables_and_reopens_without_changing_rows
+and identity_attach_refuses_incompatible_existing_tables all pass under
+both C and en_US.utf8. The suspected locale-dependent index compare does
+not reproduce on PostgreSQL 16.15. Its deparser omits collation when an index
+inherits the column's collation, as the earlier catalog probe showed. No
+schema-compare relaxation or identity fix is needed, so there is no separate
+identity commit. The opt-in locale remains available for future runs.
+
+The locale cluster's fast stop succeeds at /tmp/sb4-pg-eval.mx8Ppo. After
+both full scripts finish, a separate pg_ctl status check of all four owned
+data directories (both probes and both full runs) returns 3 for each, and
+all four postmaster.pid files are absent. No unrelated cluster was stopped.
+The locale run's concurrency case retains 65 increments in each mode and
+uses 79 serializable retries. Neither full run reproduces the known 40001
+exhaustion, so no isolated failure rerun or retry-policy edit is needed.
+The existing exhaustion ticket remains open; these passes do not resolve it.
+Raw locale evidence: /tmp/p1-ob-fix-postgres-locale.log. Final Clippy and
+reference results follow below.
+
+### P1-OB fix round 1 — final static checks
+
+The exact requested Clippy command exits on only the two inherited
+default-deny errors: while_immutable_condition in engine/read.rs:780 and
+never_loop in engine/row_views.rs:1013. Both files are unchanged from the
+rebased mirror. A follow-up allowing exactly those two lints passes all
+core test targets. It initially exposed one new test-layout warning; moving
+the explicit SQLite oracle module to the end of its test-only file removes
+that warning. The final allowed-two run passes, with no warning sites in
+outbox or effects/test_cases.rs. No repository lint configuration changed.
+This last move only reorders the unchanged test module; all product code
+remains the code exercised by the full core and both Postgres runs. The
+host ratchets are rerun on that final test layout as well.
+
+Root ref-check passes: 564 LLP documents, 11,531 references, zero errors,
+zero unchecked. The RFC has exactly one Revised line, headed P1-OB fix
+round 1. Raw static-check logs are /tmp/p1-ob-fix-clippy.log and
+/tmp/p1-ob-fix-clippy-allowed-final.log. All owned clusters are stopped as
+confirmed above. Observed free disk never fell below 52 GB during these
+checks, comfortably above the commissioned 15 GB stop threshold. No push,
+stash, extra agent, other worktree change or git-config mutation occurred.

@@ -12,10 +12,21 @@ if [[ -z "${SNAPBACK4_EVAL_POSTGRES:-}" ]]; then
     command -v "$tool" >/dev/null || { echo "Install PostgreSQL 16+ ($tool must be on PATH), or set SNAPBACK4_EVAL_POSTGRES to an isolated local database." >&2; exit 1; }
   done
   eval_dir="$(mktemp -d /tmp/sb4-pg-eval.XXXXXX)"
-  initdb -D "$eval_dir/data" -U sb4_eval --auth-local=trust --auth-host=reject --encoding=UTF8 --no-locale >/dev/null
+  locale_args=(--no-locale)
+  if [[ -n "${SNAPBACK4_PG_LOCALE:-}" ]]; then
+    locale_args=(--locale="$SNAPBACK4_PG_LOCALE")
+  fi
+  echo "Evaluation cluster locale: ${SNAPBACK4_PG_LOCALE:-C (--no-locale)}" >&2
+  initdb -D "$eval_dir/data" -U sb4_eval --auth-local=trust --auth-host=reject --encoding=UTF8 "${locale_args[@]}" >/dev/null
   cleanup() {
-    pg_ctl -D "$eval_dir/data" -m fast -w stop >/dev/null || true
-    echo "Evaluation cluster stopped; data retained at $eval_dir" >&2
+    local stop_status=0 status_status=0
+    pg_ctl -D "$eval_dir/data" -m fast -w stop >/dev/null || stop_status=$?
+    pg_ctl -D "$eval_dir/data" status >/dev/null 2>&1 || status_status=$?
+    if [[ "$stop_status" != 0 || "$status_status" != 3 || -e "$eval_dir/data/postmaster.pid" ]]; then
+      echo "Evaluation cluster stop NOT confirmed: $eval_dir (stop=$stop_status status=$status_status)" >&2
+      exit 1
+    fi
+    echo "Evaluation cluster stopped and confirmed (status=3, no postmaster.pid); data retained at $eval_dir" >&2
   }
   trap cleanup EXIT
   pg_ctl -D "$eval_dir/data" -l "$eval_dir/server.log" -o "-k $eval_dir -c listen_addresses= -c max_connections=400 -p 55439" -w start >/dev/null
