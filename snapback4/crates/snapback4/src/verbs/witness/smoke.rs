@@ -199,7 +199,7 @@ fn barrier(path: &Path, store_id: &str, prime: u64) -> Result<u64> {
     let _owner = crate::store_owner::command(path).map_err(|_| error("E_WITNESS_BACKEND", "cannot acquire backend store; stop its owner and check store permissions"))?;
     let append = || -> std::result::Result<u64, snapback4_core::RuntimeError> {
         let mut store = _owner.open_store(std::time::Duration::from_secs(5))?;
-        if store.meta("store_id")?.as_deref() != Some(store_id) || store.seq()? < prime {
+        if store.store_identity()?.as_deref() != Some(store_id) || store.seq()? < prime {
             return Err(snapback4_core::RuntimeError::Store("smoke backend identity/watermark changed since prime".into()));
         }
         store.record_witness_barrier(|| now() as i64)
@@ -290,12 +290,12 @@ query required(id: heldRows):
         use snapback4_core::value::{Value, object};
         engine.seed([("items".into(), object([("id", Value::Id("sentinel".into())), ("value", Value::Int(42))]))]).unwrap();
         let counts = |store: &snapback4_core::Store| ["r", "i", "_log", "_ops"].map(|table| {
-            store.conn().query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get::<_, i64>(0)).unwrap()
+            store.test_support_conn().query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get::<_, i64>(0)).unwrap()
         });
         let held = counts(engine.store());
-        let row: String = engine.store().conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get(0)).unwrap();
+        let row: String = engine.store().test_support_conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get(0)).unwrap();
         let before = engine.seq().unwrap();
-        let identity = engine.store().meta("store_id").unwrap().unwrap();
+        let identity = engine.store().store_identity().unwrap().unwrap();
         drop(engine);
         let inherited = {
             let mut owner = crate::store_owner::command(&path).unwrap();
@@ -317,7 +317,7 @@ query required(id: heldRows):
         let store = snapback4_core::Store::open(&path).unwrap();
         assert_eq!(store.seq().unwrap(), seq);
         assert_eq!(counts(&store), held);
-        assert_eq!(store.conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get::<_, String>(0)).unwrap(), row);
+        assert_eq!(store.test_support_conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get::<_, String>(0)).unwrap(), row);
         drop(store);
         assert!(barrier(&path, "wrong-store", seq).is_err());
         let _ = fs::remove_dir_all(dir);

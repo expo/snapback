@@ -198,11 +198,11 @@ fn retained_releases_never_mix_shapes_on_late_reordered_pages_and_reopen() {
             trace(&mut sqlite, viewer, reopen);
             let store = Store::open_read_only(&sqlite.path("retained-release")).unwrap();
             assert_eq!(
-                store.meta("version").unwrap().as_deref(),
+                store.test_support_meta("version").unwrap().as_deref(),
                 Some("snapback4-store-1")
             );
             let dormant: i64 = store
-                .conn()
+                .test_support_conn()
                 .query_row(
                     "SELECT COUNT(*) FROM sqlite_schema WHERE name LIKE '_dormant_%'",
                     [],
@@ -254,7 +254,7 @@ fn audience_release<H: Host>(host: &mut H, limit: usize) {
     for (release, current, expected) in [(1, &old, vec!["own"]), (2, &union, vec!["own","team"]), (1, &old, vec!["own"]), (2, &union, vec!["own"])] {
         if !stale.is_empty() {
             engine.adopt_release(current.schema.clone(), current.programs.iter().map(|p| p.program.clone()),
-                &ReleaseActivation::new(release, engine.store().meta("release").unwrap().and_then(|r|r.parse().ok())), false).unwrap();
+                &ReleaseActivation::new(release, engine.store().release_value().unwrap().and_then(|r|r.parse().ok())), false).unwrap();
             device.adopt(backend(&engine, current)).unwrap();
             for page in stale.iter().rev() { assert_eq!(device.apply(page, false).unwrap_err().code(), "E_GENERATION"); }
         }

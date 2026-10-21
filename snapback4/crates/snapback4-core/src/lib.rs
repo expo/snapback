@@ -9,6 +9,10 @@
 #[cfg(all(feature = "web-device-check", not(debug_assertions)))]
 compile_error!("web-device-check is only for debug test witnesses of the web device policy; it cannot be enabled in release, production, or wasm profiles");
 
+// @ref LLP 3000.009.001.000#3.3 — raw fixture access must not be enabled in shipped builds.
+#[cfg(all(feature = "test-support", not(debug_assertions)))]
+compile_error!("test-support is only for debug test fixtures; it cannot be enabled in release, production, or wasm profiles");
+
 #[cfg(test)]
 extern crate self as snapback4_core;
 

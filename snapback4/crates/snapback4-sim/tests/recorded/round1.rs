@@ -85,7 +85,7 @@ fn later_unrelated_rebuild_and_live_sum_repair_log_their_changes() {
     let b = bound(&next); e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     assert_eq!(e.seq().unwrap(),stable,"unchanged activation with intact repair marker is a no-op");
     assert!(e.stream("alice",stable,100).unwrap().events.is_empty());
-    assert_eq!(e.store().conn().execute("DELETE FROM _meta WHERE key = 'live_sum_candidates'", []).unwrap(),1);
+    assert_eq!(e.store().test_support_conn().execute("DELETE FROM _meta WHERE key = 'live_sum_candidates'", []).unwrap(),1);
     let seq = e.seq().unwrap();
     let b = bound(&next); e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     assert_eq!(e.seq().unwrap(), seq + 1, "live-sum repair records its commit");
@@ -162,11 +162,11 @@ fn capture_and_reimport_propagate_store_read_errors_without_null_writes() {
         let mut e = engine(SOURCE);
         e.seed([post("p","alice",Value::Null),like("l","p",Value::Null)]).unwrap();
         let seq = e.seq().unwrap();
-        e.store().conn().execute("UPDATE r SET data = 'not-json' WHERE t = (SELECT num FROM _catalog WHERE name = ?1)", [table]).unwrap();
+        e.store().test_support_conn().execute("UPDATE r SET data = 'not-json' WHERE t = (SELECT num FROM _catalog WHERE name = ?1)", [table]).unwrap();
         let error = if table == "posts" { e.seed([like("new","p",Value::Null)]) } else { e.load([like("l","p",Value::Null)]) }.unwrap_err();
         assert!(matches!(error,snapback4_core::RuntimeError::Store(_)),"{error}");
         assert_eq!(e.seq().unwrap(),seq);
-        let corrupted: String = e.store().conn().query_row("SELECT data FROM r WHERE t = (SELECT num FROM _catalog WHERE name = ?1)",[table],|r|r.get(0)).unwrap();
+        let corrupted: String = e.store().test_support_conn().query_row("SELECT data FROM r WHERE t = (SELECT num FROM _catalog WHERE name = ?1)",[table],|r|r.get(0)).unwrap();
         assert_eq!(corrupted,"not-json");
     }
 }
@@ -193,7 +193,7 @@ fn malformed_target_fields_are_errors_not_null_captures() {
     let mut malformed = e.store().rows("posts").unwrap().remove(0);
     match &mut malformed { Value::Row(fields) | Value::Map(fields) => {assert!(fields.remove("authorId").is_some());}, _ => panic!("stored row object") }
     let bytes = serde_json::to_string(&malformed).unwrap();
-    assert_eq!(e.store().conn().execute("UPDATE r SET data = ?1 WHERE t = (SELECT num FROM _catalog WHERE name = 'posts')",[bytes]).unwrap(),1);
+    assert_eq!(e.store().test_support_conn().execute("UPDATE r SET data = ?1 WHERE t = (SELECT num FROM _catalog WHERE name = 'posts')",[bytes]).unwrap(),1);
     assert!(e.store().rows("posts").unwrap()[0].field("authorId").is_err(),"stored codec remains decodable");
     let err=e.seed([like("l","p",Value::Null)]).unwrap_err();
     assert_eq!(err.code(),"E_FIELD");
@@ -236,9 +236,9 @@ fn mixed_capture_repair_and_unrelated_rebuild_keep_separate_event_scopes() {
     e.seed([post("p","alice",Value::Null),like("l","p",Value::Null),("counters".into(),object([("id",id("c")),("key",id("alice"))]))]).unwrap();
     let mut damaged=e.store().rows("amounts").unwrap().remove(0);
     match &mut damaged {Value::Row(fields) | Value::Map(fields)=>{fields.insert("value".into(),Value::Int(99));},_=>panic!("aggregate object")};
-    assert_eq!(e.store().conn().execute("UPDATE r SET data = ?1 WHERE t = (SELECT num FROM _catalog WHERE name = 'amounts')",[serde_json::to_string(&damaged).unwrap()]).unwrap(),1);
+    assert_eq!(e.store().test_support_conn().execute("UPDATE r SET data = ?1 WHERE t = (SELECT num FROM _catalog WHERE name = 'amounts')",[serde_json::to_string(&damaged).unwrap()]).unwrap(),1);
     assert_eq!(e.store().rows("amounts").unwrap()[0].field("value").unwrap(),&Value::Int(99));
-    assert_eq!(e.store().conn().execute("DELETE FROM _meta WHERE key = 'live_sum_candidates'",[]).unwrap(),1);
+    assert_eq!(e.store().test_support_conn().execute("DELETE FROM _meta WHERE key = 'live_sum_candidates'",[]).unwrap(),1);
     let next=format!("{source}{independent}{sum}\nmaintain independentTotal: count counters by key\n  read <- allow\n");
     let seq=e.seq().unwrap();let b=bound(&next);
     e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();

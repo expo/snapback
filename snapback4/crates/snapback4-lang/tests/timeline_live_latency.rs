@@ -138,7 +138,7 @@ fn reopening_and_adoption_reset_only_the_service_hint() {
     post(&mut e, "live", 201);
     for _ in 0..4 { e.run_timeline_turn_for(300, Duration::ZERO).unwrap(); }
     // Backup persists rows and their progress; the scheduling hint is disposable.
-    e.store().conn().execute("VACUUM INTO ?1", [path.to_str().unwrap()]).unwrap();
+    e.store().test_support_conn().execute("VACUUM INTO ?1", [path.to_str().unwrap()]).unwrap();
     let mut reopened=Engine::open(Store::open(&path).unwrap()).unwrap();
     let b=snapback4_lang::compile(&[("schema.q".into(),SOURCE.into())]);
     reopened.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();

@@ -331,7 +331,7 @@ fn an_expiry_default_change_starts_a_new_epoch_and_discloses_no_expired_ids() {
         engine.seed_at([("members".into(), alice.clone()), ("members".into(), bob)], NOW).unwrap();
         // Preserve an older stored image with its optional field omitted;
         // activation interprets required literal defaults without storing them.
-        engine.store().conn().execute("UPDATE r SET data = ?1 WHERE id = 'ma'", [snapback4_core::value::canonical_json(&alice)]).unwrap();
+        engine.store().test_support_conn().execute("UPDATE r SET data = ?1 WHERE id = 'ma'", [snapback4_core::value::canonical_json(&alice)]).unwrap();
         engine.adopt_at(new.0.clone(), new.1.clone(), NOW + 100).unwrap();
         let (_, from) = engine.snapshot_at(ALICE, NOW + 150).unwrap();
         engine.seed_at([("notes".into(), object([("id", id("x")), ("group", Value::String("g".into())), ("body", Value::String("x".into()))]))], NOW + 250).unwrap();

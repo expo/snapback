@@ -1014,9 +1014,9 @@ pub fn doctor(options: &Options) -> i32 {
     match snapback4_core::Store::open_read_only(&work_records::store_path(options)) {
         Ok(store) => {
             for status in store.inspection_worker_reports() { lines.push(format!("worker    last report: {status}")); }
-            let generation = store.meta("generation").ok().flatten().unwrap_or_else(|| "unrecorded".into());
+            let generation = store.generation_value().ok().flatten().unwrap_or_else(|| "unrecorded".into());
             lines.push(format!("store     {} at seq {}, generation {}", work_records::store_path(options).display(), store.seq().unwrap_or(0), generation));
-            if host.as_ref().is_some_and(|host| store.meta("store_id").ok().flatten().as_deref() != host["storeId"].as_str()) {
+            if host.as_ref().is_some_and(|host| store.store_identity().ok().flatten().as_deref() != host["storeId"].as_str()) {
                 eprintln!("E_INPUT at doctor: the dev server serves a different persisted store; run doctor in that server's project with its current store");
                 return 1;
             }
@@ -1035,8 +1035,8 @@ pub fn doctor(options: &Options) -> i32 {
                     lines.push(format!("adoption  pending: {reason}; serving the previous generation; jobs and sweeps may fail until adoption succeeds"));
                 }
             }
-            let replay = store.meta("dev:replay").ok().flatten().as_deref() == Some("true");
-            let held = store.meta("dev:hold-schedules").ok().flatten().as_deref() == Some("true");
+            let replay = store.dev_value(snapback4_core::metadata::DevMetadata::Replay).ok().flatten().as_deref() == Some("true");
+            let held = store.dev_value(snapback4_core::metadata::DevMetadata::HoldSchedules).ok().flatten().as_deref() == Some("true");
             lines.push(format!("replay    {} — new effects {}; schedules {} (persisted dev policy)", if replay { "on" } else { "off" }, if replay { "suppressed" } else { "enabled" }, if held { "held" } else { "enabled" }));
             if let Ok(sizes) = store.sizes() {
                 storage = Some(sizes);
@@ -1066,8 +1066,7 @@ pub fn doctor(options: &Options) -> i32 {
                         lines.push(format!("requests  {}", ["queued", "running", "done", "failed"].into_iter().map(|state| format!("{} {state}", counts.get(state).copied().unwrap_or(0))).collect::<Vec<_>>().join(", ")));
                     }
                     for schedule in &engine.schema().schedules {
-                        let last = engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten();
-                        let last = last.and_then(|at| at.parse::<i64>().ok());
+                        let last = engine.store().schedule_boundary(&schedule.name).ok().flatten();
                         let state = match last {
                             Some(at) if at > schedule.boundary(now) => format!("last boundary {at} ({}), ahead of the clock: held until {}; restart with dev --resume-clock or advance the clock", crate::dev_clock_store::utc(at), crate::dev_clock_store::utc(schedule.next(at))),
                             Some(at) => format!("last boundary {at} ({}); next {}", crate::dev_clock_store::utc(at), crate::dev_clock_store::utc(schedule.next(schedule.boundary(now)))),

@@ -5,8 +5,11 @@
 # there. This builds the web artifact's exact configuration with the feature
 # added and requires that refusal, so deleting the guard turns the suite red.
 # A hand-made profile that turns debug assertions on is outside this promise.
+# The same gate checks raw fixture access against the host's release profile.
 set -u
 cd "$(dirname "$0")/.."
+fixture_status=0
+bash scripts/check-test-support-guard.sh || fixture_status=1
 out=$(cargo check -p snapback4-device --no-default-features --features web,web-device-check --profile wasm --target wasm32-unknown-unknown --quiet 2>&1)
 status=$?
 if [ "$status" = 0 ]; then
@@ -19,3 +22,4 @@ if ! printf '%s\n' "$out" | grep -q 'web-device-check is only for debug test wit
   exit 1
 fi
 echo "release guard: ok (web-device-check refuses the wasm profile)"
+exit "$fixture_status"

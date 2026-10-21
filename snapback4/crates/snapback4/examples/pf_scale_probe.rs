@@ -62,7 +62,7 @@ fn cache(engine: &Engine) -> Json {
         // a statement nor changes row data. Reset only the diagnostic counter.
         let code = unsafe {
             rusqlite::ffi::sqlite3_db_status(
-                engine.store().conn().handle(),
+                engine.store().test_support_conn().handle(),
                 op,
                 &mut current,
                 &mut high,
@@ -95,7 +95,7 @@ fn main() {
         if let Ok(value) = std::env::var(var) {
             engine
                 .store()
-                .conn()
+                .test_support_conn()
                 .pragma_update(None, pragma, value.parse::<i64>().unwrap() * sign)
                 .unwrap();
         }
@@ -113,13 +113,13 @@ fn main() {
             name.into(),
             engine
                 .store()
-                .conn()
+                .test_support_conn()
                 .query_row(&format!("PRAGMA {name}"), [], |r| r.get(0))
                 .unwrap(),
         )
     })
     .collect();
-    engine.store().conn().trace_v2(
+    engine.store().test_support_conn().trace_v2(
         TraceEventCodes::SQLITE_TRACE_PROFILE | TraceEventCodes::SQLITE_TRACE_STMT,
         Some(trace),
     );
@@ -165,7 +165,7 @@ fn main() {
                 .map(|s| {
                     let mut stmt = engine
                         .store()
-                        .conn()
+                        .test_support_conn()
                         .prepare(&format!("EXPLAIN QUERY PLAN {s}"))
                         .unwrap();
                     for i in 1..=stmt.parameter_count() {

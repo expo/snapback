@@ -268,7 +268,7 @@ impl Project {
     pub fn open_engine_with_busy_timeout(&self, bound: &Bound, timeout: std::time::Duration, now: i64) -> Result<Engine, RuntimeError> {
         snapback4_core::private_fs::directory(&self.data_dir()).map_err(|e| RuntimeError::Store(e.to_string()))?;
         let store = Store::open_with_busy_timeout(&self.store_path(), timeout)?;
-        if store.meta("release")?.is_some() {
+        if store.release_value()?.is_some() {
             return Err(RuntimeError::Generation("this store belongs to a deployment; use `deploy` to activate source and `serve` to run it".into()));
         }
         Engine::new_at(store, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), now)
@@ -279,7 +279,7 @@ impl Project {
     /// source is permission to activate another backend during startup.
     // @ref LLP 3000.000#the-atomic-object-to-define — startup attaches to the persisted activation
     pub fn open_release_engine(&self, store: Store, bound: &Bound, release: u64, now: i64) -> Result<Engine, RuntimeError> {
-        if store.meta("release")?.is_none() {
+        if store.release_value()?.is_none() {
             return Err(RuntimeError::Generation("this deployment predates stored release activations; deploy its source once before serving".into()));
         }
         let engine = Engine::attach_release_at(store, release, now)?;

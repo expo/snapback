@@ -155,7 +155,7 @@ fn stored_digest(store: &Store) -> Vec<u8> {
     let mut digest = Sha256::new();
     // Uncapped schemas deliberately have no occupancy table. Hash its presence
     // as well as its contents so refused adoption cannot create it unnoticed.
-    let has_caps: bool = store.conn().query_row(
+    let has_caps: bool = store.test_support_conn().query_row(
         "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_cap_counts')", [], |row| row.get(0)).unwrap();
     digest.update([u8::from(has_caps)]);
     let mut queries = vec!["SELECT key,value FROM _meta ORDER BY key", "SELECT name,num FROM _catalog ORDER BY name",
@@ -163,7 +163,7 @@ fn stored_digest(store: &Store) -> Vec<u8> {
     ];
     if has_caps { queries.push("SELECT t,k,n FROM _cap_counts ORDER BY t,k"); }
     for query in queries {
-        let mut statement = store.conn().prepare(query).unwrap();
+        let mut statement = store.test_support_conn().prepare(query).unwrap();
         let columns = statement.column_count();
         let mut rows = statement.query([]).unwrap();
         while let Some(row) = rows.next().unwrap() {

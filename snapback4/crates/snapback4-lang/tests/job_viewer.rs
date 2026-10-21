@@ -146,8 +146,8 @@ fn over_budget_recipient_parks_without_partial_effect_or_key() {
     assert!(run.error.as_deref().unwrap().contains("E_BOUND"), "{run:?}");
     assert_eq!(run.chunk_size, 1);
     assert!(e.effects(None, 100).unwrap().is_empty());
-    let keys: i64 = e.store().conn().query_row("SELECT count(*) FROM sqlite_master WHERE name = '_effect_keys'", [], |r| r.get(0)).unwrap();
-    if keys != 0 { assert_eq!(e.store().conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get::<_, i64>(0)).unwrap(), 0); }
+    let keys: i64 = e.store().test_support_conn().query_row("SELECT count(*) FROM sqlite_master WHERE name = '_effect_keys'", [], |r| r.get(0)).unwrap();
+    if keys != 0 { assert_eq!(e.store().test_support_conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get::<_, i64>(0)).unwrap(), 0); }
 }
 
 #[test]

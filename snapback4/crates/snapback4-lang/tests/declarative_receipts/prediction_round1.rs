@@ -214,7 +214,7 @@ fn upgrade<S: DeviceStore>(mut d: Device<S>, e: &mut Engine, b: Backend) {
     assert_eq!(original.len(), 1);
     assert!(!original[0].predictable);
     let identity = d.store().meta("device:store_id").unwrap();
-    assert_eq!(identity, e.store().meta("store_id").unwrap());
+    assert_eq!(identity, e.store().store_identity().unwrap());
     assert!(identity.is_some());
     assert_eq!(debt(&mut d), json!([[1,1]]));
     d.adopt(b).unwrap();

@@ -15,27 +15,27 @@ fn write(store: &mut Store, schema: &Schema, n: u64, commit: bool) {
     if commit { tx.commit().unwrap(); } else { tx.rollback().unwrap(); }
 }
 fn stats(store: &Store) -> (i64,i64,i64) {
-    store.conn().query_row("SELECT count(*), coalesce(sum(length(footprint)),0), coalesce((SELECT sum(pgsize) FROM dbstat WHERE name='_change_evidence'),0) FROM _change_evidence",[],|r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap()
+    store.test_support_conn().query_row("SELECT count(*), coalesce(sum(length(footprint)),0), coalesce((SELECT sum(pgsize) FROM dbstat WHERE name='_change_evidence'),0) FROM _change_evidence",[],|r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).unwrap()
 }
 
 fn schema_version(store: &Store) -> i64 {
-    store.conn().query_row("PRAGMA schema_version", [], |row| row.get(0)).unwrap()
+    store.test_support_conn().query_row("PRAGMA schema_version", [], |row| row.get(0)).unwrap()
 }
 
 fn evidence_exists(store: &Store) -> bool {
-    store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_change_evidence')", [], |row| row.get(0)).unwrap()
+    store.test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_change_evidence')", [], |row| row.get(0)).unwrap()
 }
 
 fn check_commits_reuse_plans(store: &mut Store, schema: &Schema) {
     use rusqlite::StatementStatus::{RePrepare, Run};
     let version = schema_version(store);
     let sql = "SELECT count(*) FROM r";
-    store.conn().prepare_cached(sql).unwrap().query_row([], |row| row.get::<_, i64>(0)).unwrap();
+    store.test_support_conn().prepare_cached(sql).unwrap().query_row([], |row| row.get::<_, i64>(0)).unwrap();
     for n in 1..=1002 {
         // Include the first commit, the pruning boundary, and a rollback.
         write(store, schema, n, n != 1002);
         assert_eq!(schema_version(store), version, "commit {n} changed the SQLite schema");
-        let mut statement = store.conn().prepare_cached(sql).unwrap();
+        let mut statement = store.test_support_conn().prepare_cached(sql).unwrap();
         assert_eq!(statement.query_row([], |row| row.get::<_, i64>(0)).unwrap(), 1);
         assert_eq!(statement.get_status(RePrepare), 0, "commit {n} invalidated a cached statement");
         assert_eq!(statement.get_status(Run), n as i32 + 1, "the assertion must observe the same cached statement");
@@ -65,7 +65,7 @@ fn accepted_server_backend_migrates_evidence_before_commits() {
     store.install(&schema).unwrap();
     write(&mut store, &schema, 0, true);
     // Model the pre-RV layout without relying on a database artifact.
-    store.conn().execute_batch("DROP TABLE IF EXISTS _change_evidence").unwrap();
+    store.test_support_conn().execute_batch("DROP TABLE IF EXISTS _change_evidence").unwrap();
     let version = schema_version(&store);
     drop(store);
     let inspection = Store::open_read_only(&path).unwrap();
@@ -114,7 +114,7 @@ fn pruning_is_atomic_and_old_or_missing_intervals_widen() {
     write(&mut store,&schema,1002,true);
     assert!(store.preserved_between(&schema,1,2).is_empty());
     // A backend without summaries (including Postgres) cannot certify a commit.
-    store.conn().execute("DROP TABLE _change_evidence",[]).unwrap();
+    store.test_support_conn().execute("DROP TABLE _change_evidence",[]).unwrap();
     assert!(store.preserved_between(&schema,1001,1002).is_empty());
 }
 

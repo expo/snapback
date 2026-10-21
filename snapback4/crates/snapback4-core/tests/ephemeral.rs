@@ -63,7 +63,7 @@ fn page(e: &mut Engine, who: &str, now: i64) -> snapback4_core::QueryOutcome {
 }
 fn limits(e: &mut Engine, l: Limits) {
     let h = Arc::new(Hub::with_limits(
-        e.store().meta("store_id").unwrap().unwrap(),
+        e.store().test_support_meta("store_id").unwrap().unwrap(),
         e.generation(),
         e.schema(),
         l,
@@ -75,7 +75,7 @@ fn counts(e: &Engine) -> Vec<i64> {
         .iter()
         .map(|t| {
             e.store()
-                .conn()
+                .test_support_conn()
                 .query_row(&format!("SELECT count(*) FROM {t}"), [], |r| r.get(0))
                 .unwrap()
         })
@@ -343,7 +343,7 @@ fn durable_to_ephemeral_activation_deletes_rows_and_indexes() {
         .unwrap();
     let before = e
         .store()
-        .conn()
+        .test_support_conn()
         .query_row(
             "SELECT count(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name='typing')",
             [],
@@ -357,7 +357,7 @@ fn durable_to_ephemeral_activation_deletes_rows_and_indexes() {
     let sql = "SELECT (SELECT count(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name='typing')) + (SELECT count(*) FROM i WHERE ti IN (SELECT num FROM _catalog WHERE name LIKE 'typing.%'))";
     assert_eq!(
         e.store()
-            .conn()
+            .test_support_conn()
             .query_row(sql, [], |r| r.get::<_, i64>(0))
             .unwrap(),
         0
@@ -399,7 +399,7 @@ fn expired_points_skip_rules_and_durable_queries_do_not_lock_the_hub() {
     let mut e = engine(&source);
     seed(&mut e);
     e.mutate_ephemeral("setTyping", ctx("alice", 1000, &args("r"))).unwrap();
-    e.store().conn().execute("UPDATE r SET data = 'invalid witness' WHERE t = (SELECT num FROM _catalog WHERE name = 'members')", []).unwrap();
+    e.store().test_support_conn().execute("UPDATE r SET data = 'invalid witness' WHERE t = (SELECT num FROM _catalog WHERE name = 'members')", []).unwrap();
     assert!(e.query("typingOne", ctx("bob", 4999, &[("roomId", id("r")), ("who", id("alice"))])).is_err());
     let expired = e.query("typingOne", ctx("bob", 5000, &[("roomId", id("r")), ("who", id("alice"))])).unwrap();
     assert_eq!(expired.data, Value::Null);

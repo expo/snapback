@@ -311,7 +311,7 @@ mod column_tests {
             private: {"deleted":false,"population":true,"columns":[]},
             "posts": {"deleted":false,"population":false,"columns":["at"]}
         }});
-        tx.conn().execute("INSERT OR REPLACE INTO _change_evidence(seq, footprint) VALUES (?1, ?2)", rusqlite::params![(after + 1) as i64, proof.to_string()]).unwrap();
+        tx.test_support_conn().execute("INSERT OR REPLACE INTO _change_evidence(seq, footprint) VALUES (?1, ?2)", rusqlite::params![(after + 1) as i64, proof.to_string()]).unwrap();
         tx.commit().unwrap();
         let changes = super::settlement_changes(engine.store().footprint_between(after, after + 1), engine.schema(), after, after + 1);
         assert_eq!(changes, serde_json::json!({"after":after,"through":after+1,"writes":{"posts":["at","likeCount"]}}));
@@ -328,9 +328,9 @@ mod column_tests {
         assert!(!engine.schema().visible(&private));
         let from = engine.seq().unwrap(); // Initial column activation has its own parent barrier.
         assert_eq!(super::check(&mut engine, 0).unwrap().2, ["posts"]);
-        let touched: String = engine.store().conn().query_row("SELECT touched FROM _commits WHERE seq=?1", [from as i64], |r| r.get(0)).unwrap();
+        let touched: String = engine.store().test_support_conn().query_row("SELECT touched FROM _commits WHERE seq=?1", [from as i64], |r| r.get(0)).unwrap();
         assert_eq!(serde_json::from_str::<Vec<String>>(&touched).unwrap(), ["posts"]);
-        let events: i64 = engine.store().conn().query_row("SELECT count(*) FROM _log WHERE seq=?1", [from as i64], |r| r.get(0)).unwrap();
+        let events: i64 = engine.store().test_support_conn().query_row("SELECT count(*) FROM _log WHERE seq=?1", [from as i64], |r| r.get(0)).unwrap();
         assert_eq!(events, 0);
         let tx = engine.store_mut().transaction().unwrap();
         tx.record_commit(from + 1, 1000, "legacy", "alice", "mutation", &[private, "likes".into()], 1).unwrap();

@@ -18,11 +18,11 @@ fn server(path: &Path) -> (Engine, Backend) {
     let (_, mut backend) = common::compile(SOURCE);
     let mut engine = Engine::new(Store::open(path).unwrap(), backend.schema.clone(), backend.programs.clone()).unwrap();
     backend.generation = engine.generation();
-    assert_eq!(engine.store().conn().query_row("PRAGMA synchronous", [], |r| r.get::<_, i64>(0)).unwrap(), 2, "all disk commits must use FULL");
+    assert_eq!(engine.store().test_support_conn().query_row("PRAGMA synchronous", [], |r| r.get::<_, i64>(0)).unwrap(), 2, "all disk commits must use FULL");
     for n in 0..10 { write(&mut engine, "follow", &format!("reader{n}"), &[("actor", id("author"))]); }
     write(&mut engine, "post", "author", &[("postId", id("event")), ("parentId", Value::Null)]);
     // Freeze the database base; every subsequent write stays in the WAL.
-    engine.store().conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA wal_autocheckpoint=0;").unwrap();
+    engine.store().test_support_conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA wal_autocheckpoint=0;").unwrap();
     (engine, backend)
 }
 
@@ -33,7 +33,7 @@ fn image(source: &Path, target: &Path, wal: &[u8]) {
 
 fn page(engine: &mut Engine, from: u64) -> snapback4_device::device::StreamPage {
     let mut page = stream_page(engine, "reader0", from);
-    page.store_id = engine.store().meta("store_id").unwrap();
+    page.store_id = engine.store().store_identity().unwrap();
     page
 }
 
@@ -61,7 +61,7 @@ fn delivery_wal_cuts_recover_copies_cursor_and_log_together() {
     let before = engine.seq().unwrap();
     let mut device = Memory::new().open("reader0", Some(backend.clone())).unwrap();
     for (i, mut page) in snapshot_pages(&mut engine, "reader0", 1000).into_iter().enumerate() {
-        page.store_id = engine.store().meta("store_id").unwrap();
+        page.store_id = engine.store().store_identity().unwrap();
         device.apply(&page, i == 0).unwrap();
     }
     engine.run_timeline_chunk_for(200, Duration::ZERO).unwrap().unwrap();
@@ -97,11 +97,11 @@ fn normal_replay_repairs_copies_but_cannot_repair_an_observed_watermark() {
     let before = engine.seq().unwrap();
     let mut device = Memory::new().open("reader0", Some(backend.clone())).unwrap();
     for (i, mut page) in snapshot_pages(&mut engine, "reader0", 1000).into_iter().enumerate() {
-        page.store_id = engine.store().meta("store_id").unwrap();
+        page.store_id = engine.store().store_identity().unwrap();
         device.apply(&page, i == 0).unwrap();
     }
     // This is an explicit rejected policy, not the production configuration.
-    engine.store().conn().execute_batch("PRAGMA synchronous=NORMAL;").unwrap();
+    engine.store().test_support_conn().execute_batch("PRAGMA synchronous=NORMAL;").unwrap();
     engine.run_timeline_chunk_for(200, Duration::ZERO).unwrap().unwrap();
     device.apply(&page(&mut engine, before), false).unwrap();
     let observed = engine.seq().unwrap();

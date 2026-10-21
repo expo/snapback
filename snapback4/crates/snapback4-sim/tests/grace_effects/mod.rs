@@ -72,7 +72,7 @@ fn w15a_fifty_members_write_one_effect_and_dependency_per_recipient() {
         assert!(matches!(sent.state, WriteState::Sent { .. }), "{sent:?}");
         let effects = engine.effects(None, 100).unwrap();
         let tx = engine.store_mut().read_transaction().unwrap();
-        let dependencies: i64 = tx.conn().query_row("SELECT count(*) FROM _effect_presence", [], |row| row.get(0)).unwrap();
+        let dependencies: i64 = tx.test_support_conn().query_row("SELECT count(*) FROM _effect_presence", [], |row| row.get(0)).unwrap();
         tx.rollback().unwrap();
         println!("w15a cost: members=50 held={held} effects={} dependencies={dependencies} meter={:?}", effects.len(), sent.metered);
         assert_eq!((effects.len(), dependencies), (49, 49));

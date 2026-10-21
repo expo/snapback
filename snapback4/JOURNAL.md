@@ -99744,3 +99744,172 @@ passes on the Mac without weakening its concrete-refutation assertions. This
 is implementation ordering within LLP 3000.036.004 §§13.7/14.3, not a stronger
 reachability or universal-security claim. Full post-repair validation is
 recorded in the integration report. No push or publication.
+## 2026-10-20 — P0-S8, first commit: named host metadata families
+
+Host callers and the two asset-upload identity reads now use S6's typed
+metadata methods. Replay uses named jobs-family setters for schedule boundary
+and shape, preserving their statement order and transaction. Doctor keeps the
+same malformed-boundary parsing. No new key, value or error policy. The
+binary builds; the complete required checks follow after boundary closure.
+The local llp-orient links are broken, so the scoped context was assembled
+from the Snapback 4 rules, root and store-port LLPs and S6/S7 records directly.
+No sub-agents, other worktree, remote commands or push.
+
+## 2026-10-20 — P0-S8, second commit: native device adapter custody
+
+Native DeviceStore/DeviceTx now delegate to named device operations in
+`store/device.rs`; side-table SQL, metadata persistence and residency access
+live in the core SQLite adapter. The independent device contract keeps its
+metadata namespace and callbacks. Residency installation, temporary caches,
+bulk replacement and metering move verbatim, together with the interruption
+and competing-installer test. The SQL and transaction boundaries are retained.
+The binary builds. This move allows the next commit to privatize raw handles
+without exposing a production connection accessor to the device or host.
+
+## 2026-10-20 — P0-S8, third commit: explicit fixture access
+
+Raw fixture, corruption and lock probes now call the explicitly named
+`test_support_conn`, `test_support_meta` and `test_support_set_meta` methods.
+They exist only with the core's `test-support` feature, enabled by consumer
+dev-dependencies; examples declare that feature requirement. Integration
+fixtures in the sibling workspace crates migrate too, keeping the workspace
+buildable when generic access is privatized. The ratchet still counts the
+renamed raw connection calls and excludes only bare driver Error types (never
+constructors or connection paths). The ordinary binary build passes without
+the feature; final suite and privacy probes follow with boundary closure.
+
+## 2026-10-21 — P0-S8: generic access closed, production ratchet empty
+
+Generic Store/Tx connection and metadata access is crate-private. Named S6
+metadata families serve host callers and the upload engine; replay retains its
+jobs-family transaction and statement order. Worker sidecar placement and
+admission contention settings use named operations. The independent native
+device metadata/side-table/residency contract lives inside the SQLite adapter,
+and the standalone evaluator uses typed physical row/snapshot operations.
+Raw fixtures use explicitly named hooks behind the dev-dependency
+`test-support` feature. No normal dependency enables that feature. The
+private-filesystem lock witness moves beside the adapter, preserving its
+private helper access and raw Python script.
+
+Inspection's maintained-private error classification and duplicate output-name
+checks now run as shared policy at the original preparation points, retaining
+authorizer precedence and boolean-inference order. View generation and host
+catalog filtering share `internal()`. Missing clock-record fields return
+storage errors instead of panicking. SQL, keys, values, transaction boundaries,
+refusal messages and ordinary behavior are retained; no Postgres adapter is
+changed. The governing store-port LLP and the S8 report record the closure.
+
+The production ratchet allowance falls from 11 to zero; test allowances stay
+at 95 (combined 106 to 95). Four production allowances were already stale on
+the exact base; its actual seven source matches are now zero. Regeneration
+and the normal ratchet run pass. The final ordinary binary build and complete
+core/host suites pass, including the large initializer/residency case and web
+witness. Workspace test compilation with the evaluator's Postgres feature
+passes; 540 device tests across seven affected targets and the SQLite
+snapshot/restore regression pass. The final ordinary core artifact has no
+`test-support`: an external compile probe gets six private-method errors for
+generic access and six absent-method errors for fixture hooks.
+
+The required Clippy command reproduces `while_immutable_condition` in
+`engine/read.rs:780` and `never_loop` in `engine/row_views.rs:1010` on the
+untouched exact base `ce6c0d87daf0f8ac6ca136e46cb19932fcee6daa` in a second
+local detached worktree. Allowing those two lints only on the command line
+exposes the same three inherited `not_unsafe_ptr_arg_deref` failures at device
+`ffi.rs:100,112,120`. A full warning-only comparison passes on both trees;
+all 1,458 diagnostic signatures/counts match, with no new warnings. No source
+lint setting changes. Fresh-tree locked dependencies, wasm build (727,113
+bytes gzip within the unchanged 727,513 budget) and JavaScript package build
+supply the host suite's prerequisites. All 505 original scoped SQL literal
+spellings remain present. No functional uncertainty remains, no sub-agents or
+remote commands were used, `scripts/test.sh` was not run and nothing was pushed.
+
+## 2026-10-21 — P0-S8 fix round 1: raw-access enforcement and savepoint refusal
+
+Rebased the four S8 commits onto main-mirror `8cc2a5c737`. RFC and JOURNAL
+conflicts retain both histories and one RFC Revised line. The jobs conflict
+keeps main's current mutable contract and SQLite inspection; replay setters
+use its `write_schedule_shape`/`write_schedule_boundary` methods in the same
+transaction and order. The production allowance conflict takes per-file
+minimums (zero). Main's Postgres SQL and §9.1 records are retained.
+
+The public device methods now name `snapback4-device::sqlite` as their
+intended caller. The required lexical ratchet covers their dot, UFCS and
+method-reference spellings outside the device crate and adapters, plus the
+other arbitrary metadata-map installation variants, physical replacement
+loader, raw fixture hooks and generic DeviceStore/DeviceTx trait spellings.
+Raw-method scanning includes all workspace crate source trees. A source
+surface test pins every public device/fixture method to this matcher, and
+both production sites and their allowance are unconditionally zero, even
+while regenerating test counts. The expanded matcher counts eleven existing
+fixture lines: tests 95 → 106, production 0 → 0; no production exception.
+
+The core refuses `test-support` whenever debug assertions are disabled.
+Scripts and CI have no existing release-test path requiring an exception.
+The exact host release-feature invocation is pinned by a negative script
+that requires the core's guard diagnostic; the existing release guard runs
+it before the web-policy check and reports both failures when applicable.
+Savepoint, release and rollback-to identifiers must match
+`[a-z_][a-z0-9_]*` before SQL or transaction state changes. Regression cases
+refuse injection-shaped names and preserve metadata, the held savepoint and
+the enclosing writer. Valid ASCII spellings retain normal behavior.
+
+The complete core run passes 917 tests across 45 targets (five existing
+ignores), including both new savepoint regressions and all 17 doctests.
+The complete host `--no-fail-fast` run passes 1,376 tests across 69 targets
+(15 existing ignores). All four supplied baseline cases pass in this run,
+including the resolver SIGINT timing fixture; there are no other failures.
+
+The complete device run passes 1,569 tests across 103 targets (four existing
+ignores), including all paired-world replay, durable admission/outbox and
+sequence matrices on memory and SQLite. The host release-feature negative
+check observes the required compile error and passes. Regeneration and the
+final normal store-port/committer ratchet runs pass: seven plus three tests,
+zero store-port production sites and 106 test sites. The final shared lexer
+normalizes raw identifiers too, pinning escaped method calls and UFCS names.
+Explicit device calls inside consumer test modules remain production sites.
+
+The final ordinary binary build and root `ref-check --verbose` pass (564 LLP
+documents, zero errors or unchecked refs), as do whitespace and shell syntax
+checks. The RFC's single Revised line starts with this fix round; the lane
+report records conflict resolutions, all check results and log paths. The
+lowest observed free space is 28 GB. Every Cargo command used four jobs,
+disabled incremental compilation and the requested line-table debug settings;
+one Cargo command ran at a time. No Clippy or `scripts/test.sh` rerun, other
+worktree changes, git configuration changes, stash, push or publication.
+
+
+## 2026-10-21 — P0-S8: finish the rebase onto main mirror
+
+`land-s8` now contains the five lane commits through `714d073571`, replayed
+onto `7beb568132`. The lead's first-commit owner-path and token-clock choices
+remain. The remaining inspection conflicts combine main's retained schema,
+mode/flag behavior and retained-mode boolean inference with S8's shared error/
+column policy and single `internal()`. Both RFC conflicts preserve the union
+under one Revised line. The S8 report records each conflict and commit mapping.
+
+New NUL/action/HTTP fixtures use the debug-only raw hooks. Shared job cases
+seed named schedule fixtures; both adapters retain the original keys, values,
+statement order and separate writes. Owner, catalog and device upgrade
+witnesses use typed dev metadata, inspection provenance and schema markers.
+A new `SchemaHash` marker covers the server's existing schema-hash key.
+Main's shared authority accidentally depended on a SQLite-only NUL helper;
+the unchanged predicate now lives in authority and identity re-exports it.
+No Postgres family algorithm, SQL statement, NUL rule or committer facade
+is changed by this integration correction.
+
+Full suites passed: core **996 / 0 failed / 5 ignored** (45 targets), host
+**1,385 / 0 / 15** (57), device **1,573 / 0 / 4** (104). All three supplied
+baseline host cases and both supplied load-sensitive fixtures passed; none
+needed an isolated rerun. Core no-default and wasm device checks pass after
+the helper correction. Postgres-enabled workspace test compilation and affected
+authority/schedule/metadata/NUL/savepoint reruns pass. Both Cargo ratchets and
+no-raise regeneration pass: **0 production / 95 fixture store-port sites**,
+**49 committer sites**. Both release/wasm negative guards pass. The last Cargo
+command is an ordinary binary build; its core artifact has no test-support,
+and an external probe observes six private generic methods and six absent
+fixture hooks. Final root corpus validation is recorded in the S8 report.
+
+All Cargo work uses this worktree's own `snapback4/target`, six build jobs,
+no incremental compilation and line-tables-only dev/test debug. No push,
+stash, sub-agents or reviewer-worktree access. Detailed commands, results and
+scope are in `reports/20261020-p0-s8-store-port.md`.

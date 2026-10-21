@@ -130,7 +130,7 @@ fn report_noop_keeps_receipt_at_head_and_replays_before_body_lookup() {
     let counts = |e: &Engine| {
         ["_commits", "_log", "_outbox"].map(|table| {
             e.store()
-                .conn()
+                .test_support_conn()
                 .query_row(&format!("SELECT count(*) FROM {table}"), [], |r| {
                     r.get::<_, i64>(0)
                 })

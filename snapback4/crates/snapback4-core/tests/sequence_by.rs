@@ -175,7 +175,7 @@ fn store_counter_rollback_and_reset_are_atomic() {
     }
     // Reset is the existing explicit device/store installation transaction.
     store
-        .conn()
+        .test_support_conn()
         .execute_batch("CREATE TABLE _device_base (x); CREATE TABLE _device_snapshot (x);")
         .unwrap();
     store.install_device(&b.schema, &BTreeMap::new(), true).unwrap();
@@ -523,7 +523,7 @@ fn denied_sequence_targets_have_identical_refusals_and_meters() {
 fn sequence_table_is_lazy_and_its_creation_rolls_back() {
     let mut store = Store::memory().unwrap();
     let exists = |store: &Store| -> bool {
-        store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_sequences')", [], |r| r.get(0)).unwrap()
+        store.test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_sequences')", [], |r| r.get(0)).unwrap()
     };
     assert!(!exists(&store), "opening a store must not add sequence custody");
     store.install(&Default::default()).unwrap();
@@ -558,7 +558,7 @@ fn sequence_table_creation_inside_a_savepoint_can_be_rolled_back_and_reallocated
     tx.set_sequence("parents", "p", 7).unwrap();
     assert_eq!(tx.sequence_value("parents", "p").unwrap(), 7);
     tx.rollback_to("alloc").unwrap();
-    let exists: bool = tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_sequences')", [], |r| r.get(0)).unwrap();
+    let exists: bool = tx.test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_sequences')", [], |r| r.get(0)).unwrap();
     assert!(!exists, "savepoint rollback removes first allocation's DDL");
     assert_eq!(tx.sequence_value("parents", "p").unwrap(), 0);
     tx.set_sequence("parents", "p", 9).unwrap();

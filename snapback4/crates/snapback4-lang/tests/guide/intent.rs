@@ -118,7 +118,7 @@ fn published_digest_streams_past_the_old_limit_and_once_survives_reopen() {
     let page: StreamPage = serde_json::from_slice(&serde_json::to_vec(&sync_wire::SnapshotReply {
         now: 100, sent: Default::default(), acknowledged: engine.acknowledged("alice", &[], snapshot.watermark).unwrap(),
         acquisitions: snapshot.acquisitions, events: sync_wire::SyncEvents::Snapshot(snapshot.events),
-        generation: engine.generation(), store_id: engine.store().meta("store_id").unwrap().unwrap(),
+        generation: engine.generation(), store_id: engine.store().store_identity().unwrap().unwrap(),
         held: snapshot.held, more: false, next: None, after: None, snapshot: true, watermark: snapshot.watermark,
     }).unwrap()).unwrap();
     let backend = Backend { generation: engine.generation(), schema: engine.schema().public_projection(),

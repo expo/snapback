@@ -5,6 +5,7 @@ use crate::RuntimeError;
 
 #[derive(Clone, Copy)]
 pub enum SchemaMarker {
+    SchemaHash,
     LiveSumCandidates,
     MaintainedIds,
     CapCounts,

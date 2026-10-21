@@ -98,9 +98,9 @@ fn acquisition_crash_worker() {
     if std::env::var("NA_CRASH_TIER").unwrap() == "sqlite" {
         let mut d = snapback4_device::native::Device::open(&dir.join("store.sqlite"), Some(f.backend)).unwrap();
         let hook = cuts.clone();
-        d.store().conn().progress_handler(200, Some(move || { hook.tick(); false })).unwrap();
+        d.store().test_support_conn().progress_handler(200, Some(move || { hook.tick(); false })).unwrap();
         apply(&mut d, &f.new, |_| {});
-        d.store().conn().progress_handler(0, None::<fn() -> bool>).unwrap();
+        d.store().test_support_conn().progress_handler(0, None::<fn() -> bool>).unwrap();
     } else {
         let mut d = open_memory(dir, f.backend);
         apply(&mut d, &f.new, |d| save_memory(d, dir, &cuts));
@@ -208,7 +208,7 @@ fn random_process_kills_preserve_atomic_acquisition_on_both_stores() {
             child(&dir,tier,cut);
             if tier == "sqlite" {
                 let mut d = snapback4_device::native::Device::open(&dir.join("store.sqlite"),None).unwrap();
-                assert_eq!(d.store().conn().query_row("PRAGMA integrity_check",[],|r| r.get::<_,String>(0)).unwrap(),"ok");
+                assert_eq!(d.store().test_support_conn().query_row("PRAGMA integrity_check",[],|r| r.get::<_,String>(0)).unwrap(),"ok");
                 verify(&mut d,&f,&before,&expected);
                 drop(d);
                 assert_eq!(image(&mut snapback4_device::native::Device::open(&dir.join("store.sqlite"),None).unwrap()), expected);

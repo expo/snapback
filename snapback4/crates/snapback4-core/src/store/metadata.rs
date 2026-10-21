@@ -1,4 +1,4 @@
-//! SQLite metadata key ownership; generic access stays public for host migration.
+//! SQLite metadata key ownership for the typed server families.
 use super::*;
 use crate::metadata::{DevMetadata, MetadataReader, MetadataWriter, SchemaMarker};
 
@@ -19,6 +19,7 @@ fn worker_status_key(worker: Option<&str>) -> String {
 
 fn schema_key(marker: SchemaMarker) -> &'static str {
     match marker {
+        SchemaMarker::SchemaHash => "schema_hash",
         SchemaMarker::LiveSumCandidates => "live_sum_candidates",
         SchemaMarker::MaintainedIds => crate::schema::MAINTAINED_ID_META,
         SchemaMarker::CapCounts => "cap_counts_schema",
@@ -27,8 +28,8 @@ fn schema_key(marker: SchemaMarker) -> &'static str {
     }
 }
 
-// Public store/transaction methods let the host migrate independently, while
-// the access traits used by shared policy remain crate-private.
+// Public typed methods serve host callers; the access traits used by shared
+// policy remain crate-private. Generic metadata access is adapter-internal.
 macro_rules! metadata_reader {
     ($handle:ty; $($name:ident($($arg:ident: $kind:ty),*) => $key:expr;)*) => {
         impl MetadataReader for $handle {

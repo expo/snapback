@@ -553,12 +553,12 @@ fn check_without_a_store_and_additive_or_fitting_adoption_are_quiet() {
         assert!(parsed(&output).get("problems").is_none());
         assert!(!String::from_utf8_lossy(&output.stdout).contains("E_ADOPT"));
         assert!(output.stderr.is_empty());
-        assert_eq!(e.store().meta("generation").unwrap().as_deref(), Some("1"));
+        assert_eq!(e.store().test_support_meta("generation").unwrap().as_deref(), Some("1"));
         assert_eq!(e.store().rows("messages").unwrap(), before);
         assert_eq!(e.seq().unwrap(), seq);
     }
     let readonly = Store::open_read_only(&p.store()).unwrap();
-    assert!(readonly.set_meta("cu4-must-not-write", "1").is_err());
+    assert!(readonly.test_support_set_meta("cu4-must-not-write", "1").is_err());
 }
 
 #[test]
@@ -587,7 +587,7 @@ fn check_reports_all_narrowing_sites_in_text_and_json_without_adopting() {
     let text = String::from_utf8(output.stderr).unwrap();
     assert_eq!(text, format!("check: 1 problem\nschema.q:3:3 — E_ADOPT: {}\n  rewrite: at: time ? or at: time default <literal>; otherwise backfill existing rows before making the column required\n  guide: types\n\n",report["problems"][0]["message"].as_str().unwrap()));
     println!("{text}");
-    assert_eq!(e.store().meta("generation").unwrap().as_deref(), Some("1"));
+    assert_eq!(e.store().test_support_meta("generation").unwrap().as_deref(), Some("1"));
     assert_eq!(e.store().rows("messages").unwrap().len(), 3);
 }
 
@@ -743,7 +743,7 @@ fn check_preserves_database_and_wal_bytes_with_live_and_stopped_dev() {
     // Make a durable WAL frame while dev holds the store, with no background writes.
     {
         let store = Store::open(&p.store()).unwrap();
-        store.set_meta("wal-readonly-control", "1").unwrap();
+        store.test_support_set_meta("wal-readonly-control", "1").unwrap();
     }
     for state in ["live", "stopped", "stopped-without-shm"] {
         if state == "stopped" { dev.0.kill().unwrap(); dev.0.wait().unwrap(); }
@@ -1026,11 +1026,11 @@ fn w8r1b_release_from_a_used_dev_store_never_returns_read_meters() {
     assert_eq!(dev["data"][0]["body"], "from dev");
     assert!(dev["meter"].is_object(), "{dev}");
     drop(host);
-    let identity = Store::open_read_only(&p.store()).unwrap().meta("store_id").unwrap();
+    let identity = Store::open_read_only(&p.store()).unwrap().test_support_meta("store_id").unwrap();
     let release = p.0.join(".snapback4");
     let deployed = p.run(&["deploy", release.to_str().unwrap()]);
     assert!(deployed.status.success(), "{deployed:?}");
-    assert_eq!(Store::open_read_only(&p.store()).unwrap().meta("store_id").unwrap(), identity);
+    assert_eq!(Store::open_read_only(&p.store()).unwrap().test_support_meta("store_id").unwrap(), identity);
     let log = p.0.join("release.log");
     let mut child = Command::new(BIN).current_dir(&p.0).args(["serve", release.to_str().unwrap(), "--port", "0"])
         .stdout(std::process::Stdio::piped()).stderr(fs::File::create(&log).unwrap()).spawn().unwrap();

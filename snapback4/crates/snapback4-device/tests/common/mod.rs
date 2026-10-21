@@ -209,7 +209,7 @@ impl Host for Sqlite {
     }
     fn patch_meta(&mut self, name: &str, changes: &[(&str, Option<String>)]) {
         let store = snapback4_core::store::Store::open(&self.path(name)).unwrap();
-        let conn = store.conn();
+        let conn = store.test_support_conn();
         for (key, value) in changes {
             if let Some(value) = value {
                 conn.execute(
@@ -300,7 +300,7 @@ impl BoundaryMetadata for snapback4_core::store::Store {
         self.rows(table).unwrap()
     }
     fn boundary_entries(&self) -> Vec<(String, String)> {
-        self.conn().prepare("SELECT key, value FROM _meta WHERE key LIKE 'device:acquisition-boundaries:%' ORDER BY key").unwrap()
+        self.test_support_conn().prepare("SELECT key, value FROM _meta WHERE key LIKE 'device:acquisition-boundaries:%' ORDER BY key").unwrap()
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().collect::<Result<_, _>>().unwrap()
     }
 }

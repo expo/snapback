@@ -68,8 +68,8 @@ pub(super) fn open(project: &Project, owner: &crate::store_owner::Owner, bound: 
                 if started.elapsed() >= WAIT && let Some(reason) = last.take() {
                     return Err(Error::Busy { operation: operation.into(), elapsed: started.elapsed(), reason });
                 }
-                engine.store().conn().busy_timeout(Duration::from_secs(5))
-                    .map_err(|error| Error::Store(error.into()))?;
+                engine.store().set_busy_timeout(Duration::from_secs(5))
+                    .map_err(Error::Store)?;
                 if last.is_some() {
                     eprintln!("snapback4 run {operation}: open/adoption ready after {} ms; using generation {}", started.elapsed().as_millis(), engine.generation());
                 }

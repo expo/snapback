@@ -5,6 +5,47 @@ use snapback4_core::schema::{ColumnDefault, row_image};
 use snapback4_core::value::{Value, object};
 
 #[test]
+fn savepoint_controls_refuse_injection_without_changing_the_transaction() {
+    for command in ["savepoint", "release", "rollback_to"] {
+        let mut store = snapback4_core::Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        tx.test_support_set_meta("release", "original").unwrap();
+        tx.savepoint("held").unwrap();
+        for name in ["", "Upper", "1digit", "with space", "with-dash", "é", "held\0", "held--",
+            "held; UPDATE _meta SET value='999' WHERE key='release'", "held\"; DROP TABLE _meta; --"] {
+            let result = match command {
+                "savepoint" => tx.savepoint(name),
+                "release" => tx.release(name),
+                _ => tx.rollback_to(name),
+            };
+            let error = result.unwrap_err();
+            assert!(matches!(error, snapback4_core::RuntimeError::Store(_)), "{command}({name:?}): {error}");
+            assert!(error.to_string().contains("invalid savepoint name"));
+            assert_eq!(tx.test_support_meta("release").unwrap().as_deref(), Some("original"));
+        }
+        // All refusals leave both the held savepoint and its enclosing writer usable.
+        tx.test_support_set_meta("release", "temporary").unwrap();
+        tx.rollback_to("held").unwrap();
+        assert_eq!(tx.test_support_meta("release").unwrap().as_deref(), Some("original"));
+        tx.commit().unwrap();
+        assert_eq!(store.test_support_meta("release").unwrap().as_deref(), Some("original"));
+    }
+}
+
+#[test]
+fn savepoint_controls_accept_lowercase_ascii_identifiers() {
+    let mut store = snapback4_core::Store::memory().unwrap();
+    let tx = store.transaction().unwrap();
+    for name in ["a", "_", "_0", "savepoint_123", "abcdefghijklmnopqrstuvwxyz0123456789_"] {
+        tx.savepoint(name).unwrap();
+        tx.release(name).unwrap();
+        tx.savepoint(name).unwrap();
+        tx.rollback_to(name).unwrap();
+    }
+    tx.commit().unwrap();
+}
+
+#[test]
 fn memory_rows_counts_only_changed_index_entries() {
     let schema = common::schema();
     let table = schema.tables["writes"].clone();
@@ -119,9 +160,9 @@ fn adoption_names_legacy_index_count_and_rewrites_can_shrink_or_delete() {
     let row = |n| object([("id", Value::Id("r".into())), ("bucket", Value::Int(1)), ("body", Value::String("x".repeat(n)))]);
     let old = row(6000);
     // Reproduce the old SQLite layout, which admitted 6,000-byte keys.
-    store.conn().execute("INSERT INTO r SELECT num, 'r', ?1 FROM _catalog WHERE name='writes'", [canonical_json(&old)]).unwrap();
+    store.test_support_conn().execute("INSERT INTO r SELECT num, 'r', ?1 FROM _catalog WHERE name='writes'", [canonical_json(&old)]).unwrap();
     for (name, index) in &table.indexes {
-        store.conn().execute("INSERT INTO i SELECT num, ?1, 'r' FROM _catalog WHERE name=?2", rusqlite::params![index_key(index, &old, "r"), format!("writes.{name}")]).unwrap();
+        store.test_support_conn().execute("INSERT INTO i SELECT num, ?1, 'r' FROM _catalog WHERE name=?2", rusqlite::params![index_key(index, &old, "r"), format!("writes.{name}")]).unwrap();
     }
     let err = store.install(&schema).unwrap_err();
     assert_eq!(err.code(), "E_INDEX_KEY_BYTES");
@@ -168,17 +209,17 @@ fn successful_activation_drops_the_retired_row_log_index() {
     let dir = std::env::temp_dir().join(format!("snapback4-retired-log-index-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default()).unwrap()));
     let path = dir.join("store.sqlite");
     let store = Store::open(&path).unwrap();
-    store.conn().execute_batch("CREATE INDEX _log_row_seq_kind ON _log(t, id, seq, kind);").unwrap(); drop(store);
+    store.test_support_conn().execute_batch("CREATE INDEX _log_row_seq_kind ON _log(t, id, seq, kind);").unwrap(); drop(store);
     for attempt in 0..2 {
         let mut store = Store::open(&path).unwrap();
-        let before: bool = store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_log_row_seq_kind')", [], |row| row.get(0)).unwrap();
+        let before: bool = store.test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_log_row_seq_kind')", [], |row| row.get(0)).unwrap();
         assert_eq!(before, attempt == 0, "low-level open must not run activation upgrades");
         store.install(&snapback4_core::schema::Schema::default()).unwrap();
-        let exists: bool = store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_log_row_seq_kind')", [], |row| row.get(0)).unwrap();
+        let exists: bool = store.test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name = '_log_row_seq_kind')", [], |row| row.get(0)).unwrap();
         assert!(!exists);
-        let tx = store.conn();
+        let tx = store.test_support_conn();
         tx.execute("INSERT OR REPLACE INTO _meta VALUES ('w13k', 'usable')", []).unwrap();
-        assert_eq!(store.meta("w13k").unwrap().as_deref(), Some("usable"));
+        assert_eq!(store.test_support_meta("w13k").unwrap().as_deref(), Some("usable"));
     }
     std::fs::remove_dir_all(dir).unwrap();
 }

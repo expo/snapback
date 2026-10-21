@@ -31,15 +31,18 @@ impl Store {
     /// A device can discard an obsolete partition while atomically caching
     /// its replacement backend and reset watermark. It never migrates rows
     /// whose authority belongs to a previous server generation.
+    /// Intended caller: `snapback4-device::sqlite`.
     pub fn install_device(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool) -> Result<(), RuntimeError> {
         self.install_device_checked(schema, metadata, reset, &BTreeMap::new())
     }
 
+    /// Intended caller: `snapback4-device::sqlite`.
     pub fn install_device_checked(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
         self.install_device_checked_with(schema, metadata, reset, expected, |_| Ok(()))
     }
 
     /// Device-owned sidecar changes share the schema installation transaction.
+    /// Intended caller: `snapback4-device::sqlite`.
     pub fn install_device_checked_with(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, prepare: impl FnOnce(&Tx<'_>) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
         self.install_device_checked_with_finish(schema, metadata, reset, expected, prepare, |_| {
             Ok(())
@@ -47,6 +50,7 @@ impl Store {
     }
 
     /// Opening recovery and its final reads must finish before installation commits.
+    /// Intended caller: `snapback4-device::sqlite`.
     pub fn install_device_checked_with_finish<R>(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, prepare: impl FnOnce(&Tx<'_>) -> Result<(), RuntimeError>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>,
     ) -> Result<R, RuntimeError> {
         let mut result = None;

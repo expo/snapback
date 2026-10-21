@@ -284,6 +284,16 @@ impl Store {
     }
 }
 
+// Replay holds write schedule metadata in the host's existing transaction.
+impl Tx<'_> {
+    pub fn save_schedule_shape(&self, name: &str, shape: &str) -> Result<(), RuntimeError> {
+        JobTransaction::write_schedule_shape(self, name, shape)
+    }
+    pub fn save_schedule_boundary(&self, name: &str, boundary: i64) -> Result<(), RuntimeError> {
+        JobTransaction::write_schedule_boundary(self, name, boundary)
+    }
+}
+
 // The mutable contract can open a driver snapshot; SQLite's public inspection
 // remains available through a shared reference.
 impl JobStore for Store {

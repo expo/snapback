@@ -81,7 +81,7 @@ fn sqlite_reopen_upgrades_legacy_counts_without_changing_generation() {
     e.load([old]).unwrap();
     let generation = e.generation();
     let tx = e.store_mut().transaction().unwrap();
-    tx.conn().execute_batch("DROP TABLE _cap_counts; DELETE FROM _meta WHERE key = 'cap_counts_schema';").unwrap();
+    tx.test_support_conn().execute_batch("DROP TABLE _cap_counts; DELETE FROM _meta WHERE key = 'cap_counts_schema';").unwrap();
     tx.commit().unwrap();
     drop(e);
     let mut e = Engine::open_at(Store::open(&path).unwrap(), 100).unwrap();
@@ -181,12 +181,12 @@ fn refused_legacy_counter_upgrade_preserves_bytes_and_accepted_upgrade_runs_once
     store.install(&s).unwrap();
     let tx = store.transaction().unwrap();
     tx.put("messages", &s.tables["messages"], &row(&s, "old", "a", 1), None).unwrap();
-    tx.conn().execute_batch("DROP TABLE _cap_counts; DELETE FROM _meta WHERE key = 'cap_counts_schema';").unwrap();
+    tx.test_support_conn().execute_batch("DROP TABLE _cap_counts; DELETE FROM _meta WHERE key = 'cap_counts_schema';").unwrap();
     tx.commit().unwrap();
     drop(store);
     let before = std::fs::read(&path).unwrap();
     let mut store = Store::open(&path).unwrap();
-    assert!(store.meta("cap_counts_schema").unwrap().is_none());
+    assert!(store.test_support_meta("cap_counts_schema").unwrap().is_none());
     assert!(store.install_device_checked(&s, &BTreeMap::new(), false,
         &BTreeMap::from([("device:backend".into(), Some("obsolete capture".into()))])).is_err());
     drop(store);
@@ -195,7 +195,7 @@ fn refused_legacy_counter_upgrade_preserves_bytes_and_accepted_upgrade_runs_once
     store.install(&s).unwrap();
     let tx = store.transaction().unwrap();
     check(&tx, 1, 1, 0);
-    tx.conn().execute_batch("CREATE TRIGGER no_counter_rebuild BEFORE DELETE ON _cap_counts BEGIN SELECT RAISE(ABORT, 'counter rebuild repeated'); END;").unwrap();
+    tx.test_support_conn().execute_batch("CREATE TRIGGER no_counter_rebuild BEFORE DELETE ON _cap_counts BEGIN SELECT RAISE(ABORT, 'counter rebuild repeated'); END;").unwrap();
     tx.commit().unwrap();
     drop(store);
     let mut store = Store::open(&path).unwrap();

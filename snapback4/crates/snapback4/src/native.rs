@@ -412,7 +412,7 @@ pub fn install(engine: &mut Engine, project: &Project) -> Result<Option<Installe
     })?;
     if let Some(expected) = engine
         .store()
-        .meta("release_native_digest")
+        .release_native_digest()
         .map_err(|e| Problem {
             code: "E_NATIVE",
             message: e.to_string(),

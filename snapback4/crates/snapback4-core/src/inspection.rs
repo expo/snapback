@@ -32,3 +32,48 @@ pub struct CommitClockRecord {
     pub touched: Option<Vec<u8>>,
     pub length: Option<i64>,
 }
+
+/// Shared visibility policy for generated inspection views and catalog output.
+pub fn internal(name: &str) -> bool {
+    name.starts_with('_')
+        || matches!(name.to_ascii_lowercase().as_str(), "r" | "i")
+        || name.to_ascii_lowercase().starts_with("sqlite_")
+}
+
+/// Interpret an unclassified query failure above the physical adapter.
+pub fn query_error(schema: &crate::schema::Schema, message: String) -> (&'static str, String) {
+    // SQLite identifiers are case-insensitive, including diagnostic spellings.
+    let folded = message.to_ascii_lowercase();
+    if let Some(m) = schema
+        .maintains
+        .iter()
+        .find(|m| m.private.is_some() && folded.contains(&m.target.to_ascii_lowercase()))
+    {
+        (
+            "E_MAINTAINED_COLUMN_PRIVATE",
+            format!(
+                "{} is engine-maintained; read its parent column (guide maintains)",
+                m.label()
+            ),
+        )
+    } else {
+        ("E_INPUT", format!("SQL: {message}"))
+    }
+}
+
+/// Object rows must retain every output column at both preparation points.
+pub fn check_output_names(columns: &[String], object_rows: bool) -> InspectionResult<()> {
+    if object_rows {
+        let mut names = std::collections::BTreeSet::new();
+        if columns
+            .iter()
+            .any(|name| !names.insert(name.to_ascii_lowercase()))
+        {
+            return Err((
+                "E_INPUT",
+                "--json-objects needs unique output names; alias duplicate columns".into(),
+            ));
+        }
+    }
+    Ok(())
+}

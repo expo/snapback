@@ -50,8 +50,8 @@ impl Visitor<'_> for Name {
 
 fn projected(tx: &snapback4_core::store::Tx<'_>,prefix: &[Value],bounds: &rows::Bounds,limit: usize) -> Vec<(Value,Vec<u8>)> {
     let (lo,hi) = rows::scan_range(prefix,bounds,rows::Dir::Asc).unwrap();
-    let num = |name: &str| tx.conn().query_row("SELECT num FROM _catalog WHERE name = ?1",[name],|row|row.get::<_,i64>(0)).unwrap();
-    let mut statement = tx.conn().prepare_cached(SQL).unwrap();
+    let num = |name: &str| tx.test_support_conn().query_row("SELECT num FROM _catalog WHERE name = ?1",[name],|row|row.get::<_,i64>(0)).unwrap();
+    let mut statement = tx.test_support_conn().prepare_cached(SQL).unwrap();
     let mut cursor = statement.query(rusqlite::params![num("messages"),num("messages.byConversation"),lo,hi,limit as i64]).unwrap();
     let mut rows = Vec::new();
     while let Some(row) = cursor.next().unwrap() {

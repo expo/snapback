@@ -97,7 +97,7 @@ fn stage_actions_and_session_routes_revalidate_before_durable_admission() {
                 engine.request_action("work", "keep", Context::new("dev:alice", BTreeMap::new()).at(host.shared.now())).unwrap();
             }
             let mut engine = lock(&host.shared.engine);
-            let before: i64 = engine.store().conn().query_row("SELECT COUNT(*) FROM _requests", [], |row|row.get(0)).unwrap();
+            let before: i64 = engine.store().test_support_conn().query_row("SELECT COUNT(*) FROM _requests", [], |row|row.get(0)).unwrap();
             let address = host.address;
             let task = thread::spawn(move || {
                 let payload = r#"{"id":"new","args":{}}"#;
@@ -115,7 +115,7 @@ fn stage_actions_and_session_routes_revalidate_before_durable_admission() {
             assert_eq!(status(&response), 401, "password={password}, {path}: {response}");
             assert_eq!(body(&response)["denied"]["code"], "E_AUTH");
             let mut engine = lock(&host.shared.engine);
-            let after: i64 = engine.store().conn().query_row("SELECT COUNT(*) FROM _requests", [], |row|row.get(0)).unwrap();
+            let after: i64 = engine.store().test_support_conn().query_row("SELECT COUNT(*) FROM _requests", [], |row|row.get(0)).unwrap();
             assert_eq!(after, before, "refused admission creates no durable work");
             assert!(!engine.action_request_at("keep", "dev:alice", host.shared.now()).unwrap().cancelled);
             let claims = engine.claim_actions("service:worker", None, 10, 1000, 60, host.shared.now()).unwrap();
@@ -131,7 +131,7 @@ fn stage_asset_owner_transitions_recheck_at_the_writer() {
     for path in ["/assets/intent/abc/cancel", "/assets/intent/abc/declare", "/assets/intent/abc/finish", "/assets/intents"] {
         let host = Host::with_default_doors(source);
         let mut engine = lock(&host.shared.engine);
-        let store = engine.store().meta("store_id").unwrap().unwrap();
+        let store = engine.store().test_support_meta("store_id").unwrap().unwrap();
         let address = host.address;
         let task = thread::spawn(move || {
             let payload = if path.ends_with("declare") { json!({"digest":"a".repeat(64),"placement":{"op":"place","args":{},"argument":"photo"}}) }
@@ -149,7 +149,7 @@ fn stage_asset_owner_transitions_recheck_at_the_writer() {
         let response=task.join().unwrap();
         assert_eq!(body(&response)["denied"]["code"],"E_AUTH","{path}: {response}");
         let engine=lock(&host.shared.engine);
-        let intents:i64=engine.store().conn().query_row("SELECT COUNT(*) FROM _asset_intents",[],|row|row.get(0)).unwrap();
+        let intents:i64=engine.store().test_support_conn().query_row("SELECT COUNT(*) FROM _asset_intents",[],|row|row.get(0)).unwrap();
         assert_eq!(intents,0,"refused owner request cannot leave an intent or cancellation tombstone");
     }
 }

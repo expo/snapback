@@ -24,9 +24,9 @@ pub fn ahead(engine: &Engine, now: i64) -> Result<Option<String>, RuntimeError> 
         let at = record.at;
         if at <= now.saturating_add(TOLERANCE_MS) { return Ok(()); }
         lead = lead.max(at.saturating_sub(now));
-        let length = record.length.unwrap();
+        let length = record.length.ok_or_else(|| RuntimeError::Store("commit clock record is missing touched length".into()))?;
         if length > TABLE_BYTES as i64 { omitted = true; return Ok(()); }
-        let bytes = record.touched.unwrap();
+        let bytes = record.touched.ok_or_else(|| RuntimeError::Store("commit clock record is missing touched bytes".into()))?;
         match serde_json::from_slice::<Vec<String>>(&bytes) {
             Ok(names) => for name in names {
                 if tables.contains(&name) { continue; }
@@ -272,7 +272,7 @@ mod tests {
         assert_eq!(crossed_boundaries(&engine, &before, 60_000, false, true).unwrap().len(), 500);
         let fired = engine.fire_schedules(60_000).unwrap();
         let message = "🧪\n\\".repeat(30_000);
-        engine.store().conn().execute("UPDATE _jobs SET error = ?1 WHERE id = (SELECT id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 1)", [&message]).unwrap();
+        engine.store().test_support_conn().execute("UPDATE _jobs SET error = ?1 WHERE id = (SELECT id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 1)", [&message]).unwrap();
         let report = schedule_report(&engine, &before, &fired, 60_000, false, false, None);
         assert_eq!(report.len(), 500);
         assert!(report.iter().all(|s| s["run"]["errorTruncated"] == true));
@@ -331,9 +331,9 @@ mod tests {
         seed(&mut engine, "alpha", 200_000, 200_000);
         for n in 0..RECENT_COMMITS { seed(&mut engine, "beta", 100_000, 300_000 + n as i64); }
         // Deliberately unreadable images: metadata inspection must not deserialize them.
-        engine.store().conn().execute("UPDATE r SET data = 'not json'", []).unwrap();
+        engine.store().test_support_conn().execute("UPDATE r SET data = 'not json'", []).unwrap();
         assert!(ahead(&engine, 100_000).unwrap().is_none());
-        engine.store().conn().execute("UPDATE _commits SET at = 200000, touched = ?1 WHERE seq = (SELECT MAX(seq) FROM _commits)", ["x".repeat(TABLE_BYTES + 1)]).unwrap();
+        engine.store().test_support_conn().execute("UPDATE _commits SET at = 200000, touched = ?1 WHERE seq = (SELECT MAX(seq) FROM _commits)", ["x".repeat(TABLE_BYTES + 1)]).unwrap();
         let note = ahead(&engine, 100_000).unwrap().unwrap();
         assert!(note.contains("100000ms") && note.contains("additional tables omitted"), "{note}");
     }

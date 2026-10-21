@@ -255,7 +255,7 @@ fn leased_continuation_memory(terminal: bool) {
 #[cfg(feature = "native")]
 fn leased_continuation_sqlite(terminal: bool) {
     with_sqlite(|store| {
-        let path = std::path::PathBuf::from(store.conn().path().unwrap());
+        let path = std::path::PathBuf::from(store.test_support_conn().path().unwrap());
         let a = leased_continuation(store, terminal, |_, stream| {
             let mut b = Device::open(&path, None).unwrap();
             assert!(b.apply_publication(stream, false).unwrap().1);

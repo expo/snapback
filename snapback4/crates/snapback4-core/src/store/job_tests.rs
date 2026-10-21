@@ -58,10 +58,12 @@ impl Fixture for Sqlite {
             )
             .unwrap()
     }
-    fn set_meta(&mut self, key: &str, value: &str) {
-        let tx = self.0.transaction().unwrap();
-        tx.set_meta(key, value).unwrap();
-        tx.commit().unwrap();
+    fn seed_schedule_metadata(&mut self, legacy_prefix: bool) {
+        for &(key, value) in cases::schedule_metadata_seed(legacy_prefix) {
+            let tx = self.0.transaction().unwrap();
+            tx.set_meta(key, value).unwrap();
+            tx.commit().unwrap();
+        }
     }
 }
 

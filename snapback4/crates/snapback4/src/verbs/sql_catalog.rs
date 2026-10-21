@@ -180,7 +180,7 @@ mod tests {
         let table = engine.schema().tables["messages"].clone();
         engine.seed((0..10_025).map(|n| ("messages".into(), wire::row_from_json(&table,
             &json!({"id": format!("m{n}"), "body": format!("body {n}"), "owner": "alice"})).unwrap()))).unwrap();
-        let conn = engine.store().conn();
+        let conn = engine.store().test_support_conn();
         conn.execute_batch("PRAGMA query_only = ON; BEGIN DEFERRED").unwrap();
         let before = conn.total_changes();
         let (generation, schema) = active_schema(engine.store()).unwrap();
@@ -330,7 +330,7 @@ mod tests {
         assert!(projection.authored_indexes.0.is_none());
         assert!(serde_json::to_value(&projection).unwrap().get("authored_indexes").is_none());
         let engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
-        let conn = engine.store().conn();
+        let conn = engine.store().test_support_conn();
         let (_, schema) = active_schema(engine.store()).unwrap();
         let declared = inspect(engine.store(), &schema, Command::Describe("counts")).unwrap();
         assert!(declared[0]["indexes"].as_array().unwrap().iter().any(|i| i["name"] == "byValue" && i["generated"] == false));
@@ -391,7 +391,7 @@ mod tests {
         assert_eq!(engine.adopt(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap(), generation);
         drop(engine);
         let engine = Engine::open(Store::open(&path).unwrap()).unwrap();
-        let conn = engine.store().conn();
+        let conn = engine.store().test_support_conn();
         let (after, schema) = active_schema(engine.store()).unwrap();
         assert_eq!(after, generation);
         let bytes: String = conn.query_row("SELECT schema FROM _generations WHERE generation = ?1", [generation as i64], |r| r.get(0)).unwrap();
@@ -416,14 +416,14 @@ mod tests {
         let table = engine.schema().tables["messages"].clone();
         engine.seed((0..2).map(|n| ("messages".into(), wire::row_from_json(&table,
             &json!({"id":format!("m{n}"), "body":format!("b{n}"), "owner":"alice"})).unwrap()))).unwrap();
-        let previous = engine.store().meta(META_KEY).unwrap().unwrap();
+        let previous = engine.store().inspection_provenance().unwrap().unwrap().1;
         let generation = engine.generation();
         let next = snapback4_lang::compile(&[("schema.q".into(), SOURCE.replace("by byOwner: owner, id", "unique owner"))]);
         assert!(next.diagnostics.is_empty(), "{:?}", next.diagnostics);
         assert!(engine.adopt(next.schema, next.programs.into_iter().map(|p| p.program)).is_err());
         assert_eq!(engine.generation(), generation);
-        assert_eq!(engine.store().meta(META_KEY).unwrap().unwrap(), previous);
-        let conn = engine.store().conn();
+        assert_eq!(engine.store().inspection_provenance().unwrap().unwrap().1, previous);
+        let conn = engine.store().test_support_conn();
         let (_, schema) = active_schema(engine.store()).unwrap();
         for stale_generation in [true, false] {
             let mut record: Record = serde_json::from_str(&previous).unwrap();

@@ -21,7 +21,7 @@ fn fresh_init_then_dev_becomes_ready() {
     assert!(!host.logs().contains("startup schema adoption failed"), "{}", host.logs());
     let status = http(&host, "/dev/status", None);
     assert!(status.get("storeId").is_some(), "{status}");
-    assert!(p.conn().query_row("SELECT count(*) FROM _generations", [], |r| r.get::<_, i64>(0)).unwrap() > 0);
+    assert!(p.test_support_conn().query_row("SELECT count(*) FROM _generations", [], |r| r.get::<_, i64>(0)).unwrap() > 0);
     let sidecar = snapback4_core::private_fs::owner_path(&p.store());
     assert_eq!(fs::metadata(sidecar).unwrap().permissions().mode() & 0o777, 0o600);
 }
@@ -40,7 +40,7 @@ fn removing_or_replacing_the_address_record_never_admits_another_owner() {
         }
         assert!(host.child.try_wait().unwrap().is_none());
     }
-    assert_eq!(p.conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
+    assert_eq!(p.test_support_conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
 }
 
 #[test]
@@ -86,7 +86,7 @@ fn sync_refuses_replaced_path_while_changes_keeps_the_owned_database() {
     let source = SOURCE.replace("  public 'test'", "  public 'test'\n  sync public last 100 by byId");
     let p = Project::new(); p.source(&source); p.initialize();
     let replacement = Project::new(); replacement.source(&source); replacement.initialize(); replacement.initialize();
-    let replacement_id: String = replacement.conn().query_row("SELECT value FROM _meta WHERE key='store_id'", [], |r| r.get(0)).unwrap();
+    let replacement_id: String = replacement.test_support_conn().query_row("SELECT value FROM _meta WHERE key='store_id'", [], |r| r.get(0)).unwrap();
     let host = server(&p, "replaced-reader-host");
     let before = http(&host, "/sync", Some(r#"{"from":0,"limit":100}"#));
     assert_eq!(before["watermark"], 1, "{before}");
@@ -97,7 +97,7 @@ fn sync_refuses_replaced_path_while_changes_keeps_the_owned_database() {
         fs::rename(PathBuf::from(format!("{}{suffix}", p.store().display())), PathBuf::from(format!("{}{suffix}", target.display()))).unwrap();
     }
     fs::copy(replacement.store(), p.store()).unwrap();
-    assert_eq!(p.conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 2);
+    assert_eq!(p.test_support_conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 2);
     // @ref LLP 3000.019#3.6 — a failed file reader refuses instead of waiting on the writer.
     // R's ownership rule still holds: replacement rows never wear the original
     // identity. Both detached sync paths must refuse this changed inode.
@@ -129,7 +129,7 @@ fn a_run_retry_keeps_database_a_when_its_alias_is_retargeted_to_live_b() {
     writer.execute_batch("ROLLBACK").unwrap();
     assert!(cli.finish().0.success(), "{}", cli.logs());
     assert_eq!(writer.query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 2);
-    assert_eq!(b.conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
+    assert_eq!(b.test_support_conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
 }
 
 #[test]
@@ -244,7 +244,7 @@ fn c_abi_open_cannot_initialize_or_clear_a_running_server_store() {
     let site = std::fs::canonicalize(p.store()).unwrap();
     assert_eq!(reason["denied"]["site"], site.to_str().unwrap());
     assert!(reason["denied"]["rewrite"].as_str().unwrap().contains("stop"));
-    let conn = p.conn();
+    let conn = p.test_support_conn();
     assert_eq!(conn.query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
     assert_eq!(conn.query_row("SELECT count(*) FROM sqlite_master WHERE name LIKE '_device_%'", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
 }
@@ -286,8 +286,8 @@ fn device_cannot_clear_a_running_servers_rows() {
         .stdin(fs::File::open(request).unwrap()).output().unwrap();
     assert!(!out.status.success(), "{out:?}");
     assert!(String::from_utf8_lossy(&out.stderr).contains("E_STORE_BUSY"), "{out:?}");
-    assert_eq!(p.conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
-    let side_tables: i64 = p.conn().query_row("SELECT count(*) FROM sqlite_master WHERE name LIKE '_device_%'", [], |r| r.get(0)).unwrap();
+    assert_eq!(p.test_support_conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
+    let side_tables: i64 = p.test_support_conn().query_row("SELECT count(*) FROM sqlite_master WHERE name LIKE '_device_%'", [], |r| r.get(0)).unwrap();
     assert_eq!(side_tables, 0, "refusal must precede device initialization");
 }
 
@@ -330,7 +330,7 @@ fn unlinking_sidecar_admits_second_owner_documented_boundary() {
     assert!(read.get("denied").is_none(), "{read}");
     assert_eq!(read["data"].as_array().unwrap().len(), 3, "{read}");
     assert!(first.child.try_wait().unwrap().is_none(), "the old process is still alive");
-    assert_eq!(p.conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 3);
+    assert_eq!(p.test_support_conn().query_row("SELECT count(*) FROM r", [], |r| r.get::<_, i64>(0)).unwrap(), 3);
 }
 
 #[test]

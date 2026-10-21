@@ -228,8 +228,8 @@ fn seeded_changes_match_the_old_live_recomputation() {
 fn sqlite_041_store_rebuilds_expiry_index_at_open() {
     use snapback4_core::{Store, rows::{Dir, Bounds}};
     fn assert_no_cap_counters(store: &Store) {
-        assert!(store.meta("cap_counts_schema").unwrap().is_none());
-        let present: bool = store.conn().query_row(
+        assert!(store.schema_marker(snapback4_core::metadata::SchemaMarker::CapCounts).unwrap().is_none());
+        let present: bool = store.test_support_conn().query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_cap_counts')", [], |row| row.get(0)).unwrap();
         assert!(!present, "expiry index adoption must not introduce unused cap counters");
     }
@@ -251,25 +251,25 @@ fn sqlite_041_store_rebuilds_expiry_index_at_open() {
     for m in &legacy.maintains {
         let name=m.contribution_index();
         let full=format!("{}.{}",m.source,name);
-        let num:i64=tx.conn().query_row("SELECT num FROM _catalog WHERE name=?1",[&full],|r|r.get(0)).unwrap();
-        tx.conn().execute("DELETE FROM i WHERE ti=?1",[num]).unwrap();
+        let num:i64=tx.test_support_conn().query_row("SELECT num FROM _catalog WHERE name=?1",[&full],|r|r.get(0)).unwrap();
+        tx.test_support_conn().execute("DELETE FROM i WHERE ti=?1",[num]).unwrap();
         for (source,_) in tx.scan(&m.source,"byId",&[],&Bounds::default(),Dir::Asc,100).unwrap() {
             let source_id=source.field("id").unwrap().as_str().unwrap();
             for key in snapback4_core::rows::index_keys(&legacy.tables[&m.source].indexes[&name],&source,source_id) {
-                tx.conn().execute("INSERT INTO i(ti,k,id) VALUES(?1,?2,?3)",rusqlite::params![num,key,source_id]).unwrap();
+                tx.test_support_conn().execute("INSERT INTO i(ti,k,id) VALUES(?1,?2,?3)",rusqlite::params![num,key,source_id]).unwrap();
             }
         }
 
     }
     let text=serde_json::to_string(&legacy).unwrap();
-    tx.conn().execute("UPDATE _generations SET schema=?1 WHERE generation=?2",rusqlite::params![text,generation as i64]).unwrap();
-    for key in ["schema_hash","cap_counts_schema"] {tx.conn().execute("UPDATE _meta SET value=?1 WHERE key=?2",[legacy.hash(),key.into()]).unwrap();}
+    tx.test_support_conn().execute("UPDATE _generations SET schema=?1 WHERE generation=?2",rusqlite::params![text,generation as i64]).unwrap();
+    for key in ["schema_hash","cap_counts_schema"] {tx.test_support_conn().execute("UPDATE _meta SET value=?1 WHERE key=?2",[legacy.hash(),key.into()]).unwrap();}
     tx.commit().unwrap(); drop(server);
     let mut server=Engine::open_at(Store::open(&path).unwrap(),100).unwrap();
     assert_eq!(server.generation(),generation+1);
     assert_no_cap_counters(server.store());
     let schema_hash = server.schema().hash();
-    assert_eq!(server.store().meta("schema_hash").unwrap().as_deref(), Some(schema_hash.as_str()));
+    assert_eq!(server.store().schema_marker(snapback4_core::metadata::SchemaMarker::SchemaHash).unwrap().as_deref(), Some(schema_hash.as_str()));
     for maintain in &server.schema().maintains {
         assert_eq!(server.schema().tables[&maintain.source].indexes[&maintain.contribution_index()].components.len(), 2);
     }

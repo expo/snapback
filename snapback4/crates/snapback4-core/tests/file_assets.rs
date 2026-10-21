@@ -161,7 +161,7 @@ fn the_ledger_keeps_the_name_across_reopen_and_older_stores_gain_the_column() {
     {
         // A store from before file assets has no `name` column on its ledger.
         let e = Engine::new(Store::open(&path).unwrap(), bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-        e.store().conn().execute_batch("ALTER TABLE _assets DROP COLUMN name;").unwrap();
+        e.store().test_support_conn().execute_batch("ALTER TABLE _assets DROP COLUMN name;").unwrap();
     }
     let id = {
         let mut e = Engine::open(Store::open(&path).unwrap()).unwrap();

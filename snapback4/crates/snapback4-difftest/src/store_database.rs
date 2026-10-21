@@ -261,59 +261,12 @@ impl Drop for Database {
 }
 
 /// Snapshot all SQLite rows once; preserve engine schema/catalog caches.
-pub(crate) struct SqliteSnapshot {
-    tables: Vec<String>,
-}
+pub(crate) struct SqliteSnapshot(snapback4_core::store::evaluation::Snapshot);
 impl SqliteSnapshot {
     pub fn capture(engine: &Engine) -> Result<Self, String> {
-        let conn = engine.store().conn();
-        let mut statement = conn
-            .prepare(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
-            )
-            .map_err(|e| error_chain("SQLite snapshot table list", &e))?;
-        let tables = statement
-            .query_map([], |r| r.get::<_, String>(0))
-            .map_err(|e| error_chain("SQLite snapshot table list", &e))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| error_chain("SQLite snapshot table list", &e))?;
-        conn.execute_batch("CREATE TEMP TABLE dt_dirty (t INTEGER PRIMARY KEY)")
-            .map_err(|e| error_chain("SQLite changed table tracker", &e))?;
-        for (i, t) in tables.iter().enumerate() {
-            conn.execute_batch(&format!(
-                "CREATE TEMP TABLE dt_seed_{i} AS SELECT * FROM {}",
-                ident(t)
-            ))
-            .map_err(|e| error_chain("SQLite snapshot", &e))?;
-            for event in ["INSERT", "UPDATE", "DELETE"] {
-                conn.execute_batch(&format!("CREATE TEMP TRIGGER dt_track_{i}_{event} AFTER {event} ON {} BEGIN INSERT OR IGNORE INTO dt_dirty VALUES ({i}); END;",ident(t)))
-                    .map_err(|e| error_chain("SQLite changed table trigger", &e))?;
-            }
-        }
-        Ok(Self { tables })
+        snapback4_core::store::evaluation::Snapshot::capture(engine.store(), error_chain).map(Self)
     }
     pub fn restore(&self, engine: &Engine) -> Result<(), String> {
-        let conn = engine.store().conn();
-        let mut query = conn
-            .prepare_cached("SELECT t FROM temp.dt_dirty ORDER BY t")
-            .map_err(|e| error_chain("SQLite changed tables", &e))?;
-        let changed = query
-            .query_map([], |r| r.get::<_, u32>(0))
-            .map_err(|e| error_chain("SQLite changed tables", &e))?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|e| error_chain("SQLite changed tables", &e))?;
-        if changed.is_empty() {
-            return Ok(());
-        }
-        let mut sql = String::from("PRAGMA foreign_keys=OFF; BEGIN;");
-        for i in changed {
-            sql += &format!(
-                "DELETE FROM {0}; INSERT INTO {0} SELECT * FROM dt_seed_{i};",
-                ident(&self.tables[i as usize])
-            );
-        }
-        sql += "DELETE FROM temp.dt_dirty; COMMIT; PRAGMA foreign_keys=ON;";
-        conn.execute_batch(&sql)
-            .map_err(|e| error_chain("SQLite restore", &e))
+        self.0.restore(engine.store(), error_chain)
     }
 }
