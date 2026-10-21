@@ -25,6 +25,7 @@ mod metadata;
 mod receipts;
 mod change_evidence;
 mod foundation_schema;
+mod ledger_schema;
 #[cfg(test)]
 mod tests;
 pub use store::{SCAN_MEMORY_GUARD, WriteMode};

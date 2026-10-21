@@ -51,8 +51,8 @@ impl ChangeEvidence for Tx<'_> {
 }
 
 impl Store {
-    /// Classify a complete interval; legacy, pruned and over-limit intervals widen.
-    pub fn preserved_between(&self, schema: &Schema, after: u64, through: u64) -> Vec<String> {
+    /// Classify a complete interval; missing or unknown evidence returns None.
+    pub fn preserved_between(&self, schema: &Schema, after: u64, through: u64) -> Option<Vec<String>> {
         revocation::preserved_between(self, schema, after, through)
     }
     /// Complete bounded transaction evidence; gaps certify nothing.
@@ -61,7 +61,7 @@ impl Store {
     }
 }
 impl Tx<'_> {
-    pub fn preserved_between(&self, schema: &Schema, after: u64, through: u64) -> Vec<String> {
+    pub fn preserved_between(&self, schema: &Schema, after: u64, through: u64) -> Option<Vec<String>> {
         revocation::preserved_between(self, schema, after, through)
     }
     pub fn footprint_between(&self, after: u64, through: u64) -> Option<Footprint> {

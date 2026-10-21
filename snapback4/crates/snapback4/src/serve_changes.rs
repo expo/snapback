@@ -157,7 +157,7 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     }
 }
 
-type Checked = (u64, Option<String>, Vec<String>, Vec<String>, Json);
+type Checked = (u64, Option<String>, Vec<String>, Option<Vec<String>>, Json);
 // @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — one commit wakes every held poll; they share one answer per cursor.
 /// Wake answers by (cursor, published head, generation, store identity). Only
 /// a held poll woken by a publication asks here, and an answer is computed
@@ -209,7 +209,7 @@ fn read_answer(shared: &Shared, since: u64) -> Result<Checked, snapback4_core::R
 }
 
 /// The notification's head, identity and invalidations share one read snapshot.
-fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64, Option<String>, Vec<String>, Vec<String>, Json), snapback4_core::error::RuntimeError,
+fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<Checked, snapback4_core::error::RuntimeError,
 > {
     let all_tables: Vec<_> = engine.schema().visible_tables().map(|(n,_)|n.clone()).collect();
     let schema = engine.schema().clone();
@@ -345,17 +345,17 @@ mod column_tests {
     }
 }
 
-pub(super) fn ack_preserved(engine: &snapback4_core::Engine, outcome: Option<&snapback4_core::MutationOutcome>) -> Vec<String> {
+pub(super) fn ack_preserved(engine: &snapback4_core::Engine, outcome: Option<&snapback4_core::MutationOutcome>) -> Option<Vec<String>> {
     match outcome {
         Some(out) if !out.replayed => match out.state {
             snapback4_core::WriteState::Sent { .. } if out.receipt_only => {
-                snapback4_core::revocation::Footprint::default().preserved(engine.schema())
+                Some(snapback4_core::revocation::Footprint::default().preserved(engine.schema()))
             }
             snapback4_core::WriteState::Sent { seq, .. } => {
                 engine.store().preserved_between(engine.schema(), seq.saturating_sub(1), seq)
             }
-            _ => Vec::new(),
-        }, _ => Vec::new(),
+            _ => None,
+        }, _ => None,
     }
 }
 

@@ -205,6 +205,45 @@ fn shape_refusals(table: &str, alterations: &[&str]) {
         );
     }
 }
+
+#[test]
+#[ignore = "requires private Postgres; scripts/test-postgres.sh"]
+fn ledger_attach_refuses_inheritance_and_partitioning() {
+    for (table, key, code) in [
+        ("_ops", "principal", "SNAPBACK_FOUNDATION_SCHEMA"),
+        ("_principals", "id", "SNAPBACK_IDENTITY_SCHEMA"),
+        ("_jobs", "id", "SNAPBACK_JOBS_SCHEMA"),
+        ("_outbox", "id", "SNAPBACK_OUTBOX_SCHEMA"),
+        ("_asset_gc", "asset", "SNAPBACK_ASSET_SCHEMA"),
+        ("_requests", "id", "SNAPBACK_REQUESTS_SCHEMA"),
+    ] {
+        for ddl in [
+            format!("CREATE TABLE extra_child () INHERITS ({table})"),
+            format!("CREATE TABLE extra_parent (LIKE {table}); ALTER TABLE {table} INHERIT extra_parent"),
+            format!("ALTER TABLE {table} RENAME TO old_ledger; CREATE TABLE {table} (LIKE old_ledger INCLUDING ALL) PARTITION BY LIST ({key})"),
+        ] {
+            let mut e = engine();
+            let namespace = name(&mut e);
+            e.store.client.batch_execute(&ddl).unwrap();
+            // Pin the actual duplicate-key counterexample, on two families.
+            if ddl.starts_with("CREATE TABLE extra_child") {
+                let insert = match table {
+                    "_ops" => Some("INSERT INTO _ops(principal,id,seq,outcome,at) VALUES ('alice','same',1,'{}',0); INSERT INTO extra_child(principal,id,seq,outcome,at) VALUES ('alice','same',2,'{}',0)"),
+                    "_asset_gc" => Some("INSERT INTO _asset_gc(asset) VALUES ('same'); INSERT INTO extra_child(asset) VALUES ('same')"),
+                    _ => None,
+                };
+                if let Some(insert) = insert {
+                    e.store.client.batch_execute(insert).unwrap();
+                    let count: i64 = e.store.client.query_one(&format!("SELECT count(*) FROM {table}"), &[]).unwrap().get(0);
+                    assert_eq!(count, 2, "parent scans include conflicting child rows");
+                }
+            }
+            let error = PostgresEngine::open(client(), &namespace).err().expect("hierarchical ledgers must refuse attach");
+            let message = error.to_string();
+            assert!(message.contains(code) && message.contains(table) && message.contains("inheritance or partitioning"), "{ddl}: {error}");
+        }
+    }
+}
 #[test]
 #[ignore = "requires private Postgres; scripts/test-postgres.sh"]
 fn metadata_attach_refuses_incompatible_shapes() {

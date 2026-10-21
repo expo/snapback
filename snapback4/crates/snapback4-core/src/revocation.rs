@@ -184,10 +184,10 @@ pub(crate) trait ChangeEvidence {
     fn change_evidence(&self, after: u64, through: u64, visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Option<()>;
 }
 
-/// Classify a complete interval. Legacy, pruned and over-limit intervals widen.
+/// Classify a complete interval. Unknown evidence certifies neither preservation nor revocation.
 #[cfg(feature = "sqlite")]
-pub(crate) fn preserved_between(store: &impl ChangeEvidence, schema: &Schema, after: u64, through: u64) -> Vec<String> {
-    footprint_between(store, after, through).map_or_else(Vec::new, |f| f.preserved(schema))
+pub(crate) fn preserved_between(store: &impl ChangeEvidence, schema: &Schema, after: u64, through: u64) -> Option<Vec<String>> {
+    footprint_between(store, after, through).filter(|f| !f.unknown).map(|f| f.preserved(schema))
 }
 
 /// The durable sequence domain is signed on both stores. Never reinterpret an
@@ -323,9 +323,9 @@ pub(crate) mod evidence_test_cases {
         let bound = snapback4_lang::compile(&[("schema.q".into(), "table messages:\n  body: text\n  public\n  online only\n".into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let schema: Schema = serde_json::from_value(serde_json::to_value(&bound.schema).unwrap()).unwrap();
-        assert_eq!(preserved_between(store, &schema, 0, 2), vec!["messages"]);
+        assert_eq!(preserved_between(store, &schema, 0, 2), Some(vec!["messages".into()]));
         for (after, through) in [(0,3), (3,4), (4,5), (5,506), (506,508), (509,510), (510,511), (0,u64::MAX)] {
-            assert!(preserved_between(store, &schema, after, through).is_empty(), "{after}..{through} must widen");
+            assert!(preserved_between(store, &schema, after, through).is_none(), "{after}..{through} must remain unknown");
         }
         let mut seen = Vec::new();
         store.change_evidence(5, 506, |record| { seen.push(record.seq); Some(()) }).unwrap();

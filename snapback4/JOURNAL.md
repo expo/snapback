@@ -99969,3 +99969,33 @@ line-tables-only dev/test debug and at most 12 build jobs. Final Postgres tests
 used four test threads; final core used twelve. Sampled disk free space stayed
 above the 20 GB stop threshold. No push, stash, clone, second worktree,
 sub-agent, fleet command, publication, gate change or allowance increase.
+
+
+## 2026-10-21 — P1-MR fix round 1: explicit unknown and ledger hierarchies
+
+Rebased the three foundation commits onto origin/main (86303f71df), retaining
+both RFC histories in one Revised line. The rebased commits are 88810fab50,
+9213e13012 and 3edcf8d12a. Only Revised-line conflicts required resolution.
+
+Unknown evidence now stays optional through preserved_between and all wire
+callers: /changes, sync and mutation acknowledgements serialize null. Known
+empty sync certificates are explicitly serialized as [] instead of omitted.
+The client previously bounded null/absent replies; under this fix's explicit
+user ruling those replies cannot certify revocation, including opaque and
+protected reads, and still trigger refresh. Known empty lists retain the bound.
+The shared SQLite/Postgres evidence contract, HTTP SQLite missing/unknown
+summary cases, sync codec cases and client retention cases cover the change.
+The RFC §3.3 note and package documentation record this SQLite wire correction
+and the superseded older LLP 3000.023 §12 unknown-withdrawal behavior.
+
+A shared attach relation guard now checks relkind and both sides of pg_inherits
+for foundation, identity, jobs, outbox, assets and requests. It retains each
+family's named schema error, and shares the existing persistence/security/rule/
+trigger checks. Each family gets parent, child and partitioned-table witnesses;
+_ops and _asset_gc also reproduce duplicate logical keys in an inherited child.
+Rule 6 now lists inheritance, partitioning, UNLOGGED, rewrite rules and
+deferrable keys as refused shapes. No Postgres host wiring is added.
+
+Verification follows below. Builds use only this checkout's snapback4/target,
+incremental off, line-tables-only dev/test debug information and at most 12
+build jobs. No push, stash, second worktree or sub-agent.

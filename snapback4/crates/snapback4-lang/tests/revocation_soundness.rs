@@ -141,7 +141,7 @@ fn certified_commits_preserve_rows_and_fields_across_the_corpus() {
                 let seq = tx.next_seq().unwrap();
                 tx.record_commit(seq,now,"rv","system","model",&[table.clone()],1).unwrap();
                 tx.commit().unwrap();
-                let preserved = engine.store().preserved_between(&schema,seq-1,seq);
+                let preserved = engine.store().preserved_between(&schema,seq-1,seq).expect("complete known evidence");
                 // The shared codec must classify the persisted summary identically
                 // to ordinary serde; no codec-specific authority may be invented.
                 let stored: String = engine.store().test_support_conn().query_row("SELECT footprint FROM _change_evidence WHERE seq=?1",[seq as i64],|r|r.get(0)).unwrap();
@@ -193,7 +193,7 @@ fn ownership_transfer_cannot_certify_previously_disclosed_fields() {
     let seq = e.seq().unwrap();
     mutate(&mut e,"transfer",BTreeMap::new(),100);
     let after = answer(&mut e,&tables,100);
-    let preserved = e.store().preserved_between(e.schema(),seq,e.seq().unwrap());
+    let preserved = e.store().preserved_between(e.schema(),seq,e.seq().unwrap()).expect("complete known evidence");
     let mut counts = Counts::default();
     counts.check(&before,&after,&preserved,"P1 real mutation");
     assert_eq!(counts.field_losses,1);
@@ -274,7 +274,7 @@ fn real_mutations_maintenance_and_ordered_limit_model() {
                 }
             }
             let through = e.seq().unwrap(); commits += (through-seq) as usize;
-            let preserved = e.store().preserved_between(e.schema(),seq,through);
+            let preserved = e.store().preserved_between(e.schema(),seq,through).expect("complete known evidence");
             counts.check(&before,&answer(&mut e,&tables,now),&preserved,&format!("mutation seed={seed:#x} step={step}"));
             if preserved.contains(&"docs".into()) && old_rank != ranked(&mut e,now) { displaced += 1; }
         }
@@ -294,7 +294,7 @@ fn filter_exit_limit_displacement_and_private_value_edits_preserve_disclosure() 
     ] {
         let before = answer(&mut e,&tables,100); let seq = e.seq().unwrap();
         mutate(&mut e,op,args,100);
-        let preserved = e.store().preserved_between(e.schema(),seq,e.seq().unwrap());
+        let preserved = e.store().preserved_between(e.schema(),seq,e.seq().unwrap()).expect("complete known evidence");
         assert!(preserved.contains(&"docs".into()),"{op}");
         Counts::default().check(&before,&answer(&mut e,&tables,100),&preserved,op);
         assert_eq!(ranked(&mut e,100),want);
@@ -306,7 +306,7 @@ fn filter_exit_limit_displacement_and_private_value_edits_preserve_disclosure() 
         for op in if audience { vec!["editSecret","transfer"] } else { vec!["editSecret"] } {
             let before = answer(&mut e,&tables,100); let seq = e.seq().unwrap();
             mutate(&mut e,op,BTreeMap::new(),100);
-            let preserved = e.store().preserved_between(e.schema(),seq,e.seq().unwrap());
+            let preserved = e.store().preserved_between(e.schema(),seq,e.seq().unwrap()).expect("complete known evidence");
             assert!(preserved.contains(&"docs".into()));
             Counts::default().check(&before,&answer(&mut e,&tables,100),&preserved,op);
         }
@@ -338,7 +338,7 @@ fn asset_and_once_consumption_cover_every_viewer() {
             let seq = e.seq().unwrap();
             e.record_asset_view(consumer,&id,101).unwrap(); consumptions += 1;
             assert_eq!(e.seq().unwrap(),seq,"once consumption has no public row commit");
-            let preserved = e.store().preserved_between(e.schema(),seq,seq);
+            let preserved = e.store().preserved_between(e.schema(),seq,seq).expect("complete known evidence");
             assert!(preserved.contains(&"docs".into()), "once consumption protects bytes, not row/field disclosure");
             let after = answer(&mut e,&tables,101);
             Counts::default().check(&before,&after,&preserved,"once consumption");
@@ -350,7 +350,7 @@ fn asset_and_once_consumption_cover_every_viewer() {
         }
         let tables = vec!["docs".into()]; let before = answer(&mut e,&tables,101); let seq = e.seq().unwrap();
         mutate(&mut e,"clear",BTreeMap::new(),102); commits += 1;
-        let preserved = e.store().preserved_between(e.schema(),seq,e.seq().unwrap());
+        let preserved = e.store().preserved_between(e.schema(),seq,e.seq().unwrap()).expect("complete known evidence");
         assert!(!preserved.contains(&"docs".into()));
         Counts::default().check(&before,&answer(&mut e,&tables,102),&preserved,"asset removal");
         for viewer in VIEWERS { assert_eq!(e.asset_access(viewer,&id,102).unwrap_err().code(),"E_ASSET_UNKNOWN"); access_checks += 1; }

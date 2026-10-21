@@ -13,18 +13,8 @@ pub(super) fn verify(
     columns: &[Column],
     primary: &[&str],
 ) -> Result<(), RuntimeError> {
-    let relation = tx.query("SELECT relkind::text, relpersistence::text, relrowsecurity OR relforcerowsecurity, EXISTS(SELECT 1 FROM pg_rewrite WHERE ev_class=pg_class.oid AND rulename<>'_RETURN'), EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=pg_class.oid AND NOT tgisinternal) FROM pg_class WHERE oid=to_regclass($1)", &[&table])?;
-    let Some(relation) = relation.first() else {
+    if !super::ledger_schema::verify_relation(tx, table, incompatible)? {
         return Ok(());
-    };
-    if relation.get::<_, &str>(0) != "r"
-        || relation.get::<_, &str>(1) != "p"
-        || (2..=4).any(|i| relation.get::<_, bool>(i))
-    {
-        return Err(incompatible(
-            table,
-            "expected a persistent ordinary table without row security, rules or triggers",
-        ));
     }
     let actual = tx.query("SELECT a.attname::text,format_type(a.atttypid,a.atttypmod),a.attnotnull,a.attcollation='pg_catalog.\"C\"'::regcollation,a.atthasdef,a.attgenerated::text,a.attidentity::text FROM pg_attribute a WHERE a.attrelid=to_regclass($1) AND a.attnum>0 AND NOT a.attisdropped", &[&table])?;
     if actual.len() != columns.len() {

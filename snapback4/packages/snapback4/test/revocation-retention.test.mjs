@@ -6,9 +6,20 @@ import { parked, until, q } from './helpers/answers-stay.mjs';
 const sdk = process.env.RV_TEST_SDK ? pathToFileURL(resolve(process.env.RV_TEST_SDK) + '/') : new URL('../dist/', import.meta.url);
 const { createClient } = await import(new URL('client.js', sdk));
 
+test('unknown preservation evidence cannot revoke, including opaque and protected reads', async () => {
+  const { canRevoke, watchCanRevoke } = await import(new URL('change-evidence.js', sdk));
+  const tables = new Set(['messages']), scopes = { messages: [{}] };
+  for (const preserved of [null, undefined]) {
+    assert.equal(canRevoke(tables, scopes, preserved), false);
+    assert.equal(watchCanRevoke({ tables, scopes, opaque: () => true, protectedReads: [{ tables, scopes }] }, preserved), false);
+  }
+  assert.equal(canRevoke(tables, scopes, []), true, 'known empty evidence still revokes');
+  assert.equal(canRevoke(tables, scopes, ['messages']), false);
+});
+
 // This runs the public watch path. Main ignores additive preservation evidence
 // and fails the insert cases at the controlled one-second boundary.
-for (const keep of [undefined, true]) for (const kind of ['insert', 'delete', 'legacy', 'malformed', 'opaque']) {
+for (const keep of [undefined, true]) for (const kind of ['insert', 'delete', 'legacy', 'unknown', 'malformed', 'opaque']) {
   test(`mounted history: ${kind}, keep=${keep}, replacement held beyond one second`, async t => {
     let now = 1000, reads = 0, polled = false;
     t.mock.method(Date, 'now', () => now);
@@ -19,7 +30,7 @@ for (const keep of [undefined, true]) for (const kind of ['insert', 'delete', 'l
       if (path === '/changes') {
         if (polled) return parked(init.signal);
         polled = true; await change.promise;
-        return Response.json({ seq: 2, tables: ['messages'], ...(kind === 'legacy' ? {} : { preserved: kind === 'delete' ? [] : kind === 'malformed' ? 'messages' : ['messages'] }) });
+        return Response.json({ seq: 2, tables: ['messages'], ...(kind === 'legacy' ? {} : { preserved: kind === 'delete' ? [] : kind === 'unknown' ? null : kind === 'malformed' ? 'messages' : ['messages'] }) });
       }
       assert.equal(path, '/q/history');
       if (++reads > 1) await replacement.promise;
@@ -34,7 +45,7 @@ for (const keep of [undefined, true]) for (const kind of ['insert', 'delete', 'l
     assert.equal(watch.getSnapshot().revalidating, true);
     now += 1001;
     const held = watch.getSnapshot();
-    if (kind === 'insert') {
+    if (['insert', 'legacy', 'unknown'].includes(kind)) {
       assert.equal(held.data?.[0].id, 'old'); assert.equal(held.revalidating, true);
       assert.ok(publications.every(read => !read.loading));
     } else assert.equal(held.loading, true);
