@@ -1,0 +1,33 @@
+{
+  "priorOwnedServers": [
+    {
+      "pid": 3292881,
+      "cwd": "/home/ccheever/sb4-loop/prewave20/synced-foundation-final",
+      "action": "SIGTERM verified owned backend"
+    },
+    {
+      "pid": 3292884,
+      "cwd": "/home/ccheever/sb4-loop/prewave20/online-foundation-final",
+      "action": "SIGTERM verified owned backend"
+    },
+    {
+      "pid": 3327553,
+      "cwd": "/home/ccheever/sb4-loop/prewave20/synced-foundation-proof",
+      "action": "SIGTERM verified owned backend"
+    }
+  ],
+  "finalOwnedServers": [
+    {
+      "pid": 489789,
+      "cwd": "/home/ccheever/sb4-loop/prewave20/synced-foundation-proof",
+      "returncode": 143,
+      "action": "terminated owned timeout/backend process group"
+    },
+    {
+      "pid": 492662,
+      "cwd": "/home/ccheever/sb4-loop/prewave20/online-foundation-final",
+      "returncode": 143,
+      "action": "terminated owned timeout/backend process group"
+    }
+  ]
+}

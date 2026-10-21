@@ -1,6 +1,6 @@
 {
   "base": "f0eed70bb3",
-  "merged": "37a707c158",
+  "merged": "49ff4203cec98c268d571075d5dc6418f36ef41a",
   "apps": 350,
   "byWave": {
     "15": 100,
@@ -13,7 +13,7 @@
   "baseRefusals": [],
   "mergedRefusals": [],
   "sourcesUnchanged": true,
-  "mergedBinarySha256": "4899640d7d9057e6defd15c2a4ce84141eb97814bc15d8c2370cfa823947bf58",
+  "mergedBinarySha256": "bd02abe27a34dfc383d31f92d4e43fcd124afc1c66118158377ab774b80fa20a",
   "notes": {
     "compilerNotes": {
       "before": {
@@ -104,5 +104,7 @@
         "N_SELF_CLAIMED_RELATIONSHIP": 2
       }
     }
-  }
+  },
+  "executedOn": "49ff4203cec98c268d571075d5dc6418f36ef41a",
+  "equivalentFinalIntegration": "49ff4203cec98c268d571075d5dc6418f36ef41a"
 }

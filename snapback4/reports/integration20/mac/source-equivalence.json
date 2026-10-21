@@ -1,0 +1,8 @@
+{
+  "source": "49ff4203ce",
+  "comparison": "every changed extant file under crates/packages/scripts/apps, plus root manifests/fence files, versus base f0eed70bb3",
+  "filesCompared": 338,
+  "missing": [],
+  "mismatches": [],
+  "identical": true
+}

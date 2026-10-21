@@ -1,0 +1,16 @@
+{
+  "filesPreservedOutsideSource": [
+    {
+      "path": "c380df6f-8e7c-4a17-a366-910405a63aa7.stderr.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "c380df6f-8e7c-4a17-a366-910405a63aa7.stdout.log",
+      "bytes": 32768,
+      "sha256": "5a4ea1ea1ee7f9f633150f0e0c925c3f156e03cd49862e6914ded1e546f6884f"
+    }
+  ],
+  "filePoolExit": 0,
+  "modelsExit": 0
+}

@@ -1,0 +1,32 @@
+{
+  "source": "49ff4203cec98c268d571075d5dc6418f36ef41a",
+  "authoring": {
+    "mutationOccurrences": 546,
+    "privateWriteSites": 95,
+    "membershipLines": 872,
+    "regeneratedMatchesCommitted": true
+  },
+  "deliveryAwait": {
+    "faultSites": 213,
+    "regeneratedBoundaryMatchesCommitted": true
+  },
+  "codec": {
+    "passed": 27,
+    "failed": 0
+  },
+  "rootInventories": {
+    "packageTests": 365,
+    "scriptTests": 35,
+    "demos": 31,
+    "publicationLeaves": 487,
+    "guidePages": 162,
+    "snippets": 1937
+  },
+  "rootGuide": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "preconditions": 0,
+    "inheritedWarnings": 121
+  }
+}

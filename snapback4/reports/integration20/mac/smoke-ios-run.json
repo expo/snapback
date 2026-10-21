@@ -8,67 +8,67 @@
     "DTSDKName": "iphonesimulator27.1",
     "DTXcodeBuild": "27A9275"
   },
-  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/BDF123A8-5E01-42BC-92F6-9BFECB63747E/data/Containers/Bundle/Application/DB48CA69-48D1-4003-9921-A74ED94496B1/base.app",
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/BDF123A8-5E01-42BC-92F6-9BFECB63747E/data/Containers/Bundle/Application/2A6FDA60-27DB-4182-9B34-82EE264FD1C3/base.app",
   "artifacts": {
     "backend-stdout.log": {
       "bytes": 46,
-      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-backend-stdout.log",
+      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-backend-stdout.log",
       "sha256": "515244c75afaf7e55c36f17643f0499eb81475a97ac40ef7a316ff23e6ce1ab0"
     },
     "backend.log": {
       "bytes": 2890,
-      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-backend.log",
-      "sha256": "395cd8b538d385c9ec37d78bb802aad1b6bd63959ff99b4f307957cca5ec6900"
+      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-backend.log",
+      "sha256": "d3996478c76eedb30183253ce76f95f543ca7f519d6c6442f9f5008ece852b76"
     },
     "device.log": {
-      "bytes": 8222377,
-      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-device.log",
-      "sha256": "6dcdacd9a144c703600512931903b4063e8ca23dce66f9da8b1351677fc32b26"
+      "bytes": 8355421,
+      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-device.log",
+      "sha256": "1eab2b9fec92b293a58270af29e393cad19d96d41feec387aa255ba9983b92d4"
     },
     "launch.log": {
       "bytes": 93,
-      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-launch.log",
-      "sha256": "e335cb3c0937fde38fe62ef601391a776ba80b9e6fe4b5ed94d5ef2bb1baa66d"
+      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-launch.log",
+      "sha256": "fc1d4a8802043fb7f5f52c07d7f26465356742940a19acf7406be3401cddc3c8"
     },
     "log-stderr.log": {
       "bytes": 44,
-      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-log-stderr.log",
+      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-log-stderr.log",
       "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523"
     },
     "offline.png": {
-      "bytes": 57871,
-      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-offline.png",
-      "sha256": "c79c649194a714271577e71224086d8a04634c18c2e8debbdc4935c11707340b"
+      "bytes": 57949,
+      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-offline.png",
+      "sha256": "b95e4c3861aa5e443df2de34316b1c3d73e0eeda94e1f8d9bfbaa4289ffe4700"
     },
     "prime.png": {
-      "bytes": 58014,
-      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-prime.png",
-      "sha256": "a726169e2c3b89d72f56fe317c428ab39a810ae9f4bc98dda4510afc593ba8e3"
+      "bytes": 58085,
+      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-prime.png",
+      "sha256": "ed14b20391defdc086c477c60a90b1b262d489db662dbd4a671b988da0704a16"
     },
     "receipts.jsonl": {
       "bytes": 6487,
-      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-receipts.jsonl",
-      "sha256": "12073f81dd44ecbf5a4f0caad7f04af06a1920b355270134743efca4f9fc7fd6"
+      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-receipts.jsonl",
+      "sha256": "426d58caa8e257de0079b3294db765b02b7dc0c1bbe71c51e35f5b1b5cf772d0"
     },
     "restart.png": {
-      "bytes": 58014,
-      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-restart.png",
-      "sha256": "a726169e2c3b89d72f56fe317c428ab39a810ae9f4bc98dda4510afc593ba8e3"
+      "bytes": 58085,
+      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-restart.png",
+      "sha256": "ed14b20391defdc086c477c60a90b1b262d489db662dbd4a671b988da0704a16"
     },
     "screen.mp4": {
-      "bytes": 5003825,
-      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-screen.mp4",
-      "sha256": "ce71e1e29438c8e38d66102d1eb2f73abd4550d628a849fd1454246f05b78c1d"
+      "bytes": 4642316,
+      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-screen.mp4",
+      "sha256": "b2cd607bcf7d2981bd085a89e0c8ef4a17ade06775ddd8cdd47f60c8b77f433f"
     },
     "video.log": {
       "bytes": 131,
-      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-video.log",
+      "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-video.log",
       "sha256": "0d007d3b0047a1f18b6b8c0aaa123fdd32084536a9297352efac1f750298c6f0"
     }
   },
   "backend": {
     "command": [
-      "/Users/ccheever/sb4-ws-integ20/snapback4/target/debug/snapback4",
+      "/Users/ccheever/sb4-ws-integ20/native-app/../snapback4/target/debug/snapback4",
       "dev",
       "--port",
       "26903",
@@ -81,91 +81,91 @@
   },
   "bundleId": "dev.snapback4.nativeapp",
   "cliVersion": "0.4.36",
-  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/BDF123A8-5E01-42BC-92F6-9BFECB63747E/data/Containers/Data/Application/347248A6-15B9-4DEE-9557-87558B825614",
-  "durationMs": 111298,
-  "endedAt": 1792585270346,
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/BDF123A8-5E01-42BC-92F6-9BFECB63747E/data/Containers/Data/Application/6C7BA973-1CF8-4747-B698-D28F53F451A8",
+  "durationMs": 106814,
+  "endedAt": 1792590115617,
   "error": null,
   "events": [
     {
-      "at": 1792585259664,
+      "at": 1792590105813,
       "step": "backend-ready"
     },
     {
-      "at": 1792585259879,
+      "at": 1792590106029,
       "step": "recording-started"
     },
     {
-      "at": 1792585260935,
-      "pid": 85668,
+      "at": 1792590106930,
+      "pid": 31531,
       "step": "prime-launched"
     },
     {
-      "at": 1792585260935,
+      "at": 1792590106930,
       "step": "waiting-primed"
     },
     {
-      "at": 1792585261695,
+      "at": 1792590107666,
       "step": "primed"
     },
     {
-      "at": 1792585262776,
-      "pid": 85668,
+      "at": 1792590108424,
+      "pid": 31531,
       "step": "app-terminated"
     },
     {
-      "at": 1792585262932,
+      "at": 1792590108600,
       "step": "backend-refuses-connections"
     },
     {
-      "at": 1792585264109,
-      "pid": 85863,
+      "at": 1792590109683,
+      "pid": 31707,
       "step": "offline-launched"
     },
     {
-      "at": 1792585264109,
+      "at": 1792590109683,
       "step": "waiting-offline-done"
     },
     {
-      "at": 1792585264760,
+      "at": 1792590110444,
       "step": "offline-done"
     },
     {
-      "at": 1792585265834,
-      "pid": 85863,
+      "at": 1792590111421,
+      "pid": 31707,
       "step": "app-terminated"
     },
     {
-      "at": 1792585265842,
+      "at": 1792590111423,
       "step": "smoke-sync-barrier"
     },
     {
-      "at": 1792585265962,
+      "at": 1792590111540,
       "step": "backend-ready"
     },
     {
-      "at": 1792585267057,
-      "pid": 86019,
+      "at": 1792590112631,
+      "pid": 31875,
       "step": "restart-launched"
     },
     {
-      "at": 1792585267057,
+      "at": 1792590112632,
       "step": "waiting-done"
     },
     {
-      "at": 1792585267821,
+      "at": 1792590113382,
       "step": "done"
     },
     {
-      "at": 1792585268904,
-      "pid": 86019,
+      "at": 1792590114365,
+      "pid": 31875,
       "step": "app-terminated"
     },
     {
-      "at": 1792585269010,
+      "at": 1792590114483,
       "step": "recording-stopped"
     },
     {
-      "at": 1792585269179,
+      "at": 1792590114646,
       "step": "backend-refuses-connections"
     }
   ],
@@ -174,22 +174,22 @@
   "installed": {
     "executable": {
       "bytes": 6775504,
-      "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/BDF123A8-5E01-42BC-92F6-9BFECB63747E/data/Containers/Bundle/Application/DB48CA69-48D1-4003-9921-A74ED94496B1/base.app/NativeApp",
-      "sha256": "0caa4abc306ac64d265998eaa94f4266612deb8130aa8fcd5894bebbee7d8c46"
+      "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/BDF123A8-5E01-42BC-92F6-9BFECB63747E/data/Containers/Bundle/Application/2A6FDA60-27DB-4182-9B34-82EE264FD1C3/base.app/NativeApp",
+      "sha256": "dbf835aa77ee92653c93724c5bd2d6486387a8dff0e819d8dcaa70fbe2de9cf0"
     },
     "javascript": {
-      "bytes": 2811912,
-      "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/BDF123A8-5E01-42BC-92F6-9BFECB63747E/data/Containers/Bundle/Application/DB48CA69-48D1-4003-9921-A74ED94496B1/base.app/main.jsbundle",
-      "sha256": "a3d75c6d76a6e75ab81bc58200749fb58aa11bce57ccb09801419b0845426601"
+      "bytes": 2811988,
+      "path": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/BDF123A8-5E01-42BC-92F6-9BFECB63747E/data/Containers/Bundle/Application/2A6FDA60-27DB-4182-9B34-82EE264FD1C3/base.app/main.jsbundle",
+      "sha256": "cd34caea1024883f50df8854700752f09f23a1dbaa916b2ac37683630c49f4c8"
     }
   },
-  "invokedAt": 1792585159048,
+  "invokedAt": 1792590008803,
   "iosSdkVersion": "27.1",
   "mode": "smoke",
   "nativeCache": {
     "fingerprint": {
       "fingerprint": {
-        "hash": "941353749293507b6b2293eeccc81bb3570a9c56",
+        "hash": "518b3f6beb97f1a2f0575991a78a3749aafcb576",
         "sources": [
           {
             "filePath": ".gitignore",
@@ -443,7 +443,7 @@
           },
           {
             "filePath": "node_modules/snapback4-expo/ios",
-            "hash": "86455bd4b6512997c884040d620afb0e4a8c95ab",
+            "hash": "627e23bf3164b4f2876579f5e3e95f40c9c1de03",
             "reasons": [
               "expoAutolinkingIos"
             ],
@@ -508,24 +508,24 @@
     "hit": null
   },
   "outputs": [
-    "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-run.json",
-    "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-screen.mp4",
-    "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-receipts.jsonl",
-    "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-device.log",
-    "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-video.log",
-    "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-launch.log",
-    "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-backend.log",
-    "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-backend-stdout.log",
-    "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-log-stderr.log",
-    "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-prime.png",
-    "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-offline.png",
-    "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-restart.png"
+    "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-run.json",
+    "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-screen.mp4",
+    "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-receipts.jsonl",
+    "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-device.log",
+    "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-video.log",
+    "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-launch.log",
+    "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-backend.log",
+    "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-backend-stdout.log",
+    "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-log-stderr.log",
+    "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-prime.png",
+    "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-offline.png",
+    "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-restart.png"
   ],
   "prime": true,
   "proof": {
-    "bytes": 75717,
-    "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/proof.json",
-    "sha256": "cd52c4d5ae4badd33463c72b606677950cb46c0579336d0c13e903a166e936bf"
+    "bytes": 75753,
+    "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/proof.json",
+    "sha256": "b17d864f319d14713c7bb82b6c6983309a93334dd8781061c2f2affb502d38eb"
   },
   "proofKind": "application-release",
   "queryFacts": {
@@ -536,14 +536,14 @@
   },
   "queryGeneration": 1,
   "relaunch": false,
-  "reservation": "/Users/ccheever/sb4-ws-integ20/native-artifacts-main/smoke-ios-reserved",
-  "run": "1792585259226-83434",
+  "reservation": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/smoke-ios-reserved",
+  "run": "1792590105367-29351",
   "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
   "segment": "smoke",
   "segments": {
     "offline": {
-      "durationMs": 2902,
-      "endedAt": 1792585265834,
+      "durationMs": 2821,
+      "endedAt": 1792590111421,
       "error": null,
       "receipt": {
         "acquired": true,
@@ -552,8 +552,8 @@
           "state": "not-exercised"
         },
         "backendRequired": false,
-        "durationMs": 152,
-        "endedAt": 1792585264659,
+        "durationMs": 147,
+        "endedAt": 1792590110182,
         "errors": [],
         "generation": 1,
         "link": "offline",
@@ -581,10 +581,10 @@
           "todos": 0
         },
         "segment": "offline",
-        "startedAt": 1792585264507,
+        "startedAt": 1792590110035,
         "storeId": "8ce785d727f2000cfdd1ee7cc068fae2",
         "viewer": "guest:01M5EXS944A7FBZN8MHYY2HW8X",
-        "watermark": 1
+        "watermark": 2
       },
       "receipts": [
         {
@@ -594,8 +594,8 @@
             "state": "not-exercised"
           },
           "backendRequired": false,
-          "durationMs": 152,
-          "endedAt": 1792585264659,
+          "durationMs": 147,
+          "endedAt": 1792590110182,
           "errors": [],
           "generation": 1,
           "link": "offline",
@@ -623,18 +623,18 @@
             "todos": 0
           },
           "segment": "offline",
-          "startedAt": 1792585264507,
+          "startedAt": 1792590110035,
           "storeId": "8ce785d727f2000cfdd1ee7cc068fae2",
           "viewer": "guest:01M5EXS944A7FBZN8MHYY2HW8X",
-          "watermark": 1
+          "watermark": 2
         }
       ],
-      "startedAt": 1792585262932,
+      "startedAt": 1792590108600,
       "status": "passed"
     },
     "prime": {
-      "durationMs": 2897,
-      "endedAt": 1792585262776,
+      "durationMs": 2395,
+      "endedAt": 1792590108424,
       "error": null,
       "receipt": {
         "acquired": true,
@@ -643,8 +643,8 @@
           "state": "not-exercised"
         },
         "backendRequired": false,
-        "durationMs": 156,
-        "endedAt": 1792585261476,
+        "durationMs": 161,
+        "endedAt": 1792590107465,
         "errors": [],
         "generation": 1,
         "link": "online",
@@ -662,10 +662,10 @@
           "todos": 0
         },
         "segment": "prime",
-        "startedAt": 1792585261320,
+        "startedAt": 1792590107304,
         "storeId": "8ce785d727f2000cfdd1ee7cc068fae2",
         "viewer": "guest:01M5EXS944A7FBZN8MHYY2HW8X",
-        "watermark": 1
+        "watermark": 2
       },
       "receipts": [
         {
@@ -675,8 +675,8 @@
             "state": "not-exercised"
           },
           "backendRequired": false,
-          "durationMs": 156,
-          "endedAt": 1792585261476,
+          "durationMs": 161,
+          "endedAt": 1792590107465,
           "errors": [],
           "generation": 1,
           "link": "online",
@@ -694,18 +694,18 @@
             "todos": 0
           },
           "segment": "prime",
-          "startedAt": 1792585261320,
+          "startedAt": 1792590107304,
           "storeId": "8ce785d727f2000cfdd1ee7cc068fae2",
           "viewer": "guest:01M5EXS944A7FBZN8MHYY2HW8X",
-          "watermark": 1
+          "watermark": 2
         }
       ],
-      "startedAt": 1792585259879,
+      "startedAt": 1792590106029,
       "status": "passed"
     },
     "restart": {
-      "durationMs": 2942,
-      "endedAt": 1792585268904,
+      "durationMs": 2825,
+      "endedAt": 1792590114365,
       "error": null,
       "receipt": {
         "acquired": true,
@@ -714,9 +714,9 @@
           "state": "not-exercised"
         },
         "backendRequired": false,
-        "barrierSeq": 2,
-        "durationMs": 155,
-        "endedAt": 1792585267575,
+        "barrierSeq": 3,
+        "durationMs": 150,
+        "endedAt": 1792590113132,
         "errors": [],
         "generation": 1,
         "link": "online",
@@ -734,10 +734,10 @@
           "todos": 0
         },
         "segment": "restart",
-        "startedAt": 1792585267420,
+        "startedAt": 1792590112982,
         "storeId": "8ce785d727f2000cfdd1ee7cc068fae2",
         "viewer": "guest:01M5EXS944A7FBZN8MHYY2HW8X",
-        "watermark": 2
+        "watermark": 3
       },
       "receipts": [
         {
@@ -747,9 +747,9 @@
             "state": "not-exercised"
           },
           "backendRequired": false,
-          "barrierSeq": 2,
-          "durationMs": 155,
-          "endedAt": 1792585267575,
+          "barrierSeq": 3,
+          "durationMs": 150,
+          "endedAt": 1792590113132,
           "errors": [],
           "generation": 1,
           "link": "online",
@@ -767,13 +767,13 @@
             "todos": 0
           },
           "segment": "restart",
-          "startedAt": 1792585267420,
+          "startedAt": 1792590112982,
           "storeId": "8ce785d727f2000cfdd1ee7cc068fae2",
           "viewer": "guest:01M5EXS944A7FBZN8MHYY2HW8X",
-          "watermark": 2
+          "watermark": 3
         }
       ],
-      "startedAt": 1792585265962,
+      "startedAt": 1792590111540,
       "status": "passed"
     }
   },
@@ -783,11 +783,11 @@
     "selection": "explicit",
     "udid": "BDF123A8-5E01-42BC-92F6-9BFECB63747E"
   },
-  "startedAt": 1792585259227,
+  "startedAt": 1792590105371,
   "syncBarrier": {
     "applicationWrites": 0,
-    "at": 1792585265842,
-    "seq": 2
+    "at": 1792590111423,
+    "seq": 3
   },
   "timestampUnit": "unix-ms",
   "toolchainSource": "installed Info.plist; absent values are unknown",

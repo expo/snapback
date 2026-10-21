@@ -1,7 +1,7 @@
 {
   "measurement": {
-    "at": "2026-10-21T11:38:50Z",
-    "sha": "115822bc36",
+    "at": "2026-10-21T12:51:06Z",
+    "sha": "c620cad340",
     "dirty": false,
     "wasm": {
       "raw": 2404980,
@@ -18,5 +18,7 @@
     "over": 0
   },
   "budget": 734406,
-  "reason": "Integration 20 after current-main S8 boundary merge (Linux source 2ff08401e6): measured 2,404,980 B raw / 733,906 B gzip / 552,883 B Brotli. Set 734,406 B = measured gzip + exactly 500 B. Whole-artifact delta from the earlier Integration 20 measurement is +58 B raw / +4 B gzip; the merged store/device boundary and typed inspection changes also alter compiled layout. Strict serde-family and server-only absence audits pass. No independent per-feature attribution, Mac wasm measurement or runtime ceiling increase."
+  "reason": "Integration 20 after current-main S8 boundary merge (Linux source 2ff08401e6): measured 2,404,980 B raw / 733,906 B gzip / 552,883 B Brotli. Set 734,406 B = measured gzip + exactly 500 B. Whole-artifact delta from the earlier Integration 20 measurement is +58 B raw / +4 B gzip; the merged store/device boundary and typed inspection changes also alter compiled layout. Strict serde-family and server-only absence audits pass. No independent per-feature attribution, Mac wasm measurement or runtime ceiling increase.",
+  "laterGuideFixtureRevision": "49ff4203cec98c268d571075d5dc6418f36ef41a",
+  "wasmSourceUnchanged": true
 }

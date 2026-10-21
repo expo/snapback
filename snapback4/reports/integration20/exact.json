@@ -1,29 +1,42 @@
 {
+  "source": "49ff4203cec98c268d571075d5dc6418f36ef41a",
   "exact2OriginMainAtClone": "eb12e487f33a7e3a07c5fee8682c3e99db8f1df0",
+  "binarySha256": "bd02abe27a34dfc383d31f92d4e43fcd124afc1c66118158377ab774b80fa20a",
   "clientVersion": "0.4.36",
-  "clientTarball": "/home/ccheever/sb4-loop/integration20/pack-integrated-main/snapback4-0.4.36.tgz",
-  "clientSha256": "b11435797dc5067cf0e02f773ee08d85c4686daaef6af79e7c6c22e1ecb2c3c4",
-  "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
-  "binarySha256": "dde3a1464e0b2617d0986608a3790fc865523f1b66509039c7e7c5bd95f44959",
-  "overrides": [
-    "Exact2 devDependencies.snapback4 uses the prepared 0.4.36 pack (no duplicate dependency)",
-    "Exact2 snapback4 workspace core/device/lang Cargo dependencies use the merged local source; regenerated offline lock",
-    "fresh backend directories use the same installed pack via their node_modules link"
-  ],
+  "clientTarball": "/home/ccheever/sb4-loop/integration20/pack-foundation-final/snapback4-0.4.36.tgz",
+  "clientSha256": "ee5b967919f74e5e4ada9c3b94eade862083445feb577dafa7de967dfc2e8cad",
+  "installedClientPackEqualsQualified": true,
   "apps": {
     "synced": {
-      "directory": "/home/ccheever/sb4-loop/prewave20/synced-final/app",
-      "port": 26905,
+      "directory": "/home/ccheever/sb4-loop/prewave20/synced-foundation-proof/app",
+      "port": 26909,
+      "commands": [
+        {
+          "argv": [
+            "bun",
+            "exact.mjs",
+            "snapback"
+          ],
+          "exit": 0,
+          "log": "/home/ccheever/sb4-loop/integration20/logs/exact-synced-wire-final36.log"
+        },
+        {
+          "argv": [
+            "bun",
+            "exact.mjs",
+            "test",
+            "web"
+          ],
+          "exit": 0,
+          "log": "/home/ccheever/sb4-loop/integration20/logs/exact-synced-web-final36.log"
+        }
+      ],
+      "schemaSha256": "ee9861281d80fb224073b045ccbe29b43130eea8239feca0b70257ad7d3c273f",
       "wire": "passed",
       "web": {
         "passed": 2,
         "failed": 0
       },
-      "commands": [
-        "bun exact.mjs snapback",
-        "bun exact.mjs test web"
-      ],
-      "schemaSha256": "ee9861281d80fb224073b045ccbe29b43130eea8239feca0b70257ad7d3c273f",
       "wasmStamp": {
         "format": 1,
         "version": "0.4.36",
@@ -71,19 +84,59 @@
       }
     },
     "online": {
-      "directory": "/home/ccheever/sb4-loop/prewave20/online-final/app",
-      "port": 26906,
+      "directory": "/home/ccheever/sb4-loop/prewave20/online-foundation-final/app",
+      "port": 26908,
+      "commands": [
+        {
+          "argv": [
+            "bun",
+            "exact.mjs",
+            "snapback"
+          ],
+          "exit": 0,
+          "log": "/home/ccheever/sb4-loop/integration20/logs/exact-online-wire-final36.log"
+        },
+        {
+          "argv": [
+            "bun",
+            "exact.mjs",
+            "test",
+            "web"
+          ],
+          "exit": 0,
+          "log": "/home/ccheever/sb4-loop/integration20/logs/exact-online-web-final36.log"
+        }
+      ],
+      "schemaSha256": "f8274b085d7320bc15d44c43ebc3fb6be0d7b929d09502857df2c1d4106dfffb",
       "wire": "passed",
       "web": {
         "passed": 2,
         "failed": 0
       },
-      "commands": [
-        "bun exact.mjs snapback",
-        "bun exact.mjs test web"
-      ],
-      "schemaSha256": "f8274b085d7320bc15d44c43ebc3fb6be0d7b929d09502857df2c1d4106dfffb"
+      "persistedWritesAfterThreeProofRuns": 3,
+      "dataInspection": {
+        "rows": 3,
+        "more": false,
+        "limit": 50
+      }
     }
   },
-  "onlineRows": 1
+  "sdkBridgeManifestSha256": "63121d7bec740c7cf68c2932ce191ee60150ea512bc8ce43631909cad9a5a0c6",
+  "observedInstalledPackages": {
+    "sdk": {
+      "version": "0.4.36",
+      "resolvedManifest": "/home/ccheever/sb4-loop/prewave20/exact2/node_modules/snapback4/package.json"
+    },
+    "synced": {
+      "version": "0.4.36",
+      "resolvedManifest": "/home/ccheever/sb4-loop/prewave20/exact2/node_modules/snapback4/package.json"
+    },
+    "online": {
+      "version": "0.4.36",
+      "resolvedManifest": "/home/ccheever/sb4-loop/prewave20/exact2/node_modules/snapback4/package.json"
+    }
+  },
+  "sdkClientDevDependency": "/home/ccheever/sb4-loop/integration20/pack-foundation-final/snapback4-0.4.36.tgz",
+  "noDuplicateSdkClientDependency": true,
+  "equivalentFinalIntegration": "49ff4203cec98c268d571075d5dc6418f36ef41a"
 }

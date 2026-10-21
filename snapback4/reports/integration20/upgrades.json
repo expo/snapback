@@ -8,6 +8,7 @@
     "expoTypecheck": "passed",
     "expoWebExport": "passed",
     "from": "0.4.33",
+    "oldNativeVersion": "snapback4 0.4.33",
     "flags": [],
     "candidate": "0.4.36",
     "oldPackage": {
@@ -17,7 +18,10 @@
     "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
     "status": "passed",
     "acquisition": "installed old npx snapback4 upgrade",
-    "warnings": "during upgrade and next visible check"
+    "warnings": "during upgrade and next visible check",
+    "executedOn": "49ff4203cec98c268d571075d5dc6418f36ef41a",
+    "equivalentFinalIntegration": "49ff4203cec98c268d571075d5dc6418f36ef41a",
+    "candidateBinarySha256": "bd02abe27a34dfc383d31f92d4e43fcd124afc1c66118158377ab774b80fa20a"
   },
   {
     "productionRowsPreserved": 1,
@@ -28,6 +32,7 @@
     "expoTypecheck": "passed",
     "expoWebExport": "passed",
     "from": "0.4.35",
+    "oldNativeVersion": "snapback4 0.4.35",
     "flags": [],
     "candidate": "0.4.36",
     "oldPackage": {
@@ -37,6 +42,9 @@
     "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
     "status": "passed",
     "acquisition": "installed old npx snapback4 upgrade",
-    "warnings": "during upgrade and next visible check"
+    "warnings": "during upgrade and next visible check",
+    "executedOn": "49ff4203cec98c268d571075d5dc6418f36ef41a",
+    "equivalentFinalIntegration": "49ff4203cec98c268d571075d5dc6418f36ef41a",
+    "candidateBinarySha256": "bd02abe27a34dfc383d31f92d4e43fcd124afc1c66118158377ab774b80fa20a"
   }
 ]

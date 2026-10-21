@@ -1,0 +1,20 @@
+[
+  {
+    "ownedSimulator": "BDF123A8-5E01-42BC-92F6-9BFECB63747E",
+    "name": "snapback4-smoke-1792575439686-18002",
+    "shutdownExit": 0,
+    "deleteExit": 0
+  },
+  {
+    "pidFile": "caffeinate-monitor.pid",
+    "pid": 72051,
+    "children": [
+      72052
+    ],
+    "action": "SIGTERM owned task caffeinate"
+  },
+  {
+    "removedOwnedPartialTransfer": "/Users/ccheever/sb4-integ20-source.tar.gz",
+    "bytes": 1904087040
+  }
+]

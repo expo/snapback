@@ -23,13 +23,13 @@ No push or publication is performed.
 
 ## Later integration scopes
 
-The original pair reviews snapshot37a707c158. Both families also returned READY
+The original pair reviews snapshot 37a707c158. Both families also returned READY
 for the incoming-main foundation delta at f34441c148 (`foundation/`), the
-generated-wire/known-evidence fixture repair at05b7e9b7be (`fixtures/`), and
-the remaining fixture repair at49ff4203ce (`fixture-completion/`).
+generated-wire/known-evidence fixture repair at 05b7e9b7be (`fixtures/`), and
+the remaining fixture repair at 49ff4203ce (`fixture-completion/`).
 
 `retention-rfc/` contains both verbatim reviews and the exact reviewed snapshot
-for the documentation reconciliation of LLP3000.023§12 with incoming P1-MR
+for the documentation reconciliation of LLP 3000.023 §12 with incoming P1-MR
 policy. `candidate.md` is the reviewed document snapshot; the governing file is
 `llp/3000.023-answers-stay-on-screen.rfc.md`. The reconciliation adds no further
 policy decision or author acceptance. Each directory records its own brief,

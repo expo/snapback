@@ -1,8 +1,8 @@
 {
   "format": 1,
   "proofKind": "application-release",
-  "startedAt": 1792585164877,
-  "durationMs": 89455,
+  "startedAt": 1792590014695,
+  "durationMs": 85743,
   "nativeFingerprint": {
     "version": "0.20.14",
     "options": {
@@ -270,7 +270,7 @@
           "reasons": [
             "expoAutolinkingIos"
           ],
-          "hash": "86455bd4b6512997c884040d620afb0e4a8c95ab"
+          "hash": "627e23bf3164b4f2876579f5e3e95f40c9c1de03"
         },
         {
           "type": "contents",
@@ -318,42 +318,12 @@
           "hash": "32edc92e8b2ae5f2e06e68302bd784e29b1b675a"
         }
       ],
-      "hash": "941353749293507b6b2293eeccc81bb3570a9c56"
+      "hash": "518b3f6beb97f1a2f0575991a78a3749aafcb576"
     }
   },
-  "toolchain": {
-    "node": "v24.21.0",
-    "xcode": "Xcode 27.1\nBuild version 27A9275",
-    "sdk": "27.1",
-    "sdkBuild": "24A94232",
-    "pod": "1.17.0",
-    "runtime": [
-      {
-        "identifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
-        "version": "27.0",
-        "buildversion": "24A434"
-      },
-      {
-        "identifier": "com.apple.CoreSimulator.SimRuntime.tvOS-27-0",
-        "version": "27.0",
-        "buildversion": "24J360"
-      },
-      {
-        "identifier": "com.apple.CoreSimulator.SimRuntime.watchOS-27-0",
-        "version": "27.0",
-        "buildversion": "24R362"
-      }
-    ],
-    "architecture": "arm64"
-  },
-  "compiler": {
-    "package": "250829098.0.17",
-    "sha256": "459d352c9a3cfdbe9289a167d93f7e30700c6ee591dfee3a4d52dc26eb8548cb",
-    "version": "LLVM (http://llvm.org/):\n  LLVH version 8.0.0svn\n  Optimized build\n\nHermes JavaScript compiler.\n  Hermes release version: 250829098.0.17\n  HBC bytecode version: 98\n\n  Features:\n    Unicode RegExp Property Escapes\n    Zip file input"
-  },
   "source": {
-    "sha256": "b1bf65eb21f9b57877bc2ebd7e8437fb003ecee49808d29a92fb9b5aa16f91d6",
-    "bytes": 278229,
+    "sha256": "d5d5924c4383011ff2abd65298fc1394317d40ed96f8e836ecee97b2e4d796f9",
+    "bytes": 278235,
     "files": [
       {
         "path": ".gitignore",
@@ -434,8 +404,8 @@
         "path": "package-lock.json",
         "mode": 420,
         "type": "file",
-        "bytes": 246534,
-        "sha256": "8752f3bbfbfb681eb36d940fce62be7407842dcbda275c929e5b845fa942f96a"
+        "bytes": 246540,
+        "sha256": "dccdc275e8f7fdef030b037be7c9ed68c682849da6f94374d2e3223143fdd713"
       },
       {
         "path": "package.json",
@@ -536,9 +506,1350 @@
       }
     ]
   },
+  "publicConfig": {
+    "android": {
+      "package": "dev.snapback4.nativeapp"
+    },
+    "ios": {
+      "bundleIdentifier": "dev.snapback4.nativeapp",
+      "supportsTablet": true
+    },
+    "name": "Native App",
+    "newArchEnabled": true,
+    "orientation": "portrait",
+    "plugins": [
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-status-bar",
+      "snapback4-expo/plugin"
+    ],
+    "scheme": "nativeapp",
+    "slug": "native-app",
+    "version": "0.0.1",
+    "sdkVersion": "57.0.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ]
+  },
+  "toolchain": {
+    "node": "v24.21.0",
+    "xcode": "Xcode 27.1\nBuild version 27A9275",
+    "sdk": "27.1",
+    "sdkBuild": "24A94232",
+    "pod": "1.17.0",
+    "runtime": [
+      {
+        "identifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+        "version": "27.0",
+        "buildversion": "24A434"
+      },
+      {
+        "identifier": "com.apple.CoreSimulator.SimRuntime.tvOS-27-0",
+        "version": "27.0",
+        "buildversion": "24J360"
+      },
+      {
+        "identifier": "com.apple.CoreSimulator.SimRuntime.watchOS-27-0",
+        "version": "27.0",
+        "buildversion": "24R362"
+      }
+    ],
+    "architecture": "arm64"
+  },
+  "compiler": {
+    "package": "250829098.0.17",
+    "sha256": "459d352c9a3cfdbe9289a167d93f7e30700c6ee591dfee3a4d52dc26eb8548cb",
+    "version": "LLVM (http://llvm.org/):\n  LLVH version 8.0.0svn\n  Optimized build\n\nHermes JavaScript compiler.\n  Hermes release version: 250829098.0.17\n  HBC bytecode version: 98\n\n  Features:\n    Unicode RegExp Property Escapes\n    Zip file input"
+  },
+  "executedApp": {
+    "inventory": {
+      "sha256": "921b6767588912f92af59f84c9e60f6eeda22eb4dbc358d120ddf953f9da8262",
+      "bytes": 33805043,
+      "files": [
+        {
+          "path": "AppIcon60x60@2x.png",
+          "mode": 420,
+          "type": "file",
+          "bytes": 578,
+          "sha256": "8a87a4aff1ec02470a53f93d24d3cd6effbc186afc0ea69183230ea45537020c"
+        },
+        {
+          "path": "AppIcon76x76@2x~ipad.png",
+          "mode": 420,
+          "type": "file",
+          "bytes": 837,
+          "sha256": "2eee84ce9360a23d36fbcf41cda65c53ac6481c5129ebd5eec10a3f3cdcf6c27"
+        },
+        {
+          "path": "Assets.car",
+          "mode": 420,
+          "type": "file",
+          "bytes": 20328,
+          "sha256": "e0d3506241dd805b7175ee599cdef4238e7fdee77e6a213a0fcd09f69113695b"
+        },
+        {
+          "path": "EXConstants.bundle",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "EXConstants.bundle/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 753,
+          "sha256": "6af609f7c5b3cd61ada5e3cca28100991ba272ff88e5d32d488e39cb57aebdb6"
+        },
+        {
+          "path": "EXConstants.bundle/app.config",
+          "mode": 420,
+          "type": "file",
+          "bytes": 396,
+          "sha256": "3a223b68b0b787a64aaa4c77f59918602070082912f9dd866a04eb32aae85be4"
+        },
+        {
+          "path": "Expo.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 173,
+          "sha256": "05ba13f24655445d029d47b626ac23ce8003e2e0722b7f8926b82b89c94ec51b"
+        },
+        {
+          "path": "ExpoConstants_privacy.bundle",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "ExpoConstants_privacy.bundle/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 775,
+          "sha256": "d79145cf3633bcaa8004e610a0089d857484e60ee92634d5904c2998da3dbbed"
+        },
+        {
+          "path": "ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy",
+          "mode": 420,
+          "type": "file",
+          "bytes": 607,
+          "sha256": "2b2d8edb71d51c5b1f1ace4cdb28a94baf22fdde9bbf2e2bfc17d187ff7b5f47"
+        },
+        {
+          "path": "ExpoFileSystem_privacy.bundle",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "ExpoFileSystem_privacy.bundle/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 776,
+          "sha256": "9ff538884061ab2975bcf3f27b1a72a52e80ba576e73921651c7eaddc1b09fa0"
+        },
+        {
+          "path": "Frameworks",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ExpoFileSystem.framework",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ExpoFileSystem.framework/ExpoFileSystem",
+          "mode": 493,
+          "type": "file",
+          "bytes": 1138048,
+          "sha256": "22a03cb5ed0f9b60a29883061bb3018cf3b9f76db58fc867e80fed548dcee8e8"
+        },
+        {
+          "path": "Frameworks/ExpoFileSystem.framework/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 746,
+          "sha256": "5f9a269baff07c93ed53674b76667a8b84b8acd9aa6dd96d94c326bd1e7e6b7d"
+        },
+        {
+          "path": "Frameworks/ExpoFileSystem.framework/_CodeSignature",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ExpoFileSystem.framework/_CodeSignature/CodeResources",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1798,
+          "sha256": "3ae83871cd2b1afb35fff45f2130a05d9cadeb11984ec8075e6d879c0d5b3ee3"
+        },
+        {
+          "path": "Frameworks/ExpoFont.framework",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ExpoFont.framework/ExpoFont",
+          "mode": 493,
+          "type": "file",
+          "bytes": 209024,
+          "sha256": "b8dc277448260f3396b2ab4e26bbef146933b664c8c333b2ed89514c92bc10cf"
+        },
+        {
+          "path": "Frameworks/ExpoFont.framework/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 728,
+          "sha256": "7f0220334b9f441a188a322be1848cccabfdbf269a11846db72d2ebe2db3fb1a"
+        },
+        {
+          "path": "Frameworks/ExpoFont.framework/_CodeSignature",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ExpoFont.framework/_CodeSignature/CodeResources",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1798,
+          "sha256": "31c71f755e0bfab32d7d59ab5d6fa0ac432864ecbdc952909c831823277e8a97"
+        },
+        {
+          "path": "Frameworks/ExpoModulesCore.framework",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ExpoModulesCore.framework/ExpoModulesCore",
+          "mode": 493,
+          "type": "file",
+          "bytes": 3803648,
+          "sha256": "f9b222838226636de216dae0f18fc2f39ba7273b45fd998777d55f590cb12e60"
+        },
+        {
+          "path": "Frameworks/ExpoModulesCore.framework/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 752,
+          "sha256": "c7a9db6e207f3976f97f4f6c874051386107720fd2b1caeaa303a92298d0ded3"
+        },
+        {
+          "path": "Frameworks/ExpoModulesCore.framework/_CodeSignature",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ExpoModulesCore.framework/_CodeSignature/CodeResources",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1798,
+          "sha256": "be77bfa5f44a69adb5417a40a35157acbef6c348a207f4a96db088fdfdb9abff"
+        },
+        {
+          "path": "Frameworks/ExpoModulesJSI.framework",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ExpoModulesJSI.framework/ExpoModulesJSI",
+          "mode": 493,
+          "type": "file",
+          "bytes": 510656,
+          "sha256": "e8188beee27bd0d429daec6f1c191c19e3f20c393aa40312cc2d5407044fdd11"
+        },
+        {
+          "path": "Frameworks/ExpoModulesJSI.framework/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 741,
+          "sha256": "744cbe6eb990cea632897b6397fa1d1da1c6f91a97b9ef06c77392fa43ff232d"
+        },
+        {
+          "path": "Frameworks/ExpoModulesJSI.framework/_CodeSignature",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ExpoModulesJSI.framework/_CodeSignature/CodeResources",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1798,
+          "sha256": "fafa73030b8197f08a7b5fb9bef285bd521d58e8db4b85562ce3eac4bbadf1c3"
+        },
+        {
+          "path": "Frameworks/ExpoModulesWorklets.framework",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ExpoModulesWorklets.framework/ExpoModulesWorklets",
+          "mode": 493,
+          "type": "file",
+          "bytes": 164656,
+          "sha256": "24758b82fd3e35a3b5220198f52521c1340c575c77edb08d971c456829469827"
+        },
+        {
+          "path": "Frameworks/ExpoModulesWorklets.framework/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 764,
+          "sha256": "fc9a8ff5386c6fbf5bfbcdbc48dfa9fec1ad8ca936d6cfd3c6851b7cfcc41ddf"
+        },
+        {
+          "path": "Frameworks/ExpoModulesWorklets.framework/_CodeSignature",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ExpoModulesWorklets.framework/_CodeSignature/CodeResources",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1798,
+          "sha256": "a0283877a2c602a1cff02e9849d60dcd2d58541a764efbd7595d99f96717fef9"
+        },
+        {
+          "path": "Frameworks/React.framework",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/React.framework/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 724,
+          "sha256": "c9be56123cc6ba97e94958755e20537471fd84b0c1cd579e4982ae9255816301"
+        },
+        {
+          "path": "Frameworks/React.framework/React",
+          "mode": 420,
+          "type": "file",
+          "bytes": 11993344,
+          "sha256": "7cb38905c98d1fb6039e15f0370691669ab1ab31332e03d9589a3807a790bc24"
+        },
+        {
+          "path": "Frameworks/React.framework/_CodeSignature",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/React.framework/_CodeSignature/CodeResources",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1798,
+          "sha256": "9f22235918b33cc61280bff9f60b6fc25e491f693db5d1e0589a3e33eb952261"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 761,
+          "sha256": "043d66b265858b73ca23f8cbbf15e7043bb40f97e6104708e4f69d1f9d00fa96"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1236656,
+          "sha256": "df125ae05db964b31a67345272d7ce0a390a6b404379f7ec29d922456879d150"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 669,
+          "sha256": "16db1275ce3a9d70994d079ae4fe4e7f8894b2f92fb3c6b33b03fa3a2e5d0971"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/PrivacyInfo.xcprivacy",
+          "mode": 420,
+          "type": "file",
+          "bytes": 776,
+          "sha256": "d3559c988dff940d4f758f37a0ba1863208304e33ab0b97c0e3dd5d3762f5f1d"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeDirectory",
+          "mode": 420,
+          "type": "file",
+          "bytes": 156,
+          "sha256": "178f3bdcfed97cc13ad4e518330448c56e00f47360560e105d55cfcd7598d9b8"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements",
+          "mode": 420,
+          "type": "file",
+          "bytes": 12,
+          "sha256": "987920904eab650e75788c054aa0b0524e6a80bfc71aa32df8d237a61743f986"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeRequirements-1",
+          "mode": 420,
+          "type": "file",
+          "bytes": 204,
+          "sha256": "d2393f211df2ea2bc6e03061789759c9818f99ffd177b408422ccf4d0b37f94e"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeResources",
+          "mode": 420,
+          "type": "file",
+          "bytes": 2032,
+          "sha256": "557fba743e35172838832cca93f1d17e34b8bd696f96eeb3032e529502ea945e"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_boost.bundle/_CodeSignature/CodeSignature",
+          "mode": 420,
+          "type": "file",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 669,
+          "sha256": "5abf3977eef24726730e03a648dca022c8f993596e122cd94cf322985ac8ac76"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/PrivacyInfo.xcprivacy",
+          "mode": 420,
+          "type": "file",
+          "bytes": 552,
+          "sha256": "0587d155c56a6f4f0647ebc6b6a0bd026615cd610ee8f209a9786b79a96ad335"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeDirectory",
+          "mode": 420,
+          "type": "file",
+          "bytes": 156,
+          "sha256": "25ccd0685a97962d86509fb66694af0eb207890862bcb49c3e14bd3ddbe4ddfc"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements",
+          "mode": 420,
+          "type": "file",
+          "bytes": 12,
+          "sha256": "987920904eab650e75788c054aa0b0524e6a80bfc71aa32df8d237a61743f986"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeRequirements-1",
+          "mode": 420,
+          "type": "file",
+          "bytes": 204,
+          "sha256": "dee967a352e0d990a9bc3d34c5a66c6597254ec4431de379acd35ef3fe94a03b"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeResources",
+          "mode": 420,
+          "type": "file",
+          "bytes": 2032,
+          "sha256": "be2989a2daf02505cf3117ce99419580ce849fd1a8200c581bd9acdf8409a440"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_folly.bundle/_CodeSignature/CodeSignature",
+          "mode": 420,
+          "type": "file",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 667,
+          "sha256": "8b97a53cf72f56810fed094013c2f521c034e5267a495081570a861a0adc4c41"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/PrivacyInfo.xcprivacy",
+          "mode": 420,
+          "type": "file",
+          "bytes": 552,
+          "sha256": "0587d155c56a6f4f0647ebc6b6a0bd026615cd610ee8f209a9786b79a96ad335"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeDirectory",
+          "mode": 420,
+          "type": "file",
+          "bytes": 155,
+          "sha256": "d7cb7c11cc0a0c8f4ee3e91df163b072d20f5258f28106b6c71a06a3a5d29383"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements",
+          "mode": 420,
+          "type": "file",
+          "bytes": 12,
+          "sha256": "987920904eab650e75788c054aa0b0524e6a80bfc71aa32df8d237a61743f986"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeRequirements-1",
+          "mode": 420,
+          "type": "file",
+          "bytes": 203,
+          "sha256": "e54537eaff8aa25202925da339bf7d4c92854298ba76e0417eec916e16c2a0ec"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeResources",
+          "mode": 420,
+          "type": "file",
+          "bytes": 2032,
+          "sha256": "be2989a2daf02505cf3117ce99419580ce849fd1a8200c581bd9acdf8409a440"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies_glog.bundle/_CodeSignature/CodeSignature",
+          "mode": 420,
+          "type": "file",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/_CodeSignature",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/ReactNativeDependencies.framework/_CodeSignature/CodeResources",
+          "mode": 420,
+          "type": "file",
+          "bytes": 8326,
+          "sha256": "026fa759fda61dfe4afd30edeb70dbb873a5b8ec77c8a35ff849b8a846420780"
+        },
+        {
+          "path": "Frameworks/hermesvm.framework",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/hermesvm.framework/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 866,
+          "sha256": "0767523a61a3ab293e6e39ea3de61622d833f2dacee418afd89f6a57d67c8119"
+        },
+        {
+          "path": "Frameworks/hermesvm.framework/_CodeSignature",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "Frameworks/hermesvm.framework/_CodeSignature/CodeResources",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1798,
+          "sha256": "9df1dd70347063371bf92d07d0a9dad2dbb2a15a943d8073f5d3d3ba5b34e8c0"
+        },
+        {
+          "path": "Frameworks/hermesvm.framework/hermesvm",
+          "mode": 493,
+          "type": "file",
+          "bytes": 5064800,
+          "sha256": "d85fe57c05efafc7e5c9d83838ac1e3296d3d6d07bbe758cfbbe0934ca440d0b"
+        },
+        {
+          "path": "Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 2423,
+          "sha256": "22cd84719ffe3262543c510a51953fabe792c410be0c6f22f22f0898afaf366a"
+        },
+        {
+          "path": "NativeApp",
+          "mode": 493,
+          "type": "file",
+          "bytes": 6775504,
+          "sha256": "dbf835aa77ee92653c93724c5bd2d6486387a8dff0e819d8dcaa70fbe2de9cf0"
+        },
+        {
+          "path": "PkgInfo",
+          "mode": 420,
+          "type": "file",
+          "bytes": 8,
+          "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+        },
+        {
+          "path": "PrivacyInfo.xcprivacy",
+          "mode": 420,
+          "type": "file",
+          "bytes": 986,
+          "sha256": "06949f6d09a83cea00c3a4895bb7300f2580d52852c6ade1a9caa169934a1001"
+        },
+        {
+          "path": "React-Core_privacy.bundle",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "React-Core_privacy.bundle/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 768,
+          "sha256": "e6f2af8f0b24fca2406377aba9a6ddb5af8ebaff3a9a7db42ac75fd289915fa8"
+        },
+        {
+          "path": "React-Core_privacy.bundle/PrivacyInfo.xcprivacy",
+          "mode": 420,
+          "type": "file",
+          "bytes": 768,
+          "sha256": "7c08969e459621a6ecec043ccdb9012651f185811945f75517c623dae2e11627"
+        },
+        {
+          "path": "React-cxxreact_privacy.bundle",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "React-cxxreact_privacy.bundle/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 776,
+          "sha256": "129acc5588e869a4951763fcaa81efa4be3e4fe1eb03dcdb3b3fce2bfd2d8f6a"
+        },
+        {
+          "path": "React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy",
+          "mode": 420,
+          "type": "file",
+          "bytes": 552,
+          "sha256": "0587d155c56a6f4f0647ebc6b6a0bd026615cd610ee8f209a9786b79a96ad335"
+        },
+        {
+          "path": "React-timing_privacy.bundle",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "React-timing_privacy.bundle/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 772,
+          "sha256": "22a1a00827d4ffd68a8a81ddd8e315f7cae0be34d3f856f713a1ea9bb163b0c6"
+        },
+        {
+          "path": "React-timing_privacy.bundle/PrivacyInfo.xcprivacy",
+          "mode": 420,
+          "type": "file",
+          "bytes": 553,
+          "sha256": "23ddfa062a6d4392e65882d151fdececbd29904a227ad8918c0144ebc777ee61"
+        },
+        {
+          "path": "SplashScreen.storyboardc",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "SplashScreen.storyboardc/EXPO-VIEWCONTROLLER-1-view-EXPO-ContainerView.nib",
+          "mode": 420,
+          "type": "file",
+          "bytes": 2171,
+          "sha256": "55e32476d2306023fb544ef0efed26ed4688e48c2703ddcfd2e39a8c1de4af67"
+        },
+        {
+          "path": "SplashScreen.storyboardc/Info.plist",
+          "mode": 420,
+          "type": "file",
+          "bytes": 225,
+          "sha256": "74dbceed6cf0a5e5c69834793328c9783ecab1de482d4954e257ca2132b743af"
+        },
+        {
+          "path": "SplashScreen.storyboardc/SplashScreenViewController.nib",
+          "mode": 420,
+          "type": "file",
+          "bytes": 1004,
+          "sha256": "9c1a34c121d22479408cf0eaacb3491548ced16655799bae3b5f7f2380314ba8"
+        },
+        {
+          "path": "_CodeSignature",
+          "mode": 493,
+          "type": "directory"
+        },
+        {
+          "path": "_CodeSignature/CodeResources",
+          "mode": 420,
+          "type": "file",
+          "bytes": 22401,
+          "sha256": "f14aad897c15fd433ef400688a842a67cf780ec6b8c0d85d5c890abb2df60372"
+        },
+        {
+          "path": "main.jsbundle",
+          "mode": 420,
+          "type": "file",
+          "bytes": 2811988,
+          "sha256": "cd34caea1024883f50df8854700752f09f23a1dbaa916b2ac37683630c49f4c8"
+        }
+      ]
+    },
+    "native": [
+      {
+        "path": "Frameworks/ExpoFileSystem.framework/ExpoFileSystem",
+        "mode": 493,
+        "type": "file",
+        "bytes": 1138048,
+        "sha256": "22a03cb5ed0f9b60a29883061bb3018cf3b9f76db58fc867e80fed548dcee8e8"
+      },
+      {
+        "path": "Frameworks/ExpoFont.framework/ExpoFont",
+        "mode": 493,
+        "type": "file",
+        "bytes": 209024,
+        "sha256": "b8dc277448260f3396b2ab4e26bbef146933b664c8c333b2ed89514c92bc10cf"
+      },
+      {
+        "path": "Frameworks/ExpoModulesCore.framework/ExpoModulesCore",
+        "mode": 493,
+        "type": "file",
+        "bytes": 3803648,
+        "sha256": "f9b222838226636de216dae0f18fc2f39ba7273b45fd998777d55f590cb12e60"
+      },
+      {
+        "path": "Frameworks/ExpoModulesJSI.framework/ExpoModulesJSI",
+        "mode": 493,
+        "type": "file",
+        "bytes": 510656,
+        "sha256": "e8188beee27bd0d429daec6f1c191c19e3f20c393aa40312cc2d5407044fdd11"
+      },
+      {
+        "path": "Frameworks/ExpoModulesWorklets.framework/ExpoModulesWorklets",
+        "mode": 493,
+        "type": "file",
+        "bytes": 164656,
+        "sha256": "24758b82fd3e35a3b5220198f52521c1340c575c77edb08d971c456829469827"
+      },
+      {
+        "path": "Frameworks/React.framework/React",
+        "mode": 420,
+        "type": "file",
+        "bytes": 11993344,
+        "sha256": "7cb38905c98d1fb6039e15f0370691669ab1ab31332e03d9589a3807a790bc24"
+      },
+      {
+        "path": "Frameworks/ReactNativeDependencies.framework/ReactNativeDependencies",
+        "mode": 420,
+        "type": "file",
+        "bytes": 1236656,
+        "sha256": "df125ae05db964b31a67345272d7ce0a390a6b404379f7ec29d922456879d150"
+      },
+      {
+        "path": "Frameworks/hermesvm.framework/hermesvm",
+        "mode": 493,
+        "type": "file",
+        "bytes": 5064800,
+        "sha256": "d85fe57c05efafc7e5c9d83838ac1e3296d3d6d07bbe758cfbbe0934ca440d0b"
+      },
+      {
+        "path": "NativeApp",
+        "mode": 493,
+        "type": "file",
+        "bytes": 6775504,
+        "sha256": "dbf835aa77ee92653c93724c5bd2d6486387a8dff0e819d8dcaa70fbe2de9cf0"
+      }
+    ],
+    "javascript": {
+      "sha256": "cd34caea1024883f50df8854700752f09f23a1dbaa916b2ac37683630c49f4c8",
+      "bytes": 2811988,
+      "version": 98
+    },
+    "info": {
+      "CFBundleURLTypes": [
+        {
+          "CFBundleURLSchemes": [
+            "nativeapp",
+            "dev.snapback4.nativeapp"
+          ]
+        },
+        {
+          "CFBundleURLSchemes": [
+            "exp+native-app"
+          ]
+        }
+      ],
+      "DTCompiler": "com.apple.compilers.llvm.clang.1_0",
+      "CFBundleInfoDictionaryVersion": "6.0",
+      "UIRequiredDeviceCapabilities": [
+        "arm64"
+      ],
+      "DTPlatformVersion": "27.1",
+      "UIRequiresFullScreen": false,
+      "CFBundleName": "NativeApp",
+      "DTSDKName": "iphonesimulator27.1",
+      "UISupportedInterfaceOrientations~ipad": [
+        "UIInterfaceOrientationPortrait",
+        "UIInterfaceOrientationPortraitUpsideDown",
+        "UIInterfaceOrientationLandscapeLeft",
+        "UIInterfaceOrientationLandscapeRight"
+      ],
+      "UIUserInterfaceStyle": "Light",
+      "UIViewControllerBasedStatusBarAppearance": false,
+      "CFBundleIcons": {
+        "CFBundlePrimaryIcon": {
+          "CFBundleIconFiles": [
+            "AppIcon60x60"
+          ],
+          "CFBundleIconName": "AppIcon"
+        }
+      },
+      "UIStatusBarStyle": "UIStatusBarStyleDefault",
+      "CFBundleDisplayName": "Native App",
+      "LSRequiresIPhoneOS": true,
+      "DTSDKBuild": "24A94232",
+      "CFBundleShortVersionString": "0.0.1",
+      "CFBundleSupportedPlatforms": [
+        "iPhoneSimulator"
+      ],
+      "UISupportedInterfaceOrientations": [
+        "UIInterfaceOrientationPortrait",
+        "UIInterfaceOrientationPortraitUpsideDown"
+      ],
+      "BuildMachineOSBuild": "26A434",
+      "DTPlatformBuild": "24A94232",
+      "CFBundlePackageType": "APPL",
+      "DTXcodeBuild": "27A9275",
+      "CFBundleDevelopmentRegion": "en",
+      "MinimumOSVersion": "16.4",
+      "CFBundleVersion": "1",
+      "NSBonjourServices": [
+        "_expo._tcp"
+      ],
+      "UIDeviceFamily": [
+        1,
+        2
+      ],
+      "UILaunchStoryboardName": "SplashScreen",
+      "CFBundleIdentifier": "dev.snapback4.nativeapp",
+      "RCTMetroPort": "",
+      "RCTNewArchEnabled": true,
+      "DTXcode": "2710",
+      "UIApplicationSceneManifest": {
+        "UIApplicationSupportsMultipleScenes": false,
+        "UISceneConfigurations": {
+          "UIWindowSceneSessionRoleApplication": [
+            {
+              "UISceneDelegateClassName": "NativeApp.SceneDelegate",
+              "UISceneConfigurationName": "Default Configuration"
+            }
+          ]
+        }
+      },
+      "CFBundleExecutable": "NativeApp",
+      "NSAppTransportSecurity": {
+        "NSAllowsArbitraryLoads": false,
+        "NSAllowsLocalNetworking": true
+      },
+      "LSMinimumSystemVersion": "12.0",
+      "CFBundleIcons~ipad": {
+        "CFBundlePrimaryIcon": {
+          "CFBundleIconFiles": [
+            "AppIcon60x60",
+            "AppIcon76x76"
+          ],
+          "CFBundleIconName": "AppIcon"
+        }
+      },
+      "CFBundleSignature": "????",
+      "NSFaceIDUsageDescription": "Allow NativeApp to access your Face ID biometric data.",
+      "DTPlatformName": "iphonesimulator",
+      "NSLocalNetworkUsageDescription": "Expo Dev Launcher uses the local network to discover and connect to development servers running on your computer.",
+      "CADisableMinimumFrameDurationOnPhone": true
+    },
+    "path": "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/base.app"
+  },
+  "transformation": null,
+  "phases": [
+    {
+      "label": "fingerprint-before",
+      "executable": "/opt/homebrew/Cellar/node@24/24.21.0_1/bin/node",
+      "args": [
+        "-e",
+        "const f=require('@expo/fingerprint'); f.createFingerprintAsync(process.cwd(),{\"platforms\":[\"ios\"],\"silent\":true,\"sourceSkips\":0}).then(x=>console.log(JSON.stringify(x)))"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app",
+      "startedAt": 1792590015915,
+      "durationMs": 691,
+      "status": 0,
+      "signal": null,
+      "log": "fingerprint-before.log",
+      "sha256": "a5c7c40f5cea373a4fb7ac43a68bffa3fd678a15b7fc83baaa764559ece2edc0"
+    },
+    {
+      "label": "xcode-version",
+      "executable": "xcodebuild",
+      "args": [
+        "-version"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app",
+      "startedAt": 1792590016607,
+      "durationMs": 44,
+      "status": 0,
+      "signal": null,
+      "log": "xcode-version.log",
+      "sha256": "ee3fe26035862d2b9653c1a570be3eca4ee5be2815f0ce99ff2d8ffa3399e4c8"
+    },
+    {
+      "label": "sdk-version",
+      "executable": "xcrun",
+      "args": [
+        "--sdk",
+        "iphonesimulator",
+        "--show-sdk-version"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app",
+      "startedAt": 1792590016651,
+      "durationMs": 5,
+      "status": 0,
+      "signal": null,
+      "log": "sdk-version.log",
+      "sha256": "27d73d70ecb0bcfc37d60b534a2298ae2c6e9ee26ed5154f558f11640d11d0b9"
+    },
+    {
+      "label": "sdk-build",
+      "executable": "xcrun",
+      "args": [
+        "--sdk",
+        "iphonesimulator",
+        "--show-sdk-build-version"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app",
+      "startedAt": 1792590016656,
+      "durationMs": 4,
+      "status": 0,
+      "signal": null,
+      "log": "sdk-build.log",
+      "sha256": "7eb455ae6ed2ddbb863cbce5acf5bd630a645ff963e608e3af7dd1b9b28c87b8"
+    },
+    {
+      "label": "pod-version",
+      "executable": "pod",
+      "args": [
+        "--version"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app",
+      "startedAt": 1792590016660,
+      "durationMs": 402,
+      "status": 0,
+      "signal": null,
+      "log": "pod-version.log",
+      "sha256": "00afc49f1599e59129a59b64c2b019de3fe35300c05bb9d96cb25002576ff43b"
+    },
+    {
+      "label": "runtime",
+      "executable": "xcrun",
+      "args": [
+        "simctl",
+        "list",
+        "runtimes",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app",
+      "startedAt": 1792590017063,
+      "durationMs": 99,
+      "status": 0,
+      "signal": null,
+      "log": "runtime.log",
+      "sha256": "32450bb7e438e80619ffb305c5095a1b0a4c07ed3d62cdd89a2909c02ec58cf1"
+    },
+    {
+      "label": "snapshot",
+      "executable": "/usr/bin/rsync",
+      "args": [
+        "-a",
+        "--delete",
+        "--exclude=/.git",
+        "--exclude=/.expo",
+        "--exclude=/.snapback4",
+        "--exclude=/.snapback4-witness",
+        "--exclude=/artifacts",
+        "--exclude=/evidence",
+        "--exclude=/dist",
+        "--exclude=/choreography",
+        "--exclude=provider-secrets.env",
+        "--exclude=.env*",
+        "--exclude=/ios",
+        "/Users/ccheever/sb4-ws-integ20/native-app/",
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot/"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app",
+      "startedAt": 1792590017162,
+      "durationMs": 2371,
+      "status": 0,
+      "signal": null,
+      "log": "snapshot.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "public-config",
+      "executable": "/opt/homebrew/Cellar/node@24/24.21.0_1/bin/node",
+      "args": [
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot/node_modules/expo/bin/cli",
+        "config",
+        "--type",
+        "public",
+        "--json"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590021681,
+      "durationMs": 60,
+      "status": 0,
+      "signal": null,
+      "log": "public-config.log",
+      "sha256": "3a223b68b0b787a64aaa4c77f59918602070082912f9dd866a04eb32aae85be4"
+    },
+    {
+      "label": "prebuild",
+      "executable": "/opt/homebrew/Cellar/node@24/24.21.0_1/bin/node",
+      "args": [
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot/node_modules/expo/bin/cli",
+        "prebuild",
+        "--platform",
+        "ios",
+        "--no-install"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590021741,
+      "durationMs": 1159,
+      "status": 0,
+      "signal": null,
+      "log": "prebuild.log",
+      "sha256": "0a16cfcc425270741603d8ad89f3697550575b829c057ff089f2a33e03e4fe41"
+    },
+    {
+      "label": "pods",
+      "executable": "pod",
+      "args": [
+        "install"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot/ios",
+      "startedAt": 1792590022900,
+      "durationMs": 11620,
+      "status": 0,
+      "signal": null,
+      "log": "pods.log",
+      "sha256": "09fb91674ffa4f6812ee35a1c1be725b91c994e0503357285f212f68e7417a0b"
+    },
+    {
+      "label": "schemes",
+      "executable": "xcodebuild",
+      "args": [
+        "-list",
+        "-json",
+        "-workspace",
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot/ios/NativeApp.xcworkspace"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590036291,
+      "durationMs": 823,
+      "status": 0,
+      "signal": null,
+      "log": "schemes.log",
+      "sha256": "ee3378de6b449033925c78ab9f423b6667d466663896d9830938ab76bfe6f260"
+    },
+    {
+      "label": "build-settings",
+      "executable": "xcodebuild",
+      "args": [
+        "-workspace",
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot/ios/NativeApp.xcworkspace",
+        "-scheme",
+        "NativeApp",
+        "-configuration",
+        "Release",
+        "-sdk",
+        "iphonesimulator",
+        "-destination",
+        "id=BDF123A8-5E01-42BC-92F6-9BFECB63747E",
+        "-derivedDataPath",
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData",
+        "ARCHS=arm64",
+        "ONLY_ACTIVE_ARCH=YES",
+        "CODE_SIGN_IDENTITY=-",
+        "RCT_NEW_ARCH_ENABLED=1",
+        "GCC_GENERATE_DEPENDENCIES=YES",
+        "SYMROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Build/Products",
+        "OBJROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Build/Intermediates.noindex",
+        "DSTROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Install",
+        "SHARED_PRECOMPS_DIR=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/PrecompiledHeaders",
+        "CACHE_ROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Cache",
+        "CCHROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Cache",
+        "CLANG_MODULE_CACHE_PATH=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "CLANG_MODULES_BUILD_SESSION_FILE=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/ModuleCache.noindex/Session.modulevalidation",
+        "SWIFT_MODULE_CACHE_PATH=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "SDK_STAT_CACHE_DIR=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData",
+        "INDEX_DATA_STORE_DIR=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Index.noindex/DataStore",
+        "-showBuildSettings",
+        "-json"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590037114,
+      "durationMs": 993,
+      "status": 0,
+      "signal": null,
+      "log": "build-settings.log",
+      "sha256": "4f60fd06f69da075ad72ee7a3cbc93790420cee3ece1d5414834308dfae7692c"
+    },
+    {
+      "label": "sdk-path",
+      "executable": "xcrun",
+      "args": [
+        "--sdk",
+        "iphonesimulator",
+        "--show-sdk-path"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590038111,
+      "durationMs": 5,
+      "status": 0,
+      "signal": null,
+      "log": "sdk-path.log",
+      "sha256": "fc0e1f390e49274ccc3b9484c8af9047f9e78868439ada0261b8fcda80a25990"
+    },
+    {
+      "label": "plist-13",
+      "executable": "/usr/bin/plutil",
+      "args": [
+        "-convert",
+        "json",
+        "-o",
+        "-",
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot/ios/NativeApp.xcodeproj/project.pbxproj"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590038116,
+      "durationMs": 4,
+      "status": 0,
+      "signal": null,
+      "log": "plist-13.log",
+      "sha256": "e07647895584fd8d144cd5167c6d1af6e8113035cc87ba3a783ba1286be562ea"
+    },
+    {
+      "label": "target-settings-0",
+      "executable": "xcodebuild",
+      "args": [
+        "-project",
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot/ios/NativeApp.xcodeproj",
+        "-alltargets",
+        "-configuration",
+        "Release",
+        "-sdk",
+        "iphonesimulator",
+        "ARCHS=arm64",
+        "GCC_GENERATE_DEPENDENCIES=YES",
+        "SYMROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Build/Products",
+        "OBJROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Build/Intermediates.noindex",
+        "DSTROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Install",
+        "SHARED_PRECOMPS_DIR=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/PrecompiledHeaders",
+        "CACHE_ROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Cache",
+        "CCHROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Cache",
+        "CLANG_MODULE_CACHE_PATH=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "CLANG_MODULES_BUILD_SESSION_FILE=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/ModuleCache.noindex/Session.modulevalidation",
+        "SWIFT_MODULE_CACHE_PATH=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "SDK_STAT_CACHE_DIR=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData",
+        "INDEX_DATA_STORE_DIR=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Index.noindex/DataStore",
+        "-showBuildSettings",
+        "-json"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590038120,
+      "durationMs": 637,
+      "status": 0,
+      "signal": null,
+      "log": "target-settings-0.log",
+      "sha256": "bc2c07776f383a7cfc481afea1a430152945699e593959e99852fdfb6286a249"
+    },
+    {
+      "label": "plist-15",
+      "executable": "/usr/bin/plutil",
+      "args": [
+        "-convert",
+        "json",
+        "-o",
+        "-",
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot/ios/Pods/Pods.xcodeproj/project.pbxproj"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590038949,
+      "durationMs": 27,
+      "status": 0,
+      "signal": null,
+      "log": "plist-15.log",
+      "sha256": "b40bde07a7c350eb93d481da43543569e88329a1f8c5f0eb6c6ae9d8462c55c7"
+    },
+    {
+      "label": "target-settings-1",
+      "executable": "xcodebuild",
+      "args": [
+        "-project",
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot/ios/Pods/Pods.xcodeproj",
+        "-alltargets",
+        "-configuration",
+        "Release",
+        "-sdk",
+        "iphonesimulator",
+        "ARCHS=arm64",
+        "GCC_GENERATE_DEPENDENCIES=YES",
+        "SYMROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Build/Products",
+        "OBJROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Build/Intermediates.noindex",
+        "DSTROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Install",
+        "SHARED_PRECOMPS_DIR=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/PrecompiledHeaders",
+        "CACHE_ROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Cache",
+        "CCHROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Cache",
+        "CLANG_MODULE_CACHE_PATH=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "CLANG_MODULES_BUILD_SESSION_FILE=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/ModuleCache.noindex/Session.modulevalidation",
+        "SWIFT_MODULE_CACHE_PATH=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "SDK_STAT_CACHE_DIR=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData",
+        "INDEX_DATA_STORE_DIR=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Index.noindex/DataStore",
+        "-showBuildSettings",
+        "-json"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590038980,
+      "durationMs": 2025,
+      "status": 0,
+      "signal": null,
+      "log": "target-settings-1.log",
+      "sha256": "c11c17d13239a98eca455f0637568b3ef7399ab0d21a7ab163da1c975335f132"
+    },
+    {
+      "label": "xcode-build",
+      "executable": "xcodebuild",
+      "args": [
+        "-workspace",
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot/ios/NativeApp.xcworkspace",
+        "-scheme",
+        "NativeApp",
+        "-configuration",
+        "Release",
+        "-sdk",
+        "iphonesimulator",
+        "-destination",
+        "id=BDF123A8-5E01-42BC-92F6-9BFECB63747E",
+        "-derivedDataPath",
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData",
+        "ARCHS=arm64",
+        "ONLY_ACTIVE_ARCH=YES",
+        "CODE_SIGN_IDENTITY=-",
+        "RCT_NEW_ARCH_ENABLED=1",
+        "GCC_GENERATE_DEPENDENCIES=YES",
+        "SYMROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Build/Products",
+        "OBJROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Build/Intermediates.noindex",
+        "DSTROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Install",
+        "SHARED_PRECOMPS_DIR=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/PrecompiledHeaders",
+        "CACHE_ROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Cache",
+        "CCHROOT=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Cache",
+        "CLANG_MODULE_CACHE_PATH=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "CLANG_MODULES_BUILD_SESSION_FILE=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/ModuleCache.noindex/Session.modulevalidation",
+        "SWIFT_MODULE_CACHE_PATH=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/ModuleCache.noindex",
+        "SDK_STAT_CACHE_DIR=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData",
+        "INDEX_DATA_STORE_DIR=/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Index.noindex/DataStore",
+        "SKIP_BUNDLING=",
+        "SOURCEMAP_FILE=",
+        "-resultBundlePath",
+        "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/build.xcresult",
+        "build"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590048839,
+      "durationMs": 45582,
+      "status": 0,
+      "signal": null,
+      "log": "xcode-build.log",
+      "sha256": "9c3e46a29158d1722348864703d3bddf7eab1a43b3d24864527f7b8e21dd163d"
+    },
+    {
+      "label": "preserve-app",
+      "executable": "/bin/cp",
+      "args": [
+        "-cR",
+        "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/DerivedData/Build/Products/Release-iphonesimulator/NativeApp.app",
+        "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/base.app"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590097347,
+      "durationMs": 13,
+      "status": 0,
+      "signal": null,
+      "log": "preserve-app.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "label": "plist-19",
+      "executable": "/usr/bin/plutil",
+      "args": [
+        "-convert",
+        "json",
+        "-o",
+        "-",
+        "/Users/ccheever/sb4-ws-integ20/native-artifacts-foundation-final/base.app/Info.plist"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590097382,
+      "durationMs": 4,
+      "status": 0,
+      "signal": null,
+      "log": "plist-19.log",
+      "sha256": "3aa6f50962b6effed421dcd2285778b4db68f0cc7ba33735d22263b1deab938a"
+    },
+    {
+      "label": "hermes-version",
+      "executable": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot/node_modules/hermes-compiler/hermesc/osx-bin/hermesc",
+      "args": [
+        "-version"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app/.snapback4-witness/snapshot",
+      "startedAt": 1792590097403,
+      "durationMs": 4,
+      "status": 0,
+      "signal": null,
+      "log": "hermes-version.log",
+      "sha256": "a37ac2c790f290380036f9daa4e86d9194dee8c2f161e7c08ffe254483448000"
+    },
+    {
+      "label": "fingerprint-after",
+      "executable": "/opt/homebrew/Cellar/node@24/24.21.0_1/bin/node",
+      "args": [
+        "-e",
+        "const f=require('@expo/fingerprint'); f.createFingerprintAsync(process.cwd(),{\"platforms\":[\"ios\"],\"silent\":true,\"sourceSkips\":0}).then(x=>console.log(JSON.stringify(x)))"
+      ],
+      "cwd": "/Users/ccheever/sb4-ws-integ20/native-app",
+      "startedAt": 1792590098120,
+      "durationMs": 683,
+      "status": 0,
+      "signal": null,
+      "log": "fingerprint-after.log",
+      "sha256": "a5c7c40f5cea373a4fb7ac43a68bffa3fd678a15b7fc83baaa764559ece2edc0"
+    }
+  ],
+  "origin": "http://127.0.0.1:26903",
   "buildResult": {
-    "sha256": "ce9c56cb7619dd583d4d38203fd504a62269f891ba6e61b49b50b8048ea25440",
-    "bytes": 187371,
+    "sha256": "455971ee4edf950ef427da91ae7cd6bf8150607d54609a072ba7cce436e0534a",
+    "bytes": 185976,
     "files": [
       {
         "path": "Data",
@@ -546,60 +1857,60 @@
         "type": "directory"
       },
       {
-        "path": "Data/data.0~LOPoT6dkQ2N_P5slwCvYxbpfHLjQt4rKfZ7mjGRH-GXOAX-I5pYrYUbikyK8Nwm9XwiJeb297tSUX9Sk5xrssQ==",
+        "path": "Data/data.0~Mqf__cpcXYg5xGxu_OG1yQ6DbJf4E1iNu5prziMIt9TrfvwtBeUpNT-8opfvSfeH9DxxXMCd2UHdIW_hVkw63Q==",
+        "mode": 420,
+        "type": "file",
+        "bytes": 11387,
+        "sha256": "a2101f39fe938916acfd16de803479a861160c0f62a83e6e357e3269f0730eb5"
+      },
+      {
+        "path": "Data/data.0~SMaQWSzrLpPJwc-driWsKqZgT1ROYKNPzVUVx3VMGFKBJbkNbygavj_Npmt05KRTbHjyL7YUoqubVCFqZKv-SQ==",
+        "mode": 420,
+        "type": "file",
+        "bytes": 173364,
+        "sha256": "10a24e16abd770ea00a576e47dea03d7e3f1c6437cd1aecd30bb528ecae5ebbc"
+      },
+      {
+        "path": "Data/data.0~b0QJrmxDzQCpWed0QzbNMESMgedEgu56ygIbn7e2ltxOt-HrQEDI8xjqj1LhbGaNjdLm-4tyLXdrPxLB7tfw2w==",
         "mode": 420,
         "type": "file",
         "bytes": 314,
-        "sha256": "ca254f534fa0b70d3adffd7ab1c784bf957b3f1c8249feafbf39ff3992303a66"
+        "sha256": "38c07f83fc9ad7da1a6327cf30ff34520a4833bcc09196982472892e55d1ce13"
       },
       {
-        "path": "Data/data.0~pcJJ03sZGUfMK7SXZJXIXfArTp05MafPzQePxCftclDTn9COxnRxkK-bLsLmXIp7_XTyDDlfl-99ZuKNL1Wyog==",
-        "mode": 420,
-        "type": "file",
-        "bytes": 174760,
-        "sha256": "c9f256d45914d83db7896f5d39c2ad40c25cff38107b2ed86fe8cde07efb610d"
-      },
-      {
-        "path": "Data/data.0~s74lJxZo9FtHl6gTl2jT-SnpD1LggruIl2OcDGULTestOY64uBSsd-CLNw_wUXG6c5Y1pY6mNX2BhS7b6w6Opg==",
-        "mode": 420,
-        "type": "file",
-        "bytes": 11386,
-        "sha256": "a9f1f5db325ef5adb502fcd1dc4c8c8ca15b28deca4d0a910c69944657022ea8"
-      },
-      {
-        "path": "Data/refs.0~LOPoT6dkQ2N_P5slwCvYxbpfHLjQt4rKfZ7mjGRH-GXOAX-I5pYrYUbikyK8Nwm9XwiJeb297tSUX9Sk5xrssQ==",
-        "mode": 420,
-        "type": "file",
-        "bytes": 1,
-        "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
-      },
-      {
-        "path": "Data/refs.0~pcJJ03sZGUfMK7SXZJXIXfArTp05MafPzQePxCftclDTn9COxnRxkK-bLsLmXIp7_XTyDDlfl-99ZuKNL1Wyog==",
-        "mode": 420,
-        "type": "file",
-        "bytes": 1,
-        "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
-      },
-      {
-        "path": "Data/refs.0~s74lJxZo9FtHl6gTl2jT-SnpD1LggruIl2OcDGULTestOY64uBSsd-CLNw_wUXG6c5Y1pY6mNX2BhS7b6w6Opg==",
+        "path": "Data/refs.0~Mqf__cpcXYg5xGxu_OG1yQ6DbJf4E1iNu5prziMIt9TrfvwtBeUpNT-8opfvSfeH9DxxXMCd2UHdIW_hVkw63Q==",
         "mode": 420,
         "type": "file",
         "bytes": 133,
-        "sha256": "590ec77947253489e0239387c2e8c828b9373e4e4b8b7387aa1fb8918efe0080"
+        "sha256": "b928b0b81c5fdbaebd14b1a342bbe54d7a02c7256b6fd890d38d99ed57e6ac3c"
+      },
+      {
+        "path": "Data/refs.0~SMaQWSzrLpPJwc-driWsKqZgT1ROYKNPzVUVx3VMGFKBJbkNbygavj_Npmt05KRTbHjyL7YUoqubVCFqZKv-SQ==",
+        "mode": 420,
+        "type": "file",
+        "bytes": 1,
+        "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
+      },
+      {
+        "path": "Data/refs.0~b0QJrmxDzQCpWed0QzbNMESMgedEgu56ygIbn7e2ltxOt-HrQEDI8xjqj1LhbGaNjdLm-4tyLXdrPxLB7tfw2w==",
+        "mode": 420,
+        "type": "file",
+        "bytes": 1,
+        "sha256": "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d"
       },
       {
         "path": "Info.plist",
         "mode": 420,
         "type": "file",
         "bytes": 776,
-        "sha256": "db679f1eeb0fa319f188b9c33e782b0064e3f28d98ac1ebe9f8c96f70b0704ee"
+        "sha256": "120a32d02a9ae115c766a990ec510a82a72f570f5852deaf17b6d9b912f0c73e"
       }
     ]
   },
-  "fullRecord": {
-    "retainedAt": "/home/ccheever/sb4-loop/integration20/mac-evidence/native-artifacts-main/build.json",
-    "bytes": 35469087,
-    "sha256": "01513006b6438f9b16fac1e5bb1c46e6e9abb12b0c879a839aafe604bc9bb198",
-    "omittedFromSummary": "large input/closure inventories; full original retained in owned scratch"
+  "resolvedNative": "e5ce06030461082ef680f2d6df59e43bb99095f4ebda3a36c4a1fb0f12ca6700",
+  "completeRecord": {
+    "path": "/home/ccheever/sb4-loop/integration20/mac-foundation-evidence/native-artifacts-foundation-final/build.json",
+    "sha256": "48a9004d0d714cde488d8c84652ca66b9e23ae139254d888439504189d37523b",
+    "bytes": 35469138
   }
 }

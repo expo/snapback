@@ -1,18 +1,7 @@
 {
-  "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
-  "environment": {
-    "CARGO_INCREMENTAL": "0",
-    "CARGO_PROFILE_DEV_DEBUG": "0",
-    "CARGO_PROFILE_TEST_DEBUG": "0",
-    "CARGO_BUILD_JOBS": "12",
-    "RUST_TEST_THREADS": "8"
-  },
-  "commandStartedOn": "2ff08401e6",
-  "equivalentReviewedProduct": "37a707c158",
-  "exitCode": 0,
   "parentTargetSummaries": 431,
   "reportedParentTotals": {
-    "passed": 7147,
+    "passed": 7153,
     "failed": 0,
     "ignored": 47
   },
@@ -20,7 +9,7 @@
   "targets": [
     {
       "target": "Running unittests src/main.rs (target/debug/deps/snapback4-eafda747621a5b03)",
-      "passed": 506,
+      "passed": 507,
       "failed": 0,
       "ignored": 5
     },
@@ -362,7 +351,7 @@
     },
     {
       "target": "Running unittests src/lib.rs (target/debug/deps/snapback4_core-3a5e1b0d761a17ba)",
-      "passed": 611,
+      "passed": 616,
       "failed": 0,
       "ignored": 3
     },
@@ -2605,6 +2594,15 @@
       "ignored": 0
     }
   ],
-  "docsBudgetExitCode": 0,
-  "routeSaturation": "failed once in superseded overlapping run; unchanged case passed alone and in this complete repeat"
+  "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+  "environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "12",
+    "RUST_TEST_THREADS": "8"
+  },
+  "commandStartedOn": "49ff4203cec98c268d571075d5dc6418f36ef41a",
+  "exitCode": 0,
+  "afterFinalFix": true
 }

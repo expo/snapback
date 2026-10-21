@@ -1,27 +1,101 @@
 {
-  "sourceProduct": "37a707c158",
+  "finalIntegration": "49ff4203cec98c268d571075d5dc6418f36ef41a",
+  "runtimeSnapshot": "f34441c148",
   "machine": "macstudio-charlie-apt101-a",
   "scratch": "~/sb4-ws-integ20",
-  "toolchain": "Xcode 27.1\nBuild version 27A9275",
-  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "toolchain": "Xcode 27.1 Build27A9275",
+  "simulatorRuntime": "iOS27.0",
   "native": {
     "exitStatus": 0,
     "proofKind": "application-release",
-    "cliVersion": "0.4.36"
+    "cliVersion": "0.4.36",
+    "sdkVersion": "27.1",
+    "sameClientTarballBytesAtFinalIntegration": true,
+    "frameworkBuiltFromMergedCore": true
   },
-  "completedRustAndFrameworkGroups": {
-    "integrated-main-snapback4-core": 0,
-    "integrated-main-snapback4-lang": 0,
-    "integrated-main-snapback4": 0,
-    "integrated-main-cli-bin": 0,
-    "integrated-main-device": 0,
-    "integrated-main-framework": 0
+  "rust": {
+    "complete-final-lane-snapback4-core": {
+      "parentTargetSummaries": 1,
+      "reportedParentTotals": {
+        "passed": 18,
+        "failed": 0,
+        "ignored": 0
+      },
+      "nestedChildSummariesExcludedFromTotals": 0
+    },
+    "complete-final-lane-snapback4-lang": {
+      "parentTargetSummaries": 17,
+      "reportedParentTotals": {
+        "passed": 359,
+        "failed": 0,
+        "ignored": 2
+      },
+      "nestedChildSummariesExcludedFromTotals": 0
+    },
+    "complete-final-lane-snapback4": {
+      "parentTargetSummaries": 7,
+      "reportedParentTotals": {
+        "passed": 110,
+        "failed": 0,
+        "ignored": 0
+      },
+      "nestedChildSummariesExcludedFromTotals": 0
+    },
+    "foundation-final-core": {
+      "parentTargetSummaries": 2,
+      "reportedParentTotals": {
+        "passed": 619,
+        "failed": 0,
+        "ignored": 4
+      },
+      "nestedChildSummariesExcludedFromTotals": 1
+    },
+    "foundation-final-cli": {
+      "parentTargetSummaries": 1,
+      "reportedParentTotals": {
+        "passed": 499,
+        "failed": 0,
+        "ignored": 5
+      },
+      "nestedChildSummariesExcludedFromTotals": 13
+    },
+    "foundation-final-lang": {
+      "parentTargetSummaries": 1,
+      "reportedParentTotals": {
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "nestedChildSummariesExcludedFromTotals": 0
+    }
   },
-  "initialClientPool": {
-    "files": 39,
-    "exitCode": 1,
-    "cause": "missing stages.mjs in scratch snapshot for a Linux-only skipped file; copied the exact existing helper and focused rerun passed",
-    "focusedExit": 0
+  "completeClientPool": {
+    "filesPassed": 40,
+    "filesTotal": 40,
+    "filesFailed": 0,
+    "tests": {
+      "tests": 778,
+      "pass": 764,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 14,
+      "todo": 0
+    },
+    "exitCode": 0
   },
-  "completeClientRepeat": "not recorded here until it finishes"
+  "generatedGuideAndFirstFixtureFollowup": {
+    "files": 7,
+    "testsPassed": 132,
+    "failed": 0
+  },
+  "finalFixtureFollowup": {
+    "files": 5,
+    "testsPassed": 139,
+    "failed": 0
+  },
+  "sourceComparison": {
+    "files": 338,
+    "identical": true
+  },
+  "historicalInitialSetupFailure": "39-file source37 pool initially lacked stages.mjs helper in scratch; helper copied, focused pass and complete repeat passed; superseded by complete40-file pool."
 }
