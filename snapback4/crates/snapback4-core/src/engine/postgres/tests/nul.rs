@@ -14,39 +14,88 @@ fn alive(tx: &Tx<'_>) { assert_eq!(tx.query("SELECT 42::bigint", &[]).unwrap()[0
 
 #[test]
 #[ignore = "requires private SNAPBACK4_EVAL_POSTGRES"]
-fn nul_bind_guard_refuses_text_options_arrays_and_keeps_transaction_usable() {
+fn nul_bind_guard_refuses_text_options_arrays_and_aborts_transaction() {
+    let mut e = authority_engine();
+    for case in 0..3 {
+        let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+        // Warm the statements so call counts prove no Bind/Execute was sent.
+        tx.query("SELECT $1::text", &[&"safe"]).unwrap();
+        tx.query("SELECT $1::text[]", &[&vec![Some("safe"), None]]).unwrap();
+        tx.execute("INSERT INTO _meta(key,value) VALUES ('guard',$1)", &[&"safe"]).unwrap();
+        tx.record_commit(1, 0, "guard", "dev:alice", "test", &[], 0).unwrap();
+        let calls = tx.calls.get();
+        match case {
+            0 => assert_input(tx.query("SELECT $1::text", &[&"bad\0text"])),
+            1 => assert_input(tx.execute("INSERT INTO _meta(key,value) VALUES ('guard',$1)", &[&Some("bad\0text")])),
+            _ => assert_input(tx.query("SELECT $1::text[]", &[&Some(vec![None, Some("bad\0array")])])),
+        }
+        assert_eq!(tx.calls.get(), calls);
+        assert_input(tx.query("SELECT 42::bigint", &[]));
+        assert_input(tx.execute("DELETE FROM _meta WHERE key='guard'", &[]));
+        assert_input(tx.batch("SELECT 42"));
+        assert_input(tx.rollback_program());
+        assert_input(tx.rollback_prefetch());
+        assert_eq!(tx.calls.get(), calls, "poisoned transactions must send no further statements");
+        assert_input(tx.commit());
+        for table in ["_commits", "_log", "r"] {
+            assert_eq!(e.store.client.query_one(&format!("SELECT count(*) FROM {table}"), &[]).unwrap().get::<_, i64>(0), 0);
+        }
+        assert_eq!(e.store.client.query_one("SELECT count(*) FROM _meta WHERE key='guard'", &[]).unwrap().get::<_, i64>(0), 0);
+    }
+}
+
+#[test]
+#[ignore = "requires private SNAPBACK4_EVAL_POSTGRES"]
+fn nul_tail_refusal_cannot_commit_earlier_row_writes() {
+    let mut e = super::engine();
+    let table = e.schema.tables["items"].clone();
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    let row = super::row("valid", crate::Value::Null);
+    tx.put("items", &table, &row, None).unwrap();
+    tx.record_commit(1, 0, "bad\0program", "dev:alice", "test", &["items".into()], 1).unwrap();
+    crate::partition::PartitionRows::append_log(&tx, "public", 1, 0, "items", "put", "valid", Some(&crate::value::canonical_json(&row))).unwrap();
+    // This valid statement flushes the bad tail; catch its E_INPUT, then try
+    // to commit just as a direct adapter caller could do.
+    assert_input(tx.execute("SELECT 42", &[]));
+    assert_input(tx.commit());
+    assert_eq!(e.store.client.query_one("SELECT seq FROM _head WHERE singleton", &[]).unwrap().get::<_, i64>(0), 0);
+    for table in ["r", "i", "_commits", "_log", "_outbox"] {
+        assert_eq!(e.store.client.query_one(&format!("SELECT count(*) FROM {table}"), &[]).unwrap().get::<_, i64>(0), 0, "{table} persisted after a refused tail");
+    }
+}
+
+#[test]
+#[ignore = "requires private SNAPBACK4_EVAL_POSTGRES"]
+fn bind_guard_accepts_null_binary_and_json_escaped_nul() {
     let mut e = authority_engine();
     let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
-    // Warm the statements so call counts prove no Bind/Execute was sent.
-    tx.query("SELECT $1::text", &[&"safe"]).unwrap();
-    tx.query("SELECT $1::text[]", &[&vec![Some("safe"), None]]).unwrap();
-    tx.execute("INSERT INTO _meta(key,value) VALUES ('guard',$1)", &[&"safe"]).unwrap();
-    tx.record_commit(1, 0, "guard", "dev:alice", "test", &[], 0).unwrap();
-    for query in [true, false] {
-        let calls = tx.calls.get();
-        if query { assert_input(tx.query("SELECT $1::text", &[&"bad\0text"])); }
-        else { assert_input(tx.execute("INSERT INTO _meta(key,value) VALUES ('guard',$1)", &[&Some("bad\0text")])); }
-        assert_eq!(tx.calls.get(), calls);
-        alive(&tx);
-    }
-    let calls = tx.calls.get();
-    assert_input(tx.query("SELECT $1::text[]", &[&Some(vec![None, Some("bad\0array")])]));
-    assert_eq!(tx.calls.get(), calls);
-    alive(&tx);
-    // Optional NULL and binary keys containing zero remain valid. JSON's
-    // escaped NUL is plain safe text, including inside text arrays.
     tx.query("SELECT $1::text", &[&None::<&str>]).unwrap();
     tx.query("SELECT $1::text[]", &[&vec![None, Some("safe")]]).unwrap();
     tx.query("SELECT $1::bytea", &[&vec![0u8, 1, 0]]).unwrap();
     let json = serde_json::to_string(&"bad\0json").unwrap();
     tx.query("SELECT $1::text", &[&json]).unwrap();
     tx.query("SELECT $1::text[]", &[&vec![json]]).unwrap();
-    assert_eq!(tx.query("SELECT seq FROM _head WHERE singleton", &[]).unwrap()[0].get::<_, i64>(0), 0,
-        "refused execute must not flush pending bookkeeping");
     tx.commit().unwrap();
-    assert_eq!(e.store.client.query_one("SELECT count(*) FROM _commits", &[]).unwrap().get::<_, i64>(0), 1,
-        "the pending bookkeeping survives the input refusal");
-    assert_eq!(e.store.client.query_one("SELECT value FROM _meta WHERE key='guard'", &[]).unwrap().get::<_, String>(0), "safe");
+}
+
+#[test]
+#[ignore = "requires private SNAPBACK4_EVAL_POSTGRES"]
+fn nul_mutation_id_and_viewer_are_refused_before_adapter_calls() {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), "mutation ping():\n  return 1\n".into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let client = postgres::Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), postgres::NoTls).unwrap();
+    let schema = serde_json::from_value(serde_json::to_value(&bound.schema).unwrap()).unwrap();
+    let programs: Vec<crate::ir::Program> = bound.programs.into_iter().map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap()).collect();
+    let mut e = super::super::PostgresEngine::create(client, &format!("sb4_eval_nul_mutation_{:x}", crate::ids::seed()), schema, programs).unwrap();
+    let calls = e.store.calls.get();
+    for (viewer, id, code) in [("dev:alice", Some("op\0id"), "E_INPUT"), ("dev:bad\0viewer", Some("op"), "E_AUTH"), ("dev:bad\0viewer", None, "E_AUTH")] {
+        let ctx = crate::Context::new(viewer, Default::default()).at(1_000);
+        assert_eq!(e.mutate("ping", id, ctx).unwrap_err().code(), code);
+        assert_eq!(e.store.calls.get(), calls);
+    }
+    for table in ["_ops", "_commits"] {
+        assert_eq!(e.store.client.query_one(&format!("SELECT count(*) FROM {table}"), &[]).unwrap().get::<_, i64>(0), 0);
+    }
 }
 
 #[test]
@@ -110,6 +159,10 @@ fn nul_identity_chokepoints_precede_adapter_writes() {
         assert!(!crate::value::identity_fits(identity), "{identity:?}");
     }
     for seat in ["service:bad\0worker", "service:bad\0seat"] { assert!(!identity::is_service(seat)); }
+    // The asset ledger remains SQLite-only. Exercise its exact admission
+    // policy on this adapter too, before any writer or database call.
+    assert_eq!(crate::engine::validate::write_identity("dev:alice", Some("intent\0id")).unwrap_err().code(), "E_INPUT");
+    assert_eq!(crate::engine::validate::write_identity("dev:bad\0owner", Some("intent")).unwrap_err().code(), "E_AUTH");
     assert_eq!(e.store.calls.get(), calls);
     let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
     let row = &tx.query("SELECT (SELECT count(*) FROM _requests), (SELECT count(*) FROM _sessions), (SELECT count(*) FROM _principals)", &[]).unwrap()[0];

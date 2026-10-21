@@ -39,7 +39,6 @@ impl Engine {
     }
 
     pub fn park_action_step(&mut self, id: &str, worker: &str, lease: &str, name: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
-        step_core::prepare_park(name)?;
         let owner = StepOwner::action(id);
         let claim = StepClaim::from_token(lease);
         let tx = self.store.transaction()?;

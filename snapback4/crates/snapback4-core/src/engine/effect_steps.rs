@@ -46,7 +46,6 @@ impl Engine {
     }
 
     pub fn park_effect_step_strict(&mut self, service_token: &str, id: &str, lease: &str, name: &str, error: &str, sample: impl FnOnce() -> identity::ServiceSample) -> Result<(), RuntimeError> {
-        step_core::prepare_park(name)?;
         let owner = StepOwner::effect(id);
         let claim = StepClaim::from_token(lease);
         let tx = self.store.transaction()?;

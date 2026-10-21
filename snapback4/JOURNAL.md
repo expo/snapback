@@ -99201,3 +99201,96 @@ pins selection filters. `nul_bind_guard_refuses_text_options_arrays_and_keeps_tr
 pins physical pre-bind refusal and retained bookkeeping. Both stores run
 `bound_action_kind_lost_delivery_recovers` and
 `bound_read_only_family_lost_delivery_recovers` through the same policy.
+
+## 2026-10-21 — Lane NUL fix round 2 (final)
+
+Final bounded NUL round on `sb4-pg/p1-identity-nul`, after the two blind
+reviews of `172afd1b27`. Fixes exactly their four findings and records the
+remaining direct-API parity boundary; no new admission-door census is built
+in this round.
+
+A Postgres parameter-guard refusal now poisons the transaction. Queries,
+executions, batches, savepoint recovery and commit refuse afterward; dropping
+it or attempting commit rolls back the earlier writes. This supersedes the
+previous entry's nonterminal guard behavior and its old test name. The
+regression writes a valid row and index entries, buffers a commit with
+`bad\0program` and a log event, catches the refusal while a valid statement
+flushes that tail, then tries to commit. No row, index, head advance, commit,
+log or outbox record may persist. Separate cases pin string, optional string
+and text-array refusal, and retain NULL, binary-zero and JSON-escaped NUL
+acceptance.
+
+Both mutation engines now reject NUL in the viewer (`E_AUTH`) or operation id
+(`E_INPUT`) before replay, writer opening, clock advancement or entropy work.
+The SQLite test uses a timed schema and checks total writes; the Postgres
+test checks that no adapter call occurred. The existing HTTP host harness
+also drives `POST /m/ping` with `{"id":"op\u0000id"}` and checks there is no
+receipt or commit. `declare_asset_intent` and `finish_asset_intent` use the
+same NUL-only owner/id admission before opening a writer. Their public
+ledger tests run on SQLite; the Postgres test exercises the exact shared
+helper, since that engine still has no asset ledger.
+
+Step names validate only when first recorded. Completion, parking, replay
+and reconciliation use the stored row as-is. The SQLite legacy fixture seeds
+`send\0mail`, then exercises all four paths, including takeover with a fresh
+claim and the uncertainty-to-park path. A new name with NUL still refuses.
+Direct effect claims now check only NUL in a worker label; both fenced and
+unfenced claims persist a 136-byte NUL-free label, while the existing refusal
+fixture checks both NUL worker paths before lease cleanup.
+
+LLP 3000.009.001.000 retains one Revised line, now prepending “NUL fix round
+2”. Its §9.1 rules 1 and 4 state terminal bind refusals, first-record step
+validation and the NUL-only admission checks. The documented residual is any
+remaining direct Rust-API path where SQLite stores a NUL string and Postgres
+returns `E_INPUT` and rolls back. The open filesystem ticket
+`issues/20261021-snapback4-nul-string-to-adapter-census.md` proposes a static,
+ratchet-style census listing every adapter write that binds caller-supplied
+strings, each tagged admitted-through-chokepoint or residual.
+
+Pinning tests:
+
+- `nul_tail_refusal_cannot_commit_earlier_row_writes` and
+  `nul_bind_guard_refuses_text_options_arrays_and_aborts_transaction`.
+- `nul_mutation_id_and_viewer_are_refused_before_writes_or_clock_advance`,
+  `nul_mutation_id_and_viewer_are_refused_before_adapter_calls`,
+  `http_mutation_nul_id_is_refused_without_a_receipt_or_commit`, and
+  `nul_asset_intent_owner_and_id_are_refused_before_writes`; Postgres shared
+  asset admission is in `nul_identity_chokepoints_precede_adapter_writes`.
+- `legacy_nul_step_names_complete_park_and_reconcile_but_new_names_refuse`.
+- `direct_effect_claims_keep_unbounded_nul_free_worker_labels` and
+  `nul_effect_worker_is_refused_before_expiry_or_claim`.
+
+The first full Postgres run was 164 passed / 1 failed / 0 ignored. The only
+failure was the pre-existing
+`failed_fill_preserves_earlier_cache_and_transaction_usability`, which used a
+NUL prefetch to assert nonterminal behavior. It is now
+`nul_prefetch_refusal_preserves_earlier_cache_but_aborts_transaction`: cached
+answers can survive the speculative refusal, but subsequent SQL and commit
+return `E_INPUT`. This updates the last stale test expectation for finding 1;
+production behavior did not change after the initial checks. That run's
+private cluster `/tmp/sb4-pg-eval.rkMTqz/data` was stopped by the runner and
+independently confirmed stopped (`pg_ctl status` exit 3, no `postmaster.pid`).
+
+All Cargo invocations use the commissioned target directory, no incremental
+compilation, line-tables-only dev/test debug and at most 24 build jobs.
+Validation totals below exclude filtered subprocess summaries from the full
+core/host runs to avoid counting their tests twice.
+
+- Focused NUL integration target: 9 passed / 0 failed / 0 ignored.
+- `cargo test -p snapback4 --no-fail-fast -j 24`: passed,
+  1,363 passed / 0 failed / 15 ignored across 56 primary result summaries.
+  The known TypeScript/client fixtures and resolver SIGINT fixture passed.
+- Full final `scripts/test-postgres.sh`: passed, 165 passed / 0 failed /
+  0 ignored (58 experiment tests, 88 adapter tests, 19 corpus tests).
+  The final private cluster `/tmp/sb4-pg-eval.PPMoxQ/data` was stopped by the
+  runner and independently confirmed stopped (`pg_ctl status` exit 3,
+  no `postmaster.pid`), as was the first run's cluster noted above.
+- `cargo test -p snapback4-core -j 24`: passed,
+  908 passed / 0 failed / 5 ignored across 45 primary result summaries.
+  The unit target was 501 passed / 0 failed / 3 ignored.
+- Disk checks stayed above the user's 20 GB stop floor; the observed minimum
+  was 44 GB. No push, no stash; all repository changes stay in this worktree.
+- Final repository-root `./ref-check`: passed, 564 LLP documents /
+  11,530 references / 0 errors. (The executable is at the repository root;
+  its default corpus root is the current directory.) `git diff --check`
+  passed.

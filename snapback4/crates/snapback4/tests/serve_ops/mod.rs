@@ -1,6 +1,21 @@
 use super::*;
 
 #[test]
+fn http_mutation_nul_id_is_refused_without_a_receipt_or_commit() {
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+        "use personas alice\nmutation ping():\n  return 1\n");
+    let changes = lock(&host.shared.engine).store().conn().total_changes();
+    let response = host.request("POST", "/m/ping", "x-snapback-persona: alice\r\n", r#"{"id":"op\u0000id","args":{}}"#);
+    assert_eq!(body(&response)["state"], "failed", "{response}");
+    assert_eq!(body(&response)["why"]["code"], "E_INPUT", "{response}");
+    let engine = lock(&host.shared.engine);
+    assert_eq!(engine.store().conn().total_changes(), changes);
+    for table in ["_ops", "_commits"] {
+        assert_eq!(engine.store().conn().query_row(&format!("SELECT count(*) FROM {table}"), [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+    }
+}
+
+#[test]
 fn production_auth_refusals_use_http_auth_statuses_and_keep_the_body() {
     let host = Host::with_store(false, snapback4_core::Store::memory().unwrap(),
         "use identity password\nquery who():\n  return viewer\nmutation ping():\n  return { ok: true }\n");

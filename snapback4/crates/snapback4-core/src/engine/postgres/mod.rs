@@ -255,6 +255,7 @@ impl PostgresEngine {
     }
 
     pub fn mutate(&mut self, name: &str, op: Option<&str>, mut context: Context) -> Result<MutationOutcome, RuntimeError> {
+        validate::write_identity(&context.viewer, op)?;
         context.generation = self.generation();
         let wire_args = if op.is_some() { context.wire_args.take().unwrap_or_else(|| serde_json::Value::Object(crate::wire::map_to_json(&context.args))) }
             else { serde_json::Value::Null };

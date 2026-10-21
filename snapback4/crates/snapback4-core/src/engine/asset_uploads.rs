@@ -144,6 +144,7 @@ impl Engine {
 
     /// Bind original placement and upload fingerprint before accepting byte transport.
     pub fn declare_asset_intent(&mut self, owner:&str,id:&str,fingerprint:&str,placement:&serde_json::Value)->Result<(),RuntimeError>{
+        super::validate::write_identity(owner, Some(id))?;
         let encoded=bounded_placement(placement)?;
         let tx=self.store.transaction()?;
         let old = tx.intent_declaration(owner,id)?;
@@ -202,6 +203,7 @@ impl Engine {
     /// Persist early terminal input/operation refusals for an owned upload placement.
     /// This closes paths that return before ordinary mutation receipt creation.
     pub fn finish_asset_intent(&mut self, owner: &str, id: &str, name: &str, args: &serde_json::Value, why: &Refusal) -> Result<MutationOutcome, RuntimeError> {
+        super::validate::write_identity(owner, Some(id))?;
         if why.retryable { return Err(RuntimeError::Input("retryable outcomes cannot finalize an upload intent".into())); }
         let tx = self.store.transaction()?;
         if !tx.asset_intent_exists(owner,id)? {

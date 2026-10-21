@@ -337,20 +337,20 @@ fn exact_batches_misses_order_nulls_writes_and_savepoint_rollback() {
 
 #[test]
 #[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
-fn failed_fill_preserves_earlier_cache_and_transaction_usability() {
+fn nul_prefetch_refusal_preserves_earlier_cache_but_aborts_transaction() {
     let mut engine = engine();
     let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
     tx.prefetch(&gets("items")); // cache eight absent rows
-    // PostgreSQL text parameters reject NUL. The adapter must roll back
-    // this speculative server-side error without clearing earlier answers.
+    // A NUL bind refusal is terminal even during speculative prefetch.
+    // Earlier cache answers survive, but cannot make this writer committable.
     let before_fill = tx.calls.get();
     tx.prefetch(&gets("bad\0"));
     assert!(tx.calls.get() > before_fill);
     let before = tx.calls.get();
     assert_eq!(tx.get("items", "r7").unwrap(), None);
     assert_eq!(tx.calls.get(), before, "failed fill kept the old cache");
-    assert_eq!(tx.get("bad", "r0").unwrap(), None, "failed speculative SQL did not poison the transaction");
-    tx.rollback().unwrap();
+    assert_eq!(tx.get("bad", "r0").unwrap_err().code(), "E_INPUT");
+    assert_eq!(tx.commit().unwrap_err().code(), "E_INPUT");
 }
 
 #[test]

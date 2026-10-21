@@ -8,6 +8,18 @@ use crate::schema::{ColumnType, Constraint, Schema, TextFormat, contains_system_
 use crate::value::{I53_MAX, I53_MIN, Value, canonical_json};
 use std::collections::BTreeMap;
 
+// @ref LLP 3000.009.001.000#9.1 — mutation and asset-intent admission precede replay, writer opening and clock advancement on both stores.
+#[cfg(any(feature = "sqlite", feature = "postgres"))]
+pub(super) fn write_identity(principal: &str, id: Option<&str>) -> Result<(), RuntimeError> {
+    if principal.contains('\0') {
+        return Err(RuntimeError::Auth("a write principal cannot contain U+0000".into()));
+    }
+    if id.is_some_and(|id| id.contains('\0')) {
+        return Err(RuntimeError::Input("a write id cannot contain U+0000".into()));
+    }
+    Ok(())
+}
+
 pub fn validate_row(schema: &Schema, table_name: &str, row: &Value) -> Result<(), RuntimeError> {
     validate_image(schema, table_name, row, None, false, false)
 }

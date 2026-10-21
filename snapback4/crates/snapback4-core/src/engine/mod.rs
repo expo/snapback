@@ -918,6 +918,7 @@ impl Engine {
     /// is never re-judged: its row is on the server, and the device that
     /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, mut context: Context) -> Result<MutationOutcome, RuntimeError> {
+        validate::write_identity(&context.viewer, op)?;
         context.generation = self.generation;
         let requested = context.now.unwrap_or_else(crate::now_ms);
         context.now = Some(self.advance_time_audience(requested)?);

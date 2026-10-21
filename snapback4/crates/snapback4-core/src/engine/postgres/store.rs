@@ -96,7 +96,7 @@ impl Store {
             Some(WriteMode::Serializable) => IsolationLevel::Serializable,
         };
         let inner = self.client.build_transaction().isolation_level(isolation).read_only(mode.is_none()).start()?;
-        Ok(Tx { inner: RefCell::new(inner), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
+        Ok(Tx { inner: RefCell::new(inner), bind_refused: Cell::new(false), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()) })
     }
 
@@ -141,6 +141,7 @@ impl Store {
 
 pub(super) struct Tx<'a> {
     inner: RefCell<Transaction<'a>>,
+    bind_refused: Cell<bool>,
     cache: RefCell<&'a mut BTreeMap<&'static str, Statement>>,
     pub(super) calls: &'a Cell<u64>,
     pub(super) marked_reads: &'a Cell<u64>,
@@ -208,7 +209,20 @@ fn guard_text_params(statement: &Statement, params: &[&(dyn ToSql + Sync)]) -> R
 }
 
 impl Tx<'_> {
+    // @ref LLP 3000.009.001.000#9.1 — a pre-bind refusal is terminal too; catching it cannot commit earlier writes without their tail.
+    fn ensure_active(&self) -> Result<(), RuntimeError> {
+        if self.bind_refused.get() {
+            return Err(RuntimeError::Input("transaction aborted by a refused Postgres parameter; roll back".into()));
+        }
+        Ok(())
+    }
+
+    fn guard_params(&self, statement: &Statement, params: &[&(dyn ToSql + Sync)]) -> Result<(), RuntimeError> {
+        guard_text_params(statement, params).inspect_err(|_| self.bind_refused.set(true))
+    }
+
     fn prepared(&self, sql: &'static str) -> Result<Statement, RuntimeError> {
+        self.ensure_active()?;
         if let Some(statement) = self.cache.borrow().get(sql) {
             return Ok(statement.clone());
         }
@@ -220,20 +234,21 @@ impl Tx<'_> {
 
     pub fn query(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<Vec<Row>, RuntimeError> {
         let statement = self.prepared(sql)?;
-        guard_text_params(&statement, params)?;
+        self.guard_params(&statement, params)?;
         self.calls.set(self.calls.get() + 1);
         Ok(self.inner.borrow_mut().query(&statement, params)?)
     }
 
     pub fn execute(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, RuntimeError> {
         let statement = self.prepared(sql)?;
-        guard_text_params(&statement, params)?;
+        self.guard_params(&statement, params)?;
         self.flush_tail()?;
         self.calls.set(self.calls.get() + 1);
         Ok(self.inner.borrow_mut().execute(&statement, params)?)
     }
 
     pub fn batch(&self, sql: &str) -> Result<(), RuntimeError> {
+        self.ensure_active()?;
         if sql.to_ascii_uppercase().contains("ROLLBACK") {
             return Err(RuntimeError::Store("use the explicit transaction/savepoint rollback method".into()));
         }
@@ -243,6 +258,7 @@ impl Tx<'_> {
     }
 
     pub fn rollback_program(&self) -> Result<(), RuntimeError> {
+        self.ensure_active()?;
         self.rows_cache.borrow_mut().clear();
         self.calls.set(self.calls.get() + 1);
         self.inner.borrow_mut().batch_execute("ROLLBACK TO SAVEPOINT program; RELEASE SAVEPOINT program")?;
@@ -250,12 +266,14 @@ impl Tx<'_> {
     }
 
     pub(super) fn rollback_prefetch(&self) -> Result<(), RuntimeError> {
+        self.ensure_active()?;
         self.calls.set(self.calls.get() + 1);
         self.inner.borrow_mut().batch_execute("ROLLBACK TO SAVEPOINT prefetch; RELEASE SAVEPOINT prefetch")?;
         Ok(())
     }
 
     pub fn commit(self) -> Result<(), RuntimeError> {
+        self.ensure_active()?;
         self.flush_tail()?;
         self.calls.set(self.calls.get() + 1);
         self.inner.into_inner().commit()?;
@@ -278,6 +296,7 @@ impl Tx<'_> {
         touched: &[String],
         writes: u64,
     ) -> Result<(), RuntimeError> {
+        self.ensure_active()?;
         self.tail.borrow_mut().commit = Some(super::tail::Commit {
             seq, at, program: program.into(), principal: principal.into(), kind: kind.into(),
             touched: canonical_json(&touched), writes,

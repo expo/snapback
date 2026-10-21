@@ -124,7 +124,6 @@ pub(crate) fn provider_key(owner: StepOwner<'_>, name: &str) -> String {
 }
 
 pub(crate) fn prepare_begin<'a>(owner: StepOwner<'_>, token: &str, name: &'a str, input: &Json, reconcile: bool, input_ceiling: u64) -> Result<PreparedBegin<'a>, RuntimeError> {
-    validate_name(name)?;
     if serde_json::to_vec(input).map_err(|_| invalid("E_STEP_INPUT", "step input must be JSON"))?.len() as u64 > input_ceiling {
         return Err(invalid("E_STEP_INPUT", "step input exceeds the heap byte ceiling"));
     }
@@ -132,16 +131,15 @@ pub(crate) fn prepare_begin<'a>(owner: StepOwner<'_>, token: &str, name: &'a str
 }
 
 pub(crate) fn prepare_result<'a>(token: &str, name: &'a str, result: &'a Json, output_ceiling: u64) -> Result<PreparedResult<'a>, RuntimeError> {
-    validate_name(name)?;
     let encoded = serde_json::to_string(result).map_err(|_| invalid("E_STEP_RESULT", "a step result must be JSON"))?;
     Ok(PreparedResult { name, value: result, oversized: encoded.len() as u64 > output_ceiling, encoded, claim: StepClaim::from_token(token) })
 }
 
-pub(crate) fn prepare_park(name: &str) -> Result<(), RuntimeError> { validate_name(name) }
-
 // @ref LLP 3000.009#5.2 — completed work replays; uncertain work reconciles by key or parks instead of repeating blindly.
 pub(crate) fn begin(tx: &mut impl StepTransaction, owner: StepOwner<'_>, step: &PreparedBegin<'_>, now: i64) -> Result<Transition<Step>, RuntimeError> {
     let Some(previous) = tx.record(owner, step.name)? else {
+        // @ref LLP 3000.009.001.000#9.1 — step names validate only on first record; legacy stored keys remain settleable and reconcilable.
+        if let Err(error) = validate_name(step.name) { return Ok(Transition::Refused(error)); }
         tx.insert(owner, step, now)?;
         return Ok(Transition::Applied(Step { state: "run".into(), key: step.provider_key.clone(), result: None }));
     };
