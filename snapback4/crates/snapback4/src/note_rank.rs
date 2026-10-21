@@ -28,7 +28,7 @@ pub(crate) fn tier(code: &str) -> Tier {
 /// Security findings that can grant authority stay ahead of repeated advice.
 pub(crate) fn summary_order(code:&str)->(Tier,u8){
     (tier(code),match code{
-        "N_PRIVILEGE_ESCALATION"=>0,"N_INSERT_WRITE_INTENT"|"N_COLUMN_RESULT_EXPOSURE"|"N_ROLE_WIDE_READ"=>1,
+        "N_PRIVILEGE_ESCALATION"|"N_INSERT_WRITE_INTENT"|"N_COLUMN_RESULT_EXPOSURE"=>0,"N_ROLE_WIDE_READ"=>1,
         "N_INVARIANT_RESTATES_RULE"=>3,"N_BROAD_READ"=>4,"N_SECURITY_INTENT"=>5,_=>2,
     })
 }
