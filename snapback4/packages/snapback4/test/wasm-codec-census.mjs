@@ -177,7 +177,18 @@ function representations(source, scopes) {
   }
   return found;
 }
-function testOnly(item) { return cfgs(item).some(attr => /^#\[\s*cfg\s*\(\s*test\s*\)\s*\]$/.test(attr)); }
+// Test-only: `#[cfg(test)]`, or `#[cfg(all(test, ...))]` with `test` as a top-level conjunct
+// (e.g. assets' `#[cfg(all(test, feature = "sqlite"))] mod test_cases;`). `any(test, ...)` and `not(test)` are not.
+function testOnly(item) { return cfgs(item).some(attr => { const m = /^#\[\s*cfg\s*\(([\s\S]*)\)\s*\]$/.exec(attr); return !!m && cfgIsTestOnly(m[1].trim()); }); }
+function cfgIsTestOnly(pred) {
+  if (pred === 'test') return true;
+  const all = /^all\s*\(([\s\S]*)\)$/.exec(pred);
+  if (!all) return false;
+  const parts = []; let depth = 0, start = 0, body = all[1];
+  for (let i = 0; i < body.length; i++) { const c = body[i]; if (c === '(') depth++; else if (c === ')') depth--; else if (c === ',' && depth === 0) { parts.push(body.slice(start, i)); start = i + 1; } }
+  parts.push(body.slice(start));
+  return parts.some(part => part.trim() === 'test');
+}
 function walk(dir) {
   return readdirSync(root + dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? walk(`${dir}${entry.name}/`) : entry.name.endsWith('.rs') ? [dir + entry.name] : []);
 }
@@ -193,6 +204,15 @@ export function selectWebSources(all) {
       if (!['sqlite', 'native', 'wasm-host', 'postgres'].some(feature => gated(item, feature))) continue;
       const stem = path.posix.dirname(file) + '/' + item.name;
       excluded.push(stem + '.rs', stem + '/');
+    }
+  }
+  // A test-only external module never reaches wasm, wherever it is declared
+  // (e.g. assets.rs: `#[cfg(all(test, feature = "sqlite"))] pub(crate) mod test_cases;`).
+  for (const [file, code] of all) {
+    const base = path.posix.basename(file), dir = path.posix.dirname(file);
+    const childDir = base === 'lib.rs' || base === 'mod.rs' ? dir : dir + '/' + base.slice(0, -3);
+    for (const item of items(code).filter(item => item.kind === 'mod' && item.external && testOnly(item))) {
+      excluded.push(childDir + '/' + item.name + '.rs', childDir + '/' + item.name + '/');
     }
   }
   return new Map([...all].filter(([file]) => !excluded.some(exclude => exclude.endsWith('/') ? file.startsWith(exclude) : file === exclude)));
