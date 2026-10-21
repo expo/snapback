@@ -1,0 +1,7 @@
+One material defect remains:
+
+- **Packed qualification rejects DX5’s intended scaffold custody.** [publication-day5.mjs:32](/home/ccheever/projects/sb4-b20-dx5/snapback4/scripts/publication-day5.mjs:32) requires custom-schema starters to omit `frontend-proof.mjs`; line 34 also forbids its README instructions. [publication-starters.mjs:239](/home/ccheever/projects/sb4-b20-dx5/snapback4/scripts/publication-starters.mjs:239) likewise requires adaptation to remove the proof and its commands. DX5 intentionally retains these. I confirmed both web and Expo custom-schema starters emit the scaffold and both commands. Consequently, `qualify-linux --consumer-only` will fail deterministically. Update these consumers to verify the retained scaffold and its expected `E_FRONTEND_SCENARIO` refusal.
+
+All 74 recorded source hashes match. The nine focused DX5 tests passed independently. No other material correctness, privacy, compatibility, or package-resolution defect surfaced. The unfinished independent battery is not the reason for this verdict.
+
+NOT READY

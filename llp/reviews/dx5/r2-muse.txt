@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-b20-dx5 (cwd default)
+muse: workspace trust: trusted source=run-flag
+Independent semantic review of §10 Wave-20 loop repairs (DX5): core implementation of the five themes is correct by inspection, but the submitted revision ships contradictions between generator, tests, and generated docs.
+
+What I verified directly (not just subagent claims):
+
+- `expo_files()` in [starter.rs](/home/ccheever/projects/sb4-b20-dx5/snapback4/crates/snapback4/src/verbs/init/starter.rs) writes `metro.config.js` via `include_str!("metro.config.js")` but never writes `metro-wasm-transformer.cjs`. The new `metro.config.js` correctly delegates to the package adapter (`withSnapback(getDefaultConfig(...))`), and [metro.cjs](/home/ccheever/projects/sb4-b20-dx5/snapback4/packages/snapback4-expo/metro.cjs) resolves the transformer package-internally (`require.resolve("./metro-wasm-transformer.cjs")`). That design is consumer-relative and sound.
+- But [periphery.test.mjs](/home/ccheever/projects/sb4-b20-dx5/snapback4/packages/snapback4/test/periphery.test.mjs) lines ~183–190 still `read(join(dir, "metro-wasm-transformer.cjs"))` from the generated starter and assert `babelTransformerPath` ends with that filename. By inspection that file does not exist in new starters, so the committed test asserts the pre-DX5 shape and contradicts the implementation. No coverage of the new adapter path replaces it.
+- [README.home.md](/home/ccheever/projects/sb4-b20-dx5/snapback4/crates/snapback4/src/verbs/init/starter/expo/README.home.md) line 43 tells generated starters to "keep both `metro.config.js` and `metro-wasm-transformer.cjs`", yet the generator writes only the former. Generated docs reference a nonexistent file.
+- [metro-wasm-transformer.cjs](/home/ccheever/projects/sb4-b20-dx5/snapback4/crates/snapback4/src/verbs/init/metro-wasm-transformer.cjs) exists in `verbs/init/` with zero `include_str!` referencers (grep over `verbs/init` returns none). Dead file with old direct-require bytes, inviting misuse.
+
+Confirmed sound (not blockers): clock report/hold/no-retry, `N_LOOKUP_FILTERED`/`N_UNIQUE_HIDDEN` refusal parity, real OLD-CLI upgrade acquisition with quiet/captured warning delivery, truthful `ReadState`/list branches, and truthful adapt/proof scaffolds per the synthesis evidence. No grant/planner/protocol change; SEC5 scope untouched.
+
+These are real consistency defects in the submitted revision, not battery incompleteness: a failing-by-inspection test, a lying generated README, and an orphan transformer. The "old starter expectations being aligned" work is exactly what is still missing.
+
+NOT READY
+
