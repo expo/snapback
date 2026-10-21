@@ -13,6 +13,9 @@ import { spawn } from "node:child_process";
 import { resolveBinary } from "../dist/resolve-binary.js";
 import { fileURLToPath } from "node:url";
 import { constants } from "node:os";
+import { firstCheckWarnings } from "./upgrade-warnings.js";
+
+if (process.argv[2] === "check" && !process.argv.includes("--help")) firstCheckWarnings();
 
 if (process.argv[2] === "web-shell") {
   try { await (await import("./web-shell.js")).runWebShell(process.argv.slice(3)); }
