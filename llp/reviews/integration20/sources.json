@@ -1,0 +1,22 @@
+{
+  "commit": "37a707c158755abed22a568c1a18f12999bdbd87",
+  "files": {
+    "snapback4/crates/snapback4-lang/src/bind/security/challenges/generated.rs": "4261cc8631ebb2f96c9a45da0d4389c30d1126e544c71ef748918b2aa2c5d60c",
+    "snapback4/crates/snapback4/src/verbs.rs": "6fd6cf37f99318ac8a367b3fb5357dbf6df8ca25302e22b264e57b08bdf78784",
+    "snapback4/crates/snapback4/src/note_rank.rs": "ff1bd2fd574c54344ac4ce26cccbae5ec04959ee1d2f3be62b84a1a1cf6b99eb",
+    "snapback4/crates/snapback4/src/dev_clock.rs": "a1ff47dad3d6c2b0cf301b55d004d339680ebacf39237bea9c66b7b216a3497c",
+    "snapback4/crates/snapback4/src/dev_clock_store.rs": "800546595cd04b4959a664615276c0e716418b605a7b87a9505bb973eafe4ad3",
+    "snapback4/crates/snapback4/src/serve_maintenance.rs": "d1dfd811a6bbf5b874ec35fcaefa00b4ea88e15551787af040c621fa77e0aba3",
+    "snapback4/crates/snapback4-core/src/store/metadata.rs": "7dae0823168b2260b2a493fdabca101b71b44effb083e1a8c64af00471a08930",
+    "snapback4/crates/snapback4-core/src/store/jobs.rs": "39ffc22d613c994dd8adcdc331671820ad5db1814e7e7b47887fdbd80f514b15",
+    "snapback4/packages/snapback4/bin/upgrade-warnings.js": "9dbe76714ae12e32ac8a088e9829d20cce4dfc25c7eb08073a41d0bb2825fae7",
+    "snapback4/packages/snapback4/src/react.tsx": "1f6b9365d839e4228235376625afe7842ce159ef213caecc7aee0c6c1f78e5ce",
+    "snapback4/packages/snapback4/README.md": "c8fde5bed18022935deb475511076d364b154a4dcbe9aff53f213869cd8f41d4",
+    "snapback4/crates/snapback4-lang/src/guide/api.md": "6e03aa628cbb1b0792a4c6e0d287d41851ca2cbbec33945616ec0921b17beca7",
+    "snapback4/packages/snapback4/CLIENT-AND-OPERATIONS.md": "3e4c2eed31d35b168fb3bd71bf6a1c924e1464ccf688d3cde2bd347815a6066f",
+    "snapback4/packages/snapback4/test/maintained-columns.test.mjs": "8c927bb2787118230facfe7cde177cc77207fd544ab1f640eeee4b8bf893e806",
+    "snapback4/packages/snapback4/test/wave14-rule-recipes.test.mjs": "c5187e0f09d30ca8e81390df602edd90bc6549cf654c6340204c9a3b38ac5fa6",
+    "snapback4/scripts/publication-dx5.mjs": "adf4891d856e3a938569ec491a8a686edba578d8d3dea81050d32d68a94599d2",
+    "snapback4/packages/snapback4/CHANGELOG.md": "ddeb496fd341ea1909a5e38eda116f38fd2b80834b894abce142698b3ce2c6c5"
+  }
+}
