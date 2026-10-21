@@ -99818,3 +99818,32 @@ All Cargo work uses this worktree's own `snapback4/target`, six build jobs,
 no incremental compilation and line-tables-only dev/test debug. No push,
 stash, sub-agents or reviewer-worktree access. Detailed commands, results and
 scope are in `reports/20261020-p0-s8-store-port.md`.
+
+
+## 2026-10-21 — P1-MR: typed Postgres foundation metadata
+
+Implemented MetadataReader/MetadataWriter on Postgres Tx and the established
+RefCell store handle. Shared key helpers keep the SQLite names and textual
+values. New raw metadata values and new keys reject NUL; stored SQLite NUL
+values remain readable and legacy worker-status keys remain updateable.
+Postgres impossible-key reads skip the query, including the store-level BEGIN.
+Only serialized head-fenced transactions write. Attach-only shape validation
+rejects incompatible persistent relation, constraints, unique indexes,
+collation, defaults, generated columns, RLS, triggers and rewrite rules;
+contype='n' is ignored. No internal migration runner or serve wiring.
+
+Pure refactors: request_release, effect_release, replay_suppresses,
+replay_deployed and set_effect_replay now use typed metadata. Counter casts
+and atomic increments, schedule keys and identity composites keep their SQL
+because replacing them would change their specialized policy or transaction
+shape. Shared contracts exercise missing/malformed/raw values, legacy worker
+fences, admission and rollback. Both stores witness a writer blocked at the
+adapter fence before the predecessor commits. Postgres adds snapshot/reopen,
+held-reader attach, additive cached-read, bind-refusal and shape witnesses.
+
+The requested S10 census ref/file is absent locally and origin has no matching
+branch; the supplied task's census findings and the actual traits/callers
+were used, and the missing source was requested. No sub-agents, clones,
+remote commands, stash or push. Build target is this checkout's target only,
+with incremental off, line-tables-only debug and 12 build jobs. Focused checks
+and final qualification are recorded in subsequent entries.

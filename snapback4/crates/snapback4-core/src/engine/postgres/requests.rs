@@ -2,6 +2,7 @@
 //! Claim authority, lease bounds, retries and step parking stay in `actions`.
 // @ref LLP 3000.009.001.000#3.1 — adapters store facts; shared Rust chooses transitions.
 use super::store::{Store, Tx, decode, absent_text_key};
+use crate::metadata::MetadataReader;
 use crate::{
     RuntimeError,
     engine::actions::{
@@ -113,10 +114,7 @@ impl RequestsTransaction for Tx<'_> {
     }
 
     fn request_release(&self) -> Result<Option<String>, RuntimeError> {
-        Ok(self
-            .query("SELECT value FROM _meta WHERE key = 'release'", &[])?
-            .first()
-            .map(|row| row.get(0)))
+        self.release_value()
     }
 
     fn insert_request(&self, request: &NewRequest<'_>) -> Result<(), RuntimeError> {

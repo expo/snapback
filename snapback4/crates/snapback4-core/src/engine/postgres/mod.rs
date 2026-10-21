@@ -21,6 +21,8 @@ mod jobs;
 mod jobs_schema;
 mod assets;
 mod assets_schema;
+mod metadata;
+mod foundation_schema;
 #[cfg(test)]
 mod tests;
 pub use store::{SCAN_MEMORY_GUARD, WriteMode};
@@ -149,6 +151,7 @@ impl PostgresEngine {
         }
         tx.batch("CREATE TABLE IF NOT EXISTS _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value BIGINT NOT NULL, PRIMARY KEY(parent, id));")?;
         identity_schema::verify_existing(&tx)?;
+        metadata::initialize(&tx)?;
         tx.batch(store::READ_SESSIONS_DDL)?;
         tx.batch(identity::DDL)?;
         requests::initialize(&tx)?;
