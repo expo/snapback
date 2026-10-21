@@ -116,7 +116,7 @@ pub(super) fn source_notes(documents:&[ast::Document],catalog:&Catalog,bound:&Bo
                 let gates=match op{WriteOp::Update|WriteOp::Upsert=>vec![t.update_rule_judged().into_owned()],_=>Vec::new()};
                 if gates.iter().any(|g|g.disjuncts().iter().any(|b|self_only(b,&f.name)&&requirements.iter().all(|r|self_only(r,&f.name))))&&seen.insert((table.clone(),f.name.clone())){
                     let roles=requirements.iter().flat_map(|r|role_names(bound,r)).collect::<Vec<_>>();
-                    out.push(note("N_SELF_CLAIMED_RELATIONSHIP",format!("{}: {} can claim {table}.{} for themselves; {target} rules trust that relationship",p.name,if roles.is_empty(){"a caller".into()}else{roles.join(" or ")},f.name),"require an invitation or approval from the existing resource owner before setting this relationship; an unclaimed slot and a caller role do not establish it",site));
+                    out.push(note("N_SELF_CLAIMED_RELATIONSHIP",format!("{}: {} can claim {table}.{} for themselves; {target} rules trust that relationship",p.name,if roles.is_empty(){"a caller".into()}else{roles.join(" or ")},f.name),"confirm intentional self-claim against the spec; otherwise require an invitation or approval from the resource owner before assigning this relationship",site));
                 }
             }
         }
