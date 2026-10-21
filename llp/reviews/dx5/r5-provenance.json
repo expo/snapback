@@ -19,6 +19,7 @@
   "post_review_test_only_delta": {
     "change": "Packed production qualification now reads snapback4-expo/src/native-smoke.ts and verifies the packaged hook preserves original provider/storage errors. It no longer reads the removed emitted local helper. Product bytes and amendment are unchanged.",
     "additional": "Full-suite expectations pin required lookup notes in held_unknown/receipt_gaps and the intentional generic E_RULE help in mp_reproduction. Packed proof-kit accepts either exact preflight window-count or duplicated-report byte-budget refusal, still asserting no clock movement. No product/amendment change.",
-    "rule_recipes": "Packed rule witnesses pin the nine affected source notes by code, operation, site and safe rewrite. The hidden unique-key sentinel is distinct from the word private in constant generic help; named visible-conflict and no-key disclosure assertions remain."
+    "rule_recipes": "Packed rule witnesses pin the nine affected source notes by code, operation, site and safe rewrite. The hidden unique-key sentinel is distinct from the word private in constant generic help; named visible-conflict and no-key disclosure assertions remain.",
+    "guide_tests": "Four language guide targets validate N_LOOKUP_FILTERED/N_UNIQUE_HIDDEN source locations and safe rewrites alongside their previous exact notes. All executable authorization assertions remain unchanged. Runtime, package, guide and amendment bytes match the reviewed manifest."
   }
 }

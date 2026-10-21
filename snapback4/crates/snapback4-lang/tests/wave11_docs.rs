@@ -1,4 +1,6 @@
 //! Published authorization examples execute under their authored rules.
+#[path = "support/source_advice.rs"]
+mod source_advice;
 use snapback4_core::{Context, Engine, Value, WriteState};
 use snapback4_lang::guide;
 const RECIPES: &str = include_str!("../src/guide/rule_recipes.md");
@@ -7,9 +9,9 @@ fn engine(marker: &str) -> Engine {
         .into_iter()
         .find(|s| s.contains(marker))
         .unwrap();
-    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
     assert!(b.diagnostics.is_empty(), "{marker}: {:?}", b.diagnostics);
-    assert!(b.notes.is_empty(), "{marker}: {:?}", b.notes);
+    assert!(source_advice::remaining(&source, &b.notes).is_empty(), "{marker}: {:?}", b.notes);
     Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()
 }
 fn id(s: &str) -> Value {
@@ -332,9 +334,9 @@ const PRODUCTION: &str = include_str!("../src/guide/production.md");
 fn production_accounts_enroll_privately_and_survive_rollback() {
     let source = guide::quarry(PRODUCTION).into_iter().find(|source| source.contains("mutation register(")).expect("production profile and enrollment recipe");
     let compile = |source: String| {
-        let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        let b = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
-        assert!(b.notes.is_empty(), "{:?}", b.notes);
+        assert!(source_advice::remaining(&source, &b.notes).is_empty(), "{:?}", b.notes);
         b
     };
     let first = compile(source.clone());

@@ -1,4 +1,6 @@
 //! Execute the exact shipped snippets, including both allowed and hidden paths.
+#[path = "support/source_advice.rs"]
+mod source_advice;
 use serde_json::{Value as Json, json};
 use snapback4_core::{Context, Engine, JobState, Value, WriteState, wire};
 use snapback4_lang::guide;
@@ -8,10 +10,11 @@ fn engine(marker: &str) -> Engine {
         .into_iter()
         .find(|s| s.contains(marker))
         .unwrap();
-    let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
     assert!(b.diagnostics.is_empty(), "{marker}: {:?}", b.diagnostics);
+    let notes = source_advice::remaining(&source, &b.notes);
     assert!(
-        b.notes.iter().all(|n| n.code == "N_EPHEMERAL_SERVER"),
+        notes.iter().all(|n| n.code == "N_EPHEMERAL_SERVER"),
         "{marker}: {:?}",
         b.notes
     );
@@ -73,23 +76,24 @@ fn every_recipe_compiles_in_its_own_snippet_class() {
     for s in blocks {
         let timed_peer = s.contains("mutation reportWords(") && s.contains("table peerCounts:");
         let live_roster = s.contains("table liveRosterFiles:");
-        let b = snapback4_lang::compile(&[("schema.q".into(), s)]);
+        let b = snapback4_lang::compile(&[("schema.q".into(), s.clone())]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        let notes = source_advice::remaining(&s, &b.notes);
         if timed_peer {
             // The published recipe documents this intentional runtime guard.
-            assert_eq!(b.notes.len(), 1, "{:?}", b.notes);
-            assert_eq!(b.notes[0].code, "N_IMMUTABLE_PATCH");
-            assert!(b.notes[0].message.contains("peerCounts.opensAt"));
-            assert!(b.notes[0].message.contains("equals the stored value"));
+            assert_eq!(notes.len(), 1, "{:?}", b.notes);
+            assert_eq!(notes[0].code, "N_IMMUTABLE_PATCH");
+            assert!(notes[0].message.contains("peerCounts.opensAt"));
+            assert!(notes[0].message.contains("equals the stored value"));
         } else if live_roster {
             // Full-current live sync deliberately has no horizon. Pin this
             // recipe's documented note rather than exempting all LIVE code.
-            assert_eq!(b.notes.len(), 1, "{:?}", b.notes);
-            assert_eq!(b.notes[0].code, "N_NO_HORIZON");
-            assert!(b.notes[0].rewrite.contains("online only"));
-            assert!(!b.notes[0].rewrite.contains("last 500"));
+            assert_eq!(notes.len(), 1, "{:?}", b.notes);
+            assert_eq!(notes[0].code, "N_NO_HORIZON");
+            assert!(notes[0].rewrite.contains("online only"));
+            assert!(!notes[0].rewrite.contains("last 500"));
         } else {
-            assert!(b.notes.iter().all(|n| n.code == "N_EPHEMERAL_SERVER"), "{:?}", b.notes);
+            assert!(notes.iter().all(|n| n.code == "N_EPHEMERAL_SERVER"), "{:?}", b.notes);
         }
         Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     }

@@ -1,4 +1,6 @@
 //! RULES4: intent is distinct from table authority; missing proof never means disjoint roles.
+#[path = "support/source_advice.rs"]
+mod source_advice;
 use snapback4_lang::compile;
 fn notes(source: &str) -> Vec<snapback4_lang::Diagnostic> {
     let b = compile(&[("schema.q".into(), source.into())]);
@@ -107,8 +109,8 @@ fn exact_current_roster_recipe_rolls_back_a_transfer_cut_after_work_begins() {
     use snapback4_core::{Context, Engine, Value, WriteState, wire};
     use serde_json::json;
     let source=snapback4_lang::guide::quarry(snapback4_lang::guide::card("rule-recipes").unwrap()).into_iter().find(|s|s.contains("table rosterFolders:")).unwrap();
-    let b=compile(&[("schema.q".into(),source)]);
-    assert!(b.diagnostics.is_empty() && b.notes.is_empty(),"{:?} {:?}",b.diagnostics,b.notes);
+    let b=compile(&[("schema.q".into(),source.clone())]);
+    assert!(b.diagnostics.is_empty() && source_advice::remaining(&source, &b.notes).is_empty(),"{:?} {:?}",b.diagnostics,b.notes);
     let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     let mut rows=vec![("departments",json!({"id":"old","title":"Old"})),("departments",json!({"id":"new","title":"New"})),("rosterFolders",json!({"id":"folder","department":"old"}))];
     for i in 0..20 { rows.push(("rosterFiles",json!({"id":format!("file-{i}"),"folder":"folder","department":"old","body":"private"}))); }
