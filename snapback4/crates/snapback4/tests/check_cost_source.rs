@@ -132,7 +132,8 @@ fn grouped_shaped_reads_keep_balanced_source_boundaries() {
     for authored in [read.to_owned(), format!("({read})"), format!("(({read}))"), "(issues where .org = viewer) first 20 by .at".into()] {
         let source = format!("table issues:\n  org: principal\n  at: time\n  public\n  online only\nquery shaped():\n  return {authored} {{ id }}\n");
         let cost = Project::new(&source).run(&["check", "--cost"]);
-        let shown = cost.lines().find_map(|line| line.split_once("read: ").map(|(_, read)| read)).unwrap();
+        let shown = cost.lines().find_map(|line| line.trim_start().strip_prefix("selected ")
+            .and_then(|plan| plan.split_once("; read: ").map(|(_, read)| read))).unwrap();
         assert_eq!(shown, authored, "{cost}");
     }
 }

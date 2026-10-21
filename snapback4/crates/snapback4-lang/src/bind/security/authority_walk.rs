@@ -49,10 +49,15 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
         },
         Stmt::Return{value,..}=>{expression(catalog,p,value,env,guards,depth,out);break;},
         Stmt::Expr{value,..}=>{expression(catalog,p,value,env,guards,depth,out);guards.extend(helper_guards(catalog,value,env,0));},
-        Stmt::If{condition,then_body,else_body,..}=>{
+        Stmt::If{condition,then_body,else_body,site}=>{
             expression(catalog,p,condition,env,guards,depth,out);
-            statements(catalog,p,then_body,&mut env.clone(),&mut guards.clone(),depth,out);
-            statements(catalog,p,else_body,&mut env.clone(),&mut guards.clone(),depth,out);
+            let condition=resolve(condition,env);
+            let mut then_guards=guards.clone();
+            then_guards.push(Stmt::Require{condition:condition.clone(),code:"$advice".into(),message:None,site:site.clone()});
+            statements(catalog,p,then_body,&mut env.clone(),&mut then_guards,depth,out);
+            let mut else_guards=guards.clone();
+            else_guards.push(Stmt::Require{condition:Expr::Unary{op:"not".into(),value:Box::new(condition),site:site.clone()},code:"$advice".into(),message:None,site:site.clone()});
+            statements(catalog,p,else_body,&mut env.clone(),&mut else_guards,depth,out);
         },
         Stmt::For{domain,name,body,..}=>{expression(catalog,p,domain,env,guards,depth,out);let mut local=env.clone();local.remove(name);statements(catalog,p,body,&mut local,&mut guards.clone(),depth,out);},
         Stmt::As{body,..}=>statements(catalog,p,body,&mut env.clone(),&mut guards.clone(),depth,out),_=>{}

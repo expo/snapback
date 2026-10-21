@@ -240,7 +240,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
     // A direct component theorem needs no repeated concrete search for that
     // same component. Indirect observers, temporal reads and actual authored
     // operations below still run; the whole declaration remains unproved.
-    let discharged=super::analyze(bound).invariants.into_iter()
+    let discharged=super::analyze_rules(bound).invariants.into_iter()
         .filter(|v|v.direct_rule==Status::Proved&&v.invariant.operation.is_none()
             && (matches!(v.invariant.target.as_str(),"read"|"always"|"insert"|"delete")
                 || matches!(v.invariant.target.as_str(),"update"|"write")&&bound.schema.tables[&v.invariant.table].written_by.is_empty()))
@@ -404,13 +404,35 @@ pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
 /// policies and replayed violations can fail security acceptance.
 pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
     let first=campaign.violations.len();
+    column_reads::direct_fixture(bound,fixture,campaign);
     histories::initial_observers(bound,fixture,campaign);
+    histories::lifecycle_observers(bound,fixture,campaign);
     column_reads::fixture(bound,fixture,campaign);
     if !campaign.generated_fixture {trusted_reads(bound,fixture,campaign);}
     histories::run(bound,fixture,campaign);
     if campaign.generated_fixture {for witness in &mut campaign.violations[first..] {
         if witness.reachability==Reachability::AuthoredFixtureTrace {witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated initial fixture; fixture initialization is not claimed application-reachable".into();}
     }}
+}
+
+// @ref LLP 3000.036.004#143-concrete-role-refutations-and-coupled-worlds — failed implication only orders a concrete, authored replay.
+pub(super) fn direct_refutations(bound:&Bound,campaign:&mut Campaign){
+    let first=campaign.violations.len();
+    campaign.generated_fixture=true;
+    match generated_fixture(bound,campaign){
+        Ok(fixture)=>{
+            column_reads::direct_fixture(bound,&fixture,campaign);
+            histories::initial_observers(bound,&fixture,campaign);
+        },
+        Err(why)=>{campaign.unsupported.insert(format!("direct read witness unavailable: {why}"));}
+    }
+    for v in &mut campaign.violations[first..]{
+        if v.reachability==Reachability::AuthoredFixtureTrace{
+            v.reachability=Reachability::GeneratedFixtureTrace;
+            v.scope="actual authored observation from an insert-admitted generated fixture; initialization is not claimed reachable from an empty application".into();
+        }
+    }
+    campaign.generated_fixture=false;
 }
 pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
     fixture_observers(bound,fixture,campaign);

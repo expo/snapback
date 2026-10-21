@@ -6,7 +6,11 @@
 - Lookup advice names the authored read rule for required and same-table mutation lookups too. Hidden/missing/expired rows remain indistinguishable; an assertion uses its authored code for all three. Private unique conflicts retain generic E_RULE instead of the unique declaration's else code; source diagnostics explain the clause and safe modeling alternatives without revealing stored rows.
 - Upgrade scans candidate `data --json` consumers. One-line migration: `JSON.parse(stdout).rows` replaces `JSON.parse(stdout)`; inspect `more` and `limit` for truncation. First `check` in the newly installed wrapper also prints project warnings, including when upgrade was run by an old 0.4.33/0.4.35 CLI. Captured warnings remain pending so an old quiet upgrade cannot falsely acknowledge delivery.
 - React/Expo `ReadState` renders list loading/denied/empty/data in one expression, retaining partial/stale metadata. Expo starters use packaged Metro and native smoke support and always include playwright-core. Adapt keeps a runnable frontend proof scaffold and its commands; the scaffold explicitly refuses until an app-specific write scenario is added. Edited proofs remain application-owned.
-- Security intent, campaigns and actionable exposure output: SEC5 owns the companion 0.4.36 entry.
+- Security review starts with actions: role and row-state questions describe what a rule admits, and the generated intent draft asks about every role and column instead of suggesting rule copies. Keep legitimate simple policies after checking them against the specification.
+- Security notes also review broad roster branches inside `or`, lifecycle-wide role reads, self-claimed relationships and caller time flowing into deadlines, without requiring invariants. Notes identify the rule or operation and its repair; they remain advisory.
+- `check` targets contradicted read intent with validated generated fixtures and actual authored reads. `test` preserves non-protected column values and shares verified asset ledgers between paired worlds. Refutations retain their fixture assumptions; finite passing campaigns remain finite evidence.
+- `audit` leads with fixes and ranked reviews; `snapback4 audit --all` and JSON retain full proof blockers and coverage details.
+- Existing applications retain their rules and data. New security notes are advisory; review them against the product specification. Regenerate declarations after upgrade and review `data --json` scripts and starter adaptations as described above.
 
 ## 0.4.35
 

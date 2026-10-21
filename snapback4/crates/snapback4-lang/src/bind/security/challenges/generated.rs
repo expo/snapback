@@ -109,6 +109,10 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             let mut accepted=None;
             for actor in &actors{
                 if !out.reserve(1){break;}
+                // This only orders ordinary replay work: a definitely denied
+                // pre-insert gate cannot be rescued by copying the entire
+                // ledger. Unknown and defaults still go through the engine.
+                if matches!(engine.fixture_policy(&bound.schema.tables[&table].rules.insert,actor,None,&seeded,NOW),Ok(rules::Verdict::Denied)){continue;}
                 let mut candidate=engine.fork_fixture().map_err(|e|e.to_string())?;
                 if matches!(candidate.insert_fixture(&table,seeded.clone(),actor,NOW),Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})){accepted=Some(candidate);break;}
             }
@@ -124,6 +128,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
         let before=readback(&engine)?;
         for bp in &creators{
             let p=&bp.program;let writes=ir::write_tables(p);
+            let implicit=stability::implicit(bound,p);
             if writes.iter().all(|(t,_)|rosters.contains(t)){continue;}
             let current=readback(&engine)?;
             let targets=writes.iter().filter(|(_,kind)|matches!(*kind,"insert"|"upsert")).map(|(t,_)|t).collect::<Vec<_>>();
@@ -132,6 +137,12 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             'cases:for args in cases.into_iter().take(16){for actor in &actors{
                 if attempts>=2048||!out.reserve(1){out.unsupported.insert("generated authored initialization capped at 2048 calls; remaining creators uncovered".into());validate_fixture(bound,&mut engine)?;return Ok(engine);}
                 attempts+=1;
+                if targets.len()==1{
+                    let gate=&bound.schema.tables[targets[0]].rules.insert;
+                    let stable=!gate.any_term(&|term|!matches!(term,RuleTerm::Viewer|RuleTerm::Literal(_)))
+                        &&kernel::dependencies(gate).iter().all(|dep|!implicit.contains(dep)&&!writes.iter().any(|(t,_)|t==dep));
+                    if stable&&matches!(engine.fixture_policy(gate,actor,None,&Value::Null,NOW),Ok(rules::Verdict::Denied)){continue;}
+                }
                 let mut candidate=engine.fork_fixture().map_err(|e|e.to_string())?;
                 let args=match materialize_arguments(&mut candidate,&p.args,&args,actor){Ok(a)=>a,Err(_)=>continue};
                 let result=candidate.mutate(&p.name,None,Context::new(actor,args).at(NOW));

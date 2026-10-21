@@ -1,0 +1,28 @@
+{
+  "baseline_commit": "7f748cf368",
+  "inherited_codec_source": "snapback4/crates/snapback4-core/src/assets/test_cases.rs",
+  "same_bytes": true,
+  "sha256": "6ce435538df75b092a6edc042a410dfc862f003b837872bd6c3cc5727335f8b6",
+  "lean_signatures_preexisting": [
+    {
+      "signature": "lean--code--E_RULE~NOT_FOUND",
+      "diagnosis_identical_to_sb4_loop": true,
+      "sha256": "89531988ed356dc4b31288494e8166fe4f1a6593a9f3273759657c8b63691d9b"
+    },
+    {
+      "signature": "lean--continuation-next--next~no-next",
+      "diagnosis_identical_to_sb4_loop": true,
+      "sha256": "214168cac60e01e3e600810b2d59b2004891877e4ffcb7ae74dea89a56351a2c"
+    },
+    {
+      "signature": "lean--next--next~no-next",
+      "diagnosis_identical_to_sb4_loop": true,
+      "sha256": "2db2a0791da808d20e91507ae6c3a65b3f95ff3f987dc12451cf8fb3e0589f29"
+    },
+    {
+      "signature": "lean--prelude-code--E_RULE~NOT_FOUND",
+      "diagnosis_identical_to_sb4_loop": true,
+      "sha256": "b38159dfbf94fd7c4bb5fbe94f315131df8339b8ec771120a429841ab3975cb4"
+    }
+  ]
+}

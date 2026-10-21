@@ -1,0 +1,13 @@
+Independently review the CURRENT SEC5 amendment §§14.1–14.7 in llp/3000.036.004-security-invariants-and-exposure.rfc.md. Do not edit. Return READY or NOT READY with concrete material concerns. All shell commands timeout. No secrets.
+
+Earlier rounds are saved verbatim in llp/reviews/3000.036.004-sec5-design-r*. Read the current text before repeating a concern. §14.6 and §14.7 explicitly incorporate ALL earlier RFC premises, spell out algorithm/evidence/budget rules, and resolve the prior eight concerns. Codex round3 READY. Muse round3 requested more precision; §14.7 records decisions and limits:
+- All prior observer/pullback/census/stability premises remain normative.
+- Generated initial assumptions remain explicit. No serialized initializer history or empty-state claim; real later transition calls are recorded.
+- Shared verified ledger ordering, existing witness fields and repeat/final-exists controls are explicit; no extra ledger-receipt framework is added.
+- Existing512reservation/1500ms check budget and full lifecycle search limits are explicit.
+- One-sided bounded times are outside the requested narrow unbounded-time note; emitting new notes for valid bounded timestamps would conflict with the user's quiet-note requirement. This is explicitly not time-window certification.
+- Self-claim repair asks to confirm intended open pools before requiring approval.
+- Structural audience predicates, stable questionnaire and lint-only normalization boundaries are explicit.
+- Full original300 survey plus stripped pass, sevenlane matrix and ten fresh observational before/after builder measurement are explicit. User asks to measure yield, not invent a per-lane success threshold; aggregate target exceeds historical zero.
+
+Review against requested scope: wave20 fixes#1/#2/#3/#5 (intent questions, invariant-free notes, concrete refutations, column/media worlds, actionable output). A materially unsafe or insufficient condition deserves NOT READY with a concrete scenario. Do not demand new runtime features, proof assumptions, arbitrary additional numerical success bars or exact textual formatting beyond this task. This is semantic design review while implementation/tests proceed, not a claim all qualification has already passed.

@@ -99682,3 +99682,44 @@ Mac Studio evidence, cleanup and acquisition limitations are recorded in
 when old-CLI acquisition was tested; its retained bakeoff artifact has explicit
 registry/integrity provenance. No version bump, push or publication. SEC5 owns
 the companion security intent/campaign/exposure text and behavior.
+
+## 2026-10-21 — SEC5: intent questions and executable refutations
+
+Wave20's rule copies become per-role/row/column specification questions. The
+questionnaire proposes no copied policies. New invariant-free advice is narrowed
+by corpus evidence: mixed-role OR privacy, actual media lifecycle transitions,
+existing-row relationship takeover and unbounded caller deadlines. It remains
+conditional advice; legitimate privileged audiences still require confirmation.
+
+Bounded check now replays generated admitted fixtures and actual authored
+observers for excluded role branches. Column comparisons use logical row images,
+media worlds share a hydrated ledger, and full tests prioritize actual lifecycle
+successors. Q050 contact privacy now fails ordinary check; Q036's collected-set
+photo case fails test through recorded mutations. No SAT assignment or synthetic
+world is promoted to a fixture-origin failure. Audit uses bounded evidence,
+returns its permission map promptly and leaves full campaigns to test.
+
+LLP3000.036.004§14 records the semantics and three scoped dual-family READY
+reviews. Ten fresh installed-doc builders produced58 clear read assertions
+representing12 distinct policies in6apps; the original matched-spec sample had
+zero. The exact input-pack timeouts, declaration duplication and048 elicitation
+miss remain recorded. Updated guide questions address those observations.
+Evidence and qualification are under reports/20261021-sec5; the workstream report
+records actual full-suite results and inherited failures. No version bump, push
+or publication; DX5 owns clocks, hidden lookups, upgrades and frontend scaffolds.
+
+SEC5 final corpus correction: query-filter implicit row fields now participate in
+caller-time deadline discovery. Lane 017 `checkIn(at)` is flagged with and without
+invariants; 19 focused tests pass. Frozen 300 and supplementary 38 all compile
+without diagnostics. Final caller-time counts are 67 and 7; availability/calendar
+questions remain advisory and are not counted as confirmed security findings.
+
+SEC5 broad-suite closure: preserve each eligible observer's preparation error
+when a shared paired-world fixture is invalid. Proposal rows only discover
+observers; the preparation error returns before policy or observation execution.
+The original per-observer negative regression is unchanged and passes, with zero
+violations. The exhaustive guide fact/action pins now cover both new codes and
+updated questionnaire wording; the CLI test retains refusal, column and concrete
+trace checks while expecting FIX. Packed Linux consumer qualification passed on
+06dbfea690; this coverage-reporting restoration receives affected-target and
+fresh packed-security verification separately. No publication receipt is claimed.

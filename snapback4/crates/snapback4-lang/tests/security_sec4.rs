@@ -54,10 +54,10 @@ fn update_only_column_intent_does_not_refute_authorized_creation(){
 #[test]
 fn check_exhaustion_is_explicit_and_retains_no_proof_assumptions(){
     let b=bound("table notes:\n  owner: principal\n  body: text <=80\n  read <- allow\n  insert <- allow\n  online only\ninvariant notes.body read only .owner = viewer\nquery notes():\n  return notes first 100 by .id\n");
-    let r=security::analyze(&b);assert!(r.invariants.iter().all(|v|v.status==security::Status::Unproved));
+    let r=security::analyze_rules(&b);assert!(r.invariants.iter().all(|v|v.status==security::Status::Unproved));
     let c=challenges::run_selected_after(&b,None,Campaign::bounded(0));
     assert!(c.unsupported.iter().any(|s|s.contains("time budget exhausted")));assert!(c.violations.is_empty());
-    let mut r=security::analyze(&b);challenges::apply(&mut r,&c);assert!(!r.refuted());
+    let mut r=security::analyze_rules(&b);challenges::apply(&mut r,&c);assert!(!r.refuted());
 }
 #[test]
 fn board_advice_names_the_unscoped_branch_but_not_resource_scoped_roles(){
@@ -89,7 +89,9 @@ fn draft_candidates_are_never_equivalent_to_the_read_gate(){
     let b=bound(&format!("{ROLES}table docs:\n  body: text <=80\n  read <- exists roles[viewer, role = 'doctor']\n  insert <- allow\n  online only\n"));
     let draft=security::draft(&b);
     assert!(!draft.lines().any(|line|line.contains("invariant docs.body")&&line.contains("'doctor'")));
-    assert!(draft.lines().any(|line|line.contains("invariant docs.body")&&line.contains("'volunteer'")));
+    assert!(draft.lines().any(|line|line.contains("Q docs.body")&&line.contains("'volunteer'")));
+    assert!(draft.lines().any(|line|line.contains("Q docs.body")&&line.contains("'doctor'")));
+    assert!(!draft.contains("invariant docs.body"));
 }
 
 #[test]

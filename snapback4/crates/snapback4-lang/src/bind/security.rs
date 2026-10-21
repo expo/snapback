@@ -7,14 +7,19 @@ use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 pub mod kernel;
 mod audit;
+mod presentation;
 pub mod challenges;
 mod lints;
+mod advice;
+mod time_advice;
+mod lifecycle_advice;
 mod operation;
 mod concrete;
 mod census;
 mod observers;
 mod temporal;
 mod adoption;
+mod intent;
 mod images;
 mod columns;
 mod privilege;
@@ -96,15 +101,17 @@ impl Report {
     pub fn refuted(&self)->bool {self.invariants.iter().any(|v|v.status==Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable()))}
     pub fn text(&self)->String {self.text_with_all(false)}
     pub fn text_with_all(&self,all:bool)->String {
-        let mut out=format!("security: {}\n",self.scope);
+        let mut out=self.action_text(if all {usize::MAX} else {5});
+        if all {out.push_str(&format!("security scope: {}\n",self.scope));}
         for v in &self.invariants {
+            if !all && v.status != Status::Refuted {continue;}
             if !all&&v.status==Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|!c.reachability.is_reachable()){out.push_str(&format!("  {}: seed/synthetic refutation only (non-failing; --all for details)\n",v.invariant.target_label()));continue;}
             out.push_str(&format!("  {:?}: {}.{} {} — direct rule {:?}\n",v.status,v.invariant.table,format!("{}{}",v.invariant.column.as_ref().map(|c|format!("{c} ")).unwrap_or_default(),v.invariant.target),v.invariant.predicate,v.direct_rule));
             for reason in &v.reasons {out.push_str(&format!("    {reason}\n"));}
             for o in &v.obligations {out.push_str(&format!("    {:?}: {} — {}\n",o.status,o.path,o.reason));if let Some(repair)=&o.repair{out.push_str(&format!("      repair: {repair}\n"));}}
             if let Some(c)=&v.counterexample {out.push_str(&format!("    counterexample {}\n",serde_json::to_string(c).unwrap()));}
         }
-        for note in &self.notes {out.push_str(&format!("  {} {}: {}\n    {}\n",note.site,note.code,note.message,note.rewrite));}
+
         for (role,entries) in &self.roles {
             out.push_str(&format!("role {role} (possible/conditional; row predicates below decide):\n"));
             for entry in entries {out.push_str(&format!("  {entry}\n"));}
@@ -115,8 +122,8 @@ impl Report {
             for path in &x.paths {out.push_str(&format!("  {path}\n"));}
             for grant in &x.grants {out.push_str(&format!("  inherited grant {}: {}\n",grant.table,grant.predicate)); for w in &grant.writers {out.push_str(&format!("    writer {w}\n"));}}
         }
-        for reason in &self.campaign_coverage{out.push_str(&format!("  campaign not covered: {reason}\n"));}
-        out.push_str(&format!("  exclusions: {}\n",self.exclusions.join("; ")));
+        for reason in self.campaign_coverage.iter().filter(|_|all){out.push_str(&format!("  campaign not covered: {reason}\n"));}
+        if all {out.push_str(&format!("  exclusions: {}\n",self.exclusions.join("; ")));}
         out.push_str("exposures without an invariant (conditional role/row coverage; declarations are not proof):\n");
         for x in &self.uncovered {out.push_str(&format!("  {}.{}: {}; rows: {}\n",x.table,x.effect,x.audience,x.row_predicate));}
         if self.uncovered.is_empty(){out.push_str("  none\n");}out
@@ -126,6 +133,19 @@ fn effect(word:&str)->Effect {match word {"read"=>Effect::Read,"insert"=>Effect:
 fn effects(inv:&Invariant)->Vec<&str> { if inv.operation.is_some(){vec!["insert","update","delete"]}else if inv.target=="write" {vec!["insert","update"]} else {vec![inv.target.as_str()]} }
 /// Analyze declarations without using fixtures as proof assumptions.
 pub fn analyze(bound:&Bound)->Report {
+    analyze_with_campaign(bound,&mut challenges::Campaign::bounded(1500))
+}
+/// The CLI supplies its single campaign budget, shared with remaining paths.
+pub fn analyze_with_campaign(bound:&Bound,campaign:&mut challenges::Campaign)->Report {
+    let mut report=analyze_rules(bound);
+    if report.invariants.iter().any(|v|v.invariant.target=="read"&&v.direct_rule!=Status::Proved){
+        challenges::direct_refutations(bound,campaign);
+        challenges::apply(&mut report,campaign);
+    }
+    report
+}
+/// The independent proof pass never uses generated data as an assumption.
+pub fn analyze_rules(bound:&Bound)->Report {
     let exposures=audit::exposures(bound);
     let mut verdicts=Vec::new();
     for inv in &bound.invariants {
