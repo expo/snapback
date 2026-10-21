@@ -444,11 +444,27 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     match drained.map_err(|error| error.refusal()).and_then(|work| completed_drain(work, crate::lifecycle::stopping())) {
         Ok(work) => {
             let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, shared.hold_schedules, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
-            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":crate::dev_clock::SESSION_NOTICE, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules}))
+            let (fired, held) = crate::dev_clock_store::outcomes(&schedules);
+            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":crate::dev_clock::SESSION_NOTICE, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules, "fired":fired, "held":held}))
         }
         // Time remains advanced if maintenance fails; callers must not
         // retry the advance blindly. The normal tick retries pending work.
-        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":crate::dev_clock::SESSION_NOTICE, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "denied":refusal_json(&error)})),
+        Err(error) => {
+            let engine = lock(&shared.engine);
+            let after = crate::dev_clock_store::saved_boundaries(&engine);
+            let fired: Vec<_> = engine.schema().schedules.iter().enumerate().filter(|(i, _)| {
+                matches!((before.get(*i).copied().flatten(), after.get(*i).copied().flatten()), (Some(old), Some(new)) if new > old)
+            }).map(|(_, schedule)| schedule.name.clone()).collect();
+            let mut schedules = crate::dev_clock_store::schedule_report(&engine, &before, &fired, now, shared.hold_schedules, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
+            for (index, schedule) in schedules.iter_mut().enumerate() {
+                if schedule["fired"] != true && !shared.hold_schedules && before.get(index).copied().flatten().is_some_and(|old| old < engine.schema().schedules[index].boundary(now)) {
+                    schedule["holdCode"] = "maintenance-failed".into();
+                    schedule["reason"] = "clock advanced but maintenance stopped before this due boundary was queued; inspect clock and queued jobs before continuing; do not replay the advance".into();
+                }
+            }
+            let (fired, held) = crate::dev_clock_store::outcomes(&schedules);
+            respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "sessionNotice":crate::dev_clock::SESSION_NOTICE, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "schedules":schedules, "fired":fired, "held":held, "reportIncomplete":true, "denied":refusal_json(&error)}))
+        },
     }
 }
 

@@ -58,7 +58,7 @@ try {
   }
  }
  const now=await host.now(); assert.ok(Math.abs(now-Date.now()-25*3600000)<5000);
- const advanced=await host.advance("+2h"); assert.ok(advanced-now>=2*3600000);
+ const advanced=await host.advance("+2h"); assert.ok(advanced.now-now>=2*3600000);
  const clock=await cli(["clock","advance","+1h","--release","staging"]);assert.equal(clock.code,0,clock.stderr);
  assert.ok(await host.now()-advanced>=3600000);
  for(const path of ["/seed","/dev/reset","/dev/clock/advance","/dev/jobs/foo","/dev/token"])

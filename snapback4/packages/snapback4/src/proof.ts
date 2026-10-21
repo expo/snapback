@@ -64,11 +64,30 @@ export function startDev(options: ProofOptions | readonly string[] = {}): Promis
     return body.now;
   } }));
 }
+export interface ScheduleOutcome {
+  name: string;
+  target: string;
+  period: string;
+  fired: boolean;
+  reason: string;
+  holdCode?: "disabled" | "saved-boundary" | "initialized" | "not-due" | "maintenance-failed";
+  savedBoundary?: number;
+  nextBoundary: string;
+  heldUntil?: string;
+  periodStart?: number;
+  periodEnd?: number;
+  firedWindows: { periodStart: number; periodEnd: number }[];
+  skippedPeriods?: number;
+  skippedBoundaries: { periodStart: number; periodEnd: number; command: string }[];
+  skippedBoundariesOmitted?: number;
+  run?: { id: string; state: string; rowsWritten: number; error: string | null; errorTruncated: boolean };
+}
+export interface ClockAdvance { now: number; fired: ScheduleOutcome[]; held: ScheduleOutcome[] }
 export interface ServeHost extends ProofHost {
   /** Authoritative staging time; requires a staging store and local operator authority. */
   now(): Promise<number>;
   /** Advance staging time once and drain due work. A lost reply must not be retried. */
-  advance(duration: string, options?: { eachBoundary?: boolean }): Promise<number>;
+  advance(duration: string, options?: { eachBoundary?: boolean }): Promise<ClockAdvance>;
   operatorToken(service?: string, days?: number): Promise<string>;
   seedAccounts(options: SeedAccountsOptions): Promise<StagingSessions>;
   sessions?: StagingSessions;
@@ -84,15 +103,17 @@ export async function startServe(deployDir: string, options: ServeOptions | read
   if (opts.clockOffset !== undefined && (typeof opts.clockOffset !== "string" || !/^[+-]?\d+(ms|s|m|h|d|w)$/.test(opts.clockOffset))) throw new TypeError("E_PROOF_USAGE: clockOffset is a signed duration such as +25h");
   if (opts.clockOffset !== undefined && opts.args?.some(arg => arg === "--clock-offset" || arg.startsWith("--clock-offset="))) throw new TypeError("E_PROOF_USAGE: pass clockOffset once");
   const host = await nativeHost("serve", [directory], { ...opts, args: [...(opts.args ?? []), ...(opts.clockOffset === undefined ? [] : ["--clock-offset", opts.clockOffset])] });
-  const clockCall = async (body?: object): Promise<number> => {
+  const clockCall = async (body?: object): Promise<ClockAdvance> => {
     const config = await fetchIdentity(`${host.url}/auth/config`, deadline(opts.timeoutMs, 10_000));
     if (!config.response.ok || config.body.environment !== "staging") throw Error("E_CLOCK_DEV_ONLY: clock controls require a deploy --staging store");
     const clockToken = served.operatorToken("clock");
     const response = await fetch(`${host.url}/dev/clock/${body ? "advance" : "status"}`, { method: body ? "POST" : "GET", headers: { Authorization: `Bearer ${await clockToken}`, "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(deadline(opts.timeoutMs, 60_000)) });
-    const result = await response.json() as { now?: number; sessionNotice?: string; denied?: { code?: string; message?: string } };
+    const result = await response.json() as Partial<ClockAdvance> & { sessionNotice?: string; denied?: { code?: string; message?: string } };
     if (result.sessionNotice) process.stderr.write(`snapback4: ${result.sessionNotice}\n`);
-    if (!response.ok || result.denied || !Number.isSafeInteger(result.now)) throw Error(`staging clock refused or reply unavailable; inspect clock and queued work before retrying: ${result.denied?.code ?? response.status} ${result.denied?.message ?? ""}`);
-    return result.now!;
+    if (!response.ok || result.denied || !Number.isSafeInteger(result.now)) throw Object.assign(Error(`staging clock refused or reply unavailable; inspect clock and queued work before retrying: ${result.denied?.code ?? response.status} ${result.denied?.message ?? ""}`), { report: result });
+    if (body && (!Array.isArray(result.fired) || !Array.isArray(result.held))) throw Error("staging clock reply has no schedule report; inspect clock and queued work before retrying");
+    for (const schedule of result.held ?? []) if (schedule.holdCode === "saved-boundary") process.stderr.write(`snapback4: schedule ${schedule.name}: ${schedule.reason}\n`);
+    return { now: result.now!, fired: result.fired ?? [], held: result.held ?? [] };
   };
   // Exit can precede inherited watchdog flock release. The private local
   // barrier observes the same canonical ownership sidecar without writing data.
@@ -103,7 +124,7 @@ export async function startServe(deployDir: string, options: ServeOptions | read
     if (result.code !== 0) throw Error(`proof serve store release failed: ${result.stderr}`);
   })().catch(error => { stopping = undefined; throw error; });
   const served: ServeHost = { ...host, stop,
-    now: () => clockCall(),
+    now: async () => (await clockCall()).now,
     advance: (duration, options = {}) => {
       if (typeof duration !== "string" || !/^\+?\d+(ms|s|m|h|d|w)$/.test(duration)) throw new TypeError("E_PROOF_USAGE: advance requires a positive whole duration");
       return clockCall({ duration, eachBoundary: options.eachBoundary ?? false });

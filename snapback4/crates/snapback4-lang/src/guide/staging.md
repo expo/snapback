@@ -185,3 +185,17 @@ private store-owner proof. Serve never opens these development tools.
 `startDev()` persists by default, matching native dev; pass args:["--memory"]
 for disposable storage. now() needs the explicit clock door on password-only
 dev. A proof for real users uses the serve recipe above.
+
+## Time and reused stores
+
+`await host.advance("49h")` returns `{now, fired, held}`; `await host.now()` still
+returns a timestamp. The CLI `clock advance 49h --release staging` returns the
+same outcomes. Fired means enqueued, so inspect each run state for parked work.
+Every held schedule gives a reason and next boundary. Saved boundaries survive
+restart: each boundary fires once; missed periods coalesce unless eachBoundary
+is explicit. A reused store can hold a due application row because that window
+already ran. The helper and CLI print the saved-boundary hold and recovery on
+stderr. Advance beyond the saved boundary's next window, keep --clock-offset
+across serve restarts when continuing, or deploy a fresh staging directory for
+an independent test. Never replay a lost advance reply. Time travel also ages
+sessions and unplaced uploads: log in again and upload bytes after a large jump.

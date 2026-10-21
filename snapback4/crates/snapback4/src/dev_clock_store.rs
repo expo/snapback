@@ -9,7 +9,8 @@ const TABLE_BYTES: usize = 4096;
 const TABLE_NAMES: usize = 8;
 const REPORT_ERROR_BYTES: usize = 1024;
 // Reserve one MiB for the outer clock/work envelope inside the host encoder.
-const REPORT_BYTE_BUDGET: usize = crate::serve::JSON_RESPONSE_CEILING - (1 << 20);
+// The reply retains `schedules` and its fired/held partition.
+const REPORT_BYTE_BUDGET: usize = (crate::serve::JSON_RESPONSE_CEILING - (1 << 20)) / 2;
 
 // @ref LLP 3000.007#20.12 — inspect a fixed recent commit window, never application row values.
 pub fn ahead(engine: &Engine, now: i64) -> Result<Option<String>, RuntimeError> {
@@ -170,21 +171,31 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
                     utc(start), utc(end), if skipped == 1 { "" } else { "s" }, utc(old.unwrap_or(end)), schedule.target).into();
             }
         } else if held {
+            entry["holdCode"] = "disabled".into();
             entry["reason"] = "schedules are held (dev --hold-schedules or --replay); a restart without the flag resumes at the next boundary".into();
-        } else if let Some(saved) = saved.filter(|saved| *saved > current) {
+        } else if let Some(saved) = saved.filter(|saved| old.is_some() && (*saved > current || *saved == current && *saved > schedule.boundary(snapback4_core::now_ms()))) {
             let due = schedule.next(saved);
+            entry["holdCode"] = "saved-boundary".into();
+            entry["savedBoundary"] = saved.into();
             entry["heldUntil"] = utc(due).into();
             entry["nextBoundary"] = utc(due).into();
-            entry["reason"] = format!("held by the store: its saved boundary {} is ahead of the clock {} (a dev restart resets the clock offset; the store keeps the boundary). Advance {} more, restart with dev --resume-clock, or test on dev --fresh",
+            entry["reason"] = format!("held by the store: boundary {} was already processed and this clock {} has not reached its next window (restarting resets the process offset, not the saved boundary). One fire per boundary. Advance {} more, or use a fresh staging deployment/store for an independent test; keep the same --clock-offset when continuing a test across serve restarts",
                 utc(saved), utc(now), span(due - now)).into();
         } else if old != saved {
+            entry["holdCode"] = "initialized".into();
             entry["reason"] = format!("{} started at boundary {}: a schedule fires at the boundary after the first one it sees, next {} ({} from now)",
                 if old.is_none() { "this schedule" } else { "this changed schedule" }, utc(saved.unwrap_or(current)), utc(next), span(next - now)).into();
         } else {
+            entry["holdCode"] = "not-due".into();
             entry["reason"] = format!("next boundary {} ({} from now; schedule times are UTC)", utc(next), span(next - now)).into();
         }
         entry
     }).collect()
+}
+
+// @ref LLP 3000.000.000.001#10-wave-20-loop-repairs-dx5 — every declared schedule has one reported outcome.
+pub fn outcomes(schedules: &[serde_json::Value]) -> (Vec<serde_json::Value>, Vec<serde_json::Value>) {
+    schedules.iter().cloned().partition(|schedule| schedule["fired"] == true)
 }
 
 /// The report never loads full error/argument payloads from retained jobs.
