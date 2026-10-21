@@ -99682,3 +99682,48 @@ buildable when generic access is privatized. The ratchet still counts the
 renamed raw connection calls and excludes only bare driver Error types (never
 constructors or connection paths). The ordinary binary build passes without
 the feature; final suite and privacy probes follow with boundary closure.
+
+## 2026-10-21 — P0-S8: generic access closed, production ratchet empty
+
+Generic Store/Tx connection and metadata access is crate-private. Named S6
+metadata families serve host callers and the upload engine; replay retains its
+jobs-family transaction and statement order. Worker sidecar placement and
+admission contention settings use named operations. The independent native
+device metadata/side-table/residency contract lives inside the SQLite adapter,
+and the standalone evaluator uses typed physical row/snapshot operations.
+Raw fixtures use explicitly named hooks behind the dev-dependency
+`test-support` feature. No normal dependency enables that feature. The
+private-filesystem lock witness moves beside the adapter, preserving its
+private helper access and raw Python script.
+
+Inspection's maintained-private error classification and duplicate output-name
+checks now run as shared policy at the original preparation points, retaining
+authorizer precedence and boolean-inference order. View generation and host
+catalog filtering share `internal()`. Missing clock-record fields return
+storage errors instead of panicking. SQL, keys, values, transaction boundaries,
+refusal messages and ordinary behavior are retained; no Postgres adapter is
+changed. The governing store-port LLP and the S8 report record the closure.
+
+The production ratchet allowance falls from 11 to zero; test allowances stay
+at 95 (combined 106 to 95). Four production allowances were already stale on
+the exact base; its actual seven source matches are now zero. Regeneration
+and the normal ratchet run pass. The final ordinary binary build and complete
+core/host suites pass, including the large initializer/residency case and web
+witness. Workspace test compilation with the evaluator's Postgres feature
+passes; 540 device tests across seven affected targets and the SQLite
+snapshot/restore regression pass. The final ordinary core artifact has no
+`test-support`: an external compile probe gets six private-method errors for
+generic access and six absent-method errors for fixture hooks.
+
+The required Clippy command reproduces `while_immutable_condition` in
+`engine/read.rs:780` and `never_loop` in `engine/row_views.rs:1010` on the
+untouched exact base `ce6c0d87daf0f8ac6ca136e46cb19932fcee6daa` in a second
+local detached worktree. Allowing those two lints only on the command line
+exposes the same three inherited `not_unsafe_ptr_arg_deref` failures at device
+`ffi.rs:100,112,120`. A full warning-only comparison passes on both trees;
+all 1,458 diagnostic signatures/counts match, with no new warnings. No source
+lint setting changes. Fresh-tree locked dependencies, wasm build (727,113
+bytes gzip within the unchanged 727,513 budget) and JavaScript package build
+supply the host suite's prerequisites. All 505 original scoped SQL literal
+spellings remain present. No functional uncertainty remains, no sub-agents or
+remote commands were used, `scripts/test.sh` was not run and nothing was pushed.

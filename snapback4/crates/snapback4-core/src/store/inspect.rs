@@ -1,7 +1,9 @@
 //! SQLite read-only inspection connection and generated application views.
 // @ref LLP 3000.009.001.000#32-the-rule — inspection SQL stays inside the adapter.
 use super::{Store, Tx};
-use crate::inspection::{CATALOG_HINT, InspectionCatalog, InspectionResult as Result, PRIVATE};
+use crate::inspection::{
+    CATALOG_HINT, InspectionCatalog, InspectionResult as Result, PRIVATE, internal,
+};
 use crate::schema::{ColumnDefault, ColumnType, Schema, Table};
 use rusqlite::{
     Connection, OpenFlags, OptionalExtension,
@@ -254,27 +256,24 @@ impl Inspection {
     pub fn query(
         &self,
         body: &str,
-        schema: &Schema,
         limit: u32,
         object_rows: bool,
+        classify_error: impl Fn(String) -> (&'static str, String),
+        check_columns: impl Fn(&[String]) -> Result<()>,
         booleans: impl FnOnce(usize) -> Result<Vec<bool>>,
     ) -> Result<InspectionRows> {
         let conn = &self.conn;
         let denied = &self.denied;
-        let query_error = |e: rusqlite::Error| {
-            match denied.load(Ordering::Relaxed) {
-        1 => ("E_SQL_READ_ONLY", "sql accepts one read-only SELECT or WITH … SELECT; writes and side effects are refused".into()),
-        2 => ("E_SQL_INTERNAL", format!("sql reads application views only; internal tables, r, i and SQLite metadata are refused; {CATALOG_HINT}")),
-        _ => {
-            let message = e.to_string();
-            // SQLite identifiers are case-insensitive, including the spelling
-            // repeated by a missing-view diagnostic.
-            let folded = message.to_ascii_lowercase();
-            if let Some(m) = schema.maintains.iter().find(|m|m.private.is_some() && folded.contains(&m.target.to_ascii_lowercase())) {
-                ("E_MAINTAINED_COLUMN_PRIVATE", format!("{} is engine-maintained; read its parent column (guide maintains)",m.label()))
-            } else { ("E_INPUT", format!("SQL: {e}")) }
-        },
-    }
+        let query_error = |e: rusqlite::Error| match denied.load(Ordering::Relaxed) {
+            1 => (
+                "E_SQL_READ_ONLY",
+                "sql accepts one read-only SELECT or WITH … SELECT; writes and side effects are refused".into(),
+            ),
+            2 => (
+                "E_SQL_INTERNAL",
+                format!("sql reads application views only; internal tables, r, i and SQLite metadata are refused; {CATALOG_HINT}"),
+            ),
+            _ => classify_error(e.to_string()),
         };
         // Prepare the original as well: WITH … UPDATE must hit the authorizer
         // before wrapping, rather than surfacing as a generic subquery syntax error.
@@ -282,19 +281,13 @@ impl Inspection {
         if !original.readonly() {
             return Err(("E_SQL_READ_ONLY", "sql accepts only a SELECT".into()));
         }
-        if object_rows {
-            let mut names = BTreeSet::new();
-            if original
+        check_columns(
+            &original
                 .column_names()
-                .iter()
-                .any(|name| !names.insert(name.to_ascii_lowercase()))
-            {
-                return Err((
-                    "E_INPUT",
-                    "--json-objects needs unique output names; alias duplicate columns".into(),
-                ));
-            }
-        }
+                .into_iter()
+                .map(str::to_owned)
+                .collect::<Vec<_>>(),
+        )?;
         drop(original);
         let wrapped = format!("SELECT * FROM (\n{body}\n) LIMIT {}", u64::from(limit) + 1);
         let mut query = conn.prepare(&wrapped).map_err(query_error)?;
@@ -304,16 +297,7 @@ impl Inspection {
             .map(str::to_owned)
             .collect::<Vec<_>>();
         let booleans = if object_rows {
-            let mut names = BTreeSet::new();
-            if columns
-                .iter()
-                .any(|name| !names.insert(name.to_ascii_lowercase()))
-            {
-                return Err((
-                    "E_INPUT",
-                    "--json-objects needs unique output names; alias duplicate columns".into(),
-                ));
-            }
+            check_columns(&columns)?;
             booleans(columns.len())?
         } else {
             vec![false; columns.len()]
@@ -355,11 +339,6 @@ fn ident(name: &str) -> String {
 }
 fn literal(value: &str) -> String {
     format!("'{}'", value.replace('\'', "''"))
-}
-fn internal(name: &str) -> bool {
-    name.starts_with('_')
-        || matches!(name.to_ascii_lowercase().as_str(), "r" | "i")
-        || name.to_ascii_lowercase().starts_with("sqlite_")
 }
 
 struct Catalog<'a>(&'a Connection);
@@ -571,9 +550,10 @@ mod tests {
         let rows = inspection
             .query(
                 "SELECT 1 AS n UNION ALL SELECT 2",
-                &schema,
                 1,
                 false,
+                |message| crate::inspection::query_error(&schema, message),
+                |columns| crate::inspection::check_output_names(columns, false),
                 |_| unreachable!(),
             )
             .unwrap();
@@ -588,11 +568,63 @@ mod tests {
             ("WITH x AS (SELECT 1) DELETE FROM r", "E_SQL_READ_ONLY"),
         ] {
             let error = inspection
-                .query(body, &schema, 1, false, |_| unreachable!())
+                .query(
+                    body,
+                    1,
+                    false,
+                    |message| crate::inspection::query_error(&schema, message),
+                    |columns| crate::inspection::check_output_names(columns, false),
+                    |_| unreachable!(),
+                )
                 .err()
                 .unwrap();
             assert_eq!(error.0, code);
         }
+    }
+    #[test]
+    fn inspection_policy_preparation_order_and_duplicate_refusal() {
+        use std::cell::RefCell;
+        let inspection = Inspection {
+            conn: Connection::open_in_memory().unwrap(),
+            denied: Arc::new(AtomicU8::new(0)),
+        };
+        let events = RefCell::new(Vec::new());
+        let rows = inspection
+            .query(
+                "SELECT 1 AS flag",
+                1,
+                true,
+                |_| panic!("no query error expected"),
+                |columns| {
+                    events.borrow_mut().push("columns");
+                    crate::inspection::check_output_names(columns, true)
+                },
+                |_| {
+                    events.borrow_mut().push("booleans");
+                    Ok(vec![true])
+                },
+            )
+            .unwrap();
+        assert_eq!(rows.rows, [vec![json!(true)]]);
+        assert_eq!(*events.borrow(), ["columns", "columns", "booleans"]);
+        let error = inspection
+            .query(
+                "SELECT 1 AS same, 2 AS SAME",
+                1,
+                true,
+                |_| panic!("no query error expected"),
+                |columns| crate::inspection::check_output_names(columns, true),
+                |_| panic!("duplicate output names must refuse before boolean inference"),
+            )
+            .err()
+            .unwrap();
+        assert_eq!(
+            error,
+            (
+                "E_INPUT",
+                "--json-objects needs unique output names; alias duplicate columns".into()
+            )
+        );
     }
 }
 

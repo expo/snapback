@@ -16,7 +16,7 @@ impl Project {
     fn source(&self, text: &str) { fs::write(self.0.join("snapback/schema.q"), text).unwrap(); }
     fn store(&self) -> PathBuf { self.0.join(".snapback4/store.sqlite") }
     fn run(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
-    fn conn(&self) -> rusqlite::Connection { rusqlite::Connection::open(self.store()).unwrap() }
+    fn test_support_conn(&self) -> rusqlite::Connection { rusqlite::Connection::open(self.store()).unwrap() }
     fn jobs(&self) -> i64 { self.test_support_conn().query_row("SELECT count(*) FROM _jobs", [], |r| r.get(0)).unwrap() }
     fn generation(&self) -> String { self.test_support_conn().query_row("SELECT value FROM _meta WHERE key='generation'", [], |r| r.get(0)).unwrap() }
     fn initialize(&self) { let out = self.run(&["run", "put", "--json"]); assert!(out.status.success(), "{out:?}"); }

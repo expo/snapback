@@ -11,7 +11,7 @@ fn snapshot(e: &mut Engine, who: &str) -> StreamPage {
     serde_json::from_slice(&serde_json::to_vec(&SnapshotReply { now: 86_400_010, sent: Default::default(),
         acknowledged: e.acknowledged(who,&[],p.watermark).unwrap(), acquisitions:p.acquisitions,
         events:SyncEvents::Snapshot(p.events),generation:e.generation(),
-        store_id:e.store().meta("store_id").unwrap().unwrap(),held:p.held,
+        store_id:e.store().store_identity().unwrap().unwrap(),held:p.held,
         more:false,next:None,after:None,snapshot:true,watermark:p.watermark,
     }).unwrap()).unwrap()
 }
@@ -21,7 +21,7 @@ fn stream(e: &mut Engine, who: &str, from: u64) -> StreamPage {
     let (acknowledged,committed_above) = e.acknowledged_at(who,&[],p.watermark,p.images_at.unwrap_or(p.watermark)).unwrap();
     serde_json::from_slice(&serde_json::to_vec(&StreamReply { changes: serde_json::Value::Null, preserved: Default::default(), now: 86_400_010, sent: Default::default(),
         acknowledged,committed_above,acquisitions:p.acquisitions,events:SyncEvents::Stream(p.events),
-        generation:e.generation(),store_id:e.store().meta("store_id").unwrap().unwrap(),images_at:p.images_at,
+        generation:e.generation(),store_id:e.store().store_identity().unwrap().unwrap(),images_at:p.images_at,
         joined:p.joined,more:false,snapshot:false,watermark:p.watermark,
     }).unwrap()).unwrap()
 }

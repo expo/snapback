@@ -153,13 +153,7 @@ pub fn seeded_items(case: &Case) -> ItemKeys {
 /// hidden rows included): every row carrying a `tag` field, which only
 /// `items` has. Harness-only; the engine is not asked.
 pub fn server_items(server: &Server) -> Result<ItemKeys, String> {
-    let conn = server.engine.store().conn();
-    let mut statement = conn.prepare("SELECT id, data FROM r").map_err(|e| e.to_string())?;
-    let rows = statement
-        .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
+    let rows = server.engine.store().evaluation_rows()?;
     Ok(rows
         .into_iter()
         .filter_map(|(id, data)| {

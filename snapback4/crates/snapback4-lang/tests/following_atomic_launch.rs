@@ -240,7 +240,7 @@ fn copy_ceiling_rechecks_a_follow_committed_between_estimate_and_writer_lock() {
     assert_eq!(writes.load(Ordering::SeqCst), 0);
     assert_eq!(e.generation(), generation); assert_eq!(e.seq().unwrap(), seq);
     assert_eq!(e.store().test_support_conn().total_changes(), changes, "candidate wrote rows, including WITHOUT ROWID tables");
-    assert_eq!(e.store().meta("generation").unwrap(), Some(generation.to_string()));
+    assert_eq!(e.store().generation_value().unwrap(), Some(generation.to_string()));
     assert_eq!(catalog(&e), before_catalog);
     for (table, rows) in sources { assert_eq!(e.store().rows(table).unwrap(), rows, "{table}: source/slots changed"); }
     for suffix in ["Posts", "Edges", "Feed", "Work"] {

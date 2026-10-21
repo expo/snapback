@@ -23,6 +23,8 @@ pub(crate) mod backfills;
 mod fork;
 mod device;
 mod device_residency;
+#[cfg(feature = "evaluation-support")]
+pub mod evaluation;
 #[cfg(feature = "test-support")]
 mod test_support;
 mod activation;
@@ -470,19 +472,31 @@ impl Store {
             })
         });
     }
-    pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
+    pub(crate) fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
         self.check_ownership()?;
         Ok(self.conn.prepare_cached("SELECT value FROM _meta WHERE key = ?1")?.query_row([key], |row| row.get(0)).optional()?)
     }
 
-    pub fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
+    pub(crate) fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
         self.check_ownership()?;
         self.conn.execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![key, value])?;
         Ok(())
     }
 
-    pub fn conn(&self) -> &Connection {
+    pub(crate) fn conn(&self) -> &Connection {
         &self.conn
+    }
+
+    /// Physical location for host-owned sidecars, as reported by the adapter.
+    // P1: the Postgres host supplies its own sidecar/blob placement.
+    pub fn database_path(&self) -> Option<&str> {
+        self.conn.path()
+    }
+
+    /// Set statement contention policy before host operation admission.
+    // P1: map this host policy to Postgres connection admission.
+    pub fn set_busy_timeout(&self, timeout: std::time::Duration) -> Result<(), RuntimeError> {
+        Ok(self.conn.busy_timeout(timeout)?)
     }
 
     pub fn is_read_only(&self) -> Result<bool, RuntimeError> {
@@ -596,7 +610,7 @@ impl Sizes {
 }
 
 impl<'a> Tx<'a> {
-    pub fn conn(&self) -> &Connection {
+    pub(crate) fn conn(&self) -> &Connection {
         self.clear_activation_scan();
         &self.tx
     }
@@ -770,7 +784,7 @@ impl<'a> Tx<'a> {
 
     /// A meta key written with the transaction (a device's watermark lands
     /// with the rows it covers).
-    pub fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
+    pub(crate) fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError> {
         self.conn().execute("INSERT INTO _meta(key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value", params![key, value])?;
         Ok(())
     }

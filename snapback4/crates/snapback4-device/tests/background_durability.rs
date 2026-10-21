@@ -33,7 +33,7 @@ fn image(source: &Path, target: &Path, wal: &[u8]) {
 
 fn page(engine: &mut Engine, from: u64) -> snapback4_device::device::StreamPage {
     let mut page = stream_page(engine, "reader0", from);
-    page.store_id = engine.store().meta("store_id").unwrap();
+    page.store_id = engine.store().store_identity().unwrap();
     page
 }
 
@@ -61,7 +61,7 @@ fn delivery_wal_cuts_recover_copies_cursor_and_log_together() {
     let before = engine.seq().unwrap();
     let mut device = Memory::new().open("reader0", Some(backend.clone())).unwrap();
     for (i, mut page) in snapshot_pages(&mut engine, "reader0", 1000).into_iter().enumerate() {
-        page.store_id = engine.store().meta("store_id").unwrap();
+        page.store_id = engine.store().store_identity().unwrap();
         device.apply(&page, i == 0).unwrap();
     }
     engine.run_timeline_chunk_for(200, Duration::ZERO).unwrap().unwrap();
@@ -97,7 +97,7 @@ fn normal_replay_repairs_copies_but_cannot_repair_an_observed_watermark() {
     let before = engine.seq().unwrap();
     let mut device = Memory::new().open("reader0", Some(backend.clone())).unwrap();
     for (i, mut page) in snapshot_pages(&mut engine, "reader0", 1000).into_iter().enumerate() {
-        page.store_id = engine.store().meta("store_id").unwrap();
+        page.store_id = engine.store().store_identity().unwrap();
         device.apply(&page, i == 0).unwrap();
     }
     // This is an explicit rejected policy, not the production configuration.

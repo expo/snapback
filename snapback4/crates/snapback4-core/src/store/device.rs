@@ -5,6 +5,10 @@ use crate::{RuntimeError, schema::Schema};
 use rusqlite::{OptionalExtension, params};
 use std::collections::BTreeMap;
 
+type BaseImage = (String, String, Option<String>);
+type SnapshotImage = (String, String, String);
+
+// @ref LLP 3000.033#1.3 — native side tables join successful installation.
 fn initialize(conn: &rusqlite::Connection) -> Result<(), RuntimeError> {
     conn.execute_batch(
         "CREATE TABLE IF NOT EXISTS _device_outbox (seq INTEGER PRIMARY KEY, id TEXT NOT NULL UNIQUE, entry TEXT NOT NULL);
@@ -108,7 +112,7 @@ impl Tx<'_> {
         self.conn().execute("INSERT OR IGNORE INTO _device_base(t, id, data) VALUES (?1, ?2, ?3)", params![table, id, image])?;
         Ok(())
     }
-    pub fn device_base_entries(&self) -> Result<Vec<(String, String, Option<String>)>, RuntimeError> {
+    pub fn device_base_entries(&self) -> Result<Vec<BaseImage>, RuntimeError> {
         Ok(self.conn().prepare("SELECT t, id, data FROM _device_base ORDER BY t, id")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?.collect::<Result<_, _>>()?)
     }
     pub fn device_base_has_table(&self, table: &str) -> Result<bool, RuntimeError> {
@@ -129,7 +133,7 @@ impl Tx<'_> {
         self.conn().execute("DELETE FROM _device_snapshot WHERE k = ?1", [key])?;
         Ok(())
     }
-    pub fn device_staged_after(&self, after: &str, limit: usize) -> Result<Vec<(String, String, String)>, RuntimeError> {
+    pub fn device_staged_after(&self, after: &str, limit: usize) -> Result<Vec<SnapshotImage>, RuntimeError> {
         Ok(self.conn().prepare_cached("SELECT k, t, data FROM _device_snapshot WHERE k > ?1 ORDER BY k LIMIT ?2")?.query_map(params![after, limit as i64], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?.collect::<Result<_, _>>()?)
     }
     pub fn device_staged_table_after(&self, table: &str, after: &str, limit: usize) -> Result<Vec<(String, String)>, RuntimeError> {

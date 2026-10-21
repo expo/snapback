@@ -1,7 +1,7 @@
 //! Developer inspection, attached to the persisted generation, without an engine writer.
 
 use super::{Options, project_or_exit};
-use snapback4_core::{inspection::{InspectionCatalog, PRIVATE, CATALOG_HINT}, store::inspect::Inspection};
+use snapback4_core::{inspection::{InspectionCatalog, PRIVATE, CATALOG_HINT, internal}, store::inspect::Inspection};
 use serde_json::{Value, json};
 use snapback4_core::schema::Schema;
 use std::path::Path;
@@ -67,7 +67,9 @@ fn inspect(options: &Options) -> Result<()> {
     }
     conn.build_retained_views(&schema, dormant, all_releases, |name| eprintln!("sql: skipping {name}: ephemeral rows live only in the serving process's memory"))?;
     let object_rows = options.flags.contains_key("json-objects");
-    let snapback4_core::store::inspect::InspectionRows { columns, rows, more } = conn.query(&body, &schema, limit, object_rows,
+    let snapback4_core::store::inspect::InspectionRows { columns, rows, more } = conn.query(&body, limit, object_rows,
+        |message| snapback4_core::inspection::query_error(&schema, message),
+        |columns| snapback4_core::inspection::check_output_names(columns, object_rows),
         |columns| objects::booleans(&body, &schema, columns, dormant || all_releases).map_err(|e| ("E_INPUT", e)))?;
     if options.json {
         let rows = if object_rows {
@@ -87,7 +89,7 @@ fn inspect(options: &Options) -> Result<()> {
     Ok(())
 }
 
-fn internal(name: &str) -> bool { name.starts_with('_') || matches!(name.to_ascii_lowercase().as_str(), "r" | "i") || name.to_ascii_lowercase().starts_with("sqlite_") }
+
 
 /// Population advice only for a newly declared/changed window, before adoption.
 // @ref LLP 3000.007#8 — bounded catalog probes never adopt or acquire a writer lock.

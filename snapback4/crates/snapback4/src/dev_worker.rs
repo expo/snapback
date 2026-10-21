@@ -392,8 +392,7 @@ impl DevWorker {
             let engine = lock(&shared.engine);
             let path = engine
                 .store()
-                .conn()
-                .path()
+                .database_path()
                 .filter(|s| !s.is_empty())
                 .ok_or("worker ledger needs a file-backed store")?;
             let identity = engine

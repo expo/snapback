@@ -18,7 +18,7 @@ fn generate_predecessor() {
     fn prepare<S: DeviceStore>(e: &mut Engine, d: &mut Device<S>) {
         d.delivery(&json!({"viewer":"alice","action":"read","now":NOW})).unwrap();
         for (i, mut page) in snapshot_pages(e, "alice", 1000).into_iter().enumerate() {
-            page.store_id = e.store().meta("store_id").unwrap();
+            page.store_id = e.store().store_identity().unwrap();
             page.now = Some(NOW);
             d.apply(&page, i == 0).unwrap();
         }

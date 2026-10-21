@@ -170,7 +170,7 @@ pub fn server(case: &Case, source: &str) -> Result<Server, String> {
         "programs": snapback4_lang::emit::backend_programs(&bound),
     })
     .to_string();
-    let store_id = engine.store().meta("store_id").map_err(|e| e.to_string())?.ok_or("no store id")?;
+    let store_id = engine.store().store_identity().map_err(|e| e.to_string())?.ok_or("no store id")?;
     Ok(Server { engine, backend, store_id })
 }
 

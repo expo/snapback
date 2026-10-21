@@ -23,9 +23,9 @@ pub fn ahead(engine: &Engine, now: i64) -> Result<Option<String>, RuntimeError> 
         let at = record.at;
         if at <= now.saturating_add(TOLERANCE_MS) { return Ok(()); }
         lead = lead.max(at.saturating_sub(now));
-        let length = record.length.unwrap();
+        let length = record.length.ok_or_else(|| RuntimeError::Store("commit clock record is missing touched length".into()))?;
         if length > TABLE_BYTES as i64 { omitted = true; return Ok(()); }
-        let bytes = record.touched.unwrap();
+        let bytes = record.touched.ok_or_else(|| RuntimeError::Store("commit clock record is missing touched bytes".into()))?;
         match serde_json::from_slice::<Vec<String>>(&bytes) {
             Ok(names) => for name in names {
                 if tables.contains(&name) { continue; }

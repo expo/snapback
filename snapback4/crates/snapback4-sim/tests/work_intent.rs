@@ -192,14 +192,14 @@ fn replay_consumes_canonical_keys_and_effect_names_have_separate_domains() {
     let bound = compiled(&source);
     let mut engine = Engine::new(Store::open(&path).unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     load(&mut engine, vec![("items", json!({"id":"i", "cost":0,"visits":0}))]);
-    engine.store_mut().set_meta("dev:replay", "true").unwrap();
+    engine.store_mut().set_dev_value(snapback4_core::metadata::DevMetadata::Replay, "true").unwrap();
     let run = engine.run_job("sweep", BTreeMap::new(), 1).unwrap();
     assert_eq!(run.state, JobState::Done);
     assert_eq!(engine.effect_counts().unwrap()["suppressed"], 2);
     assert!(engine.effects(None, 10).unwrap().is_empty());
     drop(engine);
     let mut engine = Engine::open(Store::open(&path).unwrap()).unwrap();
-    engine.store_mut().set_meta("dev:replay", "false").unwrap();
+    engine.store_mut().set_dev_value(snapback4_core::metadata::DevMetadata::Replay, "false").unwrap();
     assert_eq!(engine.run_job("sweep", BTreeMap::new(), 2).unwrap().state, JobState::Done);
     assert!(engine.effects(None, 10).unwrap().is_empty());
     let value: String = engine.store().test_support_conn().query_row("SELECT data FROM r", [], |r| r.get(0)).unwrap();

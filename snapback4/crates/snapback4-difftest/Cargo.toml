@@ -10,7 +10,7 @@ default = []
 postgres = ["snapback4-core/postgres", "dep:postgres"]
 
 [dependencies]
-snapback4-core = { path = "../snapback4-core" }
+snapback4-core = { path = "../snapback4-core", features = ["evaluation-support"] }
 snapback4-lang = { path = "../snapback4-lang" }
 snapback4-device = { path = "../snapback4-device" }
 serde = { version = "1", features = ["derive"] }
