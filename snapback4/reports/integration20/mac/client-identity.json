@@ -1,0 +1,7 @@
+{
+  "version": "0.4.36",
+  "source": "37a707c158",
+  "clientIntegrity": "sha512-+M/BrKBeeso6VeGBe9QZwPq7yHgWchaCGBbvhjcwb9GevHp2vgZzoqV6C+lFqxtEd87vFSjmVNCsyGFNmYbbwQ==",
+  "installedLockIntegrity": "sha512-+M/BrKBeeso6VeGBe9QZwPq7yHgWchaCGBbvhjcwb9GevHp2vgZzoqV6C+lFqxtEd87vFSjmVNCsyGFNmYbbwQ==",
+  "normalizedRootSpecs": "0.4.36; lock retains prepared tarball resolution"
+}

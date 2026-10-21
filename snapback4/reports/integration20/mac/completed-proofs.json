@@ -1,0 +1,27 @@
+{
+  "sourceProduct": "37a707c158",
+  "machine": "macstudio-charlie-apt101-a",
+  "scratch": "~/sb4-ws-integ20",
+  "toolchain": "Xcode 27.1\nBuild version 27A9275",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "native": {
+    "exitStatus": 0,
+    "proofKind": "application-release",
+    "cliVersion": "0.4.36"
+  },
+  "completedRustAndFrameworkGroups": {
+    "integrated-main-snapback4-core": 0,
+    "integrated-main-snapback4-lang": 0,
+    "integrated-main-snapback4": 0,
+    "integrated-main-cli-bin": 0,
+    "integrated-main-device": 0,
+    "integrated-main-framework": 0
+  },
+  "initialClientPool": {
+    "files": 39,
+    "exitCode": 1,
+    "cause": "missing stages.mjs in scratch snapshot for a Linux-only skipped file; copied the exact existing helper and focused rerun passed",
+    "focusedExit": 0
+  },
+  "completeClientRepeat": "not recorded here until it finishes"
+}
