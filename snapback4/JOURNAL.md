@@ -100656,3 +100656,15 @@ ENOENT; an owned private-cache retry passed. No push or version bump. SEC5 was
 merged locally while0.4.36 integration remains pending; EVOL owns adoption and
 migration work. Reports and raw compressed evidence: reports/20261021-sec6 and
 ../WORKSTREAM-REPORT.md. Product-code qualification snapshot4578e98bed.
+
+## 2026-10-21 — Integration 21: merged release evolution and SEC6
+
+Merged EVOL and SEC6 after landing the qualified 0.4.36 baseline. Generated
+bridges retain target intent; an integrated regression found that references to
+an explicitly renamed parent were incorrectly reported as incompatible. The
+bridge now respects only that declared nominal identity, with an independent-table
+negative control and a privacy/creation campaign regression. The 0.4.37 device
+build measures 734,904 gzip bytes; its budget is 735,404 B (measurement + 500 B).
+This whole-artifact increase covers the merged release/security code and newer
+0.4.36 baseline; it does not attribute isolated feature costs or raise runtime
+authority ceilings. Final measurement and qualification evidence follow.
