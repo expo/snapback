@@ -100109,3 +100109,20 @@ deferrable keys as refused shapes. No Postgres host wiring is added.
 Verification follows below. Builds use only this checkout's snapback4/target,
 incremental off, line-tables-only dev/test debug information and at most 12
 build jobs. No push, stash, second worktree or sub-agent.
+
+
+## 2026-10-21 — Integration 20: known-evidence fixtures and captured wire examples
+
+The late main foundation merge makes null/absent preservation evidence explicit
+and unable to certify revocation (LLP 3000.009.001.000 §3.4/§9.1). Existing
+withdrawal fixtures that intend known potentially-revoking changes now supply
+a known preservation list. The inflight fixture forwards the real authored
+mutation's list and asserts it is known. Withdrawal deadlines, queue fairness,
+ready batching and link-loss assertions remain intact; no bounds are widened.
+The independent unknown-evidence controls remain in revocation-retention.
+
+Regenerated both wire-page capture blocks with KIT3_UPDATE_WIRE and
+KIT4_UPDATE_WIRE against the merged binary. The testing-page failed-write
+example now also shows preserved:null. These repairs align docs/test inputs
+with incoming main's policy; runtime authorization and retention code are
+unchanged by this integration repair.

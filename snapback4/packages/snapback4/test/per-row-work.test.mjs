@@ -47,7 +47,7 @@ async function readyBatch(t, count, firstListener = () => {}) {
     const path = new URL(input).pathname;
     if (path === '/schema') return Response.json({ schema: { tables: {} }, programs: [], generation: 1 });
     if (path === '/changes') return new Promise((resolve, reject) => {
-      change = () => resolve(Response.json({ seq, generation: 1, tables: ['cards'] }));
+      change = () => resolve(Response.json({ seq, generation: 1, tables: ['cards'], preserved: [] }));
       init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
     });
     if (path.startsWith('/q/')) {
@@ -169,7 +169,7 @@ for (const boundary of ['episode', 'old-row', 'new-row', 'empty', 'null']) test(
     const path = new URL(input).pathname;
     if (path === '/schema') return Response.json({ schema: { tables: {} }, programs: [], generation: 1 });
     if (path === '/changes') return new Promise((resolve, reject) => {
-      change = () => resolve(Response.json({ seq, generation: 1, tables: ['cards'] }));
+      change = () => resolve(Response.json({ seq, generation: 1, tables: ['cards'], preserved: [] }));
       init.signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
     });
     if (path.startsWith('/q/')) {

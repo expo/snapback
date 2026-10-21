@@ -27,12 +27,12 @@ for (const keep of [undefined, true]) for (const end of ['late answer', 'throw',
     }
   });
 }
-for (const keep of [undefined, true]) for (const failure of [false, true]) test(`actual /changes bounds the online answer: keep=${keep}, failed=${failure}`, async t => {
+for (const keep of [undefined, true]) for (const failure of [false, true]) test(`known /changes evidence bounds the online answer: keep=${keep}, failed=${failure}`, async t => {
   let reads = 0;
   const change = Promise.withResolvers(), reply = Promise.withResolvers();
   const client = createClient({ url: 'http://rl-change.test', persona: 'bob', fetch: async (input, init) => {
     const path = new URL(input).pathname;
-    if (path === '/changes') { await Promise.race([change.promise, parked(init.signal)]); return reads < 2 ? Response.json({ seq: 2, tables: ['rows'] }) : parked(init.signal); }
+    if (path === '/changes') { await Promise.race([change.promise, parked(init.signal)]); return reads < 2 ? Response.json({ seq: 2, tables: ['rows'], preserved: [] }) : parked(init.signal); }
     if (path === '/probe') return parked(init.signal);
     assert.equal(path, '/q/item');
     if (++reads > 1) { await Promise.race([reply.promise, parked(init.signal)]); if (failure) throw Error('offline'); }

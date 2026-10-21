@@ -25,7 +25,7 @@ for (const keep of [undefined, true]) test(`schema discovery withdraws an overla
       const poll = ++polls;
       if (poll > 2) return parked(init.signal);
       await (poll === 1 ? invalidate : advertise).promise;
-      return Response.json({ seq: 2, generation: 1, tables: ["private"] },
+      return Response.json({ seq: 2, generation: 1, tables: ["private"], preserved: [] },
         poll === 2 ? { headers: { "x-snapback-ephemeral": "1" } } : undefined);
     }
     assert.equal(path, "/q/read");
@@ -58,7 +58,7 @@ for (const keep of [undefined, false, true]) for (const invalidated of [false, t
       if (path === "/changes") {
         if (++polls === 1 && invalidated) {
           await invalidate.promise;
-          return Response.json({ seq: 2, generation: 1, tables: ["private"] });
+          return Response.json({ seq: 2, generation: 1, tables: ["private"], preserved: [] });
         }
         await loss.promise; throw Error("link lost");
       }

@@ -286,7 +286,7 @@ for (const keep of [undefined, true]) for (const operation of ["apply", "admit",
     let now = 1000; t.mock.method(Date, "now", () => now);
     const watch = Object.assign(new ReadObservation(keep), { presenceRefresh: null });
     t.after(() => watch.retire()); watch.publish(ready("A"));
-    new LocalReads().committed([watch], operation);
+    new LocalReads().committed([watch], operation, undefined, []);
     assert.equal(episodeDeadline(watch.snapshot), undefined, "commit queues the change episode");
     watch.reload(); // The replacement attempt starts.
     assert.equal(episodeDeadline(watch.snapshot), 2000);

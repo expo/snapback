@@ -110,7 +110,8 @@ for (const tier of ['wasm', 'process']) for (const keep of [undefined, false, tr
     f.acquire(); await until(() => f.reads === 1);
     const result = await f.mutate('transfer');
     f.watch.subscribe(() => seen.push(f.owner.snapshot));
-    f.change({ seq: result.seq, generation: 1, tables: ['rows'] });
+    assert.ok(Array.isArray(result.preserved), 'the authored transfer supplies known evidence');
+    f.change({ seq: result.seq, generation: 1, tables: ['rows'], preserved: result.preserved });
     await until(() => f.owner.dirty || f.reads > 1, 'change processed');
     f.old.resolve(); await until(() => f.reads > 1, 'replacement started and held');
     assert.ok(seen.every(read => read.data?.row?.value !== 7 || read.revalidating), 'no completed pre-change body returns');
@@ -130,7 +131,7 @@ for (const tier of ['online', 'wasm', 'process']) for (const keep of [undefined,
   // changes a read-rule column, preserving the original queue/bound proof.
   const result = await f.mutate('add');
   if (f.client.sync) await f.client.sync();
-  else { f.change({ seq: result.seq, generation: 1, tables: ['notes'] }); await until(() => f.owner.dirty); }
+  else { assert.ok(Array.isArray(result.preserved), 'the authored write supplies known evidence'); f.change({ seq: result.seq, generation: 1, tables: ['notes'], preserved: result.preserved }); await until(() => f.owner.dirty); }
   const wall = Date.now(); t.mock.method(Date, 'now', () => wall + 1001);
   const queued = f.watch.getSnapshot();
   if (tier === 'online') assert.deepEqual(queued, { loading: true }, 'online evidence can revoke access and expires during queue wait');
