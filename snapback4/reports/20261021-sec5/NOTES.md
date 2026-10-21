@@ -38,7 +38,7 @@ vulnerability.
 
 ## Qualification
 
-`security_sec5_notes`: 18 passed, including seven read-only wave-20 lanes with
+`security_sec5_notes`: 19 passed, including eight read-only wave-20 lanes (the seven confirmed lanes plus 017) with
 both their own invariants and no invariants. The ignored external pure-notes
 census passed over 338 sources in approximately 9 seconds. All 300 frozen source
 hashes match the baseline. Four of the 38 supplementary live-wave-21 sources
@@ -49,6 +49,9 @@ The parent owns the full workspace and client qualification.
 
 Evidence:
 
+- `notes-query-filter-tests.log` (final 19 tests; prior 18-test precision log retained)
+- `notes-query-filter-census.log` and `notes-query-filter-census.json` (final scope)
+- `notes-query-filter-delta.json` (11 additional query-filter clock-use sites)
 - `notes-precision-tests.log`
 - `notes-precision-census.log` and `notes-precision-census.json`
 - `notes-precision-summary.json` and `notes-precision-new-sites.json`
@@ -59,7 +62,7 @@ Evidence:
 |---|---:|---:|
 | N_BROAD_READ | 353 → 354 | 5 → 5 |
 | N_ROLE_WIDE_READ | 10 → 89 | 1 → 34 |
-| N_CALLER_TIME | 0 → 57 | 0 → 6 |
+| N_CALLER_TIME | 0 → 67 | 0 → 7 |
 | N_SELF_CLAIMED_RELATIONSHIP | 0 → 1 | 0 → 1 |
 | N_INVARIANT_RESTATES_RULE | 583 → 621 | 141 → 147 |
 
@@ -75,6 +78,7 @@ Target-specific notes are unchanged when invariants are removed:
 |---|---|---|
 | 001 | instruments.read apprentice/all status values | F1 |
 | 006 | claimChild → athletes.parent → injuries | F1 |
+| 017 | checkIn at → teams.lastRadioCheck, clock use only in query filter | Additional unbounded event time |
 | 025 | recordResult stoppedAt → suspensionUntil; recordExam → examAt | F2; additional unbounded exam time |
 | 033 | homes.read crew/all status values, child photos boundary | F1 |
 | 036 | sets.read sharpener/all status values | F1 |
@@ -108,3 +112,20 @@ explicitly authorized global audiences. Other row-wide board questions remain
 conditional until the product specification supplies exact states. The full
 census establishes coverage and zero compilation refusals; it does not establish
 zero specification noise, and the report must not claim that it does.
+
+## Query-filter clock-use completion
+
+The final follow-up resolves implicit `.field` references inside each read's
+`where` filter against that read table. Nested read filters retain their own
+context. This detects wave-20/21 017 checkIn's optional caller time flowing into
+teams.lastRadioCheck even though its sole server-clock comparison occurs in the
+query filter. It adds 10 frozen-corpus and one live-wave-21 caller-time sites;
+other note counts remain unchanged. All 338 schemas still compile without
+diagnostics. Wave-20 008 createBooking and wave-16 014 bookIce remain quiet under
+their transitive server-clock bounds. Some newly found availability/calendar
+comparisons are legitimate caller-selected schedules, so these are conditional
+review questions; no stronger specification-noise claim follows.
+
+This follow-up changes only `bind/security/time_advice.rs` and
+`tests/security_sec5_notes.rs`, plus the evidence artifacts above. It introduces
+no new policy heuristic or runtime behavior.

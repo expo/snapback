@@ -45,14 +45,14 @@ fn a_scoped_invitation_suppresses_the_narrow_self_claim_pattern(){
 #[ignore = "requires the local wave20 evidence checkout"]
 fn wave20_confirmed_lane_notes_with_and_without_invariants(){
     let apps=std::path::Path::new("/home/ccheever/sb4-loop/wave20/apps");
-    for number in ["001","006","025","033","036","048","050"]{
+    for number in ["001","006","017","025","033","036","048","050"]{
         let lane=std::fs::read_dir(apps).unwrap().map(Result::unwrap).find(|e|e.file_name().to_string_lossy().starts_with(&format!("{number}-snapback-"))).unwrap().path();
         let mut sources=std::fs::read_dir(lane.join("snapback")).unwrap().map(Result::unwrap).filter(|e|e.path().extension().is_some_and(|x|x=="q")).map(|e|(e.file_name().to_string_lossy().into_owned(),std::fs::read_to_string(e.path()).unwrap())).collect::<Vec<_>>();sources.sort();
         for stripped in [false,true]{let input=sources.iter().map(|(name,source)|(name.clone(),if stripped{source.lines().filter(|line|!line.trim_start().starts_with("invariant ")).collect::<Vec<_>>().join("\n")}else{source.clone()})).collect::<Vec<_>>();
             let b=compile(&input);assert!(b.diagnostics.is_empty(),"{number}: {:?}",b.diagnostics);let mut report=security::analyze_rules(&b);security::add_source_notes(&mut report,&input,&b);
             for n in &report.notes{if matches!(n.code.as_str(),"N_ROLE_WIDE_READ"|"N_BROAD_READ"|"N_SELF_CLAIMED_RELATIONSHIP"|"N_CALLER_TIME"){println!("{number} stripped={stripped} {} {}",n.code,n.message);}}
             let has=|code:&str,part:&str|report.notes.iter().any(|n|n.code==code&&n.message.contains(part));
-            match number{"001"=>assert!(has("N_ROLE_WIDE_READ","apprentice")),"006"=>assert!(has("N_SELF_CLAIMED_RELATIONSHIP","claimChild")),"025"=>assert!(has("N_CALLER_TIME","examAt")&&has("N_CALLER_TIME","suspensionUntil")),"033"=>assert!(has("N_ROLE_WIDE_READ","crew")),"036"=>assert!(has("N_ROLE_WIDE_READ","sharpener")),"048"=>assert!(has("N_BROAD_READ","riders.read")),"050"=>assert!(has("N_ROLE_WIDE_READ","protected columns [address, ownerName]")&&has("N_ROLE_WIDE_READ","intake")),_=>{}}
+            match number{"001"=>assert!(has("N_ROLE_WIDE_READ","apprentice")),"006"=>assert!(has("N_SELF_CLAIMED_RELATIONSHIP","claimChild")),"017"=>assert!(has("N_CALLER_TIME","checkIn")&&has("N_CALLER_TIME","lastRadioCheck")),"025"=>assert!(has("N_CALLER_TIME","examAt")&&has("N_CALLER_TIME","suspensionUntil")),"033"=>assert!(has("N_ROLE_WIDE_READ","crew")),"036"=>assert!(has("N_ROLE_WIDE_READ","sharpener")),"048"=>assert!(has("N_BROAD_READ","riders.read")),"050"=>assert!(has("N_ROLE_WIDE_READ","protected columns [address, ownerName]")&&has("N_ROLE_WIDE_READ","intake")),_=>{}}
         }
     }
 }
@@ -130,4 +130,11 @@ fn exact_service_seat_authority_is_outside_caller_clock_advice(){
 #[test]
 fn immutable_principal_upsert_is_enrollment_not_existing_relationship_takeover(){
     let source="table people:\n  guardian: principal\n  unique guardian\n  immutable guardian\n  read <- .guardian = viewer\n  insert <- .guardian = viewer\n  update <- .guardian = viewer\n  online only\ntable notes:\n  person: people\n  read <- exists people[.person, guardian = viewer]\n  insert <- allow\n  online only\nmutation enroll():\n  return upsert people[guardian = viewer] {guardian: viewer}\n";assert!(!notes(source).iter().any(|n|n.code=="N_SELF_CLAIMED_RELATIONSHIP"));
+}
+
+#[test]
+fn query_filter_focal_clock_fields_are_deadline_uses(){
+    let source="table teams:\n  lastCheck: time ?\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation checkIn(team: teams, at: time ?):\n  stamp = at ?? now\n  update teams[team] {lastCheck: stamp}\n  return null\nquery overdue():\n  return teams where .lastCheck != null and .lastCheck < now - 1h first 50 by .id\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_CALLER_TIME"&&n.message.contains("teams.lastCheck")));
+    let bounded=source.replace("  update teams[team]", "  require stamp <= now else FUTURE\n  update teams[team]");assert!(!notes(&bounded).iter().any(|n|n.code=="N_CALLER_TIME"));
 }

@@ -7,8 +7,20 @@ fn has_now(expr:&Expr)->bool{let mut found=false;walk(expr,|e|if matches!(e,Expr
 fn row_table(expr:&Expr)->Option<&str>{match expr{Expr::Assert{value,..}=>row_table(value),Expr::Read(r)=>Some(&r.table),_=>None}}
 fn resolve(expr:&Expr,env:&BTreeMap<String,Expr>)->Expr{let mut e=expr.clone();super::super::intent_walk::expression(&mut e,&mut |e|if let Expr::Name{name,..}=e&&let Some(v)=env.get(name){*e=v.clone();});e}
 fn deadlines(body:&[Stmt],env:&mut BTreeMap<String,Expr>,out:&mut BTreeSet<(String,String)>){
-    fn inspect(expr:&Expr,out:&mut BTreeSet<(String,String)>){walk(expr,|e|if let Expr::Binary{op,left,right,..}=e&&matches!(op.as_str(),"<"|">"|"<="|">=")&&(has_now(left)||has_now(right)){
-        for side in [left,right]{walk(side,|e|if let Expr::Member{base,name,..}=e&&let Some(table)=row_table(base){out.insert((table.into(),name.clone()));});}
+    fn inspect(expr:&Expr,out:&mut BTreeSet<(String,String)>){walk(expr,|e|{
+        // A query's .field is scoped to its read table, not a named row alias.
+        // Nested read filters receive their own context through this same walk.
+        if let Expr::Read(read)|Expr::Exists{read,..}|Expr::Created{read,..}=e&&let Some(filter)=&read.filter{
+            let mut filter=*filter.clone();let mut row=read.clone();row.filter=None;
+            super::super::intent_walk::expression(&mut filter,&mut |e|match e{
+                Expr::Read(r)|Expr::Exists{read:r,..}|Expr::Created{read:r,..}=>r.filter=None,
+                Expr::Member{base,..} if matches!(base.as_ref(),Expr::Focal{..})=>*base=Box::new(Expr::Read(row.clone())),_=>{}
+            });
+            inspect(&filter,out);
+        }
+        if let Expr::Binary{op,left,right,..}=e&&matches!(op.as_str(),"<"|">"|"<="|">=")&&(has_now(left)||has_now(right)){
+            for side in [left,right]{walk(side,|e|if let Expr::Member{base,name,..}=e&&let Some(table)=row_table(base){out.insert((table.into(),name.clone()));});}
+        }
     });}
     for s in body{match s{
         Stmt::Bind{names,value,..}=>{let v=resolve(value,env);inspect(&v,out);if names.len()==1{env.insert(names[0].clone(),v);}},

@@ -99675,3 +99675,9 @@ miss remain recorded. Updated guide questions address those observations.
 Evidence and qualification are under reports/20261021-sec5; the workstream report
 records actual full-suite results and inherited failures. No version bump, push
 or publication; DX5 owns clocks, hidden lookups, upgrades and frontend scaffolds.
+
+SEC5 final corpus correction: query-filter implicit row fields now participate in
+caller-time deadline discovery. Lane 017 `checkIn(at)` is flagged with and without
+invariants; 19 focused tests pass. Frozen 300 and supplementary 38 all compile
+without diagnostics. Final caller-time counts are 67 and 7; availability/calendar
+questions remain advisory and are not counted as confirmed security findings.
