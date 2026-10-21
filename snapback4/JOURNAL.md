@@ -99913,3 +99913,20 @@ All Cargo work uses this worktree's own `snapback4/target`, six build jobs,
 no incremental compilation and line-tables-only dev/test debug. No push,
 stash, sub-agents or reviewer-worktree access. Detailed commands, results and
 scope are in `reports/20261020-p0-s8-store-port.md`.
+
+
+## 2026-10-21 — Integration 20: current-main store boundaries and final web measurement
+
+Merged main through 8beeb79c52, preserving DX5's fired/held clock reports and
+SEC5's independent-intent advice across typed store inspection/metadata access.
+Linux source 2ff08401e6 measures 2,404,980 B raw / 733,906 B gzip / 552,883 B
+Brotli. The budget is 734,406 B, measured gzip plus exactly 500 B. This is +58 B
+raw / +4 B gzip from the earlier integration artifact; the store/device boundary
+merge changes compiled layout. Strict family/absence audits pass; there is no
+per-feature attribution or runtime ceiling increase.
+
+Two live-host client fixtures now await CLI subprocesses, preserving their
+existing assertions and timeouts while allowing HTTP keep-alive closures and
+child output to drain. The original synchronous maintained-columns fixture
+failed all four cases under load; the async reproduction passed all four.
+The async packed rule-recipe reproduction passed 25/25 on the Mac Studio.
