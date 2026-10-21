@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 root=Path(sys.argv[1])
 curves=json.loads((root/'curves.json').read_text())
 ledger=json.loads((root/'ledger.json').read_text())
-target='Supabase (PostgREST only)' if any(r['cell'].get('target')=='supabase' for r in ledger) else 'Raw PG'
+target=('Convex/PG (self-hosted)' if any(r['cell'].get('target')=='convex' for r in ledger) else 'Supabase (PostgREST only)' if any(r['cell'].get('target')=='supabase' for r in ledger) else 'Raw PG')
 colors={0:'#145da0',200:'#00876c',500:'#dc6b1c',1000:'#9b3e88'}
 labels={0:'natural',200:'+0.2 ms',500:'+0.5 ms',1000:'+1.0 ms'}
 plt.rcParams.update({'font.size':10,'svg.fonttype':'none','axes.spines.top':False,'axes.spines.right':False})

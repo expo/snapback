@@ -1,0 +1,12 @@
+{
+  "name": "s1-convex-control",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "convex": "1.47.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "@types/node": "24.10.1"
+  }
+}

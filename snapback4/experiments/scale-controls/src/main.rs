@@ -1,3 +1,4 @@
+mod convex;
 mod db;
 mod load;
 mod supabase;

@@ -137,7 +137,7 @@ def main(roots):
                 **{k:median(r['derived'][k] for r in runs) for k in ['app_cpu_ms_per_op','load_cpu_ms_per_op','ssh_cpu_ms_per_op','db_cpu_ms_per_op','wal_lsn_bytes_per_op','sql_exec_ms_per_op','sql_calls_per_op','max_connected','max_active']}})
     records.sort(key=lambda r:(r['cell']['workload'],r['cell']['keys'],r['cell']['rows'],r['cell']['delay_us'],r['cell']['writers']))
     destination=roots[0]
-    target='Supabase (PostgREST only)' if any(r['cell'].get('target')=='supabase' for r in records) else 'Raw PG'
+    target=('Convex/PG (self-hosted)' if any(r['cell'].get('target')=='convex' for r in records) else 'Supabase (PostgREST only)' if any(r['cell'].get('target')=='supabase' for r in records) else 'Raw PG')
     (destination/'ledger.json').write_text(json.dumps(records,indent=2)+'\n')
     (destination/'curves.json').write_text(json.dumps(curves,indent=2)+'\n')
     text=[f'# {target} limits ledger','',

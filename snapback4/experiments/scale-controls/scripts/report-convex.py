@@ -1,0 +1,69 @@
+#!/usr/bin/env python3
+"""Compare the Convex ledger with historical raw PG and Supabase-advocate rows."""
+import gzip, hashlib, json, re, sys
+from pathlib import Path
+from statistics import median
+import report
+root=Path(sys.argv[1]);report.main([root])
+base=Path(__file__).resolve().parent.parent
+raw=json.loads((base/'results-20261021-raw-pg/ledger.json').read_text())
+sb=json.loads((base/'results-20261021-supabase-advocate/ledger.json').read_text())
+cx=json.loads((root/'ledger.json').read_text())
+def key(c):return tuple(c[k] for k in ['workload','keys','rows','delay_us','writers'])
+indices=[{key(r['cell']):r for r in rs} for rs in [raw,sb,cx]]
+rows=[dict(cell=r['cell'],raw_pg=indices[0].get(key(r['cell'])),supabase_advocate=indices[1].get(key(r['cell'])),convex_pg=r) for r in cx]
+(root/'comparison.json').write_text(json.dumps(rows,indent=2)+'\n')
+def rate(r):
+    if r is None:return '—'
+    n=r['summary']['highest_passing_offered_per_s']
+    return f'{n:,}' if n is not None else 'no pass'
+headlines=[]
+for w,k in [('W1','disjoint'),('W2','disjoint'),('W3','disjoint'),('W4','disjoint'),('W5','same'),('W5','hot1')]:
+    for delay in [0,500]:
+        c=dict(workload=w,keys=k,rows=1000000,delay_us=delay,writers=128 if w in ['W1','W2','W3'] else 32)
+        headlines.append(dict(cell=c,**{n:i.get(key(c)) for n,i in zip(['raw_pg','supabase_advocate','convex_pg'],indices)}))
+(root/'headlines.json').write_text(json.dumps(headlines,indent=2)+'\n')
+def table(records):
+    t=['| Workload / keys / rows / added RTT µs / clients | Raw PG | Supabase advocate | Convex/PG |','|---|---:|---:|---:|']
+    for r in records:
+        c=r['cell'];label=f"{c['workload']} / {c['keys']} / {c['rows']} / {c['delay_us']} / {c['writers']}"
+        t.append('| '+label+' | '+' | '.join(rate(r.get(k)) for k in ['raw_pg','supabase_advocate','convex_pg'])+' |')
+    return t
+text=['# Convex/PG beside raw PG and Supabase advocate','',
+      'Highest tested passing offered operations/s; all three repetitions meet the same SLO/error/counter criteria. Historical controls were measured earlier, not rerun. Convex uses its default caches and own OCC. Pool caps match; Convex background work shares its cap. These are short-window shared-host observations, not product ceilings.','',
+      '## Predeclared fixed-budget comparison','',
+      'Reads: 128 clients, pool/concurrent-query cap 32. Writes: 32 clients, pool/concurrent-mutation cap 32. Supabase adds its listener.','',*table(headlines),'',
+      '## Every Convex cell','',
+      'Supabase-advocate did not run the 100k read cells; those entries are absent. Latencies/resources at each system’s own passing rate are in the linked source ledgers and do not isolate per-request overhead.','',*table(rows)]
+(root/'comparison.md').write_text('\n'.join(text)+'\n')
+# Raw metrics remain archived; retain only scalar count/sum deltas at each passing rate.
+def metrics(path):
+    s=path.read_text() if path.exists() else gzip.decompress(Path(str(path)+'.gz').read_bytes()).decode()
+    result={}
+    for line in s.splitlines():
+        if line.startswith('#'):continue
+        try:name,value=line.rsplit(' ',1);value=float(value)
+        except ValueError:continue
+        if (any(x in name for x in ['cache_get_seconds_count','cache_hit_total','cache_miss_total','occ','retry','commit_total','execute_udf']) and '_bucket' not in name):result[name]=value
+    return result
+metric_rows=[]
+for row in cx:
+    c=row['cell'];passing=row['summary']['highest_passing_offered_per_s']
+    if passing is None:continue
+    directory=root/f"{c['workload'].lower()}-n{c['rows']}-d{c['delay_us']}-c{c['writers']}-{c['keys']}"
+    runs=[]
+    for repeat in range(row['summary']['repeats']):
+        prefix=f'rate-{passing}-r{repeat}'
+        a=metrics(directory/(prefix+'.metrics-before.txt'));b=metrics(directory/(prefix+'.metrics-after.txt'))
+        runs.append({k:b[k]-a.get(k,0) for k in b if b[k]-a.get(k,0)!=0})
+    keys=set().union(*[r.keys() for r in runs])
+    metric_rows.append(dict(cell=c,offered_per_s=passing,median_deltas={k:median(r.get(k,0) for r in runs) for k in sorted(keys)}))
+(root/'convex-metrics.json').write_text(json.dumps(metric_rows,indent=2)+'\n')
+rtts={}
+for delay in sorted({r['cell']['delay_us'] for r in cx}):
+    values=[json.loads(p.read_text()) for p in root.glob(f'*-d{delay}-*/rtt-*.json')]
+    rtts[delay]=dict(captures=len(values),p50_median_ms=median(v['p50_us']/1000 for v in values),p99_median_ms=median(v['p99_us']/1000 for v in values),p50_range_ms=[min(v['p50_us']/1000 for v in values),max(v['p50_us']/1000 for v in values)])
+
+(root/'rtt-summary.json').write_text(json.dumps(rtts,indent=2)+'\n')
+(root/'derivation.json').write_text(json.dumps({str(p.relative_to(base)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [Path(__file__),base/'scripts/report.py',base/'scripts/plot.py',base/'results-20261021-raw-pg/ledger.json',base/'results-20261021-supabase-advocate/ledger.json']},indent=2)+'\n')
+print(len(rows),'comparison rows;',len(metric_rows),'metric rows')
