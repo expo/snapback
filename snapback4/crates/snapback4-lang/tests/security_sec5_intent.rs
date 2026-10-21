@@ -62,3 +62,9 @@ fn each_column_audience_retains_row_and_lifecycle_conditions(){
         assert!(question.contains(".status")&&question.contains("'shared'"),"{question}");
     }
 }
+
+#[test]
+fn category_with_an_author_is_not_invented_as_a_role_roster(){
+    let b=bound("table events:\n  author: principal\n  kind: enum('concussion','other')\n  read <- .author = viewer\n  online only\n");
+    assert!(!security::draft(&b).contains("events.kind = 'concussion'"));
+}

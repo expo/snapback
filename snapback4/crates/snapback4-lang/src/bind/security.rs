@@ -9,6 +9,8 @@ pub mod kernel;
 mod audit;
 pub mod challenges;
 mod lints;
+mod advice;
+mod time_advice;
 mod operation;
 mod concrete;
 mod census;

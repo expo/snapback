@@ -8,9 +8,17 @@ pub(super) fn roles(bound:&Bound)->Vec<String>{
     for (name,table) in bound.schema.visible_tables(){
         let mut columns=super::privilege::role_columns(bound,name);
         // Scoped memberships have the same questionnaire need as global roles.
-        if table.columns.values().any(|c|matches!(c.required(),ColumnType::Principal)) {
-            columns.extend(["role","kind"].into_iter().filter(|c|table.columns.contains_key(*c)).map(str::to_owned));
-        }
+        // Require an observed caller probe; an event's `kind` plus `author`
+        // is not enough to invent a role roster.
+        for (_,other) in bound.schema.visible_tables(){for rule in super::columns::rules(other){
+            let mut parts=Vec::new();leaves(rule,&mut parts);
+            for part in parts{if let RuleExpr::Exists{table:roster,index,key,equalities,..}=part&&roster==name{
+                let pairs=super::privilege::probe_pairs(bound,roster,index,key,equalities);
+                if pairs.iter().any(|(c,v)|matches!(v,RuleTerm::Viewer)&&matches!(table.columns.get(c).map(ColumnType::required),Some(ColumnType::Principal))){
+                    columns.extend(pairs.iter().filter(|(c,v)|matches!(c.as_str(),"role"|"kind")&&matches!(v,RuleTerm::Literal(Value::String(_)))).map(|(c,_)|c.clone()));
+                }
+            }}
+        }}
         for column in columns {for value in super::privilege::role_values(bound,name,&column){
             roles.insert(format!("{name}.{column} = '{value}'"));
         }}
