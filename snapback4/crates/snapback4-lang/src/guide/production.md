@@ -404,3 +404,13 @@ team selection and principal selection sit above release-sensitive reads;
 release gates and rollback preserve them. Account changes intentionally cross
 the AppProvider principal boundary. Exact's corresponding recipe is maintained
 in Exact2 (EX9); these source files target React and Expo.
+
+For day-two domain changes, `down` supplies only truthful scalar old views. It
+cannot synthesize a file/image, asset list, reference or missing table. Preview
+`rollback ./deployment --to 1 --check --bridge ./bridge`, review the generated
+loosened v1 operations, nullable UI reads and retained current safeguards, then
+preview `deploy ./deployment --schema ./bridge --restore-dormant --check`.
+The bridge is a new release; retained new tables may have no old read path.
+Declared table/asset-column renames preserve identity/home; migration-only
+fileText and indexed cross-table backfills are in `guide evolution` and the
+packed-tested `guide language` example. SEC6 owns rule-review resurfacing.

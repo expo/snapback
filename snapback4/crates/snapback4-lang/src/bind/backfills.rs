@@ -13,7 +13,7 @@ fn bind_one(
     let decl = ast::ProgramDecl { delivery: None, held:false, predicts:false, server:false, kind:ast::ProgramKind::Query,
         name: format!("{}{}{}",if down{"down"}else{"backfill"},d.table,d.name), args:d.args.clone(), prelude:vec![],
         body:vec![ast::Stmt::Return { value:d.value.clone(), site:d.site.clone() }], native:false, site:d.site.clone() };
-    let Some(bound) = program::Binder::bind(catalog,schema,"schema",&decl,diagnostics) else {return};
+    let Some(bound) = program::Binder::bind_historical(catalog,schema,"schema",&decl,diagnostics) else {return};
     let Ty::Object(fields) = &bound.result else { diagnostics.push(type_error(&d.site,format!("{word} returns an object patch"),"{ column: historicalValue }")); return; };
     let Some(table) = schema.table(&d.table) else {diagnostics.push(unknown(&d.site,format!("{word} table is not declared"),"declare the current table"));return};
     for (c,ty) in fields {
@@ -34,10 +34,19 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec
     let mut down_names=BTreeSet::new();let mut down_outputs=BTreeSet::new();
     for d in catalog.documents.iter().flat_map(|d|&d.downfills) {bind_one(catalog,schema,diagnostics,d,true,&mut down_names,&mut down_outputs);}
     for table in catalog.documents.iter().flat_map(|d|&d.tables) {
+        if let Some(old)=&table.renamed_from {
+            if old==&table.name || catalog.tables.contains_key(old) || schema.table_renames.values().any(|v|v==old) {
+                diagnostics.push(type_error(&table.site,"table rename requires one distinct predecessor-only source","keep one name for each row lifetime"));
+            } else {schema.table_renames.insert(table.name.clone(),old.clone());}
+        }
         for column in table.columns.iter().filter(|c|c.renamed_from.is_some()) {
             let old=column.renamed_from.as_ref().unwrap();
             if old==&column.name || table.columns.iter().any(|c|&c.name==old) {
                 diagnostics.push(type_error(&column.site,format!("rename source {}.{old} must be a distinct predecessor-only column",table.name),"remove the current old column and retain only the renamed declaration"));continue
+            }
+            fn asset(kind:&ast::TypeKind)->bool {match kind {ast::TypeKind::Image{..}|ast::TypeKind::Video{..}|ast::TypeKind::File{..}=>true,ast::TypeKind::List{item,..}=>asset(&item.kind),_=>false}}
+            if asset(&column.type_.kind) && column.maintained.is_none() && column.sequence.is_none() && column.written_by.is_none() {
+                schema.asset_renames.entry(table.name.clone()).or_default().insert(column.name.clone(),old.clone());continue;
             }
             if matches!(&column.type_.kind, ast::TypeKind::Ref{..}|ast::TypeKind::Image{..}|ast::TypeKind::Video{..}|ast::TypeKind::File{..}|ast::TypeKind::List{..})
                 || column.maintained.is_some() || column.sequence.is_some() || column.written_by.is_some()

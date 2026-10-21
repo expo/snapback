@@ -67,3 +67,5 @@ pub fn compile(sources: &[(String, String)]) -> Bound {
     }
     bind(documents)
 }
+
+pub mod release_bridge;

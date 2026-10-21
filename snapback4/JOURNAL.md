@@ -100573,3 +100573,53 @@ each new store code. The refreshed 350-schema baseline has no refusals; Lean
 20,000 reproduces only the four established signatures (130 disagreements).
 Compact evidence: reports/integration21/step0.json; raw logs remain in the
 owned external integration21 scratch. No publication was performed here.
+### 2026-10-21 — EVOL wave-21 release evolution
+
+LLP 3000.000.000.002 §8 specifies native fingerprint refresh, migrated
+recomputation agreement, nullable rename absence, identity-preserving table and
+asset-column renames, bounded migration-only fileText/nonemptyLines, and
+generated loosened rollback bridges. Muse Spark and a fresh Codex session both
+marked the same round-6 amendment READY; verbatim provenance is under
+llp/reviews/3000.000.000.002-evol-r6.*. READY does not accept the RFC for its author.
+
+The copied eight dormant lane snapshots have 460 rows hidden by strict target
+schemas and zero by their generated bridges. These are physical schema counts
+before read rules; retaining a newer concept does not make a frozen old query
+expose it. A packed witness covers one preserved table/file identity, repeated
+file lines, cross-table backfill, typed-parent closure and nullable-file bridge.
+SEC6 owns identity/session security and rule-review behavior. Version unchanged;
+user-visible changes are recorded under 0.4.37 in the packaged changelog.
+Final commands, results and limits are recorded in WORKSTREAM-REPORT.md.
+
+EVOL final preview audit: pre-activation raw-domain messages no longer predict
+hiding before declared down executes. Retained alias identities also govern
+step/removal narration; an old callable operation writing a genuinely newer-only
+table names the missing old read path. Reverse snapshots borrow the same
+immutable asset directory as forward previews. Packed coverage now includes
+file-derived down for a native v2 record and the lost-guard checklist contract.
+The former day5 source-copy assertion is updated to the reviewed loosened-target
+contract, preserving guard warnings and the explicit restoration checklist.
+
+EVOL final full-suite catch: legacy native device residency must preserve the
+exact database bytes across open/inspection/refused adoption. The new temporary
+asset-root marker was being inserted/deleted even when no migration ran. The
+unchanged regression passes at pre-EVOL 86303f71df and failed on this branch;
+scoping the marker to the actual server transition restores all seven residency
+tests. File-derived migration context remains inside that same atomic transition.
+
+EVOL guide verification caught and corrected three editorial regressions: restore
+the first paragraph break, locate the expanded parcels example without assuming
+the old table header, and compact prose/blank recipe lines within unchanged
+budgets. All 127 guide tests pass; language is 824/825 lines, deploy 280/280,
+and the appendix remains within its 100-word allowance. No budget increased.
+
+EVOL final wording-only audit: empty/default values are observational facts, not
+proof of an absent projection or lost data. Preview prose separates values
+matching retained empty images and makes predecessor precedence explicit; it
+conditions scalar-down advice on absence of a winning preimage. JSON counts,
+activation and the SDK are unchanged. Three visibility unit cases and all twelve
+affected client cases pass, including a packed-witness assertion for a retained
+zero. Full Linux consumer qualification remains bound to db62d60459; the final
+wording is requalified through a fresh Linux platform pack on the affected
+EVOL, release-transition and verbatim migration paths. No publication receipt
+is issued or implied by that scoped evidence.

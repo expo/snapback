@@ -4,6 +4,7 @@ use super::*;
 use crate::{schema::{backfill::Backfill, materialize_optional_fields}, engine::{Context, runner::Runner}, meter::{Ceilings, Cut, Meter}};
 use std::collections::{BTreeMap, BTreeSet};
 pub(crate) const VERSION: &str = "snapback4-release-store-7";
+fn migration_context(tx:&Tx<'_>,now:i64)->Result<Context,RuntimeError>{let mut context=Context::system().at(now);context.migration_assets=tx.meta("activation_asset_root")?.map(std::path::PathBuf::from);Ok(context)}
 fn refusal(message: impl Into<String>) -> RuntimeError { RuntimeError::Structural { code:"E_ADOPT", message:message.into() } }
 fn present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
     Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_backfill_evidence')",[],|r|r.get(0))?)
@@ -33,7 +34,7 @@ fn enable(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     if !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_backfill_active') WHERE name='input_names')",[],|r|r.get::<_,bool>(0))? {
         tx.conn().execute_batch("ALTER TABLE _backfill_active ADD COLUMN input_names TEXT NOT NULL DEFAULT '[]';")?;
     }
-    tx.set_meta("version", VERSION)
+    if tx.meta("version")?.as_deref()==Some(super::table_renames::VERSION){Ok(())}else{tx.set_meta("version", VERSION)}
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Evidence { #[serde(default)] reversed:BTreeMap<String,Option<Value>>, #[serde(default)] absent:BTreeSet<String>, #[serde(default)] epoch:i64, #[serde(default)] retained:BTreeSet<String>, active:bool, inputs: Value, before: BTreeMap<String,Value>, after: BTreeMap<String,Value> }
@@ -291,7 +292,7 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<St
                 return Err(refusal(format!("down {} {} output {c} must be an authoritative scalar without reference or lifetime ownership",fill.table,fill.name)))
             }
         }
-        let t=tx.num(&fill.table)?;let key=fill.down_key();let mut bad=super::adopt_refusals::Samples::default();let mut count=0;
+        let t=tx.num(&fill.table)?;let key=fill.down_key();let mut bad=super::adopt_refusals::Samples::default();let mut count=0;let mut preimages=0u64;let mut preimage_ids=Vec::new();
         walk_images(tx,t,|id,row,_in_r|{
             let prior=evidence(tx,t,id,&key)?;
             let eligible=!absence(tx,t,id,&format!("$native:{key}"))?.is_empty();
@@ -348,6 +349,7 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<St
                 let retained=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3 AND data!=?4)",params![t,id,c,canonical_json(&Value::Null)],|r|r.get::<_,bool>(0))?;
                 if !retained {projected_outputs.insert(c.clone());}
             }
+            if projected_outputs.len()<target_outputs.len(){preimages+=1;if preimage_ids.len()<5{preimage_ids.push(id.to_owned());}}
             if projected_outputs.is_empty(){return Ok(())}
             if prior.is_none() && tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _backfill_pruned WHERE t=?1 AND id=?2 AND definition=?3)",params![t,id,key],|r|r.get::<_,bool>(0))? {
                 bad.add(id,"reverse projection evidence was explicitly pruned");return Ok(())
@@ -362,7 +364,7 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<St
                 if crate::engine::validate::validate_column(&fill.table,c,kind,value.as_ref()).is_err(){bad.add(id,&format!("current reverse input {}.{c} is absent or invalid",fill.table));return Ok(())}
                 args.insert(c.clone(),value.unwrap_or(Value::Null));
             }
-            let inputs=Value::Row(args.clone().into());let mut context=Context::system().at(now);context.args=args;
+            let inputs=Value::Row(args.clone().into());let mut context=migration_context(tx,now)?;context.args=args;
             for (c,kind) in &fill.inputs {
                 let kind=native_source.as_deref().and_then(|s|s.columns.get(c)).filter(|k|protected(k)).unwrap_or(kind);
                 let value=inputs.field(c)?;let unchanged=prior.as_ref().is_none_or(|e|e.inputs.field(c).ok()==Some(value));
@@ -387,6 +389,7 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<St
             tx.conn().execute("INSERT INTO temp._downfill_pending VALUES(?1,?2,?3,?4,?5)",params![t,id,key,canonical_json(&patch),canonical_json(&e)])?;count+=1;Ok(())
         })?;
         if bad.count>0{return Err(refusal(format!("down {} {}: {}",fill.table,fill.name,bad.describe())))}
+        if preimages>0 {report.backfills.push(format!("{} {} retained predecessor preimages on {preimages} rows; sample ids [{}]; newer source cells remain retained for forward",fill.table,fill.name,preimage_ids.join(", ")));}
         if count>0{report.backfills.push(format!("{} {} projected {count} {} down",fill.table,fill.name,if count==1{"row"}else{"rows"}));}
     }
     Ok(true)
@@ -563,8 +566,8 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
             let physically_absent=absence(tx,t,id,"")?;
             let native=absence(tx,t,id,&format!("$native:{key}"))?;
             if prior.is_none() && !native.is_empty() {
-                let native_inputs=native_inputs(tx,t,id,&current,fill.inputs.keys().filter(|c|!fill.outputs.contains(*c)).map(String::as_str),row_source.as_deref())?;
-                if fill.inputs.iter().any(|(c,kind)|!fill.outputs.contains(c) && !physically_absent.contains(c) && crate::engine::validate::validate_column(&fill.table,c,kind,native_inputs.get(c)).is_err()) {
+                let native_image=native_inputs(tx,t,id,&current,fill.inputs.keys().filter(|c|!fill.outputs.contains(*c)).map(String::as_str),row_source.as_deref())?;
+                if fill.inputs.iter().any(|(c,kind)|!fill.outputs.contains(c) && !physically_absent.contains(c) && crate::engine::validate::validate_column(&fill.table,c,kind,native_image.get(c)).is_err()) {
                     bad.add(id,"native image has an invalid present historical input; use a typed bridge");return Ok(())
                 }
                 let mut conflict=false;
@@ -585,9 +588,18 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     bad.add(id,"native output also has a different transformation's history; resolve its intended view in a bridge");return Ok(())
                 }
                 let complete=fill.outputs.iter().all(|c|current.field(c).is_ok() && validate_output(&fill.table,table,c,current.field(c).unwrap()).is_ok());
-                let fingerprint=crate::value::digest(&native_inputs);
+                let fingerprint=crate::value::digest(&native_image);
                 if !complete {bad.add(id,"native backfill output image is missing or was explicitly pruned; use a bridge or restore a backup");return Ok(())}
-                if !native.contains(&fingerprint) {bad.add(id,"native backfill inputs changed after row creation; preserve the authored output in a bridge before re-entry");return Ok(())}
+                if !native.contains(&fingerprint) {
+                    let args=native_inputs(tx,t,id,&current,fill.inputs.keys().map(String::as_str),row_source.as_deref())?;
+                    if fill.inputs.iter().any(|(c,k)|crate::engine::validate::validate_column(&fill.table,c,k,args.get(c)).is_err()) {
+                        bad.add(id,"native backfill inputs changed outside its owning release and cannot be recomputed; use a bridge");return Ok(())
+                    }
+                    let mut context=migration_context(tx,now)?;context.args=args;
+                    let mut runner=Runner::new(tx,&source,context,Meter::new(Ceilings::job(),Cut::Abort),0);
+                    let agrees=match runner.run(&fill.program) {Ok(Value::Row(p)|Value::Map(p)) if runner.read_cut().is_none()=>p.iter().all(|(c,v)|current.field(c).ok()==Some(v)) && p.keys().cloned().collect::<BTreeSet<_>>()==fill.outputs,_=>false};
+                    if !agrees {bad.add(id,"native backfill inputs changed outside its owning release and recomputation differs from its authored output; preserve it in a bridge");return Ok(())}
+                }
                 return Ok(())
             }
             let mut original_absence=prior.as_ref().map_or_else(||physically_absent.intersection(&fill.inputs.keys().cloned().collect()).cloned().collect(),|e|e.absent.clone());
@@ -609,7 +621,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 args.insert(c.clone(),value.unwrap_or(Value::Null));
             }
             let inputs=Value::Row(args.clone().into());
-            let mut context=Context::system().at(now);context.args=args;
+            let mut context=migration_context(tx,now)?;context.args=args;
             let mut runner=Runner::new(tx,&source,context,Meter::new(Ceilings::job(),Cut::Abort),0);
             let patch=match runner.run(&fill.program) {Ok(Value::Row(f)|Value::Map(f))=>f.into_iter().collect::<BTreeMap<_,_>>(),Ok(_)=>{bad.add(id,"backfill did not return an object");return Ok(())},Err(e)=>{bad.add(id,&e.to_string());return Ok(())}};
             if runner.read_cut().is_some() {bad.add(id,"historical lookup did not complete; reduce per-row lookup work before adoption");return Ok(())}
@@ -620,7 +632,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 if let Err(e)=validate_output(&fill.table,table,c,value) {bad.add(id,&e.to_string());return Ok(())}
                 if let Some(kind)=row_source.as_deref().and_then(|t|t.columns.get(c)) {if protected(kind) && prior.as_ref().is_none_or(|e|e.before.contains_key(c)) {bad.add(id,&format!("cannot overwrite historical reference or asset {}.{c}; derive into a new column",fill.table));return Ok(())}}
                 if prior.is_none() && fill.name.starts_with("$rename:up:") {
-                    if let Some(existing)=source_value(tx,t,id,&current,c,row_source.as_deref(),&mut preimage_meter)? {
+                    if let Some(existing)=physical_value(tx,t,id,&current,c,&mut preimage_meter)? {
                         if &existing!=value {bad.add(id,&format!("rename destination {}.{c} already has a conflicting value; resolve it in a bridge",fill.table));return Ok(())}
                     }
                 }
@@ -636,13 +648,13 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     let original=prior.before.get(c);
                     let expected=prior.reversed.get(c).cloned().unwrap_or_else(||original.cloned());
                     let actual=if transformed {None}else{source_value_impl(tx,t,id,&current,c,row_source.as_deref(),&mut preimage_meter,false)?};
-                    if !transformed && actual.as_ref()!=expected.as_ref() && actual.as_ref()!=prior.after.get(c) {
+                    if !transformed && actual.as_ref()!=expected.as_ref() && actual.as_ref()!=prior.after.get(c) && actual.as_ref()!=Some(value) {
                         bad.add(id,&format!("{}.{} changed while backfill {} was absent; keep a bridge and resolve the conflict",fill.table,c,fill.name));return Ok(())
                     }
                     if deps_same && transformed && current_field.is_some() {
                         // Added columns retain edits under v1's dormant storage.
                         desired.insert(c.clone(),current_field.unwrap().clone());
-                    } else if transformed && !deps_same && current_field!=prior.after.get(c) && current_field!=original {
+                    } else if transformed && !deps_same && current_field!=prior.after.get(c) && current_field!=original && current_field!=Some(value) {
                         bad.add(id,&format!("{}.{} was edited and its historical inputs changed; keep a bridge and resolve the conflict",fill.table,c));return Ok(())
                     }
                 }
@@ -925,12 +937,40 @@ fn mark_down_native(tx:&Tx<'_>,next:&Schema)->Result<(),RuntimeError>{
 }
 pub(super) fn observe_write(tx:&Tx<'_>,t:i64,id:&str,table:&Table,row:&Value,old:Option<&Value>)->Result<(),RuntimeError>{
     if !present(tx)? {return Ok(());}
-    if old.is_none() {
-        let active:Vec<(String,String)>=tx.conn().prepare("SELECT definition,input_names FROM _backfill_active WHERE t=?1")?.query_map([t],|r|Ok((r.get(0)?,r.get(1)?)))?.collect::<Result<_,_>>()?;
-        for (key,names) in active {
-            let names:Vec<String>=decode(&names)?;
-            let fingerprint=input_fingerprint(&crate::schema::row_image(row,table),names.iter().map(String::as_str));
-            tx.conn().execute("INSERT OR IGNORE INTO _backfill_absence VALUES(?1,?2,?3,?4)",params![t,id,format!("$native:{key}"),fingerprint])?;
+    // @ref LLP 3000.000.000.002#8-wave-21-release-evolution — writes under the owning declaration refresh its accepted input image.
+    let image=crate::schema::row_image(row,table);
+    let active:Vec<(String,String)>=tx.conn().prepare("SELECT definition,input_names FROM _backfill_active WHERE t=?1")?.query_map([t],|r|Ok((r.get(0)?,r.get(1)?)))?.collect::<Result<_,_>>()?;
+    for (key,names) in active {
+        let names:Vec<String>=decode(&names)?;
+        let marker=format!("$native:{key}");
+        if old.is_none() || !absence(tx,t,id,&marker)?.is_empty() {
+            let mut meter=Meter::new(Ceilings::job(),Cut::Abort);
+            let inputs:BTreeMap<_,_>=names.iter().map(|c|Ok((c.clone(),physical_value(tx,t,id,row,c,&mut meter)?.or_else(||interpreted_absence(table,c)).unwrap_or(Value::Null)))).collect::<Result<_,RuntimeError>>()?;
+            let fingerprint=crate::value::digest(&inputs);
+            tx.conn().execute("DELETE FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition=?3",params![t,id,marker])?;
+            tx.conn().execute("INSERT INTO _backfill_absence VALUES(?1,?2,?3,?4)",params![t,id,marker,fingerprint])?;
+        }
+        if let Some(mut e)=evidence(tx,t,id,&key)?.filter(|e|e.active) {
+            for c in &names {
+                // Hidden historical arguments and overwritten inputs keep their
+                // original meaning. Only currently authored cells can advance.
+                if let Some(kind)=table.columns.get(c).filter(|_|old.is_none_or(|before|crate::schema::row_image(before,table).field(c).ok()!=image.field(c).ok())) {
+                    let value=image.field(c).cloned().unwrap_or(Value::Null);
+                    let changed=e.inputs.field(c).ok()!=Some(&value);
+                    if let Value::Row(inputs)|Value::Map(inputs)=&mut e.inputs {inputs.insert(c.clone(),value.clone());}
+                    if changed {e.absent.remove(c);}
+                    let binding=input_ref(&key,c);
+                    // A generic-id surface cannot erase an already-custodied
+                    // parent class when this owning-release write retargets it.
+                    let mut reference_kind=kind.clone();
+                    if changed && !protected(kind) && matches!(value,Value::Id(_)) {
+                        let parents:Vec<String>=tx.conn().prepare("SELECT DISTINCT cat.name FROM _dormant_refs r JOIN _catalog cat ON cat.num=r.parent_t WHERE r.t=?1 AND r.id=?2 AND r.column_name=?3")?.query_map(params![t,id,binding],|r|r.get(0))?.collect::<Result<_,_>>()?;
+                        if parents.len()==1 {reference_kind=crate::schema::ColumnType::Ref{table:parents[0].clone()};}
+                    }
+                    capture_input_refs(tx,t,id,c,&binding,&reference_kind,&value,!changed)?;
+                }
+            }
+            save(tx,t,id,&key,&e,true)?;
         }
     }
     let columns:Vec<String>=tx.conn().prepare("SELECT column_name FROM _backfill_inputs WHERE t=?1")?.query_map([t],|r|r.get(0))?.collect::<Result<_,_>>()?;
@@ -960,18 +1000,27 @@ fn note_omission(tx:&Tx<'_>,t:i64,id:&str,c:&str)->Result<(),RuntimeError>{
     // active projection. Already-recorded omission survives default freezing.
     tx.conn().execute("INSERT OR IGNORE INTO _backfill_absence SELECT ?1,?2,'',?3 WHERE NOT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3)",params![t,id,c])?;Ok(())
 }
+fn physical_value(tx:&Tx<'_>,t:i64,id:&str,row:&Value,column:&str,meter:&mut Meter)->Result<Option<Value>,RuntimeError>{
+    if let Ok(value)=row.field(column){meter.heap(value.retained_heap_bytes().saturating_mul(64).saturating_add(8192))?;return Ok(Some(value.clone()));}
+    if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_asset_column_renames')",[],|r|r.get::<_,bool>(0))? {
+        let aliases:Vec<String>=tx.conn().prepare("SELECT name FROM _asset_column_renames WHERE t=?1 AND origin=(SELECT origin FROM _asset_column_renames WHERE t=?1 AND name=?2) ORDER BY name")?.query_map(params![t,column],|r|r.get(0))?.collect::<Result<_,_>>()?;
+        for alias in aliases {if let Ok(value)=row.field(&alias){meter.heap(value.retained_heap_bytes().saturating_mul(64).saturating_add(8192))?;return Ok(Some(value.clone()));}}
+    }
+    let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0)).optional()?;
+    meter.heap((bytes.unwrap_or(0).max(0) as u64).saturating_mul(64).saturating_add(8192))?;
+    let text:Option<String>=tx.conn().query_row("SELECT data FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0)).optional()?;
+    text.map(|s|decode(&s)).transpose()
+}
 fn source_value(tx:&Tx<'_>,t:i64,id:&str,row:&Value,column:&str,table:Option<&Table>,meter:&mut Meter)->Result<Option<Value>,RuntimeError>{
     source_value_impl(tx,t,id,row,column,table,meter,true)
 }
 fn source_value_impl(tx:&Tx<'_>,t:i64,id:&str,row:&Value,column:&str,table:Option<&Table>,meter:&mut Meter,honor_absence:bool)->Result<Option<Value>,RuntimeError>{
     if let Ok(value)=row.field(column){meter.heap(value.retained_heap_bytes().saturating_mul(64).saturating_add(8192))?;return Ok(Some(value.clone()));}
     if honor_absence && tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._backfill_unprovided WHERE t=?1 AND id=?2 AND column_name=?3)",params![t,id,column],|r|r.get::<_,bool>(0))? {return Ok(None);}
-    let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0)).optional()?;
-    meter.heap((bytes.unwrap_or(0).max(0) as u64).saturating_mul(64).saturating_add(8192))?;
-    let text:Option<String>=tx.conn().query_row("SELECT data FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0)).optional()?;
-    if let Some(text)=text{return Ok(Some(decode(&text)?));}
+    if let Some(value)=physical_value(tx,t,id,row,column,meter)?{return Ok(Some(value));}
     Ok(table.and_then(|table|interpreted_absence(table,column)))
 }
+
 fn interpreted_absence(table:&Table,column:&str)->Option<Value>{
     if table.maintained.contains_key(column){Some(Value::Int(0))}
     else if table.columns.get(column).is_some_and(|kind|kind.is_optional()){Some(Value::Null)}
@@ -1018,7 +1067,7 @@ pub(super) fn retire_snapshot(tx:&Tx<'_>,sources:&BTreeMap<String,Table>,previou
             let Some(mut row)=tx.get(name,id)? else{return Ok(())};
             if !source_expired(tx,t,id,&source.tables[name],&row,now)? {return Ok(())}
             materialize_optional_fields(&mut row,&source.tables[name]);
-            let mut runner=Runner::new(tx,&source,Context::system().at(now),Meter::new(Ceilings::job(),Cut::Abort),tx.next_seq()?);
+            let mut runner=Runner::new(tx,&source,migration_context(tx,now)?,Meter::new(Ceilings::job(),Cut::Abort),tx.next_seq()?);
             match runner.retire_expired_row(name,&row) {
                 Ok(true)=>{tx.set_meta("activation_population","true")?;},
                 Ok(false)=>return Err(refusal(format!("source expiry {name}/{id} is blocked by retained children; resolve them in a bridge before adoption"))),

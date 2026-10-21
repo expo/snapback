@@ -31,11 +31,8 @@ mutation addNote(body: text):
   return insert notes { owner: viewer, body }
 ```
 
-`where .x != null` narrows loop/shape rows.
-
-Implicit `id`; newest-first pages (`next` → `c`); atomic inserts default time.
+`where .x != null` narrows loop/shape rows. Implicit `id`; newest-first pages (`next` → `c`); atomic inserts default time.
 `not before .opensAt` sets a stored lower read lifetime; null is unbounded. With `expire at`, rows live in `[opensAt, expiresAt)`. See `guide timed disclosure`.
-
 
 `receipts chat by .conversation, .ordinal from .sender to members:` with field mappings generates reporting (`guide receipts`; expert recipe: `guide manual-receipts`).
 
@@ -815,13 +812,15 @@ mutation react(message: messages, emoji: text <=32) predicts:
 
 This inherits `read through .message`; `guide sync` covers lifetime, three-hop immutable references and E_READ_THROUGH/E_SYNC repairs; `guide prediction` covers coverage/rollback.
 ```quarry
-table parcels:
+table parcels renamed from shipments:
+  manifest: file <=100000 ? renamed from legacyManifest
+  quantity: int
   weight: int
   sizeClass: enum('small', 'large')
   read <- deny
   online only
 backfill parcels sizes(weight: int): {sizeClass: 'large' if weight > 3500 else 'small'}
+backfill parcels quantities(manifest: file <=100000 ?): {quantity: nonemptyLines(fileText(manifest)) if manifest != null else 0}
 ```
-
-**Historical data:** `backfill` declares a historical-input patch, applied atomically by deploy; keep it in later schemas. Rollback restores untouched preimages or refuses conflicts. `before`/`after` and `beforeLast`/`afterLast` split at first/last exact delimiter (absent: whole-before/empty-after; empty: refusal). `startsWith` tests an exact prefix; `allDigits` means nonempty ASCII digits. `guide deploy` provides the runnable persistent-production recipe.
+**Historical data:** `backfill` patches historical inputs atomically; retain declarations. Rollback restores untouched preimages; conflicts refuse. `before`/`after` split first, `beforeLast`/`afterLast` last (absent: whole-before/empty-after; empty: refusal). `startsWith` matches exact prefixes; `allDigits` requires nonempty ASCII digits. Renames preserve identities/file homes. Migration-only `fileText` reads UTF-8; `nonemptyLines` counts repeated nonempty lines. See `guide deploy`.
 "##;

@@ -1,0 +1,15 @@
+muse: workspace root: /home/ccheever/projects/sb4-b21-evol (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+Reviewed §8 against §3 and the scoped diff (`backfills.rs`, `evolution_tests.rs`, plus the coupled rename of one reference-lifetime test in `backfill_tests.rs`). All six evolution tests and the full backfill suite pass: 117/117 green (`cargo test -p snapback4-core --lib store::backfill_tests`, including the renamed `active_reference_input_refresh_tracks_the_authorized_retargeted_lifetime`).
+
+What I verified, claim by claim:
+
+- **Native fingerprint refresh.** `observe_write` now replaces (DELETE + INSERT, no accumulation) the `$native` marker on writes under the owning declaration, gated on marker presence so migrated rows gain no birth evidence, and inserts still seed markers. Fingerprint construction moved from `row_image`-only to `physical_value` + dormant + `interpreted_absence`, which matches the transition-time `native_inputs`/`source_value` construction and fixes a latent insert/verify skew for absent defaulted inputs. Legacy markers that mismatch now self-heal through the agreement path below.
+- **Migrated evidence refresh.** Only active receipts, only currently-present columns, only actually-edited cells advance `e.inputs`; hidden historical args, overwritten inputs, preimages, inactive receipts, and omission flags on unrelated writes are untouched. `capture_input_refs` preserves bindings on same-value replay and re-captures on change.
+- **Recompute agreement.** Three sites (native branch, transformed-output branch, untransformed-output branch) accept only on exact agreement: full output-set equality, every stored output equals recomputation, bounded job meter, and `read_cut` refusal. Disagreement still refuses with a bridge reason. The renamed reference test pins the key custody property: refresh tracks an authorized retarget, but deleting the retargeted parent (then re-seeding the same id) still refuses on parent lifetime — refresh does not launder liveness, and id reuse inherits nothing.
+- **Rename absence.** Entering `$rename:up:` now consults `physical_value` (row + retained cells only) instead of `source_value` (which synthesized defaults/nulls). Absent stays absent; explicit present null still conflicts. The both-directions evolution test (forward rename, old-client insert, rollback restore) passes.
+- **Security/lifetime/rollback.** No new authority: recompute runs as the system principal under the same meter/cut gates as ordinary evaluation. Invalid-reference checks precede the native branch. Rollback preimages, epochs, and prune semantics are untouched by the refresh path.
+
+No concrete material issues found; the two edge observations I probed (write-time metering formula, same-column mixed input arg construction) both reduce to pre-existing adoption-path behavior with no wrong-accept. Note: the working tree also contains concurrent out-of-scope changes (`narrowed.rs`, `tooling.rs`, release-visibility verbs); this verdict covers only the wave-21 adoption surface.

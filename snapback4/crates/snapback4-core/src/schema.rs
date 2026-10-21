@@ -44,6 +44,10 @@ pub use routes::RouteSpec;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Schema {
     #[cfg(feature = "sqlite")]
+    pub table_renames: BTreeMap<String,String>,
+    #[cfg(feature = "sqlite")]
+    pub asset_renames: BTreeMap<String,BTreeMap<String,String>>,
+    #[cfg(feature = "sqlite")]
     pub backfills: Vec<backfill::Backfill>,
     /// Candidate-owned projections used only while selecting an older schema.
     #[cfg(feature = "sqlite")]
@@ -258,6 +262,9 @@ pub struct Schedule {
 }
 
 impl Schema {
+    /// Compare schema facts under the same declared table identities.
+    #[cfg(feature="sqlite")]
+    pub fn with_table_names(&self,names:&BTreeMap<String,String>)->Result<Self,crate::RuntimeError>{crate::store::table_renames::schema(self.clone(),names)}
     pub fn hash(&self) -> String {
         digest(self)
     }
@@ -1141,6 +1148,23 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     timeline::validate(schema, &mut issues);
     time_audience::validate(schema, &mut issues);
     let issue = |issues: &mut Vec<SchemaIssue>, path: String, message: String| issues.push(SchemaIssue { path, message });
+    #[cfg(feature="sqlite")]
+    {
+        let mut sources=BTreeSet::new();
+        for (new,old) in &schema.table_renames {
+            if new==old || !schema.tables.contains_key(new) || schema.tables.contains_key(old) || !sources.insert(old) {
+                issue(&mut issues,format!("table_renames.{new}"),"table rename requires one distinct predecessor-only source".into());
+            }
+        }
+        for (name,renames) in &schema.asset_renames {
+            let mut sources=BTreeSet::new();
+            let table=schema.table(name);
+            for (new,old) in renames {
+                let allowed=table.is_some_and(|t|old!=new && !t.columns.contains_key(old) && t.columns.get(new).is_some_and(ColumnType::contains_asset) && !t.engine_field(new) && !t.written_by.contains_key(new));
+                if !allowed || !sources.insert(old) {issue(&mut issues,format!("asset_renames.{name}.{new}"),"asset rename requires a distinct predecessor-only source and an authoritative asset destination".into());}
+            }
+        }
+    }
     let mut route_paths = BTreeSet::new();
     for (name, route) in &schema.routes {
         let path = format!("routes.{name}");

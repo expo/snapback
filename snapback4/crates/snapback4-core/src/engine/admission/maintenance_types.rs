@@ -16,7 +16,7 @@ fn builtin_inspection(builtin: &Builtin) -> Option<Inspection> {
         | Group { .. } | Min | Max | Extremum { .. } | ExtremumOf { .. } | Divmod { .. } | Divide { .. }
         | Sort { .. } | MentionTokens | SearchPresent | DeterministicShare | Sum | Connected => Some(Inspection::Inspecting),
         #[cfg(feature = "sqlite")]
-        JobAs | JobQuery { .. } => Some(Inspection::Inspecting),
+        FileText | JobAs | JobQuery { .. } => Some(Inspection::Inspecting),
         _ => None,
     }
 }
@@ -458,7 +458,7 @@ mod tests {
             First, Last, At, Min, Max, Extremum { field: "id".into(), max: false, domain: false }, ExtremumOf { max: false, domain: false },
             Divmod { remainder_sink: "r".into() }, Divide { rounding: crate::ir::Rounding::HalfEven, scale: None }, Sort { keys: vec![] }, MentionTokens, SearchPresent, DeterministicShare, Count, Sum, CountCapped, Connected, RequireUncapped];
         #[cfg(feature = "sqlite")]
-        let builtins = builtins.into_iter().chain([JobAs, JobQuery { program: Box::new(Program { arg_aliases: Default::default(),
+        let builtins = builtins.into_iter().chain([FileText, JobAs, JobQuery { program: Box::new(Program { arg_aliases: Default::default(),
             name: "query".into(), kind: ProgramKind::Query, args: BTreeMap::new(), body: vec![],
             native: false, read_time_granularity_ms: None, returned_shapes: Default::default(),
         }), cursor: None, all: false }]);

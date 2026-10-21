@@ -1,0 +1,31 @@
+muse: workspace root: /tmp/evol-muse-review.lnevr9 (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY.
+
+Three material ambiguities remain. Each can cause silent custody loss or unreviewed deploy.
+
+**1. Receipt refresh widens to migrated rows, bypassing dependency check.**
+
+Case: migrated row `M` has reference input `R=P1`, output `O=f(P1)`. While exact declaration `D` is active, an app write changes `R` to `P2`. `R` is present in the selected schema and its value changes, so it is “currently authored” under the clarification.
+
+Sentence 1 scopes refresh to “native input fingerprints.” Sentence 3 says “Active forward receipts refresh only actually edited, currently authored non-output inputs and their reference lifetime bindings” with no native-only scope. A migrated row has a forward/migration receipt. Read literally, the receipt refreshes `R` fingerprint and binding to `P2` while `O` stays `f(P1)`.
+
+Later re-entry sees no fingerprint mismatch, so parent dependency/output comparison plus exact recomputation never runs. Live `R=P2` and stored `O=f(P1)` diverge silently.
+
+Required correction: scope receipt refresh to native rows only. State migrated non-output edits never refresh fingerprint/binding except in the same atomic transaction that passes parent dependency/output comparison plus exact recomputation for affected transformed/reversed cells, else refuse atomically. Order checks before refresh.
+
+**2. Bridge operation listing promises both completeness and incompleteness.**
+
+Case: v1 `text(50)`, current `text(100)`. Bridge loosens max to `100`. V1 operation `W` writes 60 chars or assumes max 50 in UI. Main text promises “target operations reading affected tables.” Clarification promises “readers AND writers … are listed,” then says other conversions “receive no promise of complete visibility.”
+
+An operator cannot tell if `W` is guaranteed listed. A missed writer deploys a behavior change without review.
+
+Required correction: make both sentences identical: readers and writers. Define completeness scope explicitly. Either guarantee complete static listing and name out-of-scope classes, or downgrade listing to best-effort diagnostic and require manual audit of all ops on affected tables before deploy. Remove the absolute plus disclaimer contradiction.
+
+**3. Preview denominator contradicts itself.**
+
+Case: table `T` has 600 rows active under current read rules and 400 already hidden. Target change would hide 100 of the 600. Main text says counts “are schema populations before read rules.” Clarification says “Only previously active rows contribute.”
+
+The first reading counts 500. The second counts 100. An operator misestimates blast radius. Including already-hidden rows also discloses hidden-population size in privileged output beyond active impact.
+
+Required correction: define denominator as rows active under current source read rules immediately before activation, counted before target read rules. Fix main sentence to match: post-source-rules, pre-target-rules. Keep new-table rows separate.

@@ -33,6 +33,10 @@ impl Contexts {
 pub(super) fn order(catalog: &mut Catalog) -> Contexts {
     let mut contexts = Contexts::default();
     for doc in &mut catalog.documents {
+        for fill in doc.backfills.iter_mut().chain(&mut doc.downfills) {
+            let required=required_args(&fill.args);
+            intent_walk::expression(&mut fill.value,&mut |value|contexts.visit(value,&catalog.tables,&catalog.functions,&required));
+        }
         for program in &mut doc.programs {
             let required = required_args(&program.args);
             let mut visit = |value: &mut Expr| contexts.visit(value, &catalog.tables, &catalog.functions, &required);

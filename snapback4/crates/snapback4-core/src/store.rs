@@ -20,6 +20,8 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 pub(crate) mod backfills;
+pub(crate) mod table_renames;
+mod asset_renames;
 mod fork;
 mod device;
 mod device_residency;
@@ -168,7 +170,7 @@ impl Store {
         let version: String = tx.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| {
                 row.get(0)
             })?;
-        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" && version != "snapback4-release-store-6" && version != backfills::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
+        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" && version != "snapback4-release-store-6" && version != "snapback4-release-store-8" && version != backfills::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
         let catalog = tx.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
         let identity = activation::identity(&tx)?;
         tx.rollback()?;
@@ -270,6 +272,8 @@ impl Store {
     }
 
     /// Where this store keeps uploaded bytes (`assets/<id>`).
+    /// Operator preview snapshots read the original immutable blob directory.
+    pub fn preview_asset_root(&mut self,path:&Path)->Result<(),RuntimeError>{if self.ephemeral_assets{return Err(RuntimeError::Input("an ephemeral store cannot borrow the durable preview asset root".into()))}self.assets_dir=path.to_path_buf();Ok(())}
     pub fn assets_dir(&self) -> &Path {
         &self.assets_dir
     }
@@ -311,7 +315,7 @@ impl Store {
         let version: String = opened.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| {
                 row.get(0)
             })?;
-        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" && version != "snapback4-release-store-6" && version != backfills::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
+        if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" && version != "snapback4-release-store-6" && version != "snapback4-release-store-8" && version != backfills::VERSION { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
         let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
             })?.collect::<Result<BTreeMap<_, _>, _>>()?;

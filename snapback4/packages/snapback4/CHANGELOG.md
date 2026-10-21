@@ -1,5 +1,12 @@
 # Snapback 4 behavior changes
 
+## 0.4.37
+
+- Release adoption accepts ordinary writes under an active backfill, refreshes accepted inputs and preserves typed reference custody. Forward accepts exact recomputation agreement; genuinely conflicting edits still refuse. An absent nullable rename destination no longer conflicts.
+- Rollback previews account for declared reverse projections/renames and name actual incompatible columns or hidden reference parents. Saved-preimage receipts name bounded row samples. Generated bridges start from target operations with loosened compatible domains and retained new tables; review nullability, current safety guards and old read paths before deploying the new release.
+- `table observations renamed from behaviors:` preserves row/reference identity across rollback and forward. Asset-column renames move actual cells and their single home. Indexed cross-table existence/unique backfills remain atomic; migration-only `fileText(file)` and `nonemptyLines(text)` derive scalar values from retained UTF-8 with bounded meters and exact reversal evidence. See `guide evolution`/`guide language`/`guide deploy`. SEC6 owns write-intent, privacy, session and rule-review changes.
+
+
 ## 0.4.36
 
 - Staging `advance()` returns `{now, fired, held}`; use `(await host.advance("49h")).now` for the old timestamp. Each schedule reports its window, run state or hold reason. Saved boundaries survive restarts: the helper and CLI explain a reused store's already-processed boundary and how to continue or use a fresh staging deployment. One fire per boundary; missed periods coalesce unless eachBoundary is explicit.

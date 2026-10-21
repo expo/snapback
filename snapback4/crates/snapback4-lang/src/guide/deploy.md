@@ -124,9 +124,9 @@ After check and business cases pass, from the app root:
 ```sh
 snapback4 deploy ./deployment --save-version versions/v1
 snapback4 rollback ./deployment --to 1 --check --bridge ./bridge
-snapback4 deploy ./deployment --schema ./bridge --check
+snapback4 deploy ./deployment --schema ./bridge --restore-dormant --check
 ```
-The new versions/v1 captures selected modules, their contemporary fixtures and `versions/v1/release.json` with the actual immutable release id, source hash and CLI version. Unchanged deploy keeps its id; existing snapshots never change. Choose a new positive-numbered versions/vN; saving cannot combine with --check. Saved-source deploy uses its own fixtures. Use the recorded id when choosing a baseline; since_release remains the author-supplied newer-schema label. The bridge starts from complete current Quarry source and this app's `bridge/ROLLBACK-CHECKLIST.md`. Retain current domains, audiences, guards and quotas; repair records through authorized mutations; prove blocked cases refuse and affected lists/counts remain correct; repeat the old-source preview. No bridge is activated or business migration synthesized. JSON includes checklist; --verbose retains full evidence/index paths. Dormant rows reserve ids but no unique slots: new active rows may block restoration. A widened non-unique bridge permits repair before reinstating uniqueness; retained storage cannot supply absent safety logic.
+The new versions/v1 captures selected modules, their contemporary fixtures and `versions/v1/release.json` with the actual immutable release id, source hash and CLI version. Unchanged deploy keeps its id; existing snapshots never change. Choose a new positive-numbered versions/vN; saving cannot combine with --check. Saved-source deploy uses its own fixtures. Use the recorded id when choosing a baseline; since_release remains the author-supplied newer-schema label. The bridge starts from complete target Quarry operations with compatible value domains loosened to include current data, retaining new tables with their current rules, plus this app's `bridge/ROLLBACK-CHECKLIST.md`. Retain current domains, audiences, guards and quotas; repair records through authorized mutations; prove blocked cases refuse and affected lists/counts remain correct; repeat the old-source preview. No bridge is activated or business migration synthesized. JSON includes checklist; --verbose retains full evidence/index paths. Dormant rows reserve ids but no unique slots: new active rows may block restoration. A widened non-unique bridge permits repair before reinstating uniqueness; retained storage cannot supply absent safety logic.
 
 ## Keep v1 clients working
 
@@ -151,7 +151,11 @@ Deploy also warns when later rollback can refuse or hide rows: dropping a requir
 
 ## Persistent production: v1 → v2 → rollback → forward
 
-Replacement transforms read reversible preimages; input types cover original/native rows. `down table name(typedInputs): {oldField: expression}` declares a reversible old view for newer rows; exact old preimages win, conflicting projected-cell edits refuse forward. Native preimages and old-view outputs must be authoritative scalars; use separate scalar columns instead of replacing a reference, asset, collection or lifetime field. Reference inputs retain their parent lifetimes across older views; deleted/reused parents refuse forward. Unrepresentable values stay dormant. `newField: Type renamed from oldField` carries an identical-typed scalar cell both ways (reference, asset, collection and engine-owned moves refuse before activation); keep old operation/result wrappers where clients need them.
+Replacement transforms read reversible preimages; input types cover original/native rows. `down table name(typedInputs): {oldField: expression}` declares a reversible old view for newer rows; exact old preimages win, conflicting projected-cell edits refuse forward. Native preimages and old-view outputs must be authoritative scalars; use separate scalar columns instead of replacing a reference, asset, collection or lifetime field. Reference inputs retain their parent lifetimes across older views; deleted/reused parents refuse forward. Unrepresentable values stay dormant. `newField: Type renamed from oldField` carries a scalar cell both ways; asset columns and asset lists move their actual cell and single home together. References and engine-owned moves refuse before activation; keep old operation/result wrappers where clients need them.
+
+A table declares `table observations renamed from behaviors:` to preserve its row/reference identity and old-release writes; it refuses merging independent table histories. Ordinary backfill expressions may read indexed cross-table `exists` or unique points against one pre-patch snapshot. The language-card example uses migration-only `fileText(file)` with `nonemptyLines(text)` for repeated nonempty UTF-8 entries; unavailable bytes, invalid UTF-8 or a job-meter cut refuse atomically. It never supplies ordinary mutation-time file validation. Active writes refresh accepted backfill inputs; older-release edits still need recomputation agreement or conflict repair. An absent optional rename destination is not a conflict.
+
+Computed `down` cannot replace files/images, asset lists, references or a missing table. Required → optional media, an album becoming empty, or nullable money needs a generated loosened-target bridge when no truthful scalar substitution exists. Review target operations reading loosened columns and nullable UI assumptions. Keep current safety guards absent from the target; retaining new tables does not make them visible through frozen old operations. Deploy the generated source as a new release with `--restore-dormant`, first with `--check`.
 
 Save this script and run it with Node. `PRODUCTION_DIR` selects its persistent store; reruns preserve rows/users. It proves backfill, privacy and rollback/forward behavior. Rollback restores v1's broader reads; bridge if inappropriate. REL5 owns reactivation/old-client reporting; SEC3 owns privacy/audit.
 
@@ -163,7 +167,6 @@ import { resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { cli, deploy, rollback, startServe } from "snapback4/proof";
 import { signup } from "snapback4/auth";
-
 const directory = resolve(process.env.PRODUCTION_DIR ?? "production-day-two");
 const v1 = `use identity password
 table roles:
@@ -203,7 +206,6 @@ const v2 = v1
   {vehicleClass:'commercial' if weight > 3500 else 'van' if length >= 500 else 'car'}
 -- Spec: only the ticket owner may revise its weight.
 invariant tickets.revise only .owner = viewer
-
 invariant tickets.read only .owner = viewer
 down tickets legacyText(body: text 1..200): {legacy:body}
 `;
@@ -274,7 +276,5 @@ try {
   console.log(JSON.stringify({status:"passed", persistent:true, before:before.size, after:changed.size, backfill:"car → commercial after v1 edit", privacy:"v1 broad → v2 private → v1 broad → v2 private"}));
 } finally { await host.stop(); }
 ```
-
 Storage, users and rows survive. Resolve reported conflicts through a truthful bridge.
-
 When table rules change, deploy and deploy --check print a short security exposure summary. Without a matching completed security campaign they demand `snapback4 test` for the selected source and fixtures (saved-source previews name `test --source`). Known refutations and coverage gaps remain visible; a finite campaign is not proof. This reminder does not change activation authority.

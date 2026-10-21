@@ -1,0 +1,11 @@
+[package]
+name = "evol-copy-credential-align"
+version = "0.0.0"
+edition = "2024"
+[workspace]
+[dependencies]
+argon2 = "=0.5.3"
+rusqlite = { version = "=0.40.2", features = ["bundled"] }
+serde_json = "=1.0.151"
+[profile.dev]
+opt-level = 1

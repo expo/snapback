@@ -11,5 +11,5 @@ export async function proveDormant(cwd) {
     try {await runToolchainCommand(process.execPath,[path],{cwd,env,timeout:240_000});}
     finally {rmSync(path,{force:true});}
   }
-  return {status:'passed',cases:['reverse-native-old-view','exact-preimage-precedence','unrepresentable-dormancy','read-only-check','operator-retained-inspection','exact-forward','unrelated-old-edit','projected-edit-conflict','declared-column-rename','forward-backfill-catchup','mapped-old-arguments']};
+  return {status:'passed',cases:['reverse-native-old-view','exact-preimage-precedence','unrepresentable-dormancy','read-only-check','operator-retained-inspection','exact-forward','unrelated-old-edit','projected-edit-conflict','declared-column-rename','forward-backfill-catchup','mapped-old-arguments','edited-native-and-migrated-reentry','nullable-destination-rename','loosened-bridge-visibility','table-identity-rename','asset-home-rename','file-derived-repeated-lines','cross-table-backfill','typed-parent-visibility']};
 }

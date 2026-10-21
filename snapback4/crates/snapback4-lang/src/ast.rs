@@ -410,6 +410,7 @@ pub struct ReceiptsDecl {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TableDecl {
+    pub renamed_from: Option<String>,
     pub column_reads: Vec<(Vec<String>, RuleDecl)>,
     pub receipts: Option<ReceiptsDecl>,
     pub ephemeral: Option<EphemeralDecl>,

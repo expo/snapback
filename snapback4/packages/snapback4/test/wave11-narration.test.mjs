@@ -70,7 +70,7 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   for (const body of ['A', 'B', 'C']) { const write = await host.post('/m/add', { body }); assert.equal(write.state, 'sent'); ids.push(write.result.id); }
   writeFileSync(schema, v2);
   const widening = run('deploy', deployment);
-  assert.equal(widening.stderr.trim().split('\n')[0], "note: notes.status admits 'archived'; rows that later use those values become dormant on rollback to release 1; keep this value domain in a bridge if those rows must stay available");
+  assert.equal(widening.stderr.trim().split('\n')[0], "note: notes.status admits 'archived'; rollback to release 1 must represent those writes through declared projections or a loosened bridge; run the exact rollback preview after writes");
   assert.match(widening.stderr, /WARNING rollback foresight:.*notes.status/);
   assert.match(widening.stderr, /WARNING old-client compatibility.*RESULT REVIEW/);
   assert.doesNotMatch(widening.stderr, /existing rows/);
@@ -87,7 +87,7 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   assert.equal((await host.post('/m/archive', { note: ids[0] })).state, 'sent');
   await host.stop();
   assert.equal(existsSync(join(deployment, 'serve.lock')), false, host.log());
-  const warning = "WARNING notes.status: 1 row holds 'archived', which release 1 cannot hold directly; without a fitting declared reverse projection, it becomes dormant on this switch and is restored on compatible forward; accept their absence or preserve these values in a bridge release";
+  const warning = "WARNING notes.status: 1 row holds 'archived', outside release 1's raw column domain; exact preview reports which rows remain incompatible; generate a loosened bridge to preserve their actual values";
   const samples = `samples: cells notes.color [${ids.slice(1).sort().join(', ')}]; rows notes [${ids[0]}]`;
   const plan = run('rollback', deployment, '--to', '1', '--check');
   assert.ok(plan.stdout.split('\n').some(line => line.startsWith('  WARNING notes:') && line.includes(warning.slice('WARNING '.length))), plan.stdout);

@@ -1,0 +1,27 @@
+muse: workspace root: /tmp/evol-muse-review.C5PzS9 (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY.
+
+1. Migrated re-entry retains stale vs recomputes — contradictory and missing transition.
+
+Case: declaration `D` with `O=f(P)`. Migrate row `R`: `P=P1`, saved `after=f(P1)`, live `O=f(P1)`. Ordinary write while `D` active retargets `P1→P2`. Refresh changes input basis to `P2`, `after` stays `f(P1)`, `O` stays `f(P1)` per “after/preimages unchanged by refresh.”
+At re-entry `fresh=f(P2)≠after`, live `O` equals old computed result. The rule permits adopting old, reversed preimage, or fresh. The summary then states this case “either recomputes to f(P2) or refuses a conflicting edited O” — i.e. untouched `O=f(P1)` becomes `f(P2)`. Implementers diverge: retain stale `f(P1)` vs overwrite to `f(P2)`, with different live data and different future `after` behavior.
+
+Uncovered sub-case in the same block: inputs changed but `fresh==after` (e.g. `f(P1)=f(P1')`). It satisfies neither “fresh differs” nor “inputs and computation unchanged.” No rule applies.
+
+Required correction: state explicitly whether untouched stale `O` is retained or overwritten; whether successful adoption updates saved `after` or leaves it stale; priority if live value matches more than one candidate; and the branch for inputs-changed/computation-unchanged. Remove or fix the summary sentence to match.
+
+2. Native/migrated branch coverage gap for rows with both marker and receipt.
+
+Case: row has native marker for `D` and also a forward evidence receipt for `D` (native row later covered by a forward patch for the same digest, or migrated row with pre-existing native marker). Native acceptance requires “NO forward evidence receipt … and has its native marker.” Migrated evaluation covers “each migrated row.” The text adds “These branches cannot substitute for each other” but gives no precedence or disjointness invariant. Implementers diverge: apply migrated recomputation to a native-authored image (losing “valid native outputs … remain authored values”), or apply native preservation to a migrated row (creating de facto qualification/skipping required recomputation).
+
+Required correction: assert as invariant that marker+receipt for the same digest cannot co-exist, with enforcement, or define explicit precedence and custody for the overlap (which baseline, which preservation, no marker creation).
+
+3. Bridge “affected tables” and renamed spelling for operation listing undefined.
+
+Case: bridge retains new table `N` with current rules, and renames `behaviors→observations` keeping target spelling `observations`. `T` is loosened, `N` is retained, `observations` is renamed. “Readers AND writers on affected tables are listed” does not define whether `affected` means only domain-loosened tables, or also retained-new and renamed tables, nor which spelling routes the listing for the renamed identity.
+
+Missed listing breaks the manual workflow audit the text relies on in place of a completeness proof.
+
+Required correction: define `affected` explicitly (loosened + retained-new + renamed/moved identities), and state listing spelling for renames (target spelling, with durable-relation mapping), with no both-aliases listing as independent tables.
+

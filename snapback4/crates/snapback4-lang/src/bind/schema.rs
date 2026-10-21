@@ -1126,7 +1126,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         }
         indexes.push(index);
     }
-    Ok(TableDecl {
+    Ok(TableDecl { renamed_from: None,
         column_reads: Vec::new(),
         receipts: None,
         ephemeral: None,

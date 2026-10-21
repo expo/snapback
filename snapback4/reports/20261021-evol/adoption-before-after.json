@@ -1,0 +1,32 @@
+{
+  "baseline": "published snapback4-linux-x64@0.4.35",
+  "candidate": "EVOL working build",
+  "cases": {
+    "before": {
+      "native": {
+        "passed": false,
+        "message": "deploy: E_ADOPT: backfill pickups labels: 1 affected rows; sample ids [01M5F1VR95QYTR4FDYA2JS3M13]; values/keys [native backfill inputs changed after row creation; preserve the authored output in a bridge before re-entry]\n\n\n1 !== 0\n"
+      },
+      "migrated": {
+        "passed": false,
+        "message": "deploy: E_ADOPT: backfill pickups labels: 1 affected rows; sample ids [01M5F1VRW9RS6DRC4W4NT5N5CK]; values/keys [pickups.label was edited and its historical inputs changed; keep a bridge and resolve the conflict]\n\n\n1 !== 0\n"
+      },
+      "nullable": {
+        "passed": false,
+        "message": "deploy: E_ADOPT: backfill pickups $rename:up:title:name: 1 affected rows; sample ids [01M5F1VST3J5AXJSAAAK3B2MXX]; values/keys [rename destination pickups.name already has a conflicting value; resolve it in a bridge]\n\n\n1 !== 0\n"
+      }
+    },
+    "after": {
+      "native": {
+        "passed": true
+      },
+      "migrated": {
+        "passed": true
+      },
+      "nullable": {
+        "passed": true
+      }
+    }
+  },
+  "notes": "Three isolated variants of the public migrationCycles fixture: native edit, migrated edit (both same required rename type), and optional destination without edits. Each passing case completes two rollback/forward cycles. No original app or store is modified."
+}

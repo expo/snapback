@@ -1148,6 +1148,18 @@ impl<'a> Runner<'a> {
                 self.meter.heap(crate::rows::word_heap::allocation(bytes).saturating_add(64))?;
                 function.apply(&args)
             }
+            #[cfg(feature="sqlite")]
+            Builtin::FileText => {
+                use std::io::Read;
+                let root=self.context.migration_assets.as_ref().filter(|_|self.context.is_system()).ok_or_else(||RuntimeError::Input("fileText is available only to declarative release migrations".into()))?;
+                let id=crate::assets::asset_id(args.first()).ok_or_else(||RuntimeError::Input("fileText needs a present file".into()))?;
+                if id.is_empty() || !id.bytes().all(|b|b.is_ascii_alphanumeric() || b==b'-' || b==b'_'){return Err(RuntimeError::Input("invalid file identity".into()))}
+                let asset=self.tx.asset(id)?.filter(|a|a.kind==crate::assets::AssetKind::File && a.released_at.is_none()).ok_or_else(||RuntimeError::Input("fileText source is not a retained file".into()))?;
+                self.meter.heap(asset.bytes.saturating_add(1).saturating_mul(8).saturating_add(128))?;self.meter.step(asset.bytes.saturating_add(1))?;
+                let mut bytes=Vec::new();std::fs::File::open(root.join(id)).map_err(|e|RuntimeError::Input(format!("fileText cannot read retained bytes: {e}")))?.take(asset.bytes.saturating_add(1)).read_to_end(&mut bytes).map_err(|e|RuntimeError::Input(format!("fileText cannot read retained bytes: {e}")))?;
+                if bytes.len() as u64!=asset.bytes{return Err(RuntimeError::Input("fileText bytes disagree with the retained asset ledger".into()))}
+                Ok(Value::String(String::from_utf8(bytes).map_err(|_|RuntimeError::Input("fileText requires UTF-8; use a text file or an explicit external conversion".into()))?))
+            }
             Builtin::Sha256 => {
                 let text = args[0].as_str()?;
                 let work = u64::try_from(text.len()).ok().and_then(|bytes| bytes.checked_add(1)).unwrap_or(u64::MAX);

@@ -2,6 +2,7 @@
 // @ref LLP 3000.009.001.000#33-extraction-first-with-no-behavior-change — preserve tooling statement and transaction order.
 // P1: implement these inspection/snapshot capabilities in the Postgres adapter.
 use super::{Store, Tx};
+use rusqlite::OptionalExtension;
 use crate::{
     RuntimeError,
     inspection::{CommitClockRecord, HandlerFailure},
@@ -22,6 +23,19 @@ impl Tx<'_> {
     }
 }
 impl Store {
+    /// Current public spellings mapped to the target spelling of the same retained identity.
+    pub fn release_table_mapping(&self,current:&crate::Schema,target:&crate::Schema)->Result<std::collections::BTreeMap<String,String>,String> {
+        let mut names=std::collections::BTreeMap::<String,String>::new();
+        let exists:bool=self.conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_table_renames')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+        if exists {names=self.conn.prepare("SELECT name,origin FROM _table_renames").map_err(|e|e.to_string())?.query_map([],|r|Ok((r.get(0)?,r.get(1)?))).map_err(|e|e.to_string())?.collect::<Result<_,_>>().map_err(|e|e.to_string())?;}
+        for (new,old) in &target.table_renames {let origin=names.get(old).cloned().unwrap_or_else(||old.clone());names.insert(old.clone(),origin.clone());names.insert(new.clone(),origin);}
+        let mut map=std::collections::BTreeMap::new();
+        for name in current.tables.keys().filter(|name|!target.tables.contains_key(*name)) {
+            let root=names.get(name).unwrap_or(name);
+            if let Some(next)=target.tables.keys().find(|next|names.get(*next).unwrap_or(*next)==root) {map.insert(name.clone(),next.clone());}
+        }
+        Ok(map)
+    }
     pub fn snapshot_to(&self, path: &Path) -> Result<(), String> {
         self.conn
             .execute("VACUUM INTO ?1", [path.to_string_lossy().as_ref()])
@@ -90,6 +104,26 @@ impl Store {
             visit(name, id, data)?;
         }
         Ok(())
+    }
+    /// Actual activation causes, grouped over only previously active hidden rows.
+    pub fn preview_target_table(&self,name:&str)->Result<String,String>{
+        self.conn.query_row("SELECT c.name FROM _catalog c WHERE c.num=(SELECT t FROM _release_preview_active WHERE name=?1 LIMIT 1)",[name],|r|r.get(0)).optional().map(|v|v.unwrap_or_else(||name.to_owned())).map_err(|e|e.to_string())
+    }
+    pub fn preview_source_column(&self,name:&str,column:&str,source:&crate::schema::Table)->Result<String,String>{
+        if source.columns.contains_key(column){return Ok(column.to_owned())}
+        let exists:bool=self.conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_asset_column_renames')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+        if exists {
+            let mut q=self.conn.prepare("SELECT a.name FROM _asset_column_renames a WHERE a.t=(SELECT t FROM _release_preview_active WHERE name=?1 LIMIT 1) AND a.origin=(SELECT origin FROM _asset_column_renames WHERE t=a.t AND name=?2) ORDER BY a.name").map_err(|e|e.to_string())?;
+            for alias in q.query_map(rusqlite::params![name,column],|r|r.get::<_,String>(0)).map_err(|e|e.to_string())? {let alias=alias.map_err(|e|e.to_string())?;if source.columns.contains_key(&alias){return Ok(alias)}}
+        }
+        Ok(column.to_owned())
+    }
+    pub fn preview_hidden_causes(&self, name:&str)->Result<Vec<(String,u64)>,String> {
+        let mut stmt=self.conn.prepare("SELECT n.reason,count(*) FROM _dormant_narrow_rows n JOIN _release_preview_active p ON p.t=n.t AND p.id=n.id WHERE p.name=?1 AND NOT EXISTS(SELECT 1 FROM r WHERE r.t=p.t AND r.id=p.id) GROUP BY n.reason ORDER BY n.reason").map_err(|e|e.to_string())?;
+        let mut counts=std::collections::BTreeMap::<String,u64>::new();
+        let rows=stmt.query_map([name],|r|Ok((r.get::<_,String>(0)?,r.get::<_,i64>(1)? as u64))).map_err(|e|e.to_string())?;
+        for row in rows {let (text,n)=row.map_err(|e|e.to_string())?;let causes:Vec<String>=serde_json::from_str(&text).map_err(|e|format!("invalid activation visibility cause: {e}"))?;for cause in causes {*counts.entry(cause).or_default()+=n;}}
+        Ok(counts.into_iter().collect())
     }
     pub fn preview_parent_dormant(&self, parent: &str, id: &str) -> Result<bool, String> {
         self.conn.query_row("SELECT EXISTS(SELECT 1 FROM _catalog c WHERE c.name=?1 AND (EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=c.num AND n.id=?2) OR EXISTS(SELECT 1 FROM _dormant_rows n WHERE n.t=c.num AND n.id=?2)) AND NOT EXISTS(SELECT 1 FROM r WHERE r.t=c.num AND r.id=?2))",[parent,id],|r|r.get(0)).map_err(|e|e.to_string())
@@ -284,10 +318,11 @@ impl Store {
         encoded: &str,
         prior_missing: bool,
         prior: &str,
+        prior_path: &str,
     ) -> Result<(u64, Vec<String>, u64), String> {
         let conn = &self.conn;
-        let from = "FROM main._release_preview_active p JOIN r ON r.t=p.t AND r.id=p.id WHERE p.name=?1 AND (json_extract(r.data,?2)=json_extract(?3,'$') OR json_extract(r.data,?2) IS NULL) AND (?4 OR coalesce(json_extract(p.data,?2),json_extract(?5,'$'))!=json_extract(?3,'$'))";
-        let args = rusqlite::params![name, path, encoded, prior_missing, prior];
+        let from = "FROM main._release_preview_active p JOIN r ON r.t=p.t AND r.id=p.id WHERE p.name=?1 AND (json_extract(r.data,?2)=json_extract(?3,'$') OR json_extract(r.data,?2) IS NULL) AND (?4 OR coalesce(json_extract(p.data,?7),json_extract(?5,'$'))!=json_extract(?3,'$'))";
+        let args = rusqlite::params![name, path, encoded, prior_missing, prior,column,prior_path];
         let rows: u64 = conn
             .query_row(&format!("SELECT count(*) {from}"), args, |r| {
                 r.get::<_, i64>(0).map(|n| n as u64)
@@ -303,10 +338,8 @@ impl Store {
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
-        let retained_empty_rows = if prior_missing {
-            conn.query_row(&format!("SELECT count(*) {from} AND EXISTS(SELECT 1 FROM main._release_preview_cells c WHERE c.t=p.t AND c.id=p.id AND c.column_name=?6 AND json_extract(c.data,'$')=json_extract(?3,'$'))"),rusqlite::params![name,path,encoded,prior_missing,prior,column],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?
-        } else {
-            0
+        let retained_empty_rows = {
+            conn.query_row(&format!("SELECT count(*) {from} AND EXISTS(SELECT 1 FROM main._release_preview_cells c WHERE c.t=p.t AND c.id=p.id AND c.column_name=?6 AND json_extract(c.data,'$')=json_extract(?3,'$'))"),rusqlite::params![name,path,encoded,prior_missing,prior,column,prior_path],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?
         };
         Ok((rows, sample_ids, retained_empty_rows))
     }

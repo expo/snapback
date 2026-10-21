@@ -202,10 +202,11 @@ impl Parser {
     fn parse_table(&mut self) -> Fallible<TableDecl> {
         let site = self.take("table")?.site;
         let name = self.binding_name()?;
+        let renamed_from=if self.maybe("renamed") {self.take("from")?;Some(self.binding_name()?)}else{None};
         self.take(":")?;
         self.newline()?;
         self.take_kind(Kind::Indent)?;
-        let mut table = TableDecl { column_reads: Vec::new(), receipts: None, ephemeral: None, search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, not_before: None, public: None, sync: None, online_only: false, site };
+        let mut table = TableDecl { renamed_from, column_reads: Vec::new(), receipts: None, ephemeral: None, search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, not_before: None, public: None, sync: None, online_only: false, site };
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
