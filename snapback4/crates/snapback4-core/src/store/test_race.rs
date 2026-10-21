@@ -12,6 +12,7 @@ use std::{
 };
 
 thread_local! {
+    static ACTIVATION_HOOK: RefCell<Option<(Arc<FenceRace>, bool)>> = const { RefCell::new(None) };
     // rusqlite requires a function pointer, so the contender thread supplies
     // the counter through TLS. Each race has its own counter, even in parallel.
     static BUSY_COUNT: RefCell<Option<Arc<AtomicUsize>>> = const { RefCell::new(None) };
@@ -26,6 +27,31 @@ pub(crate) fn after_adapter_begin() {
     if let Some((race, holder)) = BEGIN_HOOK.with(|slot| slot.borrow_mut().take()) {
         race.after_begin(holder);
     }
+}
+
+pub(crate) fn activation_after_begin() {
+    let hook = ACTIVATION_HOOK.with(|slot| slot.borrow().clone());
+    if let Some((race, holder)) = hook { race.after_begin(holder); }
+}
+pub(crate) fn activation_after_fence() -> Result<(), RuntimeError> {
+    if let Some((race, holder)) = ACTIVATION_HOOK.with(|slot| slot.borrow_mut().take()) {
+        race.after_fence(holder).map_err(RuntimeError::Store)?;
+    }
+    Ok(())
+}
+
+// The ordinary production writer is BEGIN IMMEDIATE. A test with an armed
+// race separates BEGIN from the same writer reservation without an intervening
+// snapshot read, so both activation calls can rendezvous before the fence.
+pub(crate) fn begin_activation(conn: &mut rusqlite::Connection) -> Result<rusqlite::Transaction<'_>, RuntimeError> {
+    let armed = ACTIVATION_HOOK.with(|slot| slot.borrow().is_some());
+    let tx = conn.transaction_with_behavior(if armed { rusqlite::TransactionBehavior::Deferred } else { rusqlite::TransactionBehavior::Immediate })?;
+    if armed {
+        activation_after_begin();
+        tx.execute("UPDATE _meta SET value=value WHERE key='version'", [])?;
+        activation_after_fence()?;
+    }
+    Ok(tx)
 }
 
 fn count_busy(attempt: i32) -> bool {
@@ -65,6 +91,10 @@ impl FenceRace {
             witness: Mutex::new(witness),
             timeout: Duration::from_secs(5),
         }
+    }
+
+    pub(crate) fn arm_activation(self: &Arc<Self>, holder: bool) {
+        ACTIVATION_HOOK.with(|slot| assert!(slot.borrow_mut().replace((self.clone(), holder)).is_none()));
     }
 
     pub(crate) fn sqlite() -> Self {

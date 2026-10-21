@@ -29,7 +29,6 @@ mod ledger_schema;
 mod shape;
 mod activation;
 mod activation_schema;
-mod metadata;
 mod release;
 mod release_schema;
 #[cfg(test)]

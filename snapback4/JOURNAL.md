@@ -100026,3 +100026,50 @@ refuses before preparation writes until dormant evolution is ported. Local
 source/host matching, serve/deploy wiring and production fencing remain S10d.
 Postgres-enabled core compilation passed. Task 3 supplies dual-adapter and
 real-cluster evidence; no push or other-machine work.
+
+
+## 2026-10-21 — P1-RL task 3: one release/activation contract on two adapters
+
+Shared cases cover first adoption and selected restart, matching executed
+programs after a second generation/rollback, exact-byte backend refusal,
+all opening markers, clock/epoch boundaries, NUL admission and JSON values,
+history paging, terminal statement-error rollback and signed identity
+exhaustion. Generation/catalog/event identities use shared checked allocation;
+SQLite's catalog overflow and random rowid fallback at the signed limit now
+refuse. Ordinary assigned ids are unchanged; event allocation is explicit
+and fenced. The catalog retains unique ordinals. Finalization
+and event recording cross the neutral contract; SQLite delegates the same
+restoration algorithm. Postgres counts timeline statuses from streamed text
+JSON to preserve escaped NUL and folds metadata patterns in ASCII to match
+SQLite even under en_US.utf8.
+
+Two full activation calls overlap through the shared physical fence witness,
+with changed and equal-content generations on both stores. The holder waits
+for a real SQLite busy callback or pg_blocking_pids evidence before committing.
+Exactly one activation survives. PostgreSQL relation-shape cases refuse
+inheritance in both directions, partitioning, UNLOGGED storage, rewrite rules,
+triggers, RLS, defaults and incompatible immediate/deferrable/extra keys.
+
+The complete core suite passes with five existing ignores. Core no-default,
+7 + 3 ratchets, guide code census, 27 WASM census tests and root refs pass.
+The final forwarding/boundary delta passes 18 affected SQLite release cases
+and 15 fresh-cluster family cases (9 Postgres, 6 SQLite). Both complete
+Postgres scripts pass: 58 experiment + 170 core + 19 harness tests per locale;
+the serialized corpus reports 207 passed and 88 named skips. All six owned
+clusters, including preliminary attempts and the final family cluster, are
+stopped with status=3 and no postmaster.pid. The standalone experiment's
+inherited stale lock edge and private conn calls are corrected without
+exposing raw access. The required Clippy command has only the two inherited
+errors at read.rs:780 / row_views.rs:1014; both files equal the base. Allowing
+only those two lints on the command line lets the complete test check pass.
+No source lint setting changes.
+
+The evaluator reaches create_release/activate_release/open_selected/status;
+serve/deploy remain unchanged. Full schema-changing evolution refuses before
+preparation writes. S10d still owns immutable local source/host binding,
+configuration/enum/host integration, production owner fencing and ambiguity/
+worker completion policy. BlobStore and artifact digests remain out of scope.
+Detailed per-rule results, dialect resolutions and limits are in
+reports/20261021-p1-rl-release-activation.md. One local worker; 8 Cargo jobs,
+requested target/debug/incremental settings, lowest sampled free disk about 180 GiB;
+no sub-agents, clones, remote commands, stash or push.

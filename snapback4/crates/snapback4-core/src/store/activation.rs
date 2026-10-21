@@ -114,7 +114,12 @@ impl Store {
         report.phase("read-only advice", &mut phase);
         Committer::run_committed_with(self, |store| Committer::run_solo(Kind::Administrative, |commit| {
             store.check_ownership()?;
-            let sql = commit.open_solo_with(|| Ok(store.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?))?;
+            let sql = commit.open_solo_with(|| {
+                #[cfg(test)]
+                { super::test_race::begin_activation(&mut store.conn) }
+                #[cfg(not(test))]
+                { Ok(store.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?) }
+            })?;
             // Low-level preparation may precede a writer-lock wait. Recheck all
             // opening admission under the lock that owns the upgrades.
             Self::check_version(&sql)?;
@@ -185,12 +190,13 @@ impl Store {
                 let Tx { tx: sql, .. } = preflight;
                 (launches, sql)
             };
-            let mut next = catalog.values().copied().max().unwrap_or(0) + 1;
+            let mut next = catalog.values().copied().max().unwrap_or(0);
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 for full in std::iter::once(name.clone()).chain(table.indexes.keys().map(|index| format!("{name}.{index}"))) {
                     if !catalog.contains_key(&full) {
+                        next = crate::activation::next_catalog_number(next)?;
                         sql.execute("INSERT INTO _catalog(name, num) VALUES (?1, ?2)", params![full, next])?;
-                        catalog.insert(full, next); next += 1;
+                        catalog.insert(full, next);
                     }
                 }
             }

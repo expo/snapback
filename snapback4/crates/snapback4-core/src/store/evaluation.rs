@@ -85,3 +85,8 @@ impl Store {
         Ok(rows)
     }
 }
+
+
+/// The linked SQLite library's version for standalone evaluation reports.
+/// Store::open already applies the measured WAL/FULL durability policy.
+pub fn sqlite_version() -> &'static str { rusqlite::version() }

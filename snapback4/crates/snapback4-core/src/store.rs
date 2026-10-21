@@ -68,6 +68,8 @@ mod dev_reset;
 mod ownership;
 pub(crate) mod release_history;
 mod release_history_access;
+#[cfg(test)]
+mod release_contract_tests;
 pub use release_history::DormantItem;
 mod sequences;
 mod successor;

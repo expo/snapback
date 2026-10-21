@@ -119,12 +119,16 @@ impl Store {
         let generation_expected = self.generation;
         let tx = self.begin(mode)?;
         after_begin();
+        #[cfg(test)]
+        crate::store::test_race::activation_after_begin();
         if mode == Some(WriteMode::Serialized) {
             // @ref LLP 3000#7-decisions-during-execution — a watermark covers commit order, not sequence allocation
             let head = tx.query("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?[0].get::<_, i64>(0) as u64;
             tx.head.set(Some(head));
             tx.serialized_head.set(true);
         }
+        #[cfg(test)]
+        crate::store::test_race::activation_after_fence()?;
         // A reader pins generation and watermark in the same snapshot and
         // reuses this head for next_seq. A serialized writer checks generation
         // after its head lock, so an adoption it waited for cannot be missed.

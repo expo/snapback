@@ -128,3 +128,9 @@ pub(crate) fn next_generation(previous: u64, changed: bool) -> Result<u64, Runti
             .ok_or_else(|| RuntimeError::Generation("generation overflow".into()))
     } else { Ok(previous.max(1)) }
 }
+
+
+// @ref LLP 3000.009.001.000#9.1 — an identity must refuse exhaustion rather than reuse a saturated key.
+pub(crate) fn next_catalog_number(previous: i64) -> Result<i64, RuntimeError> {
+    previous.checked_add(1).ok_or_else(|| RuntimeError::Generation("catalog number exhausted".into()))
+}

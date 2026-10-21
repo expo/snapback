@@ -53,7 +53,7 @@ fn refused_opens_preserve_all_postgres_schema_and_rows() {
             let changed: Schema = serde_json::from_value(serde_json::json!({"tables": {
                 "other": {"columns": {"id": "Id"}, "indexes": {"byId": {"components": [{"Column": "id"}], "unique": true}}, "rules": {"read": "Allow", "insert": "Allow", "update": "Allow", "delete": "Allow"}}
             }})).unwrap();
-            PostgresEngine::attach(client, changed, BTreeMap::new(), None)
+            PostgresEngine::attach(client, changed, BTreeMap::new(), None, None, None)
         } else { PostgresEngine::open(connect(), &name) };
         assert!(result.is_err(), "{refusal} must refuse");
         assert_eq!(dump(&mut engine.store.client), before, "{refusal} must leave all tables, indexes, columns and rows unchanged");

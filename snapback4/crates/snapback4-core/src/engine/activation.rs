@@ -77,7 +77,7 @@ impl Engine {
             release_check.check_selected_release(expected_release)?;
             if let Some(backend) = expected_backend { release_check.check_backend(backend)?; }
             if let Some(options)=release {
-                release_check.check_release_activation(options)?;
+                options.check(release_check)?;
                 *prior_items.borrow_mut()=release_check.activation_inventory()?;
                 release_check.enable_dormant()?;
                 release_check.prepare_release_metadata(options.native_digest.as_deref().unwrap_or(""), options.restore_dormant)?;
@@ -165,7 +165,7 @@ impl Engine {
             Ok(())
         }, |tx| {
             if let Some(options)=release {
-                crate::store::release_history::finalize_restorations(tx)?;
+                crate::release_history::ReleaseHistoryTransaction::finalize_restorations(tx)?;
                 let mut items=tx.activation_inventory()?;
                 let dormant_items=items.len();
                 let mut restored_items=0usize;
@@ -194,7 +194,7 @@ impl Engine {
                     items.push(item);
                 }
                 population.set(Some((tx.narrowed_retained()?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),tx.narrowed_restored()?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0))));
-                crate::store::release_history::event(tx,&options.operation,Some(options.release),options.expected_previous,serde_json::json!({"dormant_items":dormant_items,"restored_items":restored_items,"native_digest":options.native_digest,"narrowed_retained":tx.narrowed_retained()?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),"narrowed_restored":tx.narrowed_restored()?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)}),&items)?;
+                crate::release_history::record_event(tx,crate::now_ms(),&options.operation,Some(options.release),options.expected_previous,serde_json::json!({"dormant_items":dormant_items,"restored_items":restored_items,"native_digest":options.native_digest,"narrowed_retained":tx.narrowed_retained()?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),"narrowed_restored":tx.narrowed_restored()?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)}),&items)?;
                 tx.clear_activation_metadata()?;
             }
             crate::store::opening::Metadata::read(tx)
