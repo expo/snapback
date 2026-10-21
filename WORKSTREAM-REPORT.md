@@ -1,160 +1,241 @@
-# Integration 19 — merge main storage ports into 0.4.35
+# SEC5 workstream report — 2026-10-21
 
-Worktree: `/home/ccheever/projects/snapback-sb4loop`; branch `sb4-loop`.
-Full packed consumer snapshot: `8d2633e8c103708d9014ec283c1acad864a615c2`.
-Latest tested native source: `3f455cf6f7` (final-fetch outbox delta).
-**All requested Linux checks and post-main affected checks passed. Ready for the final fetch and authorized no-force push.**
+Worktree `/home/ccheever/projects/sb4-b20-sec5`, branch `sb4-b20-sec5`.
+Implementation, measurement and qualification are complete with the explicit
+limits below. No push,
+publication or version bump: package version remains 0.4.35, with user-visible
+changes recorded under **0.4.36** in the `guide changes` source (CHANGELOG.md).
 
-## Changes and conflicts
+Read the entire wave-20 bakeoff. Governing context: the Snapback4 fence and rules,
+LLP 3000, substrate LLP 2000.000, and security LLP 3000.036.004 §§3/8/13. The
+semantic amendment is §14.1–14.9 of that existing RFC. Both Muse and fresh Codex
+mark every final scoped amendment READY. Verbatim compressed reviews, exact
+invocations, decompressed digests and earlier NOT READY dispositions are in
+`llp/reviews/3000.036.004-sec5-review-record.md`.
 
-Started clean at `594aa970ab`. Read the incoming commit stats, governing port
-RFC/committer RFC, retained-storage law, journals and referenced issues before
-integration. Initial incoming main had 44 commits through `6db797f530`; later
-fetches brought 20 through `e2073e1b66`, then four jobs commits through `8cc2a5c737`, followed by four outbox commits
-through `bf9c1ccc55`.
-All integrations preserve main history with no-ff merges.
+## Changes and commits
 
-| Conflict | Resolution | Commit |
-| --- | --- | --- |
-| assets.rs | Keep the typed asset ledger/adapter structure and port .35 sniffing, upload and owner-home diagnostics into it. | `07b210d2ff` |
-| release_safeguards.rs | Keep typed tooling access; capture .35 active/dormant before-images in `store/tooling.rs`, in MAIN so activation's temp_store changes cannot erase them. Move the regression beside the adapter. | `07b210d2ff` |
-| sql.rs | Use Inspection; move dormant/retained schema and view generation into `store/inspect.rs`. Preserve modes, boolean inference, guards and authorizer custody. | `07b210d2ff` |
-| JOURNAL.md | Preserve both complete histories, including the later committer/identity merge. | `07b210d2ff`, `971a28ecd1`, `3f455cf6f7` |
+1. **Specification-shaped intent.** Restatement advice prints admitted roles and
+   full row conditions, with questions about the product's intended audience.
+   Generated drafts contain commented per-role/table/column questions, never
+   proposed rule copies. Confirmed simple owner intent stays legitimate. Logical
+   normalization, named probes and self-id simplification are advisory only and
+   never enter the prover. README/start/security cards explain the loop and
+   encourage shared table intent rather than duplicating it for every column.
+   Commits `b340bf157b`, `e9c4ef2350`, `bbd0d25087`, `5f244d13a4`.
+2. **Advice without invariants.** Broad heterogeneous-roster OR grants, actual
+   mutable-enum lifecycle branches with media/private boundaries, grouped explicit
+   private-column audiences, existing-row self-claimed relationships, and caller
+   clocks reaching actual deadline uses now identify the rule/role/flow and
+   repair. Scoped invitations, immutable enrollment, service-seat-only operations
+   and server-clock bounds remain quiet. Clock bounds propagate transitively;
+   cycles cannot manufacture an anchor. Query-only implicit `.field` clock uses
+   are included. Commits `bbd0d25087`, `466a6f800e`, `5f244d13a4`, `3f633395d0`.
+3. **Concrete refutations.** Check shares its existing 512 reservations/1500 ms
+   budget with real generated-fixture replay through authored observers. 050's
+   excluded intake role now refutes both contact columns in ordinary check,
+   without requiring a prior test record. Column worlds normalize sparse rows
+   using production row images, preserve creator coupling and unrelated fields,
+   and share a verified asset ledger. Full tests can replay 036's actual
+   lifecycle-to-disclosure trace despite image/file columns. Synthetic worlds
+   retain non-failing provenance. No SAT-only refusal, runtime authorization or
+   propositional-kernel change. Commits `5f244d13a4` and `9a2a3134f3`; the latter
+   restores per-query preparation-error coverage without executing invalid worlds.
+4. **Actionable output.** Audit leads with FIX/REVIEW actions, source, actor,
+   operation, origin, repair and next command. Exact verdict/coverage evidence
+   remains in JSON and --all. Check keeps each different rule's questions;
+   security test prints campaign progress and summarizes repeated coverage
+   reasons. Default audit uses bounded check evidence; full campaigns belong to
+   test. Commits `5f244d13a4`, `ceacb071f0`.
+5. **Measurement.** Frozen corpus, original/stripped/spec intent comparisons,
+   ten fresh installed-doc builders and fresh bounded re-evaluation are retained
+   with source/package/binary hashes. Commits `8e528fa28f`, `3f633395d0`,
+   `06dbfea690` (compressed census). Raw apps were read-only. Original builder
+   outputs and unsuccessful attempts remain evidence, not silently discarded.
 
-Also moved newly introduced .35 release-visibility SQL into typed tooling
-operations. No port bypass or allowance raise. Final delta audit found two
-missed SQL host details: JSON inspection mode and misplaced retained flags.
-Expanded regression failed before correction and passed after `3fe924cd9b`.
-No further merge-resolution code fix was needed after that correction; later main changes were integrated separately.
+DX5 owns clocks, hidden lookups, upgrade and frontend scaffold changes. The
+ownership pointer is retained in the journal/RFC.
 
-0.4.35 column read rules, dormant/reverse projection, reactivation, `sql --dormant`,
-invariants/campaigns, staging/dev behavior, lock waits and query semantics remain
-expressed through the new structure. Later committer savepoints/dispositions and
-identity/request/jobs parity changes retain their incoming boundaries. The jobs
-merge `cc8fd79fa9` was conflict-free.
+## Finding remeasurement
 
-## Version and generated records
+Relevant final advice survives removing all invariants. All three calibrated
+highs and four of the five other aggregator-high findings receive a specific
+flag. Advice is not a replayed exploit or a refusal. 017's additional unbounded
+check-in clock is also flagged, without invariants.
 
-Original bump `9ec63002ee991a70dd5d028280262b5391c56e47` remains an ancestor.
-Snapback 4 public package/workspace version remains **0.4.35**; independent log dependency
-0.4.34 remains unchanged. `56acd9239a` producer-refreshes only the experiment
-lockfile's three local package versions; registry versions remain unchanged
-and locked resolution passes.
+| Lane | Specific no-invariant advice | Own invariants: full test violations | Spec-shaped intent: full test violations |
+|---|---|---:|---:|
+| 001 | apprentice role across instrument states/private boundary (F1) | 0 | 56 |
+| 006 | claimChild relationship trusted by injuries (F1) | 0 | 92 |
+| 025 | stoppedAt→suspensionUntil and examAt caller clocks (F2) | 0 | 0 |
+| 033 | crew across home states, child-photo boundary (F1) | 0 | 75 |
+| 036 | sharpener across set states (F1) | 0 | 2 |
+| 048 | global roster branch inside riders.read OR (F1) | 0 | 62 |
+| 050 | intake admitted to protected ownerName/address (F1) | 0 | 26 |
 
-Diagnostics registry and guide-manifest/flat projections were regenerated by
-their producers, with no resulting source diff. Inventories pass: 365 package
-tests, 35 script tests, 31 demos and 487 publication leaves. Authoring census
-regenerates exactly 872 items / 72,262 bytes. Delivery census regenerates exactly
-147 files / 1,227 await expressions / 213 instrumented fault sites. Both ratchets
-pass in lowering-only producer mode: 7 production / 95 test store-port sites;
-49 production transaction openers. No generated file was hand-merged.
+These counts include multiple concrete witnesses, not distinct vulnerabilities.
+Spec-shaped full tests catch six lanes, including all three calibrated highs;
+006's derived clinical-category medium is caught in that separate experiment.
+025 transition monotonicity and 001 consent sequencing remain outside current
+read-intent semantics. We did not invent unsupported temporal syntax. Static
+bounded check catches 001 F1, 006 F2 (derived clinical category), and 050 F1 in
+the focused experiment. It leaves 006 F1 claimChild unproved; the full test
+supplies its 14 claimChild update witnesses alongside 78 category observations.
+033/036/048 likewise require their full-test history evidence.
 
-## Linux verification
+Evidence: `snapback4/reports/20261021-sec5/findings.tar.gz`, reproducible
+`findings.py`, and `refutations.md`. Artifact hashes bind each measurement; final
+advisory eligibility was narrowed after the initial matrix, and the final pure
+notes tests separately verify relevant flags on all eight lanes.
 
-| Scope | Source / evidence | Result |
-| --- | --- | --- |
-| Complete requested five-crate cargo test --no-fail-fast, after last SQL fix | `3fe924cd9b`; r2/cargo-final | **6,999 passed / 0 failed / 45 existing ignores**, 439 reported result groups. |
-| Full ordinary client pool, fixtures and both full models | r2; 423 ordinary files; 5,000 session / 3,000 online sequences | **7,845 passed / 0 failed / 56 platform skips**, 7,901 tests. Native TAP and actual file exits agree. Correct .35 CLI pinned inside this checkout. |
-| Complete affected core and host command after committer/identity/request main merge | `971a28ecd1`; r3/core-host | **2,346 passed / 0 failed / 20 existing ignores**, 115 reported groups; core unit suite 551/0/3. |
-| Affected clients on that new native binary | r3; 40 files | **553 passed / 0 failed / 3 platform skips**. |
-| Simulator library; required column Lean witnesses; docs budget | r3 | 17/0/0; 3/0/0; README 319/320 and named self-containment check pass. |
-| Postgres-feature library | r3 | **560 passed / 0 failed / 77 named ignores**. Real database cases are not claimed as executed. |
-| Jobs follow-up library cases | `cc8fd79fa9`; r4 | 21 passed / 0 failed / 25 named Postgres-only ignores. |
-| Job time audiences / native job fixtures / CLI jobs | r4 | 5/0/0; 12/0/1 existing ignore; 2/0/0. |
-| Clock, admission and both ratchets | r4 | 81 passed / 0 failed / 0 ignored. |
-| 250-schema survey | r2, r3, repeated r4 on the jobs-merged CLI | **250/250 accepted; zero refusals and false refusals**. Every original source hash unchanged. Waves 15=100; 16/18/19=50 each. |
+## Fresh builder experiment
 
-Native differential `run`: 20,000 cases / 1,222,111 executions / zero disagreements.
-Device `run-devices`: seeds 0–999 / 27,922 executions / zero disagreements.
-Lean `run-lean`: 20,000 cases / 56,917 executions; 16,697 pass, 3,173 unsupported,
-130 existing mismatches. All three campaigns were freshly repeated after the
-jobs merge and exactly match baseline by-oracle records. Four known Lean
-signatures/counts remain: E_RULE/NOT_FOUND code=3; continuation-next=35; next=67;
-prelude-code=25. **No new signature or count increase.**
+Ten fresh high-effort Codex sessions received only installed packed docs, copied
+schemas and original product briefs, with no bakeoff findings or repo reasoning.
+Only invariant lines could change; every other byte was checked. The 59 original
+assertions became 462 assertions, including 210 reads. Of 107 nonmirror candidates,
+manual specification comparison supports **58 clearly spec-shaped read assertions
+in six apps, representing 12 distinct policy groups**. Another 49 candidates are
+interpretation-dependent and excluded. The original wave-20 read-intent baseline
+was zero; this focused observational comparison is not randomized causal evidence.
 
-The full battery is content-bound to its tested source; later main deltas were
-checked at affected scope. Client/compiler/device source trees are unchanged by
-those main follow-ups. There is no claim of a complete battery at every new HEAD.
-No isolated rerun substitutes for a red full Rust run; no product Rust flake
-appeared. Interrupted or superseded attempts are excluded.
+Two sessions completed; eight hit their 480-second bound after writing valid
+intent/reviews. Seven old-pack test captures timed out. The important elicitation
+miss is 048's known roster branch; other discovered note-demotion witnesses are
+not relabeled as that finding. Assertion multiplication and audit latency led to
+later shared-intent guidance and bounded audit. Those improvements have not been
+credited retroactively to the builder input pack.
 
-## Packed consumers and wasm
+Rechecking and reauditing all ten final builder schemas with the later candidate
+completed all 20 commands in 4.85–5.86 seconds, without timeouts. 050 refutes both
+piece contact columns through listPieces. The additional 025 scan audience
+refutation is interpretation-dependent, not the target deadline finding. Eight
+other bounded runs remain unproved; they are not privacy passes.
 
-R2 fresh official pack and complete `qualify-linux --consumer-only` passed,
-including strict listener audits, frontends/starters, production/security/
-migration/staging/release/dormant proofs and Ubuntu/Alpine userspaces. Final
-post-jobs official pack at `8d2633e8c1` also passes the entire qualification
-in 2,090.887 seconds, including both Ubuntu and Alpine consumers. This mode
-never produces a publication receipt.
+Method, input/output hashes, classification and limitations:
+`INTENT-MEASUREMENT.md`, `builders-summary.json`, and the builders archives under
+`snapback4/reports/20261021-sec5/`. Both builder scratch directories were removed.
 
-Clean final measurement (`ae7adb2157`, committed record `8d2633e8c1`):
-**2,404,722 raw / 733,693 gzip / 552,609 Brotli bytes**.
-Budget **734,193 gzip bytes = measured + exactly 500** (`ae7adb2157`).
-Strict family/server-only/Unicode absence checks pass, dirty=false, over=0.
-Packed wasm matches the built artifact and all measured compression counts;
-SHA256 `48aa2aeb3f5ddd8ad481084205ff024cc5853a248483496352b069187123e0de`.
-This is whole-artifact evidence with no per-feature attribution or runtime
-ceiling change. Earlier merged measurement was 733,690 gzip; final change +3 B.
+## Corpus precision and refusals
 
-The global npm-cache ENOENT was avoided with a private task cache. Two complete
-R2 attempts later hit malformed system-strace 6.8 records, after actual frontend
-proofs passed. Raw traces and exact isolated helper results were retained. The
-entire packed qualification passed after building task-local, official-source/
-hash-verified [strace 7.2](https://github.com/strace/strace/releases/tag/v7.2); the strict audit/parser was unchanged. Final qualification
-uses the same tracer/cache isolation. Reinstallable dependencies from the two
-failed attempts were removed for disk space; logs, fixtures and artifacts remain.
+The frozen comparison is 300 schemas: wave15 100 plus waves16/18/19/20 50 each.
+Baseline, candidate original-intent checks and stripped-intent checks all exit zero.
+The final pure-notes census compiles those same 300 source hashes plus a live
+38-schema wave21 snapshot without a diagnostic. Four live sources changed since
+baseline; they are labeled supplementary. A later full 50-lane wave21 check survey
+also has zero failures and unchanged snapshot hashes. It predates the tiny
+query-filter discovery correction; no stronger matched-baseline claim is made.
 
-## Limits, records and delivery
+| Note | Frozen 300 baseline→final | Supplementary live 38 baseline→current |
+|---|---:|---:|
+| broad read | 353→354 | 5→5 |
+| role-wide read | 10→89 | 1→34 |
+| caller time | 0→67 | 0→7 |
+| self-claimed relationship | 0→1 | 0→1 |
+| restates rule | 583→621 | 141→147 |
 
-Mac checks were explicitly not required and were not run. No package publication,
-Mac result or private Postgres qualification is claimed. Upstream private-cluster
-records are context, not substitutes for this worktree's tests.
+Precision repairs removed category enums, insert-only enums, intended general
+boards without private/media boundaries, singleton admin rosters, immutable
+principal enrollment and transitively bounded booking times. The added broad OR
+site is exactly wave20 048. The new self-claim sites are 006 in waves20/21.
 
-A supplemental repository-wide caps audit at `3fe924cd9b` retained 15 inherited
-oversize/working-set violations; both-parent comparison proves their inheritance,
-and its fixture tests pass 18/18. No caps were relaxed or unrelated corpus
-rewritten. This is separate from the required root inventory/guide/ref checks.
-Final root checks pass 22 guide checks, zero skips/preconditions,
-162 pages/1,937 snippets, with 121 inherited warnings. Ref-check passes:
-564 LLP documents, 12,193 references, zero errors and zero unchecked.
+**Zero false refusals is measured; zero specification noise is not established.**
+Some conditional audience questions are answered yes by their specs (for example
+006 trainer/physician columns and 050 senior reports). Some calendar/availability
+clock uses legitimately accept caller schedules. They remain advisory questions,
+not asserted vulnerabilities. Thus the user's stronger no-noise-regressions goal
+is an explicit remaining limitation, not a passing claim hidden by aggregation.
+See `NOTES.md`, the compressed final census and per-site deltas.
 
-Full-battery evidence committed in `4767a19ecf` under
-`snapback4/reports/integration19-storage-port/`; `post-main.json` records the
-subsequent complete core/host and focused jobs tests, repeated campaigns/survey,
-final pack, runtime input hashes and full consumer/root results. Raw logs, packs and tool provenance are under
-`/home/ccheever/sb4-loop/merge035/` (r2, r3, r4); immutable CLI pins are under
-`snapback4/target/merge035-*-pinned/`. Every shell launch has a
-timeout; every Cargo command carries no-incremental and zero dev/test debug flags.
-Other worktrees were not touched.
+## Verification
 
-Delivery: evidence and this report are prepared for a final fetch and, if main
-has advanced, a normal merge plus affected checks; then the authorized
-`git push origin sb4-loop:main`, without force and with race retries.
-The final session message records the pushed commit. No package was published.
+Every shell invocation was timeout-bounded. Every cargo invocation used
+CARGO_INCREMENTAL=0/CARGO_PROFILE_DEV_DEBUG=0/CARGO_PROFILE_TEST_DEBUG=0. The actual
+full `scripts/test.sh` was never run.
 
+- Setup: Snapback4 frozen Bun install, CLI build, wasm build and client build pass.
+- Focused: 19 final notes, seven intent, three action-output, six note-rank,
+  20 SEC4 and six SEC5 refutation tests pass. Direct CLI 050 check with absent/empty
+  fixture directories passes. The corrected proof-only history assertion passes.
+- Full Rust scope: **446/446 declared unit/integration/doc targets completed**
+  across all seven crates, covering the requested five. Latest per-target results
+  total **6,124 passed, 39 ignored, zero missing or unresolved failing targets**.
+  `cargo-coverage.py` audits metadata against completed target summaries, with
+  explicit later repair runs superseding earlier results; cargo-coverage.json
+  retains each target's exact log. The first broad job hit its 3,500-second bound
+  during language lowering after CLI/core/device/differential targets; the
+  separate full language/simulator/native/differential job and core/device doc
+  invocation complete the coverage. Original exits 124/101 remain visible.
+  New note guide excerpts, stale CLI wording and exhaustive definition/action
+  pins were repaired. The broader run also caught shared-fixture preparation
+  losing observer names: `9a2a3134f3` restores each observer's error before any
+  invalid-world execution. The original per-observer negative test is unchanged.
+  All 35 CLI and 166 guide/security repair-run cases pass. No original failed
+  command is relabeled as a green complete command.
+- Full client pool: all 423 files ran (7,765 test records: 7,668 pass, 41 fail,
+  56 skip across nine red files). Full-count client models separately PASS 81/81.
+  Event-slot Rust trace prerequisite was generated; both formerly missing-input
+  files pass. Removed packaged DX5 ownership prose and recognized the new audit
+  verb in the help checker; affected packaged/docs/qualify files pass. The unchanged
+  quote-jump browser and wave14 recipe files pass in isolation. Export retention's
+  original Linux ENOENT failure also passes its exact isolated rerun. These reruns
+  do not turn the original pool into a clean run.
+- Two wasm-codec-census assertions remain red because its source census counts
+  an existing test-only serde call as web runtime. That source is byte-identical
+  to initial commit 7f748cf368; evidence in inherited-failures.json and ticket
+  issues/20261021-sb4-wasm-codec-census-counts-asset-test-case.md.
+- Difftest run 20,000: zero disagreements. Device seeds 0–999: zero disagreements.
+  Lean 20,000: 130 disagreements in four existing classified signatures, no new
+  signature. Diagnosis files are byte-identical to sb4-loop (digests retained).
+- Lean checks: 81 theorem axiom checks, 116 examples and seven oracle fixtures pass.
+  No new kernel lemma is required; prover semantics did not change.
+- Fresh packed Linux consumer qualification: **PASS**, source `06dbfea690`,
+  including Ubuntu 24.04 and Alpine clean userspaces, host starter/frontend,
+  security, release/day-two, staging, migration and recipe proofs. First attempt
+  failed because the shared npm cache lost a package body; isolated-cache retry
+  passes. Supported --consumer-only avoids forbidden scripts/test.sh and creates
+  no publication receipt: publicationQualified is false by design.
+  After the per-observer coverage restoration, a fresh static musl build/ELF
+  check and fresh packed security qualification pass on the production bytes of
+  `9a2a3134f3`. The installed guide, README/start/questionnaire loop and all seven
+  starters execute again. Full consumer qualification belongs to the earlier
+  source; the later narrow reporting repair has scoped unit and packed evidence,
+  not a retroactively rewritten full receipt. qualification-summary.json and
+  post-coverage-security-evidence.json pin both artifact/source identities.
+- Mac Studio: affected intent/notes/output/refutation suites PASS, including all
+  six refutation tests. Attempts to refresh final portable precision changes hit
+  SSH connection timeouts. Only ~/sb4-ws-sec5 on the designated Studio was used;
+  the publication MacBook was not touched. Final portable changes are Linux-tested.
+- Wasm 733,720 B gzip, unchanged 734,193 B budget: PASS.
+- README 319/320 physical lines, docs budget and first-account card regression: PASS.
+- Root frozen install, workspace hoist and generated artifact checks: PASS.
+- Root inventories PASS (365 package tests, 35 scripts, 31 demos, 487 leaves).
+  Root guide PASS (22 checks, 162 pages, 1,937 snippets; 121 existing warnings).
+- ref-check PASS (564 LLPs, 12,221 references, zero errors/unchecked).
 
-## Final-fetch outbox follow-up
+Logs are retained locally under reports/20261021-sec5/logs and committed as
+verification-logs.tar.gz. linux-consumer-evidence.tar.gz preserves qualification
+JSON and pack manifests without disposable consumer databases or dependencies.
+Packed guide qualification executes the installed security card,
+README/start/questionnaire loop and all seven starters; source-only text checks
+are not substituted for executable examples.
 
-After complete consumer qualification, the final fetch found four outbox/lease
-commits through bf9c1ccc55. Read their complete stats, governing RFC changes,
-journal and serializable-stress issue; merged in `3f455cf6f7`. Only the journal
-conflicted; both complete histories remain. No functional conflict resolution
-or port bypass was needed.
+Cleanup: removed this worktree's owned target tree, copied measurement binaries,
+completed consumer/cache directories and packed-proof scratch. No sb4-sec5-*
+temporary builder directories remain. Original wave app trees were read-only;
+local packed tarballs and compressed evidence are retained. cleanup-summary.json
+records the final check. No other worktree or publication Mac was modified.
 
-Affected core outbox/effects/policy, host clock/admission and both ratchets pass.
-Fresh native 20k, devices 0–999 and Lean 20k exactly match the qualified baseline.
-Diagnostics/guide producers, inventories and verbose ref-check pass again.
-Clean wasm measurement remains 2,404,722 / 733,693 / 552,609, budget 734,193.
-Wasm/glue/declarations are byte-identical to the fully qualified common pack;
-SDK, compiler, device and Cargo input trees are unchanged.
+## Remaining limits and decisions
 
-Built a new production musl CLI, passed the static ELF audit, packed it with
-the platform manifest/notices and verified the extracted binary digest. All
-18 affected worker/effect/clock/runtime/route/session client files pass against
-those exact packed bytes: **348 passed / 0 failed / 0 skipped**. The installed
-packed security/invariant campaigns pass with the same binary digest. That
-final native binary also accepts **250/250 original schemas**, zero false
-refusals and unchanged input hashes. `outbox-followup.json` records commands,
-counts, native/SRI hashes, unchanged common-client bindings and exact scopes.
-The full consumer snapshot is not relabeled as a full run on the later native
-delta. No private Postgres, Mac or publication claim is added.
+No claim of zero remaining application security holes follows from finite replay
+or advisory coverage. Consent-sequence and transition-monotonicity language is
+not added without its own semantic design. The questionnaire cannot infer missing
+product privacy decisions. Some legitimate global audiences/schedules still get
+conditional review questions. Fresh builders need another cohort to measure the
+last prose refinements. The full client pool has inherited/static and transient
+reds; individual reruns are recorded honestly. Conditional-advice precision is
+tracked in issues/20261021-sb4-sec5-conditional-advice-spec-noise.md. The existing
+quote-jump scheduling/layout flake is tracked in
+issues/20261013-snapback4-quote-jump-visible-position-flake.md. No unresolved
+introduced affected Rust or packed-security failure remains.

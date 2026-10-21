@@ -1,0 +1,3194 @@
+{
+  "format": 1,
+  "method": "Full bounded jobs plus later affected-target repairs; later named logs supersede earlier target statuses. Timeouts and original reds remain in raw logs.",
+  "commands": [
+    {
+      "log": "cargo-workspace-final.log",
+      "completedTargetSummaries": 288
+    },
+    {
+      "log": "cargo-remaining-crates.log",
+      "completedTargetSummaries": 240
+    },
+    {
+      "log": "cargo-core-device-doc.log",
+      "completedTargetSummaries": 2
+    },
+    {
+      "log": "final-cli-output-tests.log",
+      "completedTargetSummaries": 3
+    },
+    {
+      "log": "final-coverage-restoration-rerun.log",
+      "completedTargetSummaries": 4
+    }
+  ],
+  "packages": {
+    "snapback4": {
+      "expectedTargets": 57,
+      "completedTargets": 57,
+      "targets": {
+        "unit:src/main.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/aggregate_identity_upgrade.rs": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 4,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/check.rs": {
+          "status": "ok",
+          "passed": 105,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/check_cost_source.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "final-cli-output-tests.log"
+        },
+        "test:tests/check_notes.rs": {
+          "status": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "log": "final-cli-output-tests.log"
+        },
+        "test:tests/cli_friction.rs": {
+          "status": "ok",
+          "passed": 40,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/clock.rs": {
+          "status": "ok",
+          "passed": 45,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/column_commit.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/committer_ratchet.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/day3.rs": {
+          "status": "ok",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/day4.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/day5_evidence.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/day5_previews.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/day5_starters.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/delivery_page.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/dev_refusals.rs": {
+          "status": "ok",
+          "passed": 27,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/dev_reset.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/expiry_writes.rs": {
+          "status": "ok",
+          "passed": 41,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/familiar.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/feed_bridge.rs": {
+          "status": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/fix.rs": {
+          "status": "ok",
+          "passed": 27,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/following_view.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/http.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/http_emfile.rs": {
+          "status": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/init.rs": {
+          "status": "ok",
+          "passed": 51,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/init_dx3.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/init_production.rs": {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/intent_issue_tracker.rs": {
+          "status": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/latency.rs": {
+          "status": "ok",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/lifecycle.rs": {
+          "status": "ok",
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/maintenance_chunks.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/maintenance_latency.rs": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 4,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/overload.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/read_latency.rs": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 2,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/replay.rs": {
+          "status": "ok",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/run_admission.rs": {
+          "status": "ok",
+          "passed": 28,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/scale.rs": {
+          "status": "ok",
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/scale_curves.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/scale_extremum_expressions.rs": {
+          "status": "ok",
+          "passed": 22,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/scale_intent.rs": {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/scale_row_ranges.rs": {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/scale_variants.rs": {
+          "status": "ok",
+          "passed": 36,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/scale_windows_expiry.rs": {
+          "status": "ok",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/security_wave19.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "final-cli-output-tests.log"
+        },
+        "test:tests/store_port_ratchet.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/surf4.rs": {
+          "status": "ok",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/timeline.rs": {
+          "status": "ok",
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/timeline_adoption.rs": {
+          "status": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/timeline_delivery.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/timeline_delivery_counterexample.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/timeline_design.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/token_live.rs": {
+          "status": "ok",
+          "passed": 22,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/wave13_rules.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/witness.rs": {
+          "status": "ok",
+          "passed": 34,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/witness_web.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/work_records.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/written_by.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        }
+      }
+    },
+    "snapback4-core": {
+      "expectedTargets": 45,
+      "completedTargets": 45,
+      "targets": {
+        "unit:src/lib.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "doc": {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-core-device-doc.log"
+        },
+        "test:tests/action_context.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/adoption_scale.rs": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 1,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/asset_lists.rs": {
+          "status": "ok",
+          "passed": 28,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/born_perf.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/bound_session.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/corpus.rs": {
+          "status": "ok",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/delivery_bounds.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/dev_reset.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/disclosure.rs": {
+          "status": "ok",
+          "passed": 32,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/effect_policy.rs": {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/ephemeral.rs": {
+          "status": "ok",
+          "passed": 18,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/event_slot_snapshot.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/expiring_adoption.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/file_assets.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/identity.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/job_time_audiences.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/lane_source.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/maintained_columns_review.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/membership_discovery_steps.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/meter.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/nul_chokepoints.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/pending_metadata_heap.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/read_sessions.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/refused_open.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/review_walk.rs": {
+          "status": "ok",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/revocation_history.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 1,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/routes.rs": {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/row_view_accounting.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/row_view_disclosure.rs": {
+          "status": "ok",
+          "passed": 18,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/row_view_legacy.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/row_view_witness.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/rows.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/schema_capabilities.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/schema_capabilities_legacy.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/sequence_by.rs": {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/sequence_disclosure.rs": {
+          "status": "ok",
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/stream_receipts.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/sync_count_batch.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/time_audiences.rs": {
+          "status": "ok",
+          "passed": 22,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/unicode_fold.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/update_rule_images.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/upload_intents.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/work_records.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        }
+      }
+    },
+    "snapback4-lang": {
+      "expectedTargets": 180,
+      "completedTargets": 180,
+      "targets": {
+        "unit:src/lib.rs": {
+          "status": "ok",
+          "passed": 35,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "doc": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/actions.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/aggregate_copies.rs": {
+          "status": "ok",
+          "passed": 64,
+          "failed": 0,
+          "ignored": 4,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/attribution_guide.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/audience_bounds.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/audience_bounds_runtime.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 1,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/bounded_calendar_caps.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/bounded_following.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/branch_merge.rs": {
+          "status": "ok",
+          "passed": 57,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/builder_guidance.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/chat.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/clique_03.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/column_read_lanes.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/column_reads.rs": {
+          "status": "ok",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/components.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/constraint_diagnostics.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/control_flow.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/cursor_advice.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/declarative_receipts.rs": {
+          "status": "ok",
+          "passed": 211,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/delivery.rs": {
+          "status": "ok",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/delivery_clause.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/delivery_integration.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/delivery_replay_conversion.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 1,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/denied_writes.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/derived_maintains.rs": {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/effect_reads.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/emit_compatibility.rs": {
+          "status": "ok",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/ephemeral.rs": {
+          "status": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/ephemeral_compat.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/ergonomics.rs": {
+          "status": "ok",
+          "passed": 25,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/expiring_mutations.rs": {
+          "status": "ok",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 1,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/extrema.rs": {
+          "status": "ok",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/extremum_expressions.rs": {
+          "status": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/familiar_guesses.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/familiar_predicates.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/familiar_repairs.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/familiar_source_repairs.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/familiar_verified_repairs.rs": {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/feed_forms.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/file_assets.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/first_paste.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/following_adoption_research.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 2,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/following_atomic_launch.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 2,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/following_history.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/following_history_research.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 2,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/following_view.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/front_semantics.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/frontend_regressions.rs": {
+          "status": "ok",
+          "passed": 40,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/guide.rs": {
+          "status": "ok",
+          "passed": 127,
+          "failed": 0,
+          "ignored": 0,
+          "log": "final-coverage-restoration-rerun.log"
+        },
+        "test:tests/held_unknown.rs": {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/helper_placement.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/intent_aggregate_safety.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/intent_delta10.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/intent_followup.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/intent_nulls.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/intent_order.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/intent_predicates.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/intent_review.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/intent_target.rs": {
+          "status": "ok",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/intent_variants.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/intent_variants_review.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/job_viewer.rs": {
+          "status": "ok",
+          "passed": 18,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/joined_shapes.rs": {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/lane_domains.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/lean_emit.rs": {
+          "status": "ok",
+          "passed": 18,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/list_expressions.rs": {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/list_lower_bounds.rs": {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/list_reference_repair.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/list_widening.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/live_parent.rs": {
+          "status": "ok",
+          "passed": 48,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/live_parent_admission.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/lookup_selection.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/lowering.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/maintained_columns.rs": {
+          "status": "ok",
+          "passed": 42,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/maintained_result_types.rs": {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/maintains.rs": {
+          "status": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/matching_order.rs": {
+          "status": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/membership_nullable_authorization.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/membership_paths.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/mixed_keys.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/mp_reproduction.rs": {
+          "status": "ok",
+          "passed": 18,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/mutation_result_types.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/natural_forms.rs": {
+          "status": "ok",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/operation_evolution.rs": {
+          "status": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/optional_lookup_notes.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/own_keys.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/page2_membership.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/page3.rs": {
+          "status": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/page4.rs": {
+          "status": "ok",
+          "passed": 18,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/papercuts.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/prefix_reads.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/presence.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/printed_rewrites.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/pure_call_narrowing.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/qe2_ergonomics.rs": {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/query_read_paths.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/query_settlement.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/read_through.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/read_through_provenance.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/read_through_review.rs": {
+          "status": "ok",
+          "passed": 35,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/read_through_sync.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/read_through_transactions.rs": {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/receipt_gaps.rs": {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/recorded_round1.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/reference_actions.rs": {
+          "status": "ok",
+          "passed": 32,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/repairs.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/reservation_app_headroom.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/residency_notes.rs": {
+          "status": "ok",
+          "passed": 44,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/revocation_soundness.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/routes.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/row_keyed_views.rs": {
+          "status": "ok",
+          "passed": 46,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/rx_legacy_identity.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/rx_rule_enforcement.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/rx_rule_hops.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/schedule_durations.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/search_guidance.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/security.rs": {
+          "status": "ok",
+          "passed": 46,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/security_custody.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/security_histories.rs": {
+          "status": "ok",
+          "passed": 28,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/security_observers.rs": {
+          "status": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "log": "final-coverage-restoration-rerun.log"
+        },
+        "test:tests/security_sec4.rs": {
+          "status": "ok",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "log": "final-coverage-restoration-rerun.log"
+        },
+        "test:tests/security_sec5_intent.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/security_sec5_notes.rs": {
+          "status": "ok",
+          "passed": 18,
+          "failed": 0,
+          "ignored": 2,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/security_sec5_output.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/security_sec5_refutations.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "final-coverage-restoration-rerun.log"
+        },
+        "test:tests/security_wave16.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/security_wave19.rs": {
+          "status": "ok",
+          "passed": 25,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/selected_prefix.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/selected_prefix_cursors.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/selected_prefix_regressions.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/sequence_by.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/server_opt_in.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/shape_meter.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/shape_overrides.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/sparse_filter.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/spelling.rs": {
+          "status": "ok",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/surf4_guide.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/sync_audiences.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/sync_windows.rs": {
+          "status": "ok",
+          "passed": 40,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/system_principal.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/time_audiences.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/time_indexes.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/timeline_background.rs": {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/timeline_epoch_counterexample.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/timeline_fairness.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/timeline_guide.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/timeline_live_latency.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/typed_positional_keys.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/typed_positional_sync.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/union_limits.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/verified_index_repairs.rs": {
+          "status": "ok",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave10_guard_notes.rs": {
+          "status": "ok",
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave10_rules_expressiveness.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave10_runtime_diagnostics.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave11_docs.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave11_qdiag.rs": {
+          "status": "ok",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave11_runtime.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave12_diagnostics.rs": {
+          "status": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave12_rule_composition.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave12_rule_recipes.rs": {
+          "status": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave12_semantics.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave13_lang2.rs": {
+          "status": "ok",
+          "passed": 43,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave13_rules.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave14_authorization.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave14_client_docs.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave14_lang3.rs": {
+          "status": "ok",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave14_snapshot_ir.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave15_notes.rs": {
+          "status": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave1_rule_language.rs": {
+          "status": "ok",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave2_rule_language.rs": {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave3_rule_language.rs": {
+          "status": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave4_rule_language.rs": {
+          "status": "ok",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave5_rule_language.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave6_rule_language.rs": {
+          "status": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 1,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave7_rule_language.rs": {
+          "status": "ok",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave8_rule_language.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave9_completeness_notes.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave9_rule_diagnostic_rewrites.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/written_by.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        }
+      }
+    },
+    "snapback4-device": {
+      "expectedTargets": 104,
+      "completedTargets": 104,
+      "targets": {
+        "unit:src/lib.rs": {
+          "status": "ok",
+          "passed": 64,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "doc": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-core-device-doc.log"
+        },
+        "test:tests/acquisition_crash.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/adoption.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/asset_lists.rs": {
+          "status": "ok",
+          "passed": 22,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/background_durability.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/bounded_calendar_caps.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/bounded_following.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/branch_merge.rs": {
+          "status": "ok",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/codec.rs": {
+          "status": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/column_activation.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/column_reads.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/components.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/cut.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/delivery.rs": {
+          "status": "ok",
+          "passed": 30,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/device.rs": {
+          "status": "ok",
+          "passed": 440,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/device_diet.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/diet_timing.rs": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 1,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/disclosure.rs": {
+          "status": "ok",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/ephemeral.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/event_slots.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/event_slots_trace.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/expiring_counts.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 1,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/expiring_counts_probe.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/expiring_counts_upgrade.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/expiring_mutations.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/expiry_maintained_columns.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/extrema.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/extremum_expressions.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/file_assets.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/first_instinct.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/first_paste.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/following_meters.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/following_model.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/following_view.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/heavy_acquisition.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/helper_pages.rs": {
+          "status": "ok",
+          "passed": 90,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/index_key_bound.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/intent_variants.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/intent_views.rs": {
+          "status": "ok",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/list_lower_bounds.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/live_parent.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/matching_order.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/mixed_keys.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/monotonic_ids.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/mp_builder.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/named_key_lookup.rs": {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/native.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/native_following.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/native_reads.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/natural_forms.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/nl_qe2_integration.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/own_keys.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/own_keys_cost.rs": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 2,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/point_probe_admission.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/prediction_write_set.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/qe2_allocations.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/qe2_ergonomics.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/query_unavailable.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/read_through.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/read_through_review.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/readauth.rs": {
+          "status": "ok",
+          "passed": 88,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/recorded_coverage.rs": {
+          "status": "ok",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/reference_actions.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/repair_b.rs": {
+          "status": "ok",
+          "passed": 110,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/repair_b_boundaries.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/repair_b_counterexample.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/repair_b_legacy_r6.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/repair_b_round2_counterexample.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/repair_b_round3_counterexample.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/residency.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/retained_history.rs": {
+          "status": "ok",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/retained_release.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/review_parent_floor.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/row_keyed_views.rs": {
+          "status": "ok",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/row_view_disclosure.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/row_view_expiry.rs": {
+          "status": "ok",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/rx_rule_hops.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/schema_capabilities.rs": {
+          "status": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/schema_capabilities_legacy.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/search_exists.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/sequence_by.rs": {
+          "status": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/sequence_disclosure.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/server_clock.rs": {
+          "status": "ok",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/shape_overrides.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/spread_metadata.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/spread_pending_union.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/sqlite_bulk.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/sync_windows.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/time_audiences.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/timed_search.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/timeline.rs": {
+          "status": "ok",
+          "passed": 26,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/topn_complete.rs": {
+          "status": "ok",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/unicode.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/unread_range.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/upload_intents.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/upload_receipts.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/upsert_constraints.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/w13g_probe.rs": {
+          "status": "ok",
+          "passed": 142,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/wave11_qdiag.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/wave12_language.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/wave13_lang2.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/write_authority.rs": {
+          "status": "ok",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        },
+        "test:tests/written_by.rs": {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-workspace-final.log"
+        }
+      }
+    },
+    "snapback4-native": {
+      "expectedTargets": 2,
+      "completedTargets": 2,
+      "targets": {
+        "unit:src/lib.rs": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "doc": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        }
+      }
+    },
+    "snapback4-difftest": {
+      "expectedTargets": 13,
+      "completedTargets": 13,
+      "targets": {
+        "unit:src/lib.rs": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "doc": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "unit:src/main.rs": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/column_reads_lean.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/devices.rs": {
+          "status": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/lang2.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/lean.rs": {
+          "status": "ok",
+          "passed": 45,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/smoke.rs": {
+          "status": "ok",
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/stores.rs": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave11_qdiag.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave12_expiry_actions_generated.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave12_generated_semantics.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave13_lang2.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        }
+      }
+    },
+    "snapback4-sim": {
+      "expectedTargets": 45,
+      "completedTargets": 45,
+      "targets": {
+        "unit:src/lib.rs": {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "doc": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/adoption.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/clique.rs": {
+          "status": "ok",
+          "passed": 254,
+          "failed": 0,
+          "ignored": 1,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/condition_authority.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/decorated_search.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/device.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/digest_count.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/exhaustive.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 1,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/expiry_reference_actions.rs": {
+          "status": "ok",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/filters.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/helper_pages.rs": {
+          "status": "ok",
+          "passed": 43,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/helper_sweep.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/intent_integration.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/loopbar.rs": {
+          "status": "ok",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/maintain_measurement.rs": {
+          "status": "ok",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 2,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/maintains.rs": {
+          "status": "ok",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/maintains_recorded.rs": {
+          "status": "ok",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/maintains_review.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/membership.rs": {
+          "status": "ok",
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/membership_search.rs": {
+          "status": "ok",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/native.rs": {
+          "status": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 1,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/ordinary_search.rs": {
+          "status": "ok",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/page_admission.rs": {
+          "status": "ok",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/reference_exhaustive.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/residency.rs": {
+          "status": "ok",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/retained_release.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/review_corrections.rs": {
+          "status": "ok",
+          "passed": 32,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/reviews.rs": {
+          "status": "ok",
+          "passed": 30,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/roster.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/search_merge.rs": {
+          "status": "ok",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/security.rs": {
+          "status": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/time_audiences.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/timed_search.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/topn_complete.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/union.rs": {
+          "status": "ok",
+          "passed": 29,
+          "failed": 0,
+          "ignored": 2,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave11_qdiag.rs": {
+          "status": "ok",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave12_language.rs": {
+          "status": "ok",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/wave13_lang2.rs": {
+          "status": "ok",
+          "passed": 43,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/work_intent.rs": {
+          "status": "ok",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/work_intent_review.rs": {
+          "status": "ok",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/work_intent_review2.rs": {
+          "status": "ok",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/work_intent_review3.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/work_intent_review4.rs": {
+          "status": "ok",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        },
+        "test:tests/write_authority.rs": {
+          "status": "ok",
+          "passed": 35,
+          "failed": 0,
+          "ignored": 0,
+          "log": "cargo-remaining-crates.log"
+        }
+      }
+    }
+  },
+  "missing": [],
+  "failed": []
+}
