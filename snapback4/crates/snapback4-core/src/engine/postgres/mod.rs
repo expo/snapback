@@ -1,6 +1,6 @@
-//! Experimental Postgres backend for evaluating real Quarry execution.
-//! Not a deploy target: no auth host, migrations, native module, asset host,
-//! jobs, actions, or effect worker. Callers are trusted hosts, as with Engine.
+//! Postgres adapter for the common Engine and its retained evaluation oracle.
+//! Handle serves the internal admitted profile; PostgresEngine below remains
+//! the prefetch-on/off comparison executor through S10d. No public deploy target.
 //! @ref LLP 3000#7-decisions-during-execution — evaluate storage portability before productizing it
 mod log;
 pub(crate) mod store;
@@ -341,7 +341,7 @@ impl PostgresEngine {
         let viewer = context.viewer.clone();
         let now = context.now.unwrap_or(0);
         let seq = tx.next_seq()?;
-        tx.batch("SAVEPOINT program")?;
+        tx.savepoint("program")?;
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Abort), seq);
         runner.meter.used = self.precharge;
         let ran = runner.run(program).and_then(|value| {
@@ -359,7 +359,7 @@ impl PostgresEngine {
         drop(runner);
         let outcome = match ran {
             Ok(result) => {
-                tx.batch("RELEASE SAVEPOINT program")?;
+                tx.release("program")?;
                 // @ref LLP 3000.022#6 — same receipt-only transaction and committed watermark as SQLite.
                 let receipt_only = writes == 0 && outbox.is_empty()
                     && self.schema.delivery.iter().any(|binding| binding.mutation == program.name);

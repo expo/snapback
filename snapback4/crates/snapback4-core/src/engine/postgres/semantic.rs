@@ -5,22 +5,32 @@ use crate::{RuntimeError, Value, ledger::LedgerReader, partition::PartitionRows,
 impl Tx<'_> {
     pub(crate) fn abandon(&self) -> Result<(), RuntimeError> { self.ensure_active() }
     pub(crate) fn savepoint(&self, name: &str) -> Result<(), RuntimeError> {
-        if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
-            return Err(RuntimeError::Store("invalid savepoint name".into()));
-        }
-        self.batch(&format!("SAVEPOINT {name}"))
+        validate_name(name)?;
+        self.batch(&format!("SAVEPOINT {name}"))?;
+        self.savepoints.borrow_mut().push((name.into(), Checkpoint { head: self.head.get(), tail: self.tail.borrow().clone() }));
+        Ok(())
     }
     pub(crate) fn release(&self, name: &str) -> Result<(), RuntimeError> {
-        if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
-            return Err(RuntimeError::Store("invalid savepoint name".into()));
-        }
-        self.batch(&format!("RELEASE SAVEPOINT {name}"))
+        validate_name(name)?;
+        let index = self.savepoints.borrow().iter().rposition(|(n, _)| n == name)
+            .ok_or_else(|| RuntimeError::Store("unknown savepoint".into()))?;
+        // Flush while this frame can still roll back all of its bookkeeping.
+        if name == "member" { self.flush_tail()?; }
+        self.batch(&format!("RELEASE SAVEPOINT {name}"))?;
+        self.savepoints.borrow_mut().truncate(index);
+        Ok(())
     }
     pub(crate) fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> {
-        if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
-            return Err(RuntimeError::Store("invalid savepoint name".into()));
-        }
-        self.rollback_named(name)
+        validate_name(name)?;
+        let index = self.savepoints.borrow().iter().rposition(|(n, _)| n == name)
+            .ok_or_else(|| RuntimeError::Store("unknown savepoint".into()))?;
+        self.rollback_named(name)?;
+        let mut frames = self.savepoints.borrow_mut();
+        let checkpoint = frames[index].1.clone();
+        frames.truncate(index);
+        self.head.set(checkpoint.head);
+        *self.tail.borrow_mut() = checkpoint.tail;
+        Ok(())
     }
     pub(crate) fn rows(&self, table: &str) -> Result<Vec<Value>, RuntimeError> {
         Ok(self.rows_limited(table, i64::MAX as usize)?.0)
@@ -54,4 +64,16 @@ impl ReceiptTransaction for Tx<'_> {
     fn bind_applied(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value, at: i64) -> Result<(), RuntimeError> {
         self.execute_one("UPDATE _ops SET name=$3,args_digest=$4,at=$5 WHERE principal=$1 AND id=$2", &[&principal, &id, &name, &crate::receipts::payload_digest(args), &at])
     }
+}
+
+#[derive(Clone)]
+pub(super) struct Checkpoint {
+    head: Option<u64>,
+    tail: super::tail::Tail,
+}
+fn validate_name(name: &str) -> Result<(), RuntimeError> {
+    let mut bytes = name.bytes();
+    if bytes.next().is_some_and(|b| b.is_ascii_lowercase() || b == b'_')
+        && bytes.all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_') { return Ok(()); }
+    Err(RuntimeError::Store("invalid savepoint name".into()))
 }

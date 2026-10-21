@@ -100957,3 +100957,16 @@ mutations, reopen/readers, receipt replay/id reuse, capability refusal without
 id consumption, ephemeral hub writes/reads with no durable rows, and a refused
 selected release with no committed opening upgrade. No public serving or lease
 claim follows.
+
+### 2026-10-22 — S10c: member-safe Postgres tail
+
+The tail completes inside the member savepoint, advances the cached head only
+on success and cannot overwrite an occupied commit slot. `execute` never
+flushes. Savepoints snapshot head/tail; rollback restores them and invalidates
+speculative rows. Effect admissions and presence batch into one CTE; explicit
+release facts survive. Orphan effects refuse without being discarded. The
+existing NUL-tail regression now checks explicit completion and proves that
+ordinary execution leaves the tail pending. Real-Postgres facade rollback/error,
+flush failure, contiguous heads, slot, nested/cache, terminal-NUL and batched
+effect-call-count probes pass. Production remains single-member; no producer
+is newly routed through K0.

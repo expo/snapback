@@ -99,7 +99,7 @@ impl Store {
         };
         let inner = self.client.build_transaction().isolation_level(isolation).read_only(mode.is_none()).start()?;
         Ok(Tx { inner: RefCell::new(inner), bind_refused: Cell::new(false), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
-            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()) })
+            rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), savepoints: RefCell::new(Vec::new()) })
     }
 
     // Opening validates its backend and installs every physical upgrade before
@@ -160,6 +160,7 @@ pub struct Tx<'a> {
     // A read snapshot also captures a head, without owning the writer fence.
     pub(super) serialized_head: Cell<bool>,
     pub(super) tail: RefCell<super::tail::Tail>,
+    pub(super) savepoints: RefCell<Vec<(String, super::semantic::Checkpoint)>>,
 }
 
 pub(super) fn signed(n: u64) -> Result<i64, RuntimeError> {
@@ -261,7 +262,6 @@ impl Tx<'_> {
     pub fn execute(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, RuntimeError> {
         let statement = self.prepared(sql)?;
         self.guard_params(&statement, params)?;
-        self.flush_tail()?;
         self.calls.set(self.calls.get() + 1);
         Ok(self.inner.borrow_mut().execute(&statement, params)?)
     }
@@ -277,7 +277,7 @@ impl Tx<'_> {
 
     pub fn batch(&self, sql: &str) -> Result<(), RuntimeError> {
         self.ensure_active()?;
-        if sql.to_ascii_uppercase().contains("ROLLBACK") {
+        if sql.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|token| token.eq_ignore_ascii_case("ROLLBACK")) {
             return Err(RuntimeError::Store("use the explicit transaction/savepoint rollback method".into()));
         }
         self.calls.set(self.calls.get() + 1);
@@ -294,11 +294,8 @@ impl Tx<'_> {
     }
 
     pub fn rollback_program(&self) -> Result<(), RuntimeError> {
-        self.ensure_active()?;
-        self.rows_cache.borrow_mut().clear();
-        self.calls.set(self.calls.get() + 1);
-        self.inner.borrow_mut().batch_execute("ROLLBACK TO SAVEPOINT program; RELEASE SAVEPOINT program")?;
-        Ok(())
+        if self.savepoints.borrow().iter().any(|(name, _)| name == "program") { self.rollback_to("program") }
+        else { self.rollback_named("program") }
     }
 
     pub(super) fn rollback_prefetch(&self) -> Result<(), RuntimeError> {
@@ -333,7 +330,10 @@ impl Tx<'_> {
         writes: u64,
     ) -> Result<(), RuntimeError> {
         self.ensure_active()?;
-        self.tail.borrow_mut().commit = Some(super::tail::Commit {
+        signed(seq)?; signed(writes)?;
+        let mut tail = self.tail.borrow_mut();
+        if tail.commit.is_some() { return Err(RuntimeError::Store("commit tail slot already occupied".into())); }
+        tail.commit = Some(super::tail::Commit {
             seq, at, program: program.into(), principal: principal.into(), kind: kind.into(),
             touched: canonical_json(&touched), writes,
         });
@@ -348,6 +348,7 @@ impl Tx<'_> {
 
     // @ref LLP 3000.009.001.000#33-extraction-first-with-no-behavior-change — full admissions share policy and remain one tail flight.
     pub fn record_effects(&self, outbox: &[crate::engine::presence::Emission], seq: u64, now: i64, schema: &crate::schema::Schema) -> Result<(), RuntimeError> {
+        self.ensure_active()?;
         crate::engine::effects::validate_emissions(outbox, seq)?;
         let mut prepared = Vec::with_capacity(outbox.len());
         for (id, effect, payload, presence) in outbox {
@@ -355,11 +356,13 @@ impl Tx<'_> {
             prepared.push(super::tail::Effect {
                 id: id.clone(), effect: effect.clone(), payload: canonical_json(payload),
                 next_at: presence.values().flatten().max().copied(), work: canonical_json(&work), deadline, contract,
-                presence: presence.iter().filter_map(|(p,d)| d.map(|d| (p.clone(),d))).collect(),
+                presence: presence.iter().filter_map(|(p,d)| d.map(|d| (p.clone(),d))).collect(), release: None,
             });
         }
         let mut tail = self.tail.borrow_mut();
-        debug_assert!(tail.commit.as_ref().is_some_and(|commit| commit.seq == seq && commit.at == now), "effects require their matching commit tail");
+        if !tail.commit.as_ref().is_some_and(|commit| commit.seq == seq && commit.at == now) {
+            return Err(RuntimeError::Store("effects require their matching commit tail".into()));
+        }
         tail.effects.extend(prepared);
         Ok(())
     }

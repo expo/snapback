@@ -47,8 +47,9 @@ impl PartitionRows for Tx<'_> {
         id: &str,
         data: Option<&str>,
     ) -> Result<(), RuntimeError> {
+        self.ensure_active()?;
         let mut tail = self.tail.borrow_mut();
-        debug_assert!(tail.commit.as_ref().is_some_and(|commit| commit.seq == seq), "log event requires its matching commit tail");
+        if !tail.commit.as_ref().is_some_and(|commit| commit.seq == seq) { return Err(RuntimeError::Store("log event requires its matching commit tail".into())); }
         tail.partitions.push(partition.into());
         tail.ords.push(ord as i64);
         tail.tables.push(table.into());

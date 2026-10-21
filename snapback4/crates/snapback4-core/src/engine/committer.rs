@@ -466,3 +466,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(all(test, feature = "postgres"))]
+#[path = "postgres/tests/members.rs"]
+mod postgres_tests;

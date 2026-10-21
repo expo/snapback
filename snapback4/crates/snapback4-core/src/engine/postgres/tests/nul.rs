@@ -55,9 +55,10 @@ fn nul_tail_refusal_cannot_commit_earlier_row_writes() {
     tx.put("items", &table, &row, None).unwrap();
     tx.record_commit(1, 0, "bad\0program", "dev:alice", "test", &["items".into()], 1).unwrap();
     crate::partition::PartitionRows::append_log(&tx, "public", 1, 0, "items", "put", "valid", Some(&crate::value::canonical_json(&row))).unwrap();
-    // This valid statement flushes the bad tail; catch its E_INPUT, then try
-    // to commit just as a direct adapter caller could do.
-    assert_input(tx.execute("SELECT 42", &[]));
+    // Ordinary execution never flushes. Explicit completion refuses the tail,
+    // and catching that refusal cannot commit the earlier row/index writes.
+    tx.execute("SELECT 42", &[]).unwrap();
+    assert_input(tx.flush_tail());
     assert_input(tx.commit());
     assert_eq!(e.store.client.query_one("SELECT seq FROM _head WHERE singleton", &[]).unwrap().get::<_, i64>(0), 0);
     for table in ["r", "i", "_commits", "_log", "_outbox"] {

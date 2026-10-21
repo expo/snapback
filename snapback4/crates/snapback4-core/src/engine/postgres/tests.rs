@@ -585,3 +585,5 @@ fn live_adoption_rebuilds_indexes_from_rows_and_keeps_transfer_and_restore_atomi
 }
 
 mod unified;
+
+mod unified_tail;
