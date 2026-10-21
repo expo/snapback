@@ -18,11 +18,11 @@ fn server(path: &Path) -> (Engine, Backend) {
     let (_, mut backend) = common::compile(SOURCE);
     let mut engine = Engine::new(Store::open(path).unwrap(), backend.schema.clone(), backend.programs.clone()).unwrap();
     backend.generation = engine.generation();
-    assert_eq!(engine.store().test_support_conn().query_row("PRAGMA synchronous", [], |r| r.get::<_, i64>(0)).unwrap(), 2, "all disk commits must use FULL");
+    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("PRAGMA synchronous", [], |r| r.get::<_, i64>(0)).unwrap(), 2, "all disk commits must use FULL");
     for n in 0..10 { write(&mut engine, "follow", &format!("reader{n}"), &[("actor", id("author"))]); }
     write(&mut engine, "post", "author", &[("postId", id("event")), ("parentId", Value::Null)]);
     // Freeze the database base; every subsequent write stays in the WAL.
-    engine.store().test_support_conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA wal_autocheckpoint=0;").unwrap();
+    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA wal_autocheckpoint=0;").unwrap();
     (engine, backend)
 }
 
@@ -101,7 +101,7 @@ fn normal_replay_repairs_copies_but_cannot_repair_an_observed_watermark() {
         device.apply(&page, i == 0).unwrap();
     }
     // This is an explicit rejected policy, not the production configuration.
-    engine.store().test_support_conn().execute_batch("PRAGMA synchronous=NORMAL;").unwrap();
+    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("PRAGMA synchronous=NORMAL;").unwrap();
     engine.run_timeline_chunk_for(200, Duration::ZERO).unwrap().unwrap();
     device.apply(&page(&mut engine, before), false).unwrap();
     let observed = engine.seq().unwrap();

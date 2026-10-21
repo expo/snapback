@@ -338,6 +338,44 @@ fn census(sources: &[(PathBuf, String)]) -> BTreeMap<PathBuf, usize> {
     counts
 }
 
+// No owning handle may acquire implicit backend access, including through an
+// imported trait/type alias. MemberTx has its separate, stricter facade guard.
+// @ref LLP 3000.009.001.000#3.4 — S10b removes all owning dereference bridges.
+fn owning_dereferences(sources: &[(PathBuf, String)]) -> BTreeMap<PathBuf, usize> {
+    let mut handles: BTreeSet<String> =
+        ["AnyStore", "AnyTx", "ReadSnapshot", "AnyInspection", "AnyPreparation"]
+            .map(String::from).into();
+    let mut traits: BTreeSet<String> = ["Deref", "DerefMut"].map(String::from).into();
+    loop {
+        let before = (handles.len(), traits.len());
+        for (_, source) in sources {
+            for binding in bindings(source) {
+                for names in [&mut handles, &mut traits] {
+                    if binding.path.iter().any(|part| names.contains(part)) {
+                        names.insert(binding.name.clone());
+                    }
+                }
+            }
+        }
+        if before == (handles.len(), traits.len()) { break; }
+    }
+    let mut counts = BTreeMap::new();
+    for (path, source) in sources {
+        let tokens = production_tokens(source);
+        let count = tokens.iter().enumerate().filter(|(_, t)| t.text == "impl")
+            .filter(|(i, _)| {
+                let header = &tokens[*i..];
+                let end = header.iter().position(|t| t.text == "{").unwrap_or(header.len());
+                let header = &header[..end];
+                let Some(for_at) = header.iter().position(|t| t.text == "for") else { return false; };
+                header[..for_at].iter().any(|t| traits.contains(t.text))
+                    && header[for_at + 1..].iter().any(|t| handles.contains(t.text))
+            }).count();
+        if count != 0 { counts.insert(path.clone(), count); }
+    }
+    counts
+}
+
 fn walk(root: &Path, dir: &Path, sources: &mut Vec<(PathBuf, String)>) {
     for entry in fs::read_dir(dir).unwrap() {
         let path = entry.unwrap().path();
@@ -373,6 +411,24 @@ fn engine_and_host_use_neutral_handles() {
         counts.is_empty(),
         "LLP 3000.009.001.000 §3.4: concrete SQLite handles above the port: {counts:?}"
     );
+    let dereferences = owning_dereferences(&sources);
+    println!("S10b owning dereference bridge census: {} (target 0)", dereferences.values().sum::<usize>());
+    assert!(dereferences.is_empty(), "owning dereference bridges: {dereferences:?}");
+}
+
+#[test]
+fn owning_dereference_matcher_follows_aliases_and_ignores_test_items() {
+    let source = |s: &str| vec![(PathBuf::from("store_port.rs"), s.to_string())];
+    for handle in ["AnyStore", "AnyTx<'a>", "ReadSnapshot<'a>", "AnyInspection", "AnyPreparation<'a>"] {
+        for trait_name in ["std::ops::Deref", "DerefMut", "r#Deref"] {
+            let attack = format!("impl<'a> {trait_name} for {handle} {{ type Target = sqlite::Store; }}");
+            assert!(!owning_dereferences(&source(&attack)).is_empty(), "{attack}");
+        }
+    }
+    let aliased = "use std::ops::Deref as View; use crate::store_port::AnyStore as Owner; type Handle = Owner; impl View for Handle { type Target = sqlite::Store; }";
+    assert!(!owning_dereferences(&source(aliased)).is_empty());
+    assert!(owning_dereferences(&source("#[cfg(test)] impl Deref for AnyStore { type Target = Store; } // impl Deref for AnyTx {}")).is_empty());
+    assert!(owning_dereferences(&source("impl Rows for AnyTx<'_> {} impl Deref for Other { type Target = AnyStore; }")).is_empty());
 }
 
 #[test]

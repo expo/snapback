@@ -47,7 +47,7 @@ fn composition(op: &str, prediction: [u64; 7]) {
         assert_eq!(effects.len(), if op == "complementary" && live > 0 { 2 } else { 1 });
         assert_eq!(effects.iter().filter(|e| e.next_at == Some(deadline)).count(), 1);
         if op == "sharedPayload" { assert_eq!(effects[0].payload.field("online").unwrap(), &Value::Bool(live > 0)); }
-        let tx = engine.store_mut().read_transaction().unwrap();
+        let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).read_transaction().unwrap();
         let deps: Vec<(String, i64)> = tx.test_support_conn().prepare("SELECT principal, deadline FROM _effect_presence").unwrap()
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?))).unwrap().map(Result::unwrap).collect();
         tx.rollback().unwrap();

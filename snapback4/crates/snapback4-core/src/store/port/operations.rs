@@ -275,3 +275,17 @@ impl AnyTx<'_> {
         crate::ledger::LedgerTransaction::record_commit(self, seq, at, program, principal, kind, touched, writes)
     }
 }
+
+impl AnyStore {
+    pub fn applied_ops(&self) -> Result<u64, RuntimeError> { match self { Self::Sqlite(inner) => inner.applied_ops() } }
+    #[cfg(feature = "evaluation-support")]
+    pub fn evaluation_rows(&self) -> Result<Vec<(String, String)>, String> { match self { Self::Sqlite(inner) => inner.evaluation_rows() } }
+}
+impl AnyTx<'_> {
+    pub fn read_log(&self, partition: &str, after: u64, limit: usize) -> Result<Vec<crate::store_port::LogEvent>, RuntimeError> {
+        match self { Self::Sqlite(inner) => inner.read_log(partition, after, limit) }
+    }
+}
+impl crate::store_port::ReadSnapshot<'_> {
+    pub fn read_log(&self, partition: &str, after: u64, limit: usize) -> Result<Vec<crate::store_port::LogEvent>, RuntimeError> { self.tx.read_log(partition, after, limit) }
+}

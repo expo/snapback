@@ -1,5 +1,6 @@
 //! Row and field authority model over compiled, published schemas. Authorization is evaluated
 //! by Engine::query before and after each generated storage commit, not by a twin.
+use snapback4_core::Rows;
 use snapback4_core::{Context, Engine, Value, ir::{ArgType, Expr, KeyProvenance, Program, ProgramKind, Read, Stmt},
     schema::{ColumnType, Schema, Table, BY_ID}};
 use snapback4_lang::guide::{self, card, quarry};
@@ -144,7 +145,7 @@ fn certified_commits_preserve_rows_and_fields_across_the_corpus() {
                 let preserved = engine.store().preserved_between(&schema,seq-1,seq).expect("complete known evidence");
                 // The shared codec must classify the persisted summary identically
                 // to ordinary serde; no codec-specific authority may be invented.
-                let stored: String = engine.store().test_support_conn().query_row("SELECT footprint FROM _change_evidence WHERE seq=?1",[seq as i64],|r|r.get(0)).unwrap();
+                let stored: String = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT footprint FROM _change_evidence WHERE seq=?1",[seq as i64],|r|r.get(0)).unwrap();
                 let ordinary: snapback4_core::revocation::Footprint = serde_json::from_str(&stored).unwrap();
                 assert_eq!(preserved,ordinary.preserved(&schema),"summary decoder: seed={seed:#x} step={step}");
                 let after = answer(&mut engine,&tables,now);

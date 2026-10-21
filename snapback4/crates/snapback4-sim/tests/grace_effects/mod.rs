@@ -71,7 +71,7 @@ fn w15a_fifty_members_write_one_effect_and_dependency_per_recipient() {
         ])).at(11_000).with_ids(["msg".into()])).unwrap();
         assert!(matches!(sent.state, WriteState::Sent { .. }), "{sent:?}");
         let effects = engine.effects(None, 100).unwrap();
-        let tx = engine.store_mut().read_transaction().unwrap();
+        let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).read_transaction().unwrap();
         let dependencies: i64 = tx.test_support_conn().query_row("SELECT count(*) FROM _effect_presence", [], |row| row.get(0)).unwrap();
         tx.rollback().unwrap();
         println!("w15a cost: members=50 held={held} effects={} dependencies={dependencies} meter={:?}", effects.len(), sent.metered);

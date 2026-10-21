@@ -52,19 +52,13 @@ pub fn reads(e: &mut Engine, m: &Model) {
     let celebrity = p95s["u0901"] / p95s["u0005"];
     assert!(dense <= RATIO_LIMIT && celebrity <= RATIO_LIMIT, "reader CPU ratios: {dense}, {celebrity}");
     println!("CLIQUE_RATIOS {}", json!({"clock":"thread-cpu", "dense_sparse":dense,"celebrity_sparse":celebrity,"limit":RATIO_LIMIT}));
-    let pages: i64 = e
-        .store()
-        .test_support_conn()
+    let pages: i64 = sqlite_store(&e).test_support_conn()
         .query_row("PRAGMA page_count", [], |r| r.get(0))
         .unwrap();
-    let size: i64 = e
-        .store()
-        .test_support_conn()
+    let size: i64 = sqlite_store(&e).test_support_conn()
         .query_row("PRAGMA page_size", [], |r| r.get(0))
         .unwrap();
-    let rows: i64 = e
-        .store()
-        .test_support_conn()
+    let rows: i64 = sqlite_store(&e).test_support_conn()
         .query_row("SELECT count(*) FROM r", [], |r| r.get(0))
         .unwrap();
     println!(
@@ -153,7 +147,7 @@ fn p95(samples: &mut [f64]) -> f64 {
 }
 
 pub fn writes(e: &mut Engine, m: &mut Model, full: bool) {
-    let edges = m.check_edges(e.store());
+    let edges = m.check_edges(sqlite_store(&e));
     let followers = |author: &str| edges.iter().filter(|(_, a)| a == author).count();
     let ordinary = m
         .profiles

@@ -90,7 +90,7 @@ fn failed_derived_rebuild_and_sql_commit_keep_previous_activation() {
     assert!(adopt(&mut e, &candidate).is_err());
     assert_eq!(e.generation(), generation);
     assert_eq!(e.query("q", ctx()).unwrap().data, Value::Int(1));
-    e.store().test_support_conn().execute_batch("CREATE TRIGGER refuse_activation BEFORE UPDATE ON _meta WHEN NEW.key = 'generation' BEGIN SELECT RAISE(ABORT, 'injected activation failure'); END;").unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("CREATE TRIGGER refuse_activation BEFORE UPDATE ON _meta WHEN NEW.key = 'generation' BEGIN SELECT RAISE(ABORT, 'injected activation failure'); END;").unwrap();
     assert!(adopt(&mut e, &source.replace("return 1", "return 2")).is_err());
     assert_eq!(e.query("q", ctx()).unwrap().data, Value::Int(1));
     assert_eq!(e.generation(), generation);
@@ -184,7 +184,7 @@ fn program_only_activation_does_not_walk_or_rebuild_unchanged_maintains() {
     let source="table items:\n  group: text <=10\n  value: int\n  read <- allow\nmaintain sums: sum items of value by group\n  read <- allow\nquery q():\n  return 1\n";
     let mut e=engine(source);seed(&mut e,"items",serde_json::json!([{"id":"a","group":"g","value":3}]));
     let seq=e.seq().unwrap();let generation=e.generation();
-    e.store().test_support_conn().execute_batch("CREATE TRIGGER no_rebuild_delete BEFORE DELETE ON r BEGIN SELECT RAISE(ABORT, 'unexpected rebuild'); END; CREATE TRIGGER no_rebuild_put BEFORE INSERT ON r BEGIN SELECT RAISE(ABORT, 'unexpected rebuild'); END;").unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("CREATE TRIGGER no_rebuild_delete BEFORE DELETE ON r BEGIN SELECT RAISE(ABORT, 'unexpected rebuild'); END; CREATE TRIGGER no_rebuild_put BEFORE INSERT ON r BEGIN SELECT RAISE(ABORT, 'unexpected rebuild'); END;").unwrap();
     adopt(&mut e,&source.replace("return 1","return 2")).unwrap();
     assert_eq!(e.seq().unwrap(),seq);assert_eq!(e.generation(),generation+1);assert_eq!(e.query("q",ctx()).unwrap().data,Value::Int(2));
 }
@@ -391,7 +391,7 @@ fn a_legacy_grant_cannot_borrow_a_later_rejoins_lifetime() {
     let old=call(&mut e,"join","old",snapback4_core::SYSTEM_PRINCIPAL,1,BTreeMap::from([("person".into(),Value::Id("dev:alice".into())),("until".into(),Value::Int(10))]));
     // The former ledger shape stored only the group array as data.
     let legacy = canonical_json(&Value::Array(vec![Value::String("g".into())]));
-    e.store().test_support_conn().execute("UPDATE _log SET data = ?1 WHERE kind = 'join' AND seq = ?2",[legacy, old.to_string()]).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _log SET data = ?1 WHERE kind = 'join' AND seq = ?2",[legacy, old.to_string()]).unwrap();
     let gap=call(&mut e,"add","gap","dev:alice",15,BTreeMap::new());
     e.sweep_expired(20,100).unwrap();
     let rejoin=call(&mut e,"join","new",snapback4_core::SYSTEM_PRINCIPAL,21,BTreeMap::from([("person".into(),Value::Id("dev:alice".into())),("until".into(),Value::Int(100))]));
@@ -499,7 +499,7 @@ fn opening_an_older_store_backfills_missing_live_sum_candidates_once() {
     let before_repair = e.seq().unwrap();
     // This is the shape written by a prior binary: the zero-valued target
     // and all of its indexes are missing, and no repair marker is present.
-    e.store().test_support_conn().execute_batch(
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch(
         "DELETE FROM i WHERE ti IN (SELECT num FROM _catalog WHERE name GLOB 'sums.*');
          DELETE FROM r WHERE t = (SELECT num FROM _catalog WHERE name = 'sums');
          DELETE FROM _meta WHERE key = 'live_sum_candidates';"

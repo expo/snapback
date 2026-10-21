@@ -42,7 +42,7 @@ fn an_old_page_cannot_qualify_a_refused_ops_record_as_success() {
         device.enqueue(&entry).unwrap();
         let refusal = engine.mutate("edit", Some("refused"), context("bob", &[("key", Value::String("lookup".into()))])).unwrap().receipt(Some("refused"));
         assert_eq!(refusal["why"]["code"], "NOT_ADMIN");
-        let seq = engine.store().test_support_conn().query_row("SELECT seq FROM _ops WHERE principal = 'bob' AND id = 'refused'", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
+        let seq = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT seq FROM _ops WHERE principal = 'bob' AND id = 'refused'", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
         // Older servers included refused decisions in acknowledged and omitted
         // sent entirely. Exercise apply, not an already-stamped queue fixture.
         let page = serde_json::from_value(json!({"snapshot":false,"generation":device.backend().generation,"events":[],
@@ -242,7 +242,7 @@ fn named_receipt_after_revocation<H: Host>(host: &mut H, historical: bool) {
     if historical {
         // Older servers persisted this live detail; replay must sanitize it too.
         let mut raw = first.receipt(Some("lost")); raw["why"]["detail"] = live["why"]["detail"].clone();
-        engine.store().test_support_conn().execute("UPDATE _ops SET outcome = ?1 WHERE principal = 'alice' AND id = 'lost'", [raw.to_string()]).unwrap();
+        (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _ops SET outcome = ?1 WHERE principal = 'alice' AND id = 'lost'", [raw.to_string()]).unwrap();
     }
     // Drop the first response. Only the outbox survives a close/reopen; revoke
     // before delivering the retried response to either device store.

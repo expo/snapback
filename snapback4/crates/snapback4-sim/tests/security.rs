@@ -1,4 +1,5 @@
 //! Security review S05/S06/S10/S12: observable outcomes, replay, grants and media.
+use snapback4_core::Rows;
 use snapback4_core::{Context, Engine, Store, Value, WriteState};
 use snapback4_core::value::object;
 use snapback4_sim::chat::{CHAT, chat_engine_from};

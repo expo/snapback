@@ -1,4 +1,5 @@
 //! Server delivery: authored binding, output provenance, independent bounds and receipts.
+use snapback4_core::Rows;
 use serde_json::{Value as Json, json};
 use snapback4_core::{Context, Engine, Value, WriteState, meter::Ceilings, value::object};
 const SOURCE: &str = include_str!("delivery/schema.q");
@@ -129,8 +130,7 @@ fn report_noop_keeps_receipt_at_head_and_replays_before_body_lookup() {
     let head = e.seq().unwrap();
     let counts = |e: &Engine| {
         ["_commits", "_log", "_outbox"].map(|table| {
-            e.store()
-                .test_support_conn()
+            (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
                 .query_row(&format!("SELECT count(*) FROM {table}"), [], |r| {
                     r.get::<_, i64>(0)
                 })

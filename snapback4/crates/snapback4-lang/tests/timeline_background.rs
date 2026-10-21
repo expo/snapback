@@ -1,3 +1,4 @@
+use snapback4_core::Rows;
 use snapback4_core::{Context, Engine, Store, Value, WriteState, MutationOutcome};
 use std::collections::BTreeMap;
 const SOURCE: &str = include_str!("fixtures/timeline-v2.q");

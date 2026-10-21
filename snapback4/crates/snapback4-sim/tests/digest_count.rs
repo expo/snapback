@@ -1,5 +1,6 @@
 //! The count-retention experiment: cal15's recipient-heavy rows and large bodies.
 //! @ref LLP 3000.011.001.000#5 — a count optimization must remove actual allocations.
+use snapback4_core::Rows;
 use snapback4_core::{Context, Engine, Value, wire};
 use snapback4_core::meter::Ceilings;
 use snapback4_core::rows::{Bounds, Dir};

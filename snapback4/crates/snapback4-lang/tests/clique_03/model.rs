@@ -202,8 +202,8 @@ impl Model {
     pub fn check(&self, e: &mut Engine) {
         drain(e, self.now);
         self.check_following(e);
-        self.check_store(e.store());
-        self.check_received_store(e.store());
+        self.check_store(sqlite_store(&e));
+        self.check_received_store(sqlite_store(&e));
         let (got, trending_pages) = walk(e, "trending", "u0005", &[], self.now);
         self.check_rows("trending", "u0005", &got);
         // Seven arrival days plus the post days and the empty following day.

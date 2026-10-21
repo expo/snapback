@@ -97,3 +97,32 @@ asset tests executed, zero ignored); its corpus tests passed 19/19, with
 were stopped and `pg_ctl status` confirmed no server running (exit 3):
 `/tmp/sb4-pg-eval.JYlct6` and `/tmp/p1-as-pg-isolated.R89G7b`. This remains
 an experimental serializable flake, not a new asset-ledger failure.
+
+## 2026-10-21 — S10b semantic-boundary qualification
+
+Lane `sb4-pg/s10b`, base `1250ea3b3d`, on expo-build-450a reproduced this
+existing conformance failure in both the ordinary script run and a complete
+rerun with `RUST_TEST_THREADS=1`: 17 conformance tests passed and the same
+concurrent increment/duplicate-id case returned SQLSTATE `40001`. The exact
+filtered test passed on a separate private cluster in 6.94 seconds: 65
+increments in each mode, no lost updates, zero serialized retries and 130
+aggregate serializable retries. Test-function serialization does not remove
+the test's four internal concurrent writers.
+
+The corrected S10b family harness then passed all 188 core Postgres tests,
+and all 19 corpus tests passed with the existing named exclusions. Because
+Cargo stopped the standalone experiment at its failed conformance target,
+the other four experiment targets were run explicitly on another private
+cluster: 40 passed / 0 failed / 0 ignored. Thus all other 57 experiment tests
+passed, and the remaining case passed alone; neither full script invocation
+was wholly green. No retry, timeout, backoff, durability or workload bound was
+changed. The evaluator's `mod.rs`, `store.rs`, and this conformance scenario
+are unchanged from the S10b base. This adds an observation to the existing
+intermittent-exhaustion record rather than attributing a new root cause.
+
+All four owned clusters were stopped and independently confirmed with
+`pg_ctl status = 3` and no `postmaster.pid`: `/tmp/sb4-pg-eval.o3kYNb`,
+`/tmp/sb4-pg-eval.Sc62TO`, `/tmp/sb4-s10b-pg-isolated.imP1D4`, and
+`/tmp/sb4-s10b-pg-check.COWSJw`. Data was retained. Details and remaining
+SQLite/device qualification are in the
+[S10b report](../snapback4/reports/20261021-s10b-semantic-store-boundary.md).

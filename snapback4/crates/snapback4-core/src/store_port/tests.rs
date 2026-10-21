@@ -11,6 +11,7 @@ fn owning_handles_have_no_implicit_backend_access() {
     let _ = <AnyTx<'_> as Ambiguous<_>>::absent;
     let _ = <ReadSnapshot<'_> as Ambiguous<_>>::absent;
     let _ = <AnyInspection as Ambiguous<_>>::absent;
+    let _ = <AnyPreparation<'_> as Ambiguous<_>>::absent;
 }
 
 #[test]

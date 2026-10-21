@@ -100597,3 +100597,35 @@ assertions, SQL, transaction boundaries, counts and limits are retained. The
 binary's production inputs are unchanged from the passing first-commit build.
 The core library qualification passes **627 / 0 failed / 3 ignored**. Full
 crate runs and the cross-crate fixture/census qualification continue below.
+
+S10b final qualification: core **1,040 passed / 0 failed / 5 ignored**.
+The full host suite had **1,403 passed / 2 failed / 15 ignored**; both
+additional failures passed alone with their original timing bounds (clock
+expiry 28.07 seconds; run admission 4.67 seconds). The three supplied host
+baselines passed. Binary build, core no-default, device web/wasm, all workspace
+Rust test-target typechecks, the required guide case and all 27 wasm codec
+census cases pass. All 15 final ratchet/census cases pass: concrete handles
+**0 tokens/declarations in 0 files**, owning dereferences **0**, raw production
+access **0** (95 fixture sites in 13 files), committer **49 sites in 11 files**.
+No temporary S10a bridge remains and the member facade stays closed.
+
+The exact Postgres concurrency case passed alone, but both complete script
+runs returned the existing serializable-exhaustion failure, including the
+run with serialized test functions. All other 57 experiment tests, all 188
+core family tests and all 19 corpus tests passed; the full script is not
+claimed green. The existing filesystem issue records this observation. All
+four owned clusters were stopped and independently confirmed stopped. No
+retry policy, workload limit or semantic decision outside the RFC changed.
+Switching workspaces reproduced S10a's generated Cargo metadata collision;
+rebuilding only this lane's shared library artifacts restored the passing
+binary, isolated host case and final ratchets. Source, locks and test
+executables were retained. Full dispositions and final device results are in
+[the S10b report](./reports/20261021-s10b-semantic-store-boundary.md).
+
+The full device runtime tests finished **1,573 passed / 0 failed / 4 ignored**.
+The later doctest step still referenced a library hash removed during the
+earlier cache repair, so the full command exited nonzero on missing generated
+metadata. The failed doctest target rebuilt and passed alone (zero doc
+examples); no runtime test failure or assertion change is involved. Root
+ref-check and whitespace validation pass. Final free space is 188 GB; no
+push, stash or git configuration changes.

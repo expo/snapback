@@ -1,5 +1,5 @@
 //! Server store handles. The device continues to use the concrete SQLite API.
-// @ref LLP 3000.009.001.000#3.4 — one concrete engine, enum dispatch; SQLite-only S10a.
+// @ref LLP 3000.009.001.000#3.4 — one concrete engine, explicit enum dispatch; SQLite-only S10b.
 use crate::{Value, store as sqlite};
 
 pub enum AnyStore {

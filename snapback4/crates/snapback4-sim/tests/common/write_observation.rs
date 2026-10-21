@@ -180,7 +180,7 @@ fn observe_lifecycle(e: &mut Engine, name: &str, viewer: &str, values: Json, op:
     let expected_replay = result.receipt(Some(op));
     assert_eq!(serde_json::from_str::<Json>(&e.store().applied_outcome(viewer, op).unwrap().unwrap()).unwrap(), expected_replay);
     if let Some(raw) = historical(&result) {
-        e.store().test_support_conn().execute("UPDATE _ops SET outcome = ?1 WHERE principal = ?2 AND id = ?3", [raw.to_string(), viewer.to_owned(), op.to_owned()]).unwrap();
+        (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _ops SET outcome = ?1 WHERE principal = ?2 AND id = ?3", [raw.to_string(), viewer.to_owned(), op.to_owned()]).unwrap();
     }
     let receipt = e.store().applied_outcome(viewer, op).unwrap().unwrap();
     let committed = rows(e);

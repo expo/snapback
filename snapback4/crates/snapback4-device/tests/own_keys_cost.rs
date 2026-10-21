@@ -116,16 +116,16 @@ fn fixture_costs() {
             t.sync=Some(Sync {audience:Audience::Column(owner.into()),horizon:None,also:Vec::new()});t.indexes.insert("byOwner".into(),Index::of(&[owner,"id"],false));
             b.schema.tables.insert(format!("ownRows_{name}"),t);
         }}
-        let mut e=Engine::open_at(Store::open(&path).unwrap(),snapback4_core::now_ms()).unwrap();let before=stats(e.store().test_support_conn());let t=Instant::now();
+        let mut e=Engine::open_at(Store::open(&path).unwrap(),snapback4_core::now_ms()).unwrap();let before=stats((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn());let t=Instant::now();
         e.adopt(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
         if mode=="own_rows" {for name in ["likes","reposts"] {
-            let rows=e.store().test_support_conn().prepare("select r.data from r join _catalog c on c.num=r.t where c.name=?1").unwrap().query_map([name],|r|r.get::<_,String>(0)).unwrap().map(|s|{
+            let rows=(match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare("select r.data from r join _catalog c on c.num=r.t where c.name=?1").unwrap().query_map([name],|r|r.get::<_,String>(0)).unwrap().map(|s|{
                 let mut row=serde_json::from_str::<Value>(&s.unwrap()).unwrap();if let Value::Row(fields)=&mut row {fields.retain(|f,_|!f.starts_with('$'));}row
             }).collect::<Vec<_>>();
             for chunk in rows.chunks(1000) {e.seed(chunk.iter().cloned().map(|r|(format!("ownRows_{name}"),r))).unwrap();}
         }}
-        let adoption=t.elapsed().as_secs_f64()*1000.0;let after=stats(e.store().test_support_conn());
-        let profiles=e.store().test_support_conn().prepare("select r.data from r join _catalog c on c.num=r.t where c.name='profiles'").unwrap().query_map([],|r|r.get::<_,String>(0)).unwrap().map(|s|serde_json::from_str::<Value>(&s.unwrap()).unwrap()).collect::<Vec<_>>();
+        let adoption=t.elapsed().as_secs_f64()*1000.0;let after=stats((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn());
+        let profiles=(match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare("select r.data from r join _catalog c on c.num=r.t where c.name='profiles'").unwrap().query_map([],|r|r.get::<_,String>(0)).unwrap().map(|s|serde_json::from_str::<Value>(&s.unwrap()).unwrap()).collect::<Vec<_>>();
         let backend=Backend {generation:e.generation(),schema:b.schema,programs:b.programs.into_iter().map(|p|p.program).collect()};
         std::fs::write(dir.join("backend.json"),serde_json::to_vec(&backend).unwrap()).unwrap();
         let mut replicas=vec![];
@@ -133,7 +133,7 @@ fn fixture_costs() {
             let viewer=profiles.iter().find(|p|p.field("handle").unwrap().as_str().unwrap()==handle).map(|p|p.field("principal").unwrap().as_str().unwrap()).unwrap_or("dev:okempty");
             let mut r=replica(&mut e,&backend,&dir.join(format!("{handle}.sqlite")),viewer);r["handle"]=json!(handle);replicas.push(r);
         }
-        let result=json!({"fixture":"calibration24","mode":mode,"adoptionMs":adoption,"sourceBackfill":e.store().adoption_report.views.iter().map(|v|json!({"name":v.name,"rows":v.rows,"ms":v.elapsed.as_secs_f64()*1000.0})).collect::<Vec<_>>(),"serverBefore":before,"serverAfter":after,"replicas":replicas,"peakRss":rss()});
+        let result=json!({"fixture":"calibration24","mode":mode,"adoptionMs":adoption,"sourceBackfill":e.store().adoption_report().views.iter().map(|v|json!({"name":v.name,"rows":v.rows,"ms":v.elapsed.as_secs_f64()*1000.0})).collect::<Vec<_>>(),"serverBefore":before,"serverAfter":after,"replicas":replicas,"peakRss":rss()});
         println!("OWNER_KEY_FIXTURE {result}");std::fs::write(dir.join("cost.json"),serde_json::to_vec_pretty(&result).unwrap()).unwrap();
     }
 }
@@ -150,29 +150,29 @@ fn costs() {
             for (owner,amount) in [("prolific",n),("unrelated",6000)] {
                 for first in (0..amount).step_by(1000) {e.seed_at((first..(first+1000).min(amount)).map(|i|("likes".into(),raw(i,owner))),2_000_000).unwrap();}
             }
-            e.store().test_support_conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE)").unwrap();
+            (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE)").unwrap();
         }
         for mode in ["baseline","summaries","public","own_rows","keys"] {
             if std::env::var("OWNER_KEY_COST_MODES").is_ok_and(|modes|!modes.split(',').any(|m|m==mode)) {continue;}
             let dir=root.join(format!("{n}-{mode}"));std::fs::create_dir_all(&dir).unwrap();let path=dir.join("server.sqlite");
-            std::fs::copy(&baseline,&path).unwrap();let mut e=Engine::open_at(Store::open(&path).unwrap(),2_000_000).unwrap();let before=stats(e.store().test_support_conn());
+            std::fs::copy(&baseline,&path).unwrap();let mut e=Engine::open_at(Store::open(&path).unwrap(),2_000_000).unwrap();let before=stats((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn());
             let b=bound(mode);let t=Instant::now();e.adopt_at(b.schema.clone(),b.programs.iter().map(|p|p.program.clone()),2_000_000).unwrap();
             if mode=="own_rows" {for (owner,amount) in [("prolific",n),("unrelated",6000)] {for first in (0..amount).step_by(1000){e.seed_at((first..(first+1000).min(amount)).map(|i|("ownRows".into(),raw(i,owner))),2_000_000).unwrap();}}}
-            let adoption=t.elapsed().as_secs_f64()*1000.0;let after=stats(e.store().test_support_conn());
+            let adoption=t.elapsed().as_secs_f64()*1000.0;let after=stats((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn());
             let backend=Backend {generation:e.generation(),schema:b.schema,programs:b.programs.into_iter().map(|p|p.program).collect()};
             std::fs::write(dir.join("backend.json"),serde_json::to_vec(&backend).unwrap()).unwrap();
             let mut replicas=vec![];
             for viewer in ["empty","prolific"] {replicas.push(replica(&mut e,&backend,&dir.join(format!("{viewer}.sqlite")),viewer));}
-            let mut times=vec![];let mut meters=vec![];let before_writes=stats(e.store().test_support_conn());let seq=e.seq().unwrap();
-            LOCK.with_borrow_mut(|x|{x.0=None;x.1.clear();});e.store().test_support_conn().trace_v2(TraceEventCodes::SQLITE_TRACE_STMT|TraceEventCodes::SQLITE_TRACE_PROFILE,Some(trace));
+            let mut times=vec![];let mut meters=vec![];let before_writes=stats((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn());let seq=e.seq().unwrap();
+            LOCK.with_borrow_mut(|x|{x.0=None;x.1.clear();});(match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().trace_v2(TraceEventCodes::SQLITE_TRACE_STMT|TraceEventCodes::SQLITE_TRACE_PROFILE,Some(trace));
             for i in 0..100 {for op in ["add","remove"] {
                 let t=Instant::now();let out=e.mutate(op,None,Context::new("prolific",[("post".into(),Value::Id(format!("bench{i}")))].into()).at(3_000_000)).unwrap();times.push(t.elapsed().as_secs_f64()*1000.0);
                 assert!(matches!(out.state,WriteState::Sent {..}),"{out:?}");meters.push(serde_json::to_value(&out.metered).unwrap());
             }}
-            e.store().test_support_conn().trace_v2(TraceEventCodes::empty(),None);let locks=LOCK.with_borrow_mut(|x|std::mem::take(&mut x.1));
-            let after_writes=stats(e.store().test_support_conn());
-            let partitions:i64=e.store().test_support_conn().query_row("select count(distinct partition) from _log where seq>?1",[seq as i64],|r|r.get(0)).unwrap();
-            let result=json!({"keys":n,"mode":mode,"adoptionMs":adoption,"sourceBackfill":e.store().adoption_report.views.iter().map(|v|json!({"name":v.name,"rows":v.rows,"ms":v.elapsed.as_secs_f64()*1000.0})).collect::<Vec<_>>(),
+            (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().trace_v2(TraceEventCodes::empty(),None);let locks=LOCK.with_borrow_mut(|x|std::mem::take(&mut x.1));
+            let after_writes=stats((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn());
+            let partitions:i64=(match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("select count(distinct partition) from _log where seq>?1",[seq as i64],|r|r.get(0)).unwrap();
+            let result=json!({"keys":n,"mode":mode,"adoptionMs":adoption,"sourceBackfill":e.store().adoption_report().views.iter().map(|v|json!({"name":v.name,"rows":v.rows,"ms":v.elapsed.as_secs_f64()*1000.0})).collect::<Vec<_>>(),
                 "serverBefore":before,"serverAfter":after,"replicas":replicas,"writeLatency":pct(times),"lockHold":pct(locks),"sampleMeters":&meters[..2],"serverBeforeWrites":before_writes,"serverAfterWrites":after_writes,"recipientPartitions":partitions,"peakRss":rss()});
             println!("OWNER_KEY_COST {result}");std::fs::write(dir.join("cost.json"),serde_json::to_vec_pretty(&result).unwrap()).unwrap();
         }
