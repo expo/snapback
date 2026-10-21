@@ -99441,3 +99441,22 @@ settings and at most -j 32. A three-second disk guard surrounded every Cargo
 check; minimum observed free space was about 38 GiB, above the 20 GB stop
 threshold. All work stayed in this worktree. No sub-agent, additional worktree,
 remote command, stash or push was used.
+## 2026-10-21 — P1-AS: Postgres asset ledger layout and adapter
+
+Implemented the four ledger tables at head-fenced attach and all extracted
+asset intent/transaction operations, plus matching asset facts, placement,
+view and collection operations. Attach refuses incompatible existing shapes
+with SNAPBACK_ASSET_SCHEMA. There is no hot-writer DDL. Postgres uses C key
+collations and BIGINT facts; fingerprints remain the same encoded text.
+Local file custody is unchanged; BlobStore and Postgres upload/serve host
+wiring remain P1b. The public Postgres engine still refuses asset schemas.
+
+Parity corrections shared with SQLite: deterministic stale batches ordered
+by created_at/id, new-key NUL admission without revalidating legacy rows,
+and overflow-safe quota comparison. Missing required cancellation state
+keeps SQLite's QueryReturnedNoRows behavior. Postgres uses an exact BIGINT
+cast of SUM(bigint), whose native result type is NUMERIC. There are no byte
+payload columns in this ledger. Context came from the port RFC, durable
+media intent RFC, current assets guide, and landed identity/request adapters;
+llp-orient's local skill link is unavailable in this cold worktree, and no
+submodule was initialized. Shared cross-store conformance follows next.

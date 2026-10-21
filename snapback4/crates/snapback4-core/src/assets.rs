@@ -720,34 +720,50 @@ pub(crate) struct UploadedIntent<'a> {
     pub placement: Option<&'a str>,
 }
 
+// @ref LLP 3000.009.001.000#9.1 — only new ledger keys are admitted here; stored SQLite keys remain usable.
+#[cfg(feature = "sqlite")]
+pub(crate) fn validate_ledger_text(values: &[&str]) -> Result<(), RuntimeError> {
+    if values.iter().any(|value| value.contains('\0')) {
+        return Err(RuntimeError::Input("asset identifiers and names cannot contain U+0000".into()));
+    }
+    Ok(())
+}
+
+#[cfg(feature = "sqlite")]
+impl UploadedIntent<'_> {
+    pub(crate) fn validate_new(&self) -> Result<(), RuntimeError> {
+        // Facts and placement are JSON, whose encoder escapes NUL.
+        validate_ledger_text(&[self.owner, self.id, self.fingerprint, self.asset])
+    }
+}
+
+#[cfg(feature = "sqlite")]
+pub(crate) fn require_upload_quota(pinned: i64, bytes: u64) -> Result<(), RuntimeError> {
+    if (pinned as u64).checked_add(bytes).is_none_or(|total| total > 128 << 20) {
+        return Err(RuntimeError::Asset { code: "E_UPLOAD_QUOTA", message: "unplaced upload intents exceed this viewer's 128 MiB allowance; place or cancel earlier intents".into() });
+    }
+    Ok(())
+}
+
 #[cfg(feature = "sqlite")]
 pub(crate) trait AssetIntentReader {
-    // P1: implement intent existence on the Postgres adapter.
     fn asset_intent_exists(&self, owner: &str, id: &str) -> Result<bool, RuntimeError>;
 }
 
 // @ref LLP 3000.009.001.000#3.1 — typed access only; upload policy stays above the adapter.
+/// An adapter error ends the transaction: callers must roll back or drop it.
+/// Expected publication conflicts are conditional no-ops, never statement errors.
 #[cfg(feature = "sqlite")]
 pub(crate) trait AssetTransaction: AssetIntentReader {
-    // P1: implement the upload quota aggregate on the Postgres adapter.
     fn pinned_asset_bytes(&self, owner: &str) -> Result<i64, RuntimeError>;
-    // P1: implement pending upload publication on the Postgres adapter.
     fn record_uploaded_intent(&self, record: &UploadedIntent<'_>) -> Result<(), RuntimeError>;
-    // P1: implement declaration reads on the Postgres adapter.
     fn intent_declaration(&self, owner: &str, id: &str) -> Result<Option<IntentDeclaration>, RuntimeError>;
-    // P1: implement declaration insertion on the Postgres adapter.
     fn declare_intent(&self, owner: &str, id: &str, fingerprint: &str, placement: &str) -> Result<(), RuntimeError>;
-    // P1: implement placement reads on the Postgres adapter.
     fn intent_placement(&self, owner: &str, id: &str) -> Result<Option<IntentPlacement>, RuntimeError>;
-    // P1: implement bounded recovery inventory on the Postgres adapter.
     fn pending_intents(&self, owner: &str, after: &str) -> Result<Vec<PendingIntent>, RuntimeError>;
-    // P1: implement the required cancellation-state read on the Postgres adapter.
     fn intent_cancelled(&self, owner: &str, id: &str) -> Result<bool, RuntimeError>;
-    // P1: implement settlement on the Postgres adapter.
     fn settle_intent(&self, owner: &str, id: &str) -> Result<(), RuntimeError>;
-    // P1: implement cancellation tombstones on the Postgres adapter.
     fn cancel_intent(&self, owner: &str, id: &str) -> Result<(), RuntimeError>;
-    // P1: implement reset's asset inventory on the Postgres adapter.
     fn asset_ids(&self) -> Result<Vec<String>, RuntimeError>;
 
     fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError>;

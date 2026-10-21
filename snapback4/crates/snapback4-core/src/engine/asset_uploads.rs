@@ -86,6 +86,7 @@ impl Engine {
     }
 
     fn stage_upload(&mut self, mut asset: Asset) -> Result<assets::Upload, RuntimeError> {
+        assets::validate_ledger_text(&[&asset.owner, &asset.content_type, asset.name.as_deref().unwrap_or("")])?;
         asset.id = crate::ids::mint(asset.created_at, &mut self.minter)?;
         let path = self.store.asset_path(&asset.id);
         Ok(assets::Upload {
@@ -123,9 +124,7 @@ impl Engine {
                 return Ok(asset);
             }
             let pinned = tx.pinned_asset_bytes(&upload.asset.owner)?;
-            if pinned as u64 + upload.asset.bytes > 128 << 20 {
-                return Err(RuntimeError::Asset { code: "E_UPLOAD_QUOTA", message: "unplaced upload intents exceed this viewer's 128 MiB allowance; place or cancel earlier intents".into() });
-            }
+            assets::require_upload_quota(pinned, upload.asset.bytes)?;
             // BEGIN IMMEDIATE excludes cancellation/other writers between this recheck and publication.
             tx.record_uploaded_intent(&assets::UploadedIntent {
                 owner: &upload.asset.owner,

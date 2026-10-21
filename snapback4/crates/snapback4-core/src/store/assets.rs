@@ -1,5 +1,5 @@
 //! SQLite asset ledger access.
-// @ref LLP 3000.009.001.000#3.3 — extract the existing adapter without changing its operations.
+// @ref LLP 3000.009.001.000#9.1 — shared admission and deterministic bounded selections on both adapters.
 // ----- persistence: asset facts, upload intents and views -----
 
 use crate::store::{Store, Tx};
@@ -52,7 +52,7 @@ fn find(conn: &Connection, id: &str) -> Result<Option<Asset>, RuntimeError> {
 }
 
 fn stale(conn: &Connection, now: i64) -> Result<Vec<Asset>, RuntimeError> {
-    let mut statement = conn.prepare(&format!("SELECT {COLUMNS} FROM _assets WHERE released_at IS NOT NULL OR (home_table IS NULL AND created_at < ?1 AND NOT EXISTS (SELECT 1 FROM _asset_intents u WHERE u.asset=_assets.id AND u.state='pending' AND NOT EXISTS (SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent))) LIMIT 256"))?;
+    let mut statement = conn.prepare(&format!("SELECT {COLUMNS} FROM _assets WHERE released_at IS NOT NULL OR (home_table IS NULL AND created_at < ?1 AND NOT EXISTS (SELECT 1 FROM _asset_intents u WHERE u.asset=_assets.id AND u.state='pending' AND NOT EXISTS (SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent))) ORDER BY created_at, id LIMIT 256"))?;
     let rows = statement.query_map([now - UNCLAIMED_TTL_MS], read_asset)?;
     Ok(rows.collect::<Result<_, _>>()?)
 }
@@ -65,6 +65,7 @@ fn forget(conn: &Connection, id: &str) -> Result<(), RuntimeError> {
 }
 
 fn record(conn: &Connection, asset: &Asset) -> Result<(), RuntimeError> {
+    crate::assets::validate_ledger_text(&[&asset.id, &asset.owner, &asset.content_type, asset.name.as_deref().unwrap_or("")])?;
     conn.execute(
             &format!("INSERT INTO _assets({COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, NULL, NULL, NULL, NULL, ?10)"),
             params![asset.id, asset.owner, asset.kind.word(), asset.content_type, asset.bytes as i64, asset.width.map(i64::from), asset.height.map(i64::from), asset.duration.map(|d| d as i64), asset.created_at, asset.name],
@@ -188,6 +189,7 @@ impl Tx<'_> {
         principal: &str,
         now: i64,
     ) -> Result<(), RuntimeError> {
+        if !self.asset_viewed(id, principal)? { crate::assets::validate_ledger_text(&[id, principal])?; }
         self.conn().execute(
             "INSERT OR IGNORE INTO _asset_views(asset, principal, at) VALUES (?1, ?2, ?3)",
             params![id, principal, now],
@@ -216,12 +218,14 @@ fn intent_exists(conn: &Connection, owner: &str, id: &str) -> Result<bool, Runti
     )?)
 }
 
+// @ref LLP 3000.009.001.000#9.1 — an adapter error is terminal; callers roll back rather than continuing.
 impl crate::assets::AssetTransaction for Tx<'_> {
     fn pinned_asset_bytes(&self, owner: &str) -> Result<i64, RuntimeError> {
         Ok(self.conn().query_row("SELECT COALESCE(SUM(a.bytes),0) FROM _asset_intents u JOIN _assets a ON a.id=u.asset WHERE u.owner=?1 AND u.state='pending' AND a.home_table IS NULL AND NOT EXISTS(SELECT 1 FROM _ops o WHERE o.principal=u.owner AND o.id=u.intent)", [owner], |r| r.get(0))?)
     }
 
     fn record_uploaded_intent(&self, record: &UploadedIntent<'_>) -> Result<(), RuntimeError> {
+        if !intent_exists(self.conn(), record.owner, record.id)? { record.validate_new()?; }
         self.conn().execute("INSERT INTO _asset_intents(owner,intent,fingerprint,asset,facts,placement,state) VALUES(?1,?2,?3,?4,?5,?6,'pending') ON CONFLICT(owner,intent) DO UPDATE SET asset=excluded.asset,facts=excluded.facts,state='pending' WHERE _asset_intents.state='declared'", params![record.owner, record.id, record.fingerprint, record.asset, record.facts, record.placement])?;
         Ok(())
     }
@@ -241,6 +245,7 @@ impl crate::assets::AssetTransaction for Tx<'_> {
         fingerprint: &str,
         placement: &str,
     ) -> Result<(), RuntimeError> {
+        crate::assets::validate_ledger_text(&[owner, id, fingerprint])?;
         self.conn().execute("INSERT INTO _asset_intents(owner,intent,fingerprint,placement,state) VALUES(?1,?2,?3,?4,'declared')", params![owner, id, fingerprint, placement])?;
         Ok(())
     }
@@ -287,6 +292,7 @@ impl crate::assets::AssetTransaction for Tx<'_> {
     }
 
     fn cancel_intent(&self, owner: &str, id: &str) -> Result<(), RuntimeError> {
+        if !intent_exists(self.conn(), owner, id)? { crate::assets::validate_ledger_text(&[owner, id])?; }
         self.conn().execute("INSERT INTO _asset_intents(owner,intent,state) VALUES(?1,?2,'cancelled') ON CONFLICT(owner,intent) DO UPDATE SET state='cancelled'", [owner, id])?;
         Ok(())
     }
@@ -294,7 +300,7 @@ impl crate::assets::AssetTransaction for Tx<'_> {
     fn asset_ids(&self) -> Result<Vec<String>, RuntimeError> {
         Ok(self
             .conn()
-            .prepare("SELECT id FROM _assets")?
+            .prepare("SELECT id FROM _assets ORDER BY id")?
             .query_map([], |row| row.get(0))?
             .collect::<Result<_, _>>()?)
     }
@@ -318,6 +324,7 @@ impl crate::assets::AssetTransaction for Tx<'_> {
         row_id: &str,
         column: &str,
     ) -> Result<(), RuntimeError> {
+        crate::assets::validate_ledger_text(&[table, row_id, column])?;
         self.conn().execute("UPDATE _assets SET home_table = ?2, home_id = ?3, home_column = ?4, released_at = NULL WHERE id = ?1", params![id, table, row_id, column])?;
         Ok(())
     }
