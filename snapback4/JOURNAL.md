@@ -99649,3 +99649,22 @@ No push, stash, git configuration change, sub-agent, other worktree, remote
 machine, new gate, allowance increase, publication or Postgres host wiring
 was used. The remaining verification limitation is the absent contype='n'
 catalog shape on the supplied 17.9 server, as recorded above.
+
+
+### 2026-10-21 — EVOL wave-21 release evolution
+
+LLP 3000.000.000.002 §8 specifies native fingerprint refresh, migrated
+recomputation agreement, nullable rename absence, identity-preserving table and
+asset-column renames, bounded migration-only fileText/nonemptyLines, and
+generated loosened rollback bridges. Muse Spark and a fresh Codex session both
+marked the same round-6 amendment READY; verbatim provenance is under
+llp/reviews/3000.000.000.002-evol-r6.*. READY does not accept the RFC for its author.
+
+The copied eight dormant lane snapshots have 460 rows hidden by strict target
+schemas and zero by their generated bridges. These are physical schema counts
+before read rules; retaining a newer concept does not make a frozen old query
+expose it. A packed witness covers one preserved table/file identity, repeated
+file lines, cross-table backfill, typed-parent closure and nullable-file bridge.
+SEC6 owns identity/session security and rule-review behavior. Version unchanged;
+user-visible changes are recorded under 0.4.37 in the packaged changelog.
+Final commands, results and limits are recorded in WORKSTREAM-REPORT.md.

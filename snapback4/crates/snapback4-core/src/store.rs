@@ -20,7 +20,7 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 pub(crate) mod backfills;
-mod table_renames;
+pub(crate) mod table_renames;
 mod asset_renames;
 mod fork;
 mod activation;

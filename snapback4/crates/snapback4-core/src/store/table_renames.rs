@@ -22,7 +22,7 @@ fn remap<T:serde::Serialize+serde::de::DeserializeOwned>(value:&T,map:&BTreeMap<
     let mut json=serde_json::to_value(value).map_err(|e|RuntimeError::Store(e.to_string()))?;identifiers(&mut json,map);
     serde_json::from_value(json).map_err(|e|RuntimeError::Store(e.to_string()))
 }
-pub(super) fn schema(mut schema:Schema,map:&BTreeMap<String,String>)->Result<Schema,RuntimeError> {
+pub(crate) fn schema(mut schema:Schema,map:&BTreeMap<String,String>)->Result<Schema,RuntimeError> {
     if map.is_empty(){return Ok(schema)}
     schema.tables=std::mem::take(&mut schema.tables).into_iter().map(|(name,table)|Ok((mapped(&name,map),remap(&table,map)?))).collect::<Result<_,RuntimeError>>()?;
     for m in &mut schema.maintains {*m=remap(m,map)?;m.source=mapped(&m.source,map);m.target=mapped(&m.target,map);}

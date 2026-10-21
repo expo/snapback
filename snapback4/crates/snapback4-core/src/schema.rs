@@ -262,6 +262,9 @@ pub struct Schedule {
 }
 
 impl Schema {
+    /// Compare schema facts under the same declared table identities.
+    #[cfg(feature="sqlite")]
+    pub fn with_table_names(&self,names:&BTreeMap<String,String>)->Result<Self,crate::RuntimeError>{crate::store::table_renames::schema(self.clone(),names)}
     pub fn hash(&self) -> String {
         digest(self)
     }

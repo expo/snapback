@@ -3,6 +3,16 @@ use snapback4_core::{Schema, successor::{self, Change}, schema::ColumnDefault};
 use std::path::Path;
 
 pub(super) fn risks(candidate: &Schema, old: &Schema, release: u64, dir: &Path) -> Vec<String> {
+    let names:std::collections::BTreeMap<_,_>=candidate.table_renames.iter().filter(|(new,prior)|old.table(prior).is_some() && old.table(new).is_none()).map(|(new,prior)|(prior.clone(),new.clone())).collect();
+    if names.is_empty(){return risks_aligned(candidate,old,release,dir)}
+    let aligned=match old.with_table_names(&names){Ok(schema)=>schema,Err(error)=>return vec![format!("rollback foresight cannot compare renamed identities: {error}; run exact rollback --check")]};
+    risks_aligned(candidate,&aligned,release,dir).into_iter().map(|line|{
+        let (mut facts,command)=line.split_once("; run `").map_or((line.clone(),String::new()),|(facts,command)|(facts.to_owned(),format!("; run `{command}")));
+        for (prior,new) in &names {facts=facts.replace(&format!(", {new}."),&format!(", {prior} (current {new}).")).replace(&format!("table {new}:"),&format!("table {prior} (current {new}):")).replace(&format!("unique index {new}."),&format!("unique index {prior} (current {new})."));}
+        facts+&command
+    }).collect()
+}
+fn risks_aligned(candidate:&Schema,old:&Schema,release:u64,dir:&Path)->Vec<String>{
     let mut risks:Vec<_>=successor::classify(candidate,old).into_iter().filter_map(|step| {
         let path=step.path.strip_prefix("tables.")?;
         let (table,column)=path.split_once(".columns.")?;
@@ -102,6 +112,15 @@ mod tests {
             let new=schema(&format!("table items:\n  name: {kind} renamed from title\n  public\n"));
             assert!(risks(&new,&old,1,Path::new("deployment")).is_empty(),"{kind}");
         }
+    }
+
+    #[test]
+    fn table_rename_still_warns_about_a_loosened_required_old_field() {
+        let old=schema("table orders:\n  n: int\n  public\n");
+        let new=schema("table records renamed from orders:\n  n: int ?\n  public\n");
+        let warnings=risks(&new,&old,1,Path::new("deployment"));
+        assert!(warnings.iter().any(|w|w.contains("orders (current records).n")&&w.contains("hide rows")),"{warnings:?}");
+        assert!(!warnings.iter().any(|w|w.contains("new table records")),"{warnings:?}");
     }
 
 }

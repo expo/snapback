@@ -107,7 +107,8 @@ down entries legacyReason(id: id):
     assert.equal((await post('/m/reason',{entry:native.result.id,reason:'current v2 text'})).state,'sent');
     await run(['deploy',deployment]);
     const migrations=await migrationCycles({cli,startServe},cwd);
-    return {status:'passed',oldTableHidden:1,oldViewTextsPreserved:2,newerOnlyRows:2,forwardExactZero:true,unrelatedOldEditPreserved:true,projectedEditRefused:true,...migrations};
+    const identities=await identityCycles({cli,startServe},cwd);
+    return {status:'passed',oldTableHidden:1,oldViewTextsPreserved:2,newerOnlyRows:2,forwardExactZero:true,unrelatedOldEditPreserved:true,projectedEditRefused:true,...migrations,...identities};
   } finally {
     try {await host?.stop();} finally {rmSync(cwd,{recursive:true,force:true});}
   }
@@ -165,4 +166,66 @@ query all():
   } finally {
     try {await host?.stop();} finally {rmSync(cwd,{recursive:true,force:true});}
   }
+}
+
+// Packed witnesses for table/asset identity, file-text inputs and typed parents.
+async function identityCycles({cli,startServe},parent) {
+  const cwd=mkdtempSync(join(parent,'evolution-identities-'));let host,client;
+  try {
+    mkdirSync(join(cwd,'snapback'));
+    const deployment=join(cwd,'deployment'),schema=join(cwd,'snapback/schema.q');
+    const run=async args=>{const r=await cli(args,{cwd,timeoutMs:60_000});assert.equal(r.code,0,r.stderr+r.stdout);return r;};
+    const old=`use identity guests
+table orders:
+  owner: principal
+  names: file <=1000
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  online only
+table receipts:
+  owner: principal
+  parent: orders
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+mutation add(names: file <=1000):
+  return insert orders {owner:viewer,names}
+mutation receipt(parent: orders):
+  return insert receipts {owner:viewer,parent}
+query all():
+  return orders where .owner = viewer first 100 by .id
+`;
+    const newer=old.replace('table orders:','table consignments renamed from orders:')
+      .replace('  names: file <=1000','  roster: file <=1000 ? renamed from names\n  quantity: int\n  hasReceipt: bool default false')
+      .replaceAll('parent: orders','parent: consignments')
+      .replace('mutation add(names: file <=1000):','mutation add(names: file <=1000 ?, quantity: int):')
+      .replace('insert orders {owner:viewer,names}','insert consignments {owner:viewer,roster:names,quantity}')
+      .replace('return orders where','return consignments where')
+      .replace('return insert receipts {owner:viewer,parent}', 'r = insert receipts {owner:viewer,parent}\n  update consignments[parent] {hasReceipt:true}\n  return r')
+      +`backfill consignments quantities(roster: file <=1000 ?):
+  {quantity:nonemptyLines(fileText(roster)) if roster != null else 0}
+backfill consignments receiptStatus(id: id):
+  {hasReceipt:exists receipts where .parent = id}
+`;
+    writeFileSync(schema,old);await run(['deploy',deployment]);host=await startServe(deployment,{cwd,timeoutMs:60_000});
+    const auth=await(await fetch(host.url+'/auth/guest',{method:'POST',body:'{}',signal:AbortSignal.timeout(30_000)})).json();assert.ok(auth.session?.token);
+    const {createClient}=await import('snapback4/client');client=createClient({url:host.url,session:auth.session});
+    const post=async(path,args={})=>(await fetch(host.url+path,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+auth.session.token},body:JSON.stringify({args}),signal:AbortSignal.timeout(30_000)})).json();
+    const uploaded=await client.upload(new TextEncoder().encode('Ada\n \nAda\nLin\r\n'),{file:{name:'names.txt',type:'text/plain'}});assert.equal(uploaded.ok,true,JSON.stringify(uploaded));
+    const historical=await post('/m/add',{names:{id:uploaded.asset.id}});assert.equal(historical.state,'sent');
+    assert.equal((await post('/m/receipt',{parent:historical.result.id})).state,'sent');
+    writeFileSync(schema,newer);const preview=JSON.parse((await run(['deploy',deployment,'--check','--json'])).stdout);assert.equal(preview.visibility.hiddenRows,0);
+    await run(['deploy',deployment]);let rows=(await post('/q/all')).data;assert.equal(rows[0].quantity,3);assert.equal(rows[0].hasReceipt,true);assert.equal(rows[0].roster.id,uploaded.asset.id);
+    const native=await post('/m/add',{names:null,quantity:0});assert.equal(native.state,'sent');assert.equal((await post('/m/receipt',{parent:native.result.id})).state,'sent');
+    const strict=JSON.parse((await run(['rollback',deployment,'--to','1','--check','--json'])).stdout);
+    assert.equal(strict.visibility.hiddenRows,2,'required file hides its row and its typed child');assert.equal(strict.visibility.newerOnlyRows,0,'renamed identity is an old table');
+    assert.ok(strict.visibility.tables.some(t=>t.causes.some(([cause])=>cause.includes('hidden parent'))));
+    const bridge=join(cwd,'bridge');await run(['rollback',deployment,'--to','1','--check','--bridge',bridge]);await run(['deploy',deployment,'--schema',bridge,'--restore-dormant']);
+    rows=(await post('/q/all')).data;assert.equal(rows.length,2);assert.equal(rows.find(r=>r.id===historical.result.id).names.id,uploaded.asset.id);
+    assert.equal(rows.find(r=>r.id===native.result.id).names,null,'bridge preserves absence without fabricating a file');
+    await run(['deploy',deployment]);rows=(await post('/q/all')).data;assert.equal(rows.find(r=>r.id===historical.result.id).quantity,3);assert.equal(rows.find(r=>r.id===native.result.id).quantity,0);
+    const readable=await client.asset(uploaded.asset.id);assert.ok(!('denied'in readable),JSON.stringify(readable));readable.revoke();
+    return {tableRename:true,assetHomeRename:true,fileTextRepeatedEntries:3,crossTableBackfill:true,typedParentCause:true,nullableFileBridge:true};
+  } finally {try {client?.close();await host?.stop();} finally {rmSync(cwd,{recursive:true,force:true});}}
 }
