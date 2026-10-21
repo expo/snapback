@@ -294,7 +294,8 @@ impl Engine {
     }
 
     fn claim_effects_inner(&mut self, worker: &str, effect: Option<&str>, limit: usize, lease_ms: i64, now: i64, fenced: bool) -> Result<Vec<EffectRun>, RuntimeError> {
-        validate_new_text(worker)?;
+        // A worker label is identity-shaped (§9.1 rule 1): refuse NUL as an authorization failure.
+        if worker.contains('\0') { return Err(RuntimeError::Auth("an effect worker cannot contain U+0000".into())); }
         let limit = limit.clamp(1, 100) as u64;
         let lease = lease_ms.clamp(1_000, MAX_LEASE_MS);
         let tx = self.store.transaction()?;
