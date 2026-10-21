@@ -420,13 +420,7 @@ pub fn normalized_email(email: &str) -> String {
     email.trim().to_ascii_lowercase()
 }
 
-// @ref LLP 3000.009.001.000#9.1 — identity fails closed on both stores, including pre-upgrade SQLite rows.
-pub(crate) fn refuse_nul(values: &[(&str, &str)]) -> Result<(), RuntimeError> {
-    for (value, message) in values {
-        if value.contains('\0') { return Err(RuntimeError::Auth((*message).into())); }
-    }
-    Ok(())
-}
+pub(crate) use crate::authority::refuse_nul;
 
 fn validate_bound_worker(worker: &str) -> Result<(), RuntimeError> {
     refuse_nul(&[(worker, "a worker principal cannot contain U+0000")])

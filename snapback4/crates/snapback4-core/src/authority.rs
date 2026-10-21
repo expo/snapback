@@ -29,7 +29,7 @@ pub(crate) struct SessionRecord {
 
 impl SessionRecord {
     pub(crate) fn identity_is_valid(&self) -> bool {
-        crate::identity::refuse_nul(&[(&self.principal, "this session is not live; sign in again"),
+        refuse_nul(&[(&self.principal, "this session is not live; sign in again"),
             (&self.kind, "this session is not live; sign in again"),
             (&self.family, "this session is not live; sign in again")]).is_ok()
     }
@@ -118,12 +118,12 @@ pub(crate) fn family_authority_expiry(
     generation: i64,
     now: i64,
 ) -> Result<Option<i64>, RuntimeError> {
-    if crate::identity::refuse_nul(&[(principal, "identity is not live"), (family, "identity is not live")]).is_err() { return Ok(None); }
+    if refuse_nul(&[(principal, "identity is not live"), (family, "identity is not live")]).is_err() { return Ok(None); }
     let current_generation = tx.principal_generation(principal)?;
     let (mut family, mut generation, mut bound) = (family.to_owned(), generation, i64::MAX);
     let mut seen = std::collections::BTreeSet::new();
     loop {
-        if crate::identity::refuse_nul(&[(&family, "identity is not live")]).is_err()
+        if refuse_nul(&[(&family, "identity is not live")]).is_err()
             || generation != current_generation || !seen.insert(family.clone()) {
             return Ok(None);
         }
@@ -162,7 +162,7 @@ pub(crate) fn work_authority_expiry(
     work: &WorkRecord,
     now: i64,
 ) -> Result<Option<i64>, RuntimeError> {
-    if crate::identity::refuse_nul(&[(&work.principal, "identity is not live"),
+    if refuse_nul(&[(&work.principal, "identity is not live"),
         (work.admission.family.as_deref().unwrap_or(""), "identity is not live")]).is_err() { return Ok(None); }
     if let Some(generation) = work.service_generation {
         return Ok((tx.principal_generation(&work.principal)? == generation).then_some(i64::MAX));
@@ -254,3 +254,12 @@ pub(crate) fn live_service_session(
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SessionScope { Full, Read }
+
+// @ref LLP 3000.009.001.000#9.1 — identity fails closed on both stores, including pre-upgrade SQLite rows.
+// Lives here, not in `identity`, because authority is compiled without the SQLite feature.
+pub(crate) fn refuse_nul(values: &[(&str, &str)]) -> Result<(), RuntimeError> {
+    for (value, message) in values {
+        if value.contains('\0') { return Err(RuntimeError::Auth((*message).into())); }
+    }
+    Ok(())
+}
