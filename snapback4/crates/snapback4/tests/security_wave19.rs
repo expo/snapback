@@ -16,7 +16,7 @@ fn empty_and_absent_fixture_directories_both_generate_and_record_test_refutation
   if empty{fs::create_dir_all(app.0.join("fixtures")).unwrap();}
   let test=app.run(&["test"]);assert_eq!(test.status.code(),Some(1),"{}",text(&test));assert!(text(&test).contains("generated-fixture-trace"),"{}",text(&test));
   let record:serde_json::Value=serde_json::from_slice(&fs::read(app.0.join("snapback/generated/security-test.json")).unwrap()).unwrap();assert!(!record["violations"].as_array().unwrap().is_empty());
-  let check=app.run(&["check"]);assert_eq!(check.status.code(),Some(1),"{}",text(&check));assert!(text(&check).contains("FAIL docs.scan read"),"{}",text(&check));
+  let check=app.run(&["check"]);assert_eq!(check.status.code(),Some(1),"{}",text(&check));assert!(text(&check).contains("  FIX ")&&text(&check).contains("docs.scan read")&&text(&check).contains("generated-fixture-trace"),"{}",text(&check));
  }
 }
 #[test]

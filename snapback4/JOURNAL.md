@@ -99681,3 +99681,13 @@ caller-time deadline discovery. Lane 017 `checkIn(at)` is flagged with and witho
 invariants; 19 focused tests pass. Frozen 300 and supplementary 38 all compile
 without diagnostics. Final caller-time counts are 67 and 7; availability/calendar
 questions remain advisory and are not counted as confirmed security findings.
+
+SEC5 broad-suite closure: preserve each eligible observer's preparation error
+when a shared paired-world fixture is invalid. Proposal rows only discover
+observers; the preparation error returns before policy or observation execution.
+The original per-observer negative regression is unchanged and passes, with zero
+violations. The exhaustive guide fact/action pins now cover both new codes and
+updated questionnaire wording; the CLI test retains refusal, column and concrete
+trace checks while expecting FIX. Packed Linux consumer qualification passed on
+06dbfea690; this coverage-reporting restoration receives affected-target and
+fresh packed-security verification separately. No publication receipt is claimed.

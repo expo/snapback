@@ -1,7 +1,6 @@
 # Invariant-free SEC5 notes
 
-Initial implementation: `bbd0d25087` and `466a6f800e`. The subsequent precision
-repairs are in the shared working tree for the parent integrator to commit.
+Initial implementation: `bbd0d25087` and `466a6f800e`. Precision repairs landed in `5f244d13a4` and `3f633395d0`.
 No runtime admission or proof assumption is introduced. Advice identifies a
 factual audience/authority pattern for specification review, not a confirmed
 vulnerability.
@@ -50,7 +49,7 @@ The parent owns the full workspace and client qualification.
 Evidence:
 
 - `notes-query-filter-tests.log` (final 19 tests; prior 18-test precision log retained)
-- `notes-query-filter-census.log` and `notes-query-filter-census.json` (final scope)
+- `notes-query-filter-census.log` and `notes-query-filter-census.json.gz` (final scope)
 - `notes-query-filter-delta.json` (11 additional query-filter clock-use sites)
 - `notes-precision-tests.log`
 - `notes-precision-census.log` and `notes-precision-census.json`
