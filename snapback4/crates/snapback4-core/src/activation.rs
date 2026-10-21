@@ -134,3 +134,10 @@ pub(crate) fn next_generation(previous: u64, changed: bool) -> Result<u64, Runti
 pub(crate) fn next_catalog_number(previous: i64) -> Result<i64, RuntimeError> {
     previous.checked_add(1).ok_or_else(|| RuntimeError::Generation("catalog number exhausted".into()))
 }
+
+/// Parse before binding so malformed metadata cannot abort a Postgres transaction.
+pub(crate) fn stored_generation(value: Option<&str>) -> Result<Option<i64>, RuntimeError> {
+    value.map(|value| value.parse::<i64>().ok().filter(|n| *n > 0).ok_or_else(||
+        RuntimeError::Structural { code: "E_STORE_GENERATION", message: "invalid stored generation metadata".into() }
+    )).transpose()
+}

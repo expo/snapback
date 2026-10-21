@@ -86,6 +86,7 @@ pub(crate) fn opening_facts(tx: &(impl ActivationTransaction + PartitionRows + M
 pub(crate) fn bookkeeping(
     tx: &(impl ActivationTransaction + PartitionRows),
     put: impl Fn(&str, &str),
+    get: impl Fn(&str) -> Option<String>,
 ) {
     put("time_audience_clock", &i64::MAX.to_string());
     assert_eq!(tx.time_audience_clock().unwrap(), i64::MAX);
@@ -128,6 +129,7 @@ pub(crate) fn bookkeeping(
             .unwrap(),
         None
     );
+    assert_eq!(get("Activation_Column_Restored:items.extra"), None);
     // The marker and clock have separate lifetimes from activation scratch.
     assert_eq!(
         tx.opening_marker(SchemaMarker::CapCounts)
@@ -371,4 +373,123 @@ pub(crate) fn event_id_exhaustion(tx: &impl ReleaseHistoryTransaction) {
         "E_GENERATION"
     );
     assert_eq!(tx.release_revision_value().unwrap(), before);
+}
+
+pub(crate) fn malformed_generation(tx: &impl ActivationReader, put: impl Fn(&str, &str)) {
+    for value in ["foo", "9223372036854775808", "1junk", "0", "-1"] {
+        put("generation", value);
+        assert_eq!(
+            tx.opening_backend().unwrap_err().code(),
+            "E_STORE_GENERATION"
+        );
+        assert_eq!(
+            tx.previous_schema().unwrap_err().code(),
+            "E_STORE_GENERATION"
+        );
+    }
+    put("generation", "1");
+    assert_eq!(
+        tx.opening_backend().unwrap().0,
+        1,
+        "metadata errors must not poison the snapshot"
+    );
+}
+
+pub(crate) fn worker_history(tx: &impl ReleaseHistoryReader, put: impl Fn(&str, &str)) {
+    for (key, value) in [
+        ("worker:status:z", "last"),
+        ("worker:status", "legacy"),
+        ("worker:status:a", "first"),
+        ("Worker:Status:b", "mixed"),
+        ("worker:statusish", "excluded"),
+    ] {
+        put(key, value);
+    }
+    let expected = vec![
+        ("Worker:Status:b".into(), "mixed".into()),
+        ("worker:status".into(), "legacy".into()),
+        ("worker:status:a".into(), "first".into()),
+        ("worker:status:z".into(), "last".into()),
+    ];
+    assert_eq!(tx.release_workers(0).unwrap(), vec![]);
+    assert_eq!(tx.release_workers(2).unwrap(), expected[..2]);
+    assert_eq!(tx.release_workers(usize::MAX).unwrap(), expected);
+}
+
+pub(crate) const REPAIR_SOURCE: &str = "table entries:
+  n: int
+  until: time ?
+  expire at .until
+  cap 2
+  public
+  insert <- allow
+view totals: sum entries of .n by .n
+mutation add(id: id, n: int):
+  insert entries { id, n, until: null }
+";
+
+pub(crate) fn repair_backend() -> (crate::Schema, Vec<crate::Program>) {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), REPAIR_SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    (
+        serde_json::from_value(serde_json::to_value(bound.schema).unwrap()).unwrap(),
+        bound
+            .programs
+            .into_iter()
+            .map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap())
+            .collect(),
+    )
+}
+
+pub(crate) trait OpeningRepairs {
+    fn add(&mut self, id: &str) -> crate::engine::MutationOutcome;
+    fn damage(&mut self, live_sum: bool);
+    fn reopen_repaired(&mut self);
+    fn population(&mut self, table: &str) -> usize;
+    fn marker(&mut self, marker: SchemaMarker) -> Option<String>;
+}
+
+pub(crate) fn live_sum_reopening(h: &mut impl OpeningRepairs) {
+    assert!(matches!(
+        h.add("a").state,
+        crate::engine::WriteState::Sent { .. }
+    ));
+    assert_eq!(
+        h.population("totals"),
+        1,
+        "a live zero-sum candidate exists"
+    );
+    h.damage(true);
+    assert_eq!(h.population("totals"), 0);
+    h.reopen_repaired();
+    assert_eq!(
+        h.population("totals"),
+        1,
+        "opening recreates the live zero-sum candidate"
+    );
+    assert_eq!(
+        h.marker(SchemaMarker::LiveSumCandidates).as_deref(),
+        Some("1")
+    );
+}
+
+pub(crate) fn cap_reopening(h: &mut impl OpeningRepairs) {
+    assert!(matches!(
+        h.add("a").state,
+        crate::engine::WriteState::Sent { .. }
+    ));
+    let marker = h.marker(SchemaMarker::CapCounts).unwrap();
+    h.damage(false);
+    h.reopen_repaired();
+    assert_eq!(h.marker(SchemaMarker::CapCounts), Some(marker));
+    assert!(matches!(
+        h.add("b").state,
+        crate::engine::WriteState::Sent { .. }
+    ));
+    let excess = h.add("c");
+    assert!(
+        matches!(excess.state, crate::engine::WriteState::Failed { ref why, .. } if why.code == "E_CONSTRAINT"),
+        "{excess:?}"
+    );
+    assert_eq!(h.population("entries"), 2);
 }

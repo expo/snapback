@@ -242,14 +242,3 @@ pub(crate) mod test_cases {
         assert_eq!(handle.worker_status(Some("absent")).unwrap(), None);
     }
 }
-
-pub(crate) fn schema_key(marker: SchemaMarker) -> &'static str {
-    match marker {
-        SchemaMarker::SchemaHash => "schema_hash",
-        SchemaMarker::LiveSumCandidates => "live_sum_candidates",
-        SchemaMarker::MaintainedIds => crate::schema::MAINTAINED_ID_META,
-        SchemaMarker::CapCounts => "cap_counts_schema",
-        SchemaMarker::TimePublications => "time_audience_publications_v1",
-        SchemaMarker::ReadThroughShortened => "read_through_shortened",
-    }
-}

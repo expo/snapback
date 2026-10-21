@@ -6,11 +6,6 @@ use crate::RuntimeError;
 pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     for (table, columns, primary) in [
         (
-            "_meta",
-            &[("key", "text", true, true), ("value", "text", true, false)][..],
-            &["key"][..],
-        ),
-        (
             "_generations",
             &[
                 ("generation", "bigint", true, false),
@@ -44,4 +39,28 @@ pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
         CREATE TABLE IF NOT EXISTS _generations (generation BIGINT PRIMARY KEY, schema TEXT NOT NULL, programs TEXT NOT NULL, at BIGINT NOT NULL);
         CREATE TABLE IF NOT EXISTS _catalog (name TEXT COLLATE "C" PRIMARY KEY, num BIGINT NOT NULL UNIQUE);
     "#)
+}
+
+/// These core relations are touched by opening upgrades or their rebuilds.
+/// Other durable families validate their relations in their attach installers.
+pub(super) fn verify_core(tx: &Tx<'_>) -> Result<(), RuntimeError> {
+    // Preserve the foundation family's refusal when its commit ledger and the
+    // referencing log are both unsafe: a logged log cannot reference unlogged commits.
+    super::ledger_schema::verify_relation(tx, "_commits", |table, detail| {
+        RuntimeError::Store(format!("SNAPBACK_FOUNDATION_SCHEMA: {table}: {detail}"))
+    })?;
+    for table in [
+        "_backend",
+        "_head",
+        "r",
+        "i",
+        "_log",
+        "_sequences",
+        "_cap_counts",
+    ] {
+        super::ledger_schema::verify_relation(tx, table, |table, detail| {
+            RuntimeError::Store(format!("SNAPBACK_ACTIVATION_SCHEMA: {table}: {detail}"))
+        })?;
+    }
+    Ok(())
 }

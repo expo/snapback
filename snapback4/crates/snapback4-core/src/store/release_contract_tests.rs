@@ -15,11 +15,14 @@ struct Harness {
 }
 impl Harness {
     fn new() -> Self {
+        let (schema, programs) = test_cases::compile(1);
+        Self::with_backend(schema, programs)
+    }
+    fn with_backend(schema: Schema, programs: Vec<crate::Program>) -> Self {
         let directory =
             std::env::temp_dir().join(format!("sb4-release-contract-{:x}", crate::ids::seed()));
         std::fs::create_dir(&directory).unwrap();
         let path = directory.join("store.sqlite");
-        let (schema, programs) = test_cases::compile(1);
         let engine = Engine::new_release_prepared_at(
             Store::open(&path).unwrap(),
             schema,
@@ -85,7 +88,13 @@ fn release_contract_sqlite_facts_history_and_terminal_error() {
     {
         let tx = h.engine.store_mut().transaction().unwrap();
         test_cases::opening_facts(&tx);
-        test_cases::bookkeeping(&tx, |k, v| tx.set_meta(k, v).unwrap());
+        test_cases::bookkeeping(
+            &tx,
+            |k, v| tx.set_meta(k, v).unwrap(),
+            |k| tx.meta(k).unwrap(),
+        );
+        test_cases::malformed_generation(&tx, |k, v| tx.set_meta(k, v).unwrap());
+        test_cases::worker_history(&tx, |k, v| tx.set_meta(k, v).unwrap());
         let backend = tx.opening_backend().unwrap();
         test_cases::preparation(&super::release::ReleaseCheck(tx.conn()), &backend);
         test_cases::history(&tx);
@@ -177,6 +186,13 @@ fn release_contract_sqlite_timeline_counts() {
     let table = h.engine.schema().tables["items"].clone();
     let tx = h.engine.store_mut().transaction().unwrap();
     test_cases::timeline_seed(&tx, &table);
+    let num = tx.num("items").unwrap();
+    tx.conn()
+        .execute(
+            "INSERT INTO r(t,id,data) VALUES (?1,'invalid','invalid json')",
+            [num],
+        )
+        .unwrap();
     tx.commit().unwrap();
     test_cases::timeline_counts(h.engine.store());
 }
@@ -201,4 +217,50 @@ fn release_contract_sqlite_restart_closes_all_connections() {
     );
     drop(reopened);
     std::fs::remove_dir_all(directory).unwrap();
+}
+
+impl test_cases::OpeningRepairs for Harness {
+    fn add(&mut self, id: &str) -> crate::engine::MutationOutcome {
+        self.engine
+            .mutate(
+                "add",
+                None,
+                crate::Context::new(
+                    "alice",
+                    BTreeMap::from([
+                        ("id".into(), Value::Id(id.into())),
+                        ("n".into(), Value::Int(0)),
+                    ]),
+                )
+                .at(100),
+            )
+            .unwrap()
+    }
+    fn reopen_repaired(&mut self) {
+        self.reopen(1).unwrap();
+    }
+
+    fn damage(&mut self, live_sum: bool) {
+        self.engine.store().conn().execute_batch(if live_sum {
+            "DELETE FROM r WHERE t=(SELECT num FROM _catalog WHERE name='totals'); DELETE FROM i WHERE ti IN (SELECT num FROM _catalog WHERE name LIKE 'totals.%'); DELETE FROM _meta WHERE key='live_sum_candidates';"
+        } else { "DELETE FROM _cap_counts; DELETE FROM _meta WHERE key='cap_counts_schema';" }).unwrap();
+    }
+    fn population(&mut self, table: &str) -> usize {
+        self.engine.store().rows(table).unwrap().len()
+    }
+    fn marker(&mut self, marker: crate::metadata::SchemaMarker) -> Option<String> {
+        self.engine.store().schema_marker(marker).unwrap()
+    }
+}
+
+#[test]
+fn release_contract_sqlite_reopening_live_sums() {
+    let (schema, programs) = test_cases::repair_backend();
+    test_cases::live_sum_reopening(&mut Harness::with_backend(schema, programs));
+}
+
+#[test]
+fn release_contract_sqlite_reopening_cap_counts() {
+    let (schema, programs) = test_cases::repair_backend();
+    test_cases::cap_reopening(&mut Harness::with_backend(schema, programs));
 }

@@ -55,16 +55,55 @@ pub(super) fn initialize(
             tx.meta("release_native_digest")?.as_deref(),
         ),
     )?;
-    tx.mark_live_sum_candidates()?;
+    repair_live_sums(tx, schema, now)?;
     if schema.maintains.iter().any(|m| m.row_key.is_none()) {
         tx.mark_maintained_ids()?;
-    }
-    if crate::rows::caps::required(schema) {
-        tx.set_meta("cap_counts_schema", &schema.hash())?;
     }
     // No timed table is admitted. The empty publication index is complete.
     tx.set_meta("time_audience_publications_v1", "1")?;
     Ok(())
+}
+
+// @ref LLP 3000.033#1.3 — rebuild and completion marker commit together with opening.
+fn repair_live_sums(tx: &Tx<'_>, schema: &Schema, now: i64) -> Result<(), RuntimeError> {
+    use crate::partition::PartitionRows;
+    if tx.live_sum_marker()?.as_deref() == Some("1") {
+        return Ok(());
+    }
+    let now = now.max(tx.time_audience_clock()?);
+    let seq = tx.next_seq()?;
+    let mut runner = super::Runner::new(
+        tx,
+        schema,
+        super::Context::system().at(now),
+        super::Meter::new(super::Ceilings::unbounded(), super::Cut::Abort),
+        seq,
+    );
+    for maintain in schema.maintains.iter().filter(|m| {
+        matches!(m.kind, crate::schema::MaintainKind::Sum { .. })
+            && schema
+                .table(&m.source)
+                .is_some_and(|source| source.is_expiring())
+    }) {
+        runner.rebuild_maintain(maintain)?;
+    }
+    let events = runner.events.take();
+    let tables: Vec<_> = runner.written_tables.iter().cloned().collect();
+    let written = runner.rows_written;
+    drop(runner);
+    if written > 0 {
+        tx.record_commit(
+            seq,
+            now,
+            "rebuild",
+            crate::SYSTEM_PRINCIPAL,
+            "rebuild",
+            &tables,
+            written,
+        )?;
+        crate::partition::append(tx, seq, &events)?;
+    }
+    tx.mark_live_sum_candidates()
 }
 
 impl Tx<'_> {
@@ -116,7 +155,11 @@ impl Tx<'_> {
 
 impl ActivationReader for Tx<'_> {
     fn opening_backend(&self) -> Result<Backend, RuntimeError> {
-        let rows = self.query("SELECT g.generation,g.schema,g.programs FROM _generations g JOIN _meta m ON m.key='generation' AND g.generation=m.value::bigint", &[])?;
+        let generation = activation::stored_generation(self.meta("generation")?.as_deref())?;
+        let rows = self.query(
+            "SELECT generation,schema,programs FROM _generations WHERE generation=$1",
+            &[&generation],
+        )?;
         let row = rows.first().ok_or_else(|| {
             RuntimeError::Store("no readable activated backend in this store".into())
         })?;
@@ -135,7 +178,14 @@ impl ActivationReader for Tx<'_> {
         self.schema_marker(marker)
     }
     fn previous_schema(&self) -> Result<Option<String>, RuntimeError> {
-        Ok(self.query("SELECT g.schema FROM _generations g JOIN _meta m ON m.key='generation' AND g.generation=m.value::bigint", &[])?.first().map(|r| r.get(0)))
+        let generation = activation::stored_generation(self.meta("generation")?.as_deref())?;
+        Ok(self
+            .query(
+                "SELECT schema FROM _generations WHERE generation=$1",
+                &[&generation],
+            )?
+            .first()
+            .map(|r| r.get(0)))
     }
     fn live_sum_marker(&self) -> Result<Option<String>, RuntimeError> {
         self.meta("live_sum_candidates")
@@ -304,9 +354,14 @@ impl TimelineWorkReader for RefCell<&mut Store> {
             &[&table],
             0u64,
             |count, row| {
-                let image: serde_json::Value = super::store::decode(row.get(0))?;
+                // Malformed timeline payloads contribute no matching state, as on SQLite.
+                let image = serde_json::from_str::<serde_json::Value>(row.get(0)).ok();
                 Ok(count.saturating_add(u64::from(
-                    image.pointer("/Row/status/String").and_then(|v| v.as_str()) == Some(state),
+                    image
+                        .as_ref()
+                        .and_then(|image| image.pointer("/Row/status/String"))
+                        .and_then(|v| v.as_str())
+                        == Some(state),
                 )))
             },
         )?;

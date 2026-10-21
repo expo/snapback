@@ -140,7 +140,9 @@ impl PostgresEngine {
         let at = crate::now_ms();
         let held: Schema = super::store::decode(&previous.1)?;
         if schema.hash() != held.hash() {
-            return Err(RuntimeError::Schema("Postgres release schema evolution is not implemented; this activation requires the evolution family".into()));
+            return Err(RuntimeError::StoreUnsupported {
+                family: "evolution",
+            });
         }
         prep.check_backend(&previous)?;
         prep.enable_dormant()?;

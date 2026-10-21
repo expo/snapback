@@ -100073,3 +100073,34 @@ Detailed per-rule results, dialect resolutions and limits are in
 reports/20261021-p1-rl-release-activation.md. One local worker; 8 Cargo jobs,
 requested target/debug/incremental settings, lowest sampled free disk about 180 GiB;
 no sub-agents, clones, remote commands, stash or push.
+
+
+## 2026-10-21 — P1-RL fix round 1: opening repairs and foundation integration
+
+Rebased the three P1-RL commits onto main's foundation metadata, receipt and
+change-evidence families and experiment fixes. Resolved the RFC and journal by
+union, retaining one Revised header. Kept main's validated metadata adapters and
+experiment durability calls, with the lane's activation/release additions.
+Foundation, assets and release share the exact column/key checker; it delegates
+to main's relation guard, which now also rejects deferrable keys. Opening checks
+backend/head and every core relation used by its upgrades and rebuilds before
+trusting them; user triggers cannot suppress backend or head publication.
+
+Postgres now rebuilds missing/stale cap occupancy and missing legacy live-sum
+candidates inside the opening writer before committing their markers. The
+shared reopen fixtures remove a live zero-sum candidate or empty counters with
+one live row under cap 2, then require restoration and refusal of the third row
+on both stores. Evolution returns structured E_STORE_UNSUPPORTED with family
+`evolution`. Both stores skip malformed timeline JSON and refuse invalid stored
+generation metadata as E_STORE_GENERATION without a dialect cast; the shared
+fixture restores a valid value and rereads in the same transaction. Added
+mixed-case scratch-key read-back, ordered worker-history fixtures and catalog
+unique-key mutation, plus unlogged backend/head and update-suppressing trigger
+witnesses. The opening writer records its held head fence so main's metadata
+writer can enforce ownership; foundation's empty-metadata fixture explicitly
+clears bootstrap facts before exercising missing values.
+
+Validation and cluster stop receipts are recorded in the fix-round section of
+reports/20261021-p1-rl-release-activation.md. One local worker, at most 16 Cargo
+jobs, only this worktree's target, incremental disabled and line-table debug;
+no stash or push.

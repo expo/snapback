@@ -16,6 +16,10 @@ struct Harness {
 }
 impl Harness {
     fn new() -> Option<Self> {
+        let (schema, programs) = test_cases::compile(1);
+        Self::with_backend(schema, programs)
+    }
+    fn with_backend(schema: Schema, programs: Vec<Program>) -> Option<Self> {
         let Ok(url) = std::env::var("SNAPBACK4_EVAL_POSTGRES") else {
             eprintln!(
                 "SKIP P1-RL Postgres contract: SNAPBACK4_EVAL_POSTGRES is absent (scripts/test-postgres.sh)"
@@ -23,7 +27,6 @@ impl Harness {
             return None;
         };
         let name = format!("sb4_eval_release_{:x}", crate::ids::seed());
-        let (schema, programs) = test_cases::compile(1);
         let engine = PostgresEngine::create_release(
             Client::connect(&url, postgres::NoTls).unwrap(),
             &name,
@@ -100,7 +103,13 @@ fn release_contract_postgres_facts_history_and_terminal_error() {
             .unwrap();
         store_id = tx.store_identity().unwrap();
         test_cases::opening_facts(&tx);
-        test_cases::bookkeeping(&tx, |k, v| tx.set_meta(k, v).unwrap());
+        test_cases::bookkeeping(
+            &tx,
+            |k, v| tx.set_meta(k, v).unwrap(),
+            |k| tx.meta(k).unwrap(),
+        );
+        test_cases::malformed_generation(&tx, |k, v| tx.set_meta(k, v).unwrap());
+        test_cases::worker_history(&tx, |k, v| tx.set_meta(k, v).unwrap());
         let backend = tx.opening_backend().unwrap();
         test_cases::preparation(&activation::Preparation(&tx), &backend);
         test_cases::history(&tx);
@@ -196,13 +205,13 @@ fn release_contract_postgres_refuses_evolution_and_bad_admission_without_writes(
     changed
         .tables
         .insert("other".into(), changed.tables["items"].clone());
-    assert!(
-        h.engine
-            .activate_release(changed, programs, &ReleaseActivation::new(2, Some(1)), 200)
-            .unwrap_err()
-            .to_string()
-            .contains("evolution family")
-    );
+    let error = h
+        .engine
+        .activate_release(changed, programs, &ReleaseActivation::new(2, Some(1)), 200)
+        .unwrap_err();
+    assert_eq!(error.code(), "E_STORE_UNSUPPORTED");
+    assert_eq!(error.family(), "evolution");
+    assert_eq!(error.refusal().family, "evolution");
     assert_eq!(h.status(), before);
     let tx = h
         .engine
@@ -271,6 +280,11 @@ fn release_contract_postgres_timeline_counts() {
         .transaction(Some(WriteMode::Serialized))
         .unwrap();
     test_cases::timeline_seed(&tx, &table);
+    tx.execute(
+        "INSERT INTO r(t,id,data) VALUES ('items','invalid','invalid json')",
+        &[],
+    )
+    .unwrap();
     tx.commit().unwrap();
     let view = std::cell::RefCell::new(&mut h.engine.store);
     test_cases::timeline_counts(&view);
@@ -281,6 +295,14 @@ fn release_contract_postgres_attach_refuses_incompatible_shapes() {
     // Each mutation occurs on a freshly owned namespace. An attach refusal
     // rolls back all attempted upgrades; cleanup drops only that namespace.
     for ddl in [
+        "ALTER TABLE _backend SET UNLOGGED",
+        "ALTER TABLE _head SET UNLOGGED",
+        "ALTER TABLE r SET UNLOGGED",
+        "ALTER TABLE _cap_counts SET UNLOGGED",
+        "ALTER TABLE _head DROP CONSTRAINT _head_pkey; ALTER TABLE _head ADD PRIMARY KEY(singleton) DEFERRABLE",
+        "CREATE FUNCTION preserve_backend() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN OLD; END $$; CREATE TRIGGER preserve_backend BEFORE UPDATE ON _backend FOR EACH ROW EXECUTE FUNCTION preserve_backend()",
+        "CREATE FUNCTION preserve_head() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN OLD; END $$; CREATE TRIGGER preserve_head BEFORE UPDATE ON _head FOR EACH ROW EXECUTE FUNCTION preserve_head()",
+        "ALTER TABLE _catalog DROP CONSTRAINT _catalog_num_key",
         "ALTER TABLE _generations SET UNLOGGED",
         "ALTER TABLE _generations ADD COLUMN extra TEXT",
         "ALTER TABLE _generations ADD CHECK(generation>0)",
@@ -344,4 +366,62 @@ fn release_contract_postgres_restart_closes_all_connections() {
         .client
         .batch_execute(&format!("DROP SCHEMA \"{name}\" CASCADE"))
         .unwrap();
+}
+
+impl test_cases::OpeningRepairs for Harness {
+    fn add(&mut self, id: &str) -> crate::engine::MutationOutcome {
+        self.engine
+            .mutate(
+                "add",
+                None,
+                crate::Context::new(
+                    "alice",
+                    BTreeMap::from([
+                        ("id".into(), Value::Id(id.into())),
+                        ("n".into(), Value::Int(0)),
+                    ]),
+                )
+                .at(100),
+            )
+            .unwrap()
+    }
+    fn reopen_repaired(&mut self) {
+        self.reopen(1).unwrap();
+    }
+
+    fn damage(&mut self, live_sum: bool) {
+        self.engine.store.client.batch_execute(if live_sum {
+            "DELETE FROM r WHERE t='totals'; DELETE FROM i WHERE t='totals'; DELETE FROM _meta WHERE key='live_sum_candidates';"
+        } else { "DELETE FROM _cap_counts; DELETE FROM _meta WHERE key='cap_counts_schema';" }).unwrap();
+    }
+    fn population(&mut self, table: &str) -> usize {
+        self.engine
+            .store
+            .client
+            .query_one("SELECT count(*) FROM r WHERE t=$1", &[&table])
+            .unwrap()
+            .get::<_, i64>(0) as usize
+    }
+    fn marker(&mut self, marker: crate::metadata::SchemaMarker) -> Option<String> {
+        let tx = self.engine.store.transaction(None).unwrap();
+        let value = tx.schema_marker(marker).unwrap();
+        tx.rollback().unwrap();
+        value
+    }
+}
+
+#[test]
+fn release_contract_postgres_reopening_live_sums() {
+    let (schema, programs) = test_cases::repair_backend();
+    if let Some(mut h) = Harness::with_backend(schema, programs) {
+        test_cases::live_sum_reopening(&mut h);
+    }
+}
+
+#[test]
+fn release_contract_postgres_reopening_cap_counts() {
+    let (schema, programs) = test_cases::repair_backend();
+    if let Some(mut h) = Harness::with_backend(schema, programs) {
+        test_cases::cap_reopening(&mut h);
+    }
 }

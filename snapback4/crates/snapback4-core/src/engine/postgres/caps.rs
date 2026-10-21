@@ -7,6 +7,10 @@ pub(super) fn install(tx: &super::store::Tx<'_>, schema: &Schema) -> Result<(), 
     let present: Option<String> = tx.query("SELECT to_regclass('_cap_counts')::text", &[])?[0].get(0);
     if present.is_none() {
         tx.batch(DDL)?;
+    }
+    let hash = schema.hash();
+    if present.is_none() || tx.meta("cap_counts_schema")?.as_deref() != Some(&hash) {
+        tx.execute("DELETE FROM _cap_counts", &[])?;
         for (name, table) in &schema.tables {
             if !table.is_expiring() || !table.constraints.iter().any(|c| matches!(c, crate::schema::Constraint::Cap { .. })) { continue; }
             let mut after: Option<String> = None;
@@ -24,6 +28,9 @@ pub(super) fn install(tx: &super::store::Tx<'_>, schema: &Schema) -> Result<(), 
                 }
                 if rows.len() < 500 { break; }
             }
+        }
+        if crate::rows::caps::required(schema) || tx.meta("cap_counts_schema")?.is_some() {
+            tx.set_meta("cap_counts_schema", &hash)?;
         }
     }
     Ok(())

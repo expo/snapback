@@ -22,9 +22,11 @@ pub(crate) use crate::activation::Backend;
 
 impl Backend {
     pub fn check(&self, conn: &Connection) -> Result<(), RuntimeError> {
+        let raw: Option<String> = conn.query_row("SELECT value FROM _meta WHERE key='generation'", [], |row| row.get(0)).optional()?;
+        let generation = crate::activation::stored_generation(raw.as_deref())?;
         let held: (i64, String, String) = conn.query_row(
-            "SELECT g.generation, g.schema, g.programs FROM _generations g JOIN _meta m ON m.key = 'generation' AND g.generation = CAST(m.value AS INTEGER)",
-            [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
+            "SELECT generation, schema, programs FROM _generations WHERE generation = ?1",
+            [generation], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
         crate::activation::check_backend(&Backend(held.0, held.1, held.2), self)
     }
 }
