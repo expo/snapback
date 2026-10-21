@@ -60,3 +60,25 @@ pub(super) fn pairs(bound:&Bound,candidates:&[(&Program,String,BTreeMap<String,V
     }
     let mut out=Vec::new();for n in 0..groups.values().map(Vec::len).max().unwrap_or(0){for group in groups.values(){if let Some(pair)=group.get(n){out.push(*pair);if out.len()==256{return out;}}}}out
 }
+
+// Identify direct argument supplies to declared column-write intent. This only
+// prioritizes proposals; actual interpreter admission still decides every case.
+pub(super) fn write_arguments(bound:&Bound,p:&Program)->BTreeSet<String>{
+    fn walk(v:&serde_json::Value,f:&mut impl FnMut(&serde_json::Value)){
+        f(v);match v{serde_json::Value::Object(xs)=>for x in xs.values(){walk(x,f)},serde_json::Value::Array(xs)=>for x in xs{walk(x,f)},_=>{}}
+    }
+    let json=serde_json::to_value(p).unwrap();let mut bindings=BTreeMap::new();
+    walk(&json,&mut |v|for tag in ["Const","Let"]{if let Some(b)=v.get(tag)&&let(Some(n),Some(e))=(b.get("name").and_then(|v|v.as_str()),b.get("value")){bindings.insert(n.to_string(),e.clone());}});
+    fn resolve<'a>(v:&'a serde_json::Value,bindings:&'a BTreeMap<String,serde_json::Value>,depth:usize)->&'a serde_json::Value{
+        if depth>32{return v;}if let Some(n)=v.get("Variable").and_then(|v|v.as_str())&&let Some(e)=bindings.get(n){resolve(e,bindings,depth+1)}else{v}
+    }
+    let mut out=BTreeSet::new();
+    walk(&json,&mut |v|for tag in ["Insert","InsertIfAbsent","Upsert","Update","WriteTarget"]{
+        let Some(w)=v.get(tag)else{continue;};let table=w.get("table").or_else(||w.get("target").and_then(|t|t.get("table"))).and_then(|v|v.as_str());
+        let Some(payload)=w.get("row").or_else(||w.get("patch"))else{continue;};let payload=resolve(payload,&bindings,0);
+        let Some(fields)=payload.get("Object").and_then(|v|v.as_object())else{continue;};
+        for inv in bound.invariants.iter().filter(|i|Some(i.table.as_str())==table&&i.column.is_some()&&!matches!(i.target.as_str(),"read"|"always")&&i.operation.as_ref().is_none_or(|op|op==&p.name)){
+            if let Some(value)=fields.get(inv.column.as_ref().unwrap())&&let Some(arg)=resolve(value,&bindings,0).get("Variable").and_then(|v|v.as_str())&&p.args.contains_key(arg){out.insert(arg.into());}
+        }
+    });out
+}

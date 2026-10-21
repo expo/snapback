@@ -69,7 +69,17 @@ pub(super) fn fixture_cases(p:&Program,rows:&BTreeMap<String,Vec<Value>>,actors:
             if !next.contains(&case){next.push(case);}if next.len()==LIMIT{out.unsupported.insert("history arguments capped at 512 combinations".into());break 'product;}
         }}
         cases=next;
-    }cases
+    }
+    let focused=super::executed::write_arguments(bound,p).into_iter().filter(|a|matches!(p.args.get(a),Some(ir::ArgType::Optional(_)))).collect::<Vec<_>>();
+    if focused.is_empty(){return cases;}
+    let mut prioritized=Vec::new();
+    for case in cases{
+        for name in &focused{if let Some(value)=arguments(&BTreeMap::from([(name.clone(),p.args[name].clone())]),4).and_then(|mut a|a.remove(name))&&value!=Value::Null{
+            let mut alternate=case.clone();alternate.insert(name.clone(),value);if !prioritized.contains(&alternate){prioritized.push(alternate);}
+        }}
+        if !prioritized.contains(&case){prioritized.push(case);}
+        if prioritized.len()>=LIMIT{prioritized.truncate(LIMIT);out.unsupported.insert("column-write argument frontier capped at 512; remaining combinations uncovered".into());break;}
+    }prioritized
 }
 pub(super) fn trace_key(steps:&[Step])->Vec<(&str,&str)>{steps.iter().map(|s|(s.operation.as_str(),s.viewer.as_str())).collect()}
 pub(super) fn violation(out:&mut Campaign,inv:&Invariant,steps:&[Step],viewer:&str,row:&Value,old:Option<&Value>,initial:&BTreeMap<String,Vec<Value>>,effect:&str)->bool{
