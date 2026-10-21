@@ -914,3 +914,50 @@ pub(crate) fn rotation_revoke_state(store: &impl IdentityFixture, principal: &st
     store.with_identity_tx(|tx| Ok((tx.principal_generation(principal)?,
         tx.session_by_digest(old)?.is_some(), tx.session_by_digest(next)?.is_some()))).unwrap()
 }
+
+/// Lost-delivery liveness is family membership, including action-kind custom
+/// sessions and a family retained only by a read member after its full closes.
+pub(crate) fn assert_bound_recovery(
+    tx: &(impl IdentityTransaction + AuthorityTransaction + crate::engine::actions::requests::RequestsTransaction),
+    read_only_family: bool,
+) {
+    use crate::engine::actions::requests::NewRequest;
+    let service = new_session("service:worker", "service", 0, 1).unwrap();
+    tx.insert_identity_session(&service, 0).unwrap();
+    tx.insert_request(&NewRequest {
+        id: "mint", action: "work", args: "{}", principal: "dev:alice", at: 0,
+        authority: None, args_digest: "digest", spec: "{}", contract: "contract",
+        deadline: None, release: None, service_generation: None,
+    }).unwrap();
+    let lease = action_session(tx, "dev:alice", 0, 1_000).unwrap();
+    tx.claim_request("mint", &service.principal, &digest(&lease.token), 1_000).unwrap();
+    let mut binding = SessionMintBinding {
+        invocation_id: "mint".into(), intent: BOUND_SESSION_INTENT.into(), replace_lost_delivery: false,
+    };
+    let kind = if read_only_family { "member" } else { "action" };
+    let first = bound_custom_session_tx(tx, &service.token, &service.principal, &lease.token,
+        "member:target", kind, || 1, 1, &binding).unwrap();
+    let family = digest(&first.token);
+    let read = if read_only_family {
+        let mut read = read_sessions::scoped_session(&first.principal, kind, 2, SessionScope::Read).unwrap();
+        read.expires_at = first.expires_at;
+        read.cap_expires_at = Some(first.expires_at);
+        // Preserve the admitted family while narrowing its surviving member.
+        tx.insert_read_session(&read, 2, Some((&family, 0))).unwrap();
+        tx.invalidate_session(&digest(&first.token)).unwrap();
+        Some(read)
+    } else { None };
+    let member = tx.latest_live_family_member("member:target", &family, 3).unwrap().unwrap();
+    assert_eq!(member.scope, if read_only_family { SessionScope::Read } else { SessionScope::Full });
+    assert_eq!(member.kind, kind);
+    binding.replace_lost_delivery = true;
+    let recovered = bound_custom_session_tx(tx, &service.token, &service.principal, &lease.token,
+        "member:target", kind, || 3, 1, &binding).unwrap();
+    assert_ne!(recovered.token, first.token);
+    assert_eq!(recovered.expires_at, first.expires_at);
+    assert!(tx.session_by_digest(&digest(&first.token)).unwrap().is_none());
+    if let Some(read) = read { assert!(tx.session_by_digest(&digest(&read.token)).unwrap().is_none()); }
+    let member = tx.latest_live_family_member("member:target", &family, 4).unwrap().unwrap();
+    assert_eq!(member.digest, digest(&recovered.token));
+    assert_eq!(member.scope, SessionScope::Full);
+}

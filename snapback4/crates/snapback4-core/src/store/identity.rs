@@ -478,6 +478,22 @@ mod tests {
     use crate::identity::test_cases;
 
     #[test]
+    fn bound_action_kind_lost_delivery_recovers() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        test_cases::assert_bound_recovery(&tx, false);
+        tx.commit().unwrap();
+    }
+
+    #[test]
+    fn bound_read_only_family_lost_delivery_recovers() {
+        let mut store = Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        test_cases::assert_bound_recovery(&tx, true);
+        tx.commit().unwrap();
+    }
+
+    #[test]
     fn shared_digest_in_both_session_tables_refused() {
         test_cases::assert_digest_in_both_session_tables_refused(&Store::memory().unwrap());
     }

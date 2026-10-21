@@ -234,7 +234,9 @@ impl PostgresEngine {
         Ok(outcome)
     }
 
+    /// A NUL receipt key is absent without opening a snapshot or querying.
     pub fn replay(&mut self, viewer: &str, op: &str) -> Result<Option<MutationOutcome>, RuntimeError> {
+        if store::absent_text_key(&[viewer, op]) { return Ok(None); }
         let tx = self.store.transaction(None)?;
         let receipt = tx.applied(viewer, op)?;
         tx.rollback()?;
@@ -243,7 +245,9 @@ impl PostgresEngine {
 
     /// Compare wire identity before decoding against the installed program.
     // @ref LLP 3000.009#5.1 — an id binds the admitted operation and arguments.
+    /// A NUL receipt key is absent without opening a snapshot or querying.
     fn replay_mutation(&mut self, viewer: &str, id: &str, name: &str, args_digest: &str) -> Result<Option<MutationOutcome>, RuntimeError> {
+        if store::absent_text_key(&[viewer, id]) { return Ok(None); }
         let tx = self.store.transaction(None)?;
         let receipt = tx.applied_bound(viewer, id, name, args_digest)?;
         tx.rollback()?;

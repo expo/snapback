@@ -109,15 +109,20 @@ fn legacy_nul_oldest_request_does_not_poison_claim_batch() {
 fn legacy_nul_request_replay_and_authority_failure_address_stored_keys() {
     let mut engine = engine();
     seed(&engine, LEGACY, 0, None);
-    let (run, replayed) = engine
-        .request_action(
-            ACTION,
-            LEGACY,
-            crate::Context::new("dev:alice", Default::default()).at(10),
-        )
-        .unwrap();
-    assert!(replayed);
+    let changes = engine.store().conn().total_changes();
+    // The client invocation-id admission now refuses NUL via identity_fits.
+    // Replaying a stored row remains an adapter/policy operation, not new
+    // identity admission; pin both sides of that boundary.
+    assert_eq!(engine.request_action(ACTION, LEGACY,
+        crate::Context::new("dev:alice", Default::default()).at(10)).unwrap_err().code(), "E_INPUT");
+    let tx = engine.store_mut().transaction().unwrap();
+    assert!(tx.request("not\0stored").unwrap().is_none());
+    assert!(tx.work_by_id("not\0stored").unwrap().is_none());
+    let run = crate::engine::actions::replay(&tx, LEGACY, "dev:alice", ACTION, &serde_json::json!({}), 10)
+        .unwrap().unwrap();
     assert_eq!(run.id, LEGACY);
+    tx.rollback().unwrap();
+    assert_eq!(engine.store().conn().total_changes(), changes);
     engine.store().conn().execute("UPDATE _requests SET family = 'revoked', principal_generation = 0, admitted_expires_at = 100 WHERE id = ?1", [LEGACY]).unwrap();
     assert!(
         engine

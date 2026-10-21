@@ -11,6 +11,7 @@ mod expiring_counts;
 mod refusals;
 mod update_images;
 mod requests;
+mod nul;
 
 #[test]
 fn maintained_columns_are_outside_postgres_evaluation() {

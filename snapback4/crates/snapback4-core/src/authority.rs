@@ -28,7 +28,7 @@ pub(crate) struct SessionRecord {
 }
 
 impl SessionRecord {
-    fn identity_is_valid(&self) -> bool {
+    pub(crate) fn identity_is_valid(&self) -> bool {
         crate::identity::refuse_nul(&[(&self.principal, "this session is not live; sign in again"),
             (&self.kind, "this session is not live; sign in again"),
             (&self.family, "this session is not live; sign in again")]).is_ok()

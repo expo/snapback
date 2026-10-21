@@ -1,6 +1,6 @@
 //! Authority facts on the caller-owned Postgres transaction.
 
-use super::store::Tx;
+use super::store::{Tx, absent_text_key};
 use crate::{
     RuntimeError,
     authority::{AdmissionRecord, AuthorityTransaction, SessionRecord, WorkRecord},
@@ -39,7 +39,9 @@ fn read_work(row: &postgres::Row) -> WorkRecord {
 }
 
 impl AuthorityTransaction for Tx<'_> {
+    /// A NUL principal has no generation row; return the absent default without querying.
     fn principal_generation(&self, principal: &str) -> Result<i64, RuntimeError> {
+        if absent_text_key(&[principal]) { return Ok(0); }
         Ok(self
             .query("SELECT generation FROM _principal_generations WHERE principal = $1", &[&principal])?
             .first()
@@ -47,7 +49,9 @@ impl AuthorityTransaction for Tx<'_> {
             .unwrap_or(0))
     }
 
+    /// A NUL lookup key is absent without querying.
     fn session_by_digest(&self, digest: &str) -> Result<Option<SessionRecord>, RuntimeError> {
+        if absent_text_key(&[digest]) { return Ok(None); }
         let rows = self.query(
                 "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = $1",
                 &[&digest],
@@ -61,12 +65,14 @@ impl AuthorityTransaction for Tx<'_> {
     }
 
     // @ref LLP 3000.009.001.000#91-adapter-parity-rules — digest and scope break expiry ties across both tables.
+    /// A NUL lookup key is absent without querying.
     fn latest_live_family_member(
         &self,
         principal: &str,
         family: &str,
         now: i64,
     ) -> Result<Option<SessionRecord>, RuntimeError> {
+        if absent_text_key(&[principal, family]) { return Ok(None); }
         Ok(self
             .query(
                 "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE principal = $1 AND COALESCE(family, token_digest) = $2 AND expires_at > $3 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE principal = $1 AND family = $2 AND expires_at > $3 ORDER BY expires_at DESC, token_digest ASC, 6 ASC LIMIT 1",
@@ -76,14 +82,18 @@ impl AuthorityTransaction for Tx<'_> {
             .map(read_session))
     }
 
+    /// A NUL lookup key is absent without querying.
     fn work_by_id(&self, id: &str) -> Result<Option<WorkRecord>, RuntimeError> {
+        if absent_text_key(&[id]) { return Ok(None); }
         Ok(self.query(WORK_BY_ID, &[&id])?.first().map(read_work))
     }
 
+    /// A NUL lookup key is absent without querying.
     fn work_by_claimed_session_digest(
         &self,
         digest: &str,
     ) -> Result<Option<WorkRecord>, RuntimeError> {
+        if absent_text_key(&[digest]) { return Ok(None); }
         Ok(self.query(WORK_BY_SESSION, &[&digest])?.first().map(read_work))
     }
 

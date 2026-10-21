@@ -8,7 +8,7 @@ use crate::{
     schema::{Index, Table},
     value::{Value, canonical_json},
 };
-use postgres::{Client, IsolationLevel, Row, Statement, Transaction, types::ToSql};
+use postgres::{Client, IsolationLevel, Row, Statement, Transaction, types::{ToSql, FromSql, Format, IsNull, Kind}};
 use std::{
     cell::{Cell, RefCell},
     collections::BTreeMap,
@@ -172,6 +172,41 @@ pub(super) fn namespace(name: &str) -> Result<String, RuntimeError> {
     Ok(format!("\"{name}\""))
 }
 
+/// A NUL text key cannot exist in Postgres. Optional lookups return absent
+/// without querying; SQLite continues to look up its legacy keys normally.
+// @ref LLP 3000.009.001.000#9.1 — one absence rule for every Postgres family.
+pub(super) fn absent_text_key(keys: &[&str]) -> bool {
+    keys.iter().any(|key| key.contains('\0'))
+}
+
+/// Inspect the driver's typed encoding before Bind/Execute. Array headers
+/// contain zero bytes, so inspect text elements rather than their framing.
+// @ref LLP 3000.009.001.000#9.1 — residual NUL parameters are input refusals, never server errors.
+fn guard_text_params(statement: &Statement, params: &[&(dyn ToSql + Sync)]) -> Result<(), RuntimeError> {
+    for (param, ty) in params.iter().zip(statement.params()) {
+        let text = <String as FromSql>::accepts(ty);
+        let text_array = matches!(ty.kind(), Kind::Array(element) if <String as FromSql>::accepts(element));
+        let text_format = matches!(param.encode_format(ty), Format::Text);
+        if !text && !text_array && !text_format { continue; }
+        let mut encoded = Default::default();
+        let null = param.to_sql_checked(ty, &mut encoded)
+            .map_err(|error| RuntimeError::Input(format!("invalid Postgres parameter: {error}")))?;
+        if matches!(null, IsNull::Yes) { continue; }
+        let bytes: &[u8] = encoded.as_ref();
+        let contains_nul = if text || text_format {
+            bytes.contains(&0)
+        } else {
+            Vec::<Option<&str>>::from_sql(ty, bytes)
+                .map_err(|error| RuntimeError::Input(format!("invalid Postgres text array: {error}")))?
+                .into_iter().flatten().any(|value| value.contains('\0'))
+        };
+        if contains_nul {
+            return Err(RuntimeError::Input("Postgres text parameters cannot contain U+0000".into()));
+        }
+    }
+    Ok(())
+}
+
 impl Tx<'_> {
     fn prepared(&self, sql: &'static str) -> Result<Statement, RuntimeError> {
         if let Some(statement) = self.cache.borrow().get(sql) {
@@ -185,13 +220,15 @@ impl Tx<'_> {
 
     pub fn query(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<Vec<Row>, RuntimeError> {
         let statement = self.prepared(sql)?;
+        guard_text_params(&statement, params)?;
         self.calls.set(self.calls.get() + 1);
         Ok(self.inner.borrow_mut().query(&statement, params)?)
     }
 
     pub fn execute(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, RuntimeError> {
-        self.flush_tail()?;
         let statement = self.prepared(sql)?;
+        guard_text_params(&statement, params)?;
+        self.flush_tail()?;
         self.calls.set(self.calls.get() + 1);
         Ok(self.inner.borrow_mut().execute(&statement, params)?)
     }
@@ -248,11 +285,15 @@ impl Tx<'_> {
         Ok(())
     }
 
+    /// A NUL principal or id is absent without querying.
     pub fn applied(&self, principal: &str, id: &str) -> Result<Option<String>, RuntimeError> {
+        if absent_text_key(&[principal, id]) { return Ok(None); }
         Ok(self.query("SELECT outcome FROM _ops WHERE principal = $1 AND id = $2", &[&principal, &id])?.first().map(|r| r.get(0)))
     }
 
+    /// A NUL receipt key is absent without querying.
     pub fn applied_bound(&self, principal: &str, id: &str, name: &str, args_digest: &str) -> Result<Option<String>, RuntimeError> {
+        if absent_text_key(&[principal, id]) { return Ok(None); }
         let Some(row) = self.query("SELECT outcome,name,args_digest FROM _ops WHERE principal = $1 AND id = $2", &[&principal, &id])?.into_iter().next() else { return Ok(None); };
         if row.get::<_, &str>(1) != name || row.get::<_, &str>(2) != args_digest {
             return Err(crate::store::id_reused());
@@ -348,12 +389,16 @@ impl Rows for Tx<'_> {
         }
     }
 
+    /// A NUL table or id is absent without querying.
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
+        if absent_text_key(&[table, id]) { return Ok(None); }
         if let Some(answer) = self.rows_cache.borrow().get(table, id) { return Ok(answer); }
         self.query("SELECT data FROM r WHERE t = $1 AND id = $2", &[&table, &id])?.first().map(|r| decode(r.get::<_, &str>(0))).transpose()
     }
 
+    /// A NUL table or index name is absent without querying.
     fn lookup(&self, table: &str, name: &str, index: &Index, values: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        if absent_text_key(&[table, name]) { return Ok(None); }
         if values.len() != index.components.len() {
             return Err(RuntimeError::Schema(format!(
                 "point read {table}.{name} supplied {} of {} key columns",
@@ -391,7 +436,9 @@ impl Rows for Tx<'_> {
             .collect()
     }
 
+    /// A NUL table or index name is absent without querying.
     fn index_head(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir) -> Result<Option<Vec<Value>>, RuntimeError> {
+        if absent_text_key(&[table, index]) { return Ok(None); }
         let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(None); };
         let sql = if dir == Dir::Asc {
             "SELECT k FROM i WHERE t = $1 AND ix = $2 AND k >= $3 AND k < $4 ORDER BY k ASC LIMIT 1"

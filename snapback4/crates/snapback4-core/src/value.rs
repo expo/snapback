@@ -385,8 +385,10 @@ pub fn digest<T: Serialize>(value: &T) -> String {
     format!("{:x}", hash.finalize())
 }
 
-/// An identity fits when its canonical tagged form is at most 144 UTF-8 bytes.
+/// An identity contains no U+0000 and its canonical tagged form is at most 144 UTF-8 bytes.
 pub fn identity_fits(value: &str) -> bool {
+    // @ref LLP 3000.009.001.000#9.1 — every identity-shaped admission inherits the NUL refusal.
+    if value.contains('\0') { return false; }
     // Tag {"Id":""} is nine bytes. JSON escaping is counted in UTF-8 bytes.
     9usize.saturating_add(
         value

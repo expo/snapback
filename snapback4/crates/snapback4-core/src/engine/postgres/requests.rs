@@ -1,7 +1,7 @@
 //! Durable request facts on the caller-owned Postgres transaction.
 //! Claim authority, lease bounds, retries and step parking stay in `actions`.
 // @ref LLP 3000.009.001.000#3.1 — adapters store facts; shared Rust chooses transitions.
-use super::store::{Store, Tx, decode};
+use super::store::{Store, Tx, decode, absent_text_key};
 use crate::{
     RuntimeError,
     engine::actions::{
@@ -97,7 +97,9 @@ fn read(row: &postgres::Row) -> Result<ActionRequest, RuntimeError> {
 }
 
 impl RequestsTransaction for Tx<'_> {
+    /// A NUL id is absent without querying.
     fn request(&self, id: &str) -> Result<Option<ActionRequest>, RuntimeError> {
+        if absent_text_key(&[id]) { return Ok(None); }
         self.query("SELECT id, name, args, principal, at, state, attempts, lease_until, result, error, error_code, family, principal_generation, admitted_expires_at, args_digest, settled_at, spec, contract, deadline, release, service_generation, cancelled FROM _requests WHERE id = $1", &[&id])?
             .first()
             .map(read)
@@ -150,6 +152,7 @@ impl RequestsTransaction for Tx<'_> {
         Ok(())
     }
 
+    /// A NUL name matches no row; impossible names in a set are ignored.
     fn due_requests(
         &self,
         now: i64,
@@ -157,6 +160,11 @@ impl RequestsTransaction for Tx<'_> {
         names: Option<&[String]>,
         limit: u64,
     ) -> Result<Vec<String>, RuntimeError> {
+        // An impossible name matches no rows. Keep valid names in a mixed
+        // selection, just as SQLite does when legacy names are absent here.
+        if action.is_some_and(|name| absent_text_key(&[name])) { return Ok(Vec::new()); }
+        let portable_names = names.filter(|names| names.iter().any(|name| absent_text_key(&[name]))).map(|names| names.iter().filter(|name| !absent_text_key(&[name])).cloned().collect::<Vec<_>>());
+        let names = portable_names.as_deref().or(names);
         let limit = limit.min(i64::MAX as u64) as i64;
         // Explicit casts keep optional parameters typed even when NULL is sent.
         Ok(self.query("SELECT id FROM _requests WHERE state = 'queued' AND (next_at IS NULL OR next_at <= $1) AND ($2::text IS NULL OR name = $2) AND ($4::text[] IS NULL OR name = ANY($4::text[])) ORDER BY at, id LIMIT $3",

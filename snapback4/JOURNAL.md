@@ -99090,3 +99090,114 @@ nul_bound_worker_reports_the_malformed_value_before_sampling is expanded into
 nul_identity_entry_points_refuse_before_sampling_or_writing. All checks are
 against the final semantic delta; no identity fix remains deferred. PostgreSQL
 host wiring and the internal migration runner remain outside this lane.
+
+## 2026-10-21 — Lane NUL: identity and Postgres bind chokepoints
+
+Commissioned on `40f97480c7` over `805fb4599a`. The identity/requests reviews
+found more admission doors after three identity rounds and two request
+rounds. The owner asked for a shape/bind boundary instead of another list of
+entry-point patches (LLP 3000.009.001.000 §9.1).
+
+`identity_fits` now rejects U+0000; `is_service` includes that shape check,
+and `valid_name` already excludes it. Request/invocation ids, route viewers,
+action workers and scheduled seats inherit the refusal from their existing
+checks. Direct effect claims now check the worker shape before opening a
+writer, ahead of expiry. Their SQLite engine tests assert no `total_changes`
+even with a running expired lease plus queued work, so a refusal cannot
+silently requeue work or invalidate its delegated session. Existing refusal
+codes stand. Jobs and outbox adapters are untouched.
+
+The Postgres `Tx::query`/`execute` path inspects typed parameter encodings
+before Bind/Execute, including optional text and text arrays. It returns
+`RuntimeError::Input` / `E_INPUT` for NUL while preserving a usable
+transaction. `execute` validates before flushing buffered bookkeeping. A
+physical test retains a pending commit across refusals and then commits it;
+bytea zero bytes, optional NULL, arrays with NULL elements and JSON-escaped
+NUL still work. Cold statement preparation may run before parameter checking;
+no refused Bind/Execute is sent. Optional identity, request, receipt and row
+lookups use the single `absent_text_key` helper and return absent without a
+database call; missing principal generations retain their zero default.
+Impossible request-name filters select no rows, and mixed name sets keep
+the valid names.
+
+Lost-delivery recovery once again asks for a live family member, then checks
+that the family and member contain no NUL. It no longer substitutes the
+full/action-authority walk for the parent's membership test. The same
+transaction policy now has adapter tests for an `action`-kind bound session
+and a family whose full session has closed while a read member remains.
+Both replacements retain the original expiry and invalidate the previous
+family members. The public SQLite entry retains validation before opening
+its writer and samples its clock only after acquiring it.
+
+Coverage boundary: `PostgresEngine` still explicitly refuses actions, routes,
+effect workers and schedules as engine surfaces. The SQLite tests exercise
+all five public admission doors; Postgres tests exercise the exact shared
+identity predicates without database calls, the landed identity/request
+transaction capabilities, and the physical bind fallback. This does not
+claim end-to-end Postgres engine coverage for unlanded families. The two
+bound-session recovery cases run the same shared transaction policy on both
+stores. Stored NUL identity authentication remains covered by the existing
+SQLite legacy fixtures; PostgreSQL cannot store those rows.
+
+The RFC's single Revised line prepends “NUL chokepoints”. Rule 1 now states
+the shared shape checks, fail-closed stored identities, admission-only
+validation in other families, absent Postgres lookups, the typed bind guard,
+U+FFFD diagnostics and safe JSON. It explicitly retains ordinary expiry's
+cleanup of an expired stored NUL session (Sol P3), and records the residual:
+a direct Rust-API non-identity NUL write may store on SQLite and receive
+E_INPUT on Postgres.
+
+The first core run exposed an old request fixture that replayed a NUL
+invocation id through the public admission API. That API now refuses the
+identity-shaped input even if an old row exists. The fixture now pins that
+no-write refusal and separately calls the shared stored-row replay policy,
+which still returns the legacy row without re-validating its key. Legacy
+expiry, claim, settlement, cancellation and authority-failure cases remain.
+
+Validation (all builds used the commissioned target directory, no incremental
+compilation, line-tables-only dev/test debug and at most 24 Cargo jobs):
+
+- Initial `cargo build -p snapback4 -j 24`: passed.
+- `cargo test -p snapback4-core -j 24`: passed, 904 passed / 0 failed /
+  5 ignored across 45 result summaries (excluding a filtered subprocess
+  witness); the unit target was 501 / 0 / 3.
+- `cargo test -p snapback4 --no-fail-fast -j 24`: 1361 passed / 1 failed /
+  15 ignored. The sole failure was the unchanged
+  `stalled_resolver_sigint_is_bounded_journalled_and_drained` fixture waiting
+  ten seconds for `descendant.pid`; an exact isolated rerun passed in 1.05 s.
+  The three anticipated TypeScript/client-JS baseline failures did not occur.
+- Full `scripts/test-postgres.sh`: 162 passed / 0 failed / 0 ignored, twice.
+  The final run includes the no-query index-head and public receipt-replay
+  assertions. Both private clusters, `/tmp/sb4-pg-eval.8ORRpu/data` and
+  `/tmp/sb4-pg-eval.oR1ORQ/data`, were stopped by the script and independently
+  confirmed stopped (`pg_ctl status` = 3, no `postmaster.pid`).
+- Required `cargo clippy -p snapback4-core -p snapback4 --tests --features
+  postgres -j 24`: exits 101 on two unchanged denied lints:
+  `while_immutable_condition` at `engine/read.rs:780` and `never_loop` at
+  `engine/row_views.rs:1013`. A supplementary warning audit lowering those
+  classes exposed the unchanged device FFI's three
+  `not_unsafe_ptr_arg_deref` diagnostics (`ffi.rs:100,112,120`). Lowering all
+  three classes to warnings on the command line completed the full audit.
+  The existing denies and ratchets are unchanged; the audit overrides were
+  command-line only. The completed audit had no warning primary locations
+  on added or changed lines.
+- `./ref-check`: passed, 564 LLP documents / 11527 references / 0 errors.
+  `git diff --check` passed. Free space stayed above the 25 GB stop floor.
+
+The five SQLite public scenarios are pinned in `tests/nul_chokepoints.rs`:
+`nul_action_invocation_is_refused_before_any_write`,
+`nul_dev_route_viewer_is_refused_before_any_write`,
+`nul_action_worker_is_refused_before_expiry_or_claim`,
+`nul_effect_worker_is_refused_before_expiry_or_claim`, and
+`nul_scheduled_service_seat_is_refused_before_activation_writes`.
+Their Postgres shared-predicate counterpart is
+`engine::postgres::tests::nul::nul_identity_chokepoints_precede_adapter_writes`,
+with an expired running request, its delegated session and a queued request
+left intact. `nul_optional_lookups_are_absent_without_database_calls` pins
+all optional lookup paths; the SQLite legacy-request test also pins absent
+NUL request/work lookups before replaying the stored NUL key, with a targeted
+rerun after adding those assertions. `nul_request_name_selection_is_absent_and_preserves_valid_names`
+pins selection filters. `nul_bind_guard_refuses_text_options_arrays_and_keeps_transaction_usable`
+pins physical pre-bind refusal and retained bookkeeping. Both stores run
+`bound_action_kind_lost_delivery_recovers` and
+`bound_read_only_family_lost_delivery_recovers` through the same policy.

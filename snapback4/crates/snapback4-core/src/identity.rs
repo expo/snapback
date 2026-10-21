@@ -663,7 +663,7 @@ mod tests {
 pub const SERVICE_PREFIX: &str = "service:";
 
 pub fn is_service(principal: &str) -> bool {
-    principal.starts_with(SERVICE_PREFIX)
+    principal.starts_with(SERVICE_PREFIX) && crate::value::identity_fits(principal)
 }
 
 /// The namespaces the engine mints itself; an application's own accounts
@@ -766,20 +766,36 @@ pub fn bound_custom_session(
     validate_custom_session(principal, kind)?;
     validate_mint_binding(binding)?;
     validate_bound_worker(worker)?;
+    let tx = store.transaction()?;
+    let session = bound_custom_session_tx(&tx, service_token, worker, action_lease, principal, kind, now, days, binding)?;
+    tx.commit()?;
+    Ok(session)
+}
+
+// The caller owns the writer fence and commit; both adapters use the same
+// service, claim, input-binding and lost-delivery decisions.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn bound_custom_session_tx(
+    tx: &(impl IdentityTransaction + AuthorityTransaction + crate::engine::actions::requests::RequestsTransaction),
+    service_token: &str, worker: &str, action_lease: &str, principal: &str, kind: &str,
+    now: impl FnOnce() -> i64, days: i64, binding: &SessionMintBinding,
+) -> Result<Session, RuntimeError> {
+    validate_custom_session(principal, kind)?;
+    validate_mint_binding(binding)?;
+    validate_bound_worker(worker)?;
     // @ref LLP 3000.033#1.3 — scope is bound separately; preserve legacy input digests for recoverable full mints.
     let input = serde_json::json!({ "principal": principal, "kind": kind, "days": days });
     let input_digest = crate::store::payload_digest(&input);
     let service_digest = digest(service_token);
-    let tx = store.transaction()?;
     // Sample only after the immediate writer transaction is ours, beside
     // every service, claim, admitting and target-family authority check.
     let now = now();
-    let service_is_live = authority::live_service_session(&tx, &service_digest, worker, now)?;
+    let service_is_live = authority::live_service_session(tx, &service_digest, worker, now)?;
     if !service_is_live || !is_service(worker) {
         return Err(RuntimeError::Auth("the service credential is no longer live for this action claim".into()));
     }
-    crate::engine::actions::held_claim_authority(&tx, &binding.invocation_id, worker, action_lease, now)?;
-    let target_generation = principal_generation(&tx, principal)?;
+    crate::engine::actions::held_claim_authority(tx, &binding.invocation_id, worker, action_lease, now)?;
+    let target_generation = tx.principal_generation(principal)?;
     tx.initialize_mint_binding_scope()?;
     let previous = tx.mint_binding_record(&binding.invocation_id, &binding.intent)?;
     let session = match previous {
@@ -806,7 +822,9 @@ pub fn bound_custom_session(
             if previous.expires_at <= now || previous.principal_generation != target_generation {
                 return Err(session_mint_authority_error("the bound session authority expired or was revoked and cannot be recreated"));
             }
-            let family_is_live = authority::family_authority_expiry(&tx, principal, &previous.family, target_generation, now)?.is_some();
+            let family_is_live = !previous.family.contains('\0') && tx
+                .latest_live_family_member(principal, &previous.family, now)?
+                .is_some_and(|member| member.identity_is_valid());
             if !family_is_live {
                 return Err(session_mint_authority_error("the bound session family is no longer live and cannot be recreated"));
             }
@@ -818,7 +836,6 @@ pub fn bound_custom_session(
             session
         }
     };
-    tx.commit()?;
     Ok(session)
 }
 

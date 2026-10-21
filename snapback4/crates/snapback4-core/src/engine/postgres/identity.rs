@@ -1,6 +1,6 @@
 //! Postgres identity storage. Policy callbacks run under the ordinary head fence.
 // @ref LLP 3000.009.001.000#31-three-layers — adapters return facts; identity policy stays in shared Rust.
-use super::store::{Store, Tx, WriteMode};
+use super::store::{Store, Tx, WriteMode, absent_text_key};
 use crate::{
     RuntimeError,
     authority::AuthorityTransaction,
@@ -82,11 +82,13 @@ impl IdentityTransaction for Tx<'_> {
         self.require_serialized_head_fence("initialize mint binding scope")
     }
 
+    /// A NUL lookup key is absent without querying.
     fn mint_binding_record(
         &self,
         invocation: &str,
         intent: &str,
     ) -> Result<Option<SessionMintRecord>, RuntimeError> {
+        if absent_text_key(&[invocation, intent]) { return Ok(None); }
         Ok(self.query(
             "SELECT input_digest,principal,kind,days,expires_at,family,principal_generation,scope FROM _session_mint_bindings WHERE invocation = $1 AND intent = $2",
             &[&invocation, &intent],
@@ -168,11 +170,13 @@ impl IdentityStore for RefCell<&mut Store> {
         })
     }
 
+    /// A NUL lookup key is absent without querying.
     fn full_rotation_record(
         &self,
         digest: &str,
         now: i64,
     ) -> Result<Option<FullRotationRecord>, RuntimeError> {
+        if absent_text_key(&[digest]) { return Ok(None); }
         with_tx(self, None, |tx| {
             Ok(tx.query(
             "SELECT principal,kind,expires_at - created_at,COALESCE(family,token_digest) FROM _sessions WHERE token_digest = $1 AND expires_at > $2",
@@ -243,7 +247,9 @@ impl IdentityStore for RefCell<&mut Store> {
         })
     }
 
+    /// A NUL lookup key is absent without querying.
     fn identity_credential(&self, email: &str) -> Result<Option<Credential>, RuntimeError> {
+        if absent_text_key(&[email]) { return Ok(None); }
         with_tx(self, None, |tx| {
             Ok(tx
                 .query(
@@ -278,12 +284,14 @@ impl IdentityStore for RefCell<&mut Store> {
         })
     }
 
+    /// A NUL lookup key is absent without querying.
     fn rotate_read_session(
         &self,
         digest: &str,
         now: i64,
         mint: impl FnOnce(&ReadRotationRecord) -> Result<Option<Session>, RuntimeError>,
     ) -> Result<Option<Session>, RuntimeError> {
+        if absent_text_key(&[digest]) { return Ok(None); }
         let mut store = self.borrow_mut();
         let tx = store.transaction(Some(WriteMode::Serialized))?;
         let result = (|| -> Result<Option<Session>, RuntimeError> {
@@ -337,7 +345,9 @@ impl IdentityStore for RefCell<&mut Store> {
         })
     }
 
+    /// A NUL lookup key is absent without querying.
     fn identity_session_expiry(&self, digest: &str) -> Result<Option<i64>, RuntimeError> {
+        if absent_text_key(&[digest]) { return Ok(None); }
         with_tx(self, None, |tx| {
             let expiry = tx
                 .query(
@@ -353,7 +363,9 @@ impl IdentityStore for RefCell<&mut Store> {
         })
     }
 
+    /// A NUL digest is absent without querying.
     fn is_supervised_family(&self, digest: &str) -> Result<bool, RuntimeError> {
+        if absent_text_key(&[digest]) { return Ok(false); }
         with_tx(self, None, |tx| {
             Ok(tx.query(
             "SELECT EXISTS(SELECT 1 FROM _sessions s JOIN _meta m ON m.key = 'worker:family:' || COALESCE(s.family,s.token_digest) OR (m.key = 'worker:session-family' AND m.value = COALESCE(s.family,s.token_digest)) WHERE s.token_digest = $1)",

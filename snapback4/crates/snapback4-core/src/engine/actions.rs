@@ -60,7 +60,7 @@ pub(super) fn authority_expiry(tx: &(impl RequestsTransaction + AuthorityTransac
     authority::work_authority_expiry(tx, &work, now)
 }
 
-fn replay(tx: &(impl RequestsTransaction + AuthorityTransaction), id: &str, principal: &str, name: &str, args: &Json, now: i64) -> Result<Option<ActionRequest>, RuntimeError> {
+pub(crate) fn replay(tx: &(impl RequestsTransaction + AuthorityTransaction), id: &str, principal: &str, name: &str, args: &Json, now: i64) -> Result<Option<ActionRequest>, RuntimeError> {
     let Some(run) = tx.request(id)? else { return Ok(None); };
     if run.principal != principal || authority_expiry(tx, &run, now)?.is_none() { return Err(unknown()); }
     if run.action != name { return Err(if run.args_digest.is_some() { crate::store::id_reused() } else { unknown() }); }
@@ -165,7 +165,6 @@ pub(super) fn insert_spec(tx: &Tx<'_>, program: &Program, id: &str, context: &Co
 impl Engine {
     // @ref LLP 3000.007#9.2 — durable action admission precedes the worker and survives retries by id.
     pub fn request_action(&mut self, name: &str, id: &str, mut context: Context) -> Result<(ActionRequest, bool), RuntimeError> {
-        identity::refuse_nul(&[(&context.viewer, "an action needs a signed-in principal")])?;
         if context.viewer == crate::SYSTEM_PRINCIPAL || !crate::value::identity_fits(&context.viewer) {
             return Err(RuntimeError::Auth("an action needs a signed-in principal".into()));
         }

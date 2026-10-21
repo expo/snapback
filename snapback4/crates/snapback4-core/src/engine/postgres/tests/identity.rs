@@ -467,3 +467,21 @@ fn identity_missing_read_storage_requires_reattach_without_writer_ddl() {
     store.insert_identity_session_atomic(&read, 1_000).unwrap();
     assert_eq!(store.identity_session_expiry(&digest(&read.token)).unwrap(), Some(read.expires_at));
 }
+
+#[test]
+#[ignore = "requires private SNAPBACK4_EVAL_POSTGRES"]
+fn bound_action_kind_lost_delivery_recovers() {
+    let mut e = authority_engine();
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    test_cases::assert_bound_recovery(&tx, false);
+    tx.commit().unwrap();
+}
+
+#[test]
+#[ignore = "requires private SNAPBACK4_EVAL_POSTGRES"]
+fn bound_read_only_family_lost_delivery_recovers() {
+    let mut e = authority_engine();
+    let tx = e.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    test_cases::assert_bound_recovery(&tx, true);
+    tx.commit().unwrap();
+}
