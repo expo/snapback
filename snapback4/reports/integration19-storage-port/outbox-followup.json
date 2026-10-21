@@ -1,0 +1,400 @@
+{
+  "source": {
+    "source": "3f455cf6f7117e4d9700ad79824c84037febb814",
+    "main": "bf9c1ccc557a27e4d67adeb2666acfda5d91ebcf"
+  },
+  "fullConsumerSnapshot": "8d2633e8c103708d9014ec283c1acad864a615c2",
+  "scope": "Final-fetch outbox/lease delta: focused core/host, exact new packed production binary clients and installed security campaigns. Full consumer proof remains bound to unchanged common client and its original native snapshot; no exact-final-HEAD full-battery or publication claim.",
+  "commands": {
+    "outbox-lib": {
+      "label": "outbox-lib",
+      "command": [
+        "timeout",
+        "1500",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--features",
+        "postgres",
+        "--lib",
+        "outbox",
+        "--no-fail-fast"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 66.809
+    },
+    "effects-lib": {
+      "label": "effects-lib",
+      "command": [
+        "timeout",
+        "1200",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--lib",
+        "effects",
+        "--no-fail-fast"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 61.749
+    },
+    "effect-policy": {
+      "label": "effect-policy",
+      "command": [
+        "timeout",
+        "1200",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--test",
+        "effect_policy",
+        "--test",
+        "action_context",
+        "--no-fail-fast"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 2.119
+    },
+    "clock-admission-ratchets": {
+      "label": "clock-admission-ratchets",
+      "command": [
+        "timeout",
+        "1800",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "env",
+        "SNAPBACK4_RATCHET_UPDATE=1",
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "clock",
+        "--test",
+        "run_admission",
+        "--test",
+        "store_port_ratchet",
+        "--test",
+        "committer_ratchet"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 104.128
+    },
+    "diff-build": {
+      "label": "diff-build",
+      "command": [
+        "timeout",
+        "1800",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "cargo",
+        "build",
+        "--release",
+        "-p",
+        "snapback4-difftest"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 57.986
+    },
+    "wasm-build": {
+      "label": "wasm-build",
+      "command": [
+        "timeout",
+        "1200",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "bash",
+        "scripts/build-wasm.sh"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 37.433
+    },
+    "wasm-measure": {
+      "label": "wasm-measure",
+      "command": [
+        "timeout",
+        "2400",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "env",
+        "PATH=/home/ccheever/sb4-loop/merge035/bin:/home/ccheever/.codex/packages/standalone/releases/0.162.1-x86_64-unknown-linux-musl/codex-path:/home/ccheever/.local/bin:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/bin:/home/ccheever/.local/bin:/home/ccheever/expose-build/tools/bin:/home/ccheever/expose-build/tools:/home/ccheever/.codex/tmp/arg0/codex-arg07kbNgQ:/home/ccheever/.codex/packages/standalone/releases/0.162.1-x86_64-unknown-linux-musl/codex-path:/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.cargo/bin:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/bin:/home/ccheever/.opencode/bin:/home/ccheever/.bun/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/expose-build/tools/bin:/home/ccheever/expose-build/tools:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/bin:/home/ccheever/.opencode/bin:/home/ccheever/.bun/bin:/home/ccheever/.cargo/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/expose-build/tools/bin:/home/ccheever/expose-build/tools:/home/ccheever/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+        "bash",
+        "scripts/measure-wasm.sh"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 41.886
+    },
+    "linux-build": {
+      "label": "linux-build",
+      "command": [
+        "timeout",
+        "3600",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "bash",
+        "scripts/build-linux-musl.sh"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 405.678
+    },
+    "packed-clients": {
+      "label": "packed-clients",
+      "command": [
+        "timeout",
+        "7100",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "node",
+        "scripts/run-client-tests.mjs",
+        "8",
+        "files",
+        "packages/snapback4/test/effectful-cancellation.test.mjs",
+        "packages/snapback4/test/generated-effect-context.test.mjs",
+        "packages/snapback4/test/generated-effect-opt-in.test.mjs",
+        "packages/snapback4/test/routes.test.mjs",
+        "packages/snapback4/test/server-clock-browser.test.mjs",
+        "packages/snapback4/test/server-clock-live.test.mjs",
+        "packages/snapback4/test/server-clock-recovery.test.mjs",
+        "packages/snapback4/test/server-clock-regressions.test.mjs",
+        "packages/snapback4/test/server-clock-wire.test.mjs",
+        "packages/snapback4/test/server-clock.test.mjs",
+        "packages/snapback4/test/server-routes.test.mjs",
+        "packages/snapback4/test/server-runtime.test.mjs",
+        "packages/snapback4/test/session-security.test.mjs",
+        "packages/snapback4/test/supervised-workers.test.mjs",
+        "packages/snapback4/test/web-worker-control.test.mjs",
+        "packages/snapback4/test/worker-ledger-contention.test.mjs",
+        "packages/snapback4/test/worker-regressions.test.mjs",
+        "packages/snapback4/test/worker.test.mjs"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 139.507
+    },
+    "packed-security": {
+      "label": "packed-security",
+      "command": [
+        "timeout",
+        "2400",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "node",
+        "/home/ccheever/sb4-loop/merge035/r5/packed-security.mjs"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 122.24
+    },
+    "root-generators-inventory": {
+      "label": "root-generators-inventory",
+      "command": [
+        "timeout",
+        "1700",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "bash",
+        "-c",
+        "node scripts/generate-diagnostics-registry.mjs && node scripts/generate-guide-manifest.mjs && node scripts/check-inventories.mjs && ./ref-check --verbose"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop",
+      "exit": 0,
+      "seconds": 388.052
+    },
+    "survey-250": {
+      "label": "survey-250",
+      "command": [
+        "timeout",
+        "2400",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "python3",
+        "snapback4/reports/integration19/survey.py",
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/target/merge035-r5-packed/snapback4",
+        "/home/ccheever/sb4-loop/merge035/r5/survey"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop",
+      "exit": 0,
+      "seconds": 28.818
+    }
+  },
+  "logSha256": {
+    "outbox-lib": "553ab827a6c58cd3ab03dee3e3558c49cb9d2c02ac6f1fa7e8e5f8e5ef7c3769",
+    "effects-lib": "2fbfb5bf4a909584ea340f8bcb3059fd9376f94d420938ce2d1572272c61a77a",
+    "effect-policy": "129f0f48f04d43be24ed4325027c2633d3eb54c8351a2cd0b3b0939b7daa0818",
+    "clock-admission-ratchets": "f1842988cdcc672c42f39e7e83cc3ded9d65d3188997407da9f6d54c394d0736",
+    "diff-build": "697e1ef2b719e4d4effddd666bb883228ce4c7a1a8cd55880e7f496dc7d0019d",
+    "wasm-build": "43a61fd84f285c8eccaded20c7931d3d09cfc8823fc37a43f87b980ff703ed33",
+    "wasm-measure": "3eaa153b060157a0464587e5cf02f4311c080552f33613c6f8c9cc5da1f021bb",
+    "linux-build": "31078c874d7ca1244f49ede91afe0732a535fc3a099c88f09fe54b6223ed7a22",
+    "packed-clients": "5d4058b32e9f59b36d976066bca04d22bc027111f758d708ab4735ba9c33657c",
+    "packed-security": "d5ada63ee59c99fc0dc54ca4a6faa97f014c9ba191e7f9ff5009681bcdd7a398",
+    "root-generators-inventory": "0b0d234f688fe1237a7613569ab9db7f35ffce860837d24354f3c18e5c9651df",
+    "survey-250": "69bb51a481b776667b7540b11a60909a3c45e5027b22e63a5dc7d642ea3eb5fd"
+  },
+  "rust": {
+    "outbox-lib": {
+      "passed": 15,
+      "failed": 0,
+      "ignored": 22
+    },
+    "effects-lib": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    "effect-policy": {
+      "passed": 23,
+      "failed": 0,
+      "ignored": 0
+    },
+    "clock-admission-ratchets": {
+      "passed": 81,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "packedClients": {
+    "files": 18,
+    "counts": {
+      "tests": 348,
+      "pass": 348,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  },
+  "packed": {
+    "source": "3f455cf6f7117e4d9700ad79824c84037febb814",
+    "client": "/home/ccheever/sb4-loop/merge035/r3/fresh-pack/snapback4-0.4.35.tgz",
+    "clientIntegrity": "sha512-G2dF0gdY+Lwl8ZTgczNblP0YSUAVG3RzBbkDNwwT44hSfIe4xGX6B12jsOqAgJ+AviSYYoXSoVJzE2b3FYF2TQ==",
+    "platform": "/home/ccheever/sb4-loop/merge035/r5/snapback4-linux-x64-0.4.35.tgz",
+    "platformIntegrity": "sha512-UCNxZJdI2wE4oCr+7t28wkXsL5FZA+XzqaSBLUtu/IpbgenMgwymM674juL5U84cy3hVg0otOrqGmE2bM8eWkQ==",
+    "binarySha256": "59fa2b59702e325ae443b5c4641949acf2dec8147b66481cbb2123da0b992b8b",
+    "pin": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/merge035-r5-packed/snapback4",
+    "version": "0.4.35",
+    "mode": "affected post-main packed-native check; full common client consumer snapshot remains 8d2633e8c1"
+  },
+  "installedSecurity": {
+    "status": "passed",
+    "artifacts": {
+      "clientSha256": "24ef2831753381e671fab3f707cb53b13d1f15f73b381a460eaaee021a012b32",
+      "platformSha256": "73d54f0519e37361a9b4f26e2d4b953ac7ef3aafcb34c83ac648ddf7b1282fa8",
+      "binarySha256": "59fa2b59702e325ae443b5c4641949acf2dec8147b66481cbb2123da0b992b8b"
+    },
+    "commands": 35,
+    "proofSha256": "48315328a94b91a6b25ea07edae80bec27ff576ffe672a591800d991c41dbc10"
+  },
+  "commonClient": {
+    "qualifiedSource": "8d2633e8c103708d9014ec283c1acad864a615c2",
+    "commonClientIntegrity": "sha512-G2dF0gdY+Lwl8ZTgczNblP0YSUAVG3RzBbkDNwwT44hSfIe4xGX6B12jsOqAgJ+AviSYYoXSoVJzE2b3FYF2TQ==",
+    "unchangedRuntimeInputTrees": {
+      "snapback4/packages": "d09816c59b97cdb8c656602566cccd95416da47c",
+      "snapback4/crates/snapback4-lang": "08852dae378559f743c605fcb069414061cbd478",
+      "snapback4/crates/snapback4-device": "bcfd58e64939c6a4f2dcce8473fe284cdf7624b4",
+      "snapback4/Cargo.toml": "be718eb36cbe4a5314609118e15bb8373d2220ed",
+      "snapback4/Cargo.lock": "0c68ef5a05448829549016bfcc2b95d2ffa4e5b3"
+    },
+    "packedBindingsEqualCurrentGeneratedFiles": [
+      {
+        "name": "snapback4_device.js",
+        "sha256": "c02df2b95364728951b816b11ef4b38965793b4d769bd22907f27a99eab4ecd2",
+        "bytes": 16053
+      },
+      {
+        "name": "snapback4_device_bg.wasm.d.ts",
+        "sha256": "ce9c274598a5dd3d0ceec45b99e9bf54c750306e8731d8ddb9f6bc5c97472e32",
+        "bytes": 984
+      },
+      {
+        "name": "snapback4_device.d.ts",
+        "sha256": "227a8f86b5b865fe1a92794d14e60586f145ccb2883426c1fb7217f68e4fdd13",
+        "bytes": 3038
+      },
+      {
+        "name": "snapback4_device_bg.wasm",
+        "sha256": "48aa2aeb3f5ddd8ad481084205ff024cc5853a248483496352b069187123e0de",
+        "bytes": 2404722
+      }
+    ]
+  },
+  "wasmBinding": {
+    "wasmSha256": "48aa2aeb3f5ddd8ad481084205ff024cc5853a248483496352b069187123e0de",
+    "equalsFullyQualifiedWasm": true
+  },
+  "wasm": {
+    "at": "2026-10-21T01:57:12Z",
+    "sha": "3f455cf6f7",
+    "dirty": false,
+    "wasm": {
+      "raw": 2404722,
+      "gzip": 733693,
+      "brotli": 552609
+    },
+    "glue": {
+      "raw": 16053,
+      "gzip": 3695,
+      "brotli": 3259
+    },
+    "wasmOpt": true,
+    "budget": 734193,
+    "over": 0
+  },
+  "survey": {
+    "apps": 250,
+    "accepted": 250,
+    "falseRefusals": 0,
+    "originalHashesUnchanged": true,
+    "binarySha256": "59fa2b59702e325ae443b5c4641949acf2dec8147b66481cbb2123da0b992b8b",
+    "logSha256": "ad3f95a6f0eddde607ae15383b3b30389e60163a5a3e5516db74ea7bd3546a25"
+  },
+  "difftest": {
+    "exactlyMatchesQualifiedBaseline": true,
+    "summarySha256": "6ab039b979e0c247da46399a022127a790267ba7cc4fb103b630d10c72a88230",
+    "binary": {
+      "source": "3f455cf6f7117e4d9700ad79824c84037febb814",
+      "binarySha256": "dc45bd66ba57ae2c8869a727496c8833f170f7cbae29fd5b608ae02d15690f44"
+    }
+  }
+}

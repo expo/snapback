@@ -98993,3 +98993,25 @@ round 1. Raw static-check logs are /tmp/p1-ob-fix-clippy.log and
 confirmed above. Observed free disk never fell below 52 GB during these
 checks, comfortably above the commissioned 15 GB stop threshold. No push,
 stash, extra agent, other worktree change or git-config mutation occurred.
+
+
+## 2026-10-21 — Integration 19: final-fetch outbox delta qualification
+
+Merged four outbox/lease commits through bf9c1ccc55 as 3f455cf6f7, retaining
+both journal histories. Affected core outbox/effects/policy, host clock and
+admission, both ratchets and all three repeated differential campaigns pass;
+the latter exactly match the existing signatures/counts. Root producers,
+inventories and verbose reference check pass again. Common client wasm/glue/
+declarations remain byte-identical to the fully qualified pack; SDK/compiler/
+device/Cargo input trees are unchanged. Clean measurement is unchanged:
+2,404,722 raw / 733,693 gzip / 552,609 Brotli; budget 734,193 = gzip + 500.
+
+The new production musl binary passes static ELF inspection and is npm-packed
+with platform manifest/notices. Eighteen affected client files pass against
+its exact extracted bytes: 348/0/0 (passed/failed/skipped). Fresh installed
+packed security/invariant campaigns pass with that same binary digest, and
+the final binary accepts 250/250 unchanged original schemas, zero false
+refusals. Full consumer qualification remains the explicit 8d2633e8c1 snapshot;
+this later native delta has affected-scope packed verification, not a relabeled
+full battery or publication receipt. Sanitized results: outbox-followup.json
+under reports/integration19-storage-port/. No Mac/private-Postgres claim.

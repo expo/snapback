@@ -1,7 +1,8 @@
 # Integration 19 — merge main storage ports into 0.4.35
 
 Worktree: `/home/ccheever/projects/snapback-sb4loop`; branch `sb4-loop`.
-Current checkpoint: `8d2633e8c103708d9014ec283c1acad864a615c2`.
+Full packed consumer snapshot: `8d2633e8c103708d9014ec283c1acad864a615c2`.
+Latest tested native source: `3f455cf6f7` (final-fetch outbox delta).
 **All requested Linux checks and post-main affected checks passed. Ready for the final fetch and authorized no-force push.**
 
 ## Changes and conflicts
@@ -9,7 +10,8 @@ Current checkpoint: `8d2633e8c103708d9014ec283c1acad864a615c2`.
 Started clean at `594aa970ab`. Read the incoming commit stats, governing port
 RFC/committer RFC, retained-storage law, journals and referenced issues before
 integration. Initial incoming main had 44 commits through `6db797f530`; later
-fetches brought 20 through `e2073e1b66`, then four jobs commits through `8cc2a5c737`.
+fetches brought 20 through `e2073e1b66`, then four jobs commits through `8cc2a5c737`, followed by four outbox commits
+through `bf9c1ccc55`.
 All integrations preserve main history with no-ff merges.
 
 | Conflict | Resolution | Commit |
@@ -17,7 +19,7 @@ All integrations preserve main history with no-ff merges.
 | assets.rs | Keep the typed asset ledger/adapter structure and port .35 sniffing, upload and owner-home diagnostics into it. | `07b210d2ff` |
 | release_safeguards.rs | Keep typed tooling access; capture .35 active/dormant before-images in `store/tooling.rs`, in MAIN so activation's temp_store changes cannot erase them. Move the regression beside the adapter. | `07b210d2ff` |
 | sql.rs | Use Inspection; move dormant/retained schema and view generation into `store/inspect.rs`. Preserve modes, boolean inference, guards and authorizer custody. | `07b210d2ff` |
-| JOURNAL.md | Preserve both complete histories, including the later committer/identity merge. | `07b210d2ff`, `971a28ecd1` |
+| JOURNAL.md | Preserve both complete histories, including the later committer/identity merge. | `07b210d2ff`, `971a28ecd1`, `3f455cf6f7` |
 
 Also moved newly introduced .35 release-visibility SQL into typed tooling
 operations. No port bypass or allowance raise. Final delta audit found two
@@ -129,3 +131,30 @@ Delivery: evidence and this report are prepared for a final fetch and, if main
 has advanced, a normal merge plus affected checks; then the authorized
 `git push origin sb4-loop:main`, without force and with race retries.
 The final session message records the pushed commit. No package was published.
+
+
+## Final-fetch outbox follow-up
+
+After complete consumer qualification, the final fetch found four outbox/lease
+commits through bf9c1ccc55. Read their complete stats, governing RFC changes,
+journal and serializable-stress issue; merged in `3f455cf6f7`. Only the journal
+conflicted; both complete histories remain. No functional conflict resolution
+or port bypass was needed.
+
+Affected core outbox/effects/policy, host clock/admission and both ratchets pass.
+Fresh native 20k, devices 0–999 and Lean 20k exactly match the qualified baseline.
+Diagnostics/guide producers, inventories and verbose ref-check pass again.
+Clean wasm measurement remains 2,404,722 / 733,693 / 552,609, budget 734,193.
+Wasm/glue/declarations are byte-identical to the fully qualified common pack;
+SDK, compiler, device and Cargo input trees are unchanged.
+
+Built a new production musl CLI, passed the static ELF audit, packed it with
+the platform manifest/notices and verified the extracted binary digest. All
+18 affected worker/effect/clock/runtime/route/session client files pass against
+those exact packed bytes: **348 passed / 0 failed / 0 skipped**. The installed
+packed security/invariant campaigns pass with the same binary digest. That
+final native binary also accepts **250/250 original schemas**, zero false
+refusals and unchanged input hashes. `outbox-followup.json` records commands,
+counts, native/SRI hashes, unchanged common-client bindings and exact scopes.
+The full consumer snapshot is not relabeled as a full run on the later native
+delta. No private Postgres, Mac or publication claim is added.
