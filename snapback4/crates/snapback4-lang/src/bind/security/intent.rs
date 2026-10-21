@@ -86,7 +86,9 @@ pub(super) fn questions(bound:&Bound,target:&str,effect:&str,gate:&RuleExpr)->St
     alternatives(gate).iter().filter(|branch|kernel::implies(branch,&RuleExpr::Deny)!=Ok(true)).map(|branch|{
         let actor=audience(bound,branch);
         let mut fields=BTreeSet::new();branch.fields(&mut fields);
-        let scope=if fields.is_empty(){"no row relationship or lifecycle condition in this branch".to_owned()}
+        let image_fields=branch.any_term(&|t|matches!(t,RuleTerm::OldField(_)|RuleTerm::NextField(_)));
+        let scope=if fields.is_empty()&&!image_fields{"no row relationship or lifecycle condition in this branch".to_owned()}
+            else if fields.is_empty(){"row-image conditions shown in the branch".into()}
             else{format!("row conditions on {}",fields.iter().map(|f|format!(".{f}")).collect::<Vec<_>>().join(", "))};
         format!("Rule {target}.{effect} admits {actor} under `{}` ({scope}). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?",branch.quarry())
     }).collect::<Vec<_>>().join(" ")

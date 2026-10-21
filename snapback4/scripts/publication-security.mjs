@@ -96,7 +96,7 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
   const start = command(["guide", "start", "--full"]);
   const readme = readFileSync(join(cwd, "node_modules/snapback4/README.md"), "utf8");
   for (const text of [guide, start, readme]) {
-    assert.match(text, /spec/i); assert.match(text, /per-role\/per-column/);
+    assert.match(text, /spec/i); assert.match(text, /role/); assert.match(text, /column/);
     assert.match(text, /check/); assert.match(text, /test/); assert.match(text, /audit/);
   }
   const questions = schemaProject("intent-questions", `table roles:

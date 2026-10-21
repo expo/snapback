@@ -229,10 +229,12 @@ The advisory comparison never adds proof assumptions or changes a verdict.
 
 ### N_ROLE_WIDE_READ
 
-N_ROLE_WIDE_READ means a role-wide branch exposes every matching row and column
-on matching rows.
-Use a board/projection table for a public rating; declare intent for the private
-notes, principals, images and files separately.
+N_ROLE_WIDE_READ names a role-wide table branch or a grouped set of columns
+with the same role audience. It asks whether the spec permits that audience on
+other owners' rows and every value of the named state/category columns. Those
+values are evidence to review, not an inferred lifecycle policy. Use a
+board/projection table for shared fields, or narrow row/column rules to the
+confirmed relationship and state conditions. Declare private-column intent separately.
 
 `test` uses generation when fixtures are absent or contain no rows, including
 an empty starter fixtures directory. Populated authored fixtures stay selected;
@@ -252,7 +254,7 @@ for the selected source/fixtures when a matching full finite campaign is absent.
 
 ### N_SELF_CLAIMED_RELATIONSHIP
 
-A caller can write their own principal into a relationship that another table's
+N_SELF_CLAIMED_RELATIONSHIP means a caller can write their own principal into a relationship that another table's
 raw read rule trusts. The note names the mutation, relationship column and
 reader rule. Require an invitation or approval by the resource owner before
 assigning that relationship; a caller's role alone does not establish parenthood
@@ -260,7 +262,7 @@ or membership. Confirm intentional open enrollment against the spec.
 
 ### N_CALLER_TIME
 
-A caller-supplied time reaches a field used by a deadline comparison with the
+N_CALLER_TIME means a caller-supplied time reaches a field used by a deadline comparison with the
 server clock. The note follows aliases and helper writes and names the field
 and mutation. Use server `now` for the event time, or require an explicit
 server-relative bound before the write when the spec allows historical input.
