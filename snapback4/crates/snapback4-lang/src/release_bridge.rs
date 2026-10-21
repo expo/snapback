@@ -31,11 +31,13 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
     }
     // New concepts keep their current rules. They are retained populations,
     // not a promise that a frozen old operation exposes a new concept.
+    let aliases:BTreeMap<_,_>=new.values().filter_map(|(_,_,t)|t.renamed_from.as_ref().filter(|old|names.contains(*old)).map(|old|(t.name.clone(),old.clone()))).collect();
     let mut additions=String::new();
-    for (name,(_,text,table)) in &new {
+    for (name,(file,text,table)) in &new {
+        if name!=&table.name {continue;} // Alias lookup entries are not declarations.
         if names.contains(name) || table.renamed_from.as_ref().is_some_and(|old|names.contains(old)){continue;}
         affected.insert(name.clone());
-        additions.push_str(&declaration(text,table.site.line));additions.push('\n');
+        additions.push_str(&retained_declaration(file,text,table,&aliases));additions.push('\n');
         changes.push(format!("new table {name}: retained with its current rules; old operations may not expose it"));
     }
     if !additions.is_empty() {let mut name="rollback-retained.q".to_owned();while sources.iter().any(|(f,_)|f==&name){name.insert_str(0,"retained-");}sources.push((name,additions));}
@@ -68,6 +70,39 @@ fn declaration(text:&str,line:u32)->String {
     let lines:Vec<_>=text.lines().collect();let start=line.saturating_sub(1) as usize;let mut end=start+1;
     while end<lines.len() {let s=lines[end];if !s.trim().is_empty() && !s.starts_with(char::is_whitespace) && !s.starts_with("--"){break;}end+=1;}
     lines[start..end].join("\n")+"\n"
+}
+// Rewrite only structural table references; strings, column names and bound
+// rule parameters retain their spelling and policy meaning.
+fn retained_declaration(file:&str,text:&str,table:&ast::TableDecl,aliases:&BTreeMap<String,String>)->String {
+    let mut source=declaration(text,table.site.line);
+    let mut decl=parser::parse_document(file,&source).0.tables.remove(0);
+    let mut edits=Vec::new();
+    fn remap_type(t:&mut ast::ScalarType,aliases:&BTreeMap<String,String>) {
+        match &mut t.kind {TypeKind::Ref{table}=>{if let Some(name)=aliases.get(table){*table=name.clone();}},TypeKind::List{item,..}=>remap_type(item,aliases),_=>()}
+    }
+    for column in &decl.columns {
+        let mut type_=column.type_.clone();remap_type(&mut type_,aliases);
+        if type_!=column.type_ {if let Some((start,end))=type_span(file,&source,column){edits.push((start,end,print::scalar_type(&type_)));}}
+    }
+    let mut visit=|expr:&mut ast::Expr| {
+        if let ast::Expr::Read(read)|ast::Expr::Exists{read,..}|ast::Expr::Created{read,..}=expr {
+            if let Some(name)=aliases.get(&read.table) {let start=offset(&source,read.site.line,read.site.col);edits.push((start,start+read.table.len(),name.clone()));}
+        }
+    };
+    for rule in decl.rules.iter_mut().chain(decl.column_reads.iter_mut().map(|(_,r)|r)) {crate::bind::intent_walk::expression(&mut rule.value,&mut visit);}
+    for column in &mut decl.columns {
+        for expr in [&mut column.read,&mut column.default].into_iter().flatten(){crate::bind::intent_walk::expression(expr,&mut visit);}
+        if let Some(expr)=column.maintained.as_mut().and_then(|a|a.filter.as_mut()){crate::bind::intent_walk::expression(expr,&mut visit);}
+    }
+    for (expr,_) in &mut decl.final_exists {crate::bind::intent_walk::expression(expr,&mut visit);}
+    // Sync targets are structural table probes outside the expression AST.
+    if let Some(sync)=&decl.sync {
+        let (tokens,_)=lexer::lex(file,&source);
+        for pair in tokens.windows(2) {if pair[0].site.line==sync.site.line && pair[1].value=="[" {if let Some(name)=aliases.get(&pair[0].value){let start=offset(&source,pair[0].site.line,pair[0].site.col);edits.push((start,start+pair[0].value.len(),name.clone()));}}}
+    }
+    edits.sort();edits.dedup();edits.sort_by_key(|e|std::cmp::Reverse(e.0));
+    for (start,end,value) in edits {source.replace_range(start..end,&value);}
+    source
 }
 fn join(old:&ast::ScalarType,new:&ast::ScalarType,tables:&BTreeMap<String,(&String,&String,ast::TableDecl)>)->Option<ast::ScalarType> {
     let kind=match (&old.kind,&new.kind) {

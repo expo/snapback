@@ -40,3 +40,25 @@ fn bridge_recognizes_references_to_a_renamed_parent_as_the_same_identity() {
     let bridge = release_bridge::loosen(&[("schema.q".into(), target.into())], &[("schema.q".into(), independent)]);
     assert!(bridge.changes.iter().any(|line| line.contains("docs.parent: incompatible")), "independent identities must not be unified: {:?}", bridge.changes);
 }
+
+#[test]
+fn renamed_newer_table_is_retained_once_when_target_predates_it() {
+    let target="table roots:\n  value: text <=40\n  public\n  online only\n";
+    let current=format!("{target}table guardians renamed from parents:\n  owner: principal\n  public\n  online only\n");
+    let bridge=release_bridge::loosen(&[("schema.q".into(),target.into())],&[("schema.q".into(),current)]);
+    assert!(bridge.diagnostics.is_empty(),"{:?}\n{:?}",bridge.diagnostics,bridge.sources);
+    assert_eq!(bridge.sources.iter().map(|(_,s)|s.matches("table guardians ").count()).sum::<usize>(),1);
+}
+
+#[test]
+fn retained_child_references_and_rule_probes_follow_selected_parent_spelling() {
+    let target="table parents:\n  owner: principal\n  read <- .owner = viewer\n  online only\n";
+    let current=format!("{}table children:\n  parent: guardians on delete restrict\n  guardians: text <=40 default 'guardians'\n  read <- exists guardians[.parent, owner = viewer]\n  insert <- exists guardians[.parent, owner = viewer]\n  online only\n",target.replace("table parents:","table guardians renamed from parents:"));
+    let checked=compile(&[("schema.q".into(),current.clone())]);assert!(checked.diagnostics.is_empty(),"{:?}",checked.diagnostics);
+    let bridge=release_bridge::loosen(&[("schema.q".into(),target.into())],&[("schema.q".into(),current)]);
+    assert!(bridge.diagnostics.is_empty(),"{:?}\n{:?}",bridge.diagnostics,bridge.sources);
+    let child=&bridge.sources.iter().find(|(_,s)|s.contains("table children:")).unwrap().1;
+    assert!(child.contains("parent: parents on delete restrict"),"{child}");
+    assert!(child.contains("exists parents[.parent, owner = viewer]"),"{child}");
+    assert!(child.contains("guardians: text <=40 default 'guardians'"),"column names and literals are not table references: {child}");
+}
