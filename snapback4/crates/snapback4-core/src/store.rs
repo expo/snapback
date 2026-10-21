@@ -505,6 +505,17 @@ impl Store {
         self.conn.path()
     }
 
+    /// Evaluation harness: force `synchronous=FULL` so SQLite durability matches
+    /// the Postgres comparison cells (`experiments/postgres`).
+    pub fn use_full_synchronous(&self) -> Result<(), RuntimeError> {
+        Ok(self.conn.execute_batch("PRAGMA synchronous=FULL")?)
+    }
+
+    /// The linked SQLite library version, for evaluation reports.
+    pub fn sqlite_version(&self) -> Result<String, RuntimeError> {
+        Ok(self.conn.query_row("SELECT sqlite_version()", [], |row| row.get(0))?)
+    }
+
     /// Set statement contention policy before host operation admission.
     // P1: map this host policy to Postgres connection admission.
     pub fn set_busy_timeout(&self, timeout: std::time::Duration) -> Result<(), RuntimeError> {
