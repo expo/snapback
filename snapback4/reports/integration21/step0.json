@@ -1,0 +1,62 @@
+{
+  "atUTC": "2026-10-21T18:56:27.037749+00:00",
+  "source": "b422e1210e1597fdeb270af558297487900cde1b",
+  "version": "0.4.36",
+  "mergeCommits": [
+    "c42ea4e226",
+    "b422e1210e"
+  ],
+  "guidePinRepair": "146dc4de52 (upstream stronger unique pins retained by b422)",
+  "rust": {
+    "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+    "exit": 0,
+    "reportedResultSummaries": 446,
+    "reportedPassingExecutionsIncludingNested": 7179,
+    "reportedIgnoredIncludingNested": 47
+  },
+  "clients": {
+    "files": 6,
+    "passed": 64,
+    "failed": 0,
+    "skipped": 0
+  },
+  "root": {
+    "frozenInstall": 0,
+    "hoist": 0,
+    "generatedArtifacts": 0,
+    "diagnosticsRegistry": 0,
+    "guideManifest": 0,
+    "inventories": 0,
+    "guide": {
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "existingWarnings": 121
+    },
+    "refCheck": {
+      "docs": 564,
+      "refs": 12263,
+      "errors": 0,
+      "unchecked": 0
+    }
+  },
+  "baseline": {
+    "schemaApps": 350,
+    "falseRefusals": 0,
+    "unchangedSources": true,
+    "leanCases": 20000,
+    "knownLeanSignatures": {
+      "lean--code--E_RULE~NOT_FOUND": 3,
+      "lean--continuation-next--next~no-next": 35,
+      "lean--next--next~no-next": 67,
+      "lean--prelude-code--E_RULE~NOT_FOUND": 25
+    }
+  },
+  "attempts": "Earlier c42 full run found missing new-code definition/action pins, fixed and guide127 passed. It was explicitly interrupted with exit130 to incorporate new main S10a/ledger commits. Current full command completed after that merge and repair. First current root attempt lacked hoisted typescript/ajv; complete prescribed setup and checks passed in the retained retry. Unoptimized baseline survey hit outer180s; optimized same-source complete350 run supersedes it.",
+  "rawLogSha256": {
+    "step0-current-build.log": "91c1d8b7eb87143a7aa308f71a3356c0a279e9023ad7a0bf80a64e063e328c08",
+    "step0-current-clients.log": "c57e9d5eb08f814ee92a931babec9ad80468ce6fdff0d7e0718973e7b312ec17",
+    "step0-current-rust.log": "f62da8f1912ef75314c589c963fbdeb3c74feebf27652baa1319ac51f2916a3b",
+    "step0-current-root-retry.log": "8d4b66bc07d3e1a0c48b9bf0208ba842b90289f4364bedc34c29da768074a84a"
+  }
+}

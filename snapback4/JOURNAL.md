@@ -100560,3 +100560,16 @@ No push, stash, clone, other machine or sub-agent was used.
 The complete `cargo test -p snapback4-core --no-fail-fast` run passes, including
 integration tests and doctests. Root `./ref-check` passes with zero errors and
 zero unchecked references; the staged diff passes whitespace validation.
+
+## 2026-10-21 — Integration 21 Step 0: land the qualified 0.4.36 base
+
+Merged the incoming Postgres release/activation/ledger work and S10a neutral
+store handles before landing Integration 20. Both journal histories remain
+append-only. The full five-crate Linux command passes after the newer-main
+merge; release/activation clients pass 64/64, root guide passes 22/22 without
+skips, inventories and generated artifacts pass, and ref-check has no errors.
+The diagnostic definition/action pins retain one stronger upstream entry for
+each new store code. The refreshed 350-schema baseline has no refusals; Lean
+20,000 reproduces only the four established signatures (130 disagreements).
+Compact evidence: reports/integration21/step0.json; raw logs remain in the
+owned external integration21 scratch. No publication was performed here.
