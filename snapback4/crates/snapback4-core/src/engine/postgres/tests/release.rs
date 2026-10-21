@@ -40,6 +40,32 @@ impl Harness {
     fn client(&self) -> Client {
         Client::connect(&self.url, postgres::NoTls).unwrap()
     }
+    fn activation_ledgers(&mut self) -> Vec<Vec<String>> {
+        [
+            "_backend",
+            "_generations",
+            "_catalog",
+            "_meta",
+            "_release_events",
+            "_release_event_items",
+            "_head",
+        ]
+        .into_iter()
+        .map(|table| {
+            self.engine
+                .store
+                .client
+                .query(
+                    &format!("SELECT row_to_json(t)::text FROM {table} t ORDER BY 1"),
+                    &[],
+                )
+                .unwrap()
+                .into_iter()
+                .map(|row| row.get(0))
+                .collect()
+        })
+        .collect()
+    }
 }
 impl Drop for Harness {
     fn drop(&mut self) {
@@ -176,6 +202,91 @@ fn release_contract_postgres_activation_race() {
         assert_eq!(thread.join().unwrap().unwrap_err().code(), "E_GENERATION");
         assert_eq!(h.status()["release"], 2);
         assert_eq!(h.status()["events"].as_array().unwrap().len(), 2);
+    }
+}
+
+#[test]
+fn release_contract_postgres_activation_rechecks_ledgers_after_open() {
+    for (table, event) in [
+        ("_backend", "UPDATE"),
+        ("_generations", "INSERT"),
+        ("_meta", "UPDATE"),
+    ] {
+        let Some(mut h) = Harness::new() else {
+            return;
+        };
+        let before = h.activation_ledgers();
+        let mut owner = h.client();
+        owner
+            .batch_execute(&format!(
+                "SET search_path = {}, pg_catalog;
+                 CREATE FUNCTION preserve_ledger() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN OLD; END $$;
+                 CREATE TRIGGER preserve_ledger BEFORE {event} ON {table} FOR EACH ROW EXECUTE FUNCTION preserve_ledger()",
+                h.name
+            ))
+            .unwrap();
+        let error = h.activate(2, 2, 1, 1).unwrap_err();
+        assert!(
+            error.to_string().contains("SNAPBACK_ACTIVATION_SCHEMA"),
+            "{table}: {error}"
+        );
+        assert!(error.to_string().contains(table), "{error}");
+        assert_eq!(h.activation_ledgers(), before);
+        assert_eq!(h.generation(), 1);
+        owner
+            .batch_execute(&format!("DROP TRIGGER preserve_ledger ON {table}"))
+            .unwrap();
+        h.reopen(1).unwrap();
+        assert_eq!(h.executed_version(), Value::Int(1));
+        assert_eq!(h.activate(2, 2, 1, 1).unwrap(), 2);
+        h.reopen(2).unwrap();
+        assert_eq!(h.executed_version(), Value::Int(2));
+    }
+}
+
+#[test]
+fn release_contract_postgres_backend_publication_checks_returned_image() {
+    use crate::{activation::Backend, value::canonical_json};
+    // Exercise the write's own guard independently of activation preflight.
+    for body in [
+        "RETURN OLD;",
+        "RETURN NULL;",
+        "NEW.schema := OLD.schema; RETURN NEW;",
+        "NEW.programs := OLD.programs; RETURN NEW;",
+    ] {
+        let Some(mut h) = Harness::new() else {
+            return;
+        };
+        let before = h.activation_ledgers();
+        h.engine.store.client.batch_execute(&format!(
+            "CREATE FUNCTION alter_backend() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN {body} END $$;
+             CREATE TRIGGER alter_backend BEFORE UPDATE ON _backend FOR EACH ROW EXECUTE FUNCTION alter_backend()"
+        )).unwrap();
+        let (schema, programs) = test_cases::compile(2);
+        let programs: BTreeMap<_, _> = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        {
+            let tx = h
+                .engine
+                .store
+                .transaction(Some(WriteMode::Serialized))
+                .unwrap();
+            let error = tx
+                .publish_backend(
+                    &Backend(
+                        2,
+                        format!("{} ", canonical_json(&schema)),
+                        canonical_json(&programs),
+                    ),
+                    200,
+                )
+                .unwrap_err();
+            assert!(
+                error.to_string().contains("SNAPBACK_ACTIVATION_SCHEMA"),
+                "{body}: {error}"
+            );
+            // Dropping the refused transaction must also roll back generation 2.
+        }
+        assert_eq!(h.activation_ledgers(), before, "{body}");
     }
 }
 

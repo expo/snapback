@@ -100391,3 +100391,35 @@ Root ref-check passes with **0 errors / 0 unchecked references**, and the diff
 passes whitespace validation. The fix is committed locally using the requested
 Codex author, Charlie Cheever committer and Codex co-author trailer; no push or
 stash, and no reviewer-worktree access.
+
+### 2026-10-21 — ACT-RC: activation rechecks Postgres ledgers after open
+
+Postgres release activation now re-verifies core and release ledger relations
+with the shared catalog guard inside its serialized transaction, under the
+head fence and before preparation writes. Backend publication checks the full
+`UPDATE ... RETURNING generation,schema,programs` image and refuses a missing
+or altered row with `SNAPBACK_ACTIVATION_SCHEMA`. Refusal drops the transaction,
+including any inserted generation. The verification performs no relation DDL;
+SQLite is unchanged. The P1-RL note in LLP 3000.009.001.000 §3.3 records the fix,
+and the activation-recheck ticket is resolved under `issues/closed/`.
+
+The witness installs a `BEFORE UPDATE ... RETURN OLD` backend trigger through
+another connection after a clean open. It checks the named refusal, unchanged
+backend/generation/catalog/metadata/event/head rows and in-memory generation,
+then removes the trigger, reopens release 1 and activates/reopens release 2.
+Post-open generation and metadata triggers exercise the preflight independently.
+Direct publication cases bypass preflight to prove that old images, zero rows
+and rewritten schema/programs bytes refuse and roll back generation history.
+
+Postgres qualification passes **58 experiment + 190 family + 19 corpus tests**,
+including both new witnesses; existing named corpus exclusions remain. The only
+private cluster, `/tmp/sb4-pg-eval.xt7RHR`, was stopped by the script and
+independently confirmed stopped (status 3, no `postmaster.pid`). Core no-default
+check and both ratchets pass (**3 committer + 7 store-port tests**). All Cargo
+commands use this worktree's `snapback4/target`, 16 build jobs, no incremental
+compilation and line-tables-only dev/test debug. Disk remains above 160 GB free.
+No push, stash, clone, other machine or sub-agent was used.
+
+The complete `cargo test -p snapback4-core --no-fail-fast` run passes, including
+integration tests and doctests. Root `./ref-check` passes with zero errors and
+zero unchecked references; the staged diff passes whitespace validation.

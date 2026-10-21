@@ -126,10 +126,18 @@ impl Tx<'_> {
                 &[generation, schema, programs, &now],
             )?;
         }
-        self.execute_one(
-            "UPDATE _backend SET generation=$1,schema=$2,programs=$3 WHERE singleton",
+        let written = self.query(
+            "UPDATE _backend SET generation=$1,schema=$2,programs=$3 WHERE singleton RETURNING generation,schema,programs",
             &[generation, schema, programs],
         )?;
+        if written.len() != 1
+            || Backend(written[0].get(0), written[0].get(1), written[0].get(2)) != *backend
+        {
+            return Err(RuntimeError::Store(
+                "SNAPBACK_ACTIVATION_SCHEMA: _backend: update did not publish the requested backend"
+                    .into(),
+            ));
+        }
         self.set_meta("generation", &generation.to_string())?;
         let schema: Schema = super::store::decode(schema)?;
         let mut next: i64 = self.query("SELECT COALESCE(MAX(num),0) FROM _catalog", &[])?[0].get(0);
