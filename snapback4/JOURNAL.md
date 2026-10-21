@@ -100185,3 +100185,34 @@ No product/core change, sub-agent, clone, stash, push, paid resource, sudo,
 netem, or unrelated 450a work. Other controls need native API/seed adapters,
 collector filters/counter witnesses and independent tunnel-pool integration;
 W6 and advocate review remain later work.
+
+## 2026-10-21 — S1-SB native Supabase control implemented
+
+Extended the S1-H scheduler/runner with a native PostgREST target, pinned to
+the official Supabase compose's PostgREST 14.18 static release and verified
+against its GitHub asset SHA-256. Separate sb4scale_supabase databases and
+sb4scale API schema reuse the exact numeric fixture and seed.sql; a 256-user
+UUID identity mapping supports standard authenticated JWTs and auth.uid().
+Explicit RLS policies use indexed membership sets and initplans; private
+pinned-path identity lookup avoids recursive RLS. Inbox and atomic counters
+are SECURITY INVOKER RPCs; a definer trigger maintains post totals. No HTTP
+wrapper, product/core change, cluster restart/configuration change or new
+service outside this lane. PostgREST's default ten-connection pool and
+1,000-entry JWT cache are retained, with prepared statements and no
+pre-request hook. The commented cache-disable example differs from its
+actual default; checked the pinned Config.hs before measurement.
+
+Release build and Clippy with warnings denied pass. Native black-box checks
+pass membership/ownership, spoofed sender, invalid/expired JWT, pooled claim
+isolation, private-helper invisibility, atomic room/sender maintains,
+raw-seed/HTTP value equality and intended-arrival overload accounting. A
+five-workload capture smoke passes counter equality and resource/statement
+collection with all children stopped. Full measurement follows separately.
+PostgREST uses an app-core TCP dispatcher to lease independent SSH streams;
+its CPU and unchanged S0 proxy CPU are charged to the app. The read RTT
+controls still measure the independent prepared-SELECT path. No Docker,
+GoTrue or Kong is present: offline 24-hour HS256 tokens substitute only for
+token issuance, and these rows are labelled PostgREST-only. The full stack's
+gateway hop, matched-pool controls, idle-host qualification and advocate
+review are unmeasured. One worker, no sub-agents/clone/stash/push or paid
+resources; all subprocess PIDs and cleanup recorded outside Git.

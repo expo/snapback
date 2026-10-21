@@ -121,11 +121,12 @@ def main(roots):
                 **{k:median(r['derived'][k] for r in runs) for k in ['app_cpu_ms_per_op','load_cpu_ms_per_op','ssh_cpu_ms_per_op','db_cpu_ms_per_op','wal_lsn_bytes_per_op','sql_exec_ms_per_op','sql_calls_per_op','max_connected','max_active']}})
     records.sort(key=lambda r:(r['cell']['workload'],r['cell']['keys'],r['cell']['rows'],r['cell']['delay_us'],r['cell']['writers']))
     destination=roots[0]
+    target='Supabase (PostgREST only)' if any(r['cell'].get('target')=='supabase' for r in records) else 'Raw PG'
     (destination/'ledger.json').write_text(json.dumps(records,indent=2)+'\n')
     (destination/'curves.json').write_text(json.dumps(curves,indent=2)+'\n')
-    text=['# Raw PG limits ledger','',
-          'Only Raw PG is measured. Rates are highest tested passing offered/cohort-acknowledgement brackets; completion-window throughput is separately retained in ledger.json. Values are medians of three repetitions. Other systems, gap classes and fix candidates are pending their lanes. Read the result README caveats.','',
-          '| Workload / rows / added RTT µs / clients / keys | Raw PG cohort acks/s (run range) | p50 / p99 / p99.9 ms | worst p99 | next failed offered/s | leading active wait |',
+    text=[f'# {target} limits ledger','',
+          f'{target} rates are highest tested passing offered/cohort-acknowledgement brackets; completion-window throughput is separately retained in ledger.json. Values are medians of three repetitions. Read the result README caveats.','',
+          f'| Workload / rows / added RTT µs / clients / keys | {target} cohort acks/s (run range) | p50 / p99 / p99.9 ms | worst p99 | next failed offered/s | leading active wait |',
           '|---|---:|---:|---:|---:|---|']
     for r in records:
         c=r['cell']; label=f"{c['workload']} / {c['rows']} / {c['delay_us']} / {c['writers']} / {c['keys']}"

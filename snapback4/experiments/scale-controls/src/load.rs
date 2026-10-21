@@ -29,6 +29,8 @@ pub struct Options {
     keys: String,
     #[arg(long, default_value_t = 1000)]
     deadline_ms: u64,
+    #[arg(long, default_value = "raw-pg", value_parser = ["raw-pg", "supabase"])]
+    target: String,
 }
 struct Arrival {
     intended: Instant,
@@ -137,6 +139,11 @@ pub async fn run(options: Options) -> Result<()> {
         "unknown key mix"
     );
     let options = Arc::new(options);
+    let tokens = Arc::new(if options.target == "supabase" {
+        crate::supabase::tokens()?
+    } else {
+        Vec::new()
+    });
     let client = reqwest::Client::builder()
         .pool_max_idle_per_host(options.workers)
         .timeout(Duration::from_millis(options.deadline_ms))
@@ -150,7 +157,7 @@ pub async fn run(options: Options) -> Result<()> {
     for worker in 0..options.workers {
         let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel::<Arrival>();
         senders.push(tx);
-        let (o, client) = (options.clone(), client.clone());
+        let (o, client, tokens) = (options.clone(), client.clone(), tokens.clone());
         tasks.push(tokio::spawn(async move {
             let mut stats = Stats::new();
             while let Some(a) = rx.recv().await {
@@ -163,13 +170,29 @@ pub async fn run(options: Options) -> Result<()> {
                     if a.measured {
                         stats.sent += 1;
                     }
-                    match client.post(format!("{}/op", o.url)).json(&op).send().await {
+                    let request = if o.target == "supabase" {
+                        crate::supabase::request(&client, &o.url, &op, &tokens)
+                    } else {
+                        client.post(format!("{}/op", o.url)).json(&op)
+                    };
+                    match request.send().await {
                         Ok(response) => {
                             let code = response.status();
                             match response.bytes().await {
                                 Ok(bytes) if code.is_success() => {
                                     match serde_json::from_slice::<Value>(&bytes) {
-                                        Ok(value) if valid(&op, &value) => None,
+                                        Ok(value) => {
+                                            let value = if o.target == "supabase" {
+                                                crate::supabase::normalize(&op, value)
+                                            } else {
+                                                value
+                                            };
+                                            if valid(&op, &value) {
+                                                None
+                                            } else {
+                                                Some("invalid_response".into())
+                                            }
+                                        }
                                         _ => Some("invalid_response".into()),
                                     }
                                 }
