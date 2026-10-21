@@ -1,6 +1,5 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
-
 **Start here:** Declare tables, rules, queries and mutations; indexes are inferred. Default-starter pattern; `guide from-sql` translates familiar idioms.
 
 ```quarry
@@ -815,13 +814,15 @@ mutation react(message: messages, emoji: text <=32) predicts:
 
 This inherits `read through .message`; `guide sync` covers lifetime, three-hop immutable references and E_READ_THROUGH/E_SYNC repairs; `guide prediction` covers coverage/rollback.
 ```quarry
-table parcels:
+table parcels renamed from shipments:
+  manifest: file <=100000 ? renamed from legacyManifest
+  quantity: int
   weight: int
   sizeClass: enum('small', 'large')
   read <- deny
   online only
 backfill parcels sizes(weight: int): {sizeClass: 'large' if weight > 3500 else 'small'}
+backfill parcels quantities(manifest: file <=100000 ?): {quantity: nonemptyLines(fileText(manifest)) if manifest != null else 0}
 ```
-
-**Historical data:** `backfill` declares a historical-input patch, applied atomically by deploy; keep it in later schemas. Rollback restores untouched preimages or refuses conflicts. `before`/`after` and `beforeLast`/`afterLast` split at first/last exact delimiter (absent: whole-before/empty-after; empty: refusal). `startsWith` tests an exact prefix; `allDigits` means nonempty ASCII digits. `guide deploy` provides the runnable persistent-production recipe.
+**Historical data:** `backfill` declares a historical-input patch, applied atomically by deploy; keep it in later schemas. Rollback restores untouched preimages or refuses conflicts. `before`/`after` and `beforeLast`/`afterLast` split at first/last exact delimiter (absent: whole-before/empty-after; empty: refusal). `startsWith` tests an exact prefix; `allDigits` means nonempty ASCII digits. `renamed from` moves table identity or a scalar/asset column; file homes move with asset columns. `fileText` reads retained UTF-8 only during migration; `nonemptyLines` counts repeated nonempty lines. `guide deploy` provides the runnable persistent-production recipe.
 "##;

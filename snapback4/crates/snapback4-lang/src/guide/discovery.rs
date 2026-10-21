@@ -142,6 +142,8 @@ while dormant. `releases <dir>` inspects database-authoritative history.
 
 Clients reacquire a fresh generation for changed execution content, including
 native-only module changes. A failed hot adoption leaves the old release serving.
+For a truthful scalar old view, declare `down table name(typedInputs): {oldField: expression}` in newer source. Saved old preimages win; receipts name their rows. Computed down cannot manufacture files/images, collections, references or missing tables. For required → optional media/money and empty albums, `rollback DIR --to N --check --bridge NEW_DIR` generates target operations with loosened domains and retained new tables. Review nullable UI reads, current safety guards and the checklist, then preview/deploy that NEW release with `deploy DIR --schema NEW_DIR --restore-dormant --check`. New tables may still have no old read path. `table newName renamed from oldName:` preserves table/row/reference identity across both directions; asset-column renames preserve the single asset home. Cross-table indexed existence/unique lookups and migration-only `fileText` are declarative inputs; see the packed-tested language example and `guide deploy`.
+
 Full lifecycle, concurrency, failure and recovery semantics:
 [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
 

@@ -20,6 +20,7 @@ pub(super) struct Population {
     pub table: String,
     pub rows: u64,
     pub target_has_table: bool,
+    pub causes: Vec<(String,u64)>,
     pub sample_ids: Vec<String>,
 }
 #[derive(Serialize)]
@@ -41,7 +42,8 @@ pub(super) fn assess(store: &Store, current: Option<&Schema>, target: &Schema) -
         if rows > 0 {
             let target_has_table = target.table(name).is_some() && target.visible(name);
             if target_has_table { result.hidden_rows += rows; } else { result.newer_only_rows += rows; }
-            result.tables.push(Population { table:name.clone(), rows, target_has_table, sample_ids });
+            let causes=if target_has_table {store.preview_hidden_causes(name)?}else{Vec::new()};
+            result.tables.push(Population { table:name.clone(), rows, target_has_table, causes, sample_ids });
         }
         let Some(next) = target.table(name).filter(|_|target.visible(name) && target.maintain_for(name).is_none()) else { continue; };
         for (column, kind) in &next.columns {
@@ -78,14 +80,15 @@ impl Visibility {
     pub(super) fn lines(&self, current: u64, target: u64) -> Vec<String> {
         let mut lines = vec![format!("rollback to release {target}: {} records visible under release {current} will be hidden from release {target} users", self.hidden_rows)];
         for table in self.tables.iter().filter(|t|t.target_has_table) {
-            lines.push(format!("  {}: {} rows leave a table release {target} has; declare a reverse projection where the old type can represent them, or preserve the domain in a bridge release",table.table,table.rows));
+            lines.push(format!("  {}: {} rows hidden from a table release {target} has",table.table,table.rows));
+            for (cause,count) in &table.causes {lines.push(format!("    {count} rows: {cause}"));}
         }
         for cell in &self.cells {
             let value = if cell.value==Value::Null {"empty (null)".into()} else {format!("the old default {}",snapback4_core::wire::to_json(&cell.value))};
             lines.push(format!("  {}.{}: {} surviving records show {value} ({} restored empty legacy cells); declare a reverse projection if these records have a truthful old representation, or use a bridge release",cell.table,cell.column,cell.rows,cell.retained_empty_rows));
         }
         lines.push(format!("  {} cells are empty/defaulted; {} rows belong to tables absent from release {target} (newer-only facts)", self.empty_cells, self.newer_only_rows));
-        for table in self.tables.iter().filter(|t|!t.target_has_table) {lines.push(format!("  newer-only {}: {} rows retained dormant",table.table,table.rows));}
+        for table in self.tables.iter().filter(|t|!t.target_has_table) {lines.push(format!("  newer-only {}: {} rows retained dormant because release {target} has no table {}; same-table down cannot create a table; preserve it in a bridge or declare a table rename",table.table,table.rows,table.table));}
         lines.push("  counts are schema populations before read rules, not per-user query results; saved empty cells are not proof of lost text; nothing dormant is deleted by this switch; compatible forward restores retained images".into());
         lines
     }

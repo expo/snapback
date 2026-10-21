@@ -1,0 +1,7 @@
+muse: workspace root: /tmp/evol-muse-review.vvt8Pa (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+No material semantic ambiguity, security, custody, or impossible-contract issue remains in the revised text of [declarative backfills RFC](/home/ccheever/projects/sb4-b21-evol/llp/3000.000.000.002-declarative-backfills.rfc.md) §8.
+
+The final paragraphs close the prior gaps. `deps_same` requires both inputs and patch equality. Changed-input/same-patch writes one value, so multiple baselines cannot diverge. Receipt precedence is fail-closed over marker skipping, with pruned-first and distinct down digests. Affected listing uses one target spelling with provenance, never two tables.

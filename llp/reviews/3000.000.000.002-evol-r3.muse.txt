@@ -1,0 +1,64 @@
+muse: workspace root: /tmp/evol-muse-review.R6ahm4 (cwd default)
+muse: workspace trust: trusted source=run-flag
+Verdict: NOT READY.
+
+## 1. Fingerprint refresh contradicts custody and re-entry
+
+Superseding §3 insert-only: "refresh existing native input fingerprints" + "Refresh replaces the fingerprint, rather than accumulating" + "Overwritten historical inputs, original output preimages ... retain their custody."
+
+Case: Row migrated with input `a=1`, output `o=9`. While declaration active, ordinary write sets `a=2`. Old image `1` is replaced. At re-entry, rule requires "deterministic recomputation over the assembled source produces the exact stored output." Which source — `1` or `2`? If `1` is gone, audit/recomputation is impossible. If `2` is used, stored `o=9` may no longer recompute.
+
+Also: "a differing authored output still refuses" vs "Valid native outputs ... remain authored values, even when they differ from the historical transform." Implementer cannot tell whether differing output refuses or is retained.
+
+Correction: Define "exact declaration," "currently authored," "older-release edit." State whether refresh deletes or retains replaced images per lifetime, and separate adoption-time authored-output acceptance from re-entry stored-output comparison.
+
+## 2. Helper-wrapped `fileText` is a read-bypass
+
+`fileText` is "migration-only" but "accepted ... including through pure helpers."
+
+Case: `myText(f)=fileText(f)` defined for backfill, later called from ordinary app logic to exfiltrate an arbitrary ledger file. Text says "creates no user-callable migration operation," but does not taint helpers.
+
+Correction: Helpers transitively containing `fileText` become migration-only, refuse outside internal migration context. Define refusal, not null/default. Define preview redaction: raw `fileText` bytes must never appear in diagnostics, causes, or client-visible state; only derived scalars.
+
+## 3. `fileText` / point-read failure and metering gaps
+
+"Absent bytes, released assets, length disagreement, invalid UTF-8 or meter exhaustion refuse the whole adoption."
+
+Case 1: Failure occurs in `down` during bridge/rollback, not adoption. No atomicity stated.
+Case 2: Preview "reads the same ... root" with no stated heap/step charge. Preview can OOM or bypass meter.
+Case 3: Cross-table "unique point reads" have no absent-row semantics. Absent vs present-null matters per this RFC. Silent null would fabricate a preimage.
+
+Correction: Extend refuse-the-whole-operation to `down`/bridge/preview. Require identical pre-charge and context check in preview. Define absent-row point read as whole-operation refusal, not null. State snapshot pinning covers point reads and `fileText` ledger version.
+
+## 4. Rename conflict check will self-conflict or leak history
+
+"Rename destination conflicts consult only physically present or retained cells" and asset rename "conflicting physical/retained cell refuses atomically."
+
+Case: `observations renamed from behaviors` moves identity. Source's own moving cells are physically present/retained. Without excluding the moving identity, every rename self-refuses. Conversely, if retained cells from a dead lifetime count, no rename can ever succeed while per-lifetime retention holds.
+
+Correction: Scope conflict check to storage not owned by the moving numeric identity, per lifetime. Define behavior for excluded `reference/captured/engine` renames: refuse with diagnostic. Define released-asset handling on asset move.
+
+## 5. Bridge loosening is unimplementable and bypasses SEC6
+
+"`loosening only differing compatible value domains to their union`" — compatible/union undefined. "Lists ... target operations reading affected tables" omits writers. "Loosened bridges cover nullable files/images" contradicts scalar-only migration outputs and "old UI assumptions about null require explicit review."
+
+Case: v1 `name: string` non-nullable, current nullable. Bridge auto-loosens to nullable. Old UI assumes non-null and crashes, with only "visible" checklist, no enforcement. Or v1 `int` vs current `string`: implementer cannot decide compatible vs refuse.
+
+Correction: Enumerate compatible domain pairs; incompatible refuses bridge with diagnostic. List readers and writers. State bridge must preserve SEC6-owned sections byte-identical and must surface a blocking SEC6 review item for any loosening, new retained table, or rename; visible diagnostics alone do not satisfy "require explicit review." Clarify how nullable assets avoid fabricating asset/reference preimages.
+
+## 6. Both-aliases rule conflicts with bridge retention
+
+"Both names cannot appear together" + bridge "retaining new authoritative tables with current rules" + "selecting old source changes the public name back."
+
+Case: Bridge target v1 `behaviors` plus retained current `observations` where `observations renamed from behaviors`. Bridge contains both aliases active, violating its own invariant. Old-source operation now sees current values under old name; frozen v1 exposure guarantee unclear.
+
+Correction: Define bridge schema rule for rename aliases: at most one alias active, other represented only as durable name relation. State old-source read/write routing when old name selected.
+
+## 7. Preview causes and Foresight undefined
+
+"Actual narrowed-population closure," "typed reference to a hidden parent," "Foresight consults declared reverse writers rather than calling their old output absent."
+
+Case: Two causes overlap; counts double-count. Reviewer cannot reproduce cause identity, population (before read rules leaks hidden-parent existence?), or what "calling old output absent" would have done.
+
+Correction: Define cause shapes, closure algorithm, count semantics, and Foresight vs preview boundary. State preview isolation: private snapshot writes are unobservable and metered, and hidden-parent references do not leak through counts to unauthorized readers.
+

@@ -1,5 +1,11 @@
 # Snapback 4 behavior changes
 
+## 0.4.37
+
+- Release adoption accepts ordinary writes under an active backfill, refreshes accepted inputs and preserves typed reference custody. Forward accepts exact recomputation agreement; genuinely conflicting edits still refuse. An absent nullable rename destination no longer conflicts.
+- Rollback previews account for declared reverse projections/renames and name actual incompatible columns or hidden reference parents. Saved-preimage receipts name bounded row samples. Generated bridges start from target operations with loosened compatible domains and retained new tables; review nullability, current safety guards and old read paths before deploying the new release.
+- `table observations renamed from behaviors:` preserves row/reference identity across rollback and forward. Asset-column renames move actual cells and their single home. Indexed cross-table existence/unique backfills remain atomic; migration-only `fileText(file)` and `nonemptyLines(text)` derive scalar values from retained UTF-8 with bounded meters and exact reversal evidence. See `guide evolution`/`guide language`/`guide deploy`. SEC6 owns write-intent, privacy, session and rule-review changes.
+
 ## 0.4.35
 
 - Column privacy: append `read <- policy` to a column or share `read (a, b) <- policy`. Effective authority intersects row, column and owner-private rules for queries, write results and downloads. Whole rows omit hidden properties; explicit selections return null and generated read properties are optional. Row-local cells sync; witness-dependent cells stay server-side with automatic online fallback. Protected payloads cannot supply structural keys, authority, lifetimes or maintained inputs (E_COLUMN_READ). Existing fields keep their audience until a rule is declared; old clients receive compatibility advice for newly optional results.

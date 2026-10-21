@@ -1,0 +1,87 @@
+Review this proposed semantic amendment independently. This is an RFC readiness review, not a code review or acceptance. Do not run tools: all text to review is below. Return READY or NOT READY. Report only material semantic ambiguity, security, custody or impossible-contract issues, with a concrete case and required correction. Existing parent rules: activation is one writer transaction; retained rows/cells/reference bindings and output preimages are per lifetime; a failure commits nothing. App reads and client metadata include only the active schema. Unique/cap/reference/asset constraints run after migration. All computed migration outputs are scalar; asset/reference preimages are never fabricated. No code can claim qualification from this review. Source: /home/ccheever/projects/sb4-b21-evol/llp/3000.000.000.002-declarative-backfills.rfc.md §8, 2026-10-21.
+
+## 8. Wave-21 release evolution
+
+Implementer: Codex for Charlie Cheever (EVOL), 2026-10-21; target 0.4.37.
+This amendment supersedes the insert-only input policy in §3. Ordinary
+writes while the exact declaration is active refresh existing native input
+fingerprints. They do not create native birth evidence for migrated rows.
+Active forward receipts refresh only actually edited, currently authored
+non-output inputs and their reference lifetime bindings. Overwritten historical
+inputs, original output preimages, omission interpretations on unrelated
+writes, inactive receipts and immutable definitions retain their custody.
+An older-release edit does not receive this refresh. At re-entry a changed
+input is compatible when deterministic recomputation over the assembled source
+produces the exact stored output; a differing authored output still refuses.
+Valid native outputs written under the owning declaration remain authored
+values, even when they differ from the historical transform. Refresh replaces
+the fingerprint, rather than accumulating old accepted images.
+
+Rename destination conflicts consult only physically present or retained cells.
+An absent optional destination is absent; interpreting it as null or a default
+cannot manufacture a conflict. Explicit present null is still a real cell.
+
+SEC6 owns rule-changing deploy review items, write intent, projection privacy
+and client session validation; EVOL does not change those contracts.
+
+
+A table declares `table observations renamed from behaviors:`. It moves the
+same numeric table identity and row/reference lifetimes, never copies rows or
+merges independent histories. Both names cannot appear together in a selected
+schema. The durable name relation permits old-source rollback and older-source
+writes to return under the newer name. Existing independent destination storage
+refuses atomically. Indexes, retained type definitions, asset homes and migration
+receipts follow that identity; literal values and operation names do not change.
+Store format 8 and the release-table-renames-v1 capability fence the new metadata.
+
+`rollback --check --bridge DIR` now writes the selected target's complete source,
+loosening only differing compatible value domains to their union with current
+source and retaining new authoritative tables with their current rules. It lists
+changes and target operations reading affected tables. It never changes immutable
+source or activates automatically. The generated bridge is a new deployable
+release, subject to ordinary compilation/adoption. Incompatible nominal types,
+new business logic, current guards absent from v1, and old UI assumptions about
+null require explicit review; diagnostics and the app-specific checklist remain
+visible. A retained new table does not claim a frozen v1 operation exposes it.
+No reverse projection fabricates an asset, reference, list element or missing
+table. Scalar `down` remains the answer for a truthful scalar substitution;
+loosened bridges cover nullable files/images, empty image lists and optional
+money without invented placeholders.
+
+Preview causes are recorded by the actual narrowed-population closure: a column
+and incompatible value category, or a typed reference to a hidden parent. Counts
+may overlap across causes and are schema populations before read rules. New-table
+rows have a separate cause. Foresight consults declared reverse writers rather
+than calling their old output absent. SEC6 owns review-item resurfacing.
+
+Asset columns (`file`, image/video and asset lists) use `renamed from` as an
+identity move, rather than computed scalar forward/down substitutions. The
+active and retained physical cells and the ledger's one home move together;
+selecting old source changes the public name back, preserving current values.
+Both aliases cannot be active together; a conflicting physical/retained cell
+refuses atomically. Reference/captured/engine field renames remain excluded.
+Older runtimes refuse store format 8; device projections omit migration metadata.
+
+Cross-table historical existence and unique point reads are first-class
+backfill inputs under §2's assembled-source, metered system authority. A guide
+example must include the source index and explicit row input rather than an
+application reconciliation loop. Outputs remain disjoint scalar patches and
+all declarations observe the same pre-patch snapshot.
+
+`fileText(file)` is a migration-only deterministic input, accepted in backfill
+and down expressions, including through pure helpers. It reads the immutable
+retained file named by the ledger, as UTF-8. It never reads an application path
+or URL, unverified bytes, arbitrary ids, or a device's filesystem. The runtime
+requires an internal migration context and charges the job heap and step meter
+before reading at most the ledger byte length plus one. Absent bytes, released
+assets, length disagreement, invalid UTF-8 or meter exhaustion refuse the whole
+adoption. Preview reads the same original immutable asset root while writing
+only its private database snapshot. The feature creates no user-callable
+migration operation and does not make arbitrary file contents readable to users.
+`nonemptyLines(text)` counts trimmed nonempty lines, including repeated entries
+separately; CRLF and whitespace-only lines have their ordinary text meaning.
+It is a pure scalar transform; an empty textual list counts zero. A generated
+scalar is reversible through the existing output-preimage/evidence custody;
+fileText never mutates the bytes or their home. Ordinary new-order byte validation
+is outside this release-migration primitive; it receives no invented enforcement
+claim from a historical backfill.

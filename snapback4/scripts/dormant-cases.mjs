@@ -74,6 +74,14 @@ down entries legacyReason(id: id):
     assert.equal(preview.visibility.emptyCells,0,'declared reverse keeps reason text');
     assert.equal(preview.visibility.newerOnlyRows,2);
     assert.equal((await post('/q/all')).data.length,3,'preview never activates');
+    const bridge=join(cwd,'bridge');
+    await run(['rollback',deployment,'--to','1','--check','--bridge',bridge]);
+    const loosened=JSON.parse((await run(['deploy',deployment,'--schema',bridge,'--restore-dormant','--check','--json'])).stdout);
+    assert.equal(loosened.visibility.hiddenRows,0,'generated bridge represents zero without inventing one');
+    await run(['deploy',deployment,'--schema',bridge,'--restore-dormant']);
+    assert.equal((await post('/q/all')).data.length,3,'target operations read all representable rows under the generated bridge');
+    await run(['deploy',deployment]);
+
     await run(['rollback',deployment,'--to','1']);
     const oldRows=(await post('/q/all')).data;
     assert.equal(oldRows.length,2,'unrepresentable zero is dormant');
@@ -117,27 +125,29 @@ async function migrationCycles({cli,startServe},parent) {
     const old=`use identity guests
 table pickups:
   owner: principal
-  title: text <=40
+  title: text <=40 ?
   weight: int
   read <- .owner = viewer
   insert <- .owner = viewer
+  update <- .owner = viewer
   online only
 mutation add(title: text <=40, weight: int):
   return insert pickups {owner:viewer,title,weight}
 query all():
   return pickups where .owner = viewer first 100 by .id
 `;
-    const newer=old.replace('  title: text <=40','  name: text <=40 renamed from title\n  label: text <=20')
+    const newer=old.replace('  title: text <=40 ?','  name: text <=40 ? renamed from title\n  label: text <=20')
       .replace('return insert pickups {owner:viewer,title,weight}',"return insert pickups {owner:viewer,name:title,label:'heavy' if weight > 100 else 'light',weight}")
-      +"backfill pickups labels(weight: int):\n  {label:'heavy' if weight > 100 else 'light'}\n";
+      +"backfill pickups labels(weight: int):\n  {label:'heavy' if weight > 100 else 'light'}\nmutation revise(item: pickups, weight: int):\n  return update pickups[item] {weight,label:'heavy' if weight > 100 else 'light'}\n";
     writeFileSync(schema,old);await run(['deploy',deployment]);
     host=await startServe(deployment,{cwd,timeoutMs:60_000});
     const auth=await(await fetch(host.url+'/auth/guest',{method:'POST',body:'{}',signal:AbortSignal.timeout(30_000)})).json();
     assert.ok(auth.session?.token,JSON.stringify(auth));
     const post=async(path,args={})=>(await fetch(host.url+path,{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+auth.session.token},body:JSON.stringify({args}),signal:AbortSignal.timeout(30_000)})).json();
-    assert.equal((await post('/m/add',{title:'historical',weight:50})).state,'sent');
+    const historical=await post('/m/add',{title:'historical',weight:50});assert.equal(historical.state,'sent');
     writeFileSync(schema,newer);await run(['deploy',deployment]);
-    assert.equal((await post('/m/add',{title:'native',weight:200})).state,'sent','old argument spelling remains explicitly mapped by the operation body');
+    const native=await post('/m/add',{title:'native',weight:200});assert.equal(native.state,'sent');
+    for(const [item,weight] of [[historical.result.id,200],[native.result.id,50]]) assert.equal((await post('/m/revise',{item,weight})).state,'sent','ordinary v2 edits survive re-entry');
     for(let cycle=0;cycle<2;cycle++) {
       await run(['rollback',deployment,'--to','1']);
       const older=(await post('/q/all')).data;

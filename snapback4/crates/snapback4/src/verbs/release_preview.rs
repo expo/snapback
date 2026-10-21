@@ -53,6 +53,7 @@ pub(super) fn preview(
     drop(source);
     }
     let mut store = snapback4_core::Store::open(&path).map_err(|e| e.to_string())?;
+    store.preview_asset_root(&store_path.parent().ok_or("preview needs a deployment directory")?.join("assets")).map_err(|e|e.to_string())?;
     let held = store
         .release_status(0, None, None)
         .map_err(|e| e.to_string())?;
@@ -194,7 +195,7 @@ pub(super) fn preview(
     if let Some(path) = options.flags.get("bridge") {
         let current = held["release"].as_u64().ok_or("a bridge needs a current deployed release")?;
         super::release_bridge::write(Path::new(path),store_path.parent().ok_or("no deployment directory")?,current,release,&checklist)?;
-        eprintln!("bridge starter written to {path}; edit its current source and follow ROLLBACK-CHECKLIST.md before activation");
+        eprintln!("bridge starter written to {path}; review its loosened target source and follow ROLLBACK-CHECKLIST.md before activation");
     }
     if options.json {
         println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"security":options.flags.get("security-summary"),"visibility":visibility,"rollbackVisibility":rollback_visibility,"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary(),"backfills":engine.store().adoption_report.backfills})).unwrap());
@@ -204,7 +205,7 @@ pub(super) fn preview(
         }
         println!("preview: release {release} would be current as generation {}; live release unchanged", engine.generation());
         super::release_summary::print(prior_schema.as_ref(), &candidate_schema, &candidate_programs, &hazards, &notes, &steps, &items);
-        if !options.flags.contains_key("deploy-direction") { println!("  checklist: prove the named refusal cases and affected lists/counts as real accounts before release {release}; `--bridge <new-dir>` saves current source plus this app's ROLLBACK-CHECKLIST.md"); }
+        if !options.flags.contains_key("deploy-direction") { println!("  checklist: prove the named refusal cases and affected lists/counts as real accounts before release {release}; `--bridge <new-dir>` saves loosened target source plus this app's ROLLBACK-CHECKLIST.md"); }
         println!("  storage: {}",snapback4_core::store::adoption_report::AdoptionReport::dormant(&items));
         if options.flags.contains_key("verbose") {
             for hazard in hazards { println!("  detail: WARNING {hazard}"); }
