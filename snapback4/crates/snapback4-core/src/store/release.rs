@@ -7,7 +7,7 @@ use crate::{
 use rusqlite::{Connection, OptionalExtension};
 
 /// Borrowed before activation constructs its row-access transaction.
-pub(crate) struct ReleaseCheck<'a>(pub(super) &'a Connection);
+pub(crate) struct ReleaseCheck<'a>(pub(crate) &'a Connection);
 
 impl ReleaseTransaction for ReleaseCheck<'_> {
     fn selected_release(&self) -> Result<Option<String>, RuntimeError> {

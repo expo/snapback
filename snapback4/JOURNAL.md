@@ -100257,3 +100257,16 @@ No Docker/GoTrue/Kong/Realtime; offline 24-hour JWT issuance substitutes for
 GoTrue, and full-stack gateway overhead is unmeasured. No paid service, sudo,
 sub-agent, clone, stash or push. The RFC gets one prepended Revised item and
 one short S1-SB progress note; W6 and advocate/idle-host qualification remain.
+### 2026-10-21 — S10a: SQLite-only server handles and bridges
+
+First building increment of LLP 3000.009.001.000 §3.4: `AnyStore`, owning
+`AnyTx`, `ReadSnapshot`, pre-activation `AnyPreparation` and `AnyInspection`
+have only SQLite arms. Explicit family dispatch retains adapter overrides;
+the temporary owning dereference bridges are confined to the adapter. Opening
+metadata and owned adoption reports live at the neutral port. Activation still
+owns its original transaction, including the device's concrete callback API.
+The evidence reset is now available as an operation for the member driver.
+`cargo build -p snapback4 -j 10` passes with this worktree's target and the
+lane's no-incremental/line-table settings. Engine/host migration follows in
+separate building increments. No Postgres arm, producer routing or behavior
+change is claimed.

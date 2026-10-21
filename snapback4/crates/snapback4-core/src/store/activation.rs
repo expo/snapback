@@ -83,7 +83,7 @@ impl Store {
         self.activate_transaction(schema, programs, reset, now, true, build)
     }
 
-    pub(crate) fn activate_at_with_launch<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl Fn(&super::release::ReleaseCheck<'_>) -> Result<(), RuntimeError>, mut build: impl FnMut(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl Fn(&Tx<'_>) -> Result<R, RuntimeError>,
+    pub(crate) fn activate_at_with_launch<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl Fn(&super::release::ReleaseCheck<'_>) -> Result<(), RuntimeError>, mut build: impl FnMut(&crate::store_port::AnyTx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl Fn(&crate::store_port::AnyTx<'_>) -> Result<R, RuntimeError>,
     ) -> Result<Committed<(u64, R)>, RuntimeError> {
         let budget = if programs.is_some() { super::activation_cache::configured_mib()? } else { 0 };
         // The server builder owns only transaction-local work. Recreate all of
@@ -94,10 +94,10 @@ impl Store {
     }
 
     pub(super) fn activate_transaction(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
-        self.activate_transaction_with(schema, programs, reset, now, allow_launch, |_| Ok(()), build, |_| Ok(())).map(|committed| committed.into_inner().0)
+        self.activate_transaction_with(schema, programs, reset, now, allow_launch, |_| Ok(()), |tx, changed, report| build(tx, changed, report), |_| Ok(())).map(|committed| committed.into_inner().0)
     }
 
-    fn activate_transaction_with<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl FnOnce(&super::release::ReleaseCheck<'_>) -> Result<(), RuntimeError>, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>,
+    fn activate_transaction_with<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl FnOnce(&super::release::ReleaseCheck<'_>) -> Result<(), RuntimeError>, build: impl FnOnce(&crate::store_port::AnyTx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl FnOnce(&crate::store_port::AnyTx<'_>) -> Result<R, RuntimeError>,
     ) -> Result<Committed<(u64, R)>, RuntimeError> {
         // @ref LLP 3000.000.000.002#4-staging-clock — a removed opening boundary cannot lower durable source retirement time.
         let now=if self.server {now.max(self.meta("time_audience_clock")?.and_then(|s|s.parse().ok()).unwrap_or(i64::MIN))}else{now};
@@ -203,9 +203,9 @@ impl Store {
             let activation_scan = programs.map(|_| Default::default());
             #[cfg(test)]
             let activation_scan = if store.full_adoption { None } else { activation_scan };
-            let tx = Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
+            let tx = crate::store_port::AnyTx::Sqlite(Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
                 server: store.server,
-                catalog: &catalog };
+                catalog: &catalog });
             let now = if schema.tables.values().any(|table| table.not_before.is_some()) {
                 tx.pin_time_audience_clock(now)?
             } else {

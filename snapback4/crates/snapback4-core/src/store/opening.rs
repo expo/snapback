@@ -2,10 +2,7 @@
 // @ref LLP 3000.033#1.3 — no fallible construction reads after commit.
 use super::*;
 
-pub(crate) struct Metadata {
-    pub store_id: String,
-    pub dev_effects: bool,
-}
+pub(crate) use crate::store_port::OpeningMetadata as Metadata;
 
 impl Metadata {
     pub fn read(tx: &impl crate::metadata::MetadataReader) -> Result<Self, RuntimeError> {
