@@ -1,0 +1,22 @@
+{
+  "time": 1792617433.803519,
+  "auditor_pid": 2636539,
+  "local_recorded_pids_checked": 19260,
+  "local_alive": [],
+  "local_zombies": [],
+  "api_ports_listening": {
+    "58080": false,
+    "58081": false,
+    "58083": false
+  },
+  "remote": {
+    "auditor_pid": 579740,
+    "recorded_monitors_checked": 2239,
+    "recorded_monitors_alive": [],
+    "postmaster": 2735539,
+    "postmaster_exists": true
+  },
+  "remote_ssh_observer_pid": 2636575,
+  "remote_observer_exit_status": 0,
+  "signals_sent": false
+}

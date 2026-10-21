@@ -1,0 +1,8 @@
+{
+  "crates_common_src_knobs.rs": "2260920d3710f8739d9c36eaf20dbe36946190a9ff46a2ecf00ef37f95cb15c8",
+  "crates_postgres_src_connection.rs": "9f683ec611a08bfac85bdc41aab996384d35adb7d18ac27778de2a29626b3b79",
+  "crates_postgres_src_lib.rs": "efe403c38a53b9464f560b81d05f2d82fd577c5e848e5db6134893723ed842f0",
+  "crates_local_backend_src_main.rs": "544b26f44ff55ffff4a9ba91393337b42b99deb561508baaf4ad1da7880a51b4",
+  "crates_local_backend_src_config.rs": "5b1ea984e15b18f3607cce15d4d3dcd1e5d2ee80a56e5797bcf5b614cc9b5f5a",
+  "self-hosted_docker_docker-compose.yml": "483d2bb9a32b70036c29f0fc59c55acf1a1421147c45add2080fd2142cb98cfc"
+}

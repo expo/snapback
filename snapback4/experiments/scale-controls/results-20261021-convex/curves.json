@@ -1,0 +1,6398 @@
+[
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 100000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w1-n100000-d0-c128-disjoint",
+        "--workload",
+        "W1",
+        "--rows",
+        "100000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 500,
+        "all_pass": true,
+        "achieved_median": 500.0,
+        "completed_in_window_median": 500.0,
+        "p50_ms": 0.464383,
+        "p99_ms": 0.636415,
+        "p999_ms": 1.011199,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 707,
+        "all_pass": true,
+        "achieved_median": 707.0,
+        "completed_in_window_median": 707.0,
+        "p50_ms": 0.452095,
+        "p99_ms": 0.639487,
+        "p999_ms": 1.528831,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1000,
+        "all_pass": false,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 0.437759,
+        "p99_ms": 0.629759,
+        "p999_ms": 5.693439,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 100000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w1-n100000-d500-c128-disjoint",
+        "--workload",
+        "W1",
+        "--rows",
+        "100000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 500,
+        "all_pass": true,
+        "achieved_median": 500.0,
+        "completed_in_window_median": 500.0,
+        "p50_ms": 0.451327,
+        "p99_ms": 0.631807,
+        "p999_ms": 0.838143,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 707,
+        "all_pass": true,
+        "achieved_median": 707.0,
+        "completed_in_window_median": 707.0,
+        "p50_ms": 0.450815,
+        "p99_ms": 0.610815,
+        "p999_ms": 0.814079,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1000,
+        "all_pass": false,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 0.445951,
+        "p99_ms": 0.603647,
+        "p999_ms": 1.057791,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w1-n1000000-d0-c128-disjoint",
+        "--workload",
+        "W1",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 500,
+        "all_pass": true,
+        "achieved_median": 500.0,
+        "completed_in_window_median": 500.0,
+        "p50_ms": 0.463103,
+        "p99_ms": 0.763903,
+        "p999_ms": 4.579327,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 707,
+        "all_pass": true,
+        "achieved_median": 707.0,
+        "completed_in_window_median": 707.0,
+        "p50_ms": 0.488191,
+        "p99_ms": 0.748031,
+        "p999_ms": 2.873343,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1000,
+        "all_pass": false,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 0.405247,
+        "p99_ms": 0.749055,
+        "p999_ms": 2.623487,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w1-n1000000-d500-c128-disjoint",
+        "--workload",
+        "W1",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 500,
+        "all_pass": true,
+        "achieved_median": 500.0,
+        "completed_in_window_median": 500.0,
+        "p50_ms": 0.463103,
+        "p99_ms": 0.658943,
+        "p999_ms": 0.875519,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 707,
+        "all_pass": true,
+        "achieved_median": 707.0,
+        "completed_in_window_median": 707.0,
+        "p50_ms": 0.449023,
+        "p99_ms": 0.618495,
+        "p999_ms": 0.907775,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1000,
+        "all_pass": false,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 0.443135,
+        "p99_ms": 0.656383,
+        "p999_ms": 6.361087,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 100000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w2-n100000-d0-c128-disjoint",
+        "--workload",
+        "W2",
+        "--rows",
+        "100000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 500,
+        "all_pass": true,
+        "achieved_median": 500.0,
+        "completed_in_window_median": 500.0,
+        "p50_ms": 0.619519,
+        "p99_ms": 0.856575,
+        "p999_ms": 1.018879,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 707,
+        "all_pass": true,
+        "achieved_median": 707.0,
+        "completed_in_window_median": 707.0,
+        "p50_ms": 0.626687,
+        "p99_ms": 0.820223,
+        "p999_ms": 0.961023,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1000,
+        "all_pass": false,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 0.547327,
+        "p99_ms": 0.841727,
+        "p999_ms": 5.558271,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 100000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w2-n100000-d500-c128-disjoint",
+        "--workload",
+        "W2",
+        "--rows",
+        "100000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 500,
+        "all_pass": true,
+        "achieved_median": 500.0,
+        "completed_in_window_median": 500.0,
+        "p50_ms": 0.623615,
+        "p99_ms": 0.851967,
+        "p999_ms": 2.117631,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 707,
+        "all_pass": true,
+        "achieved_median": 707.0,
+        "completed_in_window_median": 707.0,
+        "p50_ms": 0.622079,
+        "p99_ms": 0.852479,
+        "p999_ms": 1.724415,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1000,
+        "all_pass": false,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 0.591871,
+        "p99_ms": 0.849407,
+        "p999_ms": 1.065983,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w2-n1000000-d0-c128-disjoint",
+        "--workload",
+        "W2",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 500,
+        "all_pass": true,
+        "achieved_median": 500.0,
+        "completed_in_window_median": 500.0,
+        "p50_ms": 0.660479,
+        "p99_ms": 0.931839,
+        "p999_ms": 1.247231,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 707,
+        "all_pass": true,
+        "achieved_median": 707.0,
+        "completed_in_window_median": 706.5,
+        "p50_ms": 0.616959,
+        "p99_ms": 0.862207,
+        "p999_ms": 0.956415,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1000,
+        "all_pass": false,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 0.644607,
+        "p99_ms": 0.975359,
+        "p999_ms": 6.172671,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w2-n1000000-d500-c128-disjoint",
+        "--workload",
+        "W2",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 500,
+        "all_pass": true,
+        "achieved_median": 500.0,
+        "completed_in_window_median": 500.0,
+        "p50_ms": 0.622079,
+        "p99_ms": 0.854527,
+        "p999_ms": 1.344511,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 707,
+        "all_pass": true,
+        "achieved_median": 707.0,
+        "completed_in_window_median": 707.0,
+        "p50_ms": 0.625151,
+        "p99_ms": 0.809471,
+        "p999_ms": 0.984575,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1000,
+        "all_pass": false,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 0.539135,
+        "p99_ms": 0.879103,
+        "p999_ms": 1.361919,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 100000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w3-n100000-d0-c128-disjoint",
+        "--workload",
+        "W3",
+        "--rows",
+        "100000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 500,
+        "all_pass": true,
+        "achieved_median": 500.0,
+        "completed_in_window_median": 500.0,
+        "p50_ms": 0.595455,
+        "p99_ms": 0.785407,
+        "p999_ms": 1.087487,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 707,
+        "all_pass": true,
+        "achieved_median": 707.0,
+        "completed_in_window_median": 707.0,
+        "p50_ms": 0.595967,
+        "p99_ms": 0.804351,
+        "p999_ms": 1.062911,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1000,
+        "all_pass": false,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 0.562175,
+        "p99_ms": 0.769023,
+        "p999_ms": 0.990207,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 100000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w3-n100000-d500-c128-disjoint",
+        "--workload",
+        "W3",
+        "--rows",
+        "100000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 500,
+        "all_pass": true,
+        "achieved_median": 500.0,
+        "completed_in_window_median": 500.0,
+        "p50_ms": 0.601087,
+        "p99_ms": 0.793599,
+        "p999_ms": 0.963583,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 707,
+        "all_pass": true,
+        "achieved_median": 707.0,
+        "completed_in_window_median": 707.0,
+        "p50_ms": 0.600575,
+        "p99_ms": 0.757759,
+        "p999_ms": 0.912383,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1000,
+        "all_pass": false,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 0.570879,
+        "p99_ms": 0.807423,
+        "p999_ms": 1.007615,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w3-n1000000-d0-c128-disjoint",
+        "--workload",
+        "W3",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 500,
+        "all_pass": true,
+        "achieved_median": 500.0,
+        "completed_in_window_median": 500.0,
+        "p50_ms": 0.606719,
+        "p99_ms": 0.828415,
+        "p999_ms": 1.041407,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 707,
+        "all_pass": true,
+        "achieved_median": 707.0,
+        "completed_in_window_median": 707.0,
+        "p50_ms": 0.589823,
+        "p99_ms": 0.778239,
+        "p999_ms": 0.973311,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1000,
+        "all_pass": false,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 0.514303,
+        "p99_ms": 0.775679,
+        "p999_ms": 1.044991,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w3-n1000000-d500-c128-disjoint",
+        "--workload",
+        "W3",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 500,
+        "all_pass": true,
+        "achieved_median": 500.0,
+        "completed_in_window_median": 500.0,
+        "p50_ms": 0.609791,
+        "p99_ms": 0.790527,
+        "p999_ms": 0.906239,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 707,
+        "all_pass": true,
+        "achieved_median": 707.0,
+        "completed_in_window_median": 707.0,
+        "p50_ms": 0.600063,
+        "p99_ms": 0.762367,
+        "p999_ms": 0.959487,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1000,
+        "all_pass": false,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 0.591871,
+        "p99_ms": 0.778239,
+        "p999_ms": 0.983039,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 1,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d0-c1-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "1",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 12,
+        "all_pass": true,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 53.673983,
+        "p99_ms": 57.966591,
+        "p999_ms": 57.966591,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 17,
+        "all_pass": true,
+        "achieved_median": 17.0,
+        "completed_in_window_median": 17.0,
+        "p50_ms": 53.805055,
+        "p99_ms": 71.630847,
+        "p999_ms": 71.630847,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 18.5,
+        "p50_ms": 582.483967,
+        "p99_ms": 924.319743,
+        "p999_ms": 924.319743,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 20.0,
+        "completed_in_window_median": 18.5,
+        "p50_ms": 1026.031615,
+        "p99_ms": 1068.498943,
+        "p999_ms": 1086.324735,
+        "errors": 180
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 18.5,
+        "completed_in_window_median": 18.0,
+        "p50_ms": 1027.080191,
+        "p99_ms": 1053.294591,
+        "p999_ms": 1062.731775,
+        "errors": 489
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d0-c128-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 800,
+        "all_pass": true,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 800.5,
+        "p50_ms": 67.567615,
+        "p99_ms": 86.769663,
+        "p999_ms": 101.646335,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1131,
+        "all_pass": false,
+        "achieved_median": 1131.0,
+        "completed_in_window_median": 1128.5,
+        "p50_ms": 83.427327,
+        "p99_ms": 115.736575,
+        "p999_ms": 131.137535,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1574.0,
+        "completed_in_window_median": 1142.0,
+        "p50_ms": 701.497343,
+        "p99_ms": 1087.373311,
+        "p999_ms": 1108.344831,
+        "errors": 144
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 1206.0,
+        "completed_in_window_median": 1162.5,
+        "p50_ms": 1054.867455,
+        "p99_ms": 1136.656383,
+        "p999_ms": 1157.627903,
+        "errors": 11930
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 1091.0,
+        "completed_in_window_median": 1091.0,
+        "p50_ms": 1059.061759,
+        "p99_ms": 1138.753535,
+        "p999_ms": 1156.579327,
+        "errors": 31888
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 1202.5,
+        "completed_in_window_median": 1169.5,
+        "p50_ms": 1053.294591,
+        "p99_ms": 1121.976319,
+        "p999_ms": 1139.802111,
+        "errors": 69604
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 16,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d0-c16-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "16",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 6,
+        "all_pass": true,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 55.607295,
+        "p99_ms": 67.633151,
+        "p999_ms": 67.633151,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 8,
+        "all_pass": true,
+        "achieved_median": 8.0,
+        "completed_in_window_median": 8.0,
+        "p50_ms": 56.590335,
+        "p99_ms": 67.895295,
+        "p999_ms": 67.895295,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 55.508991,
+        "p99_ms": 75.038719,
+        "p999_ms": 75.038719,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 25.5,
+        "p50_ms": 56.098815,
+        "p99_ms": 254.803967,
+        "p999_ms": 254.803967,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 47.5,
+        "p50_ms": 56.557567,
+        "p99_ms": 289.931263,
+        "p999_ms": 310.116351,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 91.0,
+        "p50_ms": 58.753023,
+        "p99_ms": 387.710975,
+        "p999_ms": 396.623871,
+        "errors": 9
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 200.5,
+        "p50_ms": 57.835519,
+        "p99_ms": 69.730303,
+        "p999_ms": 99.155967,
+        "errors": 270
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 339.5,
+        "completed_in_window_median": 233.0,
+        "p50_ms": 992.477183,
+        "p99_ms": 1067.450367,
+        "p999_ms": 1086.324735,
+        "errors": 650
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 283.0,
+        "completed_in_window_median": 268.5,
+        "p50_ms": 1029.177343,
+        "p99_ms": 1065.877503,
+        "p999_ms": 1074.790399,
+        "errors": 3099
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 279.0,
+        "completed_in_window_median": 268.0,
+        "p50_ms": 1029.177343,
+        "p99_ms": 1064.828927,
+        "p999_ms": 1071.644671,
+        "errors": 7916
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 2,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d0-c2-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "2",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 25,
+        "all_pass": true,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 25.0,
+        "p50_ms": 56.197119,
+        "p99_ms": 68.157439,
+        "p999_ms": 68.157439,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 35,
+        "all_pass": false,
+        "achieved_median": 35.0,
+        "completed_in_window_median": 35.0,
+        "p50_ms": 61.112319,
+        "p99_ms": 89.718783,
+        "p999_ms": 89.718783,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 48.5,
+        "completed_in_window_median": 34.5,
+        "p50_ms": 710.410239,
+        "p99_ms": 1042.284543,
+        "p999_ms": 1050.148863,
+        "errors": 13
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 38.0,
+        "completed_in_window_median": 36.0,
+        "p50_ms": 1027.604479,
+        "p99_ms": 1058.537471,
+        "p999_ms": 1080.033279,
+        "errors": 369
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 35.5,
+        "completed_in_window_median": 36.0,
+        "p50_ms": 1028.128767,
+        "p99_ms": 1059.586047,
+        "p999_ms": 1086.324735,
+        "errors": 986
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 256,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d0-c256-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "256",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 800,
+        "all_pass": true,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 802.0,
+        "p50_ms": 61.014015,
+        "p99_ms": 75.759615,
+        "p999_ms": 100.270079,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1131,
+        "all_pass": false,
+        "achieved_median": 1131.0,
+        "completed_in_window_median": 1133.0,
+        "p50_ms": 75.169791,
+        "p99_ms": 96.075775,
+        "p999_ms": 106.692607,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1181.5,
+        "p50_ms": 638.582783,
+        "p99_ms": 1023.410175,
+        "p999_ms": 1059.586047,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 1288.5,
+        "completed_in_window_median": 1173.0,
+        "p50_ms": 1108.344831,
+        "p99_ms": 1236.271103,
+        "p999_ms": 1265.631231,
+        "errors": 11567
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 1184.5,
+        "completed_in_window_median": 1152.5,
+        "p50_ms": 1109.393407,
+        "p99_ms": 1237.319679,
+        "p999_ms": 1261.436927,
+        "errors": 31279
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 1146.0,
+        "completed_in_window_median": 1169.0,
+        "p50_ms": 1110.441983,
+        "p99_ms": 1249.902591,
+        "p999_ms": 1277.165567,
+        "errors": 69903
+      },
+      {
+        "offered_per_s": 25600,
+        "all_pass": false,
+        "achieved_median": 1132.5,
+        "completed_in_window_median": 1114.0,
+        "p50_ms": 1113.587711,
+        "p99_ms": 1250.951167,
+        "p999_ms": 1276.116991,
+        "errors": 146890
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d0-c32-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "32",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 3,
+        "all_pass": true,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 3.0,
+        "p50_ms": 57.442303,
+        "p99_ms": 67.371007,
+        "p999_ms": 67.371007,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 4,
+        "all_pass": true,
+        "achieved_median": 4.0,
+        "completed_in_window_median": 4.0,
+        "p50_ms": 57.245695,
+        "p99_ms": 66.748415,
+        "p999_ms": 66.748415,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.5,
+        "p50_ms": 59.768831,
+        "p99_ms": 219.283455,
+        "p999_ms": 219.283455,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 55.377919,
+        "p99_ms": 64.159743,
+        "p999_ms": 64.159743,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 23.5,
+        "p50_ms": 56.393727,
+        "p99_ms": 432.275455,
+        "p999_ms": 432.275455,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 51.0,
+        "p50_ms": 57.901055,
+        "p99_ms": 177.864703,
+        "p999_ms": 178.782207,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 56.885247,
+        "p99_ms": 64.782335,
+        "p999_ms": 66.846719,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 200.5,
+        "p50_ms": 57.507839,
+        "p99_ms": 73.662463,
+        "p999_ms": 86.835199,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 399.0,
+        "p50_ms": 57.606143,
+        "p99_ms": 69.468159,
+        "p999_ms": 93.061119,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 689.5,
+        "completed_in_window_median": 489.5,
+        "p50_ms": 955.252735,
+        "p99_ms": 1062.207487,
+        "p999_ms": 1077.936127,
+        "errors": 1212
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 511.0,
+        "completed_in_window_median": 524.5,
+        "p50_ms": 1032.323071,
+        "p99_ms": 1072.168959,
+        "p999_ms": 1078.984703,
+        "errors": 7029
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 144.0,
+        "completed_in_window_median": 265.0,
+        "p50_ms": 1125.122047,
+        "p99_ms": 1430.257663,
+        "p999_ms": 1454.374911,
+        "errors": 17754
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 4,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d0-c4-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "4",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 12,
+        "all_pass": true,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 54.689791,
+        "p99_ms": 63.995903,
+        "p999_ms": 63.995903,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 17,
+        "all_pass": false,
+        "achieved_median": 17.0,
+        "completed_in_window_median": 17.0,
+        "p50_ms": 55.508991,
+        "p99_ms": 67.174399,
+        "p999_ms": 67.174399,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 25.0,
+        "p50_ms": 56.721407,
+        "p99_ms": 61.997055,
+        "p999_ms": 61.997055,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 54.591487,
+        "p99_ms": 81.919999,
+        "p999_ms": 95.485951,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 75.5,
+        "p50_ms": 482.344959,
+        "p99_ms": 924.844031,
+        "p999_ms": 944.766975,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 78.5,
+        "completed_in_window_median": 73.0,
+        "p50_ms": 1026.555903,
+        "p99_ms": 1059.061759,
+        "p999_ms": 1062.207487,
+        "errors": 736
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 71.5,
+        "completed_in_window_median": 71.5,
+        "p50_ms": 1028.653055,
+        "p99_ms": 1057.488895,
+        "p999_ms": 1065.353215,
+        "errors": 1974
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 64,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d0-c64-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "64",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 58.032127,
+        "p99_ms": 85.721087,
+        "p999_ms": 105.709567,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": true,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 58.195967,
+        "p99_ms": 68.222975,
+        "p999_ms": 96.600063,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 202.5,
+        "p50_ms": 58.982399,
+        "p99_ms": 108.265471,
+        "p999_ms": 112.852991,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 396.5,
+        "completed_in_window_median": 315.0,
+        "p50_ms": 363.331583,
+        "p99_ms": 1157.627903,
+        "p999_ms": 1176.502271,
+        "errors": 74
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 692.5,
+        "p50_ms": 60.850175,
+        "p99_ms": 665.321471,
+        "p999_ms": 685.244415,
+        "errors": 640
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 431.0,
+        "completed_in_window_median": 375.0,
+        "p50_ms": 1074.790399,
+        "p99_ms": 1234.173951,
+        "p999_ms": 1247.805439,
+        "errors": 5887
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 929.0,
+        "completed_in_window_median": 875.5,
+        "p50_ms": 1034.944511,
+        "p99_ms": 1078.984703,
+        "p999_ms": 1110.441983,
+        "errors": 13804
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 894.0,
+        "completed_in_window_median": 865.0,
+        "p50_ms": 1035.993087,
+        "p99_ms": 1094.713343,
+        "p999_ms": 1110.441983,
+        "errors": 33142
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 8,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d0-c8-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "8",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 50,
+        "all_pass": true,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.5,
+        "p50_ms": 54.853631,
+        "p99_ms": 66.224127,
+        "p999_ms": 67.960831,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 70,
+        "all_pass": false,
+        "achieved_median": 70.0,
+        "completed_in_window_median": 70.0,
+        "p50_ms": 56.524799,
+        "p99_ms": 204.210175,
+        "p999_ms": 218.234879,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 92.5,
+        "completed_in_window_median": 70.0,
+        "p50_ms": 415.498239,
+        "p99_ms": 1118.830591,
+        "p999_ms": 1138.753535,
+        "errors": 73
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 174.5,
+        "completed_in_window_median": 137.5,
+        "p50_ms": 727.187455,
+        "p99_ms": 1060.110335,
+        "p999_ms": 1064.828927,
+        "errors": 142
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 140.5,
+        "completed_in_window_median": 136.5,
+        "p50_ms": 1029.177343,
+        "p99_ms": 1062.731775,
+        "p999_ms": 1103.101951,
+        "errors": 1650
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 136.5,
+        "completed_in_window_median": 142.5,
+        "p50_ms": 1030.225919,
+        "p99_ms": 1103.101951,
+        "p999_ms": 1120.927743,
+        "errors": 4005
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 1,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d500-c1-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "1",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1,
+        "all_pass": false,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 1.5,
+        "p50_ms": 439.615487,
+        "p99_ms": 566.755327,
+        "p999_ms": 566.755327,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3,
+        "all_pass": false,
+        "achieved_median": 1.5,
+        "completed_in_window_median": 1.5,
+        "p50_ms": 1408.237567,
+        "p99_ms": 1807.745023,
+        "p999_ms": 1807.745023,
+        "errors": 10
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 1.5,
+        "completed_in_window_median": 1.5,
+        "p50_ms": 1207.959551,
+        "p99_ms": 1708.130303,
+        "p999_ms": 1708.130303,
+        "errors": 28
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 1.5,
+        "completed_in_window_median": 1.5,
+        "p50_ms": 1435.500543,
+        "p99_ms": 1863.319551,
+        "p999_ms": 1863.319551,
+        "errors": 62
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 1.5,
+        "completed_in_window_median": 1.5,
+        "p50_ms": 1398.800383,
+        "p99_ms": 1917.845503,
+        "p999_ms": 1917.845503,
+        "errors": 141
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 1.5,
+        "completed_in_window_median": 1.5,
+        "p50_ms": 1402.994687,
+        "p99_ms": 1943.011327,
+        "p999_ms": 1976.565759,
+        "errors": 290
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 1393.557503,
+        "p99_ms": 1884.291071,
+        "p999_ms": 1895.825407,
+        "errors": 592
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d500-c128-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 400.0,
+        "p50_ms": 62.259199,
+        "p99_ms": 75.956223,
+        "p999_ms": 101.384191,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": true,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 566.5,
+        "p50_ms": 65.142783,
+        "p99_ms": 90.570751,
+        "p999_ms": 105.644031,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 797.0,
+        "p50_ms": 73.662463,
+        "p99_ms": 102.301695,
+        "p999_ms": 120.127487,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1431.0,
+        "completed_in_window_median": 1054.5,
+        "p50_ms": 900.202495,
+        "p99_ms": 1123.024895,
+        "p999_ms": 1151.336447,
+        "errors": 879
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 1120.0,
+        "completed_in_window_median": 1085.0,
+        "p50_ms": 1058.013183,
+        "p99_ms": 1135.607807,
+        "p999_ms": 1155.530751,
+        "errors": 12453
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 1093.0,
+        "completed_in_window_median": 1093.5,
+        "p50_ms": 1058.537471,
+        "p99_ms": 1135.607807,
+        "p999_ms": 1160.773631,
+        "errors": 31805
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 1097.0,
+        "completed_in_window_median": 1083.5,
+        "p50_ms": 1058.537471,
+        "p99_ms": 1133.510655,
+        "p999_ms": 1153.433599,
+        "errors": 70256
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 16,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d500-c16-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "16",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 61.702143,
+        "p99_ms": 68.616191,
+        "p999_ms": 71.172095,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": true,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 62.390271,
+        "p99_ms": 87.949311,
+        "p999_ms": 102.170623,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 200.0,
+        "p50_ms": 61.702143,
+        "p99_ms": 86.704127,
+        "p999_ms": 101.646335,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 336.0,
+        "completed_in_window_median": 251.0,
+        "p50_ms": 942.669823,
+        "p99_ms": 1063.780351,
+        "p999_ms": 1070.071807,
+        "errors": 370
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 254.0,
+        "completed_in_window_median": 252.5,
+        "p50_ms": 1031.274495,
+        "p99_ms": 1065.877503,
+        "p999_ms": 1077.936127,
+        "errors": 3278
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 253.0,
+        "completed_in_window_median": 248.5,
+        "p50_ms": 1031.798783,
+        "p99_ms": 1065.877503,
+        "p999_ms": 1077.936127,
+        "errors": 8080
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 2,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d500-c2-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "2",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1,
+        "all_pass": false,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 71.172095,
+        "p99_ms": 526.909439,
+        "p999_ms": 526.909439,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3,
+        "all_pass": false,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 2.5,
+        "p50_ms": 302.514175,
+        "p99_ms": 548.929535,
+        "p999_ms": 548.929535,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 5.5,
+        "completed_in_window_median": 3.5,
+        "p50_ms": 998.768639,
+        "p99_ms": 1450.180607,
+        "p999_ms": 1450.180607,
+        "errors": 3
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 4.0,
+        "completed_in_window_median": 3.5,
+        "p50_ms": 1209.008127,
+        "p99_ms": 1569.718271,
+        "p999_ms": 1569.718271,
+        "errors": 48
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 3.5,
+        "completed_in_window_median": 4.0,
+        "p50_ms": 1282.408447,
+        "p99_ms": 1603.272703,
+        "p999_ms": 1603.272703,
+        "errors": 129
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 4.5,
+        "completed_in_window_median": 3.5,
+        "p50_ms": 1232.076799,
+        "p99_ms": 1591.738367,
+        "p999_ms": 1605.369855,
+        "errors": 273
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 4.5,
+        "completed_in_window_median": 5.5,
+        "p50_ms": 1245.708287,
+        "p99_ms": 1493.172223,
+        "p999_ms": 1513.095167,
+        "errors": 574
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 4.5,
+        "completed_in_window_median": 5.0,
+        "p50_ms": 1241.513983,
+        "p99_ms": 1509.949439,
+        "p999_ms": 1522.532351,
+        "errors": 1172
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 256,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d500-c256-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "256",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 400.5,
+        "p50_ms": 63.143935,
+        "p99_ms": 79.691775,
+        "p999_ms": 96.403455,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": true,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 564.5,
+        "p50_ms": 65.404927,
+        "p99_ms": 93.454335,
+        "p999_ms": 106.037247,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 804.0,
+        "p50_ms": 71.237631,
+        "p99_ms": 98.762751,
+        "p999_ms": 113.639423,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1514.0,
+        "completed_in_window_median": 1074.5,
+        "p50_ms": 832.569343,
+        "p99_ms": 1221.591039,
+        "p999_ms": 1257.242623,
+        "errors": 493
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 1112.0,
+        "completed_in_window_median": 1066.0,
+        "p50_ms": 1118.830591,
+        "p99_ms": 1251.999743,
+        "p999_ms": 1274.019839,
+        "errors": 12473
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 1060.0,
+        "completed_in_window_median": 1039.0,
+        "p50_ms": 1120.927743,
+        "p99_ms": 1262.485503,
+        "p999_ms": 1296.039935,
+        "errors": 31986
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 1118.5,
+        "completed_in_window_median": 1099.0,
+        "p50_ms": 1113.587711,
+        "p99_ms": 1237.319679,
+        "p999_ms": 1263.534079,
+        "errors": 70101
+      },
+      {
+        "offered_per_s": 25600,
+        "all_pass": false,
+        "achieved_median": 1073.0,
+        "completed_in_window_median": 1017.0,
+        "p50_ms": 1121.976319,
+        "p99_ms": 1265.631231,
+        "p999_ms": 1298.137087,
+        "errors": 147175
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d500-c32-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "32",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 200,
+        "all_pass": true,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 200.0,
+        "p50_ms": 63.471615,
+        "p99_ms": 72.744959,
+        "p999_ms": 98.631679,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 282,
+        "all_pass": true,
+        "achieved_median": 282.0,
+        "completed_in_window_median": 282.0,
+        "p50_ms": 62.521343,
+        "p99_ms": 74.121215,
+        "p999_ms": 97.910783,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 399.5,
+        "p50_ms": 64.094207,
+        "p99_ms": 101.449727,
+        "p999_ms": 110.166015,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 635.5,
+        "completed_in_window_median": 477.5,
+        "p50_ms": 1005.584383,
+        "p99_ms": 1067.450367,
+        "p999_ms": 1090.519039,
+        "errors": 971
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 499.0,
+        "completed_in_window_median": 500.5,
+        "p50_ms": 1032.323071,
+        "p99_ms": 1067.450367,
+        "p999_ms": 1076.887551,
+        "errors": 6606
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 502.5,
+        "completed_in_window_median": 503.5,
+        "p50_ms": 1031.798783,
+        "p99_ms": 1066.401791,
+        "p999_ms": 1072.693247,
+        "errors": 16191
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 4,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d500-c4-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "4",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1,
+        "all_pass": false,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 157.810687,
+        "p99_ms": 298.319871,
+        "p999_ms": 298.319871,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3,
+        "all_pass": false,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 3.0,
+        "p50_ms": 146.014207,
+        "p99_ms": 293.863423,
+        "p999_ms": 293.863423,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 159.776767,
+        "p99_ms": 309.854207,
+        "p999_ms": 309.854207,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 219.283455,
+        "p99_ms": 359.661567,
+        "p999_ms": 359.661567,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 16.5,
+        "completed_in_window_median": 13.0,
+        "p50_ms": 1113.587711,
+        "p99_ms": 1361.051647,
+        "p999_ms": 1361.051647,
+        "errors": 51
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 13.0,
+        "completed_in_window_median": 13.0,
+        "p50_ms": 1164.967935,
+        "p99_ms": 1331.691519,
+        "p999_ms": 1341.128703,
+        "errors": 221
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 13.0,
+        "completed_in_window_median": 13.0,
+        "p50_ms": 1174.405119,
+        "p99_ms": 1339.031551,
+        "p999_ms": 1348.468735,
+        "errors": 518
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 13.0,
+        "completed_in_window_median": 13.0,
+        "p50_ms": 1162.870783,
+        "p99_ms": 1345.323007,
+        "p999_ms": 1357.905919,
+        "errors": 1121
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 13.0,
+        "completed_in_window_median": 14.5,
+        "p50_ms": 1154.482175,
+        "p99_ms": 1330.642943,
+        "p999_ms": 1341.128703,
+        "errors": 2321
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 64,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d500-c64-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "64",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 399.5,
+        "p50_ms": 61.964287,
+        "p99_ms": 76.873727,
+        "p999_ms": 101.187583,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": true,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 566.0,
+        "p50_ms": 65.110015,
+        "p99_ms": 85.131263,
+        "p999_ms": 100.466687,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 794.0,
+        "p50_ms": 78.053375,
+        "p99_ms": 153.878527,
+        "p999_ms": 168.427519,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1007.0,
+        "completed_in_window_median": 814.0,
+        "p50_ms": 1028.128767,
+        "p99_ms": 1087.373311,
+        "p999_ms": 1097.859071,
+        "errors": 3567
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 818.0,
+        "completed_in_window_median": 792.5,
+        "p50_ms": 1039.138815,
+        "p99_ms": 1087.373311,
+        "p999_ms": 1099.956223,
+        "errors": 14271
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 813.5,
+        "completed_in_window_median": 787.0,
+        "p50_ms": 1039.663103,
+        "p99_ms": 1085.276159,
+        "p999_ms": 1095.761919,
+        "errors": 33587
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 8,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w4-n1000000-d500-c8-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "8",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 50,
+        "all_pass": true,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 61.210623,
+        "p99_ms": 68.943871,
+        "p999_ms": 69.140479,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 70,
+        "all_pass": true,
+        "achieved_median": 70.0,
+        "completed_in_window_median": 70.0,
+        "p50_ms": 66.781183,
+        "p99_ms": 85.393407,
+        "p999_ms": 102.039551,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 91.0,
+        "p50_ms": 262.537215,
+        "p99_ms": 360.447999,
+        "p999_ms": 380.370943,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 115.0,
+        "completed_in_window_median": 92.5,
+        "p50_ms": 1035.468799,
+        "p99_ms": 1108.344831,
+        "p999_ms": 1121.976319,
+        "errors": 521
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 91.5,
+        "completed_in_window_median": 92.0,
+        "p50_ms": 1044.381695,
+        "p99_ms": 1111.490559,
+        "p999_ms": 1127.219199,
+        "errors": 1853
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 83.5,
+        "completed_in_window_median": 84.5,
+        "p50_ms": 1047.527423,
+        "p99_ms": 1118.830591,
+        "p999_ms": 1131.413503,
+        "errors": 4291
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 1,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c1-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "1",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 12,
+        "all_pass": true,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 54.460415,
+        "p99_ms": 62.423039,
+        "p999_ms": 62.423039,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 17,
+        "all_pass": false,
+        "achieved_median": 17.0,
+        "completed_in_window_median": 17.0,
+        "p50_ms": 56.721407,
+        "p99_ms": 99.221503,
+        "p999_ms": 99.221503,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 17.5,
+        "p50_ms": 652.214271,
+        "p99_ms": 1026.555903,
+        "p999_ms": 1026.555903,
+        "errors": 3
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 18.5,
+        "completed_in_window_median": 18.0,
+        "p50_ms": 1028.128767,
+        "p99_ms": 1056.440319,
+        "p999_ms": 1063.256063,
+        "errors": 190
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 18.0,
+        "completed_in_window_median": 18.0,
+        "p50_ms": 1027.080191,
+        "p99_ms": 1073.741823,
+        "p999_ms": 1093.664767,
+        "errors": 491
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 1,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c1-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "1",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 6,
+        "all_pass": true,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 57.507839,
+        "p99_ms": 62.652415,
+        "p999_ms": 62.652415,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 8,
+        "all_pass": false,
+        "achieved_median": 8.0,
+        "completed_in_window_median": 8.0,
+        "p50_ms": 63.143935,
+        "p99_ms": 66.650111,
+        "p999_ms": 66.650111,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 54.984703,
+        "p99_ms": 99.745791,
+        "p999_ms": 99.745791,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 17.5,
+        "p50_ms": 634.912767,
+        "p99_ms": 1018.167295,
+        "p999_ms": 1018.167295,
+        "errors": 1
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 19.0,
+        "completed_in_window_median": 18.0,
+        "p50_ms": 1027.604479,
+        "p99_ms": 1091.567615,
+        "p999_ms": 1111.490559,
+        "errors": 186
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 18.0,
+        "completed_in_window_median": 18.0,
+        "p50_ms": 1028.653055,
+        "p99_ms": 1056.964607,
+        "p999_ms": 1059.061759,
+        "errors": 491
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c128-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 800,
+        "all_pass": true,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 800.0,
+        "p50_ms": 58.818559,
+        "p99_ms": 71.368703,
+        "p999_ms": 117.374975,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1131,
+        "all_pass": false,
+        "achieved_median": 1129.5,
+        "completed_in_window_median": 1123.5,
+        "p50_ms": 76.152831,
+        "p99_ms": 616.038399,
+        "p999_ms": 939.524095,
+        "errors": 7
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1560.5,
+        "completed_in_window_median": 1133.0,
+        "p50_ms": 677.380095,
+        "p99_ms": 1171.259391,
+        "p999_ms": 1569.718271,
+        "errors": 250
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 1212.0,
+        "completed_in_window_median": 1142.0,
+        "p50_ms": 1053.818879,
+        "p99_ms": 1574.961151,
+        "p999_ms": 1935.671295,
+        "errors": 11875
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 1187.5,
+        "completed_in_window_median": 1167.5,
+        "p50_ms": 1053.294591,
+        "p99_ms": 1616.904191,
+        "p999_ms": 1956.642815,
+        "errors": 31269
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 1173.5,
+        "completed_in_window_median": 1171.0,
+        "p50_ms": 1054.867455,
+        "p99_ms": 1602.224127,
+        "p999_ms": 1949.302783,
+        "errors": 69975
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c128-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 6,
+        "all_pass": true,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 56.328191,
+        "p99_ms": 63.438847,
+        "p999_ms": 63.438847,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 8,
+        "all_pass": true,
+        "achieved_median": 8.0,
+        "completed_in_window_median": 8.0,
+        "p50_ms": 56.197119,
+        "p99_ms": 59.834367,
+        "p999_ms": 59.834367,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 59.867135,
+        "p99_ms": 71.041023,
+        "p999_ms": 71.041023,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 18.0,
+        "completed_in_window_median": 17.5,
+        "p50_ms": 195.559423,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 39
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 22.0,
+        "completed_in_window_median": 19.0,
+        "p50_ms": 604.504063,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 166
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 24.5,
+        "completed_in_window_median": 20.0,
+        "p50_ms": 701.497343,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1002.438655,
+        "errors": 453
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 16,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c16-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "16",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 50,
+        "all_pass": true,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 57.212927,
+        "p99_ms": 64.159743,
+        "p999_ms": 75.366399,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 70,
+        "all_pass": false,
+        "achieved_median": 70.0,
+        "completed_in_window_median": 70.0,
+        "p50_ms": 58.458111,
+        "p99_ms": 346.816511,
+        "p999_ms": 361.234431,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 98.5,
+        "p50_ms": 56.754175,
+        "p99_ms": 72.024063,
+        "p999_ms": 76.414975,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 177.5,
+        "p50_ms": 62.291967,
+        "p99_ms": 338.427903,
+        "p999_ms": 353.370111,
+        "errors": 113
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 313.5,
+        "completed_in_window_median": 252.0,
+        "p50_ms": 1015.021567,
+        "p99_ms": 1066.401791,
+        "p999_ms": 1077.936127,
+        "errors": 674
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 280.0,
+        "completed_in_window_median": 277.0,
+        "p50_ms": 1029.701631,
+        "p99_ms": 1073.217535,
+        "p999_ms": 1098.907647,
+        "errors": 3392
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 221.0,
+        "completed_in_window_median": 264.5,
+        "p50_ms": 1035.993087,
+        "p99_ms": 1353.711615,
+        "p999_ms": 1375.731711,
+        "errors": 8312
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 16,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c16-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "16",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 12,
+        "all_pass": true,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 23.003135,
+        "p99_ms": 73.596927,
+        "p999_ms": 73.596927,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 17,
+        "all_pass": false,
+        "achieved_median": 15.5,
+        "completed_in_window_median": 15.0,
+        "p50_ms": 106.823679,
+        "p99_ms": 958.922751,
+        "p999_ms": 958.922751,
+        "errors": 8
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 19.5,
+        "completed_in_window_median": 17.5,
+        "p50_ms": 184.418303,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 27
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 19.5,
+        "completed_in_window_median": 18.0,
+        "p50_ms": 1089.470463,
+        "p99_ms": 1879.048191,
+        "p999_ms": 1902.116863,
+        "errors": 185
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 28.5,
+        "completed_in_window_median": 19.0,
+        "p50_ms": 1202.716671,
+        "p99_ms": 1967.128575,
+        "p999_ms": 1999.634431,
+        "errors": 433
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 2,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c2-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "2",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 25,
+        "all_pass": true,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 24.5,
+        "p50_ms": 58.523647,
+        "p99_ms": 64.946175,
+        "p999_ms": 64.946175,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 35,
+        "all_pass": false,
+        "achieved_median": 35.0,
+        "completed_in_window_median": 34.5,
+        "p50_ms": 69.861375,
+        "p99_ms": 96.927743,
+        "p999_ms": 96.927743,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 47.0,
+        "completed_in_window_median": 33.5,
+        "p50_ms": 757.596159,
+        "p99_ms": 1055.391743,
+        "p999_ms": 1059.061759,
+        "errors": 26
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 35.5,
+        "completed_in_window_median": 34.5,
+        "p50_ms": 1029.701631,
+        "p99_ms": 1061.158911,
+        "p999_ms": 1076.887551,
+        "errors": 388
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 35.0,
+        "completed_in_window_median": 34.0,
+        "p50_ms": 1029.177343,
+        "p99_ms": 1058.537471,
+        "p999_ms": 1062.731775,
+        "errors": 991
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 2,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c2-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "2",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 6,
+        "all_pass": true,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 56.885247,
+        "p99_ms": 65.699839,
+        "p999_ms": 65.699839,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 8,
+        "all_pass": false,
+        "achieved_median": 8.0,
+        "completed_in_window_median": 8.0,
+        "p50_ms": 57.114623,
+        "p99_ms": 68.157439,
+        "p999_ms": 68.157439,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 56.655871,
+        "p99_ms": 60.915711,
+        "p999_ms": 60.915711,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 20.0,
+        "completed_in_window_median": 16.5,
+        "p50_ms": 528.220159,
+        "p99_ms": 1661.992959,
+        "p999_ms": 1661.992959,
+        "errors": 33
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 23.5,
+        "completed_in_window_median": 17.5,
+        "p50_ms": 1042.808831,
+        "p99_ms": 1737.490431,
+        "p999_ms": 1777.336319,
+        "errors": 162
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 17.5,
+        "completed_in_window_median": 17.5,
+        "p50_ms": 1050.673151,
+        "p99_ms": 1945.108479,
+        "p999_ms": 1984.954367,
+        "errors": 494
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 256,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c256-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "256",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 800,
+        "all_pass": true,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 802.0,
+        "p50_ms": 60.260351,
+        "p99_ms": 81.330175,
+        "p999_ms": 104.202239,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1131,
+        "all_pass": false,
+        "achieved_median": 1129.5,
+        "completed_in_window_median": 1128.5,
+        "p50_ms": 82.247679,
+        "p99_ms": 206.438399,
+        "p999_ms": 832.569343,
+        "errors": 9
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1575.5,
+        "completed_in_window_median": 1140.0,
+        "p50_ms": 697.827327,
+        "p99_ms": 1186.988031,
+        "p999_ms": 1444.937727,
+        "errors": 161
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 1238.0,
+        "completed_in_window_median": 1129.5,
+        "p50_ms": 1109.393407,
+        "p99_ms": 1408.237567,
+        "p999_ms": 1882.193919,
+        "errors": 11697
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 1103.0,
+        "completed_in_window_median": 1126.5,
+        "p50_ms": 1114.636287,
+        "p99_ms": 1274.019839,
+        "p999_ms": 1702.887423,
+        "errors": 31734
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 1100.5,
+        "completed_in_window_median": 1106.5,
+        "p50_ms": 1117.782015,
+        "p99_ms": 1415.577599,
+        "p999_ms": 1939.865599,
+        "errors": 70144
+      },
+      {
+        "offered_per_s": 25600,
+        "all_pass": false,
+        "achieved_median": 1145.5,
+        "completed_in_window_median": 1102.0,
+        "p50_ms": 1110.441983,
+        "p99_ms": 1542.455295,
+        "p999_ms": 1944.059903,
+        "errors": 146769
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 256,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c256-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "256",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 12,
+        "all_pass": true,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 58.982399,
+        "p99_ms": 64.192511,
+        "p999_ms": 64.192511,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 17,
+        "all_pass": false,
+        "achieved_median": 15.0,
+        "completed_in_window_median": 14.5,
+        "p50_ms": 112.394239,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 10
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 16.5,
+        "completed_in_window_median": 15.5,
+        "p50_ms": 204.210175,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 51
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 20.5,
+        "completed_in_window_median": 17.0,
+        "p50_ms": 593.494015,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 179
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 23.0,
+        "completed_in_window_median": 17.0,
+        "p50_ms": 717.225983,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 470
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c32-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "32",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1,
+        "all_pass": true,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 22.527999,
+        "p99_ms": 65.994751,
+        "p999_ms": 65.994751,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3,
+        "all_pass": false,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 3.0,
+        "p50_ms": 55.705599,
+        "p99_ms": 127.008767,
+        "p999_ms": 127.008767,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 26.296319,
+        "p99_ms": 72.220671,
+        "p999_ms": 72.220671,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 56.426495,
+        "p99_ms": 138.936319,
+        "p999_ms": 138.936319,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 24.5,
+        "p50_ms": 56.754175,
+        "p99_ms": 97.058815,
+        "p999_ms": 97.058815,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 53.0,
+        "p50_ms": 58.359807,
+        "p99_ms": 69.009407,
+        "p999_ms": 74.121215,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.5,
+        "p50_ms": 59.441151,
+        "p99_ms": 164.626431,
+        "p999_ms": 184.156159,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 199.5,
+        "p50_ms": 58.851327,
+        "p99_ms": 69.337087,
+        "p999_ms": 100.990975,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 396.5,
+        "p50_ms": 58.687487,
+        "p99_ms": 81.788927,
+        "p999_ms": 101.187583,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 692.5,
+        "completed_in_window_median": 505.0,
+        "p50_ms": 903.872511,
+        "p99_ms": 1071.120383,
+        "p999_ms": 1096.810495,
+        "errors": 732
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 487.0,
+        "completed_in_window_median": 430.5,
+        "p50_ms": 1032.847359,
+        "p99_ms": 1091.567615,
+        "p999_ms": 1111.490559,
+        "errors": 6768
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 441.5,
+        "completed_in_window_median": 493.0,
+        "p50_ms": 1037.565951,
+        "p99_ms": 1344.274431,
+        "p999_ms": 1444.937727,
+        "errors": 16606
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c32-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "32",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 3,
+        "all_pass": true,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 3.0,
+        "p50_ms": 57.475071,
+        "p99_ms": 66.387967,
+        "p999_ms": 66.387967,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 4,
+        "all_pass": false,
+        "achieved_median": 4.0,
+        "completed_in_window_median": 4.0,
+        "p50_ms": 59.179007,
+        "p99_ms": 69.271551,
+        "p999_ms": 69.271551,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 60.948479,
+        "p99_ms": 97.124351,
+        "p999_ms": 97.124351,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 57.769983,
+        "p99_ms": 666.894335,
+        "p999_ms": 666.894335,
+        "errors": 8
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 19.5,
+        "completed_in_window_median": 18.0,
+        "p50_ms": 164.364287,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 38
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 27.5,
+        "completed_in_window_median": 22.0,
+        "p50_ms": 583.008255,
+        "p99_ms": 1452.277759,
+        "p999_ms": 1627.389951,
+        "errors": 137
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 30.0,
+        "completed_in_window_median": 21.5,
+        "p50_ms": 1146.093567,
+        "p99_ms": 1910.505471,
+        "p999_ms": 1950.351359,
+        "errors": 405
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 4,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c4-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "4",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 3,
+        "all_pass": true,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 3.0,
+        "p50_ms": 63.406079,
+        "p99_ms": 80.347135,
+        "p999_ms": 80.347135,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 4,
+        "all_pass": true,
+        "achieved_median": 4.0,
+        "completed_in_window_median": 4.0,
+        "p50_ms": 35.356671,
+        "p99_ms": 70.582271,
+        "p999_ms": 70.582271,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 60.555263,
+        "p99_ms": 438.566911,
+        "p999_ms": 438.566911,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 64.225279,
+        "p99_ms": 413.663231,
+        "p999_ms": 413.663231,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 21.0,
+        "completed_in_window_median": 14.5,
+        "p50_ms": 454.295551,
+        "p99_ms": 1368.391679,
+        "p999_ms": 1368.391679,
+        "errors": 29
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 55.607295,
+        "p99_ms": 64.716799,
+        "p999_ms": 64.782335,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 76.5,
+        "p50_ms": 519.569407,
+        "p99_ms": 947.388415,
+        "p999_ms": 968.359935,
+        "errors": 4
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 85.0,
+        "completed_in_window_median": 76.0,
+        "p50_ms": 1026.031615,
+        "p99_ms": 1061.158911,
+        "p999_ms": 1067.450367,
+        "errors": 701
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 75.5,
+        "completed_in_window_median": 73.5,
+        "p50_ms": 1028.128767,
+        "p99_ms": 1062.207487,
+        "p999_ms": 1085.276159,
+        "errors": 1940
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 4,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c4-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "4",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 6,
+        "all_pass": true,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 57.868287,
+        "p99_ms": 64.815103,
+        "p999_ms": 64.815103,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 8,
+        "all_pass": true,
+        "achieved_median": 8.0,
+        "completed_in_window_median": 8.0,
+        "p50_ms": 63.963135,
+        "p99_ms": 77.856767,
+        "p999_ms": 77.856767,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 56.754175,
+        "p99_ms": 177.733631,
+        "p999_ms": 177.733631,
+        "errors": 1
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 20.0,
+        "completed_in_window_median": 17.5,
+        "p50_ms": 389.021695,
+        "p99_ms": 1852.833791,
+        "p999_ms": 1852.833791,
+        "errors": 30
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 28.0,
+        "completed_in_window_median": 22.0,
+        "p50_ms": 919.076863,
+        "p99_ms": 1922.039807,
+        "p999_ms": 1931.476991,
+        "errors": 127
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 33.5,
+        "completed_in_window_median": 25.5,
+        "p50_ms": 1166.016511,
+        "p99_ms": 1966.079999,
+        "p999_ms": 1981.808639,
+        "errors": 429
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 64,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c64-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "64",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 400.5,
+        "p50_ms": 60.162047,
+        "p99_ms": 74.055679,
+        "p999_ms": 100.401151,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": false,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 567.0,
+        "p50_ms": 60.719103,
+        "p99_ms": 94.240767,
+        "p999_ms": 106.495999,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 798.5,
+        "p50_ms": 67.436543,
+        "p99_ms": 125.239295,
+        "p999_ms": 137.756671,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1102.5,
+        "completed_in_window_median": 864.0,
+        "p50_ms": 1022.885887,
+        "p99_ms": 1084.227583,
+        "p999_ms": 1209.008127,
+        "errors": 3082
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 862.0,
+        "completed_in_window_median": 832.0,
+        "p50_ms": 1037.565951,
+        "p99_ms": 1089.470463,
+        "p999_ms": 1228.931071,
+        "errors": 14094
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 845.0,
+        "completed_in_window_median": 847.5,
+        "p50_ms": 1038.090239,
+        "p99_ms": 1167.065087,
+        "p999_ms": 1476.395007,
+        "errors": 33410
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 64,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c64-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "64",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 6,
+        "all_pass": true,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 59.342847,
+        "p99_ms": 72.679423,
+        "p999_ms": 72.679423,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 8,
+        "all_pass": true,
+        "achieved_median": 8.0,
+        "completed_in_window_median": 8.0,
+        "p50_ms": 57.442303,
+        "p99_ms": 63.078399,
+        "p999_ms": 63.078399,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 56.098815,
+        "p99_ms": 68.419583,
+        "p999_ms": 68.419583,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 20.0,
+        "completed_in_window_median": 17.5,
+        "p50_ms": 116.326399,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 31
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 22.0,
+        "completed_in_window_median": 19.0,
+        "p50_ms": 586.153983,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 164
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 29.0,
+        "completed_in_window_median": 17.5,
+        "p50_ms": 867.172351,
+        "p99_ms": 1695.547391,
+        "p999_ms": 1885.339647,
+        "errors": 430
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 8,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c8-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "8",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1,
+        "all_pass": true,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 24.166399,
+        "p99_ms": 62.980095,
+        "p999_ms": 62.980095,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3,
+        "all_pass": false,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 3.0,
+        "p50_ms": 57.999359,
+        "p99_ms": 146.669567,
+        "p999_ms": 146.669567,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 57.147391,
+        "p99_ms": 90.046463,
+        "p999_ms": 90.046463,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 55.607295,
+        "p99_ms": 83.951615,
+        "p999_ms": 83.951615,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 24.5,
+        "p50_ms": 56.328191,
+        "p99_ms": 101.122047,
+        "p999_ms": 101.122047,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 48.5,
+        "p50_ms": 56.754175,
+        "p99_ms": 68.550655,
+        "p999_ms": 69.664767,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 59.703295,
+        "p99_ms": 246.546431,
+        "p999_ms": 252.575743,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 197.5,
+        "completed_in_window_median": 141.5,
+        "p50_ms": 644.349951,
+        "p99_ms": 1041.760255,
+        "p999_ms": 1058.537471,
+        "errors": 11
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 152.0,
+        "completed_in_window_median": 143.0,
+        "p50_ms": 1027.604479,
+        "p99_ms": 1063.780351,
+        "p999_ms": 1073.217535,
+        "errors": 1500
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 143.0,
+        "completed_in_window_median": 105.0,
+        "p50_ms": 1029.177343,
+        "p99_ms": 1096.810495,
+        "p999_ms": 1115.684863,
+        "errors": 4178
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 8,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c8-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "8",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 3,
+        "all_pass": true,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 3.0,
+        "p50_ms": 31.883263,
+        "p99_ms": 77.266943,
+        "p999_ms": 77.266943,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 4,
+        "all_pass": true,
+        "achieved_median": 4.0,
+        "completed_in_window_median": 4.0,
+        "p50_ms": 59.867135,
+        "p99_ms": 69.664767,
+        "p999_ms": 69.664767,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 28.196863,
+        "p99_ms": 88.473599,
+        "p999_ms": 88.473599,
+        "errors": 3
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 11.5,
+        "completed_in_window_median": 11.5,
+        "p50_ms": 63.995903,
+        "p99_ms": 983.564287,
+        "p999_ms": 983.564287,
+        "errors": 14
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 22.0,
+        "completed_in_window_median": 19.5,
+        "p50_ms": 207.224831,
+        "p99_ms": 1136.656383,
+        "p999_ms": 1136.656383,
+        "errors": 19
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 29.0,
+        "completed_in_window_median": 21.5,
+        "p50_ms": 918.028287,
+        "p99_ms": 1782.579199,
+        "p999_ms": 1837.105151,
+        "errors": 131
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 28.0,
+        "completed_in_window_median": 23.0,
+        "p50_ms": 1202.716671,
+        "p99_ms": 1917.845503,
+        "p999_ms": 1998.585855,
+        "errors": 427
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 1,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c1-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "1",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1,
+        "all_pass": false,
+        "achieved_median": 0.0,
+        "completed_in_window_median": 0.5,
+        "p50_ms": 1001.390079,
+        "p99_ms": 1002.962943,
+        "p999_ms": 1002.962943,
+        "errors": 5
+      },
+      {
+        "offered_per_s": 3,
+        "all_pass": false,
+        "achieved_median": 0.5,
+        "completed_in_window_median": 0.5,
+        "p50_ms": 1084.227583,
+        "p99_ms": 1751.121919,
+        "p999_ms": 1751.121919,
+        "errors": 15
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 0.5,
+        "p50_ms": 1333.788671,
+        "p99_ms": 1833.959423,
+        "p999_ms": 1833.959423,
+        "errors": 30
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 1.5,
+        "completed_in_window_median": 1.5,
+        "p50_ms": 1413.480447,
+        "p99_ms": 1897.922559,
+        "p999_ms": 1897.922559,
+        "errors": 64
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 2.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 1416.626175,
+        "p99_ms": 1926.234111,
+        "p999_ms": 1926.234111,
+        "errors": 139
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 1.5,
+        "completed_in_window_median": 1.5,
+        "p50_ms": 1461.714943,
+        "p99_ms": 1922.039807,
+        "p999_ms": 1941.962751,
+        "errors": 290
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 2.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 1394.606079,
+        "p99_ms": 1870.659583,
+        "p999_ms": 1890.582527,
+        "errors": 589
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 1,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c1-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "1",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1,
+        "all_pass": false,
+        "achieved_median": 0.0,
+        "completed_in_window_median": 0.0,
+        "p50_ms": 1001.390079,
+        "p99_ms": 1002.962943,
+        "p999_ms": 1002.962943,
+        "errors": 6
+      },
+      {
+        "offered_per_s": 3,
+        "all_pass": false,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 1286.602751,
+        "p99_ms": 1861.222399,
+        "p999_ms": 1861.222399,
+        "errors": 14
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 0.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 1436.549119,
+        "p99_ms": 1937.768447,
+        "p999_ms": 1937.768447,
+        "errors": 35
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 0.5,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 1470.103551,
+        "p99_ms": 1970.274303,
+        "p999_ms": 1970.274303,
+        "errors": 70
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 0.5,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 1462.763519,
+        "p99_ms": 1982.857215,
+        "p999_ms": 1982.857215,
+        "errors": 148
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 0.5,
+        "p50_ms": 1391.460351,
+        "p99_ms": 1971.322879,
+        "p999_ms": 1991.245823,
+        "errors": 293
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 0.5,
+        "p50_ms": 1422.917631,
+        "p99_ms": 1912.602623,
+        "p999_ms": 1923.088383,
+        "errors": 593
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c128-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 400.0,
+        "p50_ms": 67.764223,
+        "p99_ms": 86.507519,
+        "p999_ms": 108.855295,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": true,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 566.5,
+        "p50_ms": 69.271551,
+        "p99_ms": 86.048767,
+        "p999_ms": 101.842943,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 789.5,
+        "p50_ms": 77.004799,
+        "p99_ms": 134.217727,
+        "p999_ms": 472.645631,
+        "errors": 1
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1372.0,
+        "completed_in_window_median": 1038.5,
+        "p50_ms": 902.823935,
+        "p99_ms": 1345.323007,
+        "p999_ms": 1700.790271,
+        "errors": 1287
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 1054.0,
+        "completed_in_window_median": 1043.5,
+        "p50_ms": 1061.158911,
+        "p99_ms": 1478.492159,
+        "p999_ms": 1930.428415,
+        "errors": 12903
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 1048.5,
+        "completed_in_window_median": 1020.0,
+        "p50_ms": 1061.683199,
+        "p99_ms": 1533.018111,
+        "p999_ms": 1941.962751,
+        "errors": 32082
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 1005.5,
+        "completed_in_window_median": 1040.0,
+        "p50_ms": 1063.256063,
+        "p99_ms": 1588.592639,
+        "p999_ms": 1946.157055,
+        "errors": 70731
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c128-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 12,
+        "all_pass": true,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 67.174399,
+        "p99_ms": 72.941567,
+        "p999_ms": 72.941567,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 17,
+        "all_pass": false,
+        "achieved_median": 13.5,
+        "completed_in_window_median": 12.5,
+        "p50_ms": 164.888575,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 21
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 17.5,
+        "completed_in_window_median": 14.5,
+        "p50_ms": 216.268799,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 47
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 18.0,
+        "completed_in_window_median": 15.5,
+        "p50_ms": 652.214271,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 190
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 19.5,
+        "completed_in_window_median": 16.0,
+        "p50_ms": 779.091967,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.914367,
+        "errors": 479
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 16,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c16-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "16",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 200,
+        "all_pass": true,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 201.0,
+        "p50_ms": 62.226431,
+        "p99_ms": 82.051071,
+        "p999_ms": 99.155967,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 282,
+        "all_pass": false,
+        "achieved_median": 282.0,
+        "completed_in_window_median": 245.0,
+        "p50_ms": 279.707647,
+        "p99_ms": 500.957183,
+        "p999_ms": 522.715135,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 330.5,
+        "completed_in_window_median": 248.5,
+        "p50_ms": 979.894271,
+        "p99_ms": 1064.828927,
+        "p999_ms": 1071.644671,
+        "errors": 404
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 247.0,
+        "completed_in_window_median": 243.0,
+        "p50_ms": 1032.847359,
+        "p99_ms": 1068.498943,
+        "p999_ms": 1092.616191,
+        "errors": 3317
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 247.5,
+        "completed_in_window_median": 248.0,
+        "p50_ms": 1032.323071,
+        "p99_ms": 1067.974655,
+        "p999_ms": 1120.927743,
+        "errors": 8107
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 16,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c16-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "16",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 6,
+        "all_pass": true,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 63.438847,
+        "p99_ms": 75.890687,
+        "p999_ms": 75.890687,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 8,
+        "all_pass": false,
+        "achieved_median": 8.0,
+        "completed_in_window_median": 8.0,
+        "p50_ms": 65.306623,
+        "p99_ms": 74.711039,
+        "p999_ms": 74.711039,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 11.5,
+        "p50_ms": 63.275007,
+        "p99_ms": 321.650687,
+        "p999_ms": 321.650687,
+        "errors": 1
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 16.5,
+        "completed_in_window_median": 15.0,
+        "p50_ms": 440.926207,
+        "p99_ms": 1363.148799,
+        "p999_ms": 1363.148799,
+        "errors": 52
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 21.0,
+        "completed_in_window_median": 15.5,
+        "p50_ms": 1039.138815,
+        "p99_ms": 1892.679679,
+        "p999_ms": 1892.679679,
+        "errors": 172
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 21.5,
+        "completed_in_window_median": 16.5,
+        "p50_ms": 1267.728383,
+        "p99_ms": 1941.962751,
+        "p999_ms": 1968.177151,
+        "errors": 475
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 2,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c2-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "2",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1,
+        "all_pass": false,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 140.378111,
+        "p99_ms": 521.928703,
+        "p999_ms": 521.928703,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3,
+        "all_pass": false,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 2.5,
+        "p50_ms": 312.999935,
+        "p99_ms": 518.520831,
+        "p999_ms": 518.520831,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 4.5,
+        "completed_in_window_median": 3.0,
+        "p50_ms": 1147.142143,
+        "p99_ms": 1529.872383,
+        "p999_ms": 1529.872383,
+        "errors": 6
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 4.0,
+        "completed_in_window_median": 4.0,
+        "p50_ms": 1243.611135,
+        "p99_ms": 1576.009727,
+        "p999_ms": 1576.009727,
+        "errors": 49
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 3.5,
+        "completed_in_window_median": 3.5,
+        "p50_ms": 1268.776959,
+        "p99_ms": 1592.786943,
+        "p999_ms": 1592.786943,
+        "errors": 126
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 3.5,
+        "completed_in_window_median": 3.0,
+        "p50_ms": 1275.068415,
+        "p99_ms": 1611.661311,
+        "p999_ms": 1629.487103,
+        "errors": 279
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 4.5,
+        "completed_in_window_median": 4.0,
+        "p50_ms": 1268.776959,
+        "p99_ms": 1606.418431,
+        "p999_ms": 1628.438527,
+        "errors": 575
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 4.0,
+        "completed_in_window_median": 4.0,
+        "p50_ms": 1248.854015,
+        "p99_ms": 1517.289471,
+        "p999_ms": 1557.135359,
+        "errors": 1171
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 2,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c2-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "2",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1,
+        "all_pass": false,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 113.377279,
+        "p99_ms": 461.373439,
+        "p999_ms": 461.373439,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3,
+        "all_pass": false,
+        "achieved_median": 2.0,
+        "completed_in_window_median": 1.5,
+        "p50_ms": 664.797183,
+        "p99_ms": 1269.825535,
+        "p999_ms": 1269.825535,
+        "errors": 5
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 2.0,
+        "p50_ms": 1061.158911,
+        "p99_ms": 1671.430143,
+        "p999_ms": 1671.430143,
+        "errors": 21
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 2.5,
+        "completed_in_window_median": 1.5,
+        "p50_ms": 1335.885823,
+        "p99_ms": 1875.902463,
+        "p999_ms": 1875.902463,
+        "errors": 58
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 1.5,
+        "completed_in_window_median": 1.5,
+        "p50_ms": 1393.557503,
+        "p99_ms": 1993.342975,
+        "p999_ms": 1993.342975,
+        "errors": 140
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 2.5,
+        "completed_in_window_median": 2.0,
+        "p50_ms": 1313.865727,
+        "p99_ms": 1976.565759,
+        "p999_ms": 1977.614335,
+        "errors": 284
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 3.0,
+        "p50_ms": 1302.331391,
+        "p99_ms": 1953.497087,
+        "p999_ms": 1986.002943,
+        "errors": 582
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 256,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c256-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "256",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 200,
+        "all_pass": true,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 200.5,
+        "p50_ms": 60.227583,
+        "p99_ms": 73.269247,
+        "p999_ms": 79.757311,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 282,
+        "all_pass": true,
+        "achieved_median": 282.0,
+        "completed_in_window_median": 282.5,
+        "p50_ms": 61.308927,
+        "p99_ms": 75.628543,
+        "p999_ms": 96.010239,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 399.0,
+        "p50_ms": 63.406079,
+        "p99_ms": 96.534527,
+        "p999_ms": 105.840639,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 811.0,
+        "p50_ms": 76.349439,
+        "p99_ms": 159.252479,
+        "p999_ms": 235.405311,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1453.0,
+        "completed_in_window_median": 1052.0,
+        "p50_ms": 894.959615,
+        "p99_ms": 1257.242623,
+        "p999_ms": 1712.324607,
+        "errors": 880
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 1075.5,
+        "completed_in_window_median": 1039.5,
+        "p50_ms": 1123.024895,
+        "p99_ms": 1388.314623,
+        "p999_ms": 1896.873983,
+        "errors": 12725
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 1054.0,
+        "completed_in_window_median": 1034.5,
+        "p50_ms": 1119.879167,
+        "p99_ms": 1581.252607,
+        "p999_ms": 1940.914175,
+        "errors": 32105
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 1042.0,
+        "completed_in_window_median": 1054.5,
+        "p50_ms": 1121.976319,
+        "p99_ms": 1464.860671,
+        "p999_ms": 1938.817023,
+        "errors": 70550
+      },
+      {
+        "offered_per_s": 25600,
+        "all_pass": false,
+        "achieved_median": 1055.0,
+        "completed_in_window_median": 1038.0,
+        "p50_ms": 1119.879167,
+        "p99_ms": 1528.823807,
+        "p999_ms": 1937.768447,
+        "errors": 147284
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 256,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c256-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "256",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 6,
+        "all_pass": true,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 68.354047,
+        "p99_ms": 71.958527,
+        "p999_ms": 71.958527,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 8,
+        "all_pass": true,
+        "achieved_median": 8.0,
+        "completed_in_window_median": 8.0,
+        "p50_ms": 68.419583,
+        "p99_ms": 72.941567,
+        "p999_ms": 72.941567,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 67.895295,
+        "p99_ms": 78.446591,
+        "p999_ms": 78.446591,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 15.5,
+        "completed_in_window_median": 13.5,
+        "p50_ms": 456.130559,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 58
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 18.5,
+        "completed_in_window_median": 15.0,
+        "p50_ms": 700.973055,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 190
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 18.5,
+        "completed_in_window_median": 14.0,
+        "p50_ms": 760.741887,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.914367,
+        "errors": 491
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c32-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "32",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 399.5,
+        "p50_ms": 62.881791,
+        "p99_ms": 72.941567,
+        "p999_ms": 101.515263,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": false,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 482.5,
+        "p50_ms": 310.640639,
+        "p99_ms": 554.172415,
+        "p999_ms": 630.718463,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 630.5,
+        "completed_in_window_median": 483.5,
+        "p50_ms": 1007.157247,
+        "p99_ms": 1067.974655,
+        "p999_ms": 1078.984703,
+        "errors": 1015
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 479.0,
+        "completed_in_window_median": 483.0,
+        "p50_ms": 1033.895935,
+        "p99_ms": 1071.120383,
+        "p999_ms": 1084.227583,
+        "errors": 6728
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 480.0,
+        "completed_in_window_median": 479.0,
+        "p50_ms": 1033.371647,
+        "p99_ms": 1071.120383,
+        "p999_ms": 1140.850687,
+        "errors": 16353
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c32-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "32",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 6,
+        "all_pass": true,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 66.027519,
+        "p99_ms": 68.943871,
+        "p999_ms": 68.943871,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 8,
+        "all_pass": false,
+        "achieved_median": 8.0,
+        "completed_in_window_median": 8.0,
+        "p50_ms": 63.930367,
+        "p99_ms": 70.844415,
+        "p999_ms": 70.844415,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 11.5,
+        "p50_ms": 65.437695,
+        "p99_ms": 108.331007,
+        "p999_ms": 108.331007,
+        "errors": 1
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 17.0,
+        "completed_in_window_median": 14.5,
+        "p50_ms": 326.107135,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 51
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 20.0,
+        "completed_in_window_median": 16.0,
+        "p50_ms": 737.148927,
+        "p99_ms": 1438.646271,
+        "p999_ms": 1724.907519,
+        "errors": 179
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 23.0,
+        "completed_in_window_median": 15.5,
+        "p50_ms": 1247.805439,
+        "p99_ms": 1975.517183,
+        "p999_ms": 1996.488703,
+        "errors": 464
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 4,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c4-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "4",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1,
+        "all_pass": false,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 144.310271,
+        "p99_ms": 282.066943,
+        "p999_ms": 282.066943,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3,
+        "all_pass": false,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 3.0,
+        "p50_ms": 96.862207,
+        "p99_ms": 162.922495,
+        "p999_ms": 162.922495,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 5.5,
+        "p50_ms": 171.048959,
+        "p99_ms": 298.844159,
+        "p999_ms": 298.844159,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 11.5,
+        "p50_ms": 166.854655,
+        "p99_ms": 306.184191,
+        "p999_ms": 306.184191,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 23.0,
+        "completed_in_window_median": 16.5,
+        "p50_ms": 892.862463,
+        "p99_ms": 1271.922687,
+        "p999_ms": 1271.922687,
+        "errors": 12
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 14.0,
+        "completed_in_window_median": 13.5,
+        "p50_ms": 1153.433599,
+        "p99_ms": 1343.225855,
+        "p999_ms": 1355.808767,
+        "errors": 211
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 14.0,
+        "completed_in_window_median": 14.0,
+        "p50_ms": 1154.482175,
+        "p99_ms": 1324.351487,
+        "p999_ms": 1348.468735,
+        "errors": 517
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 14.0,
+        "completed_in_window_median": 14.5,
+        "p50_ms": 1150.287871,
+        "p99_ms": 1323.302911,
+        "p999_ms": 1342.177279,
+        "errors": 1116
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 13.5,
+        "completed_in_window_median": 14.0,
+        "p50_ms": 1150.287871,
+        "p99_ms": 1328.545791,
+        "p999_ms": 1348.468735,
+        "errors": 2318
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 4,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c4-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "4",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1,
+        "all_pass": false,
+        "achieved_median": 1.0,
+        "completed_in_window_median": 1.0,
+        "p50_ms": 128.319487,
+        "p99_ms": 270.532607,
+        "p999_ms": 270.532607,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3,
+        "all_pass": false,
+        "achieved_median": 3.0,
+        "completed_in_window_median": 3.0,
+        "p50_ms": 160.301055,
+        "p99_ms": 292.552703,
+        "p999_ms": 292.552703,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6,
+        "all_pass": false,
+        "achieved_median": 5.0,
+        "completed_in_window_median": 4.0,
+        "p50_ms": 569.376767,
+        "p99_ms": 1001.914367,
+        "p999_ms": 1001.914367,
+        "errors": 6
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 5.0,
+        "completed_in_window_median": 4.0,
+        "p50_ms": 1035.468799,
+        "p99_ms": 1671.430143,
+        "p999_ms": 1671.430143,
+        "errors": 41
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 4.0,
+        "completed_in_window_median": 3.5,
+        "p50_ms": 1325.400063,
+        "p99_ms": 1986.002943,
+        "p999_ms": 1986.002943,
+        "errors": 124
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 5.0,
+        "completed_in_window_median": 3.5,
+        "p50_ms": 1319.108607,
+        "p99_ms": 1963.982847,
+        "p999_ms": 1982.857215,
+        "errors": 270
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 4.5,
+        "completed_in_window_median": 4.5,
+        "p50_ms": 1324.351487,
+        "p99_ms": 1975.517183,
+        "p999_ms": 1995.440127,
+        "errors": 574
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 64,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c64-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "64",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 398.5,
+        "p50_ms": 63.209471,
+        "p99_ms": 74.645503,
+        "p999_ms": 95.748095,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": true,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 565.5,
+        "p50_ms": 66.650111,
+        "p99_ms": 81.919999,
+        "p999_ms": 89.063423,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 751.5,
+        "p50_ms": 126.025727,
+        "p99_ms": 388.759551,
+        "p999_ms": 558.891007,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 910.5,
+        "completed_in_window_median": 758.5,
+        "p50_ms": 1033.371647,
+        "p99_ms": 1129.316351,
+        "p999_ms": 1822.425087,
+        "errors": 4079
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 752.0,
+        "completed_in_window_median": 772.0,
+        "p50_ms": 1042.808831,
+        "p99_ms": 1207.959551,
+        "p999_ms": 1695.547391,
+        "errors": 14639
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 754.5,
+        "completed_in_window_median": 777.5,
+        "p50_ms": 1042.284543,
+        "p99_ms": 1127.219199,
+        "p999_ms": 1775.239167,
+        "errors": 33821
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 64,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c64-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "64",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 12,
+        "all_pass": true,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 64.126975,
+        "p99_ms": 70.909951,
+        "p999_ms": 70.909951,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 17,
+        "all_pass": false,
+        "achieved_median": 13.5,
+        "completed_in_window_median": 13.0,
+        "p50_ms": 173.408255,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 20
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 16.0,
+        "completed_in_window_median": 14.5,
+        "p50_ms": 344.457215,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 54
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 19.0,
+        "completed_in_window_median": 15.5,
+        "p50_ms": 654.311423,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 188
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 24.5,
+        "completed_in_window_median": 16.5,
+        "p50_ms": 915.931135,
+        "p99_ms": 1724.907519,
+        "p999_ms": 1842.348031,
+        "errors": 455
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 8,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c8-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "8",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 50,
+        "all_pass": true,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 62.029823,
+        "p99_ms": 68.419583,
+        "p999_ms": 69.926911,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 70,
+        "all_pass": false,
+        "achieved_median": 70.0,
+        "completed_in_window_median": 70.0,
+        "p50_ms": 64.880639,
+        "p99_ms": 86.769663,
+        "p999_ms": 100.204543,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 92.0,
+        "p50_ms": 203.030527,
+        "p99_ms": 315.097087,
+        "p999_ms": 327.417855,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 115.0,
+        "completed_in_window_median": 92.0,
+        "p50_ms": 1034.944511,
+        "p99_ms": 1107.296255,
+        "p999_ms": 1117.782015,
+        "errors": 519
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 93.5,
+        "completed_in_window_median": 90.5,
+        "p50_ms": 1042.284543,
+        "p99_ms": 1112.539135,
+        "p999_ms": 1127.219199,
+        "errors": 1848
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 90.5,
+        "completed_in_window_median": 92.5,
+        "p50_ms": 1044.905983,
+        "p99_ms": 1111.490559,
+        "p999_ms": 1121.976319,
+        "errors": 4238
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 8,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c8-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "8",
+        "--keys",
+        "same",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 12,
+        "all_pass": true,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 62.291967,
+        "p99_ms": 68.681727,
+        "p999_ms": 68.681727,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 17,
+        "all_pass": false,
+        "achieved_median": 14.5,
+        "completed_in_window_median": 13.5,
+        "p50_ms": 184.156159,
+        "p99_ms": 1531.969535,
+        "p999_ms": 1531.969535,
+        "errors": 13
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 18.5,
+        "completed_in_window_median": 15.0,
+        "p50_ms": 526.909439,
+        "p99_ms": 1480.589311,
+        "p999_ms": 1480.589311,
+        "errors": 39
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 20.0,
+        "completed_in_window_median": 15.5,
+        "p50_ms": 1111.490559,
+        "p99_ms": 1887.436799,
+        "p999_ms": 1959.788543,
+        "errors": 179
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 21.0,
+        "completed_in_window_median": 16.0,
+        "p50_ms": 1272.971263,
+        "p99_ms": 1955.594239,
+        "p999_ms": 1983.905791,
+        "errors": 472
+      }
+    ]
+  }
+]

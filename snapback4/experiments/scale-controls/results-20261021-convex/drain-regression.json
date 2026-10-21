@@ -1,0 +1,10 @@
+{
+  "captured_metrics": "checks100k-final/overload/rate-20000-r0.metrics-after.txt",
+  "sha256": "2770445b09d3c0ff5d6efb1833dba581f74b606054be8068de7afc3462d710e4",
+  "settled_gauges": {
+    "convex_local_backend_backend_http_service_concurrent_requests": 0.0,
+    "convex_local_backend_committer_concurrent_commits": 0.0
+  },
+  "missing_gauges_refused": true,
+  "positive_gauges_detected": true
+}

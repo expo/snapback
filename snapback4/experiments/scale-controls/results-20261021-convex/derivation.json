@@ -1,0 +1,8 @@
+{
+  "scripts/report-convex.py": "c0bd8c4fcbeb56cdb1f4bbe415ac11350855660821abe44ba3c08428a2554150",
+  "scripts/report.py": "7bf629d4088a89477496d2f2ac422a719abef6515f9744a48accd8b267c9ca6a",
+  "scripts/plot.py": "d133db78dea739b7da853cdeadf6cbb67e58d5db257a7ff9387acbf5dea12225",
+  "scripts/plot-convex-comparison.py": "794b049544c348aff18fbc510100035cb3f396c145ad996f85d58cee1c6fc085",
+  "results-20261021-raw-pg/ledger.json": "625d453df4e305ee8d43e41efa4157aade8fc953821b58b14f135878a258b648",
+  "results-20261021-supabase-advocate/ledger.json": "846c40431d5c0552f0b734e238fe9b84aed149fba4b56d26397245d36c8dd5c3"
+}

@@ -1,0 +1,10 @@
+{
+  "observed_trial": "matrix66/w5-n1000000-d500-c1-hot1/rate-1-r1",
+  "cohort": 3,
+  "acks": 2,
+  "delta": 3.0,
+  "warmup_errors": 1,
+  "disqualified": true,
+  "unexplained_excess_refused": true,
+  "lost_acknowledged_write_refused": true
+}

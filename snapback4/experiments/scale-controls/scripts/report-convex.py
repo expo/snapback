@@ -4,7 +4,17 @@ import gzip, hashlib, json, re, sys
 from pathlib import Path
 from statistics import median
 import report
-root=Path(sys.argv[1]);report.main([root])
+root=Path(sys.argv[1])
+# The inherited base receipt labels its launcher run.py; preserve that captured
+# field while recording this subclass's actual CLI for reproduction.
+op=root/'ownership.json';ownership=json.loads(op.read_text())
+if ownership.get('command',[None,None])[1]=='scripts/run.py':
+    ownership['base_logger_command']=ownership['command']
+    ownership['command']=[*ownership['command']]
+    ownership['command'][1]='scripts/convex.py'
+    ownership['command_note']='Native CLI name corrected from the inherited base logger; original argv preserved above.'
+    op.write_text(json.dumps(ownership,indent=2)+'\n')
+report.main([root])
 base=Path(__file__).resolve().parent.parent
 raw=json.loads((base/'results-20261021-raw-pg/ledger.json').read_text())
 sb=json.loads((base/'results-20261021-supabase-advocate/ledger.json').read_text())
@@ -59,11 +69,29 @@ for row in cx:
     keys=set().union(*[r.keys() for r in runs])
     metric_rows.append(dict(cell=c,offered_per_s=passing,median_deltas={k:median(r.get(k,0) for r in runs) for k in sorted(keys)}))
 (root/'convex-metrics.json').write_text(json.dumps(metric_rows,indent=2)+'\n')
+# The inherited deterministic "1%" policy has a finite-window realized share.
+hot_rows=[]
+for row in cx:
+    c=row['cell'];rate=row['summary']['highest_passing_offered_per_s']
+    if c['keys']!='hot1' or rate is None:continue
+    directory=root/f"{c['workload'].lower()}-n{c['rows']}-d{c['delay_us']}-c{c['writers']}-{c['keys']}"
+    values=[]
+    for repeat in range(row['summary']['repeats']):
+        prefix=f'rate-{rate}-r{repeat}'
+        result=report.read(directory/(prefix+'.json'));a=report.read(directory/(prefix+'.before.json'));b=report.read(directory/(prefix+'.after.json'))
+        o=result['options'];total=(rate*(o['warmup_ms']+o['duration_ms'])+999)//1000;warm=(rate*o['warmup_ms']+999)//1000
+        hot=lambda seq:(seq//c['writers']+(seq%c['writers'])*37)%100==0
+        total_hot=sum(hot(seq) for seq in range(total));measured_hot=sum(hot(seq) for seq in range(warm,total))
+        delta=b['counters']['sum']-a['counters']['sum'];hot_delta=b['counters']['hot']-a['counters']['hot']
+        values.append(dict(scheduled_all=total,scheduled_hot_all=total_hot,scheduled_measured=result['scheduled'],scheduled_hot_measured=measured_hot,
+             scheduled_measured_hot_fraction=measured_hot/max(1,result['scheduled']),counter_delta_all=delta,hot_counter_delta_all=hot_delta,realized_all_hot_fraction=hot_delta/max(1,delta)))
+    hot_rows.append(dict(cell=c,offered_per_s=rate,repetitions=values))
+(root/'hot-mix.json').write_text(json.dumps(hot_rows,indent=2)+'\n')
 rtts={}
 for delay in sorted({r['cell']['delay_us'] for r in cx}):
     values=[json.loads(p.read_text()) for p in root.glob(f'*-d{delay}-*/rtt-*.json')]
     rtts[delay]=dict(captures=len(values),p50_median_ms=median(v['p50_us']/1000 for v in values),p99_median_ms=median(v['p99_us']/1000 for v in values),p50_range_ms=[min(v['p50_us']/1000 for v in values),max(v['p50_us']/1000 for v in values)])
 
 (root/'rtt-summary.json').write_text(json.dumps(rtts,indent=2)+'\n')
-(root/'derivation.json').write_text(json.dumps({str(p.relative_to(base)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [Path(__file__),base/'scripts/report.py',base/'scripts/plot.py',base/'results-20261021-raw-pg/ledger.json',base/'results-20261021-supabase-advocate/ledger.json']},indent=2)+'\n')
+(root/'derivation.json').write_text(json.dumps({str(p.relative_to(base)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [Path(__file__),base/'scripts/report.py',base/'scripts/plot.py',base/'scripts/plot-convex-comparison.py',base/'results-20261021-raw-pg/ledger.json',base/'results-20261021-supabase-advocate/ledger.json']},indent=2)+'\n')
 print(len(rows),'comparison rows;',len(metric_rows),'metric rows')

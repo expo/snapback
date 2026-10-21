@@ -1,0 +1,1007 @@
+[
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 1,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c1-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "1",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 12,
+    "repetitions": [
+      {
+        "scheduled_all": 30,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 24,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 30.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.03333333333333333
+      },
+      {
+        "scheduled_all": 30,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 24,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 30.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.03333333333333333
+      },
+      {
+        "scheduled_all": 30,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 24,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 30.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.03333333333333333
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 2,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c2-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "2",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 25,
+    "repetitions": [
+      {
+        "scheduled_all": 63,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 50,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 63.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.015873015873015872
+      },
+      {
+        "scheduled_all": 63,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 50,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 63.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.015873015873015872
+      },
+      {
+        "scheduled_all": 63,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 50,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 63.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.015873015873015872
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 4,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c4-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "4",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 4,
+    "repetitions": [
+      {
+        "scheduled_all": 10,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 8,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 10.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.1
+      },
+      {
+        "scheduled_all": 10,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 8,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 10.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.1
+      },
+      {
+        "scheduled_all": 10,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 8,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 10.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.1
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 8,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c8-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "8",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1,
+    "repetitions": [
+      {
+        "scheduled_all": 3,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 2,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 3.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.3333333333333333
+      },
+      {
+        "scheduled_all": 3,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 2,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 3.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.3333333333333333
+      },
+      {
+        "scheduled_all": 3,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 2,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 3.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.3333333333333333
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 16,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c16-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "16",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 50,
+    "repetitions": [
+      {
+        "scheduled_all": 125,
+        "scheduled_hot_all": 2,
+        "scheduled_measured": 100,
+        "scheduled_hot_measured": 1,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 125.0,
+        "hot_counter_delta_all": 2.0,
+        "realized_all_hot_fraction": 0.016
+      },
+      {
+        "scheduled_all": 125,
+        "scheduled_hot_all": 2,
+        "scheduled_measured": 100,
+        "scheduled_hot_measured": 1,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 125.0,
+        "hot_counter_delta_all": 2.0,
+        "realized_all_hot_fraction": 0.016
+      },
+      {
+        "scheduled_all": 125,
+        "scheduled_hot_all": 2,
+        "scheduled_measured": 100,
+        "scheduled_hot_measured": 1,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 125.0,
+        "hot_counter_delta_all": 2.0,
+        "realized_all_hot_fraction": 0.016
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c32-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "32",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1,
+    "repetitions": [
+      {
+        "scheduled_all": 3,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 2,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 3.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.3333333333333333
+      },
+      {
+        "scheduled_all": 3,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 2,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 3.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.3333333333333333
+      },
+      {
+        "scheduled_all": 3,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 2,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 3.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.3333333333333333
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 64,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c64-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "64",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 400,
+    "repetitions": [
+      {
+        "scheduled_all": 1000,
+        "scheduled_hot_all": 11,
+        "scheduled_measured": 800,
+        "scheduled_hot_measured": 8,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 1000.0,
+        "hot_counter_delta_all": 11.0,
+        "realized_all_hot_fraction": 0.011
+      },
+      {
+        "scheduled_all": 1000,
+        "scheduled_hot_all": 11,
+        "scheduled_measured": 800,
+        "scheduled_hot_measured": 8,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 1000.0,
+        "hot_counter_delta_all": 11.0,
+        "realized_all_hot_fraction": 0.011
+      },
+      {
+        "scheduled_all": 1000,
+        "scheduled_hot_all": 11,
+        "scheduled_measured": 800,
+        "scheduled_hot_measured": 8,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 1000.0,
+        "hot_counter_delta_all": 11.0,
+        "realized_all_hot_fraction": 0.011
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c128-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 800,
+    "repetitions": [
+      {
+        "scheduled_all": 2000,
+        "scheduled_hot_all": 21,
+        "scheduled_measured": 1600,
+        "scheduled_hot_measured": 16,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 2000.0,
+        "hot_counter_delta_all": 21.0,
+        "realized_all_hot_fraction": 0.0105
+      },
+      {
+        "scheduled_all": 2000,
+        "scheduled_hot_all": 21,
+        "scheduled_measured": 1600,
+        "scheduled_hot_measured": 16,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 2000.0,
+        "hot_counter_delta_all": 21.0,
+        "realized_all_hot_fraction": 0.0105
+      },
+      {
+        "scheduled_all": 2000,
+        "scheduled_hot_all": 21,
+        "scheduled_measured": 1600,
+        "scheduled_hot_measured": 16,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 2000.0,
+        "hot_counter_delta_all": 21.0,
+        "realized_all_hot_fraction": 0.0105
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 256,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d0-c256-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "256",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 800,
+    "repetitions": [
+      {
+        "scheduled_all": 2000,
+        "scheduled_hot_all": 21,
+        "scheduled_measured": 1600,
+        "scheduled_hot_measured": 16,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 2000.0,
+        "hot_counter_delta_all": 21.0,
+        "realized_all_hot_fraction": 0.0105
+      },
+      {
+        "scheduled_all": 2000,
+        "scheduled_hot_all": 21,
+        "scheduled_measured": 1600,
+        "scheduled_hot_measured": 16,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 2000.0,
+        "hot_counter_delta_all": 21.0,
+        "realized_all_hot_fraction": 0.0105
+      },
+      {
+        "scheduled_all": 2000,
+        "scheduled_hot_all": 21,
+        "scheduled_measured": 1600,
+        "scheduled_hot_measured": 16,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 2000.0,
+        "hot_counter_delta_all": 21.0,
+        "realized_all_hot_fraction": 0.0105
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 8,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c8-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "8",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 50,
+    "repetitions": [
+      {
+        "scheduled_all": 125,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 100,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 125.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.008
+      },
+      {
+        "scheduled_all": 125,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 100,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 125.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.008
+      },
+      {
+        "scheduled_all": 125,
+        "scheduled_hot_all": 1,
+        "scheduled_measured": 100,
+        "scheduled_hot_measured": 0,
+        "scheduled_measured_hot_fraction": 0.0,
+        "counter_delta_all": 125.0,
+        "hot_counter_delta_all": 1.0,
+        "realized_all_hot_fraction": 0.008
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 16,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c16-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "16",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 200,
+    "repetitions": [
+      {
+        "scheduled_all": 500,
+        "scheduled_hot_all": 6,
+        "scheduled_measured": 400,
+        "scheduled_hot_measured": 4,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 500.0,
+        "hot_counter_delta_all": 6.0,
+        "realized_all_hot_fraction": 0.012
+      },
+      {
+        "scheduled_all": 500,
+        "scheduled_hot_all": 6,
+        "scheduled_measured": 400,
+        "scheduled_hot_measured": 4,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 500.0,
+        "hot_counter_delta_all": 6.0,
+        "realized_all_hot_fraction": 0.012
+      },
+      {
+        "scheduled_all": 500,
+        "scheduled_hot_all": 6,
+        "scheduled_measured": 400,
+        "scheduled_hot_measured": 4,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 500.0,
+        "hot_counter_delta_all": 6.0,
+        "realized_all_hot_fraction": 0.012
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c32-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "32",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 400,
+    "repetitions": [
+      {
+        "scheduled_all": 1000,
+        "scheduled_hot_all": 11,
+        "scheduled_measured": 800,
+        "scheduled_hot_measured": 8,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 1000.0,
+        "hot_counter_delta_all": 11.0,
+        "realized_all_hot_fraction": 0.011
+      },
+      {
+        "scheduled_all": 1000,
+        "scheduled_hot_all": 11,
+        "scheduled_measured": 800,
+        "scheduled_hot_measured": 8,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 1000.0,
+        "hot_counter_delta_all": 11.0,
+        "realized_all_hot_fraction": 0.011
+      },
+      {
+        "scheduled_all": 1000,
+        "scheduled_hot_all": 11,
+        "scheduled_measured": 800,
+        "scheduled_hot_measured": 8,
+        "scheduled_measured_hot_fraction": 0.01,
+        "counter_delta_all": 1000.0,
+        "hot_counter_delta_all": 11.0,
+        "realized_all_hot_fraction": 0.011
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 64,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c64-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "64",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 565,
+    "repetitions": [
+      {
+        "scheduled_all": 1413,
+        "scheduled_hot_all": 15,
+        "scheduled_measured": 1130,
+        "scheduled_hot_measured": 11,
+        "scheduled_measured_hot_fraction": 0.009734513274336283,
+        "counter_delta_all": 1413.0,
+        "hot_counter_delta_all": 15.0,
+        "realized_all_hot_fraction": 0.010615711252653927
+      },
+      {
+        "scheduled_all": 1413,
+        "scheduled_hot_all": 15,
+        "scheduled_measured": 1130,
+        "scheduled_hot_measured": 11,
+        "scheduled_measured_hot_fraction": 0.009734513274336283,
+        "counter_delta_all": 1413.0,
+        "hot_counter_delta_all": 15.0,
+        "realized_all_hot_fraction": 0.010615711252653927
+      },
+      {
+        "scheduled_all": 1413,
+        "scheduled_hot_all": 15,
+        "scheduled_measured": 1130,
+        "scheduled_hot_measured": 11,
+        "scheduled_measured_hot_fraction": 0.009734513274336283,
+        "counter_delta_all": 1413.0,
+        "hot_counter_delta_all": 15.0,
+        "realized_all_hot_fraction": 0.010615711252653927
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c128-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 565,
+    "repetitions": [
+      {
+        "scheduled_all": 1413,
+        "scheduled_hot_all": 15,
+        "scheduled_measured": 1130,
+        "scheduled_hot_measured": 11,
+        "scheduled_measured_hot_fraction": 0.009734513274336283,
+        "counter_delta_all": 1413.0,
+        "hot_counter_delta_all": 15.0,
+        "realized_all_hot_fraction": 0.010615711252653927
+      },
+      {
+        "scheduled_all": 1413,
+        "scheduled_hot_all": 15,
+        "scheduled_measured": 1130,
+        "scheduled_hot_measured": 11,
+        "scheduled_measured_hot_fraction": 0.009734513274336283,
+        "counter_delta_all": 1413.0,
+        "hot_counter_delta_all": 15.0,
+        "realized_all_hot_fraction": 0.010615711252653927
+      },
+      {
+        "scheduled_all": 1413,
+        "scheduled_hot_all": 15,
+        "scheduled_measured": 1130,
+        "scheduled_hot_measured": 11,
+        "scheduled_measured_hot_fraction": 0.009734513274336283,
+        "counter_delta_all": 1413.0,
+        "hot_counter_delta_all": 15.0,
+        "realized_all_hot_fraction": 0.010615711252653927
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 256,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w5-n1000000-d500-c256-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "256",
+        "--keys",
+        "hot1",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 282,
+    "repetitions": [
+      {
+        "scheduled_all": 705,
+        "scheduled_hot_all": 8,
+        "scheduled_measured": 564,
+        "scheduled_hot_measured": 6,
+        "scheduled_measured_hot_fraction": 0.010638297872340425,
+        "counter_delta_all": 705.0,
+        "hot_counter_delta_all": 8.0,
+        "realized_all_hot_fraction": 0.011347517730496455
+      },
+      {
+        "scheduled_all": 705,
+        "scheduled_hot_all": 8,
+        "scheduled_measured": 564,
+        "scheduled_hot_measured": 6,
+        "scheduled_measured_hot_fraction": 0.010638297872340425,
+        "counter_delta_all": 705.0,
+        "hot_counter_delta_all": 8.0,
+        "realized_all_hot_fraction": 0.011347517730496455
+      },
+      {
+        "scheduled_all": 705,
+        "scheduled_hot_all": 8,
+        "scheduled_measured": 564,
+        "scheduled_hot_measured": 6,
+        "scheduled_measured_hot_fraction": 0.010638297872340425,
+        "counter_delta_all": 705.0,
+        "hot_counter_delta_all": 8.0,
+        "realized_all_hot_fraction": 0.011347517730496455
+      }
+    ]
+  }
+]

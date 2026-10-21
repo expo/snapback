@@ -2,6 +2,7 @@
 """Derive the ledger and resource attribution from retained per-rate evidence."""
 import json
 import gzip
+import re
 from pathlib import Path
 from statistics import median
 import sys
@@ -57,7 +58,7 @@ def db_cpu_seconds(path):
 def details(directory,rate,ownership):
     runs=[]
     for file in sorted(directory.glob(f'rate-{rate}-r[0-9]*.json')):
-        if file.name.endswith(('.before.json','.after.json','.resources.json')): continue
+        if not re.fullmatch(r'rate-[0-9]+-r[0-9]+\.json',file.name): continue
         r=read(file)
         prefix=file.stem
         before=read(directory/f'{prefix}.before.json'); after=read(directory/f'{prefix}.after.json')

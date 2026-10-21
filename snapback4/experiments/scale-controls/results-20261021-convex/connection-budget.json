@@ -1,0 +1,6 @@
+{
+  "pool_max": 256,
+  "used": 6,
+  "max_connections": 320,
+  "headroom": 58
+}
