@@ -17,9 +17,19 @@ fn notes(bound: &Bound) -> Vec<&snapback4_lang::Diagnostic> {
 fn comparative_bare_history_and_separate_decorations_compile_without_held_notes() {
     let bound = bound(COMPARATIVE);
     assert!(notes(&bound).is_empty(), "{:?}", bound.notes);
-    assert_eq!(bound.notes.len(), 1, "{:?}", bound.notes);
-    assert_eq!(bound.notes[0].code, "N_REFERENCE_UNCHECKED");
-    assert!(bound.notes[0].message.contains("mutation sendText") && bound.notes[0].message.contains("messages[quote]"), "{:?}", bound.notes);
+    // DX5: asserted lookups and a later write do not prove read authority.
+    // Pin the five new source-only notes rather than suppressing arbitrary advice.
+    let lookups = bound.notes.iter().filter(|n| n.code == "N_LOOKUP_FILTERED").collect::<Vec<_>>();
+    assert_eq!(lookups.len(), 5, "{:?}", bound.notes);
+    for name in ["addMember", "removeMember", "setReaction", "editMessage", "deleteMessage"] {
+        let note = lookups.iter().find(|n| n.message.starts_with(&format!("mutation {name}:"))).unwrap();
+        assert!(COMPARATIVE.lines().nth(note.site.line as usize - 1).unwrap().contains("! else NOT_FOUND"));
+        assert!(note.message.contains("read <-") && note.rewrite.contains("do not widen private rows"));
+    }
+    let other = bound.notes.iter().filter(|n| n.code != "N_LOOKUP_FILTERED").collect::<Vec<_>>();
+    assert_eq!(other.len(), 1, "{:?}", bound.notes);
+    assert_eq!(other[0].code, "N_REFERENCE_UNCHECKED");
+    assert!(other[0].message.contains("mutation sendText") && other[0].message.contains("messages[quote]"), "{:?}", bound.notes);
     assert!(!bound.schema.operations["history"].held);
     assert!(bound.schema.operations["searchHeld"].held);
     let history = &bound.programs.iter().find(|p| p.program.name == "history").unwrap().program;

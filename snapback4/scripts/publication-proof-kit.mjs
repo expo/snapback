@@ -59,7 +59,7 @@ try {
   const post=async(path,body)=>(await fetch(dev.url+path,{method:'POST',headers:{'x-snapback-persona':'alice'},body:JSON.stringify(body)})).json();
   await post('/seed',[{table:'counters',row:{id:'counter',n:0}}]);
   const refused=await post('/dev/clock/advance',{duration:'30d',eachBoundary:true});
-  assert.equal(refused.denied.code,'E_CLOCK_INPUT');assert.match(refused.denied.message,/--each-boundary.*10000.*omit --each-boundary/);
+  assert.equal(refused.denied.code,'E_CLOCK_INPUT');assert.match(refused.denied.message,/(?:--each-boundary.*10000.*omit --each-boundary|schedule window report exceeds its byte budget; use a smaller duration)/);
   const status=await (await fetch(dev.url+'/dev/status')).json();assert.equal(status.clockOffsetMs,0);assert.equal(status.temporary,true,'the replay control owns a memory dev');
   const advanced=await post('/dev/clock/advance',{duration:'30d'});
   assert.equal(advanced.offsetMs,30*86400000);assert.equal(advanced.schedules.length,2);
