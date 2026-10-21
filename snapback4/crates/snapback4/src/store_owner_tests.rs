@@ -222,7 +222,10 @@ fn release_barrier_waits_for_the_real_lock_without_changing_files() {
     assert!(start.elapsed()>=Duration::from_millis(100));release.join().unwrap();
     // A barrier neither clears the retained address nor opens SQLite.
     let names=||{let mut names=fs::read_dir(&dir).unwrap().map(|f|f.unwrap().file_name()).collect::<Vec<_>>();names.sort();names};
-    let before=names();wait_released(&path,Duration::ZERO).unwrap();assert_eq!(names(),before);
+    // Parallel tests may fork while a barrier briefly owns this descriptor;
+    // its close-on-exec duplicate can outlive the first barrier's return.
+    // Check read-only behavior with the same bounded wait, not an idle-host assumption.
+    let before=names();wait_released(&path,Duration::from_secs(2)).unwrap();assert_eq!(names(),before);
     let missing=dir.join("missing/store.sqlite");assert!(wait_released(&missing,Duration::ZERO).is_err());assert!(!missing.parent().unwrap().exists());
     fs::remove_dir_all(dir).unwrap();
 }

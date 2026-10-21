@@ -142,7 +142,17 @@ impl Pair {
             static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
             let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target").join(format!("b3-pair-{}-{}.sqlite", std::process::id(), NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)));
             let store = snapback4_core::Store::open(&path).unwrap();
-            std::fs::remove_file(path).unwrap();
+            // This fixture keeps one open connection. Unlink all of its
+            // open SQLite files, including WAL/SHM, so paired-world runs
+            // leave no scratch after the Engine drops or a test is stopped.
+            for suffix in ["", "-wal", "-shm"] {
+                let mut file = path.clone().into_os_string(); file.push(suffix);
+                match std::fs::remove_file(file) {
+                    Ok(()) => {},
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+                    Err(error) => panic!("paired SQLite fixture cleanup: {error}"),
+                }
+            }
             Engine::new(store, b.schema, programs).unwrap()
         } else { Engine::memory(b.schema, programs).unwrap() };
         e.set_ceilings(snapback4_core::Ceilings::unbounded());
