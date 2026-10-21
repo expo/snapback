@@ -1,0 +1,15 @@
+{
+  "measurement_source_commit": "03e1ce433053d7b3ed11359045d39601d74c7646",
+  "baseline_sha256": {
+    "results-20261021-raw-pg/ledger.json": "625d453df4e305ee8d43e41efa4157aade8fc953821b58b14f135878a258b648",
+    "results-20261021-raw-pg/curves.json": "b5d52afc4dfc417c793385d403d1b7440104aec25d4356b2334cb53aff21d78a",
+    "results-20261021-supabase/ledger.json": "91833aada8da59d8dd3be8d2956078c7ed191fb1981ee8467c3f300ed77e39c7",
+    "results-20261021-supabase/curves.json": "8cac6d26794b1280a3056f02b0ffb65b490fb3cfc25ac3da244dfcb89fe23a6c"
+  },
+  "derivation_sha256": {
+    "results-20261021-supabase-advocate/summarize.py": "5c6f0f7908aa04d0f4169436654eb99386d9b1215025ba640d0c783b453019ec",
+    "scripts/report.py": "63a313910797eb5216c2a21b535f92c67b86a9a858058ebf22efb63992ec4a92",
+    "scripts/audit.py": "6dbbf5db6db5c02fa1e2bf497699244f33f02020848af5733869b96b2ebe2cd7",
+    "scripts/plot.py": "38fa31c0e7187928847ed56fab7a8aa29b4649c056beda9385adc637731de802"
+  }
+}

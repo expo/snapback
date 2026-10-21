@@ -1,0 +1,4642 @@
+[
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w1-n1000000-d0-c128-disjoint",
+        "--workload",
+        "W1",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1000,
+        "all_pass": true,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 4.411391,
+        "p99_ms": 10.108927,
+        "p999_ms": 44.662783,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1414,
+        "all_pass": true,
+        "achieved_median": 1414.0,
+        "completed_in_window_median": 1417.0,
+        "p50_ms": 4.243455,
+        "p99_ms": 24.068095,
+        "p999_ms": 49.381375,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2000,
+        "all_pass": false,
+        "achieved_median": 2000.0,
+        "completed_in_window_median": 1999.5,
+        "p50_ms": 4.091903,
+        "p99_ms": 15.376383,
+        "p999_ms": 48.300031,
+        "errors": 2
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w1-n1000000-d500-c128-disjoint",
+        "--workload",
+        "W1",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1000,
+        "all_pass": true,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 999.0,
+        "p50_ms": 5.951487,
+        "p99_ms": 11.419647,
+        "p999_ms": 14.073855,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1414,
+        "all_pass": false,
+        "achieved_median": 1414.0,
+        "completed_in_window_median": 1414.0,
+        "p50_ms": 6.746111,
+        "p99_ms": 46.956543,
+        "p999_ms": 50.593791,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2000,
+        "all_pass": false,
+        "achieved_median": 2000.0,
+        "completed_in_window_median": 1998.0,
+        "p50_ms": 7.143423,
+        "p99_ms": 18.513919,
+        "p999_ms": 51.806207,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w2-n1000000-d0-c128-disjoint",
+        "--workload",
+        "W2",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1000,
+        "all_pass": true,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 1000.0,
+        "p50_ms": 4.874239,
+        "p99_ms": 12.304383,
+        "p999_ms": 21.594111,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1414,
+        "all_pass": true,
+        "achieved_median": 1414.0,
+        "completed_in_window_median": 1413.5,
+        "p50_ms": 5.005311,
+        "p99_ms": 17.055743,
+        "p999_ms": 49.217535,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2000,
+        "all_pass": false,
+        "achieved_median": 2000.0,
+        "completed_in_window_median": 1996.5,
+        "p50_ms": 5.165055,
+        "p99_ms": 19.103743,
+        "p999_ms": 50.495487,
+        "errors": 17
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w2-n1000000-d500-c128-disjoint",
+        "--workload",
+        "W2",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1000,
+        "all_pass": true,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 998.5,
+        "p50_ms": 7.331839,
+        "p99_ms": 17.858559,
+        "p999_ms": 25.198591,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1414,
+        "all_pass": true,
+        "achieved_median": 1414.0,
+        "completed_in_window_median": 1416.0,
+        "p50_ms": 7.565311,
+        "p99_ms": 21.020671,
+        "p999_ms": 51.740671,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2000,
+        "all_pass": false,
+        "achieved_median": 2000.0,
+        "completed_in_window_median": 1997.0,
+        "p50_ms": 8.699903,
+        "p99_ms": 21.921791,
+        "p999_ms": 54.231039,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w3-n1000000-d0-c128-disjoint",
+        "--workload",
+        "W3",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1000,
+        "all_pass": true,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 999.0,
+        "p50_ms": 4.833279,
+        "p99_ms": 17.711103,
+        "p999_ms": 31.834111,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2000,
+        "all_pass": true,
+        "achieved_median": 2000.0,
+        "completed_in_window_median": 2000.5,
+        "p50_ms": 4.935679,
+        "p99_ms": 16.375807,
+        "p999_ms": 48.365567,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2828,
+        "all_pass": false,
+        "achieved_median": 2828.0,
+        "completed_in_window_median": 2746.5,
+        "p50_ms": 5.349375,
+        "p99_ms": 127.664127,
+        "p999_ms": 170.131455,
+        "errors": 612
+      },
+      {
+        "offered_per_s": 4000,
+        "all_pass": false,
+        "achieved_median": 1888.0,
+        "completed_in_window_median": 1545.0,
+        "p50_ms": 1036.517375,
+        "p99_ms": 1248.854015,
+        "p999_ms": 1349.517311,
+        "errors": 12731
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w3-n1000000-d500-c128-disjoint",
+        "--workload",
+        "W3",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1000,
+        "all_pass": true,
+        "achieved_median": 1000.0,
+        "completed_in_window_median": 999.5,
+        "p50_ms": 6.967295,
+        "p99_ms": 13.787135,
+        "p999_ms": 15.966207,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1414,
+        "all_pass": true,
+        "achieved_median": 1414.0,
+        "completed_in_window_median": 1412.0,
+        "p50_ms": 7.450623,
+        "p99_ms": 47.382527,
+        "p999_ms": 52.101119,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2000,
+        "all_pass": false,
+        "achieved_median": 2000.0,
+        "completed_in_window_median": 1859.5,
+        "p50_ms": 10.706943,
+        "p99_ms": 274.726911,
+        "p999_ms": 378.273791,
+        "errors": 18
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 1,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d0-c1-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "1",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 50,
+        "all_pass": true,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 9.691135,
+        "p99_ms": 42.631167,
+        "p999_ms": 50.266111,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 70,
+        "all_pass": false,
+        "achieved_median": 70.0,
+        "completed_in_window_median": 70.5,
+        "p50_ms": 11.075583,
+        "p99_ms": 70.844415,
+        "p999_ms": 73.531391,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 12.066815,
+        "p99_ms": 224.002047,
+        "p999_ms": 229.507071,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d0-c128-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1600,
+        "all_pass": true,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1599.0,
+        "p50_ms": 9.854975,
+        "p99_ms": 26.361855,
+        "p999_ms": 40.828927,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2262,
+        "all_pass": true,
+        "achieved_median": 2262.0,
+        "completed_in_window_median": 2262.5,
+        "p50_ms": 10.960895,
+        "p99_ms": 31.506431,
+        "p999_ms": 54.132735,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 3198.0,
+        "p50_ms": 12.451839,
+        "p99_ms": 53.870591,
+        "p999_ms": 68.354047,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 6061.0,
+        "completed_in_window_median": 4289.5,
+        "p50_ms": 773.324799,
+        "p99_ms": 1038.090239,
+        "p999_ms": 1062.731775,
+        "errors": 2340
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 4317.0,
+        "completed_in_window_median": 4227.0,
+        "p50_ms": 1015.021567,
+        "p99_ms": 1065.877503,
+        "p999_ms": 1088.421887,
+        "errors": 50857
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 16,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d0-c16-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "16",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 800,
+        "all_pass": true,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 800.0,
+        "p50_ms": 8.568831,
+        "p99_ms": 41.943039,
+        "p999_ms": 52.002815,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1131,
+        "all_pass": true,
+        "achieved_median": 1131.0,
+        "completed_in_window_median": 1133.5,
+        "p50_ms": 8.650751,
+        "p99_ms": 60.358655,
+        "p999_ms": 85.721087,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1156.0,
+        "p50_ms": 464.257023,
+        "p99_ms": 927.989759,
+        "p999_ms": 957.874175,
+        "errors": 173
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 2,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d0-c2-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "2",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 9.371647,
+        "p99_ms": 51.773439,
+        "p999_ms": 64.126975,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": true,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 8.683519,
+        "p99_ms": 50.200575,
+        "p999_ms": 59.801599,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 148.5,
+        "p50_ms": 589.823999,
+        "p99_ms": 881.328127,
+        "p999_ms": 924.319743,
+        "errors": 118
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 256,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d0-c256-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "256",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 3200,
+        "all_pass": true,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 3198.0,
+        "p50_ms": 19.169279,
+        "p99_ms": 75.890687,
+        "p999_ms": 95.027199,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 4525,
+        "all_pass": false,
+        "achieved_median": 4525.0,
+        "completed_in_window_median": 4090.0,
+        "p50_ms": 162.791423,
+        "p99_ms": 428.343295,
+        "p999_ms": 535.560191,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 5499.0,
+        "completed_in_window_median": 3872.5,
+        "p50_ms": 956.825599,
+        "p99_ms": 1093.664767,
+        "p999_ms": 1136.656383,
+        "errors": 4657
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 3937.0,
+        "completed_in_window_median": 3968.0,
+        "p50_ms": 1034.420223,
+        "p99_ms": 1287.651327,
+        "p999_ms": 1356.857343,
+        "errors": 54157
+      },
+      {
+        "offered_per_s": 25600,
+        "all_pass": false,
+        "achieved_median": 4030.0,
+        "completed_in_window_median": 4081.0,
+        "p50_ms": 1032.323071,
+        "p99_ms": 1166.016511,
+        "p999_ms": 1270.874111,
+        "errors": 128714
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d0-c32-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "32",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1600,
+        "all_pass": true,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1598.5,
+        "p50_ms": 9.355263,
+        "p99_ms": 42.795007,
+        "p999_ms": 74.317823,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2262,
+        "all_pass": false,
+        "achieved_median": 2262.0,
+        "completed_in_window_median": 2260.0,
+        "p50_ms": 10.690559,
+        "p99_ms": 93.978623,
+        "p999_ms": 120.979455,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 2473.0,
+        "p50_ms": 378.011647,
+        "p99_ms": 947.912703,
+        "p999_ms": 974.127103,
+        "errors": 515
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 4,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d0-c4-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "4",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 9.068543,
+        "p99_ms": 15.884287,
+        "p999_ms": 17.629183,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": true,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 8.196095,
+        "p99_ms": 48.136191,
+        "p999_ms": 49.741823,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 200.0,
+        "p50_ms": 10.239999,
+        "p99_ms": 46.366719,
+        "p999_ms": 59.080703,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 446.5,
+        "p50_ms": 267.386879,
+        "p99_ms": 351.535103,
+        "p999_ms": 359.923711,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 64,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d0-c64-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "64",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 3200,
+        "all_pass": true,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 3195.0,
+        "p50_ms": 11.157503,
+        "p99_ms": 48.758783,
+        "p999_ms": 58.687487,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 4525,
+        "all_pass": false,
+        "achieved_median": 4525.0,
+        "completed_in_window_median": 3960.0,
+        "p50_ms": 181.665791,
+        "p99_ms": 456.916991,
+        "p999_ms": 490.733567,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 5347.0,
+        "completed_in_window_median": 4064.0,
+        "p50_ms": 937.426943,
+        "p99_ms": 1024.458751,
+        "p999_ms": 1038.090239,
+        "errors": 6615
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 8,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d0-c8-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "8",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 399.5,
+        "p50_ms": 8.560639,
+        "p99_ms": 39.616511,
+        "p999_ms": 66.551807,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": true,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 564.5,
+        "p50_ms": 8.593407,
+        "p99_ms": 67.371007,
+        "p999_ms": 97.452031,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 794.0,
+        "p50_ms": 18.874367,
+        "p99_ms": 79.888383,
+        "p999_ms": 88.735743,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 1,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d500-c1-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "1",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 50,
+        "all_pass": true,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 10.272767,
+        "p99_ms": 44.072959,
+        "p999_ms": 54.001663,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 70,
+        "all_pass": true,
+        "achieved_median": 70.0,
+        "completed_in_window_median": 70.0,
+        "p50_ms": 10.461183,
+        "p99_ms": 49.446911,
+        "p999_ms": 51.380223,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 93.0,
+        "p50_ms": 145.883135,
+        "p99_ms": 197.787647,
+        "p999_ms": 198.049791,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d500-c128-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1600,
+        "all_pass": true,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1596.5,
+        "p50_ms": 13.197311,
+        "p99_ms": 28.360703,
+        "p999_ms": 38.273023,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2262,
+        "all_pass": true,
+        "achieved_median": 2262.0,
+        "completed_in_window_median": 2259.5,
+        "p50_ms": 18.382847,
+        "p99_ms": 37.224447,
+        "p999_ms": 45.744127,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 3207.0,
+        "p50_ms": 18.874367,
+        "p99_ms": 78.774271,
+        "p999_ms": 101.449727,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 4886.5,
+        "completed_in_window_median": 3711.0,
+        "p50_ms": 1005.060095,
+        "p99_ms": 1056.440319,
+        "p999_ms": 1075.838975,
+        "errors": 11398
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 3724.0,
+        "completed_in_window_median": 3613.5,
+        "p50_ms": 1017.643007,
+        "p99_ms": 1051.721727,
+        "p999_ms": 1071.120383,
+        "errors": 54441
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 16,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d500-c16-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "16",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 399.5,
+        "p50_ms": 11.067391,
+        "p99_ms": 15.400959,
+        "p999_ms": 18.464767,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": false,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 565.0,
+        "p50_ms": 12.582911,
+        "p99_ms": 54.689791,
+        "p999_ms": 76.873727,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 801.0,
+        "p50_ms": 11.255807,
+        "p99_ms": 51.412991,
+        "p999_ms": 77.594623,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1312.0,
+        "p50_ms": 402.391039,
+        "p99_ms": 707.788799,
+        "p999_ms": 742.391807,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 2,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d500-c2-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "2",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 50,
+        "all_pass": true,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 12.468223,
+        "p99_ms": 22.396927,
+        "p999_ms": 28.262399,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 70,
+        "all_pass": false,
+        "achieved_median": 70.0,
+        "completed_in_window_median": 69.5,
+        "p50_ms": 14.532607,
+        "p99_ms": 59.342847,
+        "p999_ms": 59.867135,
+        "errors": 8
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.5,
+        "p50_ms": 12.140543,
+        "p99_ms": 51.380223,
+        "p999_ms": 57.868287,
+        "errors": 19
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 152.0,
+        "p50_ms": 441.450495,
+        "p99_ms": 750.256127,
+        "p999_ms": 760.217599,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 256,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d500-c256-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "256",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 800,
+        "all_pass": true,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 798.0,
+        "p50_ms": 15.687679,
+        "p99_ms": 53.608447,
+        "p999_ms": 61.636607,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1131,
+        "all_pass": true,
+        "achieved_median": 1131.0,
+        "completed_in_window_median": 1134.0,
+        "p50_ms": 15.826943,
+        "p99_ms": 27.901951,
+        "p999_ms": 31.703039,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1602.0,
+        "p50_ms": 16.621567,
+        "p99_ms": 31.096831,
+        "p999_ms": 35.389439,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 3190.5,
+        "p50_ms": 29.523967,
+        "p99_ms": 56.623103,
+        "p999_ms": 68.354047,
+        "errors": 776
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 4160.0,
+        "completed_in_window_median": 3300.0,
+        "p50_ms": 1024.983039,
+        "p99_ms": 1089.470463,
+        "p999_ms": 1103.101951,
+        "errors": 13406
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 3307.0,
+        "completed_in_window_median": 3248.0,
+        "p50_ms": 1039.138815,
+        "p99_ms": 1091.567615,
+        "p999_ms": 1109.393407,
+        "errors": 56977
+      },
+      {
+        "offered_per_s": 25600,
+        "all_pass": false,
+        "achieved_median": 3424.0,
+        "completed_in_window_median": 3241.5,
+        "p50_ms": 1037.565951,
+        "p99_ms": 1104.150527,
+        "p999_ms": 1128.267775,
+        "errors": 133103
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d500-c32-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "32",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1600,
+        "all_pass": true,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1604.5,
+        "p50_ms": 14.712831,
+        "p99_ms": 65.961983,
+        "p999_ms": 92.274687,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2262,
+        "all_pass": false,
+        "achieved_median": 2262.0,
+        "completed_in_window_median": 1826.5,
+        "p50_ms": 357.302271,
+        "p99_ms": 617.611263,
+        "p999_ms": 653.787135,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 2818.0,
+        "completed_in_window_median": 2031.5,
+        "p50_ms": 931.659775,
+        "p99_ms": 1035.468799,
+        "p999_ms": 1053.294591,
+        "errors": 2621
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 4,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d500-c4-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "4",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 200,
+        "all_pass": true,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 198.5,
+        "p50_ms": 9.756671,
+        "p99_ms": 48.398335,
+        "p999_ms": 53.477375,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 282,
+        "all_pass": false,
+        "achieved_median": 282.0,
+        "completed_in_window_median": 285.5,
+        "p50_ms": 90.963967,
+        "p99_ms": 241.303551,
+        "p999_ms": 247.857151,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 351.5,
+        "p50_ms": 248.250367,
+        "p99_ms": 394.526719,
+        "p999_ms": 405.012479,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 64,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d500-c64-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "64",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1600,
+        "all_pass": true,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1598.0,
+        "p50_ms": 11.460607,
+        "p99_ms": 28.147711,
+        "p999_ms": 54.460415,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2262,
+        "all_pass": true,
+        "achieved_median": 2262.0,
+        "completed_in_window_median": 2260.5,
+        "p50_ms": 13.074431,
+        "p99_ms": 53.084159,
+        "p999_ms": 62.750719,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 3146.5,
+        "p50_ms": 18.431999,
+        "p99_ms": 96.796671,
+        "p999_ms": 137.232383,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 4448.0,
+        "completed_in_window_median": 3420.0,
+        "p50_ms": 1005.584383,
+        "p99_ms": 1037.565951,
+        "p999_ms": 1056.440319,
+        "errors": 13566
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 8,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w4-n1000000-d500-c8-disjoint",
+        "--workload",
+        "W4",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "8",
+        "--keys",
+        "disjoint",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 200,
+        "all_pass": true,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 200.0,
+        "p50_ms": 10.190847,
+        "p99_ms": 18.317311,
+        "p999_ms": 22.003711,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 282,
+        "all_pass": false,
+        "achieved_median": 282.0,
+        "completed_in_window_median": 282.0,
+        "p50_ms": 13.328383,
+        "p99_ms": 53.542911,
+        "p999_ms": 76.480511,
+        "errors": 57
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 397.0,
+        "p50_ms": 12.263423,
+        "p99_ms": 59.965439,
+        "p999_ms": 92.733439,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 794.0,
+        "completed_in_window_median": 578.0,
+        "p50_ms": 596.115455,
+        "p99_ms": 1009.778687,
+        "p999_ms": 1015.545855,
+        "errors": 37
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 1,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c1-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "1",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 12,
+        "all_pass": true,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 11.870207,
+        "p99_ms": 50.888703,
+        "p999_ms": 50.888703,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 17,
+        "all_pass": false,
+        "achieved_median": 17.0,
+        "completed_in_window_median": 17.0,
+        "p50_ms": 10.436607,
+        "p99_ms": 22.560767,
+        "p999_ms": 22.560767,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 25.0,
+        "p50_ms": 13.025279,
+        "p99_ms": 56.360959,
+        "p999_ms": 56.360959,
+        "errors": 11
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 13.942783,
+        "p99_ms": 54.689791,
+        "p999_ms": 56.426495,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 76.0,
+        "p50_ms": 407.896063,
+        "p99_ms": 883.425279,
+        "p999_ms": 893.911039,
+        "errors": 2
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 1,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c1-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "1",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 25,
+        "all_pass": true,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 25.0,
+        "p50_ms": 9.404415,
+        "p99_ms": 30.064639,
+        "p999_ms": 30.064639,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 35,
+        "all_pass": true,
+        "achieved_median": 35.0,
+        "completed_in_window_median": 34.5,
+        "p50_ms": 12.591103,
+        "p99_ms": 53.805055,
+        "p999_ms": 53.805055,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 49.5,
+        "p50_ms": 161.349631,
+        "p99_ms": 626.524159,
+        "p999_ms": 631.242751,
+        "errors": 5
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 98.5,
+        "p50_ms": 61.014015,
+        "p99_ms": 101.253119,
+        "p999_ms": 102.170623,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c128-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1600,
+        "all_pass": true,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1600.5,
+        "p50_ms": 9.715711,
+        "p99_ms": 50.921471,
+        "p999_ms": 54.886399,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2262,
+        "all_pass": true,
+        "achieved_median": 2262.0,
+        "completed_in_window_median": 2261.5,
+        "p50_ms": 10.919935,
+        "p99_ms": 26.804223,
+        "p999_ms": 53.870591,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 3207.0,
+        "p50_ms": 13.443071,
+        "p99_ms": 54.525951,
+        "p999_ms": 68.157439,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 5510.5,
+        "completed_in_window_median": 3957.0,
+        "p50_ms": 913.833983,
+        "p99_ms": 1054.343167,
+        "p999_ms": 1086.324735,
+        "errors": 5743
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 4475.0,
+        "completed_in_window_median": 4312.5,
+        "p50_ms": 1014.497279,
+        "p99_ms": 1053.294591,
+        "p999_ms": 1077.936127,
+        "errors": 49954
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c128-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 7.864319,
+        "p99_ms": 11.845631,
+        "p999_ms": 15.253503,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": false,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 7.581695,
+        "p99_ms": 12.042239,
+        "p999_ms": 14.958591,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 200.0,
+        "p50_ms": 8.114175,
+        "p99_ms": 49.643519,
+        "p999_ms": 62.226431,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 16,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c16-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "16",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 800,
+        "all_pass": true,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 801.0,
+        "p50_ms": 9.093119,
+        "p99_ms": 39.780351,
+        "p999_ms": 70.778879,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1131,
+        "all_pass": false,
+        "achieved_median": 1131.0,
+        "completed_in_window_median": 1130.0,
+        "p50_ms": 9.633791,
+        "p99_ms": 203.161599,
+        "p999_ms": 228.327423,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1292.5,
+        "p50_ms": 409.206783,
+        "p99_ms": 628.097023,
+        "p999_ms": 634.388479,
+        "errors": 34
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 16,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c16-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "16",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 11.493375,
+        "p99_ms": 21.954559,
+        "p999_ms": 23.511039,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": true,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 140.5,
+        "p50_ms": 8.536063,
+        "p99_ms": 51.380223,
+        "p999_ms": 58.982399,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 171.5,
+        "p50_ms": 298.057727,
+        "p99_ms": 904.921087,
+        "p999_ms": 1052.770303,
+        "errors": 29
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 2,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c2-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "2",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 10.633215,
+        "p99_ms": 40.697855,
+        "p999_ms": 50.692095,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": true,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 7.614463,
+        "p99_ms": 50.724863,
+        "p999_ms": 53.051391,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 172.0,
+        "p50_ms": 201.850879,
+        "p99_ms": 339.738623,
+        "p999_ms": 345.243647,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 2,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c2-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "2",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 50,
+        "all_pass": true,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 10.919935,
+        "p99_ms": 17.727487,
+        "p999_ms": 24.821759,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 70,
+        "all_pass": true,
+        "achieved_median": 70.0,
+        "completed_in_window_median": 70.0,
+        "p50_ms": 8.552447,
+        "p99_ms": 21.495807,
+        "p999_ms": 38.010879,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 11.624447,
+        "p99_ms": 75.497471,
+        "p999_ms": 78.774271,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 256,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c256-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "256",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1600,
+        "all_pass": true,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1599.0,
+        "p50_ms": 9.748479,
+        "p99_ms": 23.691263,
+        "p999_ms": 51.576831,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2262,
+        "all_pass": true,
+        "achieved_median": 2262.0,
+        "completed_in_window_median": 2265.5,
+        "p50_ms": 11.304959,
+        "p99_ms": 50.266111,
+        "p999_ms": 57.245695,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 3170.5,
+        "completed_in_window_median": 1847.0,
+        "p50_ms": 796.917759,
+        "p99_ms": 1071.644671,
+        "p999_ms": 1449.132031,
+        "errors": 175
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 5590.5,
+        "completed_in_window_median": 4129.5,
+        "p50_ms": 805.306367,
+        "p99_ms": 1452.277759,
+        "p999_ms": 1796.210687,
+        "errors": 4814
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 4142.5,
+        "completed_in_window_median": 3864.5,
+        "p50_ms": 1031.274495,
+        "p99_ms": 1540.358143,
+        "p999_ms": 1926.234111,
+        "errors": 51958
+      },
+      {
+        "offered_per_s": 25600,
+        "all_pass": false,
+        "achieved_median": 4116.5,
+        "completed_in_window_median": 3701.5,
+        "p50_ms": 1031.798783,
+        "p99_ms": 1716.518911,
+        "p999_ms": 1962.934271,
+        "errors": 129408
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 256,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c256-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "256",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 25,
+        "all_pass": true,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 25.0,
+        "p50_ms": 7.970815,
+        "p99_ms": 16.089087,
+        "p999_ms": 16.089087,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 35,
+        "all_pass": true,
+        "achieved_median": 35.0,
+        "completed_in_window_median": 35.0,
+        "p50_ms": 8.007679,
+        "p99_ms": 19.087359,
+        "p999_ms": 19.087359,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 7.835647,
+        "p99_ms": 14.974975,
+        "p999_ms": 55.017471,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 7.720959,
+        "p99_ms": 13.123583,
+        "p999_ms": 16.703487,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c32-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "32",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 800,
+        "all_pass": true,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 800.5,
+        "p50_ms": 8.937471,
+        "p99_ms": 13.606911,
+        "p999_ms": 16.228351,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1131,
+        "all_pass": true,
+        "achieved_median": 1131.0,
+        "completed_in_window_median": 1133.5,
+        "p50_ms": 9.060351,
+        "p99_ms": 49.577983,
+        "p999_ms": 54.460415,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1602.0,
+        "p50_ms": 9.469951,
+        "p99_ms": 49.479679,
+        "p999_ms": 74.645503,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 2835.5,
+        "p50_ms": 222.691327,
+        "p99_ms": 425.459711,
+        "p999_ms": 435.421183,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 32,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c32-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "32",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 8.114175,
+        "p99_ms": 14.680063,
+        "p999_ms": 20.119551,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": true,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 7.700479,
+        "p99_ms": 14.557183,
+        "p999_ms": 16.957439,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 202.0,
+        "p50_ms": 27.099135,
+        "p99_ms": 310.640639,
+        "p999_ms": 418.906111,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 4,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c4-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "4",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 399.0,
+        "p50_ms": 10.149887,
+        "p99_ms": 75.235327,
+        "p999_ms": 88.670207,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": false,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 436.5,
+        "p50_ms": 431.226879,
+        "p99_ms": 759.693311,
+        "p999_ms": 763.887615,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 574.0,
+        "completed_in_window_median": 441.0,
+        "p50_ms": 1002.438655,
+        "p99_ms": 1037.565951,
+        "p999_ms": 1048.575999,
+        "errors": 1469
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 4,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c4-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "4",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 7.929855,
+        "p99_ms": 18.268159,
+        "p999_ms": 23.592959,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": true,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 8.495103,
+        "p99_ms": 23.609343,
+        "p999_ms": 31.735807,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 195.5,
+        "p50_ms": 49.348607,
+        "p99_ms": 138.018815,
+        "p999_ms": 146.669567,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 64,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c64-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "64",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 399.5,
+        "p50_ms": 8.413183,
+        "p99_ms": 49.610751,
+        "p999_ms": 54.427647,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": false,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 565.0,
+        "p50_ms": 8.839167,
+        "p99_ms": 47.939583,
+        "p999_ms": 51.150847,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 800.5,
+        "p50_ms": 8.667135,
+        "p99_ms": 17.235967,
+        "p999_ms": 50.462719,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1601.0,
+        "p50_ms": 9.453567,
+        "p99_ms": 187.039743,
+        "p999_ms": 205.783039,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 3195.0,
+        "p50_ms": 11.493375,
+        "p99_ms": 51.347455,
+        "p999_ms": 93.978623,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 5559.0,
+        "completed_in_window_median": 4159.5,
+        "p50_ms": 901.251071,
+        "p99_ms": 1021.313023,
+        "p999_ms": 1047.527423,
+        "errors": 5699
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 64,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c64-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "64",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 7.745535,
+        "p99_ms": 14.540799,
+        "p999_ms": 25.640959,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": true,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 201.5,
+        "p50_ms": 8.011775,
+        "p99_ms": 69.599231,
+        "p999_ms": 110.493695,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 282,
+        "all_pass": false,
+        "achieved_median": 271.0,
+        "completed_in_window_median": 205.0,
+        "p50_ms": 396.623871,
+        "p99_ms": 1435.500543,
+        "p999_ms": 1645.215743,
+        "errors": 83
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 265.0,
+        "completed_in_window_median": 203.0,
+        "p50_ms": 1033.371647,
+        "p99_ms": 1812.987903,
+        "p999_ms": 1978.662911,
+        "errors": 781
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 8,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c8-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "8",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 400.5,
+        "p50_ms": 10.362879,
+        "p99_ms": 49.774591,
+        "p999_ms": 84.803583,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": false,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 567.0,
+        "p50_ms": 18.202623,
+        "p99_ms": 114.753535,
+        "p999_ms": 136.314879,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 596.0,
+        "p50_ms": 488.112127,
+        "p99_ms": 838.860799,
+        "p999_ms": 868.220927,
+        "errors": 3
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 8,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d0-c8-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "8",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 7.081983,
+        "p99_ms": 50.626559,
+        "p999_ms": 51.085311,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": true,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 7.196671,
+        "p99_ms": 48.627711,
+        "p999_ms": 49.217535,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 200.0,
+        "p50_ms": 7.507967,
+        "p99_ms": 32.702463,
+        "p999_ms": 55.574527,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 1,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c1-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "1",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 6,
+        "all_pass": true,
+        "achieved_median": 6.0,
+        "completed_in_window_median": 6.0,
+        "p50_ms": 12.017663,
+        "p99_ms": 23.085055,
+        "p999_ms": 23.085055,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 8,
+        "all_pass": true,
+        "achieved_median": 8.0,
+        "completed_in_window_median": 8.0,
+        "p50_ms": 17.825791,
+        "p99_ms": 22.036479,
+        "p999_ms": 22.036479,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 12,
+        "all_pass": false,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 10.526719,
+        "p99_ms": 14.147583,
+        "p999_ms": 14.147583,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 25.0,
+        "p50_ms": 11.124735,
+        "p99_ms": 68.419583,
+        "p999_ms": 68.419583,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 49.0,
+        "p50_ms": 11.362303,
+        "p99_ms": 43.909119,
+        "p999_ms": 53.706751,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 81.0,
+        "p50_ms": 462.684159,
+        "p99_ms": 658.505727,
+        "p999_ms": 659.030015,
+        "errors": 98
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 1,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c1-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "1",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 50,
+        "all_pass": true,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 10.420223,
+        "p99_ms": 41.123839,
+        "p999_ms": 51.052543,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 70,
+        "all_pass": false,
+        "achieved_median": 70.0,
+        "completed_in_window_median": 69.5,
+        "p50_ms": 10.895359,
+        "p99_ms": 115.474431,
+        "p999_ms": 115.671039,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 90.0,
+        "p50_ms": 209.059839,
+        "p99_ms": 331.087871,
+        "p999_ms": 331.350015,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c128-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 800,
+        "all_pass": true,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 799.5,
+        "p50_ms": 15.990783,
+        "p99_ms": 36.372479,
+        "p999_ms": 61.931519,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1131,
+        "all_pass": false,
+        "achieved_median": 1131.0,
+        "completed_in_window_median": 1135.0,
+        "p50_ms": 15.319039,
+        "p99_ms": 28.344319,
+        "p999_ms": 34.668543,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1597.0,
+        "p50_ms": 16.392191,
+        "p99_ms": 58.654719,
+        "p999_ms": 65.404927,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 3147.5,
+        "p50_ms": 23.166975,
+        "p99_ms": 65.372159,
+        "p999_ms": 82.182143,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 4502.0,
+        "completed_in_window_median": 3593.0,
+        "p50_ms": 1006.632959,
+        "p99_ms": 1056.964607,
+        "p999_ms": 1078.984703,
+        "errors": 11064
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 3612.5,
+        "completed_in_window_median": 3486.0,
+        "p50_ms": 1017.643007,
+        "p99_ms": 1050.673151,
+        "p999_ms": 1066.926079,
+        "errors": 55666
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c128-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 13.983743,
+        "p99_ms": 25.575423,
+        "p999_ms": 28.393471,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": false,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 14.147583,
+        "p99_ms": 190.185471,
+        "p999_ms": 227.016703,
+        "errors": 31
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 190.0,
+        "completed_in_window_median": 162.5,
+        "p50_ms": 247.201791,
+        "p99_ms": 1254.096895,
+        "p999_ms": 1363.148799,
+        "errors": 209
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 16,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c16-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "16",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 800,
+        "all_pass": true,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 800.0,
+        "p50_ms": 12.279807,
+        "p99_ms": 52.789247,
+        "p999_ms": 75.956223,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1131,
+        "all_pass": false,
+        "achieved_median": 1131.0,
+        "completed_in_window_median": 1070.5,
+        "p50_ms": 115.933183,
+        "p99_ms": 240.648191,
+        "p999_ms": 489.684991,
+        "errors": 144
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1532.0,
+        "completed_in_window_median": 1103.0,
+        "p50_ms": 684.195839,
+        "p99_ms": 1014.497279,
+        "p999_ms": 1017.118719,
+        "errors": 352
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 16,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c16-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "16",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 50,
+        "all_pass": true,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 10.182655,
+        "p99_ms": 15.024127,
+        "p999_ms": 18.022399,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 70,
+        "all_pass": true,
+        "achieved_median": 70.0,
+        "completed_in_window_median": 70.0,
+        "p50_ms": 10.543103,
+        "p99_ms": 45.907967,
+        "p999_ms": 55.705599,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 10.248191,
+        "p99_ms": 17.104895,
+        "p999_ms": 19.939327,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 2,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c2-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "2",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 12,
+        "all_pass": true,
+        "achieved_median": 12.0,
+        "completed_in_window_median": 12.0,
+        "p50_ms": 10.944511,
+        "p99_ms": 15.818751,
+        "p999_ms": 15.818751,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 17,
+        "all_pass": true,
+        "achieved_median": 17.0,
+        "completed_in_window_median": 17.0,
+        "p50_ms": 10.387455,
+        "p99_ms": 19.759103,
+        "p999_ms": 19.759103,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 25,
+        "all_pass": false,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 25.0,
+        "p50_ms": 10.952703,
+        "p99_ms": 97.845247,
+        "p999_ms": 97.845247,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 10.207231,
+        "p99_ms": 29.327359,
+        "p999_ms": 32.178175,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 99.0,
+        "p50_ms": 10.297343,
+        "p99_ms": 73.662463,
+        "p999_ms": 85.917695,
+        "errors": 8
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 171.0,
+        "p50_ms": 417.595391,
+        "p99_ms": 859.832319,
+        "p999_ms": 861.929471,
+        "errors": 26
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 2,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c2-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "2",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 25,
+        "all_pass": true,
+        "achieved_median": 25.0,
+        "completed_in_window_median": 25.0,
+        "p50_ms": 10.698751,
+        "p99_ms": 17.252351,
+        "p999_ms": 17.252351,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 35,
+        "all_pass": false,
+        "achieved_median": 35.0,
+        "completed_in_window_median": 35.0,
+        "p50_ms": 10.797055,
+        "p99_ms": 53.116927,
+        "p999_ms": 53.116927,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 50,
+        "all_pass": false,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 11.321343,
+        "p99_ms": 17.924095,
+        "p999_ms": 20.414463,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.5,
+        "p50_ms": 11.280383,
+        "p99_ms": 59.211775,
+        "p999_ms": 62.291967,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 256,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c256-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "256",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 3200,
+        "all_pass": true,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 3203.0,
+        "p50_ms": 19.873791,
+        "p99_ms": 40.140799,
+        "p999_ms": 51.937279,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 4525,
+        "all_pass": false,
+        "achieved_median": 4525.0,
+        "completed_in_window_median": 3340.5,
+        "p50_ms": 555.745279,
+        "p99_ms": 934.281215,
+        "p999_ms": 993.001471,
+        "errors": 4
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 4257.5,
+        "completed_in_window_median": 3296.5,
+        "p50_ms": 1023.410175,
+        "p99_ms": 1086.324735,
+        "p999_ms": 1101.004799,
+        "errors": 12868
+      },
+      {
+        "offered_per_s": 12800,
+        "all_pass": false,
+        "achieved_median": 3318.5,
+        "completed_in_window_median": 3276.5,
+        "p50_ms": 1038.614527,
+        "p99_ms": 1088.421887,
+        "p999_ms": 1107.296255,
+        "errors": 57079
+      },
+      {
+        "offered_per_s": 25600,
+        "all_pass": false,
+        "achieved_median": 3398.0,
+        "completed_in_window_median": 3261.5,
+        "p50_ms": 1037.565951,
+        "p99_ms": 1093.664767,
+        "p999_ms": 1113.587711,
+        "errors": 133366
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 256,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c256-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "256",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 12.173311,
+        "p99_ms": 59.211775,
+        "p999_ms": 73.465855,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": false,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 130.0,
+        "p50_ms": 76.480511,
+        "p99_ms": 650.117119,
+        "p999_ms": 673.185791,
+        "errors": 3
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 119.0,
+        "completed_in_window_median": 113.0,
+        "p50_ms": 633.339903,
+        "p99_ms": 1001.390079,
+        "p999_ms": 1001.390079,
+        "errors": 511
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c32-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "32",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 1600,
+        "all_pass": true,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1604.0,
+        "p50_ms": 13.148159,
+        "p99_ms": 64.356351,
+        "p999_ms": 88.080383,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 2262,
+        "all_pass": false,
+        "achieved_median": 2262.0,
+        "completed_in_window_median": 2132.0,
+        "p50_ms": 214.171647,
+        "p99_ms": 362.020863,
+        "p999_ms": 399.769599,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 2463.0,
+        "completed_in_window_median": 1803.5,
+        "p50_ms": 1002.962943,
+        "p99_ms": 1030.750207,
+        "p999_ms": 1053.294591,
+        "errors": 4341
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c32-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "32",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.0,
+        "p50_ms": 14.123007,
+        "p99_ms": 24.379391,
+        "p999_ms": 24.772607,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": true,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 10.788863,
+        "p99_ms": 54.624255,
+        "p999_ms": 62.324735,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 195.5,
+        "completed_in_window_median": 156.0,
+        "p50_ms": 402.391039,
+        "p99_ms": 1186.988031,
+        "p999_ms": 1407.188991,
+        "errors": 48
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 4,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c4-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "4",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 200,
+        "all_pass": true,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 199.0,
+        "p50_ms": 9.568255,
+        "p99_ms": 50.200575,
+        "p999_ms": 70.123519,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 282,
+        "all_pass": true,
+        "achieved_median": 282.0,
+        "completed_in_window_median": 282.5,
+        "p50_ms": 10.321919,
+        "p99_ms": 67.305471,
+        "p999_ms": 81.461247,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 400,
+        "all_pass": false,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 341.5,
+        "p50_ms": 319.815679,
+        "p99_ms": 512.491519,
+        "p999_ms": 523.501567,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 4,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c4-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "4",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 50,
+        "all_pass": true,
+        "achieved_median": 50.0,
+        "completed_in_window_median": 50.0,
+        "p50_ms": 9.764863,
+        "p99_ms": 51.609599,
+        "p999_ms": 54.198271,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 70,
+        "all_pass": false,
+        "achieved_median": 70.0,
+        "completed_in_window_median": 70.0,
+        "p50_ms": 10.321919,
+        "p99_ms": 17.858559,
+        "p999_ms": 19.054591,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 100,
+        "all_pass": false,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 99.5,
+        "p50_ms": 10.256383,
+        "p99_ms": 51.707903,
+        "p999_ms": 65.110015,
+        "errors": 0
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 64,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c64-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "64",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 800,
+        "all_pass": true,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 800.5,
+        "p50_ms": 11.419647,
+        "p99_ms": 19.251199,
+        "p999_ms": 21.970943,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1131,
+        "all_pass": true,
+        "achieved_median": 1131.0,
+        "completed_in_window_median": 1131.0,
+        "p50_ms": 11.419647,
+        "p99_ms": 19.185663,
+        "p999_ms": 52.723711,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 1600,
+        "all_pass": false,
+        "achieved_median": 1600.0,
+        "completed_in_window_median": 1599.0,
+        "p50_ms": 12.550143,
+        "p99_ms": 25.346047,
+        "p999_ms": 52.461567,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 3200,
+        "all_pass": false,
+        "achieved_median": 3200.0,
+        "completed_in_window_median": 3197.5,
+        "p50_ms": 19.136511,
+        "p99_ms": 100.204543,
+        "p999_ms": 117.506047,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 6400,
+        "all_pass": false,
+        "achieved_median": 4137.5,
+        "completed_in_window_median": 3289.5,
+        "p50_ms": 1006.632959,
+        "p99_ms": 1040.711679,
+        "p999_ms": 1058.013183,
+        "errors": 13910
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 64,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c64-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "64",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 99.5,
+        "p50_ms": 10.313727,
+        "p99_ms": 15.376383,
+        "p999_ms": 17.334271,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": true,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 10.313727,
+        "p99_ms": 31.047679,
+        "p999_ms": 65.896447,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 184.0,
+        "p50_ms": 87.162879,
+        "p99_ms": 675.282943,
+        "p999_ms": 818.937855,
+        "errors": 6
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 8,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c8-hot1",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "8",
+        "--keys",
+        "hot1",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 400,
+        "all_pass": true,
+        "achieved_median": 400.0,
+        "completed_in_window_median": 400.5,
+        "p50_ms": 11.886591,
+        "p99_ms": 46.104575,
+        "p999_ms": 67.895295,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 565,
+        "all_pass": false,
+        "achieved_median": 565.0,
+        "completed_in_window_median": 567.0,
+        "p50_ms": 15.966207,
+        "p99_ms": 121.569279,
+        "p999_ms": 138.936319,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 800,
+        "all_pass": false,
+        "achieved_median": 800.0,
+        "completed_in_window_median": 581.5,
+        "p50_ms": 542.638079,
+        "p99_ms": 953.679871,
+        "p999_ms": 970.457087,
+        "errors": 6
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 8,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "scripts/run.py",
+        "cell",
+        "--out",
+        "results-NEW-w5-n1000000-d500-c8-same",
+        "--workload",
+        "W5",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "8",
+        "--keys",
+        "same",
+        "--target",
+        "supabase",
+        "--load-cores",
+        "3-5,9-11",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "rates": [
+      {
+        "offered_per_s": 100,
+        "all_pass": true,
+        "achieved_median": 100.0,
+        "completed_in_window_median": 100.5,
+        "p50_ms": 10.346495,
+        "p99_ms": 36.044799,
+        "p999_ms": 41.582591,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 141,
+        "all_pass": false,
+        "achieved_median": 141.0,
+        "completed_in_window_median": 141.0,
+        "p50_ms": 10.223615,
+        "p99_ms": 53.772287,
+        "p999_ms": 62.521343,
+        "errors": 0
+      },
+      {
+        "offered_per_s": 200,
+        "all_pass": false,
+        "achieved_median": 200.0,
+        "completed_in_window_median": 187.0,
+        "p50_ms": 74.973183,
+        "p99_ms": 272.105471,
+        "p999_ms": 287.047679,
+        "errors": 41
+      }
+    ]
+  }
+]

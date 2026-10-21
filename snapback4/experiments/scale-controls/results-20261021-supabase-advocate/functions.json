@@ -1,0 +1,50 @@
+[
+  {
+    "name": "principal_id",
+    "owner": "sb4scale",
+    "config": [
+      "search_path=\"\""
+    ],
+    "schema": "private",
+    "definer": true,
+    "anon_execute": false,
+    "service_execute": true,
+    "authenticated_execute": true
+  },
+  {
+    "name": "member_rooms",
+    "owner": "sb4scale",
+    "config": [
+      "search_path=\"\""
+    ],
+    "schema": "private",
+    "definer": true,
+    "anon_execute": false,
+    "service_execute": true,
+    "authenticated_execute": true
+  },
+  {
+    "name": "inbox",
+    "owner": "sb4scale",
+    "config": [
+      "search_path=\"\""
+    ],
+    "schema": "sb4scale",
+    "definer": true,
+    "anon_execute": false,
+    "service_execute": true,
+    "authenticated_execute": true
+  },
+  {
+    "name": "increment",
+    "owner": "sb4scale",
+    "config": [
+      "search_path=\"\""
+    ],
+    "schema": "sb4scale",
+    "definer": true,
+    "anon_execute": false,
+    "service_execute": true,
+    "authenticated_execute": true
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "launch_pids": [
+    834881,
+    834882,
+    835583,
+    877823
+  ],
+  "launch_pids_remaining": [],
+  "poll_samples": 143,
+  "max_observed_progress_gap_s": 15.355565547943115,
+  "stalled_samples": 0,
+  "remote_monitors_checked": 849,
+  "remote_monitors_remaining": [],
+  "shared_cluster_postmaster": 2735539,
+  "cluster_left_running": true,
+  "finalization_pid": 904498,
+  "finalization_child_count": 4,
+  "finalization_children_exited": true,
+  "finalization_pids_remaining": []
+}

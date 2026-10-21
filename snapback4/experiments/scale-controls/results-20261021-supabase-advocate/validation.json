@@ -1,0 +1,15 @@
+{
+  "cells": 60,
+  "rates": 224,
+  "trials": 672,
+  "all_60_bracketed": true,
+  "passing_trials": 395,
+  "passing_trial_errors": 0,
+  "unknown_outcomes_all_disqualified": true,
+  "detached_setsids": [
+    834881,
+    877823,
+    904498
+  ],
+  "finalization_exit_code": 0
+}

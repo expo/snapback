@@ -1,0 +1,20 @@
+{
+  "results-20261021-supabase-advocate-finish-cells": {
+    "recorded_children": 4746,
+    "still_running": [],
+    "exit_status_counts": {
+      "0": 3954,
+      "-15": 732,
+      "-2": 60
+    }
+  },
+  "s1sb-advocate-finish-checks": {
+    "recorded_children": 64,
+    "still_running": [],
+    "exit_status_counts": {
+      "0": 60,
+      "-15": 2,
+      "-2": 2
+    }
+  }
+}
