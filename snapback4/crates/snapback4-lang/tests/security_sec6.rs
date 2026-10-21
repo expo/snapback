@@ -89,3 +89,9 @@ fn seed(e:&mut Engine){e.seed_at([("docs".into(),Value::Row([("id".into(),Value:
  for operation in ["full:","probe:"]{assert!(r.notes.iter().any(|n|n.code=="N_COLUMN_RESULT_EXPOSURE"&&n.message.starts_with(operation)&&n.message.contains("secret")),"{:?}",r.notes);}
  assert!(!r.notes.iter().any(|n|n.code=="N_COLUMN_RESULT_EXPOSURE"&&n.message.starts_with("publicList:")));
 }
+
+#[test]fn optional_relationship_starts_preserve_unclaimed_creation_for_write_intent(){
+ let b=bound("table roles:\n  principal: principal\n  role: enum('trainer', 'parent')\n  unique principal\n  read <- .principal = viewer\n  insert <- viewer = 'service:ops'\n  online only\ntable children:\n  name: text <=40\n  parent: principal ?\n  read <- allow\n  insert <- exists roles[principal = viewer, role = 'trainer']\n  update <- exists roles[principal = viewer, role = 'parent']\n  online only\nmutation register(name: text <=40, parent: principal ?):\n  return insert children {name,parent}\nmutation claim(child: children):\n  require exists roles[principal = viewer, role = 'parent'] else NO\n  c = children[child] ! else MISSING\n  require c.parent = null else TAKEN\n  update children[child] {parent:viewer}\n  return null\ninvariant children.parent write only exists roles[principal = viewer, role = 'trainer']\n");
+ let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,true);
+ assert!(c.violations.iter().any(|v|v.reachability.is_reachable()&&v.operation=="claim"&&v.effect=="update"),"{}",serde_json::to_string(&c).unwrap());
+}

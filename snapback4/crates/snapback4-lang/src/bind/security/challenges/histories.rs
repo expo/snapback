@@ -47,7 +47,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
             ir::ArgType::Time=>vec![Value::Int(NOW-86_400_000),Value::Int(NOW),Value::Int(NOW+86_400_000)],
             ir::ArgType::Principal=>actors.iter().map(|s|Value::Id(s.clone())).collect(),
             ir::ArgType::Ref{table} if rows.get(table).is_some_and(|rs|!rs.is_empty())=>rows[table].iter().filter_map(|r|r.field("id").ok().cloned()).collect(),
-            ir::ArgType::Optional(inner)=>{let mut v=values(name,inner,rows,actors)?;v.push(Value::Null);v},
+            ir::ArgType::Optional(inner)=>{let mut v=vec![Value::Null];v.extend(values(name,inner,rows,actors)?);v},
             _=>vec![arguments(&BTreeMap::from([(name.into(),k.clone())]),0)?.remove(name)?],
         })
     }
@@ -217,6 +217,13 @@ fn assertions(bound:&Bound,before:&BTreeMap<String,Vec<Value>>,after:&BTreeMap<S
 }
 fn changed(bound:&Bound,_p:&Program,before:&BTreeMap<String,Vec<Value>>,after:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,viewer:&str,steps:&[Step],prior:&mut Option<Engine>,current:&mut Engine,out:&mut Campaign){
     assertions(bound,before,after,initial,viewer,steps,prior,current,out);
+    // Disappearance is coverage evidence only. Actual delete authority is
+    // judged by the executed-write trace, never by a commit-end image diff.
+    for inv in bound.invariants.iter().filter(|i|matches!(i.target.as_str(),"delete"|"write")){
+        if bound.schema.tables[&inv.table].is_expiring()&&before.get(&inv.table).into_iter().flatten().any(|old|!after.get(&inv.table).into_iter().flatten().any(|new|new.field("id").ok()==old.field("id").ok())){
+            out.unsupported.insert(format!("{}: implicit retirement is not an executed delete; delete intent requires an authored write boundary",inv.target_label()));
+        }
+    }
 }
 
 fn role_candidates<'a>(bound:&Bound,p:&'a Program,initial:&BTreeMap<String,Vec<Value>>,actors:&[String],cases:&[BTreeMap<String,Value>],fixture:&Engine,campaign:&mut Campaign)->Vec<(&'a Program,String,BTreeMap<String,Value>)>{
