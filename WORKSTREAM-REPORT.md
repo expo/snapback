@@ -1,160 +1,65 @@
-# Integration 19 — merge main storage ports into 0.4.35
+# SEC6 workstream report — in progress
 
-Worktree: `/home/ccheever/projects/snapback-sb4loop`; branch `sb4-loop`.
-Full packed consumer snapshot: `8d2633e8c103708d9014ec283c1acad864a615c2`.
-Latest tested native source: `3f455cf6f7` (final-fetch outbox delta).
-**All requested Linux checks and post-main affected checks passed. Ready for the final fetch and authorized no-force push.**
+Branch sb4-b21-sec6; no push or version bump. User-visible notes target 0.4.37.
 
-## Changes and conflicts
+- a43315b1c9 validates and snapshots supplied online/local sessions before effects.
+  Linux and designated Mac Studio online-session suite: 17/17 pass.
+- 9f4ce8917a adds opt-in isolated executed-write judgments, typed mutation-result
+  observations with policy-image stability, insert/edit and projection-result
+  advice, creation questions, and permanent wave-21 regression inputs.
+- 86b72e5e16 surfaces deploy review items and dated/stale test evidence, adds
+  opt-in strict refusal, and extends packed security qualification.
 
-Started clean at `594aa970ab`. Read the incoming commit stats, governing port
-RFC/committer RFC, retained-storage law, journals and referenced issues before
-integration. Initial incoming main had 44 commits through `6db797f530`; later
-fetches brought 20 through `e2073e1b66`, then four jobs commits through `8cc2a5c737`, followed by four outbox commits
-through `bf9c1ccc55`.
-All integrations preserve main history with no-ff merges.
+Semantic amendment: LLP 3000.036.004 §15. Round 3 Muse and fresh Codex both READY;
+verbatim reviews, exact commands and decompressed hashes live in
+llp/reviews/3000.036.004-sec6-review-record.md. Earlier NOT READY reviews and
+corrections are retained. Later finite-campaign sampling refinements are being
+qualified and will receive scoped follow-up review if required.
 
-| Conflict | Resolution | Commit |
-| --- | --- | --- |
-| assets.rs | Keep the typed asset ledger/adapter structure and port .35 sniffing, upload and owner-home diagnostics into it. | `07b210d2ff` |
-| release_safeguards.rs | Keep typed tooling access; capture .35 active/dormant before-images in `store/tooling.rs`, in MAIN so activation's temp_store changes cannot erase them. Move the regression beside the adapter. | `07b210d2ff` |
-| sql.rs | Use Inspection; move dormant/retained schema and view generation into `store/inspect.rs`. Preserve modes, boolean inference, guards and authorizer custody. | `07b210d2ff` |
-| JOURNAL.md | Preserve both complete histories, including the later committer/identity merge. | `07b210d2ff`, `971a28ecd1`, `3f455cf6f7` |
+The initial frozen measurement specifically flags 040 ticketCode and 048
+addRider/riderGoals without invariants. Its old full test catches 040 insertion
+returns but not yet the reported runner history, and 048 only synthetically;
+these are NOT credited as the target catches. Matrix instrumentation and
+state-change-to-result pair selection address those gaps; permanent regression
+requires stored-code takeRetrieval/markReady and non-null instructor addRider.
+Full revised measurements are pending. All raw wave apps remain read-only.
 
-Also moved newly introduced .35 release-visibility SQL into typed tooling
-operations. No port bypass or allowance raise. Final delta audit found two
-missed SQL host details: JSON inspection mode and misplaced retained flags.
-Expanded regression failed before correction and passed after `3fe924cd9b`.
-No further merge-resolution code fix was needed after that correction; later main changes were integrated separately.
+Verification so far:
 
-0.4.35 column read rules, dormant/reverse projection, reactivation, `sql --dormant`,
-invariants/campaigns, staging/dev behavior, lock waits and query semantics remain
-expressed through the new structure. Later committer savepoints/dispositions and
-identity/request/jobs parity changes retain their incoming boundaries. The jobs
-merge `cc8fd79fa9` was conflict-free.
+- Focused Linux SEC6: 8/8 pass before the two real-lane regression was added.
+- CLI review/evidence unit: pass. Full affected/real-lane suites in progress.
+- Difftest devices seeds 0–999: no disagreements.
+- Lean 20,000: 130 disagreements in the same four existing classified signatures
+  reported by SEC5; no new signature. Lean build passes.
+- Difftest run 20,000 completed; final signature aggregation pending.
+- Full seven-crate Cargo inventory build/suite in progress (covers requested five).
+- Mac Studio: client pass; first Rust CLI compile lacked two repository benchmark
+  includes in the isolated remote copy. They were copied under ~/sb4-ws-sec6 only;
+  revised affected Rust runs are in progress. The publication MacBook is untouched.
+- Docs budget and ref-check pass. Root frozen install, hoist and generated checks
+  pass; inventories pass (365 package tests, 35 scripts, 31 demos, 487 leaves).
+  Root guide is running.
+- Frozen corpus: 350 apps / 358 Quarry files across waves 15,16,18–21. Published
+  0.4.35 baseline: all 350 checks pass. Candidate/stripped census pending.
+- Full client pool, fresh packed Linux consumer qualification and final wasm
+  check pending. No claim of zero remaining application holes is made.
 
-## Version and generated records
-
-Original bump `9ec63002ee991a70dd5d028280262b5391c56e47` remains an ancestor.
-Snapback 4 public package/workspace version remains **0.4.35**; independent log dependency
-0.4.34 remains unchanged. `56acd9239a` producer-refreshes only the experiment
-lockfile's three local package versions; registry versions remain unchanged
-and locked resolution passes.
-
-Diagnostics registry and guide-manifest/flat projections were regenerated by
-their producers, with no resulting source diff. Inventories pass: 365 package
-tests, 35 script tests, 31 demos and 487 publication leaves. Authoring census
-regenerates exactly 872 items / 72,262 bytes. Delivery census regenerates exactly
-147 files / 1,227 await expressions / 213 instrumented fault sites. Both ratchets
-pass in lowering-only producer mode: 7 production / 95 test store-port sites;
-49 production transaction openers. No generated file was hand-merged.
-
-## Linux verification
-
-| Scope | Source / evidence | Result |
-| --- | --- | --- |
-| Complete requested five-crate cargo test --no-fail-fast, after last SQL fix | `3fe924cd9b`; r2/cargo-final | **6,999 passed / 0 failed / 45 existing ignores**, 439 reported result groups. |
-| Full ordinary client pool, fixtures and both full models | r2; 423 ordinary files; 5,000 session / 3,000 online sequences | **7,845 passed / 0 failed / 56 platform skips**, 7,901 tests. Native TAP and actual file exits agree. Correct .35 CLI pinned inside this checkout. |
-| Complete affected core and host command after committer/identity/request main merge | `971a28ecd1`; r3/core-host | **2,346 passed / 0 failed / 20 existing ignores**, 115 reported groups; core unit suite 551/0/3. |
-| Affected clients on that new native binary | r3; 40 files | **553 passed / 0 failed / 3 platform skips**. |
-| Simulator library; required column Lean witnesses; docs budget | r3 | 17/0/0; 3/0/0; README 319/320 and named self-containment check pass. |
-| Postgres-feature library | r3 | **560 passed / 0 failed / 77 named ignores**. Real database cases are not claimed as executed. |
-| Jobs follow-up library cases | `cc8fd79fa9`; r4 | 21 passed / 0 failed / 25 named Postgres-only ignores. |
-| Job time audiences / native job fixtures / CLI jobs | r4 | 5/0/0; 12/0/1 existing ignore; 2/0/0. |
-| Clock, admission and both ratchets | r4 | 81 passed / 0 failed / 0 ignored. |
-| 250-schema survey | r2, r3, repeated r4 on the jobs-merged CLI | **250/250 accepted; zero refusals and false refusals**. Every original source hash unchanged. Waves 15=100; 16/18/19=50 each. |
-
-Native differential `run`: 20,000 cases / 1,222,111 executions / zero disagreements.
-Device `run-devices`: seeds 0–999 / 27,922 executions / zero disagreements.
-Lean `run-lean`: 20,000 cases / 56,917 executions; 16,697 pass, 3,173 unsupported,
-130 existing mismatches. All three campaigns were freshly repeated after the
-jobs merge and exactly match baseline by-oracle records. Four known Lean
-signatures/counts remain: E_RULE/NOT_FOUND code=3; continuation-next=35; next=67;
-prelude-code=25. **No new signature or count increase.**
-
-The full battery is content-bound to its tested source; later main deltas were
-checked at affected scope. Client/compiler/device source trees are unchanged by
-those main follow-ups. There is no claim of a complete battery at every new HEAD.
-No isolated rerun substitutes for a red full Rust run; no product Rust flake
-appeared. Interrupted or superseded attempts are excluded.
-
-## Packed consumers and wasm
-
-R2 fresh official pack and complete `qualify-linux --consumer-only` passed,
-including strict listener audits, frontends/starters, production/security/
-migration/staging/release/dormant proofs and Ubuntu/Alpine userspaces. Final
-post-jobs official pack at `8d2633e8c1` also passes the entire qualification
-in 2,090.887 seconds, including both Ubuntu and Alpine consumers. This mode
-never produces a publication receipt.
-
-Clean final measurement (`ae7adb2157`, committed record `8d2633e8c1`):
-**2,404,722 raw / 733,693 gzip / 552,609 Brotli bytes**.
-Budget **734,193 gzip bytes = measured + exactly 500** (`ae7adb2157`).
-Strict family/server-only/Unicode absence checks pass, dirty=false, over=0.
-Packed wasm matches the built artifact and all measured compression counts;
-SHA256 `48aa2aeb3f5ddd8ad481084205ff024cc5853a248483496352b069187123e0de`.
-This is whole-artifact evidence with no per-feature attribution or runtime
-ceiling change. Earlier merged measurement was 733,690 gzip; final change +3 B.
-
-The global npm-cache ENOENT was avoided with a private task cache. Two complete
-R2 attempts later hit malformed system-strace 6.8 records, after actual frontend
-proofs passed. Raw traces and exact isolated helper results were retained. The
-entire packed qualification passed after building task-local, official-source/
-hash-verified [strace 7.2](https://github.com/strace/strace/releases/tag/v7.2); the strict audit/parser was unchanged. Final qualification
-uses the same tracer/cache isolation. Reinstallable dependencies from the two
-failed attempts were removed for disk space; logs, fixtures and artifacts remain.
-
-## Limits, records and delivery
-
-Mac checks were explicitly not required and were not run. No package publication,
-Mac result or private Postgres qualification is claimed. Upstream private-cluster
-records are context, not substitutes for this worktree's tests.
-
-A supplemental repository-wide caps audit at `3fe924cd9b` retained 15 inherited
-oversize/working-set violations; both-parent comparison proves their inheritance,
-and its fixture tests pass 18/18. No caps were relaxed or unrelated corpus
-rewritten. This is separate from the required root inventory/guide/ref checks.
-Final root checks pass 22 guide checks, zero skips/preconditions,
-162 pages/1,937 snippets, with 121 inherited warnings. Ref-check passes:
-564 LLP documents, 12,193 references, zero errors and zero unchecked.
-
-Full-battery evidence committed in `4767a19ecf` under
-`snapback4/reports/integration19-storage-port/`; `post-main.json` records the
-subsequent complete core/host and focused jobs tests, repeated campaigns/survey,
-final pack, runtime input hashes and full consumer/root results. Raw logs, packs and tool provenance are under
-`/home/ccheever/sb4-loop/merge035/` (r2, r3, r4); immutable CLI pins are under
-`snapback4/target/merge035-*-pinned/`. Every shell launch has a
-timeout; every Cargo command carries no-incremental and zero dev/test debug flags.
-Other worktrees were not touched.
-
-Delivery: evidence and this report are prepared for a final fetch and, if main
-has advanced, a normal merge plus affected checks; then the authorized
-`git push origin sb4-loop:main`, without force and with race retries.
-The final session message records the pushed commit. No package was published.
+EVOL owns adoption, migration expressiveness and rollback fidelity. SEC5/0.4.36
+was not yet on origin/main at the last fetch; integration/rebase remains pending.
+All shell invocations are timeout-bounded; cargo environment disables incremental
+and debug outputs. Final cleanup and compressed evidence retention remain pending.
 
 
-## Final-fetch outbox follow-up
+Latest checkpoint: both 040 stored-code takeRetrieval and non-null instructor
+addRider goal creation now have generated-fixture replay witnesses. Candidate
+as-built and invariant-stripped censuses each pass all 350 apps. Mac Studio's
+11-case SEC6 and two CLI evidence tests pass. Full client pool surfaced explicit
+undefined scope preservation and forged-scope diagnostic expectations; focused
+67-case repair run passes. Existing delivery await census gains the new helper's
+zero-await row. Original failed pool and Rust artifact-build attempts remain
+retained; no failed command is relabeled as a clean full run.
 
-After complete consumer qualification, the final fetch found four outbox/lease
-commits through bf9c1ccc55. Read their complete stats, governing RFC changes,
-journal and serializable-stress issue; merged in `3f455cf6f7`. Only the journal
-conflicted; both complete histories remain. No functional conflict resolution
-or port bypass was needed.
-
-Affected core outbox/effects/policy, host clock/admission and both ratchets pass.
-Fresh native 20k, devices 0–999 and Lean 20k exactly match the qualified baseline.
-Diagnostics/guide producers, inventories and verbose ref-check pass again.
-Clean wasm measurement remains 2,404,722 / 733,693 / 552,609, budget 734,193.
-Wasm/glue/declarations are byte-identical to the fully qualified common pack;
-SDK, compiler, device and Cargo input trees are unchanged.
-
-Built a new production musl CLI, passed the static ELF audit, packed it with
-the platform manifest/notices and verified the extracted binary digest. All
-18 affected worker/effect/clock/runtime/route/session client files pass against
-those exact packed bytes: **348 passed / 0 failed / 0 skipped**. The installed
-packed security/invariant campaigns pass with the same binary digest. That
-final native binary also accepts **250/250 original schemas**, zero false
-refusals and unchanged input hashes. `outbox-followup.json` records commands,
-counts, native/SRI hashes, unchanged common-client bindings and exact scopes.
-The full consumer snapshot is not relabeled as a full run on the later native
-delta. No private Postgres, Mac or publication claim is added.
+Dependency decision: origin/main still has not advanced to 0.4.36. Merge the
+completed, reviewed SEC5 branch f225b0bc69 locally to finish actual combined
+coverage instead of duplicating its owned work. Only this worktree is modified;
+merge/rebase origin/main before finishing if its integration lands.
