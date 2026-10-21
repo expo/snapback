@@ -536,7 +536,7 @@ pub(crate) fn nul_admission(tx: &impl Ledger) {
     assert!(!tx.viewed("a\0b", "alice").unwrap());
     // JSON carries a literal escaped NUL safely on both adapters.
     let a = asset("upload");
-    let mut json = serde_json::to_value(&a).unwrap();
+    let mut json = crate::json_codec::to_value(&a).unwrap();
     json["name"] = "a\0b".into();
     let facts = crate::json_codec::to_text(&json).unwrap();
     upload(tx, "alice", "json", "upload", &facts);
