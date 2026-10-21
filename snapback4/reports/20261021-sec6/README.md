@@ -1,0 +1,1 @@
+SEC6 qualification evidence is being finalized. Raw active logs are isolated under ignored target/sec6-evidence until compressed receipts are committed. Source inputs are frozen copies; originals remain read-only.
