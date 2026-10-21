@@ -184,22 +184,31 @@ pub(crate) trait ChangeEvidence {
     fn change_evidence(&self, after: u64, through: u64, visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Option<()>;
 }
 
-/// Classify a complete interval. Legacy, pruned and over-limit intervals widen.
+/// Classify a complete interval. Unknown evidence certifies neither preservation nor revocation.
 #[cfg(feature = "sqlite")]
-pub(crate) fn preserved_between(store: &impl ChangeEvidence, schema: &Schema, after: u64, through: u64) -> Vec<String> {
-    footprint_between(store, after, through).map_or_else(Vec::new, |f| f.preserved(schema))
+pub(crate) fn preserved_between(store: &impl ChangeEvidence, schema: &Schema, after: u64, through: u64) -> Option<Vec<String>> {
+    footprint_between(store, after, through).filter(|f| !f.unknown).map(|f| f.preserved(schema))
+}
+
+/// The durable sequence domain is signed on both stores. Never reinterpret an
+/// unsigned boundary by wrapping it into a different database interval.
+// @ref LLP 3000.009.001.000#9.1 — signed-boundary operations cannot wrap.
+#[cfg(feature = "sqlite")]
+pub(crate) fn evidence_bounds(after: u64, through: u64) -> Option<(i64, i64)> {
+    if through < after { return None; }
+    Some((i64::try_from(after).ok()?, i64::try_from(through).ok()?))
 }
 
 /// Complete bounded transaction evidence; gaps and legacy stores certify nothing.
 #[cfg(feature = "sqlite")]
 pub(crate) fn footprint_between(store: &impl ChangeEvidence, after: u64, through: u64) -> Option<Footprint> {
     if after == through { return Some(Footprint::default()); }
-    if through < after { return None; }
+    evidence_bounds(after, through)?;
     let mut footprint = Footprint::default();
     let mut previous = after;
     let mut count = 0;
     store.change_evidence(after, through, |EvidenceRecord { seq, footprint: json }| {
-        if count >= 500 || seq != previous + 1 { return None; }
+        if count >= 500 || Some(seq) != previous.checked_add(1) { return None; }
         let json = json?;
         if json.len() > 262144 { return None; }
         footprint.merge(&crate::json_codec::from_text::<Footprint>(&json).ok()?);
@@ -281,6 +290,16 @@ pub(crate) mod evidence_test_cases {
             EvidenceRecord { seq: 5, footprint: Some(" ".repeat(262145)) },
         ];
         records.extend((6..=506).map(|seq| EvidenceRecord { seq, footprint: Some(crate::value::canonical_json(&Footprint::default())) }));
+        let mut exact = crate::value::canonical_json(&Footprint::default());
+        exact.push_str(&" ".repeat(262144 - exact.len()));
+        records.extend([
+            EvidenceRecord { seq: 508, footprint: Some(crate::value::canonical_json(&Footprint::default())) },
+            EvidenceRecord { seq: 509, footprint: Some(exact) },
+            EvidenceRecord { seq: 510, footprint: Some(r#"{"unknown":true,"tables":{}}"#.into()) },
+            EvidenceRecord { seq: 511, footprint: Some("{}".into()) },
+            EvidenceRecord { seq: i64::MAX as u64 - 1, footprint: Some(crate::value::canonical_json(&Footprint::default())) },
+            EvidenceRecord { seq: i64::MAX as u64, footprint: Some(crate::value::canonical_json(&Footprint::default())) },
+        ]);
         records
     }
 
@@ -292,10 +311,26 @@ pub(crate) mod evidence_test_cases {
             assert!(!footprint.unknown);
             assert_eq!(footprint.tables["messages"].columns, BTreeSet::from(["body".into()]));
         }
-        for (after, through) in [(0, 3), (3, 4), (4, 5), (5, 506), (506, 507)] {
+        for (after, through) in [(0, 3), (3, 4), (4, 5), (5, 506), (506, 507), (506, 508), (510, 511), (i64::MAX as u64, i64::MAX as u64 + 1), (0, u64::MAX), (u64::MAX - 1, u64::MAX)] {
             assert!(footprint_between(store, after, through).is_none(), "{after}..{through} must not certify");
         }
         assert!(footprint_between(store, 5, 505).unwrap().tables.is_empty(), "exactly 500 commits still certify");
+        assert!(footprint_between(store, 508, 509).is_some(), "exactly 256 KiB is allowed");
+        assert!(footprint_between(store, i64::MAX as u64 - 2, i64::MAX as u64).is_some());
+        for boundary in [0, i64::MAX as u64, i64::MAX as u64 + 1, u64::MAX] {
+            assert!(footprint_between(store, boundary, boundary).is_some(), "an empty interval needs no evidence");
+        }
+        let bound = snapback4_lang::compile(&[("schema.q".into(), "table messages:\n  body: text\n  public\n  online only\n".into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let schema: Schema = serde_json::from_value(serde_json::to_value(&bound.schema).unwrap()).unwrap();
+        assert_eq!(preserved_between(store, &schema, 0, 2), Some(vec!["messages".into()]));
+        for (after, through) in [(0,3), (3,4), (4,5), (5,506), (506,508), (509,510), (510,511), (0,u64::MAX)] {
+            assert!(preserved_between(store, &schema, after, through).is_none(), "{after}..{through} must remain unknown");
+        }
+        let mut seen = Vec::new();
+        store.change_evidence(5, 506, |record| { seen.push(record.seq); Some(()) }).unwrap();
+        assert_eq!(seen, (6..=506).collect::<Vec<_>>(), "the 501-row lookahead is totally ordered");
+
     }
 
     struct Memory;

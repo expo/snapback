@@ -101,7 +101,7 @@ fn concurrent_sqlite(path: &std::path::Path, disjoint: bool, n: usize) -> Json {
             let gate = gate.clone();
             std::thread::spawn(move || {
                 let store = Store::open(&path).unwrap();
-                store.conn().execute_batch("PRAGMA synchronous=FULL").unwrap();
+                store.use_full_synchronous().unwrap();
                 let mut sqlite = Engine::open(store).unwrap();
                 let slot = format!("c{}", if disjoint { writer } else { 0 });
                 gate.wait();
@@ -151,7 +151,7 @@ fn sqlite_only(n: usize) -> Json {
     std::fs::create_dir(&directory).unwrap();
     let path = directory.join("store.sqlite");
     let store = Store::open(&path).unwrap();
-    store.conn().execute_batch("PRAGMA synchronous=FULL").unwrap();
+    store.use_full_synchronous().unwrap();
     let mut sqlite = Engine::new(store, schema, programs).unwrap();
     sqlite.seed_at(fixture(32, 25), 10).unwrap();
     let ctx = context("alice", &[("itemId", id("r000-i0000"))]);
@@ -165,7 +165,7 @@ fn sqlite_only(n: usize) -> Json {
     json!({"experiment":"C1 SQLite point and four-writer regression cells", "sqlite_file":path,
         "unix_ms":snapback4_core::now_ms(), "profile":if cfg!(debug_assertions){"debug"}else{"release"},
         "rooms":32,"items_per_room":25,"read_latencies":[point],"concurrency":concurrency,
-        "sqlite_version":sqlite.store().conn().query_row("SELECT sqlite_version()",[],|r|r.get::<_,String>(0)).unwrap(),
+        "sqlite_version":sqlite.store().sqlite_version().unwrap(),
         "sqlite_durability":"WAL, synchronous=FULL (not fullfsync)"})
 }
 
@@ -182,7 +182,7 @@ fn main() {
     std::fs::create_dir(&directory).unwrap();
     let path = directory.join("store.sqlite");
     let store = Store::open(&path).unwrap();
-    store.conn().execute_batch("PRAGMA synchronous=FULL").unwrap();
+    store.use_full_synchronous().unwrap();
     let mut sqlite = Engine::new(store, schema.clone(), programs.clone()).unwrap();
     let mut pg = PostgresEngine::create(connect(), &name, schema, programs).unwrap();
     pg.set_prefetch(prefetch_enabled());
@@ -295,7 +295,7 @@ fn main() {
     let output = json!({"experiment":"Postgres Rows adapter, not production qualification", "schema":name,"sqlite_file":path,
         "unix_ms":snapback4_core::now_ms(),"profile":if cfg!(debug_assertions){"debug"}else{"release"},"rooms":32,"items_per_room":25,
         "prefetch":prefetch_enabled(),
-        "sqlite_version":sqlite.store().conn().query_row("SELECT sqlite_version()",[],|r|r.get::<_,String>(0)).unwrap(),
+        "sqlite_version":sqlite.store().sqlite_version().unwrap(),
         "sqlite_durability":"WAL, synchronous=FULL (not fullfsync); same machine as PostgreSQL", "postgres_settings":settings,
         "read_latencies":reads,"mutation_latencies":writes,"concurrency":concurrency,"native_inbox_plan":explain});
     write_result(output);

@@ -99930,3 +99930,182 @@ existing assertions and timeouts while allowing HTTP keep-alive closures and
 child output to drain. The original synchronous maintained-columns fixture
 failed all four cases under load; the async reproduction passed all four.
 The async packed rule-recipe reproduction passed 25/25 on the Mac Studio.
+## 2026-10-21 — P1-MR: typed Postgres foundation metadata
+
+Implemented MetadataReader/MetadataWriter on Postgres Tx and the established
+RefCell store handle. Shared key helpers keep the SQLite names and textual
+values. New raw metadata values and new keys reject NUL; stored SQLite NUL
+values remain readable and legacy worker-status keys remain updateable.
+Postgres impossible-key reads skip the query, including the store-level BEGIN.
+Only serialized head-fenced transactions write. Attach-only shape validation
+rejects incompatible persistent relation, constraints, unique indexes,
+collation, defaults, generated columns, RLS, triggers and rewrite rules;
+contype='n' is ignored. No internal migration runner or serve wiring.
+
+Pure refactors: request_release, effect_release, replay_suppresses,
+replay_deployed and set_effect_replay now use typed metadata. Counter casts
+and atomic increments, schedule keys and identity composites keep their SQL
+because replacing them would change their specialized policy or transaction
+shape. Shared contracts exercise missing/malformed/raw values, legacy worker
+fences, admission and rollback. Both stores witness a writer blocked at the
+adapter fence before the predecessor commits. Postgres adds snapshot/reopen,
+held-reader attach, additive cached-read, bind-refusal and shape witnesses.
+
+The requested S10 census ref/file is absent locally and origin has no matching
+branch; the supplied task's census findings and the actual traits/callers
+were used, and the missing source was requested. No sub-agents, clones,
+remote commands, stash or push. Build target is this checkout's target only,
+with incremental off, line-tables-only debug and 12 build jobs. Focused checks
+and final qualification are recorded in subsequent entries.
+
+
+## 2026-10-21 — P1-MR: one receipt reader and replay policy
+
+Removed Postgres Tx's inherent applied/applied_bound readers. PostgresEngine
+replay now uses ReceiptReader; bound mutation replay uses receipts::replay_bound
+with the original wire JSON both before input validation and after taking the
+writer fence. The admission digest recorded with a receipt is unchanged.
+Asset mutation_executed also uses receipt_exists. The inherent record_applied
+writer remains: this task adds a reader, not a new write protocol.
+
+Both stores run the same bound, absent, legacy-unbound, partial-binding, NUL
+lookup, signed-cut and outcome-state cases. Shared Rust state decoding avoids
+SQLite/Postgres duplicate-key and state-coercion differences; malformed JSON
+is E_STORE only when the cut selects it. Legacy SQLite receipt keys/values
+are not revalidated. Postgres NUL keys skip all queries and store-level BEGIN.
+Attach validates _ops and conditionally drops the old name/args_digest NOT
+NULL constraints to admit unbound legacy receipts. No ALTER runs when the
+columns are already nullable. Snapshots, recorded replay, cached explicit
+columns after additive DDL, held-reader reopen and shape refusals are covered.
+No receipt list exists. Postgres sent_sequence awaits a host caller in S10.
+
+The first full private-cluster script passed 58 evaluation tests and 19 corpus
+harness tests but its core-test compilation crossed the in-progress receipt
+API adaptation and caught one remaining NUL-test caller using a digest string.
+That caller was adapted; this run is not counted as full qualification.
+Cluster /tmp/sb4-pg-eval.pgGL6Q stopped with status=3 and no postmaster.pid;
+an independent pg_ctl status returned 3. Final checks are recorded below.
+
+
+## 2026-10-21 — P1-MR: bounded Postgres change evidence
+
+Implemented ChangeEvidence on Postgres Tx and the store reader. Attach installs
+_change_evidence and validates its shape and _commits, using the same structured
+catalog checks as metadata/receipts. No operation performs DDL. The query has
+explicit columns, a LEFT JOIN from commits, total seq order and LIMIT 501.
+Shared policy requires a complete interval of at most 500 commits; missing
+summaries, absent commits, malformed/oversized JSON, unknown footprints, query
+errors and pruned intervals cannot certify retained authority. Query errors
+end the snapshot/writer; tests discard the entire transaction on both stores.
+
+Removed unsigned-to-signed wrapping at the SQLite evidence boundary. Shared
+bounds reject nonempty intervals beyond BIGINT; checked successor arithmetic
+cannot wrap. Empty intervals still need no evidence, including u64::MAX.
+One shared contract covers exactly 500 versus 501 commits, 256 KiB versus
+oversized evidence, middle/tail gaps, malformed and structurally incomplete
+footprints, unknown envelopes, reverse-inserted ordered reads, actual preserved
+classification and signed/unsigned boundary sequences. SQLite and Postgres
+both run it on store and transaction readers. Postgres adds missing-table,
+reopen/install, snapshots, held-reader attach, additive cached reads and shape
+refusals. Its current commit tail does not record footprints, so real commits
+widen; ChangeEvidence has no PostgresEngine host caller before S10. No serve
+or sync wiring and no preservation claim for unsupported commit recording.
+
+Receipts focused checks: nine passed, zero failed, four explicit private-
+Postgres ignores. Metadata focused rerun: eleven passed, zero failed, eight
+explicit Postgres ignores. Full final qualification follows after all three
+families are present. The unavailable S10 census remains the source limitation.
+
+
+## 2026-10-21 — P1-MR: final foundation qualification
+
+Metadata is commit afd39473e6; receipts is e482faa55a; this change lands the
+bounded evidence reader and the complete qualification record. The detailed
+per-family audit of every LLP 3000.009.001.000 §9.1 rule, differences and
+reachability is reports/20261021-p1mr-foundation.md. No serve wiring.
+
+The S10 census branch became available during final verification. Read its
+MetadataReader/MetadataWriter, ReceiptReader and ChangeEvidence rows with the
+requested git show at sb4-pg/s10-design, commit
+11ff7f8d1835cff507909ac2ce00f5a5550b272c. They confirm this lane's reader/typed
+metadata scope and the separate ledger writer/pruning task. This resolves the
+source limitation recorded in the earlier entries. Public PostgresEngine
+receipt replay reaches the trait and shared policy; it still has no public
+metadata getter/setter, sent_sequence caller or change-evidence host caller.
+The current Postgres tail records no footprints, so its committed intervals
+continue to widen. No certificate is inferred from an empty evidence ledger.
+
+Final PostgreSQL 16.15 qualification: both complete scripts exit 0, each
+reporting 253 passed, zero failed, zero ignored: 58 evaluation tests, 176
+selected core Postgres tests and 19 corpus harness tests. All 15 new foundation
+cases run and pass in both scripts; named corpus row exclusions remain
+exclusions. The C run is /tmp/p1mr-postgres-c-qualified.log, cluster
+/tmp/sb4-pg-eval.fhV75z. The en_US.utf8 run is
+/tmp/p1mr-postgres-locale-qualified.log, cluster /tmp/sb4-pg-eval.nKDCJw.
+Each script confirms stop; independent pg_ctl status returns 3 and both
+postmaster.pid files are absent. All four earlier owned clusters were also
+independently rechecked stopped with no PID file: pgGL6Q, SY2hJ6, Ap0T3b and
+Hk3mBa under /tmp/sb4-pg-eval.*. No other cluster was touched.
+
+The final full cargo test -p snapback4-core passes: 1,024 passed, zero failed,
+five existing ignores, including 17 doctests. Unit phase: 614 passed, three
+ignored. The 46 printed summaries include the isolated allocation-probe child;
+its one pass is counted only once in the 1,024 total. Log:
+/tmp/p1mr-core-qualified.log. The no-default-features core check passes
+(/tmp/p1mr-no-default.log). Host ratchets pass unchanged: committer 3/3 and
+store-port 5/5 (/tmp/p1mr-ratchets.log). Root ref-check and git diff --check pass.
+
+The requested Clippy command reports only the inherited errors
+while_immutable_condition at engine/read.rs:780 and never_loop at
+engine/row_views.rs:1014; both files are byte-unchanged from 67fef0dbde.
+A diagnostic run allowing only those two lints completes all library/test
+checking with no diagnostic in the new adapter/shared-contract files
+(/tmp/p1mr-clippy-diagnostic-final.log). Four test-only drop_non_drop warnings
+were removed. No lint suppression was added to source. The exact-command log
+is /tmp/p1mr-clippy-final.log.
+
+Earlier attempts are excluded from final qualification. One Postgres shape
+fixture tried SET UNLOGGED on _commits before changing its logged FK referrer
+_log; the fixture now changes _log first. Overlapping Cargo work across the
+root and experiment workspaces then exposed stale device dependency metadata
+in this checkout's target. Package cleanup rebuilt the device artifact, but
+also removed a same-named pending core integration executable. Final scripts
+were serialized, with a device-package rebuild before each, and the entire
+core command was rerun alone after them. Final qualification needed no product
+change for those artifact failures. All attempts stopped their private cluster.
+
+All Cargo commands used only this checkout's snapback4/target, incremental off,
+line-tables-only dev/test debug and at most 12 build jobs. Final Postgres tests
+used four test threads; final core used twelve. Sampled disk free space stayed
+above the 20 GB stop threshold. No push, stash, clone, second worktree,
+sub-agent, fleet command, publication, gate change or allowance increase.
+
+
+## 2026-10-21 — P1-MR fix round 1: explicit unknown and ledger hierarchies
+
+Rebased the three foundation commits onto origin/main (86303f71df), retaining
+both RFC histories in one Revised line. The rebased commits are 88810fab50,
+9213e13012 and 3edcf8d12a. Only Revised-line conflicts required resolution.
+
+Unknown evidence now stays optional through preserved_between and all wire
+callers: /changes, sync and mutation acknowledgements serialize null. Known
+empty sync certificates are explicitly serialized as [] instead of omitted.
+The client previously bounded null/absent replies; under this fix's explicit
+user ruling those replies cannot certify revocation, including opaque and
+protected reads, and still trigger refresh. Known empty lists retain the bound.
+The shared SQLite/Postgres evidence contract, HTTP SQLite missing/unknown
+summary cases, sync codec cases and client retention cases cover the change.
+The RFC §3.3 note and package documentation record this SQLite wire correction
+and the superseded older LLP 3000.023 §12 unknown-withdrawal behavior.
+
+A shared attach relation guard now checks relkind and both sides of pg_inherits
+for foundation, identity, jobs, outbox, assets and requests. It retains each
+family's named schema error, and shares the existing persistence/security/rule/
+trigger checks. Each family gets parent, child and partitioned-table witnesses;
+_ops and _asset_gc also reproduce duplicate logical keys in an inherited child.
+Rule 6 now lists inheritance, partitioning, UNLOGGED, rewrite rules and
+deferrable keys as refused shapes. No Postgres host wiring is added.
+
+Verification follows below. Builds use only this checkout's snapback4/target,
+incremental off, line-tables-only dev/test debug information and at most 12
+build jobs. No push, stash, second worktree or sub-agent.

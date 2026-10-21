@@ -49,3 +49,28 @@ fn finding_5_actual_head_does_not_skip_tables_beyond_the_commit_page() {
     let last = body(&host.request("GET", "/changes?since=500&wait=0", "x-snapback-persona: alice\r\n", ""));
     assert_eq!(last["seq"], 501); assert_eq!(last["tables"], json!(["audit"]));
 }
+
+#[test]
+fn sqlite_changes_reports_missing_or_unknown_evidence_as_null() {
+    for corruption in [
+        "DELETE FROM _change_evidence",
+        "UPDATE _change_evidence SET footprint='{\"unknown\":true,\"tables\":{}}'",
+    ] {
+        let host = Host::new(true);
+        let since = {
+            let mut engine = lock(&host.shared.engine);
+            let since = engine.seq().unwrap();
+            engine.seed([("items".into(), row(1))]).unwrap();
+            since
+        };
+        let path = format!("/changes?since={since}&wait=0");
+        let known = body(&host.request("GET", &path, "x-snapback-persona: alice\r\n", ""));
+        assert_eq!(known["preserved"], json!(["items"]));
+        lock(&host.shared.engine).store().test_support_conn().execute_batch(corruption).unwrap();
+        let unknown = body(&host.request("GET", &path, "x-snapback-persona: alice\r\n", ""));
+        assert_eq!(unknown["seq"], since + 1);
+        assert_eq!(unknown["tables"], json!(["items"]));
+        assert_eq!(unknown.get("preserved"), Some(&serde_json::Value::Null), "{corruption}: {unknown}");
+        assert!(unknown["changes"].is_null());
+    }
+}

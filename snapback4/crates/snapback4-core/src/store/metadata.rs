@@ -1,32 +1,9 @@
 //! SQLite metadata key ownership for the typed server families.
 use super::*;
-use crate::metadata::{DevMetadata, MetadataReader, MetadataWriter, SchemaMarker};
-
-fn dev_key(key: DevMetadata) -> &'static str {
-    match key {
-        DevMetadata::Replay => "dev:replay",
-        DevMetadata::SuppressedEffects => "dev:suppressed-effects",
-        DevMetadata::HoldSchedules => "dev:hold-schedules",
-    }
-}
-
-fn worker_status_key(worker: Option<&str>) -> String {
-    worker.map_or_else(
-        || "worker:status".into(),
-        |name| format!("worker:status:{name}"),
-    )
-}
-
-fn schema_key(marker: SchemaMarker) -> &'static str {
-    match marker {
-        SchemaMarker::SchemaHash => "schema_hash",
-        SchemaMarker::LiveSumCandidates => "live_sum_candidates",
-        SchemaMarker::MaintainedIds => crate::schema::MAINTAINED_ID_META,
-        SchemaMarker::CapCounts => "cap_counts_schema",
-        SchemaMarker::TimePublications => super::time_audience::PUBLICATION_STATE_KEY,
-        SchemaMarker::ReadThroughShortened => "read_through_shortened",
-    }
-}
+use crate::metadata::{
+    DevMetadata, MetadataReader, MetadataWriter, SchemaMarker, dev_key, schema_key,
+    validate_new_key, validate_value, worker_status_key,
+};
 
 // Public typed methods serve host callers; the access traits used by shared
 // policy remain crate-private. Generic metadata access is adapter-internal.
@@ -70,7 +47,10 @@ macro_rules! metadata_writer {
     ($handle:ty; $($name:ident($($arg:ident: $kind:ty),*) => $key:expr;)*) => {
         impl MetadataWriter for $handle {
             $(fn $name(&self, $($arg: $kind,)* value: &str) -> Result<(), RuntimeError> {
-                self.set_meta(&$key, value)
+                let key = $key;
+                validate_value(value)?;
+                if key.contains('\0') && self.meta(&key)?.is_none() { validate_new_key(&key)?; }
+                self.set_meta(&key, value)
             })*
         }
         impl $handle {
@@ -112,9 +92,11 @@ mod tests {
         store.identity = crate::store::activation::identity(store.conn()).unwrap();
         crate::metadata::test_cases::raw_values_and_worker_fences(&store);
         crate::metadata::test_cases::independent_families(&store);
+        crate::metadata::test_cases::admission(&store);
         let tx = store.transaction().unwrap();
         crate::metadata::test_cases::raw_values_and_worker_fences(&tx);
         crate::metadata::test_cases::independent_families(&tx);
+        crate::metadata::test_cases::admission(&tx);
         tx.set_dev_value(DevMetadata::Replay, "rolled back")
             .unwrap();
         tx.rollback().unwrap();
@@ -122,5 +104,72 @@ mod tests {
             store.dev_value(DevMetadata::Replay).unwrap().as_deref(),
             Some("true")
         );
+    }
+    #[test]
+    fn metadata_missing_and_legacy_nul_values() {
+        let store = Store::memory().unwrap();
+        store.conn().execute("DELETE FROM _meta", []).unwrap();
+        crate::metadata::test_cases::missing(&store);
+        store
+            .set_meta("worker:status:old\0key", "old\0value")
+            .unwrap();
+        assert_eq!(
+            store.worker_status(Some("old\0key")).unwrap().as_deref(),
+            Some("old\0value")
+        );
+        store
+            .set_worker_status(Some("old\0key"), "updated")
+            .unwrap();
+        assert_eq!(
+            store.worker_status(Some("old\0key")).unwrap().as_deref(),
+            Some("updated")
+        );
+    }
+
+    #[test]
+    fn metadata_writers_observe_predecessor_under_contention() {
+        use crate::store::test_race::FenceRace;
+        use std::sync::Arc;
+        let dir = std::env::temp_dir().join(format!("sb4-metadata-{:x}", crate::ids::seed()));
+        std::fs::create_dir(&dir).unwrap();
+        let path = dir.join("store.sqlite");
+        let mut holder = Store::open(&path).unwrap();
+        let mut contender = Store::open(&path).unwrap();
+        let race = Arc::new(FenceRace::sqlite());
+        std::thread::scope(|scope| {
+            let race = &race;
+            let other = scope.spawn(move || {
+                race.install_sqlite_busy_handler(contender.conn());
+                let tx = contender
+                    .transaction_with_begin_hook(true, || race.after_begin(false))
+                    .unwrap();
+                crate::metadata::test_cases::advance(&tx, Some("first"), "second");
+                tx.commit().unwrap();
+            });
+            let tx = holder
+                .transaction_with_begin_hook(true, || race.after_begin(true))
+                .unwrap();
+            race.after_fence(true).unwrap();
+            crate::metadata::test_cases::advance(&tx, None, "first");
+            tx.commit().unwrap();
+            other.join().unwrap();
+        });
+        assert_eq!(
+            holder.worker_status(Some("race")).unwrap().as_deref(),
+            Some("second")
+        );
+        drop(holder);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn metadata_statement_error_discards_the_writer() {
+        let mut store = Store::memory().unwrap();
+        store.conn().execute_batch("CREATE TRIGGER refuse_metadata BEFORE INSERT ON _meta WHEN NEW.key = 'deployment_environment' BEGIN SELECT RAISE(ABORT, 'fixture refusal'); END").unwrap();
+        let tx = store.transaction().unwrap();
+        tx.set_worker_status(None, "discard").unwrap();
+        assert!(tx.set_deployment_environment("refused").is_err());
+        // Adapter errors are terminal for the caller; discard the entire writer.
+        tx.rollback().unwrap();
+        assert_eq!(store.worker_status(None).unwrap(), None);
     }
 }

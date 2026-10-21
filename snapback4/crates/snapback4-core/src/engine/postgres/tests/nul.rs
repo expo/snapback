@@ -1,4 +1,5 @@
 //! Physical bind refusals and the shared identity admission chokepoints.
+use crate::receipts::ReceiptReader;
 use super::authority_engine;
 use super::super::{WriteMode, store::Tx};
 use crate::{RuntimeError, authority::AuthorityTransaction, identity::{self, IdentityStore, IdentityTransaction},
@@ -114,8 +115,8 @@ fn nul_optional_lookups_are_absent_without_database_calls() {
     assert!(tx.mint_binding_record("invocation", "x\0y").unwrap().is_none());
     assert!(tx.get("table", "x\0y").unwrap().is_none());
     assert!(tx.index_head("table", "x\0y", &[], &crate::rows::Bounds::default(), crate::rows::Dir::Asc).unwrap().is_none());
-    assert!(tx.applied("member:a", "x\0y").unwrap().is_none());
-    assert!(tx.applied_bound("member:a", "x\0y", "work", "digest").unwrap().is_none());
+    assert!(tx.receipt("member:a", "x\0y").unwrap().is_none());
+    assert!(crate::receipts::replay_bound(&tx, "member:a", "x\0y", "work", &serde_json::Value::Null).unwrap().is_none());
     assert_eq!(tx.principal_generation("x\0y").unwrap(), 0);
     assert_eq!(tx.calls.get(), calls);
     alive(&tx);
@@ -124,7 +125,7 @@ fn nul_optional_lookups_are_absent_without_database_calls() {
     let calls = e.store.calls.get();
     assert!(e.replay("member:a", "x\0y").unwrap().is_none());
     assert!(e.replay("x\0y", "op").unwrap().is_none());
-    assert!(e.replay_mutation("member:a", "x\0y", "work", "digest").unwrap().is_none());
+    assert!(e.replay_mutation("member:a", "x\0y", "work", &serde_json::Value::Null).unwrap().is_none());
     assert_eq!(e.store.calls.get(), calls);
     let store = RefCell::new(&mut e.store);
     assert!(store.identity_credential("x\0y").unwrap().is_none());

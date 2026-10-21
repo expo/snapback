@@ -1,6 +1,7 @@
 //! Postgres outbox facts and transitions; shared effects policy owns refusals.
 // @ref LLP 3000.009.001.000#91-adapter-parity-rules — head-fenced writes, typed limits and explicit result shapes.
 use super::store::{Tx, signed};
+use crate::metadata::{MetadataReader, DevMetadata};
 use crate::{RuntimeError, engine::effects::{EffectRun, NewEffect, ExpiredEffect, OutboxTransaction, legacy_work}, value::{Value, canonical_json}};
 
 macro_rules! runs {
@@ -31,7 +32,7 @@ pub(super) fn read_run(row: postgres::Row) -> Result<EffectRun, RuntimeError> {
 
 impl OutboxTransaction for Tx<'_> {
     fn replay_suppresses(&self) -> Result<bool, RuntimeError> {
-        Ok(self.query("SELECT EXISTS(SELECT 1 FROM _meta WHERE key = 'dev:replay' AND value = 'true') AND NOT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')", &[])?[0].get(0))
+        Ok(self.dev_value(DevMetadata::Replay)?.as_deref() == Some("true") && self.release_value()?.is_none())
     }
     fn suppress_effects(&self, count: usize) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("suppress effects")?;
@@ -39,7 +40,7 @@ impl OutboxTransaction for Tx<'_> {
         Ok(())
     }
     fn effect_release(&self) -> Result<Option<String>, RuntimeError> {
-        Ok(self.query("SELECT value FROM _meta WHERE key = 'release'", &[])?.first().map(|r| r.get(0)))
+        self.release_value()
     }
     fn insert_effect(&self, effect: &NewEffect<'_>) -> Result<(), RuntimeError> {
         self.require_serialized_head_fence("insert effect")?;
@@ -180,6 +181,6 @@ impl OutboxTransaction for Tx<'_> {
         Ok(())
     }
     fn replay_deployed(&self) -> Result<bool, RuntimeError> {
-        Ok(self.query("SELECT EXISTS(SELECT 1 FROM _meta WHERE key = 'release')", &[])?[0].get(0))
+        Ok(self.release_value()?.is_some())
     }
 }

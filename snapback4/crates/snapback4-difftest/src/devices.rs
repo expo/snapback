@@ -225,9 +225,7 @@ pub fn stream_reply(server: &mut Server, principal: &str, from: u64, limit: usiz
     if let Some(at) = page.images_at {
         reply["images_at"] = json!(at);
     }
-    if !preserved.is_empty() {
-        reply["preserved"] = json!(preserved);
-    }
+    reply["preserved"] = json!(preserved);
     if !sent.is_empty() {
         reply["sent"] = json!(sent);
     }

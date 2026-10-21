@@ -1,6 +1,7 @@
 //! Outbox snapshots use one repeatable-read transaction; replay uses the head.
 // @ref LLP 3000.009.001.000#33-extraction-first-with-no-behavior-change — one family snapshot, shared replay authority.
 use super::{WriteMode, outbox::{absent_key, read_run, runs}, store::{Store, Tx}};
+use crate::metadata::{MetadataWriter, DevMetadata};
 use crate::{RuntimeError, engine::effects::{EffectHealth, EffectRun, OutboxStore, OutboxTransaction}};
 use std::{cell::RefCell, collections::BTreeMap};
 
@@ -48,7 +49,7 @@ impl OutboxStore for RefCell<&mut Store> {
         let mut store = self.borrow_mut();
         let tx = store.transaction(Some(WriteMode::Serialized))?;
         check(tx.replay_deployed()?)?;
-        tx.execute_one("INSERT INTO _meta(key,value) VALUES ('dev:replay',$1) ON CONFLICT(key) DO UPDATE SET value = excluded.value", &[&if replay { "true" } else { "false" }])?;
+        tx.set_dev_value(DevMetadata::Replay, if replay { "true" } else { "false" })?;
         tx.commit()
     }
 }

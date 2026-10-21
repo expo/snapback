@@ -13,6 +13,7 @@ mod update_images;
 mod requests;
 mod nul;
 mod assets;
+mod foundation;
 
 #[test]
 fn maintained_columns_are_outside_postgres_evaluation() {

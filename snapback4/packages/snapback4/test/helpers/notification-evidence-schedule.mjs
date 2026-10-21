@@ -6,6 +6,10 @@ import { MixedModel } from './mixed-evidence-oracle.mjs';
 const turn = () => new Promise(resolve => setImmediate(resolve));
 
 export async function notificationSchedule({ createLocalClient, answerObservation, host, seed, f, backend, frames, empty, typing, rand, clock, trace, closing }) {
+  // This schedule requires certified revocation, including when sync fails.
+  // Missing/null evidence is unknown and cannot impose a withdrawal deadline.
+  const preserved = frames[2].preserved;
+  assert.ok(Array.isArray(preserved) && !preserved.includes('messages'));
   const model = new MixedModel(), change = Promise.withResolvers(), sync = Promise.withResolvers(), entered = Promise.withResolvers();
   const device = opener(host, join(f.dir, `notification-${seed}`));
   const readFails = !!rand(2), old = Promise.withResolvers(), oldEntered = Promise.withResolvers();
@@ -38,7 +42,7 @@ export async function notificationSchedule({ createLocalClient, answerObservatio
         if (sent) return parked(init.signal);
         sent = true;
         model.apply(2, clock.get());
-        return Response.json({ seq: frames[2].watermark, tables: ['members'] });
+        return Response.json({ seq: frames[2].watermark, tables: ['members'], preserved });
       }
       if (path === '/probe') return parked(init.signal);
       if (path === '/sync') {
