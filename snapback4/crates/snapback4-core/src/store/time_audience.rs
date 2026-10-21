@@ -9,12 +9,7 @@ use super::*;
 pub(super) const CLOCK_KEY: &str = "time_audience_clock";
 pub(crate) const PUBLICATION_STATE_KEY: &str = "time_audience_publications_v1";
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Opening {
-    pub at: i64,
-    pub table: String,
-    pub id: String,
-}
+use crate::store_port::TimeOpening as Opening;
 
 impl Tx<'_> {
     pub(crate) fn time_audience_clock(&self) -> Result<i64, RuntimeError> {

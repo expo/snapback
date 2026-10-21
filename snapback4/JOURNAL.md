@@ -100270,3 +100270,13 @@ The evidence reset is now available as an operation for the member driver.
 lane's no-incremental/line-table settings. Engine/host migration follows in
 separate building increments. No Postgres arm, producer routing or behavior
 change is claimed.
+
+S10a engine increment: `Engine` owns `AnyStore`; transaction signatures and
+restricted member forwarding now name `AnyTx`. The driver calls
+`begin_member_evidence`, and explicit activation/release/backfill bridges
+keep concrete access inside adapters. Step views borrow `AnyTx`; scan forms
+come from `rows`. Constructor `Into<AnyStore>` inputs retain concrete SQLite
+fixture/device interoperability. Three engine authority snapshots use scoped
+callbacks with their original rollback/error behavior. The adapter-internal
+reset/witness producers keep their original openers through `WriteStore`;
+this is no K0 routing claim. `cargo build -p snapback4 -j 10` passes.

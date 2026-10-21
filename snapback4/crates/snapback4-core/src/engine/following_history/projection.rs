@@ -177,7 +177,7 @@ pub(super) fn reservation() -> Metered {
 }
 
 pub(super) fn shape(
-    tx: &Tx<'_>,
+    tx: &AnyTx<'_>,
     schema: &Schema,
     p: &Plan<'_>,
     s: &Session,
@@ -266,7 +266,7 @@ pub(super) fn shape(
 }
 
 pub(super) fn authorized(
-    tx: &Tx<'_>,
+    tx: &AnyTx<'_>,
     schema: &Schema,
     s: &Session,
     ws: &[Witness],

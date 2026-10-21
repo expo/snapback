@@ -258,7 +258,7 @@ impl Engine {
         let path = self.store.asset_path(id);
         let tx = self.store.transaction()?;
         let now = super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
-        let Some(asset) = tx.asset(id)? else { return Err(unknown()) };
+        let Some(asset) = crate::assets::AssetTransaction::asset(&tx, id)? else { return Err(unknown()) };
         if asset.released_at.is_some() {
             return Err(unknown());
         }

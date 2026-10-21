@@ -583,7 +583,7 @@ fn require_dev_store(deployed: bool) -> Result<(), RuntimeError> {
     Ok(())
 }
 
-impl crate::store::Tx<'_> {
+impl crate::store_port::AnyTx<'_> {
     /// Assert dev replay authority inside an existing schedule transaction.
     pub fn require_dev_replay_store(&self) -> Result<(), RuntimeError> {
         require_dev_store(self.replay_deployed()?)

@@ -120,14 +120,14 @@ pub(crate) fn provider_key(owner: StepOwner<'_>, name: &str) -> String {
         WorkKind::Action => "snapback4:step:v1",
         WorkKind::Effect => "snapback4:effect-step:v1",
     };
-    crate::store::payload_digest(&serde_json::json!([domain, owner.id, name]))
+    crate::store_port::payload_digest(&serde_json::json!([domain, owner.id, name]))
 }
 
 pub(crate) fn prepare_begin<'a>(owner: StepOwner<'_>, token: &str, name: &'a str, input: &Json, reconcile: bool, input_ceiling: u64) -> Result<PreparedBegin<'a>, RuntimeError> {
     if serde_json::to_vec(input).map_err(|_| invalid("E_STEP_INPUT", "step input must be JSON"))?.len() as u64 > input_ceiling {
         return Err(invalid("E_STEP_INPUT", "step input exceeds the heap byte ceiling"));
     }
-    Ok(PreparedBegin { name, input_digest: crate::store::payload_digest(input), provider_key: provider_key(owner, name), claim: StepClaim::from_token(token), reconcile })
+    Ok(PreparedBegin { name, input_digest: crate::store_port::payload_digest(input), provider_key: provider_key(owner, name), claim: StepClaim::from_token(token), reconcile })
 }
 
 pub(crate) fn prepare_result<'a>(token: &str, name: &'a str, result: &'a Json, output_ceiling: u64) -> Result<PreparedResult<'a>, RuntimeError> {
@@ -173,7 +173,7 @@ pub(crate) fn complete(tx: &mut impl StepTransaction, owner: StepOwner<'_>, step
     }
     match previous.state {
         StepState::Done => {
-            if previous.result.as_ref().map(crate::store::payload_digest) != Some(crate::store::payload_digest(step.value)) {
+            if previous.result.as_ref().map(crate::store_port::payload_digest) != Some(crate::store_port::payload_digest(step.value)) {
                 return Ok(Transition::Refused(invalid("E_STEP_RESULT", "the step already has a different recorded outcome")));
             }
         }

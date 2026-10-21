@@ -38,7 +38,7 @@ impl Runner<'_> {
         })();
         self.event_free=saved;result
     }
-    pub(super) fn activate_columns(&mut self, previous: Option<&Schema>, rebuild: &[&Maintain], parents: &BTreeSet<String>, mut report: Option<&mut crate::store::adoption_report::AdoptionReport>) -> Result<(), RuntimeError> {
+    pub(super) fn activate_columns(&mut self, previous: Option<&Schema>, rebuild: &[&Maintain], parents: &BTreeSet<String>, mut report: Option<&mut crate::store_port::report::AdoptionReport>) -> Result<(), RuntimeError> {
         let saved = self.event_free;
         self.event_free = true;
         let result = (|| {

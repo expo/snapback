@@ -40,3 +40,16 @@ pub use sqlite::{adoption_estimate, timeline_launch, Sizes, DormantItem};
 pub(crate) use sqlite::release_history;
 pub use sqlite::inspect::InspectionRows;
 pub use sqlite::{id_reused, payload_digest};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct TimeOpening {
+    pub at: i64,
+    pub table: String,
+    pub id: String,
+}
+
+
+pub(crate) struct ActionStepTransaction<'tx, 'store> { pub(crate) tx: &'tx AnyTx<'store> }
+pub(crate) struct EffectStepTransaction<'tx, 'store> { pub(crate) tx: &'tx AnyTx<'store> }
+#[path = "store/port/steps.rs"]
+mod steps;

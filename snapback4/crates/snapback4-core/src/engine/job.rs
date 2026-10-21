@@ -16,7 +16,7 @@ use super::{Context, Engine};
 use crate::error::RuntimeError;
 use crate::ir::{Expr, LoopDomain, ProgramKind, Scan, Stmt};
 use crate::meter::{Ceilings, Cut, Meter};
-use crate::store::{Bounds, Dir};
+use crate::rows::{Bounds, Dir};
 use crate::value::{Value, canonical_json, digest};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

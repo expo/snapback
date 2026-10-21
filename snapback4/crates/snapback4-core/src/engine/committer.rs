@@ -1,6 +1,8 @@
 //! Reference committer: a physical transaction with one savepoint-scoped member.
-use crate::{RuntimeError, Store, store::Tx};
+use crate::{RuntimeError, store_port::{AnyTx, WriteStore}};
 use std::cell::Cell;
+#[cfg(test)]
+use crate::store_port::AnyStore;
 
 mod member_store;
 
@@ -61,10 +63,10 @@ enum Frame {
     Failed,
 }
 
-/// Restricted store operations, with no owning Tx or connection access.
+/// Restricted store operations, with no owning AnyTx or connection access.
 // @ref LLP 3000.009.001.000.000#3.7 — rollback/drop undo only this member, never a preceding member.
 pub(crate) struct MemberTx<'member, 'store> {
-    tx: &'member Tx<'store>,
+    tx: &'member AnyTx<'store>,
     frame: &'member Cell<Frame>,
     #[cfg(test)]
     rollback_failure: Cell<Option<RuntimeError>>,
@@ -171,17 +173,17 @@ pub(crate) struct Resolution<T, D = ()> {
 pub(crate) struct Committer;
 impl Committer {
     pub(crate) fn run<T>(
-        store: &mut Store,
+        store: &mut impl WriteStore,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
     ) -> Result<T, RuntimeError> {
         Self::run_pending(store, member.pending(Pending::value)).map(|r| r.pending.value)
     }
 
     pub(crate) fn run_pending<T, D>(
-        store: &mut Store,
+        store: &mut impl WriteStore,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<Pending<T, D>>>,
     ) -> Result<Resolution<T, D>, RuntimeError> {
-        let tx = store.transaction()?;
+        let tx = store.write_transaction()?;
         let disposition = Self::execute(&tx, member)?;
         let committed = disposition.end == Frame::Complete;
         if committed {
@@ -244,13 +246,13 @@ impl Committer {
     }
 
     fn execute<T>(
-        tx: &Tx<'_>,
+        tx: &AnyTx<'_>,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
     ) -> MemberResult<T> {
         let Member { kind, run } = member;
         // No production batching, queue, revision allocation or retries in K0c.
         let _kind = kind;
-        *tx.changes.borrow_mut() = Default::default();
+        tx.begin_member_evidence();
         tx.savepoint("member")?;
         let frame = Cell::new(Frame::Active);
         let disposition = run(MemberTx {
@@ -271,13 +273,13 @@ impl Committer {
     /// Test-only batch driver: production still submits exactly one member.
     #[cfg(test)]
     fn run_batch_with<T, D>(
-        store: &mut Store,
+        store: &mut AnyStore,
         members: impl IntoIterator<
             Item = Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<Pending<T, D>>>,
         >,
-        mut continuation: impl FnMut(&mut Store, D, T) -> Result<T, RuntimeError>,
+        mut continuation: impl FnMut(&mut AnyStore, D, T) -> Result<T, RuntimeError>,
     ) -> Result<Vec<Result<T, RuntimeError>>, RuntimeError> {
-        let tx = store.transaction()?;
+        let tx = store.write_transaction()?;
         let mut resolutions = Vec::new();
         for member in members {
             let disposition = Self::execute(&tx, member)?;
@@ -320,11 +322,6 @@ impl Committer {
 
 pub(crate) trait CommitTransaction {
     fn commit_transaction(self) -> Result<(), RuntimeError>;
-}
-impl CommitTransaction for Tx<'_> {
-    fn commit_transaction(self) -> Result<(), RuntimeError> {
-        self.commit()
-    }
 }
 
 pub(crate) struct Solo {

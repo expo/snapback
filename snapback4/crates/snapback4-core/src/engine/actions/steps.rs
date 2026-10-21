@@ -5,12 +5,12 @@
 //! commit gap.
 
 use super::*;
-use crate::store::steps::ActionStepTransaction;
+use crate::store_port::ActionStepTransaction;
 use crate::engine::steps::{self as step_core, StepClaim, StepOwner, Transition};
 
 pub use crate::engine::steps::Step as ActionStep;
 
-fn apply<T>(tx: Tx<'_>, transition: Result<Transition<T>, RuntimeError>) -> Result<T, RuntimeError> {
+fn apply<T>(tx: AnyTx<'_>, transition: Result<Transition<T>, RuntimeError>) -> Result<T, RuntimeError> {
     match transition? {
         Transition::Applied(value) => { tx.commit()?; Ok(value) }
         Transition::Refused(error) => Err(error),

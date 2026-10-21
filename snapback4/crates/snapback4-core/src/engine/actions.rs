@@ -1,7 +1,7 @@
 //! Request/response I/O outside the data plane. Durable admission is at most
 //! once; a handler's delivery is at least once, under a fenced viewer lease.
 use super::{Context, Engine, effects::MAX_LEASE_MS, validate};
-use crate::{RuntimeError, authority::{self, AuthorityTransaction}, identity, ir::{BinaryOp, Expr, Input, Program, ProgramKind, Stmt, UnaryOp}, store::Tx, value::Value};
+use crate::{RuntimeError, authority::{self, AuthorityTransaction}, identity, ir::{BinaryOp, Expr, Input, Program, ProgramKind, Stmt, UnaryOp}, store_port::AnyTx, value::Value};
 use crate::schema::{ActionSpec, Schema};
 pub(crate) mod requests;
 use requests::{NewRequest, RequestSettlement, RequestsStore, RequestsTransaction, diagnostic_text, validate_text};
@@ -63,9 +63,9 @@ pub(super) fn authority_expiry(tx: &(impl RequestsTransaction + AuthorityTransac
 pub(crate) fn replay(tx: &(impl RequestsTransaction + AuthorityTransaction), id: &str, principal: &str, name: &str, args: &Json, now: i64) -> Result<Option<ActionRequest>, RuntimeError> {
     let Some(run) = tx.request(id)? else { return Ok(None); };
     if run.principal != principal || authority_expiry(tx, &run, now)?.is_none() { return Err(unknown()); }
-    if run.action != name { return Err(if run.args_digest.is_some() { crate::store::id_reused() } else { unknown() }); }
+    if run.action != name { return Err(if run.args_digest.is_some() { crate::store_port::id_reused() } else { unknown() }); }
     if let Some(digest) = &run.args_digest {
-        if crate::store::payload_digest(args) != *digest { return Err(crate::store::id_reused()); }
+        if crate::store_port::payload_digest(args) != *digest { return Err(crate::store_port::id_reused()); }
     }
     Ok(Some(run))
 }
@@ -137,14 +137,14 @@ pub(crate) fn held_claim_authority(tx: &(impl RequestsTransaction + AuthorityTra
     Ok(run)
 }
 
-pub(super) fn insert_request(tx: &Tx<'_>, schema: &Schema, program: &Program, id: &str, context: &Context, raw: &Json, service: bool, now: i64) -> Result<(), RuntimeError> {
+pub(super) fn insert_request(tx: &AnyTx<'_>, schema: &Schema, program: &Program, id: &str, context: &Context, raw: &Json, service: bool, now: i64) -> Result<(), RuntimeError> {
     let spec = schema.action_specs.get(&program.name).cloned().unwrap_or_default();
     insert_spec(tx, program, id, context, raw, service, &spec, &spec.contract(program), now)
 }
 
 /// Routes use the same durable record and authority binding, with their
 /// declaration's contract rather than a public action program's contract.
-pub(super) fn insert_spec(tx: &Tx<'_>, program: &Program, id: &str, context: &Context, raw: &Json, service: bool, spec: &ActionSpec, contract: &str, now: i64) -> Result<(), RuntimeError> {
+pub(super) fn insert_spec(tx: &AnyTx<'_>, program: &Program, id: &str, context: &Context, raw: &Json, service: bool, spec: &ActionSpec, contract: &str, now: i64) -> Result<(), RuntimeError> {
     validate_text(&[id, &program.name, &context.viewer, context.session_digest.as_deref().unwrap_or(""), contract])?;
     if !spec.work.policy.valid() { return Err(RuntimeError::Schema("the action policy is outside its bounds".into())); }
     let authority = context.session_digest.as_deref().map(|digest| identity::authority(tx, digest, &context.viewer, now)).transpose()?;
@@ -154,7 +154,7 @@ pub(super) fn insert_spec(tx: &Tx<'_>, program: &Program, id: &str, context: &Co
         id, action: &program.name,
         args: &serde_json::to_string(&context.args).map_err(|e| RuntimeError::Input(e.to_string()))?,
         principal: &context.viewer, at: now, authority: authority.as_ref(),
-        args_digest: &crate::store::payload_digest(raw),
+        args_digest: &crate::store_port::payload_digest(raw),
         spec: &serde_json::to_string(&spec).map_err(|e| RuntimeError::Schema(e.to_string()))?,
         contract, deadline: spec.work.policy.deadline_ms.map(|ms| now.saturating_add(ms as i64)),
         release: release.as_deref(), service_generation,
@@ -192,21 +192,21 @@ impl Engine {
     }
 
     pub fn action_request_at(&self, id: &str, principal: &str, now: i64) -> Result<ActionRequest, RuntimeError> {
-        let tx = self.store.authority_transaction()?;
+        self.store.with_authority_snapshot(|tx| {
         let run = tx.request(id)?.filter(|run| run.principal == principal).ok_or_else(unknown)?;
-        if authority_expiry(&tx, &run, now)?.is_none() { return Err(unknown()); }
-        tx.rollback()?;
+        if authority_expiry(tx, &run, now)?.is_none() { return Err(unknown()); }
         Ok(run)
+        })
     }
 
     pub fn replay_action(&self, id: &str, principal: &str, name: &str, args: &Json, now: i64) -> Result<Option<ActionRequest>, RuntimeError> {
         // The public action fast path must not collect private route responses
         // before ingress has authenticated this delivery (including a replay).
         if id.starts_with(super::routes::ID_PREFIX) || name.starts_with(crate::schema::routes::ACTION_PREFIX) { return Err(unknown()); }
-        let tx = self.store.authority_transaction()?;
-        let answer = replay(&tx, id, principal, name, args, now)?;
-        tx.rollback()?;
+        self.store.with_authority_snapshot(|tx| {
+        let answer = replay(tx, id, principal, name, args, now)?;
         Ok(answer)
+        })
     }
 
     /// `session_seconds` is chosen per action by the worker. A lease ends
@@ -353,9 +353,9 @@ impl Engine {
     }
 }
 
-fn result_assets(tx: &crate::store::Tx<'_>, spec: &ActionSpec, result: &Json) -> Result<bool, RuntimeError> {
+fn result_assets(tx: &crate::store_port::AnyTx<'_>, spec: &ActionSpec, result: &Json) -> Result<bool, RuntimeError> {
     use crate::{assets::AssetKind, ir::ArgType};
-    fn field(tx: &crate::store::Tx<'_>, kind: &ArgType, value: &Json) -> Result<bool, RuntimeError> {
+    fn field(tx: &crate::store_port::AnyTx<'_>, kind: &ArgType, value: &Json) -> Result<bool, RuntimeError> {
         Ok(match kind {
             ArgType::Optional(_) if value.is_null() => true,
             ArgType::Optional(inner) => field(tx, inner, value)?,

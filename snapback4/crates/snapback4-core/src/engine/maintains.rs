@@ -321,12 +321,12 @@ impl Runner<'_> {
     }
 
     #[cfg(feature = "sqlite")]
-    pub(crate) fn rebuild_maintain_reported(&mut self, maintain: &Maintain, report: &mut crate::store::adoption_report::AdoptionReport) -> Result<(), RuntimeError> {
+    pub(crate) fn rebuild_maintain_reported(&mut self, maintain: &Maintain, report: &mut crate::store_port::report::AdoptionReport) -> Result<(), RuntimeError> {
         let started = std::time::Instant::now();
         self.rebuilt_source_rows = 0;
         self.rebuild_maintain(maintain)?;
         let rows = self.rebuilt_source_rows;
-        report.views.push(crate::store::adoption_report::ViewBuild { name: maintain.label(), rows, elapsed: started.elapsed() });
+        report.views.push(crate::store_port::report::ViewBuild { name: maintain.label(), rows, elapsed: started.elapsed() });
         Ok(())
     }
 
@@ -336,7 +336,7 @@ impl Runner<'_> {
     /// Every pass is inside the adoption writer transaction, so no reader can
     /// observe a dangling intermediate reference.
     #[cfg(feature = "sqlite")]
-    pub(crate) fn rewrite_legacy_maintained_references(&mut self, maintains: &[Maintain], previous: Option<&crate::schema::Schema>, activation_tx: Option<&crate::store::Tx<'_>>) -> Result<u64, RuntimeError> {
+    pub(crate) fn rewrite_legacy_maintained_references(&mut self, maintains: &[Maintain], previous: Option<&crate::schema::Schema>, activation_tx: Option<&crate::store_port::AnyTx<'_>>) -> Result<u64, RuntimeError> {
         let mut legacy: LegacyIdentities = Vec::new();
         let mut definitions = BTreeMap::<String, Vec<LegacyGroupField>>::new();
         let identity_schema = previous.unwrap_or(self.schema);
@@ -428,7 +428,7 @@ impl Runner<'_> {
         // still name an aggregate target that remains active through adoption.
         // Rewrite its image and reference ledger in this transaction too.
         rewritten = rewritten.saturating_add(match activation_tx {
-            Some(tx) => crate::store::dormant::rewrite_legacy_maintained_references(tx, &ids)?,
+            Some(tx) => tx.rewrite_legacy_maintained_references(&ids)?,
             None => 0,
         });
 
@@ -641,7 +641,7 @@ mod timeline_tests {
     #[test]
     fn timeline_owned_tables_cannot_be_maintain_targets() {
         let schema = crate::engine::timeline_authority::write_tests::schema();
-        let mut store = crate::Store::memory().unwrap(); store.install(&schema).unwrap();
+        let mut store = crate::AnyStore::memory().unwrap(); store.install(&schema).unwrap();
         let tx = store.transaction().unwrap();
         let mut runner = Runner::new(&tx, &schema, crate::Context::system().at(1), crate::meter::Meter::new(crate::Ceilings::unbounded(),crate::meter::Cut::Abort),0);
         let mut guard = runner.timeline_scope(crate::engine::timeline_authority::Authority::Transition("feed".into()));

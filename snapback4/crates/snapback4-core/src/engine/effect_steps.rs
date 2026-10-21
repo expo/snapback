@@ -4,11 +4,11 @@
 //! and parks the parent effect atomically in the authorized transaction.
 
 use super::{Engine, effects::{self, EffectStep}, steps::{self as step_core, StepClaim, StepOwner, Transition}};
-use crate::{RuntimeError, identity, store::Tx};
-use crate::store::steps::EffectStepTransaction;
+use crate::{RuntimeError, identity, store_port::AnyTx};
+use crate::store_port::EffectStepTransaction;
 use serde_json::Value as Json;
 
-fn apply<T>(tx: Tx<'_>, transition: Result<Transition<T>, RuntimeError>) -> Result<T, RuntimeError> {
+fn apply<T>(tx: AnyTx<'_>, transition: Result<Transition<T>, RuntimeError>) -> Result<T, RuntimeError> {
     match transition? {
         Transition::Applied(value) => { tx.commit()?; Ok(value) }
         Transition::Refused(error) => Err(error),

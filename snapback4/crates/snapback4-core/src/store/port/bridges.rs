@@ -111,3 +111,36 @@ impl AnyPreparation<'_> {
         options.check(self)
     }
 }
+
+impl crate::engine::committer::CommitTransaction for sqlite::Tx<'_> {
+    fn commit_transaction(self) -> Result<(), RuntimeError> { self.commit() }
+}
+
+impl AnyStore {
+    // Preserve the SQLite shared-receiver conveniences while JobStore remains mutable.
+    pub fn job(&self, id: &str) -> Result<Option<crate::engine::job::JobRun>, RuntimeError> { self.deref().job(id) }
+    pub fn jobs(&self, limit: usize) -> Result<Vec<crate::engine::job::JobRun>, RuntimeError> { self.deref().jobs(limit) }
+}
+impl crate::engine::actions::requests::RequestsStore for &AnyStore {
+    fn request_counts(&mut self) -> Result<BTreeMap<String, u64>, RuntimeError> {
+        match *self { AnyStore::Sqlite(store) => crate::engine::actions::requests::RequestsStore::request_counts(&mut &*store) }
+    }
+}
+
+impl AnyTx<'_> {
+    pub(crate) fn prepare_seed_inputs(&self, schema: &Schema) -> Result<(), RuntimeError> {
+        match self { Self::Sqlite(tx) => {
+            if sqlite::backfills::has_evidence(tx)? { sqlite::backfills::prepare_inputs(tx, schema, None)?; }
+            Ok(())
+        } }
+    }
+    pub(crate) fn finalize_restorations(&self) -> Result<(), RuntimeError> {
+        match self { Self::Sqlite(tx) => sqlite::release_history::finalize_restorations(tx) }
+    }
+    pub(crate) fn record_release_event(&self, operation: &str, release: Option<u64>, previous: Option<u64>, summary: serde_json::Value, items: &[sqlite::DormantItem]) -> Result<u64, RuntimeError> {
+        match self { Self::Sqlite(tx) => sqlite::release_history::event(tx, operation, release, previous, summary, items) }
+    }
+    pub(crate) fn rewrite_legacy_maintained_references(&self, ids: &BTreeMap<String, BTreeMap<String, String>>) -> Result<u64, RuntimeError> {
+        match self { Self::Sqlite(tx) => sqlite::dormant::rewrite_legacy_maintained_references(tx, ids) }
+    }
+}
