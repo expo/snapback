@@ -28,7 +28,17 @@ function fixture(t, index) {
   writeFileSync(join(cwd, 'snapback/schema.q'), blocks[index] + '\n');
   const check = JSON.parse(cli(['check', '--json'], cwd));
   assert.equal(check.ok, true);
-  assert.deepEqual(check.notes, [], 'the recipe runs as written without compiler or readiness advice');
+  assert.deepEqual(check.notes.map(note => note.code), ['N_LOOKUP_FILTERED']);
+  const [note] = check.notes;
+  const [operation, table] = index === 0 ? ['addEntry', 'folders'] : ['recordAsset', 'assets'];
+  assert.match(note.message, new RegExp(`mutation ${operation}: lookup of ${table}`));
+  assert.match(note.message, /read <- \.owner = viewer/);
+  assert.match(note.message, /hidden, expired or missing/);
+  assert.match(note.rewrite, /do not widen private rows/);
+  assert.equal(note.guide, 'rules');
+  assert.equal(note.mechanical, false);
+  assert.equal(note.site.file, 'schema.q');
+  assert.match(blocks[index].split('\n')[note.site.line - 1], new RegExp(`${table}\\[`));
   const reviewed = JSON.parse(cli(['check', '--ack-notes', '--json'], cwd));
   assert.deepEqual(reviewed.notes, [...reviewed.newNotes, ...reviewed.acknowledgedNotes]);
   const review = JSON.parse(readFileSync(join(cwd, 'snapback/check-notes.json'), 'utf8'));
