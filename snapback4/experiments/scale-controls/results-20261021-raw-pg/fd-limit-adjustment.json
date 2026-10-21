@@ -1,0 +1,13 @@
+{
+  "time": 1792587580.480356,
+  "harness_pid": 3773745,
+  "before": [
+    1024,
+    1048576
+  ],
+  "after": [
+    8192,
+    1048576
+  ],
+  "reason": "256 S0 proxy connections and listeners require more than the inherited 1024 descriptors; new child services inherit the raised soft limit"
+}

@@ -1,0 +1,37 @@
+{
+  "source_commit": "1c838356f2e83c62e6e71531a90bdbbfa5558099",
+  "binary_sha256": "8653b913a21710252bda56322c88945a5e90b4af34fa2effa1d2b710ff5b8133",
+  "source_sha256": {
+    "scale-controls/Cargo.toml": "10d12a6d500b5dc44c0e22efd29fbf2075800b1d5f976de2824cb90ce6755710",
+    "scale-controls/Cargo.lock": "bd129641b2c3d719130944bc2a50b569f5695a1b6150f6bd0463f58d5bc6f94c",
+    "scale-controls/schema.sql": "997311d6afd73418903588bb8d6cd4f0b2e5cf87043e5444101317ab702e6f69",
+    "scale-controls/seed.sql": "ea2556f8827bcdb690d48cb7a6b916042bb35ab4c84f6959ab3f0939bf6ec92d",
+    "scale-controls/postgresql.conf.delta": "333711f4053cb8ae30cb214dd5ff55c524dbee9846a56be463945c35e54f0504",
+    "scale-controls/src/db.rs": "7d03d769cf74d107736d9ae05bacc55578913d443de28745f8822e5c5734eb75",
+    "scale-controls/src/load.rs": "3c0176523e731a43f62896bd0eced9c640b58f8add379edc705c58410e912d72",
+    "scale-controls/src/main.rs": "291ea620300493c54db8e5e224184997b8c10bbde01329c7b72b4ff36131c49e",
+    "scale-controls/scripts/run.py": "45f3064532369cd8f064ca46ce2df308bcb3aed858fa3edc7e2a91d4be1871e3",
+    "scale-controls/scripts/cluster.sh": "5bb7041e46cbce21f7693d256152e3cb9cbc94b21a050b44e03f06a03299010f",
+    "postgres-commit-path/src/proxy.rs": "448b9984b8716e85875c4dcf1715fe14f6bb3477fb5e4eaa4a8915e38291bae8"
+  },
+  "command": [
+    "python3",
+    "scripts/run.py",
+    "smoke",
+    "--out",
+    "snapback4/experiments/scale-controls/results-20261021-smoke02",
+    "--rates",
+    "100",
+    "--repeats",
+    "1",
+    "--warmup-ms",
+    "100",
+    "--duration-ms",
+    "400"
+  ],
+  "pid": 3702976,
+  "app_cores": "0-2,6-8",
+  "load_cores": "3,9",
+  "ssh_cores": "4-5,10-11",
+  "start_utc": "2026-10-21T11:59:56Z"
+}

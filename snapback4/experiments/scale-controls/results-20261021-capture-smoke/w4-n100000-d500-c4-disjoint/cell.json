@@ -1,0 +1,29 @@
+{
+  "workload": "W4",
+  "rows": 100000,
+  "delay_us": 500,
+  "writers": 4,
+  "keys": "disjoint",
+  "rerun": [
+    "python3",
+    "scripts/run.py",
+    "cell",
+    "--out",
+    "results-NEW-w4-n100000-d500-c4-disjoint",
+    "--workload",
+    "W4",
+    "--rows",
+    "100000",
+    "--delay-us",
+    "500",
+    "--writers",
+    "4",
+    "--keys",
+    "disjoint",
+    "--warmup-ms",
+    "100",
+    "--duration-ms",
+    "400"
+  ],
+  "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+}

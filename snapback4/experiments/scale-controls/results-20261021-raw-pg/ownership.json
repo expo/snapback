@@ -1,0 +1,37 @@
+{
+  "source_commit": "6093d89d58c548b32055674342bca198888d8e3e",
+  "binary_sha256": "4d9233c5ad2e6145f072e3f38a19c09c22abc4b0f9fe20ff556540eab80cf738",
+  "source_sha256": {
+    "scale-controls/Cargo.toml": "10d12a6d500b5dc44c0e22efd29fbf2075800b1d5f976de2824cb90ce6755710",
+    "scale-controls/Cargo.lock": "bd129641b2c3d719130944bc2a50b569f5695a1b6150f6bd0463f58d5bc6f94c",
+    "scale-controls/schema.sql": "bf74598a1c08f6e42e6f9843ddc9a0854eca5eb9b16d423f2b401e2e72149f46",
+    "scale-controls/seed.sql": "dd39965387d02efd8c3ee43d1d77b38387c3678e69cbb2f1a568c85ea4a59dd6",
+    "scale-controls/postgresql.conf.delta": "b3f2534ba90a87b675c1d0a8f5343c30af9b54b14c223e4187e7b3ebf7133bda",
+    "scale-controls/src/db.rs": "de7d8c841e45041694b709bdfb188faa49ce32116a562921d6b618202907d8fb",
+    "scale-controls/src/load.rs": "133a5a457d459c5c8b476adeab4e795ff3e0d05c8752bab110aaaea245ca5088",
+    "scale-controls/src/main.rs": "aea2f0e575ce1c9f5508a8a73829a2f7b74206212590749940788d69508ff9ca",
+    "scale-controls/scripts/archive.py": "8d0cdbbdfceefc0e735ff2b29ca29da5ec405eb25c95093c2cfd1d7f33741707",
+    "scale-controls/scripts/check.py": "d38809028420b00c310bbc1636e0032936e1a13603dd2e52f42828464b87728e",
+    "scale-controls/scripts/db-monitor.py": "2f6e291bc211f7dbaf381f61068891be5b9aadac8f87a361b36d8002340745d2",
+    "scale-controls/scripts/report.py": "25f737cb4fae2c52925012156499f1bc98b8650597ba1232469df08db6360007",
+    "scale-controls/scripts/run.py": "5649cac0c54dd232eeb9ea195ead3eda4ffd899ad13ad1ade97688c47ba44b10",
+    "scale-controls/scripts/cluster.sh": "5bb7041e46cbce21f7693d256152e3cb9cbc94b21a050b44e03f06a03299010f",
+    "postgres-commit-path/src/proxy.rs": "448b9984b8716e85875c4dcf1715fe14f6bb3477fb5e4eaa4a8915e38291bae8"
+  },
+  "command": [
+    "python3",
+    "scripts/run.py",
+    "all",
+    "--out",
+    "snapback4/experiments/scale-controls/results-20261021-raw-pg",
+    "--warmup-ms",
+    "500",
+    "--duration-ms",
+    "2000"
+  ],
+  "pid": 3773745,
+  "app_cores": "0-2,6-8",
+  "load_cores": "3-5,9-11",
+  "ssh_cores": "4-5,10-11",
+  "start_utc": "2026-10-21T12:16:45Z"
+}

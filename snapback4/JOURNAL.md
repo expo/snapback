@@ -100113,3 +100113,75 @@ refusals card and named `evolution` in that card's family list. The doctor
 renderer and all-code `why` CLI coverage tests each pass when rerun alone.
 This guide-only follow-through leaves the qualified store behavior unchanged;
 the report distinguishes the original full-run failures from their reruns.
+
+## 2026-10-21 — S1-H raw-Postgres scale harness
+
+Implemented an isolated Rust workspace under experiments/scale-controls for
+LLP 3000.009.001.002 W1–W5: typed chat tables, SQL membership/ownership rules,
+prepared pooled HTTP service, maintained room/sender totals, deterministic
+100k/1m-message fixtures, intended-arrival open-loop timing with explicit
+expiry/error accounting and HDR histograms. Uses S1b's independent SSH streams
+and S0's unchanged delay proxy. Local taskset separates app/proxy, load and SSH
+cores; this remains a two-host, shared-fleet experiment, not the RFC's idle
+three-host qualification. No W6 or other-system performance claim.
+
+Created only the private durable PG17.9 cluster at ~/sb4scale/pg17 on 450a,
+port 55440, 8 GiB shared buffers, pg_stat_statements. jit=off records the missing
+LLVM19 runtime in the relocated package. Passwords stay in mode-600 files.
+Cluster start/stop checks recorded postmaster ownership. Resource capture
+includes /proc process CPU, SQL statement/WAL/I/O deltas and sampled wait events.
+perf stack profiling is unavailable with perf_event_paranoid=4.
+
+Black-box checks pass non-member reads/posts, own/shared counter authority,
+atomic room/sender maintains and open-loop overload accounting; a low-rate
+proxy smoke confirms counter deltas and the capture files. Release build and
+Clippy with warnings denied pass. Initial failed setup records retain the
+missing-role and LLVM dependency findings; neither enters the limits ledger.
+The measurement results follow in their own commit. No push, clone, stash,
+sub-agent, paid resource or unrelated 450a work.
+
+S1-H measurement correction, same date: the initial read cells exposed the
+one-core generator's CPU limit (~1.7–1.9 logical CPU seconds per second across
+that core's SMT siblings). Kept the partial run as generator-core1, then gave
+the generator all three physical cores outside the app, sharing two with SSH.
+App/proxy affinity, SQL, cluster, durability, intended arrivals and SLOs are
+unchanged. This is a measured harness limit, not a raw-Postgres database limit.
+Verbose capture can be losslessly gzip-archived; the report reads either form.
+
+
+## 2026-10-21 — S1-H raw-PG matrix completed
+
+Completed 132 cells / 513 rate settings / 1,539 repetitions / 15,214,986
+measured scheduled arrivals, all independently accounted for. W1–W3 at 100k
+and 1m messages; W4/W5 at 1m with writers 1,2,4,8,16,32,64,128,256; natural
+SSH RTT and S0 proxy additions 0.2/0.5/1.0 ms. Three 0.5 s warm-up + 2 s
+measurement repetitions per rate; every repetition must meet the SLO/error
+rule and write counter equality. Lossless gzip retains original stdout and
+histograms; the audit checks all bucket counts, brackets and decisions.
+
+At 1m, natural-link passing offered/cohort-acknowledgement brackets are W1
+22,627/s, W2 11,313/s, W3 8,000/s, W4 18,101/s at 256 writers, W5 single
+counter 282/s, and W5 1% mix 12,800/s. This is an exploratory shared-host
+matrix, not idle-host or advocate-reviewed capacity. Measured SELECT 1 RTT
+medians are p50 0.601 ms / p99 0.800 ms, rising to 1.756 / 2.077 ms at the
+largest added delay. Some writer/size comparisons are non-monotonic across
+time; the report keeps the spread and makes no causal growth/RTT claim.
+
+The inherited descriptor soft limit was raised on the recorded harness PID
+from 1024 to 8192 before high-connection proxy cells; the runner reproduces it
+without privileges. PID-bound service readiness and bounded startup waits
+prevent an unrelated listener from masquerading as the service. The final
+black-box checks and smoke pass. Forty-six overloaded trials retain unknown
+write outcomes; none qualifies. Every app/load/tunnel/observer process ended.
+The owned durable PG17.9 cluster remains running on 450a at ~/sb4scale/pg17,
+port 55440, postmaster PID 2735539; pg_stat_statements 1.11, 8GB buffers,
+SCRAM, all three durability settings on, jit off for the absent LLVM19 library.
+Its recorded-PID stop command and effective configuration are in the report.
+
+Source, full Raw PG ledger, rate curves, standalone SVG figures, provenance,
+cluster handoff and all caveats live under experiments/scale-controls. The
+RFC receives only a short S1-H progress note and a prepended Revised item.
+No product/core change, sub-agent, clone, stash, push, paid resource, sudo,
+netem, or unrelated 450a work. Other controls need native API/seed adapters,
+collector filters/counter witnesses and independent tunnel-pool integration;
+W6 and advocate review remain later work.
