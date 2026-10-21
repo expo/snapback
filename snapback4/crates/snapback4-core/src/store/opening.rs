@@ -8,7 +8,7 @@ pub(crate) struct Metadata {
 }
 
 impl Metadata {
-    pub fn read(tx: &Tx<'_>) -> Result<Self, RuntimeError> {
+    pub fn read(tx: &impl crate::metadata::MetadataReader) -> Result<Self, RuntimeError> {
         Ok(Self {
             store_id: tx.store_identity()?.unwrap_or_default(),
             dev_effects: tx.release_value()?.is_none(),
@@ -25,10 +25,7 @@ impl Backend {
         let held: (i64, String, String) = conn.query_row(
             "SELECT g.generation, g.schema, g.programs FROM _generations g JOIN _meta m ON m.key = 'generation' AND g.generation = CAST(m.value AS INTEGER)",
             [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
-        if held.0 != self.0 || held.1 != self.1 || held.2 != self.2 {
-            return Err(RuntimeError::Generation("the stored backend changed while opening; retry open".into()));
-        }
-        Ok(())
+        crate::activation::check_backend(&Backend(held.0, held.1, held.2), self)
     }
 }
 

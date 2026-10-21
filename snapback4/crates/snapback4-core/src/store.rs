@@ -393,15 +393,8 @@ impl Store {
     }
 
     pub(crate) fn check_selected_release(conn: &Connection, expected: Option<u64>) -> Result<(), RuntimeError> {
-        if let Some(expected) = expected {
-            let release: Option<String> = conn.query_row("SELECT value FROM _meta WHERE key = 'release'", [], |r| {
-                    r.get(0)
-                }).optional()?;
-            if release.as_deref().and_then(|s| s.parse::<u64>().ok()) != Some(expected) {
-                return Err(RuntimeError::Generation("the current release changed while starting; retry serve".into()));
-            }
-        }
-        Ok(())
+        let release: Option<String> = conn.query_row("SELECT value FROM _meta WHERE key = 'release'", [], |r| r.get(0)).optional()?;
+        crate::activation::check_selected(release.as_deref(), expected)
     }
 
     // Closing an accepted backend may checkpoint normally. Failure to restore

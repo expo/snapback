@@ -26,6 +26,9 @@ mod receipts;
 mod change_evidence;
 mod foundation_schema;
 mod ledger_schema;
+mod shape;
+mod activation;
+mod activation_schema;
 #[cfg(test)]
 mod tests;
 pub use store::{SCAN_MEMORY_GUARD, WriteMode};
@@ -168,6 +171,7 @@ impl PostgresEngine {
         assets_schema::initialize(&tx)?;
         let generation = contribution_upgrade::install(&tx, &mut schema)?;
         let generation = maintained_identity_upgrade::install(&tx, &schema, create.is_some(), generation)?;
+        activation::initialize(&tx, &schema, &programs, generation, crate::now_ms())?;
         // Retain the adapter's ordinary connection limits on successful open.
         tx.batch("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
         tx.commit()?;

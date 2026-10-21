@@ -15,6 +15,8 @@ impl ActivationReader for Tx<'_> {
     fn check_selected_release(&self, expected: Option<u64>) -> Result<(), RuntimeError> {
         Store::check_selected_release(self.conn(), expected)
     }
+    fn time_audience_clock(&self) -> Result<i64, RuntimeError> { self.time_audience_clock() }
+    fn opening_marker(&self, marker: crate::metadata::SchemaMarker) -> Result<Option<String>, RuntimeError> { self.schema_marker(marker) }
     fn previous_schema(&self) -> Result<Option<String>, RuntimeError> {
         Ok(self.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?)
     }
@@ -66,7 +68,7 @@ impl ActivationReader for Tx<'_> {
     ) -> Result<bool, RuntimeError> {
         let mut statement = self
             .conn()
-            .prepare("SELECT data FROM r WHERE t = (SELECT num FROM _catalog WHERE name = ?1)")?;
+            .prepare("SELECT data FROM r WHERE t = (SELECT num FROM _catalog WHERE name = ?1) ORDER BY id")?;
         let mut rows = statement.query([table])?;
         while let Some(row) = rows.next()? {
             let image: Value = crate::json_codec::from_text(

@@ -99999,3 +99999,15 @@ deferrable keys as refused shapes. No Postgres host wiring is added.
 Verification follows below. Builds use only this checkout's snapback4/target,
 incremental off, line-tables-only dev/test debug information and at most 12
 build jobs. No push, stash, second worktree or sub-agent.
+## 2026-10-21 — P1-RL task 1: Postgres opening and activation facts
+
+Added the activation reader/writer/preparation and scoped timeline count
+adapters. Attach persists immutable generation records and a catalog under
+the head fence, plus the opening markers. Store-neutral backend captures and
+inventory records remove SQLite types from that contract. Epoch/time facts
+and typed metadata reads are available; timed publication and dormant schema
+evolution remain unadmitted. Reused the strict asset shape guard for these
+relations, including refusal of parent/child inheritance. Shared generation
+hashing and opening selection/capture checks retain SQLite semantics.
+Validation: Postgres-enabled core compilation; complete contract and required
+suites follow in task 3. One local worker, requested build environment, no push.

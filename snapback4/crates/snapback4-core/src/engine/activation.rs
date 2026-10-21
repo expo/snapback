@@ -83,7 +83,7 @@ impl Engine {
             }
             Ok(())
         }, |tx, changed, report| {
-            let now=now.max(tx.time_audience_clock()?);
+            let now=now.max(ActivationReader::time_audience_clock(tx)?);
             if let Some(options)=release {tx.set_active_release(options.release)?;}
             let repair_live_sums = tx.live_sum_marker()?.as_deref() != Some("1");
             let previous: Option<String> = tx.previous_schema()?;
