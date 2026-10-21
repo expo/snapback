@@ -98653,3 +98653,35 @@ made. Final ref-check passes (564 LLP documents, 11,519 refs, zero errors and
 zero unchecked references); git diff --check passes. No unresolved jobs-family
 failure remains. The original helper's transient Serializable stress failure
 remains recorded as a limitation, with its separate isolated pass distinguished.
+
+
+## 2026-10-21 — Integration 19: main follow-ups and final Linux wasm allowance
+
+Merged committer/identity/request follow-ups through e2073e1b66 in 971a28ecd1,
+retaining both journal histories; source auto-merges preserve the typed ports
+and 0.4.35 release behavior. The complete affected core+host command passes
+2,346 tests, zero failures, 20 existing ignores; core unit tests pass 551/0/3.
+Forty affected client files pass 553/0/3. Simulator library, both lowering-only
+ratchets, docs budget, required column Lean witnesses, root inventories and
+references pass. Authoring census regenerates 872 items/72,262 bytes exactly;
+delivery regenerates 147 files, 1,227 awaits and 213 instrumented fault sites.
+The Postgres-enabled library passes 560/0/77 (database-only cases remain named
+ignores, not a database qualification). The experiment lockfile was producer-
+refreshed to the three local 0.4.35 versions without registry upgrades.
+
+Four jobs/schedules follow-ups through 8cc2a5c737 then merged cleanly in
+cc8fd79fa9. Shared jobs cases, job time audiences, native jobs, CLI jobs, clock
+and admission checks, and both ratchets pass at their affected scope. The new
+CLI accepts all 250 unchanged original schemas with zero false refusals.
+Fresh 20k native, device seeds 0–999 and 20k Lean campaigns exactly reproduce
+the qualified baseline counts/signatures; no new disagreement. Full five-crate
+and client/model evidence remains bound to 3fe924cd9b, after the last SQL fix;
+new main deltas are checked at affected scope rather than requiring quiet main.
+
+Clean Linux measurement cc8fd79fa9: 2,404,722 raw / 733,693 gzip / 552,609 Brotli
+bytes; strict family/server-only/Unicode absence audits pass. Set the allowance
+to 734,193 gzip bytes, measured + exactly 500, a whole-artifact +3 gzip bytes
+from the earlier storage-port measurement. No runtime ceiling, independent
+per-feature attribution, Mac result or publication receipt is claimed. A clean
+measurement under this exact allowance and a fresh packed consumer qualification
+follow before delivery.
