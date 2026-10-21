@@ -172,7 +172,7 @@ mod tests {
     fn renamed_table_losses_belong_to_the_target_identity_not_a_new_table() {
         let old=bound("table items:\n  n: int\n  public\n  online only\n");
         let new=bound("table records renamed from items:\n  n: int ?\n  public\n  online only\n");
-        let current=new.schema.clone();let mut e=Engine::new_release(Store::memory().unwrap(),new.schema,[],2,None).unwrap();
+        let current=new.schema.clone();let mut e=Engine::new_release(snapback4_core::store_port::AnyStore::memory().unwrap(),new.schema,[],2,None).unwrap();
         let row=wire::row_from_json(&current.tables["records"],&serde_json::json!({"id":"hidden","n":null})).unwrap();e.seed([("records".into(),row)]).unwrap();
         assert_eq!(e.store().release_table_mapping(&current,&old.schema).unwrap().get("records").map(String::as_str),Some("items"));
         super::super::release_safeguards::capture(e.store()).unwrap();e.adopt_release(old.schema.clone(),[],&ReleaseActivation::new(1,Some(2)),false).unwrap();
