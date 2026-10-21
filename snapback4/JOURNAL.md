@@ -100104,3 +100104,12 @@ Validation and cluster stop receipts are recorded in the fix-round section of
 reports/20261021-p1-rl-release-activation.md. One local worker, at most 16 Cargo
 jobs, only this worktree's target, incremental disabled and line-table debug;
 no stash or push.
+
+### P1-RL fix round 1 — refusal explanation follow-through
+
+The complete host run found that registering the two new refusal codes also
+requires dedicated `why` excerpts. Added their explanations, routed them to the
+refusals card and named `evolution` in that card's family list. The doctor
+renderer and all-code `why` CLI coverage tests each pass when rerun alone.
+This guide-only follow-through leaves the qualified store behavior unchanged;
+the report distinguishes the original full-run failures from their reruns.

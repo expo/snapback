@@ -1,6 +1,8 @@
 //! Detailed explanations moved out of the first-read cards.
 pub(super) fn detail(code: &str) -> Option<&'static str> {
     Some(match code {
+        "E_STORE_UNSUPPORTED" => "# Unavailable store family\n\nE_STORE_UNSUPPORTED names a family the selected store does not yet implement. Postgres schema evolution currently refuses before activation preparation writes. Keep the current schema or use SQLite for the schema transition. The structured family is evolution. Repeating the same activation cannot enable the missing family.",
+        "E_STORE_GENERATION" => "# Invalid stored generation\n\nE_STORE_GENERATION means the persisted generation metadata is malformed, non-positive or outside the signed integer range. Opening refuses before trusting that value, and a failed read does not abort its transaction. Restore a known-good store backup before reopening; preserve the current store for operator inspection. Never delete the store to make adoption pass.",
         "E_QUARRY_STATEMENT" => include_str!("why/E_QUARRY_STATEMENT.md"),
         "E_QUARRY_FANOUT" => include_str!("why/E_QUARRY_FANOUT.md"),
         "N_IMMUTABLE_PATCH" => include_str!("why/N_IMMUTABLE_PATCH.md"),
