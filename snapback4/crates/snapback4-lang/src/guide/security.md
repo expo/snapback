@@ -36,7 +36,13 @@ A matching or weaker assertion may still be the right simple owner policy:
 keep confirmed intent. The advisory never refuses it or changes its verdict.
 Review `snapback/generated/security-invariants.q.draft`: each role gets a row
 question and a question for every column, including roles absent from the rule.
-It proposes no policy. Run check, test and audit again after confirming intent;
+It proposes no policy. Use table-read intent for a shared row audience; add
+column-read intent for distinct privacy boundaries. Assess every role and field
+without automatically creating one assertion per question. For each role, identify
+a positive grant from the spec or a necessary described workflow before retaining
+access to another person's private data. Confirm intentionally shared fields
+explicitly; an omitted denial is not a product grant.
+Run check, test and audit again after confirming intent;
 a refutation means fix the enforcement or the independently verified spec,
 without widening intent just to make the result green.
 
@@ -51,7 +57,9 @@ Fixture-free tests report that no authored business cases ran. Finite passing
 campaigns never prove security. Check bounds concrete exploration to 512 call/world
 reservations and 1500 ms; exhaustion stays unproved and points to the full test.
 `audit --json` retains all column audiences, grant writers, exclusions and uncovered
-role/row/effect exposures. Declaring one effect does not cover the others.
+role/row/effect exposures. Audit returns the permission map with bounded check
+evidence; run `test` for the full generated campaign. `audit --all` shows every
+reason, without increasing the search. Declaring one effect does not cover the others.
 
 ## Reference
 

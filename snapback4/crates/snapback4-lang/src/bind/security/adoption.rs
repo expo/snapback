@@ -12,11 +12,11 @@ pub(super) fn missing(bound:&Bound)->Vec<String>{
 /// Specification questions, never proposed enforcement or accepted policy.
 /// The caller must keep this outside the compiled .q source set.
 pub fn draft(bound:&Bound)->String{
-    let mut out=String::from("-- DRAFT: NOT ACCEPTED. Answer from the APP SPECIFICATION, not from the rules.\n-- Each answer needs an audience, a resource relationship and lifecycle/consent conditions.\n-- Write confirmed declarations in authored snapback/*.q, then run check -> test -> audit.\n-- This questionnaire is never compiled and does not propose policy.\n-- snapback4 guide security\n\n");
+    let mut out=String::from("-- DRAFT: NOT ACCEPTED. Answer from the APP SPECIFICATION, not from the rules.\n-- Each answer needs an audience, a resource relationship and lifecycle/consent conditions.\n-- Use table-read intent for a shared row audience; add column-read intent for distinct privacy boundaries.\n-- Assess every role and column, without automatically declaring one invariant for each question.\n-- Identify each role's positive product/workflow grant before retaining access to other people's private data.\n-- Write confirmed declarations in authored snapback/*.q, then run check -> test -> audit.\n-- This questionnaire is never compiled and does not propose policy.\n-- snapback4 guide security\n\n");
     let roles=super::intent::roles(bound);
     for (name,t) in bound.schema.visible_tables(){
         out.push_str(&format!("-- {name}: {}\n",super::intent::row_context(t)));
-        let audiences=std::iter::once("a signed-in user with no role or relationship".to_owned())
+        let audiences=std::iter::once("a signed-in user without a roster role (check own rows and unrelated rows separately)".to_owned())
             .chain(roles.iter().cloned()).collect::<Vec<_>>();
         for audience in &audiences {
             out.push_str(&format!("-- Q {name}.read / {audience}: which rows may this audience see according to the spec? Own, assigned, team-wide, or none? Which state/consent conditions must hold now?\n"));

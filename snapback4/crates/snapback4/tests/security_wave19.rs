@@ -20,6 +20,19 @@ fn empty_and_absent_fixture_directories_both_generate_and_record_test_refutation
  }
 }
 #[test]
+fn check_refutes_excluded_contact_roles_before_any_full_test(){
+ for empty in [false,true]{
+  let app=App::new();
+  app.write("snapback/schema.q",include_str!("../../snapback4-lang/tests/security/wave20/050.q"));
+  if empty{fs::create_dir_all(app.0.join("fixtures")).unwrap();}
+  let check=app.run(&["check"]);let body=text(&check);
+  assert_eq!(check.status.code(),Some(1),"empty fixtures={empty}: {body}");
+  assert!(body.contains("pieces.ownerName read")||body.contains("pieces.address read"),"{body}");
+  assert!(body.contains("generated-fixture-trace"),"{body}");
+  assert!(!app.0.join("snapback/generated/security-test.json").exists(),"a full-test record is not needed for direct check replay");
+ }
+}
+#[test]
 fn check_invalidates_positive_test_evidence_when_source_or_fixture_changes(){
  let app=App::new();let source="table docs:\n  status: enum('safe','unsafe')\n  read <- allow\n  online only\ninvariant docs.read only .status = 'safe'\n";app.write("snapback/schema.q",source);app.write("fixtures/docs.jsonl","{\"id\":\"doc\",\"status\":\"unsafe\"}\n");
  let test=app.run(&["test","--fixture-only"]);assert_eq!(test.status.code(),Some(1),"{}",text(&test));assert_eq!(app.run(&["check"]).status.code(),Some(1));

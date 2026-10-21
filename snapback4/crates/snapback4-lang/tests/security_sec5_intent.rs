@@ -49,7 +49,7 @@ fn questionnaire_includes_excluded_roles_every_column_and_relationship_context()
         }
     }
     assert!(draft.contains(".athlete (principal)")&&draft.contains("draft / shared"));
-    assert!(draft.contains("a signed-in user with no role or relationship"));
+    assert!(draft.contains("a signed-in user without a roster role (check own rows and unrelated rows separately)"));
     assert!(!draft.lines().any(|l|l.contains("invariant notes.")),"no proposed invariant or rule copies");
     assert!(draft.lines().all(|l|l.is_empty()||l.starts_with("--")));
 }

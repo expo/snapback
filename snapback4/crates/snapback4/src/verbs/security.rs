@@ -9,22 +9,34 @@ pub(super) fn unauthenticated(bound:&Bound,sources:&[(String,String)])->bool {
     match http::run(bound,sources){Ok(_)=>true,Err(why)=>{eprintln!("security HTTP failure: {why}");false}}
 }
 pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],options:&Options)->Report{
-    let mut report=security::analyze(bound);
-    security::add_source_notes(&mut report,sources,bound);
     let mut selection=options.clone();
     if !selection.flags.contains_key("fixture")&&project.root.join("fixtures").is_dir(){selection.flags.insert("fixture".into(),project.root.join("fixtures").to_string_lossy().into_owned());}
     let inputs=match selection.flags.get("fixture"){
-        Some(path)=>match super::test_fixture::snapshot(std::path::Path::new(path)){Ok(snapshot)=>Some(snapshot),Err(why)=>{report.campaign_coverage.insert(format!("fixture reachability not covered: {why}"));return report;}},None=>None,
+        Some(path)=>match super::test_fixture::snapshot(std::path::Path::new(path)){Ok(snapshot)=>Some(snapshot),Err(why)=>{let mut report=security::analyze_rules(bound);security::add_source_notes(&mut report,sources,bound);report.campaign_coverage.insert(format!("fixture reachability not covered: {why}"));return report;}},None=>None,
     };
     if let Some(snapshot)=&inputs{selection.flags.insert("fixture".into(),snapshot.0.to_string_lossy().into_owned());}
     let cached=record::matching(project,&selection,sources);
     let known_failure=cached.as_ref().is_some_and(|r|!r.violations.is_empty())&&!options.flags.contains_key("security-full");
     let mut campaign=if options.flags.contains_key("security-full"){security::challenges::Campaign::default()}else{security::challenges::Campaign::bounded(1500)};
     if known_failure {campaign.work_remaining=Some(0);campaign.unsupported.insert("matching full-test refutations retained; bounded resampling skipped; repair and rerun snapback4 test".into());}
+    // An explicitly selected fixture remains the initial-state assumption.
+    // Static generation runs only on the fixture-free path; both share this
+    // one bounded campaign with all subsequent concrete exploration.
+    let mut report=if selection.flags.contains_key("fixture")||known_failure{
+        security::analyze_rules(bound)
+    }else{security::analyze_with_campaign(bound,&mut campaign)};
+    security::add_source_notes(&mut report,sources,bound);
     if !bound.invariants.is_empty()&&!known_failure{
         if selection.flags.contains_key("fixture"){
             match super::test_fixture::engine_at(project,bound,&selection,1_800_000_000_000){
-                Ok(fixture)=>if bound.schema.tables.keys().any(|t|fixture.store().rows(t).is_ok_and(|rs|!rs.is_empty())){security::challenges::fixture_observers(bound,&fixture,&mut campaign)}else{security::challenges::generated_campaign(bound,&mut campaign,false)},
+                Ok(fixture)=>if bound.schema.tables.keys().any(|t|fixture.store().rows(t).is_ok_and(|rs|!rs.is_empty())){security::challenges::fixture_observers(bound,&fixture,&mut campaign)}else{
+                    // An empty starter directory selects generation, just as
+                    // no fixture does. Give the direct contradiction its turn
+                    // before empty-start mutation permutations spend the cap.
+                    report=security::analyze_with_campaign(bound,&mut campaign);
+                    security::add_source_notes(&mut report,sources,bound);
+                    security::challenges::generated_campaign(bound,&mut campaign,false)
+                },
                 Err(why)=>{campaign.unsupported.insert(format!("fixture reachability not covered: {why}"));}
             }
         }else{security::challenges::generated_campaign(bound,&mut campaign,false);}
@@ -39,8 +51,8 @@ pub fn audit(options:&Options)->i32{
     let project=project_or_exit();
     let sources=match project.sources(){Ok(s)=>s,Err(e)=>{eprintln!("audit: {e}");return 2;}};
     let bound=compiled_or_exit(snapback4_lang::compile(&sources),options.json);
-    let mut full=options.clone();full.flags.insert("security-full".into(),String::new());
-    let report=report(&project,&bound,&sources,&full);
+    // Audit is a permission map plus bounded evidence; `test` owns full campaigns.
+    let report=report(&project,&bound,&sources,options);
     if options.json {println!("{}",serde_json::to_string(&report).unwrap());}
     else {print!("{}",report.text_with_all(options.flags.contains_key("all")));}
     if report.refuted(){1}else{0}
@@ -50,17 +62,19 @@ pub(super) fn exposure(report:&Report){
     eprintln!("security exposure: {} tables, {} conditional audiences, {broad} broadly readable tables; run snapback4 audit for exact role/column predicates",report.exposures.len(),report.roles.len());
 }
 pub(super) fn summary(report:&Report,verbose:bool){
-    exposure(report);
     let proved=report.invariants.iter().filter(|v|v.status==security::Status::Proved).count();
-    let refuted=report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())).count();
-    let supplemental=report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&!v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())).count();
-    eprintln!("security: {proved} proved, {refuted} refuted, {} unproved; {supplemental} seed/synthetic observations (non-failing)",report.invariants.len()-proved-refuted);
-    for v in report.invariants.iter().filter(|v|v.status==security::Status::Refuted){
-        if let Some(c)=&v.counterexample&&c.reachability.is_reachable(){eprintln!("  {} FAIL {} via {} ({:?}; initial fixture assumptions apply)",v.invariant.site,v.invariant.target_label(),c.operation,c.reachability);}
+    let failures=report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())).collect::<Vec<_>>();
+    let refuted=report.invariants.iter().filter(|v|v.status==security::Status::Refuted).count();
+    eprintln!("security: {proved} proved, {refuted} refuted, {} unproved ({} failing)",report.invariants.len()-proved-refuted,failures.len());
+    for v in &failures {
+        let c=v.counterexample.as_ref().unwrap();
+        eprintln!("  FIX {}: {} via {} as {} ({}); tighten enforcement to the declared intent, then run snapback4 test",v.invariant.site,v.invariant.target_label(),c.operation,c.viewer,serde_json::to_value(&c.reachability).unwrap().as_str().unwrap());
     }
+    let supplemental=report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|!c.reachability.is_reachable())).count();
+    if supplemental>0 {eprintln!("  {supplemental} seed/synthetic observations (non-failing)");}
     if verbose {eprint!("{}",report.text_with_all(true));}
-    if !report.invariants.is_empty()||!report.campaign_coverage.is_empty(){eprintln!("  run snapback4 test for full campaigns; {} coverage gaps (--verbose/JSON for details)",report.campaign_coverage.len());}
-    if !report.exposures.is_empty(){eprintln!("  run snapback4 audit for column audiences, grant writers and {} uncovered exposures",report.uncovered.len());}
+    else if !report.invariants.is_empty()||!report.campaign_coverage.is_empty(){eprintln!("  next: snapback4 test; {} coverage gaps (check --verbose/JSON keeps every reason)",report.campaign_coverage.len());}
+    if !report.exposures.is_empty(){eprintln!("  review audiences and {} uncovered exposures: snapback4 audit",report.uncovered.len());}
 }
 
 /// A rule-changing preflight demands a current campaign, without pretending

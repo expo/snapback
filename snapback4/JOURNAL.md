@@ -99649,3 +99649,29 @@ No push, stash, git configuration change, sub-agent, other worktree, remote
 machine, new gate, allowance increase, publication or Postgres host wiring
 was used. The remaining verification limitation is the absent contype='n'
 catalog shape on the supplied 17.9 server, as recorded above.
+
+
+## 2026-10-21 — SEC5: intent questions and executable refutations
+
+Wave20's rule copies become per-role/row/column specification questions. The
+questionnaire proposes no copied policies. New invariant-free advice is narrowed
+by corpus evidence: mixed-role OR privacy, actual media lifecycle transitions,
+existing-row relationship takeover and unbounded caller deadlines. It remains
+conditional advice; legitimate privileged audiences still require confirmation.
+
+Bounded check now replays generated admitted fixtures and actual authored
+observers for excluded role branches. Column comparisons use logical row images,
+media worlds share a hydrated ledger, and full tests prioritize actual lifecycle
+successors. Q050 contact privacy now fails ordinary check; Q036's collected-set
+photo case fails test through recorded mutations. No SAT assignment or synthetic
+world is promoted to a fixture-origin failure. Audit uses bounded evidence,
+returns its permission map promptly and leaves full campaigns to test.
+
+LLP3000.036.004§14 records the semantics and three scoped dual-family READY
+reviews. Ten fresh installed-doc builders produced58 clear read assertions
+representing12 distinct policies in6apps; the original matched-spec sample had
+zero. The exact input-pack timeouts, declaration duplication and048 elicitation
+miss remain recorded. Updated guide questions address those observations.
+Evidence and qualification are under reports/20261021-sec5; the workstream report
+records actual full-suite results and inherited failures. No version bump, push
+or publication; DX5 owns clocks, hidden lookups, upgrades and frontend scaffolds.

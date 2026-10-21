@@ -59,16 +59,19 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
         if inv.operation.is_some()||inv.target=="always" {continue;}
         let Some(policy)=&inv.policy else{continue;};
         let table=&bound.schema.tables[&inv.table];
-        let mut questions=Vec::new();
+        let mut admissions=Vec::new();
         let restates=super::effects(inv).iter().all(|word|{
             if matches!(*word,"insert"|"update")&&!table.written_by.is_empty(){return false;}
             let gate=if *word=="read"{super::columns::admission(table,inv.column.as_deref())}else if *word=="update"{super::images::stable(table,&table.update_rule_judged())}else{table.rules.for_effect(super::effect(word)).clone()};
             let intent=if *word=="update"{super::images::stable(table,&policy.old_and_next())}else{policy.clone()};
-            let target=inv.column.as_ref().map(|c|format!("{}.{c}",inv.table)).unwrap_or(inv.table.clone());
-            questions.push(super::intent::questions(bound,&target,word,&gate));
-            super::intent::restates(bound,&inv.table,word,&gate,&intent)
+            let matches=super::intent::restates(bound,&inv.table,word,&gate,&intent);
+            admissions.push((word.to_string(),gate));
+            matches
         });
-        if restates {note(&mut notes,&inv.site,"N_INVARIANT_RESTATES_RULE",format!("{} matches or weakens current enforcement. {}",inv.target_label(),questions.join(" ")),"answer each audience question from the app specification; keep confirmed intent, and narrow unintended access in the rule. Review the per-role/per-column questionnaire in snapback/generated/security-invariants.q.draft; run check -> test -> audit");}
+        if restates {
+            let target=inv.column.as_ref().map(|c|format!("{}.{c}",inv.table)).unwrap_or(inv.table.clone());
+            let questions=admissions.iter().map(|(word,gate)|super::intent::questions(bound,&target,word,gate)).collect::<Vec<_>>();
+            note(&mut notes,&inv.site,"N_INVARIANT_RESTATES_RULE",format!("{} matches or weakens current enforcement. {}",inv.target_label(),questions.join(" ")),"answer each audience question from the app specification; keep confirmed intent, and narrow unintended access in the rule. Review the per-role/per-column questionnaire in snapback/generated/security-invariants.q.draft; run check -> test -> audit");}
     }
 
     for (name,t) in bound.schema.visible_tables(){

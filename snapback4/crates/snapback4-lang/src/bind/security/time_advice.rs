@@ -45,6 +45,31 @@ fn bounds(expr:&Expr,arg:&str)->u8{match expr{
         if !forward&&!reverse{0}else if op=="="{3}else if (op=="<"||op=="<=")==forward{2}else{1}
     },_=>0,
 }}
+// Propagate only finite affine directional bounds anchored at builtin now.
+// A cycle of caller arguments cannot manufacture a server-clock anchor.
+fn bounded_arguments(context:&ast::ProgramDecl,args:&[&str])->BTreeSet<String>{
+    type Edge=(String,String,u8);
+    fn variable(expr:&Expr,args:&[&str])->Option<String>{
+        if affine(expr,"now"){return Some("now".into());}
+        args.iter().find(|a|argument_affine(expr,a)).map(|a|a.to_string())
+    }
+    fn edges(expr:&Expr,args:&[&str])->BTreeSet<Edge>{match expr{
+        Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{let a=edges(left,args);let b=edges(right,args);if op=="and"{a.union(&b).cloned().collect()}else{a.intersection(&b).cloned().collect()}},
+        Expr::Binary{op,left,right,..} if matches!(op.as_str(),"<"|"<="|">"|">="|"=")=>{
+            let (Some(a),Some(b))=(variable(left,args),variable(right,args))else{return BTreeSet::new();};
+            let direction=if op=="="{3}else if op=="<"||op=="<="{2}else{1};
+            BTreeSet::from([(a.clone(),b.clone(),direction),(b,a,((direction&1)<<1)|((direction&2)>>1))])
+        },_=>BTreeSet::new(),
+    }}
+    let guards=context.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(condition)}else{None}).collect::<Vec<_>>();
+    let mut known=args.iter().map(|a|(a.to_string(),guards.iter().fold(0,|b,c|b|bounds(c,a)))).collect::<BTreeMap<_,_>>();known.insert("now".into(),3);
+    let links=guards.iter().flat_map(|g|edges(g,args)).collect::<BTreeSet<_>>();
+    loop{let mut changed=false;for (a,b,direction) in &links{
+        let inherited=known.get(b).copied().unwrap_or(0)&direction;
+        let entry=known.entry(a.clone()).or_default();let next=*entry|inherited;if next!=*entry{*entry=next;changed=true;}
+    }if !changed{break;}}
+    known.into_iter().filter(|(_,mask)|*mask!=0).map(|(name,_)|name).collect()
+}
 pub(super) fn notes(documents:&[ast::Document],catalog:&Catalog,bound:&Bound)->Vec<Diagnostic>{
     let mut fields=BTreeSet::new();
     for (name,t) in bound.schema.visible_tables(){for field in t.expire.iter().chain(t.not_before.iter()){fields.insert((name.clone(),field.clone()));}}
@@ -65,9 +90,12 @@ pub(super) fn notes(documents:&[ast::Document],catalog:&Catalog,bound:&Bound)->V
         let times=p.args.iter().filter(|a|matches!(a.type_.kind,ast::TypeKind::Time)).map(|a|a.name.as_str()).collect::<Vec<_>>();if times.is_empty(){continue;}
         let mut seen=BTreeSet::new();
         for (write,context) in super::authority_walk::writes(catalog,p){let Expr::Write{table,fields:written,site,..}=write else{continue;};
+            let requirements=catalog.tables.get(&table).map(|info|super::operation::requirements(catalog,info,&context)).unwrap_or_default();
+            if requirements.iter().any(|r|!r.disjuncts().is_empty()&&r.disjuncts().iter().all(|b|b.service_grant().is_some())){continue;}
+            let bounded=bounded_arguments(&context,&times);
             for field in written{if !fields.contains(&(table.clone(),field.name.clone()))||!matches!(bound.schema.table(&table).and_then(|t|t.columns.get(&field.name)).map(|t|t.required()),Some(snapback4_core::schema::ColumnType::Time)){continue;}
                 let value=field.value.unwrap_or(Expr::Name{name:field.name.clone(),site:field.site});
-                for arg in &times{if !contains_arg(&value,arg)||context.body.iter().any(|s|matches!(s,Stmt::Require{condition,..} if bounds(condition,arg)!=0))||!seen.insert((table.clone(),field.name.clone(),arg.to_string())){continue;}
+                for arg in &times{if !contains_arg(&value,arg)||bounded.contains(*arg)||!seen.insert((table.clone(),field.name.clone(),arg.to_string())){continue;}
                     out.push(Diagnostic::new(&site,"N_CALLER_TIME",format!("{}: caller time {arg} flows into {table}.{}, which controls a server-clock deadline, without a dominating bound against now",p.name,field.name),"derive this deadline from server now, or validate the supplied time against now and the permitted window before writing it").guide("security"));
                 }
             }

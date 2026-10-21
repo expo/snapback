@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-const verbs = new Set('init new check device types dev deploy rollback prune releases serve run clock reset test why guide data sql token doctor upgrade witness'.split(' '));
+const verbs = new Set('init new check device types dev deploy rollback prune releases serve run clock reset test audit why guide data sql token doctor upgrade witness'.split(' '));
 export function changelogFlags(changelog) {
   // Changelog entries are newest first. The newest mention decides whether
   // an option is supported; explicit retirement prose must not announce it.

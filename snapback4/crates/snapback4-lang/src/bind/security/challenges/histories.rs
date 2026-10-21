@@ -308,6 +308,66 @@ pub(super) fn initial_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     let Ok(mut engine)=fork(bound,fixture,Vec::new())else{return;};
     observe(bound,&mut engine,&initial,&initial,&actors,&[],out);
 }
+// Prefer real lifecycle successors before the general diagonal history matrix.
+// Values copied by creators are never replaced with invented terminal states.
+pub(super) fn lifecycle_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign){
+    let mut relevant=BTreeSet::new();
+    fn lifecycle(bound:&Bound,source:&str,rule:&RuleExpr,out:&mut BTreeSet<String>){match rule{
+        RuleExpr::Exists{table,index,key,equalities,..}=>{
+            if super::super::privilege::role_columns(bound,table).is_empty()&&super::super::privilege::probe_pairs(bound,table,index,key,equalities).iter().any(|(c,term)|matches!(term,RuleTerm::Literal(_))&&bound.schema.tables[table].columns.get(c).is_some_and(|k|matches!(k.required(),C::Enum{..}))){out.insert(table.clone());}
+        },
+        RuleExpr::Eq(a,b)|RuleExpr::Ne(a,b)|RuleExpr::Compare(_,a,b)=>{
+            if super::super::privilege::role_columns(bound,source).is_empty()&&[a,b].iter().any(|term|matches!(term,RuleTerm::Field(c)|RuleTerm::NextField(c)|RuleTerm::OldField(c) if bound.schema.tables[source].columns.get(c).is_some_and(|k|matches!(k.required(),C::Enum{..})))){out.insert(source.into());}
+        },
+        RuleExpr::And(xs)|RuleExpr::Or(xs)=>for r in xs{lifecycle(bound,source,r,out)},RuleExpr::Not(r)=>lifecycle(bound,source,r,out),_=>{}
+    }}
+    for inv in bound.invariants.iter().filter(|i|i.target=="read"&&!out.violations.iter().any(|v|v.invariant_site==i.site.to_string()&&v.reachability.is_reachable())){
+        if let Some(p)=&inv.policy{lifecycle(bound,&inv.table,p,&mut relevant);}
+    }
+    if relevant.is_empty(){return;}
+    let transitions=bound.programs.iter().filter(|bp|bp.program.kind==ProgramKind::Mutation&&!bp.program.native&&!bound.schema.operations.get(&bp.program.name).is_some_and(|f|f.ephemeral)).filter(|bp|{
+        let json=serde_json::to_string(&bp.program).unwrap();
+        ir::write_tables(&bp.program).iter().any(|(name,kind)|*kind=="update"&&relevant.contains(name)&&super::super::privilege::role_columns(bound,name).is_empty()&&bound.schema.tables[name].columns.iter().any(|(c,k)|matches!(k.required(),C::Enum{..})&&json.contains(&format!("\"{c}\":"))))
+    }).collect::<Vec<_>>();
+    if transitions.is_empty()||out.exhausted(){return;}
+    let Ok(initial)=readback(fixture)else{return;};
+    let actors=actors(bound,&initial);
+    if !out.reserve(1){return;}
+    let Ok(root)=fixture.fork_fixture()else{return;};
+    let mut frontier=vec![(root,Vec::<Step>::new())];
+    let mut seen=BTreeSet::from([serde_json::to_string(&initial).unwrap()]);
+    let mut visited=0;
+    for _ in 0..3{
+        let mut next=Vec::new();
+        for (base,steps) in frontier{
+            let Ok(before)=readback(&base)else{continue;};
+            for bp in &transitions{
+                let p=&bp.program;
+                let cases=fixture_cases(p,&before,&actors,out);
+                if cases.len()>32{out.unsupported.insert(format!("{}: lifecycle arguments capped at 32",p.name));}
+                for args in cases.into_iter().take(32){for viewer in &actors{
+                    if visited>=256||!out.reserve(1){out.unsupported.insert("lifecycle successors capped at 256 attempts; remaining state transitions uncovered".into());return;}visited+=1;
+                    let Ok(mut engine)=base.fork_fixture()else{continue;};
+                    let Ok(args)=materialize_arguments(&mut engine,&p.args,&args,viewer)else{continue;};
+                    out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
+                    let Ok(result)=engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(NOW))else{continue;};
+                    if !matches!(result.state,snapback4_core::WriteState::Sent{..}){out.refused+=1;continue;}
+                    let Ok(after)=readback(&engine)else{continue;};
+                    let changed=ir::write_tables(p).iter().any(|(name,_)|before.get(name).into_iter().flatten().any(|old|after.get(name).into_iter().flatten().find(|r|r.field("id").ok()==old.field("id").ok()).is_some_and(|new|bound.schema.tables[name].columns.iter().any(|(c,k)|matches!(k.required(),C::Enum{..})&&old.field(c).ok()!=new.field(c).ok()))));
+                    if !changed||!seen.insert(serde_json::to_string(&after).unwrap()){continue;}
+                    let mut history=steps.clone();history.push(Step{operation:p.name.clone(),viewer:viewer.clone(),args,result:serde_json::to_value(&result.state).unwrap()});
+                    out.sequences+=1;
+                    observe(bound,&mut engine,&after,&initial,&actors,&history,out);
+                    column_reads::after_history(bound,&engine,&initial,&history,out);
+                    if bound.invariants.iter().filter(|i|i.target=="read").all(|i|out.violations.iter().any(|v|v.invariant_site==i.site.to_string()&&v.reachability.is_reachable())){return;}
+                    if next.len()<16{next.push((engine,history));}else{out.unsupported.insert("lifecycle frontier capped at 16 worlds; remaining transitions uncovered".into());}
+                }}
+            }
+        }
+        if next.is_empty(){return;}frontier=next;
+    }
+    out.unsupported.insert("lifecycle traces bounded to three authored transitions; longer traces uncovered".into());
+}
 pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     if bound.invariants.is_empty()||out.exhausted(){return;}
     let initial=match readback(fixture){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);return;}};

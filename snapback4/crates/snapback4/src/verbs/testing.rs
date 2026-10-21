@@ -104,6 +104,7 @@ pub fn test(options: &Options) -> i32 {
             return 0;
         }
     }
+    println!("security: running full finite campaigns; replayed violations fail; coverage limits follow");
     let mut security_campaign = snapback4_lang::security::challenges::Campaign::default();
     let populated_fixture=bound.schema.tables.keys().any(|table|engine.store().rows(table).is_ok_and(|rows|!rows.is_empty()));
     if options.flags.contains_key("fixture")&&populated_fixture{
@@ -125,7 +126,9 @@ pub fn test(options: &Options) -> i32 {
     let reachable=security_campaign.violations.iter().filter(|c|c.reachability.is_reachable()).count();
     println!("security tests: {} attempted, {} refused, {reachable} reachable violations; {} seed/synthetic observations (non-failing); finite campaign, not proof",security_campaign.attempted,security_campaign.refused,security_campaign.violations.len()-reachable);
     for c in security_campaign.violations.iter().filter(|c|options.flags.contains_key("all")||c.reachability.is_reachable()) {println!("security violation: {}",serde_json::to_string(c).unwrap());}
-    for reason in &security_campaign.unsupported {println!("security not covered: {reason}");}
+    let coverage_all=options.flags.contains_key("all")||options.flags.contains_key("verbose");
+    for reason in security_campaign.unsupported.iter().take(if coverage_all{usize::MAX}else{5}) {println!("security not covered: {reason}");}
+    if !coverage_all&&security_campaign.unsupported.len()>5 {println!("security: {} more coverage limits; test --all keeps every reason",security_campaign.unsupported.len()-5);}
     let (mut passed, mut failed_cases) = (0, 0);
     if let Some(fixture) = options.flags.get("fixture").filter(|_| !options.flags.contains_key("saved-fixture-fallback")) {
         match test_cases::run_verbose(&mut engine, &bound, fixture, &sources, fixture_now, options.flags.contains_key("verbose")) {
