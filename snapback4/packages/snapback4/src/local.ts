@@ -1,3 +1,4 @@
+import { suppliedSession } from "./session-input.ts";
 import { servedRelease } from "./release.ts";
 import { engineHeaders, unknownEngine, normalizeEngine, deviceVersionState, probeDeviceEngine, DeviceVersionError } from "./device-version.ts";
 export { DeviceVersionError, type DeviceVersionStatus, type DeviceEngine, type DeviceCompatibility } from "./device-version.ts";
@@ -70,7 +71,8 @@ export type { DeviceCore, DeviceOpener, DeviceOpening, LocalOptions, LocalClient
 const PAGE = 10000; // Fill the row allowance; fetchSync and E_BOUND still bound oversized pages.
 const REFRESH_BEFORE_EXPIRY_MS = 24 * 60 * 60 * 1000;
 export async function createLocalClient(options: LocalOptions): Promise<LocalClient> {
-  validateReadOptions(options); refuseReadDevice(options.session);
+  const initialSession = suppliedSession(options.session, "createLocalClient");
+  validateReadOptions(options); refuseReadDevice(initialSession);
   const retention = assetRetention(options.assets);
   const clock = serverClock(options.fetch ?? defaultFetch).fork();
   let release: ReturnType<typeof servedRelease> | undefined;
@@ -85,7 +87,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let session: Session | null = null;
   if (options.persona) headers["x-snapback-persona"] = options.persona;
   else {
-    session = options.session ?? await restoreSession(base, sessions, () => 0);
+    session = initialSession ?? await restoreSession(base, sessions, () => 0);
     refuseReadDevice(session);
     if (session && (!Number.isFinite(session.expiresAt) || session.expiresAt <= 0)) {
       session = null;

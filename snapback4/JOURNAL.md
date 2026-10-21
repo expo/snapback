@@ -99649,3 +99649,15 @@ No push, stash, git configuration change, sub-agent, other worktree, remote
 machine, new gate, allowance increase, publication or Postgres host wiring
 was used. The remaining verification limitation is the absent contype='n'
 catalog shape on the supplied 17.9 server, as recorded above.
+
+
+## 2026-10-21 — SEC6 session and security-boundary work
+
+Wave-21 SEC6 follows LLP 3000.036.004 §§3,12.8,13.7 and the new §15
+amendment. No predicate-kernel axiom, runtime grant or protocol field is added.
+Client constructors validate supplied session shape before effects and keep a
+primitive snapshot, preserving legacy scope-less sessions and bare online tokens.
+The 17-case online session suite passes locally; Studio qualification is running.
+The semantic review and qualification record will follow in this workstream.
+EVOL owns adoption, migration expressiveness and rollback fidelity; SEC5's §14
+and 0.4.36 integration are pending on origin/main.

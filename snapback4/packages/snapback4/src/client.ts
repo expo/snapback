@@ -1,3 +1,4 @@
+import { suppliedSession } from "./session-input.ts";
 import { servedRelease } from "./release.ts";
 import { dependencies, intersects, intervalChanges, readFootprint, type Changes, QueryCuts, waitForQueryWrites } from "./query-dependencies.ts";
 import { bindSessionRefusal } from "./session-refusal.ts";
@@ -177,6 +178,7 @@ export function idFrom(key: string): string {
 let warnedBrowserWrites = false;
 
 export function createClient(options: ClientOptions): Client {
+  const initialSession = suppliedSession(options.session, "createClient");
   let release: ReturnType<typeof servedRelease> | undefined;
   validateReadOptions(options);
   // @ref LLP 3000.013#6.2 — say so at construction, not at the first refused click.
@@ -209,10 +211,10 @@ export function createClient(options: ClientOptions): Client {
   const base = options.url.replace(/\/$/, "");
   const headers: Record<string, string> = { "content-type": "application/json" };
   if (options.persona) headers["x-snapback-persona"] = options.persona;
-  let session = options.persona ? null : options.session ?? null;
+  let session = options.persona ? null : initialSession ?? null;
   const token = options.persona ? undefined : session?.token ?? options.token;
   if (token) headers.authorization = `Bearer ${token}`;
-  let viewer: Principal | null = options.persona ? (`dev:${options.persona}` as Principal) : options.session ? (options.session.principal as Principal) : null;
+  let viewer: Principal | null = options.persona ? (`dev:${options.persona}` as Principal) : initialSession ? (initialSession.principal as Principal) : null;
   let credentials = Boolean(viewer || token);
   let link: Link = credentials ? "online" : "signed-out";
   let closed = false;

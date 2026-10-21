@@ -4219,3 +4219,9 @@ live serve still uses authenticated control. Ambiguous activation is not retried
 The default limit is 50. Check `more` before interpreting a row count; increase
 `--limit N` for a larger inspection. Text output stays JSON lines. This replaces
 the previous bare JSON array so stdout-only callers can detect truncation.
+
+A supplied session must be the complete Session from guest, login, signup or
+service session minting: principal, kind, token and a finite integer expiresAt
+in milliseconds. Online and local constructors reject malformed input immediately
+with E_SESSION and a repair, before opening a device or making requests. The
+online token option accepts a bare bearer without inventing expiry metadata.
