@@ -463,3 +463,7 @@ mod tests {
         tx.rollback().unwrap();
     }
 }
+
+#[cfg(test)]
+#[path = "assets/parity_tests.rs"]
+mod parity_tests;

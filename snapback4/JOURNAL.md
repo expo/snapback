@@ -99460,3 +99460,79 @@ payload columns in this ledger. Context came from the port RFC, durable
 media intent RFC, current assets guide, and landed identity/request adapters;
 llp-orient's local skill link is unavailable in this cold worktree, and no
 submodule was initialized. Shared cross-store conformance follows next.
+
+## 2026-10-21 — P1-AS: one asset ledger contract on SQLite and Postgres
+
+The shared asset cases now run on both adapters: immutable declarations,
+conditional publication/no-op conflicts, owner-scoped quota and recovery,
+exact 128 MiB admission boundaries, BIGINT values beyond 2^53 and at i64::MAX,
+aggregate overflow with rollback, placement/refusal/replay, view insert-ignore,
+receipt exclusion, nullable fields versus absent rows, and collection with
+256-row batches and a zero-duration budget. Both stores exercise byte ordering,
+51-row recovery lookahead and cached reads after additive columns. The SQLite
+fixtures retain legacy NUL-key publication, replay, settlement, cancellation,
+view and collection access. New NUL keys fail admission in shared policy;
+Postgres NUL-key lookups are absent without a driver call. A NUL recovery
+cursor is an ordering bound: its prefix gives the same comparison against
+Postgres's NUL-free keys. No raw diagnostic text is stored in this family;
+JSON facts, placements and terminal receipts already escape NUL.
+
+Every applicable port RFC section 9.1 rule has a witness. Bounded selections
+have total orders; prepared statements have explicit columns; statement
+errors end the transaction by contract and the tests immediately drop/roll
+back; counts/limits stay typed (the inventory limits are fixed positive
+constants); installation and incompatible-shape refusals happen at attach.
+Postgres writer tests hold their transaction while a peer obtains compatible
+relation locks on all four tables, and every writer refuses a transaction
+without the serialized head fence. Cancellation-first and publication-first
+races use store/test_race.rs on both adapters. The holder keeps its fence
+until the contender's SQLite busy handler fires or pg_blocking_pids reports
+the holder. No race is inferred from a barrier or a harness SQL update.
+
+Dialect differences are explicit: PostgreSQL SUM(bigint) is NUMERIC, so the
+adapter casts the exact sum to BIGINT; both aggregate overflow paths roll
+back. The shared quota comparison uses checked addition. The required
+cancellation-state read preserves SQLite's QueryReturnedNoRows variant;
+nullable declarations and tombstones stay distinguishable from absent rows.
+Unknown kinds, partial home triples and legacy signed integer casts preserve
+SQLite's reader behavior. SQLite's rowid TEXT primary key can hold a raw NULL
+asset id, while the typed port requires String on both stores; PostgreSQL
+therefore makes that key NOT NULL. Extra uniqueness, constraints, defaults,
+triggers or row security refuse SNAPBACK_ASSET_SCHEMA instead of silently
+changing typed operation outcomes. Fingerprints and JSON text stay unchanged.
+
+The PostgreSQL 16.15 run executed all 21 asset tests: 21 passed, zero failed,
+zero ignored. All 100 selected core Postgres tests passed, and all 19 corpus
+tests passed (207 Postgres cases, 88 named exclusions; 210 SQLite cases,
+85 named exclusions). The experiment conformance stage had 17 passes and the
+known serializable 40001 failure. Its exact isolated test then passed:
+65 serialized increments with zero retries; 65 serializable increments with
+107 retries and no lost updates. Recorded in the existing 20260916 issue;
+retry policy was not changed. Both owned socket-only clusters were stopped
+and pg_ctl status confirmed exit 3/no server running. No other cluster was
+touched. No Postgres upload/serve wiring, BlobStore, byte writer, client
+surface, retry policy, gate allowance or other lane changed.
+
+Final validation: cargo test -p snapback4-core passed across 44 result
+summaries: 912 passed, zero failed, five existing ignored, including all
+17 doctests (the isolated ownership-test child result is not double-counted).
+The core unit portion was 515 passed, zero failed and three ignored. Both
+host ratchets passed: three committer tests and five store-port tests, with
+no allowance changes. The requested Clippy command with postgres/tests
+reported exactly the two acknowledged inherited errors:
+while_immutable_condition at engine/read.rs:780 and never_loop at
+engine/row_views.rs:1013. No Clippy diagnostic named the new asset adapter,
+schema or shared-case files; the inherited library errors prevent a complete
+Clippy pass. No inherited lint was suppressed or repaired. The reference
+audit passed at the repository root: 564 LLP documents, 11,529 references,
+zero errors or unchecked references. git diff --check passed.
+
+The additive-column contract exercises SQLite's explicit reader and
+Postgres's retained prepared-plan cache. All Cargo commands were sequential
+with at most -j 6 (the supplied Postgres script used CARGO_BUILD_JOBS=6),
+CARGO_INCREMENTAL=0 and line-tables-only dev/test debug information. Disk
+space stayed above the 15 GB stop threshold throughout. No sub-agent,
+clone, remote command, other worktree, stash, git configuration change or
+push was used. P1b remains responsible for wiring the Postgres host: asset
+schemas are still refused there, and no public Postgres upload/serve path
+reaches these ledger methods today.

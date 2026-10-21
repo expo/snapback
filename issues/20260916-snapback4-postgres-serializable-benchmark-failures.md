@@ -70,3 +70,30 @@ proof that the outbox delta introduced or resolved it. Raw lane logs remain
 in `/tmp/p1-ob-postgres-final.log`,
 `/tmp/p1-ob-postgres-concurrency-isolated.log` and
 `/tmp/p1-ob-postgres-serial-final.log` on this worktree's host.
+## 2026-10-21 — P1-AS private-cluster qualification on expo-build-450a
+
+The P1-AS worktree (`sb4-pg/p1-assets`, adapter commit `7d71bf237b` plus
+shared conformance cases) reproduced PostgreSQL 16.15 SQLSTATE `40001`,
+"could not serialize access due to concurrent update", in
+`concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+(`experiments/postgres/tests/conformance.rs:244`, joined at line 257).
+The serialized half completed 65 increments with no lost updates and zero
+transaction retries; a serializable worker then errored. The full
+`scripts/test-postgres.sh` run used four Rust test threads, Cargo `-j 6`
+(via CARGO_BUILD_JOBS), incremental off and line-table debug information.
+Another authorized lane shares this host; this is not an idle-host claim.
+The script continues to run the gated family contracts after this failure.
+No retry, timeout or durability policy was changed.
+
+The isolated rerun of that exact conformance test passed (one test, zero
+failed/ignored): 65 serialized increments with zero retries, and 65
+serializable increments with 107 retries, with no lost updates. It used
+`cargo test --locked -j 6 --manifest-path experiments/postgres/Cargo.toml
+--test conformance concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes
+-- --include-ignored --nocapture --test-threads=1` on a new socket-only private
+cluster. The full run's core Postgres tests passed 100/100 (all 21 P1-AS
+asset tests executed, zero ignored); its corpus tests passed 19/19, with
+207 Postgres cases passed and 88 named exclusions. Both owned clusters
+were stopped and `pg_ctl status` confirmed no server running (exit 3):
+`/tmp/sb4-pg-eval.JYlct6` and `/tmp/p1-as-pg-isolated.R89G7b`. This remains
+an experimental serializable flake, not a new asset-ledger failure.
