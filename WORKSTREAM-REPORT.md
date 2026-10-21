@@ -1,236 +1,170 @@
-# Integration 20 — Snapback 4 0.4.36
+# Integration 21 — release evolution, SEC6 and 0.4.37
 
 Worktree `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
-**Committed locally; not pushed or published.** Publication worktrees and
-`target/publication/` were untouched. Commands were bounded by timeouts; Cargo
-received `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
-The prohibited full `scripts/test.sh` was not run.
+0.4.36 was pushed as explicitly requested in Step 0. **0.4.37 is committed
+locally and has not been pushed, published or tagged.** Publication worktrees
+and `target/publication/` were not used.
 
-## Integration and version
+## Changes and commits
 
-Started clean at f0eed70bb3 and fast-forwarded main to 86303f71df, retaining the
-main census/test-only-module correction. Merged the requested lanes in order:
+| Item | Result | Commit |
+| --- | --- | --- |
+| Step 0 | Merge incoming release/activation/ledger, neutral store-handle and scale work; keep both journal histories; qualify and land 0.4.36. | Initial merge `c42ea4e226`, S10 merge `b422e1210e`, evidence `2448deea23`, final main merge and successful push `b71c73fc79` |
+| EVOL | Adoption fingerprint/destination fixes; truthful previews; loosened bridges; identity-preserving table/asset renames; indexed and file-derived backfills. | Merge `87e2de3314` |
+| SEC6 | Creation/write-intent and typed-result privacy campaigns; deploy FIX/REVIEW/evidence reporting; complete supplied-session validation and private snapshots. | Merge `d642d75c89` |
+| Version | Same ten-file version-bump surface as the 0.4.36 bump `d8deda73dd`. | `f547a9f50e`, `snapback4 0.4.37: release evolution and creation privacy checks` |
+| Bridge composition | Honor explicitly renamed parent references while retaining the independent-identity refusal; emit renamed newer-only tables once; remap retained child types/rule probes and continued sync arms. Five focused regressions include guarded/unsafe creation and privacy intent. | `25630e51f6`, `cc370731b9`, `4b824a6fe6` |
+| Store-handle reconciliation | New preview code uses `AnyStore` and neutral reports; the merged visibility test also uses the neutral handle. No production ratchet allowance was raised. | Merge resolutions; `eae7324784` |
+| Wasm | Set whole-device measurement plus exactly 500 B, with reason in budget, commit and journal. | `216c54d3e4` |
+| Mac fixture | Fix parallel temporary-directory name collisions with a process counter. No product code, test bound or assertion changed. Incident closed with the repair. | `0042644172` |
+| Documentation | One coherent 0.4.37 `guide changes` entry; LLP 3000.037 §20.6 extends wave-21 day-two calibration and explains upgrade behavior. | SEC6 merge and `25630e51f6`; final evidence/report commit |
 
-- DX5: **825ec1d055** (`--no-ff`).
-- SEC5: **d0551b2f37** (`--no-ff`).
-- Current main S8 store/device boundaries through 8beeb79c52: **353c270de8**.
-- Later main Postgres experiment lock refresh 1c3e742784: **115822bc36**.
-- Current main P1 foundation/evidence changes through 1c838356f2: **a3d79a312f**.
+On every report conflict the integration-side report was retained. Generated
+censuses, diagnostics and guide/inventory projections were regenerated rather
+than hand-merged. Final authoring census: 872 entries, unchanged; the await-boundary
+census also regenerated unchanged. Guide budgets were not raised.
 
-Final verification snapshot: **49ff4203ce**, including the last known-evidence fixture repair. Main is continuously active; no quiet-main or exact-HEAD qualification requirement was introduced.
-
-Kept integration's WORKSTREAM-REPORT on its conflicts, unioned append-only
-journal entries, and kept one coherent 0.4.36 `guide changes` section. Generated
-records were regenerated, not manually merged. The later isolated experiment
-lock was refreshed by Cargo for 0.4.36 (5c64561f93); offline locked metadata
-validation passed. It changes no CLI/device workspace semantic input.
-
-Dedicated bump: **d8deda73dd**, `snapback4 0.4.36: specification intent, staging
-diagnostics and lighter starters`. It uses precisely the ten files changed by
-9ec63002ee's 0.4.35 bump. Research: 6220e43d95 extends LLP 3000.037 §20 with
-waves 20 and 21 on 0.4.35 and the 0.4.36 response; the wave-21 aggregator was
-rerun. 943e9b4a3e refreshes its Revised header.
-
-## Per-item result
-
-- **DX5 clock:** `advance()` returns `{now,fired,held}`, with numeric `now()`
-  preserved. HTTP/CLI/helper reports explain fired schedules, saved-boundary
-  holds and recovery, including incomplete maintenance. S8's typed clock/
-  metadata ports preserve the same keys and admission policy.
-- **DX5 source advice:** hidden/required/same-table lookups and private unique
-  conflicts name the authored rule/clause and safe rewrite without exposing
-  stored rows. The integration ranks both codes as review advice, not merely
-  performance advice (d144095106). Existing specific advice retains precedence.
-- **Upgrade path:** old installed 0.4.33/0.4.35 `npx snapback4 upgrade` paths
-  deliver warnings, preserve pending captured advice, and keep JSON stdout
-  clean. The guide gives `JSON.parse(stdout).rows`, plus `more`/`limit`.
-- **Starter weight:** ReadState and its API indexes are present; Metro/native
-  smoke support lives in the package; starter proofs and Playwright custody
-  remain explicit. Edited application screens/proofs remain owned by the app.
-  Integration fixes the README's packaged smoke import, the shim fixture's
-  new dependency, exact diagnostic expectations and explicit React peer in
-  the packed proof. Registered starter digests and invariant declarations pass.
-- **SEC5 intent and notes:** drafts ask independent product-spec questions;
-  restatement review names admitted roles and conditions. Broad roster OR,
-  lifecycle/private-column, self-claim and caller-clock notes work without
-  invariants, with scoped quiet controls and transitive clock anchors.
-- **SEC5 concrete evidence:** bounded check replays actual generated fixtures
-  through authored reads. Column-world normalization preserves creator coupling,
-  ordinary values and shared verified asset ledgers. The integration fixes
-  creator candidate ordering to try admitted roster principals first while
-  retaining outsiders, all guards and existing budgets (da83e95c83).
-- **SEC5 output:** check combines distinct compiler/security advice coherently;
-  audit leads with fixes/reviews and keeps full evidence in JSON/--all.
-- **Test fixture repair:** synchronous CLI inspections blocked live-host socket
-  processing under load. Two fixtures now await the public command helper
-  (75982178c7), preserving assertions and bounds. The historical guide test asks
-  for --full (7276aba83f). No runtime ceiling or security boundary was relaxed.
-- **Incoming-main evidence policy:** merged shared metadata/receipt validation and explicit unknown preservation evidence. Null/absent evidence keeps the prior read while refreshing; known lists retain bounded withdrawal. Old fixtures conflated these states. 05b7e9b7be and 49ff4203ce supply known evidence (actual authored mutation results where available), preserves every withdrawal/queue/retention bound, and regenerates literal HTTP examples using KIT3_UPDATE_WIRE/KIT4_UPDATE_WIRE.
+Existing apps keep their authored policies. Stores retain rows, identities,
+users, dormant populations and migration custody. Release-store format 8 requires
+the newer runtime for later release switching. Regenerate declarations and rebuild
+clients for the new capability fences. A generated bridge is a new source release
+requiring application/policy review; it does not rewrite an immutable old release,
+merge already independent table histories or make a frozen old UI expose new tables.
 
 ## Verification
 
-### Linux
+Step 0 completed the exact five-crate Rust command after the incoming source
+repairs: 7,179 reported passing executions, zero failures, 47 ignores across 446
+result summaries. Six release/activation client files passed 64 tests. Root setup,
+generated artifacts, inventories, guide (22/0/0) and ref-check all passed. The last
+incoming commits before the push changed benchmark controls/records only; affected
+Python checks passed and product source trees matched the tested merge.
 
-The exact requested five-crate command completed **exit 0** at final runtime/test source **49ff4203ce**, after the last fixture fix: **431 parent target summaries, 7,153 passed / 0 failed / 47 standard ignores**. Nested child-probe summaries are excluded. Cargo used twelve build jobs and eight libtest threads. The full unfiltered log and parsed targets are retained in [rust-tests.json](snapback4/reports/integration20/rust-tests.json). The follow-on docs-budget check also passes.
+| Final check | Result |
+| --- | --- |
+| Complete Linux five-crate Rust command, after the last fix | Passed in full: 7,216 reported passing executions, zero failures, 47 ignores in 448 result summaries |
+| Full Linux client pool, one pass | 425/425 files; 7,772 passing tests, zero failures, 56 platform skips |
+| Full-count seeded client models | 81 passed, zero failures |
+| Fixture wrapper / SDK TypeScript | 9 passed; typecheck passed |
+| Difftest `run`, 20,000 seeds/cases | 1,222,111 executions; zero signatures |
+| Devices, seeds 0–999 | 27,922 executions; zero signatures |
+| Lean, 20,000 | Exactly the reproduced 0.4.36 baseline: 130 disagreements in four signatures (3/35/67/25); 3,173 unsupported cases are not passes |
+| Fresh prepared pack / Linux installed-consumer qualification | Passed, proot route; all standard cases plus 19 evolution/dormancy cases and SEC6 session/multi-write/result cases |
+| Wasm, strict family/absence audits | Passed: **2,405,869 raw / 734,904 gzip / 553,602 Brotli B**; budget **735,404 B**, exactly measurement + 500 B |
+| Packed/source/dist wasm identity | All SHA-256 `87116107086fb3fb85814517fcf33204f574df340e2dad0b11395d3b96e7924e` |
+| Docs budget | Passed; README 319/320 physical lines |
+| Root frozen install, workspace hoist and generated artifacts | Passed with the prescribed setup; no checks skipped |
+| Post-fixture diagnostics / guide regeneration / inventories / guide | Passed; guide 22 passed, zero failures/skips/preconditions; 121 inherited warnings |
+| Ref-check | Passed after final records: 564 documents, 12,277 references, zero errors/unchecked |
+| Postgres feature, all-target compiler check | Passed; this is not a live Postgres migration qualification |
+
+The first complete current-product Rust invocation hit only the ticketed
+`stalled_resolver_sigterm_is_bounded_journalled_and_drained` readiness assertion.
+The unchanged case passed alone. The final full repeat used eight test threads
+and includes the subsequent test-only Mac fixture repair. The successful repeat is bound to source `0042644172`; counts include nested child reports rather than distinct test identities.
+Earlier compile failures and intentionally stopped invocations are retained as
+attempts, not counted as successful complete runs.
+
+The final inventory recheck found root `node_modules` missing after the earlier
+successful root pass. Repeating frozen install, workspace hoist and generated-
+artifact setup restored the preconditions; the complete inventory retry passed.
+No tracked product file changed. The failed precondition attempt is retained
+separately in the evidence manifest.
+
+### Schemas, stores and real upgrades
+
+- All 350 unique apps / 358 Quarry files from wave 15 and waves 16, 18–21 passed
+  on both the 0.4.36 control and the merged production binary: zero false refusals;
+  original sources remained unchanged. All existing compiler and SEC5 note-code
+  counts are unchanged. SEC6 adds 4,231 `N_COLUMN_RESULT_EXPOSURE` and 646
+  `N_INSERT_WRITE_INTENT` advisory question instances, not vulnerability counts.
+  The complete before/after table is in `snapback4/reports/integration21/schema-note-code-delta.md`.
+- Coherent copies of 29 wave-21 stores, including immutable asset bytes, ran two
+  rollback/forward cycles per binary. Active/dormant row-identity unions were
+  retained. The same four legitimate strict historical-source refusals occur
+  on both binaries: edited outputs in 026 and missing original required fields
+  in 044. All eight dormant bridges previewed and activated with zero hidden or
+  newer-only source populations. These are schema counts before read rules.
+- Real 0.4.35 and 0.4.36 executables created stores and Expo apps, then their own
+  `npx snapback4 upgrade 0.4.37` acquired the exact qualified candidate packs.
+  Both upgrades retained rows/ids, service credentials and genuine old full and
+  narrowed read sessions; new writes succeeded and production dev doors stayed
+  closed. Expo typechecks and exports passed before and after. Real browser
+  screens read the backend before/after with the same persisted origin/session.
+  0.4.35 came from local registry 4873; unpublished 0.4.36 used the exact retained
+  qualified Integration 20 tarballs through an owned temporary proxy.
+
+### Mac and Exact
+
+Mac Studio `macstudio-charlie-apt101-a`, own scratch `~/sb4-ws-integ21` only:
+core library, affected language/security/guide targets, CLI units plus affected
+previews/security/ratchets, and simulator crate passed. The 53 platform/affected
+client files passed 1,062 tests with 14 Linux-only skips. The directory-collision
+case passed alone after its repair, then the full parallel device target passed
+63 unit and 88 read-authority tests. Source-hash validation covers the original
+237 changed paths plus the one test-only repair file.
+
+The exact Linux-prepared common client was used with a fresh native framework
+and native Expo pack. The Expo **Own Release** witness passed prime, cold offline
+launch and restart, with `proofKind: application-release` and exit 0. Installed
+Xcode/SDK are **27.1**, with iOS runtime 27.0; Xcode 27.0 was unavailable. The generic
+fresh todo witness had zero rows and checked complete offline acquisition/query;
+it did not exercise asset UI. The fixture's `file:` dependencies were correctly
+refused by the bounded adapter; serving the same tarballs over an owned loopback
+HTTP endpoint made them ordinary supported dependency inputs. Its functional
+Darwin CLI pack used the merged debug CLI and is not a publication qualification.
+The owned simulator was deleted and both owned server ports refused connections.
+The owned wake process was stopped after validating its command and birth time; the owned SSH master was closed.
+
+Fresh Exact2 `origin/main` clone `1cb27f606b40c60b7f0ea8fe6dedf7b5eb8cad19`
+under `~/sb4-loop/prewave21/exact2`, including EX10 `contract migrate`:
 
 ```sh
-cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast
-```
-
-- Full client pool in one pass at **49ff4203ce**: **425/425 files**, **7,769 passed / 0 failed / 56 platform skips** (7,825 records). Full-count seeded models: **2/2 files, 81/81 passed**, no skips. Fixture-wrapper tests also pass **9/9**. There is no selected-rerun-only green claim.
-- Release difftest: `run --seed 0 --cases 20000`, `run-devices --seed 0 --cases
-  1000`, and `run-lean --seed 0 --cases 20000`. Core/device disagreements: zero.
-  Lean has the identical **130** baseline mismatches reproduced on exact
-  f0eed70bb3: code E_RULE~NOT_FOUND 3; continuation-next 35; next 67; prelude-code
-  E_RULE~NOT_FOUND 25. **No new signatures**; Lean is not described as zero-red.
-- Fresh `publish.mjs --prepare-client --prepare-directory <owned scratch>`
-  pack and `qualify-linux.mjs --consumer-only` **PASS** at 49ff4203ce, including
-  all new DX5/SEC5 cases, six starter toolchains, frontend/negative proofs,
-  upgrades, migrations, staging, security, Ubuntu and Alpine/proot.
-  Consumer-only avoids forbidden test.sh; full Rust/client components are
-  separate. The receipt correctly says `publicationQualified:false`; no
-  publication/promotion receipt is claimed.
-- Root frozen Bun install, workspace hoist and check-generated-artifacts PASS.
-  Diagnostics registry and guide manifest regenerated; inventories PASS:
-  365 package tests, 35 script tests, 31 demos, 487 publication leaves,
-  162 pages/1,937 snippets. Guide: **22 passed, 0 failed/skipped/preconditions**
-  (121 inherited warnings). Final reference check: **564 LLPs, 12,242 refs, 0 errors/unchecked**.
-- Docs budget PASS: README 319/320 lines and executable guide fences. Codec
-  census 27/27 PASS. RULES4 authoring census regenerated from the fresh
-  executable and compared exactly: unchanged membership. Delivery await census
-  regenerated (one clock timestamp projection, no new fault site).
-- Both release guards PASS: raw test-support refuses release host compilation;
-  debug web-device-check refuses the wasm profile.
-
-### Wasm
-
-**2,404,980 B raw / 733,906 B gzip / 552,883 B Brotli. Budget 734,406 B = gzip
-+ exactly 500 B.** Strict serde-family and server-only absence audits pass.
-Final clean remeasurement after P1 is recorded at c620cad340 with that budget (f34441c148); it is byte-identical in all three wasm sizes. The
-current-main boundary merge changes the earlier integration artifact by +58 B
-raw / +4 B gzip; the reason is in the budget and journal. No per-feature
-attribution, Mac wasm measurement or runtime-ceiling increase is claimed.
-
-### Real schemas and upgrades
-
-350 schemas: wave 15's 100 plus 50 each from waves 16/18/19/20/21. Exact base
-f0eed70bb3 and the integrated binary both have **zero refusals**; original source
-hashes are unchanged. Full per-code before/after counts are in [survey.json](snapback4/reports/integration20/survey.json).
-Security deltas: caller time 0→74, self-claim 0→2, role-wide read 11→133,
-broad read 363→365, restatement 761→810; all other security counts unchanged.
-Lookup source advice 26→1,533; hidden unique 0→91. Notes remain advisory questions,
-not exploit counts or a claim of zero specification noise. S8 and the later P1 integration leave
-all these counts unchanged. The final survey uses the qualified 49ff4203ce production binary; every source hash still matches the exact-base survey.
-
-Real old installed CLIs from **public 0.4.33** and **local-registry 0.4.35**
-(`http://127.0.0.1:4873/`, acquisition integrities retained) upgrade authored Expo
-apps and persistent dev/production stores through their own old `npx` path.
-Both PASS again on the final prepared packs; pre-upgrade native --version is explicitly **snapback4 0.4.33** and **snapback4 0.4.35**. Results: rows and ids preserved, expected visible/pending warnings and pure
-JSON, Expo typecheck/web export, retained production service token and new
-production write; production dev doors remain 403. New packed warnings cover
-ordinary, quiet and JSON+quiet old-CLI forms too.
-
-### Exact
-
-Fresh Exact2 origin/main clone at **eb12e487f33a7e3a07c5fee8682c3e99db8f1df0**,
-with EX10 contract migrate, under `~/sb4-loop/prewave20/exact2`. Local test
-input overrides: its SDK's core/device/lang Cargo dependencies point at this
-merged source; offline lock regenerated. Its existing Snapback dev dependency
-is replaced by the prepared 0.4.36 pack, with no duplicate dependency. Backend
-parents resolve that same installed pack. Actual package 0.4.36 and device stamp
-are verified in [exact.json](snapback4/reports/integration20/exact.json). The final banner and resolved test input name the installed 0.4.36 pack. That client and Expo tarball are byte-identical to the fresh final 49ff4203ce pack.
-
-Commands below ran with Bun 1.4.2 on PATH, CHROME pointing at installed
-Chromium 1234, SNAPBACK4_BIN pointing at this tree's qualified production binary (`snapback4/target/x86_64-unknown-linux-musl/production/snapback4`), and all three
-Cargo environment settings. Every invocation had an outer timeout; log
-redirections are omitted here.
-
-```sh
-# Exact2 clone
-bun scripts/exact.mjs setup --check
-bun scripts/exact.mjs new ../synced-foundation-proof/app --snapback --port 26909
-# First write ../online-foundation-final/snapback/schema.q with online-only notes.
-bun scripts/exact.mjs new ../online-foundation-final/app --snapback --online --port 26908
-# In ../synced-foundation-proof/app
+# Fresh synced app, above its backend:
+bun /home/ccheever/sb4-loop/prewave21/exact2/scripts/exact.mjs new app --snapback --port 27137
+# In synced/app:
 bun exact.mjs snapback
 bun exact.mjs test web
-# In ../online-foundation-final/app
+# Fresh online app, after writing its online-only backend schema above it:
+bun /home/ccheever/sb4-loop/prewave21/exact2/scripts/exact.mjs new app --snapback --port 27138 --online
+# In online/app:
 bun exact.mjs snapback
 bun exact.mjs test web
 ```
 
-Fresh synced app: wire PASS; web **2 passed/0 failed** (cross-persona post and
-offline delivery). Fresh online app: wire PASS; web **2 passed/0 failed**,
-including a real mutation; final CLI data inspection confirms all three writes from the three proof runs, with distinct ids.
-The online contract adds the write assertion to the generated open-operations
-case. Cargo's test build replaced the debug CLI with different bytes; final Exact and survey receipts are repeated against the same production binary used by packed qualification and upgrades. Earlier debug proofs remain historical. Earlier setup attempts and their corrections are recorded: explicit
-Chromium, online schema precondition, regenerated SDK lock after S8, and a
-scratch Bun duplicate dev/dependency pin that initially selected 0.4.33 types.
-A separate scratch synced app with an already existing backend generated a generic greeting; that result was rejected as insufficient. The counted synced app was generated without that precondition and proves real cross-persona and offline behavior. Final proofs use the verified 0.4.36 installed pack and qualified 49ff4203ce production binary. Both owned final servers were stopped; apps/SDK remain recoverable.
+Both `snapback` commands passed; synced web tests **2/0**, online **1/0**.
+The merged production binary and exact prepared client were used. Only candidate
+dependency/lock overrides were made in the fresh Exact clone; its device lock was
+regenerated offline after redirecting the three kernel crates. The online starter
+requires a preauthored schema, as its guide says. Failed setup scaffolds/logs were
+preserved separately; no Exact implementation fix was needed. Exact command argv,
+working directories, source/binary/client digests and test counts are retained in
+the tracked qualification JSON. Owned backend processes were stopped.
 
-### Mac Studio
+## Review, evidence and boundaries
 
-Only the assigned Mac Studio and `~/sb4-ws-integ20` were used. Actual selected
-toolchain: **Xcode 27.1 Build 27A9275**, SDK 27.1, iOS simulator runtime 27.0
-(the host had advanced from the prompt's Xcode 27.0). No global Xcode setting
-was changed. Intermittent SSH returned within the one-hour allowance.
+The final fresh Codex gpt-6.1-sol/high and Muse Spark 1.3 Contributor/high reviews
+both returned READY on the final five-case bridge delta. Verbatim artifacts,
+briefs, negative rounds and provenance are under
+`llp/reviews/3000.000.000.002-integration21-*`. No RFC was accepted on its author's
+behalf. The affected LLP audit found the implementation consistent with EVOL §8,
+SEC6 §15, S10a's neutral-handle constraints and the wasm budget rules.
 
-- Current-main core lib/revocation history: **619 passed, 0 failed, 4 standard
-  ignores**; CLI bin **499 passed, 0 failed, 5 ignores**; revocation soundness
-  **5/5**. Full device tests had already passed on the integrated source before
-  P1; no device code changed in P1.
-- Repeated all lane-selected Rust targets after P1 and the generated-guide fix:
-  core disclosure **18/18**; all **17 language targets, 359 passed/0 failed/2
-  standard ignores**; all **7 CLI targets, 110/110**.
-- Complete platform/lane client pool: **40/40 files**, **764 passed, 0 failed,
-  14 platform skips** (778 records). It includes every one of the 27 files with
-  explicit platform/darwin checks. First seven-file wire/fixture follow-up:
-  **132/132**; final five-file known/unknown follow-up: **139/139**.
-- Fresh merged-core xcframework and the installed prepared client: Expo
-  `witness ios --build . --smoke --udid BDF123A8-5E01-42BC-92F6-9BFECB63747E
-  --port 26903 --artifacts ../native-artifacts-foundation-final` **PASS**, proof
-  kind **application-release**, CLI 0.4.36. The native witness's client tarball
-  is byte-identical to the final 49ff4203ce prepared client; the framework was
-  built from the merged core. Complete native build records, smoke receipt,
-  video and screenshots remain in owned scratch; compact provenance is committed.
-- All **338 changed extant crates/packages/scripts/apps/manifests/fence files**
-  match final Linux source hashes. The final four JS fixture edits change no
-  compiled Rust/client input. Exact execution snapshots are distinguished in
-  [mac/completed-proofs.json](snapback4/reports/integration20/mac/completed-proofs.json).
+Packed qualification is bound to product source `4b824a6fe6`. Later
+`0042644172` changes only a `cfg(test)` fixture and incident/review records;
+production wasm bytes are unchanged. The complete final Rust repeat includes it.
+The final evidence/report commits do not change runtime semantics.
 
-The first historical 39-file attempt lacked a shared stages.mjs helper in the
-scratch source. Copying the exact helper fixed the focused test and complete
-repeat; the later full 40-file pass supersedes that setup failure. Only this
-task's simulator was shut down/deleted after receipt collection. Its temporary
-caffeinate and partial transfer were removed. The black MacBook and publication
-worktrees were never used.
+Safe compact evidence and file digests live in
+`snapback4/reports/integration21/qualification-0.4.37.json` and
+`evidence-files.json`. Full raw logs, scripts and the Mac video/receipts remain
+under `~/sb4-loop/integration21/`; credential-bearing temporary app/session files
+were not copied into the repository. Earlier harness setup/typing/entry-point
+mistakes were repaired before the successful real-upgrade checks.
 
-## Review, provenance and limits
-
-Fresh Codex gpt-6.1-sol/high and Muse Spark 1.3 Contributor/high both returned
-**READY** on four scopes: the integrated 37a707c158 product, incoming-main P1
-foundation changes through f34441c148, the 05b7e9b7be generated-guide/fixture correction, and the remaining fixture correction at 49ff4203ce.
-Verbatim reviews, stderr, exact briefs/invocations, provenance and focal source
-hashes are under `llp/reviews/integration20/`. Existing lane amendment reviews
-are retained. Reviewers did not treat running tests as verified success. No
-proposal was accepted on the author's behalf. 107e37d1dd applies the exact reviewed documentation reconciliation; f8904e5ee0 records the later integration reviews. Both families also returned READY on a documentation-only reconciliation of LLP 3000.023 §12 with the already incoming P1-MR null/absent-evidence policy. It corrects stale descriptions and adds no further policy decision. The entire tracked Snapback4 subtree (**72,362 files**, excluding only this integration's evidence directory) matches qualified 49ff4203ce exactly. `source-equivalence.json` records its descriptor. Later commits contain the reviewed root RFC reconciliation and review/evidence metadata.
-
-Failed attempts are not counted as successes. Pre-bump/superseded full Rust
-and client attempts were interrupted when source/version/main changed. A
-route-saturation unit failed once under overlapping default-concurrency runs,
-then passed alone and in the complete integrated repeat; its observation is
-tracked in issues/20261021-snapback4-route-saturation-test-load.md without
-weakening bounds. Initial packed React-peer and test-fixture gaps were fixed.
-A strace 6.8 malformed fragment was correctly rejected; the final consumer run
-uses an owned strace 6.17 for later proofs, with strict decoder/assertions kept.
-Earlier successful audits record 6.8 individually. The compatibility follow-up
-is issues/20261021-snapback4-strace68-interleaved-fragments.md.
-After incoming P1 main, the first packed run correctly rejected stale literal wire examples, and the first client run exposed stale known/unknown fixtures; the fixtures were repaired in 05b7e9b7be and 49ff4203ce. The first completed repeat after 05b7e9b7be had four red files/42 cases (421 files passed), all missing known preservation evidence. The earlier progress counter matched the wrong failure marker; final summaries are authoritative. The same packed run completed its consumer cases but its final source guard correctly rejected generated test logs. Final qualification waited for complete client/model success and preserves closed logs externally; the strict source guard is unchanged. Unfinished Rust repeats that began before later fixture/doc repairs were explicitly stopped and are not counted as green runs. The final complete command started after 49ff4203ce. An extra upgrade repetition exposed double-header handling in the scratch-only npm proxy during an upstream body failure; it now buffers the body before sending headers and preserves failed-attempt logs. No product bound changed.
-
-Evidence is committed under `snapback4/reports/integration20/`; full scratch,
-baseline binaries, acquired packs and recovery state remain in
-`~/sb4-loop/integration20/` and `~/sb4-loop/prewave20/`. Closed fixture logs were
-preserved outside source; only owned superseded build/transfer artifacts were
-removed to manage shared disk. Both final Exact backend groups were stopped. The Mac owned simulator, wake lock and partial transfer were removed. Generated command logs are preserved outside source. Prepared packs, source, baseline binaries, full raw logs and recovery apps are retained; no other worktree cleanup was performed.
-
-No requested verification is omitted. The forbidden full scripts/test.sh, push and publication were not performed. Public npm acquisition of 0.4.35 remained unavailable during the successful upgrade cases, so the expressly permitted local registry supplied it. Existing conditional security-note noise/unsupported temporal intent and the four Lean signatures remain measured limitations, not new engine failures or universal security claims.
+No requested implementation item is deferred. `scripts/test.sh` was not run, as
+instructed: the complete source suites ran independently and the installed pack
+used `--consumer-only`, deliberately yielding `publicationQualified: false`.
+No npm publication, 0.4.37 push, universal security proof or new bakeoff rating is
+claimed. Temporal intent and frozen old UI assumptions retain their documented
+limits.

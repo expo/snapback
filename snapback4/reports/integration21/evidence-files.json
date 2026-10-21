@@ -1,0 +1,120 @@
+{
+  "rawEvidenceKeptOutsideRepository": "no credentials or app session files copied into source",
+  "files": [
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/final-rust-4.log",
+      "bytes": 1052095,
+      "sha256": "af3f325edec57b9120a15fe9a649245cf9ee6ed0dcb98c2e2163b0de27c29c11"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/final-rust-5.log",
+      "bytes": 1041399,
+      "sha256": "41cd419e3c2654df6df37c97c0f873908c5c4304f4d24d1007742a3c45cca229"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/known-resolver-flake-alone.log",
+      "bytes": 7361,
+      "sha256": "cda7321db7823eebb0698c83ef07805a83b3e65659f55e4632f12028f5c5f415"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/clients-final37-pool.log",
+      "bytes": 2116739,
+      "sha256": "ef1963d9fb899d81bb392f52b8218506ad8f16c74d18a5e940ed154fd79d79e5"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/clients-final37-models.log",
+      "bytes": 32671,
+      "sha256": "7e77e3ae16c1be8b7afaaef5e6a61249e9c9048daac37dbd47b172b69fd602d1"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/clients-final37-fixtures.log",
+      "bytes": 2361,
+      "sha256": "398abbc3fe3942edfa2e44ce7d7d3c5490e479b3b6f78318651ec6cf1c72cc6d"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/clients-final37-typecheck.log",
+      "bytes": 32,
+      "sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/linux-consumer-final37/consumer.json",
+      "bytes": 64439,
+      "sha256": "29f132f7a7b79784ba1881b1f833df43bc08dcf1078a310d700081040ecb8160"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/wasm-post-fixture.log",
+      "bytes": 72790,
+      "sha256": "6486ac5704f9ea6ee0f2174ff130f132bbf5dc7eef01558353e3320aa8997efa"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/merged-root.log",
+      "bytes": 85798,
+      "sha256": "f73896d72e8c50417d1ef41a8d530283e63362381289c6a3f43dd48c5626d16e"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/post-fixture-root.log",
+      "bytes": 24820,
+      "sha256": "8d938e8fc2a8ceea6d7ce3270d1854f54b0d0da635a651b62eaab508348a1a14"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/upgrades-final37-qualified.log",
+      "bytes": 2019,
+      "sha256": "d7ca81d72602250f5d49c83dff0422ba8ecfd075ce3d67cc4e95cccb158ac6fd"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/exact-results.json",
+      "bytes": 5936,
+      "sha256": "9604283005b9619299948dcf6902ec56928368daba6b244575d487fb441e595e"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/integration21-mac-evidence.tar.gz",
+      "bytes": 19793918,
+      "sha256": "58373a8de55c087091306bccc48e425aff8f3ce8b167f1dce17c8db137848541"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/mac-summary.json",
+      "bytes": 13013,
+      "sha256": "b53cdd954033de5a035a4eb063ddbe0e54ed6f899f3cb12b78e6b5e56af5d77c"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/mac-wake-cleanup.json",
+      "bytes": 183,
+      "sha256": "b70170157f3525d84e39d1dc3f79162e6507a19f1c213ffc307bbc514ccfbeb0"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/wave21-store-replay.json",
+      "bytes": 561257,
+      "sha256": "00c20889aaeebb972a4b2f5ca0bc1e1b8786afc3f2fd06be30cf504e3a710c26"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/final-ref-check.log",
+      "bytes": 81,
+      "sha256": "c174b63d5c02436021b6b070fa744bff1cfb6535f0490f75c0f5fee44ae577a3"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/final-inventories-attempt1.log",
+      "bytes": 3720,
+      "sha256": "b9df48a62431079f729f30e27132fdb03d5f66a195ab2a311a7bea82563d8264"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/final-root-install.log",
+      "bytes": 397,
+      "sha256": "ca4c821a82b02395780f1e569484715c0e99a581cc654a3dff0221c75d1f36cd"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/final-root-hoist.log",
+      "bytes": 1354,
+      "sha256": "029220472bbb9a59211cb6c81d8ccb8f78c7ec70949efd86002fd311ad794c24"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/final-root-generated.log",
+      "bytes": 60771,
+      "sha256": "4dc0b40d6f1862909ad1b665a9548f839b927ee6edd7372e22e783699f0e5fe7"
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/integration21/final-inventories.log",
+      "bytes": 3499,
+      "sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813"
+    }
+  ]
+}

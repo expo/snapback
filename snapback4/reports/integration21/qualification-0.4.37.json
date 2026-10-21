@@ -1,0 +1,3677 @@
+{
+  "format": 1,
+  "release": "0.4.37",
+  "productSource": "4b824a6fe60747535e33f668e3b0b542708c9c71",
+  "testOnlyFixtureCommit": "0042644172147d1550e664768da61735c1763de1",
+  "completeRustRepeatSource": "0042644172147d1550e664768da61735c1763de1",
+  "commits": {
+    "step0Pushed": "b71c73fc79",
+    "evolMerge": "87e2de3314",
+    "sec6Merge": "d642d75c89",
+    "bump": "f547a9f50e"
+  },
+  "delivery": "0.4.36 pushed as authorized; 0.4.37 not pushed or published",
+  "rust": {
+    "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+    "environment": {
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_PROFILE_DEV_DEBUG": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "RUST_TEST_THREADS": "8"
+    },
+    "firstComplete": {
+      "summaryBlocks": 448,
+      "reportedPassingExecutions": 7215,
+      "reportedFailingExecutions": 1,
+      "reportedIgnores": 47,
+      "countsIncludeNestedChildReports": true,
+      "sha256": "af3f325edec57b9120a15fe9a649245cf9ee6ed0dcb98c2e2163b0de27c29c11"
+    },
+    "knownFailure": "verbs::witness::preparation::tests::stalled_resolver_sigterm_is_bounded_journalled_and_drained",
+    "aloneExit": 0,
+    "secondComplete": {
+      "summaryBlocks": 448,
+      "reportedPassingExecutions": 7216,
+      "reportedFailingExecutions": 0,
+      "reportedIgnores": 47,
+      "countsIncludeNestedChildReports": true,
+      "sha256": "41cd419e3c2654df6df37c97c0f873908c5c4304f4d24d1007742a3c45cca229"
+    },
+    "secondCompleteExit": 0
+  },
+  "clients": {
+    "pool": {
+      "files": "425/425; failed 0",
+      "tests": {
+        "tests": 7828,
+        "pass": 7772,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 56,
+        "todo": 0
+      },
+      "sha256": "ef1963d9fb899d81bb392f52b8218506ad8f16c74d18a5e940ed154fd79d79e5"
+    },
+    "fixtures": {
+      "files": "1/1; failed 0",
+      "tests": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "sha256": "398abbc3fe3942edfa2e44ce7d7d3c5490e479b3b6f78318651ec6cf1c72cc6d"
+    },
+    "models": {
+      "files": "2/2; failed 0",
+      "tests": {
+        "tests": 81,
+        "pass": 81,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      },
+      "sha256": "7e77e3ae16c1be8b7afaaef5e6a61249e9c9048daac37dbd47b172b69fd602d1"
+    }
+  },
+  "packed": {
+    "source": "4b824a6fe60747535e33f668e3b0b542708c9c71",
+    "clientIntegrity": "sha512-dSzzjePovuT1KK4X3+CmOVtM+GpbiUFS3YXPmjYLvWrbJRyEv1r5NSEyyDxs07iQmEcwb/X9wDnF6guGZoXhAg==",
+    "expoIntegrity": "sha512-OTPBlWLHJo322OnKnDOif5kZSMsfKWduymDFEXkmQKr6s3FB/zIjx0D6sOFsdNdWJqR6YyaKcJXTiPNkYActSg==",
+    "platform": {
+      "name": "snapback4-linux-x64",
+      "version": "0.4.37",
+      "filename": "snapback4-linux-x64-0.4.37.tgz",
+      "integrity": "sha512-/zySS5WdkXM3JORf4kQh7LP8GQlOWaQu5txrHaF2BpPupQFQ7GWuYWEZDhAB0wtIv29nKEuRPjvX8xXWNjkbsw==",
+      "bytes": 14281003
+    },
+    "binarySha256": "e7f0c3ec72d57e1d63ac8b9641b3e109d89b2968e63ac1c304494eda7e0b86f4",
+    "route": "proot",
+    "newEvolutionCases": [
+      "reverse-native-old-view",
+      "exact-preimage-precedence",
+      "unrepresentable-dormancy",
+      "read-only-check",
+      "operator-retained-inspection",
+      "exact-forward",
+      "unrelated-old-edit",
+      "projected-edit-conflict",
+      "declared-column-rename",
+      "forward-backfill-catchup",
+      "mapped-old-arguments",
+      "edited-native-and-migrated-reentry",
+      "nullable-destination-rename",
+      "loosened-bridge-visibility",
+      "table-identity-rename",
+      "asset-home-rename",
+      "file-derived-repeated-lines",
+      "cross-table-backfill",
+      "typed-parent-visibility"
+    ],
+    "SEC6": {
+      "suppliedSession": "passed before side effects",
+      "multiWrite": "refuted by authored add",
+      "mutationResult": "refuted by authored edit"
+    },
+    "receiptSha256": "29f132f7a7b79784ba1881b1f833df43bc08dcf1078a310d700081040ecb8160",
+    "publicationQualified": false,
+    "scope": "complete installed-consumer qualification; scripts/test.sh forbidden, source Rust/client suites run separately"
+  },
+  "mergeAndBumpAudit": {
+    "journalParentHistory": {
+      "c42ea4e226": [
+        {
+          "parent": "1ec735529d3a4335864115df81de28b5877a77ca",
+          "allParentLinesRetained": true
+        },
+        {
+          "parent": "6f4e9a0f9e7f8b4bc81c24e27388a9d2927fe882",
+          "allParentLinesRetained": true
+        }
+      ],
+      "b422e1210e": [
+        {
+          "parent": "146dc4de520dd3374f5640df21c33d7b8e4d1f27",
+          "allParentLinesRetained": true
+        },
+        {
+          "parent": "58c4b3cfd25c3b67fa22e340e525aeffc6b2669a",
+          "allParentLinesRetained": true
+        }
+      ],
+      "b71c73fc79": [
+        {
+          "parent": "2448deea23077b145b0cf9bc665a0f58e5bc43e0",
+          "allParentLinesRetained": true
+        },
+        {
+          "parent": "f72f6c5c92229f41efdcfffe1b84d30de699e828",
+          "allParentLinesRetained": true
+        }
+      ],
+      "87e2de3314": [
+        {
+          "parent": "b71c73fc790f0f9a92c820d8088813bfefc68174",
+          "allParentLinesRetained": true
+        },
+        {
+          "parent": "0b48a8496fe593387bd6256da0c4ed58ba9dd679",
+          "allParentLinesRetained": true
+        }
+      ],
+      "d642d75c89": [
+        {
+          "parent": "87e2de3314335e37aa1c24d7904a7655793c72a2",
+          "allParentLinesRetained": true
+        },
+        {
+          "parent": "2b04a0748ebfc66a8c415068b977532c967f9e2b",
+          "allParentLinesRetained": true
+        }
+      ]
+    },
+    "one037ChangelogEntry": true,
+    "bumpMatches036FileSet": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "bun.lock",
+      "native-fixtures/following/Cargo.lock",
+      "packages/snapback4-darwin-arm64/package.json",
+      "packages/snapback4-expo/package.json",
+      "packages/snapback4-linux-x64/package.json",
+      "packages/snapback4/package.json",
+      "packages/snapback4/test/device-version.test.mjs",
+      "packages/snapback4/test/sync-generation.test.mjs"
+    ]
+  },
+  "affectedLLPAudit": {
+    "3000.000.000.002 section8": "custody/explicit identities/manual bridge review preserved",
+    "3000.036.004 section15": "independent intent and advisory boundaries preserved; server remains authorization/expiry authority",
+    "3000.009.001.000 section3.4": "neutral handles retained; no production ratchet allowance raised",
+    "3000.002": "measurement plus500B; no runtime-authority ceiling increase",
+    "3000.037 section20.6": "calibration cohorts and frontend visibility limits retained"
+  },
+  "wasmAndDifftest": {
+    "qualifiedSource": "4b824a6fe60747535e33f668e3b0b542708c9c71",
+    "postFixtureSource": "0042644172147d1550e664768da61735c1763de1",
+    "packedSourceAndDistWasmSha256": "87116107086fb3fb85814517fcf33204f574df340e2dad0b11395d3b96e7924e",
+    "wasmBytes": 2405869,
+    "measurement": {
+      "raw": 2405869,
+      "gzip": 734904,
+      "brotli": 553602,
+      "budget": 735404,
+      "headroom": 500
+    },
+    "difftest": {
+      "run": {
+        "cases": 20000,
+        "executed": 1222111,
+        "byOracle": {
+          "meter": {
+            "attempted": 545774,
+            "passed": 67880,
+            "unsupported": {
+              "examined-opening-no-position": 15543,
+              "heap_bytes-unwind-no-continuation": 148381,
+              "mutation-not-a-read": 3663,
+              "output_bytes-refusal-no-continuation": 13966,
+              "return-not-pageable": 43615,
+              "rule_probes-opening-no-position": 1573,
+              "steps-refusal-no-continuation": 217750,
+              "steps-unwind-no-continuation": 31032,
+              "timed-search-no-continuation": 410,
+              "uncut-refusal": 1961
+            },
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 0
+          },
+          "repeat": {
+            "attempted": 20000,
+            "passed": 20000,
+            "unsupported": {},
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 0
+          },
+          "rewrite-commute": {
+            "attempted": 20000,
+            "passed": 3160,
+            "unsupported": {
+              "rewrite-not-applicable": 16840
+            },
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 1683
+          },
+          "rewrite-declarations": {
+            "attempted": 20000,
+            "passed": 20000,
+            "unsupported": {},
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 0
+          },
+          "rewrite-identity": {
+            "attempted": 20000,
+            "passed": 2751,
+            "unsupported": {
+              "rewrite-not-applicable": 17249
+            },
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 2751
+          },
+          "rewrite-lazy-and": {
+            "attempted": 20000,
+            "passed": 1145,
+            "unsupported": {
+              "rewrite-not-applicable": 18855
+            },
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 1145
+          },
+          "rewrite-lazy-or": {
+            "attempted": 20000,
+            "passed": 1250,
+            "unsupported": {
+              "rewrite-not-applicable": 18750
+            },
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 1250
+          },
+          "rewrite-let": {
+            "attempted": 20000,
+            "passed": 20000,
+            "unsupported": {},
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 20000
+          },
+          "timed-search-future-absence": {
+            "attempted": 415,
+            "passed": 415,
+            "unsupported": {},
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 0
+          }
+        },
+        "exit": 0
+      },
+      "run-devices": {
+        "cases": 1000,
+        "executed": 27922,
+        "byOracle": {
+          "device-memory-converge": {
+            "attempted": 177,
+            "passed": 40,
+            "unsupported": {
+              "converge-observe-online-only-unknown-incomplete": 137
+            },
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 0
+          },
+          "device-memory-cut": {
+            "attempted": 5700,
+            "passed": 5700,
+            "unsupported": {},
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 0
+          },
+          "device-memory-read": {
+            "attempted": 823,
+            "passed": 448,
+            "unsupported": {
+              "online-only-unavailable": 75,
+              "online-only-unknown-incomplete": 300
+            },
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 0
+          },
+          "device-memory-write": {
+            "attempted": 177,
+            "passed": 32,
+            "unsupported": {
+              "prediction-declined": 12,
+              "unpredictable-unsynced-table": 133
+            },
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 0
+          },
+          "device-sqlite-converge": {
+            "attempted": 177,
+            "passed": 40,
+            "unsupported": {
+              "converge-observe-online-only-unknown-incomplete": 137
+            },
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 0
+          },
+          "device-sqlite-cut": {
+            "attempted": 5700,
+            "passed": 5700,
+            "unsupported": {},
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 0
+          },
+          "device-sqlite-read": {
+            "attempted": 823,
+            "passed": 448,
+            "unsupported": {
+              "online-only-unavailable": 75,
+              "online-only-unknown-incomplete": 300
+            },
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 0
+          },
+          "device-sqlite-write": {
+            "attempted": 177,
+            "passed": 32,
+            "unsupported": {
+              "prediction-declined": 12,
+              "unpredictable-unsynced-table": 133
+            },
+            "disagreeing": 0,
+            "signatures": {},
+            "meter_fields_omitted": 0
+          }
+        },
+        "exit": 0
+      },
+      "run-lean": {
+        "cases": 20000,
+        "executed": 56917,
+        "byOracle": {
+          "lean": {
+            "attempted": 20000,
+            "passed": 16697,
+            "unsupported": {
+              "call-max": 319,
+              "call-min": 276,
+              "call-sum": 286,
+              "index-computed-or-words": 556,
+              "input-null": 2,
+              "loop": 449,
+              "now": 99,
+              "page-compound-where-branches": 22,
+              "page-static-key-expression": 12,
+              "prelude-now": 151,
+              "shape": 1001
+            },
+            "disagreeing": 130,
+            "signatures": {
+              "lean--code--E_RULE~NOT_FOUND": 3,
+              "lean--continuation-next--next~no-next": 35,
+              "lean--next--next~no-next": 67,
+              "lean--prelude-code--E_RULE~NOT_FOUND": 25
+            },
+            "meter_fields_omitted": 0
+          }
+        },
+        "exit": 1
+      },
+      "leanMatchesBaseExactly": true
+    }
+  },
+  "schemaSurvey": {
+    "apps": 350,
+    "byWave": {
+      "15": 100,
+      "16": 50,
+      "18": 50,
+      "19": 50,
+      "20": 50,
+      "21": 50
+    },
+    "beforeSha256": "78213eeda928469ab5202389eeac2899c1880d78881d60ba8eaed4d119a92b8a",
+    "afterSha256": "e7f0c3ec72d57e1d63ac8b9641b3e109d89b2968e63ac1c304494eda7e0b86f4",
+    "falseRefusals": 0,
+    "originalSourcesUnchanged": true,
+    "compilerNotes": {
+      "N_CASCADE_DORMANT": {
+        "before": 9,
+        "after": 9,
+        "delta": 0
+      },
+      "N_CONDITIONAL_COMPLETE": {
+        "before": 30,
+        "after": 30,
+        "delta": 0
+      },
+      "N_DELETE_RESTRICTED": {
+        "before": 3,
+        "after": 3,
+        "delta": 0
+      },
+      "N_IMMUTABLE_PATCH": {
+        "before": 54,
+        "after": 54,
+        "delta": 0
+      },
+      "N_LOOKUP_FILTERED": {
+        "before": 1533,
+        "after": 1533,
+        "delta": 0
+      },
+      "N_LOOKUP_HIDDEN": {
+        "before": 17,
+        "after": 17,
+        "delta": 0
+      },
+      "N_MAINTAINED_COLUMN_DISCLOSURE": {
+        "before": 5,
+        "after": 5,
+        "delta": 0
+      },
+      "N_MAINTAIN_AUTHORIZATION": {
+        "before": 3,
+        "after": 3,
+        "delta": 0
+      },
+      "N_MAINTAIN_DELTA": {
+        "before": 25,
+        "after": 25,
+        "delta": 0
+      },
+      "N_MAINTAIN_SYNCED": {
+        "before": 2,
+        "after": 2,
+        "delta": 0
+      },
+      "N_NEVER_COMPLETE": {
+        "before": 106,
+        "after": 106,
+        "delta": 0
+      },
+      "N_NO_CURSOR": {
+        "before": 520,
+        "after": 520,
+        "delta": 0
+      },
+      "N_NO_HORIZON": {
+        "before": 14,
+        "after": 14,
+        "delta": 0
+      },
+      "N_NO_PRODUCTION_WRITER": {
+        "before": 51,
+        "after": 51,
+        "delta": 0
+      },
+      "N_PATCH_CLEARS": {
+        "before": 18,
+        "after": 18,
+        "delta": 0
+      },
+      "N_PROBE_ONLY_READ": {
+        "before": 2,
+        "after": 2,
+        "delta": 0
+      },
+      "N_QUERY_FILTERED": {
+        "before": 161,
+        "after": 161,
+        "delta": 0
+      },
+      "N_REFERENCE_UNCHECKED": {
+        "before": 11,
+        "after": 11,
+        "delta": 0
+      },
+      "N_REQUIRE_HIDDEN": {
+        "before": 7,
+        "after": 7,
+        "delta": 0
+      },
+      "N_REQUIRE_REFUSED": {
+        "before": 1,
+        "after": 1,
+        "delta": 0
+      },
+      "N_SPARSE_FILTER": {
+        "before": 97,
+        "after": 97,
+        "delta": 0
+      },
+      "N_SWEEP_DEADLINE": {
+        "before": 168,
+        "after": 168,
+        "delta": 0
+      },
+      "N_SYNC_ORDER": {
+        "before": 7,
+        "after": 7,
+        "delta": 0
+      },
+      "N_UNIQUE_HIDDEN": {
+        "before": 91,
+        "after": 91,
+        "delta": 0
+      },
+      "N_UNREADABLE_PROBE": {
+        "before": 71,
+        "after": 71,
+        "delta": 0
+      },
+      "N_WIDE_MERGE": {
+        "before": 22,
+        "after": 22,
+        "delta": 0
+      }
+    },
+    "securityNotes": {
+      "N_ARGUMENT_GRANT": {
+        "before": 450,
+        "after": 450,
+        "delta": 0
+      },
+      "N_BROAD_READ": {
+        "before": 365,
+        "after": 365,
+        "delta": 0
+      },
+      "N_CALLER_TIME": {
+        "before": 74,
+        "after": 74,
+        "delta": 0
+      },
+      "N_COLUMN_READ": {
+        "before": 176,
+        "after": 176,
+        "delta": 0
+      },
+      "N_COLUMN_RESULT_EXPOSURE": {
+        "before": 0,
+        "after": 4231,
+        "delta": 4231
+      },
+      "N_EXISTENCE_ORACLE": {
+        "before": 53,
+        "after": 53,
+        "delta": 0
+      },
+      "N_GRANT_OUTLIVES_ROLE": {
+        "before": 302,
+        "after": 302,
+        "delta": 0
+      },
+      "N_INSERT_WRITE_INTENT": {
+        "before": 0,
+        "after": 646,
+        "delta": 646
+      },
+      "N_INVARIANT_RESTATES_RULE": {
+        "before": 810,
+        "after": 810,
+        "delta": 0
+      },
+      "N_OPTIONAL_EVIDENCE": {
+        "before": 154,
+        "after": 154,
+        "delta": 0
+      },
+      "N_PRIVILEGE_ESCALATION": {
+        "before": 34,
+        "after": 34,
+        "delta": 0
+      },
+      "N_ROLE_WIDE_READ": {
+        "before": 133,
+        "after": 133,
+        "delta": 0
+      },
+      "N_SECURITY_INTENT": {
+        "before": 309,
+        "after": 309,
+        "delta": 0
+      },
+      "N_SELF_CLAIMED_RELATIONSHIP": {
+        "before": 2,
+        "after": 2,
+        "delta": 0
+      },
+      "N_SWEEP_ONLY_DEADLINE": {
+        "before": 39,
+        "after": 39,
+        "delta": 0
+      },
+      "N_VACUOUS_RULE": {
+        "before": 3,
+        "after": 3,
+        "delta": 0
+      }
+    }
+  },
+  "copiedStores": {
+    "lanes": [
+      {
+        "lane": "005-snapback-skydive-jump-manifest",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 1043,
+              "sha256": "3ee5b263bc21a5537c8de85fdee63d28826a5cc50bfc387d75de9efe21d475d2"
+            },
+            "after": {
+              "count": 1043,
+              "sha256": "3ee5b263bc21a5537c8de85fdee63d28826a5cc50bfc387d75de9efe21d475d2"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 1043,
+              "sha256": "3ee5b263bc21a5537c8de85fdee63d28826a5cc50bfc387d75de9efe21d475d2"
+            },
+            "after": {
+              "count": 1043,
+              "sha256": "3ee5b263bc21a5537c8de85fdee63d28826a5cc50bfc387d75de9efe21d475d2"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "006-snapback-athletic-trainer-injuries",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 148,
+              "sha256": "c5c6255eb571380e45646256e0ace2de39ce1c3d5432ecf84ae6ed1561f9407a"
+            },
+            "after": {
+              "count": 148,
+              "sha256": "c5c6255eb571380e45646256e0ace2de39ce1c3d5432ecf84ae6ed1561f9407a"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 148,
+              "sha256": "c5c6255eb571380e45646256e0ace2de39ce1c3d5432ecf84ae6ed1561f9407a"
+            },
+            "after": {
+              "count": 148,
+              "sha256": "c5c6255eb571380e45646256e0ace2de39ce1c3d5432ecf84ae6ed1561f9407a"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "007-snapback-upholstery-shop-jobs",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 152,
+              "sha256": "7a661c404f26a0392bf46afd0f2438d93efa38452c6a55e7dd89b1668cf6fdb8"
+            },
+            "after": {
+              "count": 152,
+              "sha256": "7a661c404f26a0392bf46afd0f2438d93efa38452c6a55e7dd89b1668cf6fdb8"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 152,
+              "sha256": "7a661c404f26a0392bf46afd0f2438d93efa38452c6a55e7dd89b1668cf6fdb8"
+            },
+            "after": {
+              "count": 152,
+              "sha256": "7a661c404f26a0392bf46afd0f2438d93efa38452c6a55e7dd89b1668cf6fdb8"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "008-snapback-kitchen-incubator-bookings",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 649,
+              "sha256": "3fb9725989a5b2ec1e71269bd9458bbd287895144f9b22d62fd8634a2e470b9a"
+            },
+            "after": {
+              "count": 649,
+              "sha256": "3fb9725989a5b2ec1e71269bd9458bbd287895144f9b22d62fd8634a2e470b9a"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 649,
+              "sha256": "3fb9725989a5b2ec1e71269bd9458bbd287895144f9b22d62fd8634a2e470b9a"
+            },
+            "after": {
+              "count": 649,
+              "sha256": "3fb9725989a5b2ec1e71269bd9458bbd287895144f9b22d62fd8634a2e470b9a"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "011-snapback-senior-ride-volunteers",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 274,
+              "sha256": "caf286509ab0fea00a61fbfe3eb4cba2b1c2ebd0f95099773d256fa937f2f8ea"
+            },
+            "after": {
+              "count": 274,
+              "sha256": "caf286509ab0fea00a61fbfe3eb4cba2b1c2ebd0f95099773d256fa937f2f8ea"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 274,
+              "sha256": "caf286509ab0fea00a61fbfe3eb4cba2b1c2ebd0f95099773d256fa937f2f8ea"
+            },
+            "after": {
+              "count": 274,
+              "sha256": "caf286509ab0fea00a61fbfe3eb4cba2b1c2ebd0f95099773d256fa937f2f8ea"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "012-snapback-small-engine-repairs",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 102,
+              "sha256": "55740d4adc525ea1a02f605cc5dfc492b3fe3085df17a3621f386b5ad0e685a6"
+            },
+            "after": {
+              "count": 102,
+              "sha256": "55740d4adc525ea1a02f605cc5dfc492b3fe3085df17a3621f386b5ad0e685a6"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 102,
+              "sha256": "55740d4adc525ea1a02f605cc5dfc492b3fe3085df17a3621f386b5ad0e685a6"
+            },
+            "after": {
+              "count": 102,
+              "sha256": "55740d4adc525ea1a02f605cc5dfc492b3fe3085df17a3621f386b5ad0e685a6"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "013-snapback-piano-competition-juries",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 570,
+              "sha256": "a88086e6e1961b3b183b7638c6d65b2f75c68d8963b9d9082a1e6a704c60546e"
+            },
+            "after": {
+              "count": 570,
+              "sha256": "a88086e6e1961b3b183b7638c6d65b2f75c68d8963b9d9082a1e6a704c60546e"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 570,
+              "sha256": "a88086e6e1961b3b183b7638c6d65b2f75c68d8963b9d9082a1e6a704c60546e"
+            },
+            "after": {
+              "count": 570,
+              "sha256": "a88086e6e1961b3b183b7638c6d65b2f75c68d8963b9d9082a1e6a704c60546e"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        },
+        "bridge": {
+          "generationExit": 0,
+          "previewExit": 0,
+          "activationExit": 0,
+          "visibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 0,
+            "newlyEmptyCells": 0,
+            "retainedEmptyCells": 0,
+            "tables": []
+          }
+        }
+      },
+      {
+        "lane": "016-snapback-auto-body-repairs",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 135,
+              "sha256": "85cc580136db91409d45a9e7aafb5ada547a667108ca944d740a0f5dec417d0e"
+            },
+            "after": {
+              "count": 135,
+              "sha256": "85cc580136db91409d45a9e7aafb5ada547a667108ca944d740a0f5dec417d0e"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 135,
+              "sha256": "85cc580136db91409d45a9e7aafb5ada547a667108ca944d740a0f5dec417d0e"
+            },
+            "after": {
+              "count": 135,
+              "sha256": "85cc580136db91409d45a9e7aafb5ada547a667108ca944d740a0f5dec417d0e"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "017-snapback-search-rescue-callouts",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 240,
+              "sha256": "bcf6da4f32d21ac458061619e17c04ae9824bfbb291613a2c76f0d1f37fdccd9"
+            },
+            "after": {
+              "count": 240,
+              "sha256": "bcf6da4f32d21ac458061619e17c04ae9824bfbb291613a2c76f0d1f37fdccd9"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 240,
+              "sha256": "bcf6da4f32d21ac458061619e17c04ae9824bfbb291613a2c76f0d1f37fdccd9"
+            },
+            "after": {
+              "count": 240,
+              "sha256": "bcf6da4f32d21ac458061619e17c04ae9824bfbb291613a2c76f0d1f37fdccd9"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "019-snapback-cremation-custody-chain",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 633,
+              "sha256": "37178fb75ac9e825380e27c25776d259e889c73f2c72faa0def65cde076b909c"
+            },
+            "after": {
+              "count": 633,
+              "sha256": "37178fb75ac9e825380e27c25776d259e889c73f2c72faa0def65cde076b909c"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 633,
+              "sha256": "37178fb75ac9e825380e27c25776d259e889c73f2c72faa0def65cde076b909c"
+            },
+            "after": {
+              "count": 633,
+              "sha256": "37178fb75ac9e825380e27c25776d259e889c73f2c72faa0def65cde076b909c"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "020-snapback-rental-unit-turnovers",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 440,
+              "sha256": "83a97ebca6f1b89f9a8c1456b8720a2a1a0e85bf88acac08661eedbb59906f52"
+            },
+            "after": {
+              "count": 440,
+              "sha256": "83a97ebca6f1b89f9a8c1456b8720a2a1a0e85bf88acac08661eedbb59906f52"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 440,
+              "sha256": "83a97ebca6f1b89f9a8c1456b8720a2a1a0e85bf88acac08661eedbb59906f52"
+            },
+            "after": {
+              "count": 440,
+              "sha256": "83a97ebca6f1b89f9a8c1456b8720a2a1a0e85bf88acac08661eedbb59906f52"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        },
+        "bridge": {
+          "generationExit": 0,
+          "previewExit": 0,
+          "activationExit": 0,
+          "visibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 0,
+            "newlyEmptyCells": 0,
+            "retainedEmptyCells": 0,
+            "tables": []
+          }
+        }
+      },
+      {
+        "lane": "021-snapback-oyster-harvest-tags",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 238,
+              "sha256": "ecb0b0e8063b732449fb3b4a373a41633bb6f9b7766b956d3a343f0a2586caf5"
+            },
+            "after": {
+              "count": 238,
+              "sha256": "ecb0b0e8063b732449fb3b4a373a41633bb6f9b7766b956d3a343f0a2586caf5"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 238,
+              "sha256": "ecb0b0e8063b732449fb3b4a373a41633bb6f9b7766b956d3a343f0a2586caf5"
+            },
+            "after": {
+              "count": 238,
+              "sha256": "ecb0b0e8063b732449fb3b4a373a41633bb6f9b7766b956d3a343f0a2586caf5"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "023-snapback-coop-board-applications",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 124,
+              "sha256": "1ba8e301ca6ee823d01fc24463a5c483312eb75485ad4b637c80837821a881af"
+            },
+            "after": {
+              "count": 124,
+              "sha256": "1ba8e301ca6ee823d01fc24463a5c483312eb75485ad4b637c80837821a881af"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 124,
+              "sha256": "1ba8e301ca6ee823d01fc24463a5c483312eb75485ad4b637c80837821a881af"
+            },
+            "after": {
+              "count": 124,
+              "sha256": "1ba8e301ca6ee823d01fc24463a5c483312eb75485ad4b637c80837821a881af"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "026-snapback-bookbinding-restoration-jobs",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 116,
+              "sha256": "1c7772fdf065f1fda6c2cb98b562286a502ccd87b6e678b97dd6a5cdefb567b1"
+            },
+            "after": {
+              "count": 116,
+              "sha256": "1c7772fdf065f1fda6c2cb98b562286a502ccd87b6e678b97dd6a5cdefb567b1"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 116,
+              "sha256": "1c7772fdf065f1fda6c2cb98b562286a502ccd87b6e678b97dd6a5cdefb567b1"
+            },
+            "after": {
+              "count": 116,
+              "sha256": "1c7772fdf065f1fda6c2cb98b562286a502ccd87b6e678b97dd6a5cdefb567b1"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 1,
+              "activationExit": null
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 1,
+              "activationExit": null
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 1,
+              "activationExit": null
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 1,
+              "activationExit": null
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "027-snapback-cabinet-install-punchlists",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 303,
+              "sha256": "c1121c6d756a1f7ba184e57dc858a75a53c73f432b4b3f1868de6a803921fb42"
+            },
+            "after": {
+              "count": 303,
+              "sha256": "c1121c6d756a1f7ba184e57dc858a75a53c73f432b4b3f1868de6a803921fb42"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 303,
+              "sha256": "c1121c6d756a1f7ba184e57dc858a75a53c73f432b4b3f1868de6a803921fb42"
+            },
+            "after": {
+              "count": 303,
+              "sha256": "c1121c6d756a1f7ba184e57dc858a75a53c73f432b4b3f1868de6a803921fb42"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "028-snapback-trade-in-appraisals",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 98,
+              "sha256": "a8f9ffec30674dbe8939f2fb09b805c7e66d42f20950150b79e8f7b6cb2811fe"
+            },
+            "after": {
+              "count": 98,
+              "sha256": "a8f9ffec30674dbe8939f2fb09b805c7e66d42f20950150b79e8f7b6cb2811fe"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 98,
+              "sha256": "a8f9ffec30674dbe8939f2fb09b805c7e66d42f20950150b79e8f7b6cb2811fe"
+            },
+            "after": {
+              "count": 98,
+              "sha256": "a8f9ffec30674dbe8939f2fb09b805c7e66d42f20950150b79e8f7b6cb2811fe"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "032-snapback-zoo-keeper-diets",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 351,
+              "sha256": "4f4a0412d250457b4946ab279906d83546631f5b261ec615f4facea54e572857"
+            },
+            "after": {
+              "count": 351,
+              "sha256": "4f4a0412d250457b4946ab279906d83546631f5b261ec615f4facea54e572857"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 351,
+              "sha256": "4f4a0412d250457b4946ab279906d83546631f5b261ec615f4facea54e572857"
+            },
+            "after": {
+              "count": 351,
+              "sha256": "4f4a0412d250457b4946ab279906d83546631f5b261ec615f4facea54e572857"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        },
+        "bridge": {
+          "generationExit": 0,
+          "previewExit": 0,
+          "activationExit": 0,
+          "visibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 0,
+            "newlyEmptyCells": 0,
+            "retainedEmptyCells": 0,
+            "tables": []
+          }
+        }
+      },
+      {
+        "lane": "034-snapback-pool-route-service",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 271,
+              "sha256": "aded072f1abfcd1939f54d5aab130a17bd752ebbb4b71e74cadf7898964c3b47"
+            },
+            "after": {
+              "count": 271,
+              "sha256": "aded072f1abfcd1939f54d5aab130a17bd752ebbb4b71e74cadf7898964c3b47"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 271,
+              "sha256": "aded072f1abfcd1939f54d5aab130a17bd752ebbb4b71e74cadf7898964c3b47"
+            },
+            "after": {
+              "count": 271,
+              "sha256": "aded072f1abfcd1939f54d5aab130a17bd752ebbb4b71e74cadf7898964c3b47"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "035-snapback-trophy-engraving-orders",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 248,
+              "sha256": "4252c3ed41f4c3879393cd72f64066df03baf9055b5bd44d15672eba9445ee59"
+            },
+            "after": {
+              "count": 248,
+              "sha256": "4252c3ed41f4c3879393cd72f64066df03baf9055b5bd44d15672eba9445ee59"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 248,
+              "sha256": "4252c3ed41f4c3879393cd72f64066df03baf9055b5bd44d15672eba9445ee59"
+            },
+            "after": {
+              "count": 248,
+              "sha256": "4252c3ed41f4c3879393cd72f64066df03baf9055b5bd44d15672eba9445ee59"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        },
+        "bridge": {
+          "generationExit": 0,
+          "previewExit": 0,
+          "activationExit": 0,
+          "visibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 0,
+            "newlyEmptyCells": 0,
+            "retainedEmptyCells": 0,
+            "tables": []
+          }
+        }
+      },
+      {
+        "lane": "036-snapback-knife-sharpening-drops",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 107,
+              "sha256": "478776e318a601e7a69c974f5d0ad17efc217a882d092b00a2bcf1cdd8578bf0"
+            },
+            "after": {
+              "count": 107,
+              "sha256": "478776e318a601e7a69c974f5d0ad17efc217a882d092b00a2bcf1cdd8578bf0"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 107,
+              "sha256": "478776e318a601e7a69c974f5d0ad17efc217a882d092b00a2bcf1cdd8578bf0"
+            },
+            "after": {
+              "count": 107,
+              "sha256": "478776e318a601e7a69c974f5d0ad17efc217a882d092b00a2bcf1cdd8578bf0"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "037-snapback-fine-art-crating",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 128,
+              "sha256": "e682baa06fc4064718b47a0d9fac0e799d05f5ea047d6c6edb868b6c9a4166c3"
+            },
+            "after": {
+              "count": 128,
+              "sha256": "e682baa06fc4064718b47a0d9fac0e799d05f5ea047d6c6edb868b6c9a4166c3"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 128,
+              "sha256": "e682baa06fc4064718b47a0d9fac0e799d05f5ea047d6c6edb868b6c9a4166c3"
+            },
+            "after": {
+              "count": 128,
+              "sha256": "e682baa06fc4064718b47a0d9fac0e799d05f5ea047d6c6edb868b6c9a4166c3"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        },
+        "bridge": {
+          "generationExit": 0,
+          "previewExit": 0,
+          "activationExit": 0,
+          "visibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 0,
+            "newlyEmptyCells": 0,
+            "retainedEmptyCells": 0,
+            "tables": []
+          }
+        }
+      },
+      {
+        "lane": "038-snapback-tent-rental-installs",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 254,
+              "sha256": "cd9854afcbd50eadf1f8cb7a15a7cbbbec35ce9184bd6429d1532f6511aca16a"
+            },
+            "after": {
+              "count": 254,
+              "sha256": "cd9854afcbd50eadf1f8cb7a15a7cbbbec35ce9184bd6429d1532f6511aca16a"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 254,
+              "sha256": "cd9854afcbd50eadf1f8cb7a15a7cbbbec35ce9184bd6429d1532f6511aca16a"
+            },
+            "after": {
+              "count": 254,
+              "sha256": "cd9854afcbd50eadf1f8cb7a15a7cbbbec35ce9184bd6429d1532f6511aca16a"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        },
+        "bridge": {
+          "generationExit": 0,
+          "previewExit": 0,
+          "activationExit": 0,
+          "visibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 0,
+            "newlyEmptyCells": 0,
+            "retainedEmptyCells": 0,
+            "tables": []
+          }
+        }
+      },
+      {
+        "lane": "040-snapback-valet-parking-tickets",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 243,
+              "sha256": "28b0be81b1b1d00d774b774e8caf1aef10f1c089c4ceda64ae1c399fc1f42c37"
+            },
+            "after": {
+              "count": 243,
+              "sha256": "28b0be81b1b1d00d774b774e8caf1aef10f1c089c4ceda64ae1c399fc1f42c37"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 243,
+              "sha256": "28b0be81b1b1d00d774b774e8caf1aef10f1c089c4ceda64ae1c399fc1f42c37"
+            },
+            "after": {
+              "count": 243,
+              "sha256": "28b0be81b1b1d00d774b774e8caf1aef10f1c089c4ceda64ae1c399fc1f42c37"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        },
+        "bridge": {
+          "generationExit": 0,
+          "previewExit": 0,
+          "activationExit": 0,
+          "visibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 0,
+            "newlyEmptyCells": 0,
+            "retainedEmptyCells": 0,
+            "tables": []
+          }
+        }
+      },
+      {
+        "lane": "041-snapback-dock-appointment-slots",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 146,
+              "sha256": "0a3c30e956eb4767d1efe2ab1eeed8e911576061059ca5b37140d6f219061e3c"
+            },
+            "after": {
+              "count": 146,
+              "sha256": "0a3c30e956eb4767d1efe2ab1eeed8e911576061059ca5b37140d6f219061e3c"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 146,
+              "sha256": "0a3c30e956eb4767d1efe2ab1eeed8e911576061059ca5b37140d6f219061e3c"
+            },
+            "after": {
+              "count": 146,
+              "sha256": "0a3c30e956eb4767d1efe2ab1eeed8e911576061059ca5b37140d6f219061e3c"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "042-snapback-english-class-placement",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 417,
+              "sha256": "6626e9685c97779e8d173382733791d5fc2f70c367293ce17c5e7764aae40526"
+            },
+            "after": {
+              "count": 417,
+              "sha256": "6626e9685c97779e8d173382733791d5fc2f70c367293ce17c5e7764aae40526"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 417,
+              "sha256": "6626e9685c97779e8d173382733791d5fc2f70c367293ce17c5e7764aae40526"
+            },
+            "after": {
+              "count": 417,
+              "sha256": "6626e9685c97779e8d173382733791d5fc2f70c367293ce17c5e7764aae40526"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        },
+        "bridge": {
+          "generationExit": 0,
+          "previewExit": 0,
+          "activationExit": 0,
+          "visibility": {
+            "cells": [],
+            "emptyCells": 0,
+            "hiddenRows": 0,
+            "newerOnlyRows": 0,
+            "newlyEmptyCells": 0,
+            "retainedEmptyCells": 0,
+            "tables": []
+          }
+        }
+      },
+      {
+        "lane": "044-snapback-livestock-auction-lots",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 344,
+              "sha256": "c4111d0e66b22531207d4c22580420c662dc6e7ffaca276e020718294b295ef9"
+            },
+            "after": {
+              "count": 344,
+              "sha256": "c4111d0e66b22531207d4c22580420c662dc6e7ffaca276e020718294b295ef9"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 344,
+              "sha256": "c4111d0e66b22531207d4c22580420c662dc6e7ffaca276e020718294b295ef9"
+            },
+            "after": {
+              "count": 344,
+              "sha256": "c4111d0e66b22531207d4c22580420c662dc6e7ffaca276e020718294b295ef9"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 1,
+              "activationExit": null
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 1,
+              "activationExit": null
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 1,
+              "activationExit": null
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 1,
+              "activationExit": null
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "046-snapback-habitat-build-sites",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 352,
+              "sha256": "03e14ac72682eba69eea5562352a71c234263f60880e097b82606dda2b43916b"
+            },
+            "after": {
+              "count": 352,
+              "sha256": "03e14ac72682eba69eea5562352a71c234263f60880e097b82606dda2b43916b"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 352,
+              "sha256": "03e14ac72682eba69eea5562352a71c234263f60880e097b82606dda2b43916b"
+            },
+            "after": {
+              "count": 352,
+              "sha256": "03e14ac72682eba69eea5562352a71c234263f60880e097b82606dda2b43916b"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "048-snapback-therapeutic-riding-sessions",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 234,
+              "sha256": "8dc3ae08456caf495aa488dc32bcce69b99021683d8e07049bffb8e4eb9ce1ae"
+            },
+            "after": {
+              "count": 234,
+              "sha256": "8dc3ae08456caf495aa488dc32bcce69b99021683d8e07049bffb8e4eb9ce1ae"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 234,
+              "sha256": "8dc3ae08456caf495aa488dc32bcce69b99021683d8e07049bffb8e4eb9ce1ae"
+            },
+            "after": {
+              "count": 234,
+              "sha256": "8dc3ae08456caf495aa488dc32bcce69b99021683d8e07049bffb8e4eb9ce1ae"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      },
+      {
+        "lane": "050-snapback-estate-jewelry-appraisals",
+        "rowIdentities": {
+          "before": {
+            "before": {
+              "count": 86,
+              "sha256": "8e0102b27bae8d5773c47c74eb8e0282e5b17e1f49ea4d3acef7dfc06af366ba"
+            },
+            "after": {
+              "count": 86,
+              "sha256": "8e0102b27bae8d5773c47c74eb8e0282e5b17e1f49ea4d3acef7dfc06af366ba"
+            },
+            "equal": true
+          },
+          "after": {
+            "before": {
+              "count": 86,
+              "sha256": "8e0102b27bae8d5773c47c74eb8e0282e5b17e1f49ea4d3acef7dfc06af366ba"
+            },
+            "after": {
+              "count": 86,
+              "sha256": "8e0102b27bae8d5773c47c74eb8e0282e5b17e1f49ea4d3acef7dfc06af366ba"
+            },
+            "equal": true
+          }
+        },
+        "flows": {
+          "before": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ],
+          "after": [
+            {
+              "cycle": 0,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 0,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "1",
+              "checkExit": 0,
+              "activationExit": 0
+            },
+            {
+              "cycle": 1,
+              "target": "latest",
+              "checkExit": 0,
+              "activationExit": 0
+            }
+          ]
+        }
+      }
+    ],
+    "notes": "read-only original backups plus actual assets; strict invalid historical-source failures match baseline; bridge counts are schema populations before read rules, not frozen old UI promises"
+  },
+  "upgrades": [
+    {
+      "productionRowsPreserved": 1,
+      "retainedServiceToken": "passed",
+      "oldCompleteSessionSuppliedToUpgradedClient": "passed",
+      "productionNewWrite": "passed",
+      "productionDevDoorsClosed": true,
+      "storeRowsPreserved": 1,
+      "expoTypecheck": "passed before and after",
+      "expoWebExport": "passed before and after",
+      "expoBrowserBeforeAndAfter": "passed with persisted origin/session and real SDK reads",
+      "from": "0.4.35",
+      "oldNativeVersion": "snapback4 0.4.35",
+      "flags": [],
+      "candidate": "0.4.37",
+      "oldPackage": {
+        "registry": "http://127.0.0.1:4873",
+        "integrity": "sha512-G2dF0gdY+Lwl8ZTgczNblP0YSUAVG3RzBbkDNwwT44hSfIe4xGX6B12jsOqAgJ+AviSYYoXSoVJzE2b3FYF2TQ=="
+      },
+      "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
+      "status": "passed",
+      "acquisition": "installed old npx snapback4 upgrade",
+      "warnings": "during upgrade and next visible check"
+    },
+    {
+      "productionRowsPreserved": 1,
+      "retainedServiceToken": "passed",
+      "oldCompleteSessionSuppliedToUpgradedClient": "passed",
+      "productionNewWrite": "passed",
+      "productionDevDoorsClosed": true,
+      "storeRowsPreserved": 1,
+      "expoTypecheck": "passed before and after",
+      "expoWebExport": "passed before and after",
+      "expoBrowserBeforeAndAfter": "passed with persisted origin/session and real SDK reads",
+      "from": "0.4.36",
+      "oldNativeVersion": "snapback4 0.4.36",
+      "flags": [],
+      "candidate": "0.4.37",
+      "oldPackage": {
+        "registry": "http://127.0.0.1:46693",
+        "integrity": "sha512-6fxpEieVE4wNGG3hYH2Jup7YJX0C8E56iM4kEeLr6NmY5s6lWEeI9XQdzufspzR1QPn6NsMMhXHiUobRiSp0dw==",
+        "provenance": "exact retained Integration 20 qualified tarballs; no registry publication"
+      },
+      "oldWrapperSha256": "920efdcea2a39aebc414df9df5dd01f89ee5c9c8a1b76b9cdb34b09d5c768072",
+      "status": "passed",
+      "acquisition": "installed old npx snapback4 upgrade",
+      "warnings": "during upgrade and next visible check"
+    }
+  ],
+  "exact": {
+    "source": "4b824a6fe60747535e33f668e3b0b542708c9c71",
+    "exactOriginMainAtClone": "1cb27f606b40c60b7f0ea8fe6dedf7b5eb8cad19",
+    "binarySha256": "e7f0c3ec72d57e1d63ac8b9641b3e109d89b2968e63ac1c304494eda7e0b86f4",
+    "clientSha256": "6774a6d32b8d82b2ae965aaab7fb4dc01e23e1b5b20d33147a98150d7de1078a",
+    "apps": {
+      "synced": {
+        "directory": "/home/ccheever/sb4-loop/prewave21/synced/app",
+        "port": 27137,
+        "commands": [
+          {
+            "argv": [
+              "bun",
+              "install"
+            ],
+            "cwd": "/home/ccheever/sb4-loop/prewave21/synced",
+            "exit": 0,
+            "log": "/home/ccheever/sb4-loop/integration21/exact-synced-install.log"
+          },
+          {
+            "argv": [
+              "bun",
+              "/home/ccheever/sb4-loop/prewave21/exact2/scripts/exact.mjs",
+              "new",
+              "app",
+              "--snapback",
+              "--port",
+              "27137"
+            ],
+            "cwd": "/home/ccheever/sb4-loop/prewave21/synced",
+            "exit": 0,
+            "log": "/home/ccheever/sb4-loop/integration21/exact-synced-new.log"
+          },
+          {
+            "argv": [
+              "bun",
+              "exact.mjs",
+              "snapback"
+            ],
+            "cwd": "/home/ccheever/sb4-loop/prewave21/synced/app",
+            "exit": 0,
+            "log": "/home/ccheever/sb4-loop/integration21/exact-synced-snapback.log"
+          },
+          {
+            "argv": [
+              "bun",
+              "exact.mjs",
+              "test",
+              "web"
+            ],
+            "cwd": "/home/ccheever/sb4-loop/prewave21/synced/app",
+            "exit": 0,
+            "log": "/home/ccheever/sb4-loop/integration21/exact-synced-web.log"
+          }
+        ],
+        "tests": {
+          "passed": 2,
+          "failed": 0
+        },
+        "schemaSha256": "ee9861281d80fb224073b045ccbe29b43130eea8239feca0b70257ad7d3c273f",
+        "appManifest": {
+          "$schema": "../../exact2/scripts/app.schema.json",
+          "name": "App",
+          "short_name": "App",
+          "id": "com.example.app-d86671",
+          "start_url": "/",
+          "display": "standalone",
+          "app": {
+            "id": "com.example.app-d86671",
+            "name": "App"
+          },
+          "host": {
+            "ios": {
+              "minimumOS": "17.0",
+              "deviceFamily": [
+                "iphone",
+                "ipad"
+              ]
+            },
+            "macos": {
+              "minimumOS": "14.0",
+              "window": {
+                "width": 900,
+                "height": 700
+              }
+            },
+            "web": {}
+          },
+          "deploy": {
+            "store": {
+              "web": "0",
+              "macos": "0",
+              "ios": "0",
+              "linux": "0"
+            }
+          },
+          "typescript": {
+            "sources": {
+              "snapback4": "../../exact2/snapback4/ts",
+              "backend": "../snapback/generated"
+            }
+          }
+        }
+      },
+      "online": {
+        "directory": "/home/ccheever/sb4-loop/prewave21/online/app",
+        "port": 27138,
+        "commands": [
+          {
+            "argv": [
+              "bun",
+              "install"
+            ],
+            "cwd": "/home/ccheever/sb4-loop/prewave21/online",
+            "exit": 0,
+            "log": "/home/ccheever/sb4-loop/integration21/exact-online-install.log"
+          },
+          {
+            "argv": [
+              "bun",
+              "/home/ccheever/sb4-loop/prewave21/exact2/scripts/exact.mjs",
+              "new",
+              "app",
+              "--snapback",
+              "--port",
+              "27138",
+              "--online"
+            ],
+            "cwd": "/home/ccheever/sb4-loop/prewave21/online",
+            "exit": 0,
+            "log": "/home/ccheever/sb4-loop/integration21/exact-online-new.log"
+          },
+          {
+            "argv": [
+              "bun",
+              "exact.mjs",
+              "snapback"
+            ],
+            "cwd": "/home/ccheever/sb4-loop/prewave21/online/app",
+            "exit": 0,
+            "log": "/home/ccheever/sb4-loop/integration21/exact-online-snapback.log"
+          },
+          {
+            "argv": [
+              "bun",
+              "exact.mjs",
+              "test",
+              "web"
+            ],
+            "cwd": "/home/ccheever/sb4-loop/prewave21/online/app",
+            "exit": 0,
+            "log": "/home/ccheever/sb4-loop/integration21/exact-online-web.log"
+          }
+        ],
+        "authoredBackend": "fresh synced-starter schema with its sync declaration replaced by online only, written before new --online as Exact README requires",
+        "tests": {
+          "passed": 1,
+          "failed": 0
+        },
+        "schemaSha256": "f8274b085d7320bc15d44c43ebc3fb6be0d7b929d09502857df2c1d4106dfffb",
+        "appManifest": {
+          "$schema": "../../exact2/scripts/app.schema.json",
+          "name": "App",
+          "short_name": "App",
+          "id": "com.example.app-9a5127",
+          "start_url": "/",
+          "display": "standalone",
+          "app": {
+            "id": "com.example.app-9a5127",
+            "name": "App"
+          },
+          "host": {
+            "ios": {
+              "minimumOS": "17.0",
+              "deviceFamily": [
+                "iphone",
+                "ipad"
+              ]
+            },
+            "macos": {
+              "minimumOS": "14.0",
+              "window": {
+                "width": 900,
+                "height": 700
+              }
+            },
+            "web": {}
+          },
+          "deploy": {
+            "store": {
+              "web": "0",
+              "macos": "0",
+              "ios": "0",
+              "linux": "0"
+            }
+          },
+          "typescript": {
+            "sources": {
+              "snapback4": "../../exact2/snapback4/online",
+              "backend": "../snapback/generated"
+            }
+          }
+        }
+      }
+    },
+    "clientInstall": {
+      "argv": [
+        "bun",
+        "install"
+      ],
+      "cwd": "/home/ccheever/sb4-loop/prewave21/exact2",
+      "exit": 0,
+      "log": "/home/ccheever/sb4-loop/integration21/exact-root-client-install.log"
+    },
+    "status": "passed"
+  },
+  "mac": {
+    "sourceProjection": {
+      "qualifiedSource": "4b824a6fe60747535e33f668e3b0b542708c9c71",
+      "beforeSha256": "ef5d07927fdee738301e6bbabb1b3a88389d53b4b72f1a7808a5293410e37b34",
+      "afterSha256": "6f70709b39418f01d5794935be2c5315a6f7073131d7ad10195d4e0b943a6ae8",
+      "runtimeDelta": "none: cfg(test) helper only",
+      "sourcePath": "snapback4/crates/snapback4-device/src/device/publication_tests.rs",
+      "linuxSource": "0042644172147d1550e664768da61735c1763de1",
+      "macCommit": "9d7d5ebc68507ccddd63dd9280fa0ea4785f7b24",
+      "changedFromQualifiedMacMirror": [
+        "snapback4/crates/snapback4-device/src/device/publication_tests.rs"
+      ]
+    },
+    "preparedSource": "4b824a6fe60747535e33f668e3b0b542708c9c71",
+    "clientSha256": "6774a6d32b8d82b2ae965aaab7fb4dc01e23e1b5b20d33147a98150d7de1078a",
+    "native": {
+      "proofKind": "application-release",
+      "exitStatus": 0,
+      "segments": {
+        "offline": {
+          "status": "passed",
+          "rows": {
+            "todos": 0
+          },
+          "queries": [
+            {
+              "classification": "device-answerable",
+              "complete": true,
+              "count": 0,
+              "cut": null,
+              "fresh": false,
+              "name": "list",
+              "state": "ready"
+            }
+          ],
+          "link": "offline"
+        },
+        "prime": {
+          "status": "passed",
+          "rows": {
+            "todos": 0
+          },
+          "queries": [],
+          "link": "online"
+        },
+        "restart": {
+          "status": "passed",
+          "rows": {
+            "todos": 0
+          },
+          "queries": [],
+          "link": "online"
+        }
+      },
+      "buildReceiptSha256": "002fc2b5b8abded1cbe4d3833c573dc8a988b847d7d79b4b3529cee39d8c2dc3",
+      "smokeReceiptSha256": "be441017d4c86ca4359594ee60bc9b635c3d99b56056260f7b06be7ff9b0e654",
+      "toolchain": {
+        "node": "v24.13.1",
+        "xcode": "Xcode 27.1\nBuild version 27A9275",
+        "sdk": "27.1",
+        "sdkBuild": "24A94232",
+        "pod": "1.17.0",
+        "runtime": [
+          {
+            "identifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+            "version": "27.0",
+            "buildversion": "24A434"
+          },
+          {
+            "identifier": "com.apple.CoreSimulator.SimRuntime.tvOS-27-0",
+            "version": "27.0",
+            "buildversion": "24J360"
+          },
+          {
+            "identifier": "com.apple.CoreSimulator.SimRuntime.watchOS-27-0",
+            "version": "27.0",
+            "buildversion": "24R362"
+          }
+        ],
+        "architecture": "arm64"
+      },
+      "artifacts": {
+        "mode": "owned loopback HTTP tarballs; no publication",
+        "client": "exact Linux prepared client",
+        "darwinBinary": "merged-tree debug CLI for functional witness; no publication qualification",
+        "artifacts": [
+          {
+            "name": "snapback4",
+            "sha256": "6774a6d32b8d82b2ae965aaab7fb4dc01e23e1b5b20d33147a98150d7de1078a",
+            "integrity": "sha512-dSzzjePovuT1KK4X3+CmOVtM+GpbiUFS3YXPmjYLvWrbJRyEv1r5NSEyyDxs07iQmEcwb/X9wDnF6guGZoXhAg==",
+            "bytes": 1322732,
+            "installedVersion": "0.4.37"
+          },
+          {
+            "name": "snapback4-expo",
+            "sha256": "b3d0df752c184dd8574a38722c4bed62d95765ec4bc69951d37ea43e160ea92f",
+            "integrity": "sha512-6J9M2bSMituVQWHWy8h9AFBV1FU5P29ZBItTrm5di27ytUGqe4MuQ+mEZ51hgVOoXh027eilW2nh2T6gsElGig==",
+            "bytes": 7327917,
+            "installedVersion": "0.4.37"
+          },
+          {
+            "name": "snapback4-darwin-arm64",
+            "sha256": "615a476864402bab3f5308f22a9e106cc5bf1643fac5c089382379fb9da2c3b9",
+            "integrity": "sha512-ODlvFeogik7ETNQQZWQAZumEDdo4sChVqKC+9qKipwm2L7ij+fIKKWRdAep/s8o8Be5R4v0ahhZWSn+8Vof43g==",
+            "bytes": 19131583,
+            "installedVersion": "0.4.37"
+          }
+        ]
+      },
+      "scope": "fresh empty-todo native app; acquisition and complete offline query exercised; asset UI not exercised"
+    },
+    "tests": {
+      "merged-rust": {
+        "exit": 0,
+        "sha256": "7f9bd7b23b22761d7f608cddb9235e6ba294806014ae3a9dc21716c5b4c0a624",
+        "summaries": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 638 filtered out; finished in 0.08s",
+          "test result: ok. 636 passed; 0 failed; 3 ignored; 0 measured; 0 filtered out; finished in 99.00s"
+        ]
+      },
+      "merged-lang": {
+        "exit": 0,
+        "sha256": "b6bec88b77f1da62e6caf960e46c76c1db30378e2a345a4e0f0856939f1705a0",
+        "summaries": [
+          "test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s",
+          "test result: ok. 127 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.17s",
+          "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.10s",
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 147.76s",
+          "test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 172.16s",
+          "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ]
+      },
+      "mac-device-fixed-alone": {
+        "exit": 0,
+        "sha256": "afb2fe74ba3c903bb1dd2a490d4c99ede2fc501a6464f7dadcb092f5707cd568",
+        "summaries": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 62 filtered out; finished in 0.03s"
+        ]
+      },
+      "mac-device-fixed": {
+        "exit": 0,
+        "sha256": "9ef74806d427da3a90f5fc6ee18107506e27fd2b1a95bd899fb1a16a7d71c871",
+        "summaries": [
+          "test result: ok. 63 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s",
+          "test result: ok. 88 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.72s"
+        ]
+      },
+      "merged-cli": {
+        "exit": 0,
+        "sha256": "35f848724e83c06ebdc05a43eb9b9e30afab795bca22c669fb97f246bc623c24",
+        "summaries": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 0.35s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 0.28s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 1.01s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 0.45s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 0.44s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 0.48s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 0.10s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 0.49s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 0.05s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 1.04s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 1.07s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 6.70s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 508 filtered out; finished in 6.50s",
+          "test result: ok. 504 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 15.97s",
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s",
+          "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s",
+          "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 59.52s",
+          "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s"
+        ]
+      },
+      "merged-sim": {
+        "exit": 0,
+        "sha256": "b77996f8f4557519982403e3adde54a964974b64cb691188735aeb6942716b60",
+        "summaries": [
+          "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.95s",
+          "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+          "test result: ok. 254 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 83.92s",
+          "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s",
+          "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.00s",
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.16s",
+          "test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.09s",
+          "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s",
+          "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s",
+          "test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.59s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s",
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.45s",
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s",
+          "test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+          "test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.14s",
+          "test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s",
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.12s",
+          "test result: ok. 29 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s",
+          "test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s",
+          "test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.81s",
+          "test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.28s",
+          "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.57s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.25s",
+          "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s",
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.38s",
+          "test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s",
+          "test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s",
+          "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.58s",
+          "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s",
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s",
+          "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s",
+          "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+          "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s",
+          "test result: ok. 29 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 161.97s",
+          "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s",
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+          "test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s",
+          "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.38s",
+          "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s",
+          "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s",
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+          "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s",
+          "test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.82s",
+          "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+        ]
+      },
+      "merged-clients": {
+        "exit": 0,
+        "sha256": "a7277efbd654c69df1a592b6e6d647819c2cf0e43ac97cc93e4f26e73eae43e1",
+        "summaries": [
+          "-- client files: 53/53; failed 0; tests {\"tests\":1076,\"pass\":1062,\"fail\":0,\"cancelled\":0,\"skipped\":14,\"todo\":0}"
+        ]
+      }
+    }
+  },
+  "macCleanup": {
+    "ownedSimulatorDeleted": "9AD8A70B-3B7F-468D-82E0-824E5B8EDEA2",
+    "expectedName": "Integration21-0.4.37",
+    "ownedBackendAndArtifactServerRefuseConnections": {
+      "27139": true,
+      "27140": true
+    },
+    "wakeProcess": "retained only until final Linux qualification in case an affected Mac rerun is needed"
+  },
+  "macWakeCleanup": {
+    "pid": 73505,
+    "ownedScratch": "/Users/ccheever/sb4-ws-integ21",
+    "wake": "owned process stopped after command and birth validation",
+    "sshMaster": "owned connection closed"
+  },
+  "root": {
+    "frozenInstallHoistGeneratedArtifacts": "passed",
+    "postFixtureRegenerationInventoryGuide": "passed; 22 guide tests, zero failures/skips/preconditions; 121 inherited warnings",
+    "refCheckBeforeFinalRecords": "564 documents,12277 references,zero errors/unchecked",
+    "docsBudget": "passed;319/320 README lines",
+    "authoringCensus": "872 entries regenerated unchanged",
+    "deliveryAwaitBoundary": "regenerated unchanged",
+    "postgresAllTargetsCheck": "passed; compiler check only",
+    "refCheckFinal": {
+      "exit": 0,
+      "documents": 564,
+      "references": 12277,
+      "files": 45502,
+      "errors": 0,
+      "unchecked": 0
+    },
+    "finalInventory": {
+      "exit": 0,
+      "packageTests": 365,
+      "scriptTests": 35,
+      "demos": 31,
+      "catalogEntries": 31,
+      "publicationLeaves": 487,
+      "guidePages": 162,
+      "snippets": 1937
+    },
+    "finalInventoryRecovery": {
+      "firstExit": 1,
+      "reason": "root node_modules absent: TypeScript/Ajv precondition",
+      "frozenInstallHoistGeneratedArtifactsExit": 0,
+      "retryExit": 0,
+      "trackedProductChanges": "none"
+    }
+  },
+  "limits": [
+    "Xcode 27.1/SDK27.1 installed, iOS runtime27.0; Xcode27.0 unavailable",
+    "Generic native witness used fresh empty todos and did not exercise asset UI",
+    "Consumer-only result is not a publication-qualified receipt",
+    "Lean retains exactly four reproduced baseline signatures;3173 unsupported cases are not passing cases"
+  ],
+  "qualifiedAtUTC": "2026-10-21T22:50:21.521562+00:00"
+}
