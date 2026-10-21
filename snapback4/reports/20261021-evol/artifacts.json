@@ -1,0 +1,25 @@
+{
+  "notes": "Exact qualified tarballs retained locally under ignored artifacts; no publication receipt. Historical proof metadata paths refer to removed qualification scratch. SHA256 here is of the packed bytes, not the unpacked binary.",
+  "artifacts": [
+    {
+      "path": "artifacts/final-preview/snapback4-linux-x64-0.4.35.tgz",
+      "bytes": 14088311,
+      "sha256": "11e775e75e0c89b7f8d2f0845881c9cefabbbb988cc7944e8c15d08f8642f9fb"
+    },
+    {
+      "path": "artifacts/full/snapback4-0.4.35.tgz",
+      "bytes": 1316902,
+      "sha256": "b289591f63597518fc98848f8fb1dd1491b2dc5a794e16ba1840cf447b5f7309"
+    },
+    {
+      "path": "artifacts/full/snapback4-expo-0.4.35.tgz",
+      "bytes": 22238,
+      "sha256": "e7f03ce579d2bc4a951a2b2d881ed16a228af662da2b963ee4b1849a7e62b903"
+    },
+    {
+      "path": "artifacts/full/snapback4-linux-x64-0.4.35.tgz",
+      "bytes": 14087982,
+      "sha256": "b87398cd4873fc8a2fc567be011f3b58dde633d1f996339e0ec61ff35324c8ba"
+    }
+  ]
+}

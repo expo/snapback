@@ -1,0 +1,90 @@
+{
+  "format": 1,
+  "mode": "affected-consumer-requalification",
+  "source": "c88e594b077eb590b9423bf4ee3e146686e74a18",
+  "version": "0.4.35",
+  "publicationQualified": false,
+  "scope": "Only human preview wording changed: distinguish retained empty/default images and preimage ownership. JSON counts, schema, activation and SDK are unchanged.",
+  "fullQualification": {
+    "source": "db62d60459606a61394352dd6b4e50c6d07cf958",
+    "sha256": "b621287879ac25aa848dc42f49d7c3b32519ff83076e1245541cbfec9813bbdd",
+    "file": "consumer.json"
+  },
+  "client": {
+    "name": "snapback4",
+    "version": "0.4.35",
+    "filename": "snapback4-0.4.35.tgz",
+    "integrity": "sha512-hrDHW2CHsCN6wX/d4IhHqDlK8GxF4PuZBOgIZGzAkhmalXbWq/a13G2fjtOM2jYIDK3dXV3KpGiFdfsI8XuCaw==",
+    "bytes": 1316902
+  },
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.35",
+    "filename": "snapback4-linux-x64-0.4.35.tgz",
+    "integrity": "sha512-Nz+jlIpzSIqrJMtA+6rhm2hDGPxZimQG8iKSXlv9KNOvJj+2BJFDapIfL90nt8nHNHzvAKoROCkxveHvdMgHeg==",
+    "bytes": 14088311
+  },
+  "binarySha256": "a61d5bae48166b1940aaff6b5a03d482a3d0ca0f70bf0e5831ffe0886401fb66",
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  },
+  "day2": {
+    "status": "passed",
+    "directory": "/home/ccheever/projects/sb4-b21-evol/evol-affected-qualified/day2-compatibility",
+    "savedSourceCompatibility": "passed",
+    "expoPrintedWrittenPorts": "passed",
+    "previewNoise": "passed",
+    "helperContracts": "passed",
+    "fixtureAgreement": "passed"
+  },
+  "dormant": {
+    "status": "passed",
+    "cases": [
+      "reverse-native-old-view",
+      "exact-preimage-precedence",
+      "unrepresentable-dormancy",
+      "read-only-check",
+      "operator-retained-inspection",
+      "exact-forward",
+      "unrelated-old-edit",
+      "projected-edit-conflict",
+      "declared-column-rename",
+      "forward-backfill-catchup",
+      "mapped-old-arguments",
+      "edited-native-and-migrated-reentry",
+      "nullable-destination-rename",
+      "loosened-bridge-visibility",
+      "table-identity-rename",
+      "asset-home-rename",
+      "file-derived-repeated-lines",
+      "cross-table-backfill",
+      "typed-parent-visibility"
+    ]
+  },
+  "transitions": {
+    "status": "passed",
+    "cases": [
+      "reactivation",
+      "refused-deploy-cleanliness",
+      "rollback-foresight",
+      "old-client-diff",
+      "installed-v1-v2-guide"
+    ]
+  },
+  "migrations": {
+    "status": "passed",
+    "guide": "deploy",
+    "recipe": "verbatim installed card",
+    "runs": 2,
+    "persistentProduction": true,
+    "realUsers": true,
+    "backfill": true,
+    "privacyInvariant": true,
+    "rollback": true,
+    "forwardCatchup": true,
+    "fullPopulationAssertions": true
+  }
+}
