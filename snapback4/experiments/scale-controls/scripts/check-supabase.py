@@ -39,12 +39,14 @@ try:
     assert call('rpc/increment',data=dict(counter_id=0))[1]['id']==0
     assert call('rpc/increment',999,data=dict(counter_id=256))==(200,None)
     assert call('rpc/increment',255,data=dict(counter_id=256))[1]['id']==256
+    assert call('rpc/increment',jwt=token(run.jwt.read_bytes(),0,role='service_role'),data=dict(counter_id=1))[1]['id']==1
     assert call('messages?id=eq.1',jwt=False)[0] in (401,403)
     assert call('messages?id=eq.1',jwt=token(b'wrong-secret'*4))[0]==401
     assert call('messages?id=eq.1',jwt=token(run.jwt.read_bytes(),exp=1))[0]==401
     assert call('users')[1][0]['id']==0 and len(call('users')[1])==1
     assert call('messages?id=eq.1',128)==(200,[]), 'pooled claims leaked'
     assert call('rpc/principal_id',data={})[0]==404, 'private helper exposed'
+    assert call('rpc/member_rooms',data={})[0]==404, 'membership helper exposed'
     checks['membership_counter_jwt_and_pooled_claim_isolation']=True
     before=json.loads(run.psql("SELECT jsonb_build_array((SELECT count(*) FROM messages WHERE room=0),(SELECT total FROM rooms WHERE id=0),(SELECT sent FROM users WHERE id=0))"))
     post=dict(room=0,sender=0,at=1700000000000,body='maintain witness')

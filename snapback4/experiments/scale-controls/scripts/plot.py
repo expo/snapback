@@ -14,12 +14,15 @@ target='Supabase (PostgREST only)' if any(r['cell'].get('target')=='supabase' fo
 colors={0:'#145da0',200:'#00876c',500:'#dc6b1c',1000:'#9b3e88'}
 labels={0:'natural',200:'+0.2 ms',500:'+0.5 ms',1000:'+1.0 ms'}
 plt.rcParams.update({'font.size':10,'svg.fonttype':'none','axes.spines.top':False,'axes.spines.right':False})
-fig,axes=plt.subplots(2,3,figsize=(15,8),sharey=True)
-for row,rows in enumerate([100000,1000000]):
+sizes=sorted({c['cell']['rows'] for c in curves if c['cell']['workload'] in ('W1','W2','W3')}) or [1000000]
+fig,axes=plt.subplots(len(sizes),3,figsize=(15,4*len(sizes)),sharey=True,squeeze=False)
+for row,rows in enumerate(sizes):
     for col,w in enumerate(['W1','W2','W3']):
         ax=axes[row,col]
         for delay in colors:
-            c=next(v for v in curves if v['cell']['workload']==w and v['cell']['rows']==rows and v['cell']['delay_us']==delay)
+            matches=[v for v in curves if v['cell']['workload']==w and v['cell']['rows']==rows and v['cell']['delay_us']==delay]
+            if not matches: continue
+            c=matches[0]
             rates=c['rates']; x=[v['offered_per_s'] for v in rates]; y=[v['p99_ms'] for v in rates]
             ax.plot(x,y,color=colors[delay],label=labels[delay],linewidth=1.4)
             for p in rates:
@@ -36,7 +39,8 @@ plt.close(fig)
 fig,axes=plt.subplots(1,3,figsize=(15,4.8))
 for ax,(w,key,title) in zip(axes,[('W4','disjoint','W4: disjoint counters'),('W5','same','W5: one shared counter'),('W5','hot1','W5: 1% shared counter')]):
     for delay in colors:
-        rows=sorted([r for r in ledger if r['cell']['workload']==w and r['cell']['keys']==key and r['cell']['delay_us']==delay],key=lambda r:r['cell']['writers'])
+        rows=sorted([r for r in ledger if r['cell']['workload']==w and r['cell']['keys']==key and r['cell']['delay_us']==delay and 'achieved_median' in r],key=lambda r:r['cell']['writers'])
+        if not rows: continue
         ax.plot([r['cell']['writers'] for r in rows],[r['achieved_median'] for r in rows],marker='o',color=colors[delay],label=labels[delay])
     ax.set(xscale='log',yscale='log',xlabel='configured writer workers',ylabel='highest passing offered/cohort acks/s',title=title)
     ax.set_xticks([1,4,16,64,256],[1,4,16,64,256])

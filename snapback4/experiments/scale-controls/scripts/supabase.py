@@ -89,6 +89,43 @@ class SupabaseRun(Run):
                       env=self.env,input=secret+'\n'+secret+'\n',capture_output=True,text=True)
         if result.returncode: raise RuntimeError('could not set owned authenticator password')
 
+    def start(self,count):
+        super().start(count)
+        budget=getattr(self,'query_pool_budget',None)
+        if budget is None: return
+        used=int(self.psql('SELECT count(*) FROM pg_stat_activity',database='postgres').strip())
+        limit=int(self.psql('SHOW max_connections',database='postgres').strip())
+        # Pool plus the schema-cache listener. The observer session is already in `used`.
+        additional=budget+1
+        if used+additional>limit-8:
+            raise RuntimeError(f'refusing pool {budget}: {used} connections in use, max_connections {limit}')
+        write(self.out/'connection-budget.json',{'query_pool_max':budget,'listener':1,
+              'connections_in_use_before_postgrest':used,'max_connections':limit,
+              'headroom_after_pool':limit-(used+additional)})
+
+    def fixture(self,rows):
+        super().fixture(rows)
+        self.psql(path=HERE/'supabase-align.sql')
+        self.capture_plans(rows)
+
+    def capture_plans(self,rows):
+        # Rollback: EXPLAIN ANALYZE of increment would otherwise commit.
+        claims=json.dumps({'role':'authenticated','sub':'00000000-0000-0000-0000-000000000001'},separators=(',',':')).replace("'","''")
+        plans={
+            'plan-w1.json':'EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT * FROM messages WHERE id=1',
+            'plan-w2.json':'EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT * FROM messages WHERE room=0 ORDER BY at DESC, id DESC LIMIT 20',
+            'plan-w3.json':'EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT * FROM inbox()',
+            'plan-counter.json':'EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON) SELECT increment(0::bigint)',
+        }
+        for name,sql in plans.items():
+            script=("BEGIN;\n"
+                    f"SELECT set_config('request.jwt.claims','{claims}',true);\n"
+                    "SET LOCAL ROLE authenticated;\n"
+                    f"{sql};\nROLLBACK;\n")
+            text=sp.check_output([str(PSQL),'-X','-qAt','-v','ON_ERROR_STOP=1','-d',self.db],env=self.env,input=script,text=True)
+            value=json.loads(text[text.index('['):])
+            (self.out/f'{name if rows==1000000 else name.replace(".json", f"-{rows}.json")}').write_text(json.dumps(value,indent=2)+'\n')
+
     def start_service(self,pool,delay,directory):
         self.stop_service()
         assert hashlib.sha256(POSTGREST.read_bytes()).hexdigest()==POSTGREST_SHA
@@ -104,11 +141,13 @@ class SupabaseRun(Run):
             if time.monotonic()>deadline: raise RuntimeError('dispatcher timeout')
             time.sleep(.05)
         self.env['PGRST_DB_URI']=f"host=127.0.0.1 port=58081 user=authenticator password={self.pw.read_text().strip()} dbname={self.db} application_name={self.app_name}"
+        # Matches the raw-PG pool passed in: 32 for reads, one connection per writer.
+        self.env['PGRST_DB_POOL']=str(pool)
         log=(directory/'service.stdout').open('x'); err=(directory/'service.stderr').open('x')
         p=sp.Popen(['taskset','-c',APP_CORES,str(POSTGREST),str(HERE/'supabase.conf')],env=self.env,stdout=log,stderr=err)
         self.service=(p,log,err)
-        self.record(p,'app',component='postgrest',pool=10)
-        deadline=time.monotonic()+60
+        self.record(p,'app',component='postgrest',pool=pool)
+        deadline=time.monotonic()+max(90,pool)
         while True:
             if p.poll() is not None: raise RuntimeError('PostgREST startup failed; see service.stderr')
             try:
@@ -119,8 +158,9 @@ class SupabaseRun(Run):
             except OSError: pass
             if time.monotonic()>deadline: raise RuntimeError('PostgREST readiness timeout')
             time.sleep(.1)
-        write(directory/'target.json',dict(target='supabase-postgrest-only',postgrest='14.18',pool=10,
-               raw_pool_equivalent=pool,postgrest_sha256=POSTGREST_SHA,dispatcher_pid=self.dispatcher[0].pid,
+        write(directory/'target.json',dict(target='supabase-postgrest-only',postgrest='14.18',pool=pool,
+               listener_connections=1,matched_raw_pg_pool=pool,instances=1,rts='-N -I0 -qg',
+               postgrest_sha256=POSTGREST_SHA,dispatcher_pid=self.dispatcher[0].pid,
                postgrest_pid=p.pid,added_rtt_us=delay))
         # Capture all effective settings while redacting URI/secret in memory.
         config=sp.check_output([str(POSTGREST),str(HERE/'supabase.conf'),'--dump-config'],env=self.env,text=True)

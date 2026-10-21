@@ -39,7 +39,16 @@ $$;
 REVOKE ALL ON FUNCTION private.principal_id() FROM PUBLIC;
 GRANT USAGE ON SCHEMA sb4scale,auth,private TO authenticated,service_role;
 GRANT USAGE ON SCHEMA sb4scale TO anon;
+-- Unexposed definer: one indexed membership lookup, without re-entering
+-- memberships RLS. Policies keep the same room set as the invoker subquery.
+CREATE FUNCTION private.member_rooms() RETURNS SETOF bigint
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
+  SELECT room FROM sb4scale.memberships
+  WHERE principal=(select private.principal_id())
+$$;
+REVOKE ALL ON FUNCTION private.member_rooms() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION private.principal_id() TO authenticated,service_role;
+GRANT EXECUTE ON FUNCTION private.member_rooms() TO authenticated,service_role;
 GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated,service_role;
 
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -52,20 +61,19 @@ CREATE POLICY own_user ON users FOR SELECT TO authenticated
 CREATE POLICY own_memberships ON memberships FOR SELECT TO authenticated
   USING(principal=(select private.principal_id()));
 CREATE POLICY member_rooms ON rooms FOR SELECT TO authenticated
-  USING(id IN (SELECT room FROM memberships WHERE principal=(select private.principal_id())));
+  USING(id IN (SELECT private.member_rooms()));
 CREATE POLICY member_messages ON messages FOR SELECT TO authenticated
-  USING(room IN (SELECT room FROM memberships WHERE principal=(select private.principal_id())));
+  USING(room IN (SELECT private.member_rooms()));
 CREATE POLICY member_post ON messages FOR INSERT TO authenticated
-  WITH CHECK(sender=(select private.principal_id()) AND room IN
-    (SELECT room FROM memberships WHERE principal=(select private.principal_id())));
+  WITH CHECK(sender=(select private.principal_id()) AND room IN (SELECT private.member_rooms()));
 CREATE POLICY counter_read ON counters FOR SELECT TO authenticated
   USING(owner_id=(select private.principal_id()) OR
-    (owner_id IS NULL AND room IN (SELECT room FROM memberships WHERE principal=(select private.principal_id()))));
+    (owner_id IS NULL AND room IN (SELECT private.member_rooms())));
 CREATE POLICY counter_write ON counters FOR UPDATE TO authenticated
   USING(owner_id=(select private.principal_id()) OR
-    (owner_id IS NULL AND room IN (SELECT room FROM memberships WHERE principal=(select private.principal_id()))))
+    (owner_id IS NULL AND room IN (SELECT private.member_rooms())))
   WITH CHECK(owner_id=(select private.principal_id()) OR
-    (owner_id IS NULL AND room IN (SELECT room FROM memberships WHERE principal=(select private.principal_id()))));
+    (owner_id IS NULL AND room IN (SELECT private.member_rooms())));
 GRANT SELECT ON users,rooms,memberships,messages,counters TO authenticated;
 GRANT INSERT(room,sender,at,body) ON messages TO authenticated;
 GRANT UPDATE(n) ON counters TO authenticated;
@@ -84,15 +92,21 @@ REVOKE ALL ON FUNCTION maintain_message() FROM PUBLIC;
 CREATE TRIGGER message_totals AFTER INSERT ON messages
 FOR EACH ROW EXECUTE FUNCTION maintain_message();
 
+-- Definer RPCs apply the same predicates once. service_role still updates any
+-- counter, matching BYPASSRLS on the previous invoker function.
 CREATE FUNCTION inbox() RETURNS TABLE(room bigint,total bigint,unread bigint)
-LANGUAGE sql STABLE SECURITY INVOKER SET search_path='' AS $$
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
   SELECT m.room,r.total,greatest(0,r.total-m.last_read) FROM sb4scale.memberships m
   JOIN sb4scale.rooms r ON r.id=m.room
   WHERE m.principal=(select private.principal_id()) AND m.room<1024 ORDER BY m.room LIMIT 32
 $$;
 CREATE FUNCTION increment(counter_id bigint) RETURNS jsonb
-LANGUAGE sql VOLATILE SECURITY INVOKER SET search_path='' AS $$
-  UPDATE sb4scale.counters SET n=n+1 WHERE id=counter_id RETURNING jsonb_build_object('id',id,'n',n)
+LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path='' AS $$
+  UPDATE sb4scale.counters SET n=n+1 WHERE id=counter_id AND (
+    coalesce((select current_setting('request.jwt.claims',true)::jsonb->>'role')='service_role',false)
+    OR owner_id=(select private.principal_id())
+    OR (owner_id IS NULL AND room IN (SELECT private.member_rooms())))
+  RETURNING jsonb_build_object('id',id,'n',n)
 $$;
 REVOKE ALL ON FUNCTION inbox(),increment(bigint) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION inbox(),increment(bigint) TO authenticated,service_role;
