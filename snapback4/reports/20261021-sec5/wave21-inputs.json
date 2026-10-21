@@ -1,0 +1,502 @@
+[
+  {
+    "wave": 21,
+    "lane": "001-snapback-luthier-crack-repairs",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/001-snapback-luthier-crack-repairs/snapback/schema.q",
+        "sha256": "fe8be98db6c80e27db35b45c9df83669d9e49e5546c679fac5cdbb62d2584773"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "002-snapback-bridal-alteration-fittings",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/002-snapback-bridal-alteration-fittings/snapback/schema.q",
+        "sha256": "a80bbcf92d200e8bece136597ab7c8c15b123061fe279232b6c3f29378ed4731"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "003-snapback-taxidermy-mount-orders",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/003-snapback-taxidermy-mount-orders/snapback/schema.q",
+        "sha256": "2ecfacd42363d9221b3d309a28c6d387505fad1a9d36e014fde53d9aeb0a778f"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "004-snapback-antique-mall-booths",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/004-snapback-antique-mall-booths/snapback/schema.q",
+        "sha256": "9286082d0458f29fcd82a57a118fee1faddc1d029693f7b5a1436d1b2f29d36f"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "005-snapback-skydive-jump-manifest",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/005-snapback-skydive-jump-manifest/snapback/schema.q",
+        "sha256": "5e19de25825423763b7e35a5b78fcc58c431614d16292aaacf37a864a62b3309"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "006-snapback-athletic-trainer-injuries",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/006-snapback-athletic-trainer-injuries/snapback/schema.q",
+        "sha256": "da04fca53bb0a5d162da79e4c1ccbfc9572325b6e0b0954e3d4564b3d192fb40"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "007-snapback-upholstery-shop-jobs",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/007-snapback-upholstery-shop-jobs/snapback/schema.q",
+        "sha256": "62366c0c29217cf478e755441a0b62aac0cd04d69156a21c2f45fae760928376"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "008-snapback-kitchen-incubator-bookings",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/008-snapback-kitchen-incubator-bookings/snapback/schema.q",
+        "sha256": "9e66e5a62ac1bd0a4a31feb0b74bda495026445bbe8ac16797ecf0f6231614cf"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "009-snapback-optical-lab-jobs",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/009-snapback-optical-lab-jobs/snapback/schema.q",
+        "sha256": "74d018b3111d8e587d903dcc5c1dd0402f104958e4f965ae1fe2edb7603c7529"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "010-snapback-boatyard-haulout-stands",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/010-snapback-boatyard-haulout-stands/snapback/schema.q",
+        "sha256": "34729a9f2cef0ad897a6d2a806e2b954c23371c7eeb2d2b65d979bef0e20a1d3"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "011-snapback-senior-ride-volunteers",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/011-snapback-senior-ride-volunteers/snapback/schema.q",
+        "sha256": "a7b360af1ed5c7ecaa51ce826473efb5af5826e7d7fef525a5c927ad72e4740d"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "012-snapback-small-engine-repairs",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/012-snapback-small-engine-repairs/snapback/schema.q",
+        "sha256": "d849e09714fa8a299e041b6d81e8615b5fd6d4211f094a82ce5d9de1f05f3b42"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "013-snapback-piano-competition-juries",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/013-snapback-piano-competition-juries/snapback/schema.q",
+        "sha256": "f9ddc52e05eb18f1e0c56fd309db5a0f5b69358e76e23a4fab385bfd54e49495"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "014-snapback-county-fair-livestock",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/014-snapback-county-fair-livestock/snapback/schema.q",
+        "sha256": "c6121dfd38e4328f9aef68235c6ee424b0a5c0fb7cfc40f4a7c05af69f73b3e9"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "015-snapback-sailmaker-repair-orders",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/015-snapback-sailmaker-repair-orders/snapback/schema.q",
+        "sha256": "0f49723ae78179f7618671fb02904f8e0659c32cd9eff6d347a3fd9397592d0a"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "016-snapback-auto-body-repairs",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/016-snapback-auto-body-repairs/snapback/schema.q",
+        "sha256": "427f4daa8215598220cf5574eb138c14aa69cd368f563b8adb38e5b635413cd4"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "017-snapback-search-rescue-callouts",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/017-snapback-search-rescue-callouts/snapback/schema.q",
+        "sha256": "5521f4d1dc689c7acf2382df87c0461bfe9c16df577bc71d5fa754c4c42a891f"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "018-snapback-massage-spa-intakes",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/018-snapback-massage-spa-intakes/snapback/schema.q",
+        "sha256": "6bcfe9bd12f7b4aabffdbf68d515f21e78d391aa970758166bffcc2be92f81a3"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "019-snapback-cremation-custody-chain",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/019-snapback-cremation-custody-chain/snapback/schema.q",
+        "sha256": "6bb921d396c119217da668cb0a032b0799df215b5e36ef7fa74a0815fd62592a"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "020-snapback-rental-unit-turnovers",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/020-snapback-rental-unit-turnovers/snapback/schema.q",
+        "sha256": "c3f9a8a621d281d0877038ec687078c0e6b1628f7ca951fba0bf5186476df792"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "021-snapback-oyster-harvest-tags",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/021-snapback-oyster-harvest-tags/snapback/schema.q",
+        "sha256": "929c96f98e904a5d3a6d89347a022fa40edfe69c1c3a9c298c2944673193ec86"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "022-snapback-picture-framing-orders",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/022-snapback-picture-framing-orders/snapback/schema.q",
+        "sha256": "344107167ea3123766ebc2e8d6b0a67657a24c940de1a7a958f65e1a8d101055"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "023-snapback-coop-board-applications",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/023-snapback-coop-board-applications/snapback/schema.q",
+        "sha256": "d908c526c4f4eef97d6d6506b07fae904b4c828c122c08dd47ada074bf4760d7"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "024-snapback-archery-range-lanes",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/024-snapback-archery-range-lanes/snapback/schema.q",
+        "sha256": "d3cb671daf4865e92ed7921f6ac3de4183b59f7ea796b20b9b11e2eee0bfe65e"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "025-snapback-boxing-bout-medicals",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/025-snapback-boxing-bout-medicals/snapback/schema.q",
+        "sha256": "2bf9a3234b512467593d30683567419cf41c469291e0595ff25c1fc74ccb91c2"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "026-snapback-bookbinding-restoration-jobs",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/026-snapback-bookbinding-restoration-jobs/snapback/schema.q",
+        "sha256": "f69dd0f4984146543907c8f60689ea6eeaddc5a11f86fc2dbf9cd158b79810ba"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "027-snapback-cabinet-install-punchlists",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/027-snapback-cabinet-install-punchlists/snapback/schema.q",
+        "sha256": "57b91d314e01ae3d4f171004faa51f368ebd3ba0530f5319bf1cbc3447eb4475"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "028-snapback-trade-in-appraisals",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/028-snapback-trade-in-appraisals/snapback/schema.q",
+        "sha256": "137372091b63f419be227f203475c8526f2082d938222c367a2e24c6cf8b44c8"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "029-snapback-grape-crush-contracts",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/029-snapback-grape-crush-contracts/snapback/schema.q",
+        "sha256": "21d3f213eb8199bb3603407c2f4df8def2e1274bdaf2c6c133ad07a438879abc"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "030-snapback-funeral-service-arrangements",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/030-snapback-funeral-service-arrangements/snapback/schema.q",
+        "sha256": "17df95812062c50681d85af390b4eeb14f0acb99110055ef5052f9147fb1f039"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "031-snapback-e-waste-data-wipes",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/031-snapback-e-waste-data-wipes/snapback/schema.q",
+        "sha256": "cc5df0a4b88e1a949ee4b8b5fd2bad474527e4a2f32adb89999413bb8b7f5539"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "032-snapback-zoo-keeper-diets",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/032-snapback-zoo-keeper-diets/snapback/schema.q",
+        "sha256": "8c8e1fe242df4415e7eb9d06bfacbc9680aca175490654d197e9833f75b660a9"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "033-snapback-lead-service-swaps",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/033-snapback-lead-service-swaps/snapback/schema.q",
+        "sha256": "2e113e35b7fed53b1684b09d6608a1dfd1c96dd550fd31ad0540b6b3d55ee071"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "034-snapback-pool-route-service",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/034-snapback-pool-route-service/snapback/schema.q",
+        "sha256": "eca1d0e5a42272777c9a206e8d033365b274dfc4830c07d57a563bae8eec17bf"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "035-snapback-trophy-engraving-orders",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/035-snapback-trophy-engraving-orders/snapback/schema.q",
+        "sha256": "c3a1a5a8a31822ac41981e6625d4057339540980255ce8d51befaee366ef7ea0"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "036-snapback-knife-sharpening-drops",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/036-snapback-knife-sharpening-drops/snapback/schema.q",
+        "sha256": "50a2326e35ffd0c480ae019ae6a68fdd61841c48012aeea4429b8ec05fb66ae0"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "037-snapback-fine-art-crating",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/037-snapback-fine-art-crating/snapback/schema.q",
+        "sha256": "663b7502c80b4054aa73bbcd44dd338ffcc1d636cd9ffee5d80b8cb40afedbc4"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "038-snapback-tent-rental-installs",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/038-snapback-tent-rental-installs/snapback/schema.q",
+        "sha256": "19b74f6bb4eeb07671db091c13d9e9d83a2f14ad09e78df23f41e2a5a8f065e8"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "039-snapback-herd-treatment-withdrawals",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/039-snapback-herd-treatment-withdrawals/snapback/schema.q",
+        "sha256": "53928ad340705c53fa08de695430370069656c8f7705995c004c2b175a665cff"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "040-snapback-valet-parking-tickets",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/040-snapback-valet-parking-tickets/snapback/schema.q",
+        "sha256": "973ab7dbc06fe3a3f78645a66d019308e3381134d18bf6fd342d2cf8bc4c14b2"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "041-snapback-dock-appointment-slots",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/041-snapback-dock-appointment-slots/snapback/schema.q",
+        "sha256": "bd4840f4e68f7f3788dc5071f38227fb5741315541b7b1a8c0c5fe59fec2310f"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "042-snapback-english-class-placement",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/042-snapback-english-class-placement/snapback/schema.q",
+        "sha256": "f7a5d2c231eb6570cd390bbb50b21a2f559e9997e9417a3ca7869e23ccd0a9ea"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "043-snapback-bounce-house-rentals",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/043-snapback-bounce-house-rentals/snapback/schema.q",
+        "sha256": "d9987b0ff4f80d559258d34a79017ae01a2ead1936c49f45e7cb04c4aa4815e3"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "044-snapback-livestock-auction-lots",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/044-snapback-livestock-auction-lots/snapback/schema.q",
+        "sha256": "b07a9772c80566e54357cd1b8a151836e42dc4da9df81e9cfdb6fdd394a6ac17"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "045-snapback-hop-kiln-lots",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/045-snapback-hop-kiln-lots/snapback/schema.q",
+        "sha256": "ba2dc53312ed347a0207061ad91bd8d366d52c90bd5554d82d2e79eec8ae9b28"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "046-snapback-habitat-build-sites",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/046-snapback-habitat-build-sites/snapback/schema.q",
+        "sha256": "cd8458af93bef839d0aa4728849c77043d30bee5b554d34d16a5ecb5e6b6c0d7"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "047-snapback-mattress-recycling-pickups",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/047-snapback-mattress-recycling-pickups/snapback/schema.q",
+        "sha256": "c17fbfb78e727d0b2f925eb10cfdda3b66bf33b6cc0a0410e0238c419e56be05"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "048-snapback-therapeutic-riding-sessions",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/048-snapback-therapeutic-riding-sessions/snapback/schema.q",
+        "sha256": "da790661c431de5027d6cd5ff405a9f8eab2b0df0c8f6df486f55a5d48652571"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "049-snapback-sign-shop-installs",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/049-snapback-sign-shop-installs/snapback/schema.q",
+        "sha256": "61795b2438792faf4e771c3695ca050be5f928fe8ed9035cd4e07fb509a116f7"
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "050-snapback-estate-jewelry-appraisals",
+    "sources": [
+      {
+        "path": "/home/ccheever/sb4-loop/wave21/apps/050-snapback-estate-jewelry-appraisals/snapback/schema.q",
+        "sha256": "bdc0ac996e930ed30ed1f78c5eecd9127b78b6fa68981dee8499c32b4e976314"
+      }
+    ]
+  }
+]

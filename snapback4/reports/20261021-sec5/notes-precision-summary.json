@@ -1,0 +1,68 @@
+{
+  "frozen300": {
+    "schemas": 300,
+    "compile_diagnostics": 0,
+    "changed_snapshot_inputs": 0,
+    "before": {
+      "N_SECURITY_INTENT": 268,
+      "N_ARGUMENT_GRANT": 373,
+      "N_BROAD_READ": 353,
+      "N_OPTIONAL_EVIDENCE": 119,
+      "N_COLUMN_READ": 154,
+      "N_GRANT_OUTLIVES_ROLE": 223,
+      "N_SWEEP_ONLY_DEADLINE": 32,
+      "N_PRIVILEGE_ESCALATION": 34,
+      "N_ROLE_WIDE_READ": 10,
+      "N_VACUOUS_RULE": 3,
+      "N_INVARIANT_RESTATES_RULE": 583,
+      "N_EXISTENCE_ORACLE": 42
+    },
+    "after": {
+      "N_SECURITY_INTENT": 268,
+      "N_ARGUMENT_GRANT": 373,
+      "N_BROAD_READ": 354,
+      "N_OPTIONAL_EVIDENCE": 119,
+      "N_CALLER_TIME": 57,
+      "N_COLUMN_READ": 154,
+      "N_ROLE_WIDE_READ": 89,
+      "N_GRANT_OUTLIVES_ROLE": 223,
+      "N_SWEEP_ONLY_DEADLINE": 32,
+      "N_PRIVILEGE_ESCALATION": 34,
+      "N_VACUOUS_RULE": 3,
+      "N_INVARIANT_RESTATES_RULE": 621,
+      "N_EXISTENCE_ORACLE": 42,
+      "N_SELF_CLAIMED_RELATIONSHIP": 1
+    }
+  },
+  "live21": {
+    "schemas": 38,
+    "compile_diagnostics": 0,
+    "changed_snapshot_inputs": 4,
+    "before": {
+      "N_OPTIONAL_EVIDENCE": 25,
+      "N_SECURITY_INTENT": 30,
+      "N_ARGUMENT_GRANT": 58,
+      "N_INVARIANT_RESTATES_RULE": 141,
+      "N_GRANT_OUTLIVES_ROLE": 51,
+      "N_COLUMN_READ": 14,
+      "N_EXISTENCE_ORACLE": 11,
+      "N_BROAD_READ": 5,
+      "N_SWEEP_ONLY_DEADLINE": 3,
+      "N_ROLE_WIDE_READ": 1
+    },
+    "after": {
+      "N_ROLE_WIDE_READ": 34,
+      "N_OPTIONAL_EVIDENCE": 25,
+      "N_SECURITY_INTENT": 30,
+      "N_ARGUMENT_GRANT": 58,
+      "N_INVARIANT_RESTATES_RULE": 147,
+      "N_GRANT_OUTLIVES_ROLE": 51,
+      "N_COLUMN_READ": 14,
+      "N_CALLER_TIME": 6,
+      "N_SELF_CLAIMED_RELATIONSHIP": 1,
+      "N_EXISTENCE_ORACLE": 11,
+      "N_BROAD_READ": 5,
+      "N_SWEEP_ONLY_DEADLINE": 3
+    }
+  }
+}

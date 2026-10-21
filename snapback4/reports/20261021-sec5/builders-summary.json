@@ -1,0 +1,884 @@
+{
+  "method": "Ten fresh installed-document-only reviews of copied authored sources; original rules/operations preserved. Input snapshot is identified by packed/packs.json, not an exact source commit.",
+  "counting": "Read assertions are not independent security discoveries. Nonmirror candidates are declarations without a restatement advisory at their site; manual specification assessment and distinct table/predicate groups are reported separately. Unknown, timeout and empty output do not mean passing.",
+  "snapshot": "First packed integration snapshot, preceding later role-question wording hardening and audit/default campaign repairs.",
+  "lanes": [
+    {
+      "lane": "001-snapback-luthier-crack-repairs",
+      "evidence": "builders/001-snapback-luthier-crack-repairs",
+      "builderExit": 124,
+      "seconds": 480.09,
+      "onlyInvariantLinesChanged": true,
+      "originalDeclarations": 0,
+      "finalDeclarations": 79,
+      "manualAssessment": {
+        "confirmedFindingOverlap": [
+          "apprentice access beyond live bench states and into private estimates (F1)"
+        ],
+        "specDecisions": [
+          "Current apprentice plus gluing/setup/finalCheck for bench records; customer ownership remains independent of mutable customer role.",
+          "Estimate privacy excludes apprentices."
+        ],
+        "interpretations": [
+          "The exact minimal bench column projection is not enumerated by the spec."
+        ],
+        "limits": [
+          "Over-appraisal consent ambiguity is not promoted to a new confirmed finding."
+        ]
+      },
+      "explicitSpecReadAssertions": 17,
+      "explicitSpecTablePredicateGroups": 2,
+      "independentClassificationNote": "Active bench lifecycle and private estimates are explicit; exact minimal instrument board columns need a product interpretation.",
+      "readDeclarations": 29,
+      "readRestatementAdvisories": 4,
+      "nonmirrorReadCandidates": 25,
+      "distinctTablePredicateGroups": 3,
+      "candidateGroups": [
+        {
+          "table": "instruments",
+          "predicate": "(.owner = viewer or (exists roles[viewer, role = 'luthier']) or (exists roles[viewer, role = 'shopOwner']) or (exists roles[viewer, role = 'apprentice']) and (.status = 'gluing' or .status = 'setup' or .status = 'finalCheck'))",
+          "targets": [
+            "read",
+            "id",
+            "label",
+            "kind",
+            "status"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "explicit-spec-boundary"
+        },
+        {
+          "table": "instruments",
+          "predicate": "(.owner = viewer or (exists roles[viewer, role = 'luthier']) or (exists roles[viewer, role = 'shopOwner']))",
+          "targets": [
+            "owner",
+            "problem",
+            "appraisedValue",
+            "photos",
+            "readyAt",
+            "collectedAt",
+            "storageCents",
+            "at"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "interpretation-dependent"
+        },
+        {
+          "table": "estimates",
+          "predicate": "(.owner = viewer or (exists roles[viewer, role = 'luthier']) or (exists roles[viewer, role = 'shopOwner']))",
+          "targets": [
+            "read",
+            "id",
+            "instrument",
+            "owner",
+            "amount",
+            "notes",
+            "status",
+            "createdAt",
+            "expiresAt",
+            "decidedAt",
+            "overReason",
+            "overApprovedBy"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "explicit-spec-boundary"
+        }
+      ],
+      "checkVerdicts": {
+        "unproved": 79
+      },
+      "checkDeclarationCountMatchesFinal": true,
+      "testCapturedBytes": 0,
+      "auditCapturedBytes": null,
+      "commandEventsWithoutTimeoutToken": 0,
+      "capturedValidationCommands": [
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json > .initial-check.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc \"timeout 30s python3 - <<'PY'\nfrom pathlib import Path\noriginal=Path('.original-schema.q.txt').read_bytes()\ncurrent=Path('snapback/schema.q').read_bytes()\nassert current.startswith(original)\nadded=current[len(original):].splitlines()\nassert len(added)==79 and all(line.startswith(b'invariant ') and b'\\\\r' not in line for line in added)\nassert not any(line.startswith(b'invariant ') for line in original.splitlines())\np=Path('REVIEW.md')\ns=p.read_text().replace('Final check, fixture-only test, and audit results will be recorded below after completion.', '''Commands ran from the specified application directory using the absolute installed CLI and shell timeouts. Complete combined stdout/stderr is saved without truncation in check.json, test.txt and audit.json. Exit status and limitations are recorded here separately; an empty output file is not a passing test.\n\nThe final \"'`timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json` exited **0**. Its top-level `ok: true` means the application compiled; all **79 invariants remain unproved**, with **0 whole-declaration proofs and 0 replay-confirmed refutations**. Direct rule components are proved for 17 and unproved for 62. Nine policies explicitly name expressions outside the proof fragment. The short concrete campaign exhausted its time budget; operation control-flow/image bindings, raw roster probes, cross-table copies, refusals and the system job also prevent complete proofs. The checker reports no uncovered table effects, which is coverage of declarations, not evidence of correct enforcement.\n\nSecurity advisories: two role-wide reads, one optional-evidence note, eight existence-oracle notes, two grant-lifetime notes, two argument-grant notes, and fourteen restatement advisories. General notes include two sparse filters and a sweep-deadline advisory on declineEstimate. The review above independently answers those advisories rather than mechanically treating every note as a defect. Confirmed ownership bounds and trusted operator intent were kept even where they match current enforcement.\n\nThe final fixture-only test and audit result are recorded after completion below.'\"''')\ns += '\\\\nByte-preservation verification: the final schema begins with the complete original byte string and its entire appended suffix consists of exactly 79 single-line \"'`invariant ` declarations. No original invariant was present. The current generated draft has 208 role/column questions answered individually above; its original nine effect questions are answered by the authority table (all 217 original questions are covered).'\"\\\\n'\np.write_text(s)\nprint('Verified 79 invariant-only additions and original-byte preservation; recorded check evidence.')\nPY\"",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "lane": "006-snapback-athletic-trainer-injuries",
+      "evidence": "builders/006-snapback-athletic-trainer-injuries",
+      "builderExit": 0,
+      "seconds": 459.36,
+      "onlyInvariantLinesChanged": true,
+      "originalDeclarations": 5,
+      "finalDeclarations": 41,
+      "manualAssessment": {
+        "confirmedFindingOverlap": [
+          "unverified self-claimed parent relationship (F1)",
+          "clinical category kind disclosed to coach/parent (F2)"
+        ],
+        "specDecisions": [
+          "Parent reads require current parent role and own-child relationship.",
+          "Clinical-only diagnosis includes its revealing category.",
+          "Parent relationship writer needs verified appointment, not the recipient claiming it."
+        ],
+        "interpretations": [],
+        "limits": [
+          "Explicit either/or evidence and legitimate historical injury time are not automatic defects."
+        ]
+      },
+      "explicitSpecReadAssertions": 10,
+      "explicitSpecTablePredicateGroups": 3,
+      "independentClassificationNote": "Own-child/current-family-role and clinical diagnostic-category boundaries are explicit; parent relationship writer is separate non-read intent.",
+      "readDeclarations": 13,
+      "readRestatementAdvisories": 3,
+      "nonmirrorReadCandidates": 10,
+      "distinctTablePredicateGroups": 3,
+      "candidateGroups": [
+        {
+          "table": "injuries",
+          "predicate": "((exists roles[principal = viewer, role = 'trainer']) or (exists roles[principal = viewer, role = 'physician']) or (exists roles[principal = viewer, role = 'coach']) or (exists roles[principal = viewer, role = 'parent']) and (exists athletes[.athlete, parent = viewer]))",
+          "targets": [
+            "read",
+            "athlete",
+            "photo",
+            "status",
+            "expectedReturn",
+            "injuredAt"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "explicit-spec-boundary"
+        },
+        {
+          "table": "injuries",
+          "predicate": "((exists roles[principal = viewer, role = 'trainer']) or (exists roles[principal = viewer, role = 'physician']))",
+          "targets": [
+            "kind"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "explicit-spec-boundary"
+        },
+        {
+          "table": "athletes",
+          "predicate": "((exists roles[principal = viewer, role = 'trainer']) or (exists roles[principal = viewer, role = 'physician']) or (exists roles[principal = viewer, role = 'coach']) or (exists roles[principal = viewer, role = 'parent']) and .parent = viewer)",
+          "targets": [
+            "read",
+            "name",
+            "parent"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "explicit-spec-boundary"
+        }
+      ],
+      "checkVerdicts": {
+        "unproved": 24,
+        "proved": 17
+      },
+      "checkDeclarationCountMatchesFinal": true,
+      "testCapturedBytes": 0,
+      "auditCapturedBytes": 0,
+      "commandEventsWithoutTimeoutToken": 0,
+      "capturedValidationCommands": [
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json > .review-scratch/check-initial.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc \"timeout 30s python3 - <<'PY'\nfrom pathlib import Path\nimport json, hashlib, shutil\nfrom collections import Counter\np=Path('REVIEW.md')\ns=p.read_text()\ns=s.replace('Results will be recorded below after the complete installed check/test/audit loop. Full stdout and stderr are preserved in check.json, test.txt and audit.json. A zero command exit is not a security proof, and an unproved claim is not a confirmed violation.', '''Every command ran in this application directory using the installed CLI entrypoint and an explicit timeout. The sequence was initial check to generate the questionnaire, invariant authoring, check, test, audit, and a final check to retain any completed test evidence. The final check and audit briefly overlapped while audit was still running; there were no further source changes.\n\n| Command | Exit | Complete captured output | Finding |\n| --- | --- | --- | --- |\n| \"'`timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json` | 0 | check.json | Accepted all 41 declarations; 17 proved, 24 unproved, 0 refuted. Overall ok=true is not a proof that the app satisfies its security intent. |\n| `timeout 180s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js test --fixture-only` | 124 | test.txt | Timed out after 180 seconds before emitting any stdout/stderr. The complete captured file is therefore empty. No test verdict or completed security-test.json was produced. |\n| `timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js audit --json` | 124 | audit.json | Timed out after 60 seconds before emitting any stdout/stderr. The complete captured file is therefore empty, not a completed JSON audit or a clean audit result. |\n\nThese nonzero timeout results are retained as evidence; no synthetic JSON, fabricated test output or replacement passing verdict was written. The loop was invoked as requested, but test and audit did not finish within the prescribed bounds. No longer unbounded run or persistent server was started.\n\nThe final check'\"'s embedded security report retains column audiences, grant writers, exclusions and uncovered intent. Its direct rule implications for diagnosis/treatment/doctorNote are proved, while the overall read declarations remain unproved because observation/refusal/protocol paths lack reductions. The stricter own-child/current-role audiences, diagnostic category, relationship writes, evidence integrity and temporal integrity remain unproved; absence of a replay in the short bounded check is not evidence that the visible rule mismatches are safe. Static proof and concrete exploration are different claims.\n\nCheck reports role-wide readership, grants outliving roles, self-claimed relationships, caller-time input, argument grants, optional evidence, existence-oracle paths and matching-invariant advisories. School-wide clinician/coach readership is confirmed for the appropriate columns. Open parent access to unclaimed athletes is not. Matching clinical-only privacy and trainer insertion assertions remain confirmed from the specification. Optional-evidence and caller-time notes require the contextual assessment above rather than automatic changes.\n\nThe only uncovered table/effect in the final check's intent inventory is roles.read. This is deliberate specification silence about authorization-metadata confidentiality, answered in the questionnaire above, not permission to read health data or an assertion that a complete audit passed. The checker names further gaps including bounded generated/history exploration, program refusals and scans, referential refusal observations, wire activity metadata, and disconnected-device qualification. No completed test evidence establishes two password users of every role, cross-parent isolation, revocation histories, media downloads, live roster updates, or the exact seven-day boundary in this review. These remain qualification requirements; only four role definitions and password authentication are evident in the authored schema.\n\nNo athlete account access is specified: athletes are the records being treated, and no athlete-login read privilege is invented. All four roles that perform or receive a described action are assessed above, including both users within each role. Unprovisioned accounts receive no health-data privilege merely by representing an athlete.\n\nBefore cleanup, the original authored-query baseline was compared byte-for-byte after removing only lines starting with \"'`invariant `. Every remaining byte matched. The authored diff consists of 36 added invariant declarations and one replaced row-read declaration; the other four original invariants are retained. Review scratch was removed; generated CLI outputs and the requested evidence files remain.'\"''')\np.write_text(s)\noriginal=json.loads(Path('.review-scratch/original.json').read_text())\nstrip=lambda b:b''.join(l for l in b.splitlines(keepends=True) if not l.startswith(b'invariant '))\nfor name, content in original.items():\n before=content.encode();after=Path(name).read_bytes()\n assert strip(before)==strip(after),f'Non-invariant bytes changed: {name}'\n print('Verified non-invariant bytes unchanged:',name)\nd=json.loads(Path('check.json').read_text())\ncounts=dict(Counter(i['status'] for i in d['security']['invariants']))\nassert counts=={'unproved':24,'proved':17},counts\nprint('Final check:',d['ok'],counts)\nfor name in ['check.json','test.txt','audit.json','REVIEW.md']:\n print(name,Path(name).stat().st_size,'bytes')\nshutil.rmtree('.review-scratch')\nprint('Removed review scratch.')\nPY\"",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "lane": "014-snapback-county-fair-livestock",
+      "evidence": "builders/014-snapback-county-fair-livestock",
+      "builderExit": 124,
+      "seconds": 480.12,
+      "onlyInvariantLinesChanged": true,
+      "originalDeclarations": 6,
+      "finalDeclarations": 49,
+      "manualAssessment": {
+        "confirmedFindingOverlap": [],
+        "specDecisions": [
+          "Restore the leader matching-club condition in intent, already present in enforcement.",
+          "Owner access survives a missing exhibitor role; operational staff remain fair-wide."
+        ],
+        "interpretations": [
+          "The spec does not enumerate a private field list or staff lifecycle read cutoff."
+        ],
+        "limits": [
+          "Matching independently confirmed read predicates are legitimate, and are not counted as nonmirror yield."
+        ]
+      },
+      "explicitSpecReadAssertions": 0,
+      "explicitSpecTablePredicateGroups": 0,
+      "independentClassificationNote": "Matching club readership is independently confirmed but not narrower than enforcement.",
+      "readDeclarations": 25,
+      "readRestatementAdvisories": 25,
+      "nonmirrorReadCandidates": 0,
+      "distinctTablePredicateGroups": 0,
+      "candidateGroups": [],
+      "checkVerdicts": {
+        "unproved": 37,
+        "proved": 12
+      },
+      "checkDeclarationCountMatchesFinal": true,
+      "testCapturedBytes": 0,
+      "auditCapturedBytes": 0,
+      "commandEventsWithoutTimeoutToken": 0,
+      "capturedValidationCommands": [
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json > .review-scratch/initial-check.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc \"timeout 30s python3 - <<'PY'\nfrom pathlib import Path\np=Path('REVIEW.md')\np.write_text('''# County Fair Livestock security-intent review\n\nThis review uses only SPEC.md, the authored snapback/schema.q, the installed snapback4 README, and installed CLI guides and generated results. The guide start and guide security --full were read first. The security loop was initial check \u2192 answer its questionnaire from the spec \u2192 author independent invariants \u2192 check \u2192 test --fixture-only \u2192 audit. No rules, operations, comments, imports, or other existing non-invariant source lines were changed. No application server was started manually.\n\n## Interpretation of the specification\n\nThe explicit privacy boundaries are ownership for exhibitors and club membership for leaders. An exhibitor role does not grant access to another exhibitor's animal, even in the same club. A leader's role does not grant access to other clubs, even when another leader can read those entries. Both leaders of a club may read its entries. The barn office has a fair-wide operational board; both office users have the same fair-wide audience. Both superintendents need fair-wide entry access to exercise the specified disqualification and disputed-reweigh functions. No per-superintendent assignment is specified.\n\nThe specification does not prescribe a separate public board, hide particular entry columns from staff, require consent, or restrict reads to particular statuses. I interpret the office board as the operational entry record, including identifying evidence, eligibility dates, arrival/weighing information, results, and dispute/disqualification information. Entered animals form its arrival queue; weighed and disqualified animals remain operational records. This is a scope interpretation of the brief, not a claim that it explicitly enumerates every office field. No invariant invents a ban on office photographs, weight cards, reasons, placings, or pre-arrival/post-weighing rows. If the intended board is a limited projection, define its field list and lifecycle explicitly and enforce it in the backend; this review does not silently invent that policy.\n\nThe same applies to entry details for the owner and the relevant club leaders: the brief grants animals/entries, not just an ear-tag projection. The specification provides no separate confidentiality rule for a disqualification reason or an original weight. Those values still cannot escape the entry's audience, including via image downloads and derived observations. Placings are not public merely because they are results.\n\nOwnership is an enduring resource relationship: removing an exhibitor's role is not specified to revoke access to their existing animals. A signed-in owner can therefore continue to read those entries. Current leader/club, office, and superintendent assignments must be checked on every server read; a former staff role cannot retain staff authority through an old grant. There is no offline sync in this schema. No age, consent, release, or expiry policy is invented from the youth-show setting.\n\nThe auxiliary roles table is not a product roster. Keeping each user's own role/club visible to them, with administrative visibility and writes reserved for the credentialed service:operator seat, is a supporting implementation policy consistent with real authentication and protected authority. SPEC.md does not explicitly demand role-record confidentiality or name an operator role. These assertions preserve a reasonable existing provisioning boundary rather than presenting it as an extra product requirement. The service seat is included explicitly in intent and is not assumed exempt. It receives no animal read or write privilege merely from being the operator.\n\n## Questionnaire answers: rows, each column, and lifecycle\n\nThis matrix answers every row and column question generated in snapback/generated/security-invariants.q.draft. Each row below applies independently to all five generated audiences; the operator column additionally covers the implemented service seat. \u201cOwn\u201d means owner = viewer; \u201cclub\u201d means a current leader with roles.club = animals.club; \u201call\u201d means fair-wide records. A caller with neither a role nor a resource relationship has no animal access. If that caller owns an existing animal, the ownership relationship still applies. Role holders with an additional ownership relationship retain their owner access. An ordinary signed-in caller never inherits the operator seat.\n\nEvery admitted read below is permitted in entered, arrived, weighed, and disqualified states. An optional value may be absent before its relevant event; absence is not permission for a wider audience to learn whether that event occurred. There is no consent condition in SPEC.md.\n\n| Animal target | No role or relationship | Exhibitor | Leader | Office | Superintendent | Operator without another grant |\n|---|---|---|---|---|---|---|\n''')\nwith p.open('a') as f:\n for c in ['read / logical existence','id','owner','club','earTag','species','photo / download','weightCard / download','taggedAt','healthCertAt','weight','originalWeight','status','arrivalAt','weighedAt','dqReason','reweighReason','place','showClass','createdAt']:\n  f.write(f'| {c} | none | own | club (or own) | all | all | none |\\\\n')\n f.write('''\nThe row invariant animals.read and the corresponding animals.<column> read invariants encode that audience separately from the rules. The photo and weightCard assertions include asset downloads. The original broad leader invariant was replaced: it lacked club equality. Its previous weakness was an intent defect; the current enforcement already includes club equality. A matching predicate is retained only after the above independent interpretation.\n\nThere are no authored views, maintained totals, exported files, or computed columns. originalWeight, place, showClass, status, arrivalAt, weighedAt, and the reason columns are sensitive event/result values even though stored rather than computed. Any future category, ordering, count, existence test, download, or other value-dependent derivation must respect the contributing field's audience. IDs and logical existence have explicit coverage too, even though the generated column questionnaire omits implicit IDs.\n\n| Roles target | No role or relationship | Exhibitor | Leader | Office | Superintendent | Operator |\n|---|---|---|---|---|---|---|\n| read / logical existence | none; own record if one exists | own record | own record | own record | own record | all |\n| id | none; own record if one exists | own record | own record | own record | own record | all |\n| principal | none; own record if one exists | own record | own record | own record | own record | all |\n| role | none; own record if one exists | own record | own record | own record | own record | all |\n| club | none; own record if one exists | own record | own record | own record | own record | all |\n\nNeither two users with the same role nor two leaders of the same club can read each other's role records. Club entry readership does not require roster disclosure. There is no role-record lifecycle/consent condition. roles.read and all four roles column-read declarations encode these answers. Direct raw probes used in authorization still require review as indirect observations; a private role row alone does not prove that its predicates cannot be inferred elsewhere.\n\n## Questionnaire answers: authority and integrity\n\n| Effect question | Answer and independent intent |\n|---|---|\n| animals.insert | A currently provisioned exhibitor registers their own animal. No leader, office user, superintendent, or operator registers on another user's behalf. animals.insert constrains both caller role and owner relationship. Registration copies the caller's provisioned club. The caller cannot appoint themselves exhibitor or choose another owner/club through the authored operation. |\n| animals.update | The operational writers are the barn office for arrival/initial weighing and the superintendent for disqualification/disputed reweigh. No exhibitor/leader edits exist in the described workflow. animals.update declares the broad writer set; the operation/column assertions below constrain exclusive powers. The spec does not expressly assign placing authorship; the existing superintendent-only assignPlacing behavior is an implementation choice, not independently promoted to a new exclusive spec requirement. |\n| animals.delete | No delete workflow is specified; deleting evidence would conflict with keeping the original weight and reason. Preserve denial with animals.delete only deny. A future retention/deletion feature needs an explicit policy. |\n| roles.insert | Only credentialed service:operator provisions a role/club for a chosen principal. Ordinary account signup does not confer authority. |\n| roles.update | Only that operator can change role/club assignments. No role can promote itself, appoint a peer, or self-claim another club. The service's recipient choice is trusted administration, not an invitation flow specified by this app. |\n| roles.delete | Only that operator may revoke role records. Revocation must stop staff access on subsequent server reads. Existing owner access remains as explained above. |\n\nThe existing operation assertions for disqualify and reweigh express the explicit \u201conly the livestock superintendent\u201d requirement and are retained. The existing registerAnimal, recordArrival, and weighIn assertions express the chosen operational division and are retained. Added originalWeight, reweighReason, and dqReason update assertions protect the evidence fields across operations. They deliberately use update rather than write: exhibitors create entries with those optional fields absent, which must not require superintendent authority. The status update assertion permits only the superintendent to move into or edit a disqualified record; office arrival/weigh-in transitions remain permitted. The old-and-next-image meaning is intentional: no office operation is specified on an already disqualified animal.\n\nThe required photo and weight card get non-null integrity assertions. A disqualified record must retain a non-null reason. A stored original weight and a reweigh reason must occur together. Text minimums in the schema make a present reason nonblank. These implications capture stored-state obligations, not the full history requirement.\n\nThe 90-day tagging boundary is measured at entry, not at read time. The health certificate's 30-day boundary is measured at arrival, not at registration or a later read. Do not hide old records when these intervals elapse. The authored mutations compare server now and use inclusive boundaries, so exactly 90 days and exactly 30 days are admitted. taggedAt and healthCertAt are caller-supplied claimed evidence dates; the backend cannot establish real-world document authenticity just from timestamps. The schema makes those dates and images immutable after entry. This review does not invent a historical-date prohibition beyond the stated eligibility rules.\n\nExact date arithmetic and cross-operation preservation of the first pre-dispute weight are not expressible with the documented simple invariant predicate vocabulary. They remain explicit review obligations rather than tautological declarations. The authored reweigh operation saves a.originalWeight ?? a.weight, retaining the first original weight through repeated reweighs, and requires a nonblank reason. It stores only the latest reason: if \u201cthe reason kept\u201d is intended to require a history of every dispute, an append-only dispute record is needed. The brief does not explicitly specify multiple-dispute history, so this review flags that limitation without claiming such a history exists or weakening the first-original-weight requirement.\n\nA blanket weight-update-only-superintendent assertion would incorrectly forbid the barn office's initial weigh-in. Likewise, setting status \"'!= disqualified on every animal update would incorrectly forbid the superintendent'\"'s disqualification. The declarations avoid those mistakes. The exclusive named-operation declarations remain necessary; broad table update authority alone does not prove those exclusive operations.\n\n## Verification results and recommendations\n\nResults will be recorded here after the requested command loop completes. Commands are bounded with timeout, run from this directory, and full stdout/stderr is preserved without truncation in the requested files.\n''')\nprint('Wrote REVIEW.md with the complete role/column and effect matrices.')\nPY\"",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "lane": "025-snapback-boxing-bout-medicals",
+      "evidence": "builders/025-snapback-boxing-bout-medicals",
+      "builderExit": 124,
+      "seconds": 480.03,
+      "onlyInvariantLinesChanged": true,
+      "originalDeclarations": 7,
+      "finalDeclarations": 26,
+      "manualAssessment": {
+        "confirmedFindingOverlap": [
+          "caller-controlled stop/exam times and shortening of suspension (including F2)"
+        ],
+        "specDecisions": [
+          "Record a genuine bout stop time and preserve an existing longer suspension except under inspector authority.",
+          "Future exam times cannot establish current validity."
+        ],
+        "interpretations": [
+          "Owner visibility of clinical result notes has conflicting own-history wording (the bakeoff treated that as judgment).",
+          "Restricting whole exam scans/rows and public clinical result columns extends an interpretation of the enumerated audiences."
+        ],
+        "limits": [
+          "The transition/time requirements are mostly manual obligations outside the invariant fragment, not checker catches."
+        ]
+      },
+      "explicitSpecReadAssertions": 0,
+      "explicitSpecTablePredicateGroups": 0,
+      "independentClassificationNote": "Owner medical history versus physician-only notes conflict; full exam-file and bout-result privacy need product choices. Temporal findings are separate.",
+      "readDeclarations": 9,
+      "readRestatementAdvisories": 4,
+      "nonmirrorReadCandidates": 5,
+      "distinctTablePredicateGroups": 3,
+      "candidateGroups": [
+        {
+          "table": "exams",
+          "predicate": "(.owner = viewer or (exists roles[principal = viewer, role = 'physician']) or (exists roles[principal = viewer, role = 'inspector']))",
+          "targets": [
+            "read",
+            "scan"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "interpretation-dependent"
+        },
+        {
+          "table": "exams",
+          "predicate": "((exists roles[principal = viewer, role = 'physician']) or (exists roles[principal = viewer, role = 'inspector']))",
+          "targets": [
+            "resultNotes"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "interpretation-dependent"
+        },
+        {
+          "table": "bouts",
+          "predicate": "((exists roles[principal = viewer, role = 'physician']) or (exists roles[principal = viewer, role = 'inspector']))",
+          "targets": [
+            "stoppedBoxer",
+            "method"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "interpretation-dependent"
+        }
+      ],
+      "checkVerdicts": {
+        "unproved": 17,
+        "proved": 9
+      },
+      "checkDeclarationCountMatchesFinal": true,
+      "testCapturedBytes": 0,
+      "auditCapturedBytes": null,
+      "commandEventsWithoutTimeoutToken": 0,
+      "capturedValidationCommands": [
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json > .review-scratch/check.before.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-fwsmwueq/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "lane": "030-snapback-funeral-service-arrangements",
+      "evidence": "builders-extra/030-snapback-funeral-service-arrangements",
+      "builderExit": 124,
+      "seconds": 480.12,
+      "onlyInvariantLinesChanged": true,
+      "originalDeclarations": 6,
+      "finalDeclarations": 43,
+      "manualAssessment": {
+        "confirmedFindingOverlap": [],
+        "specDecisions": [
+          "Existing director-only financial/cause-of-death fields remain confirmed."
+        ],
+        "interpretations": [
+          "Additional director-or-family private columns derive from treating the enumerated staff view as a payload allowlist.",
+          "Requiring current family role as well as relationship is a stricter interpretation."
+        ],
+        "limits": [
+          "Do not turn these additional privacy interpretations into newly confirmed vulnerabilities."
+        ]
+      },
+      "explicitSpecReadAssertions": 0,
+      "explicitSpecTablePredicateGroups": 0,
+      "independentClassificationNote": "Additional private staff-view fields and current family role extend documented audience interpretations.",
+      "readDeclarations": 14,
+      "readRestatementAdvisories": 8,
+      "nonmirrorReadCandidates": 6,
+      "distinctTablePredicateGroups": 2,
+      "candidateGroups": [
+        {
+          "table": "arrangements",
+          "predicate": "((exists roles[principal = viewer, role = 'director']) or .family = viewer and (exists roles[principal = viewer, role = 'family']) or (exists roles[principal = viewer, role = 'driver']) or (exists roles[principal = viewer, role = 'musician']) or (exists roles[principal = viewer, role = 'florist']))",
+          "targets": [
+            "read"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "interpretation-dependent"
+        },
+        {
+          "table": "arrangements",
+          "predicate": "((exists roles[principal = viewer, role = 'director']) or .family = viewer)",
+          "targets": [
+            "family",
+            "deceased",
+            "servicePlan",
+            "obituary",
+            "approvedAt"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "interpretation-dependent"
+        }
+      ],
+      "checkVerdicts": {
+        "unproved": 32,
+        "proved": 11
+      },
+      "checkDeclarationCountMatchesFinal": true,
+      "testCapturedBytes": 0,
+      "auditCapturedBytes": 0,
+      "commandEventsWithoutTimeoutToken": 0,
+      "capturedValidationCommands": [
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > .review-scratch/check.initial.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 180s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js test --fixture-only > .review-scratch/test.initial.txt 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js audit --json > .review-scratch/audit.initial.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > .review-scratch/check.intent.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "lane": "033-snapback-lead-service-swaps",
+      "evidence": "builders-extra/033-snapback-lead-service-swaps",
+      "builderExit": 124,
+      "seconds": 480.1,
+      "onlyInvariantLinesChanged": true,
+      "originalDeclarations": 5,
+      "finalDeclarations": 75,
+      "manualAssessment": {
+        "confirmedFindingOverlap": [
+          "crew role-wide readership outside scheduled/finished lifecycle (F1)"
+        ],
+        "specDecisions": [
+          "Crew reads require scheduled or finished home state.",
+          "Child records inherit the associated home audience.",
+          "Owner/contractor relationship and current role are independently checked."
+        ],
+        "interpretations": [
+          "The precise child-column/staff-identifier audiences follow a documented operational interpretation."
+        ],
+        "limits": [
+          "A shared crew role does not imply an invented per-crew assignment."
+        ]
+      },
+      "explicitSpecReadAssertions": 11,
+      "explicitSpecTablePredicateGroups": 1,
+      "independentClassificationNote": "Crew map lifecycle on homes is explicit. Child-record/column readership inherits an operational interpretation and is excluded from the lower bound.",
+      "readDeclarations": 35,
+      "readRestatementAdvisories": 4,
+      "nonmirrorReadCandidates": 31,
+      "distinctTablePredicateGroups": 4,
+      "candidateGroups": [
+        {
+          "table": "homes",
+          "predicate": "((exists roles[viewer, role = 'homeowner']) and .homeowner = viewer or (exists roles[viewer, role = 'contractor']) and .contractor = viewer or (exists roles[viewer, role = 'crew']) and (.status = 'scheduled' or .status = 'replaced' or .status = 'sampled' or .status = 'sampleSkipped') or (exists roles[viewer, role = 'manager']))",
+          "targets": [
+            "read",
+            "id",
+            "address",
+            "homeowner",
+            "contractor",
+            "status",
+            "noticeAt",
+            "replacedAt",
+            "refuseReason",
+            "lat",
+            "lng"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "explicit-spec-boundary"
+        },
+        {
+          "table": "photos",
+          "predicate": "((exists roles[viewer, role = 'homeowner']) and (exists homes[.home, homeowner = viewer]) or (exists roles[viewer, role = 'contractor']) and (exists homes[.home, contractor = viewer]) or (exists roles[viewer, role = 'crew']) and ((exists homes[.home, status = 'scheduled']) or (exists homes[.home, status = 'replaced']) or (exists homes[.home, status = 'sampled']) or (exists homes[.home, status = 'sampleSkipped'])) or (exists roles[viewer, role = 'manager']))",
+          "targets": [
+            "read",
+            "id",
+            "home",
+            "kind",
+            "photo",
+            "takenBy",
+            "takenAt"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "interpretation-dependent"
+        },
+        {
+          "table": "samples",
+          "predicate": "((exists roles[viewer, role = 'homeowner']) and (exists homes[.home, homeowner = viewer]) or (exists roles[viewer, role = 'contractor']) and (exists homes[.home, contractor = viewer]) or (exists roles[viewer, role = 'crew']) and ((exists homes[.home, status = 'scheduled']) or (exists homes[.home, status = 'replaced']) or (exists homes[.home, status = 'sampled']) or (exists homes[.home, status = 'sampleSkipped'])) or (exists roles[viewer, role = 'manager']))",
+          "targets": [
+            "read",
+            "id",
+            "home",
+            "leadPpb",
+            "sampledAt",
+            "skipped",
+            "skipReason",
+            "recordedBy"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "interpretation-dependent"
+        },
+        {
+          "table": "agreements",
+          "predicate": "((exists roles[viewer, role = 'homeowner']) and (exists homes[.home, homeowner = viewer]) or (exists roles[viewer, role = 'contractor']) and (exists homes[.home, contractor = viewer]) or (exists roles[viewer, role = 'crew']) and ((exists homes[.home, status = 'scheduled']) or (exists homes[.home, status = 'replaced']) or (exists homes[.home, status = 'sampled']) or (exists homes[.home, status = 'sampleSkipped'])) or (exists roles[viewer, role = 'manager']))",
+          "targets": [
+            "read",
+            "id",
+            "home",
+            "signedBy",
+            "signedAt"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "interpretation-dependent"
+        }
+      ],
+      "checkVerdicts": {
+        "unproved": 75
+      },
+      "checkDeclarationCountMatchesFinal": true,
+      "testCapturedBytes": 0,
+      "auditCapturedBytes": null,
+      "commandEventsWithoutTimeoutToken": 0,
+      "capturedValidationCommands": [
+        {
+          "command": "/bin/bash -lc \"timeout 60s bash -c 'cp snapback/schema.q .schema-before-review; timeout 60s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > .initial-check.json 2>&1'\"",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc \"timeout 30s python3 - <<'PY'\nfrom pathlib import Path\nreview='''# Security intent review\n\nThis review uses SPEC.md, the authored snapback/schema.q, the installed package README, and installed CLI guides start, security --full, testing --full, rules --full and language --full. No other application or package implementation was consulted. Only single-line invariant declarations in the authored schema were replaced or added. Rules, operations, schedules, authentication, comments and other existing bytes are unchanged. Existing comments are preserved as required; their policy claims are not independent specification evidence.\n\n## Independent interpretation\n\nThe explicit privacy boundaries are the homeowner's own address/results/photos, the contractor's assigned addresses, and the crew's scheduled/finished job map. Crew membership alone does not authorize noticed, refused or rescheduled homes. In the existing vocabulary, scheduled is scheduled; replaced, sampled and sampleSkipped are finished replacement jobs. A sampling skip is not itself proof of sampling. No per-crew assignment is specified, so two different crew users may see the same eligible map jobs. Contractors must not see another contractor's assignments and homeowners must not see another homeowner's homes. Relationships are checked against the current resource, with current role checks: a stored assignment alone must not retain a former contractor's access. A roleless user receives no business data, even if an obsolete relationship remains.\n\nThe specification does not separately spell out readership of agreement metadata, staff identifiers, refusal reasons or contractor/crew access to child records. For these underspecified details I use one bounded operational interpretation: child records and associated metadata follow the same address audience, crews remain limited to eligible jobs, and the program manager may oversee all program records. \u201cOnly the addresses assigned\u201d is interpreted as a row boundary, not permission to read just the address text and nothing else. This is an explicit interpretation, not a claim that the specification expressly grants interior-photo or sample-result access to contractors. A narrower column policy would need product clarification; the confirmed row and lifecycle limits remain independently asserted regardless. There is no stated separate curb/interior read audience, consent-based expiry of existing photos, or post-completion expiry for owners/assigned contractors, so none is invented.\n\nRole administration is implementation support for real authenticated users, not a newly inferred manager power: the dedicated trusted operator may provision roles; ordinary accounts, including managers, may not appoint themselves or others. Users may inspect their own role; managers may inspect the roster as oversight. The operator service seat has no implicit business-data readership and is included explicitly in grant-write intent. The privileged system/job boundary remains a separate proof limitation. Current-role checks are chosen to prevent the stale-assignment pattern discussed in the installed security guide.\n\n## Questionnaire answers: every role and column\n\nThe following matrix answers every read question in generated/security-invariants.q.draft. Each listed column has its own column-read invariant as well as a whole-row invariant; the latter also protects logical existence. The same audience applies to value-dependent counts, existence, ordering, filters, copied/derived values and downloads. No authored aggregate/view is present. IDs and foreign references are assessed even where the questionnaire omits synthetic IDs.\n\nH = current homeowner, matching this home's homeowner, in any lifecycle state. T = current contractor, matching this home's contractor, in any lifecycle state. C = current crew, for homes in scheduled/replaced/sampled/sampleSkipped only. M = current manager, all program homes. For child tables H/T/C refer to their current parent home. R = only the caller's own role row; managers may see every role row. None means no row, column, download or derived-value permission. An assignment removal immediately removes T from the permitted server audience; a role change removes role-dependent access. Signing deadlines do not revoke an owner's access to already existing information.\n\n| Table / individually assessed columns | Homeowner | Contractor | Crew | Manager | Signed-in, no role/relationship | Operator seat |\n| --- | --- | --- | --- | --- | --- | --- |\n| homes: id, address, homeowner, contractor, status, noticeAt, replacedAt, refuseReason, lat, lng | H | T | C | M | None | None |\n| agreements: id, home, signedBy, signedAt | H | T | C | M | None | None |\n| photos: id, home, kind, photo, takenBy, takenAt | H | T | C | M | None | None |\n| samples: id, home, leadPpb, sampledAt, skipped, skipReason, recordedBy | H | T | C | M | None | None |\n| roles: id, principal, role | R | R | R | All role rows | None (no role row exists); an own row is readable if present | Only an own row if present |\n\nThe questionnaire also lists photos.kind = curb and photos.kind = interior as audiences. These are photo categories, not authenticated roles: neither grants any authority for any row or column. For both kinds evaluate the actual caller using the matrix. In particular, taking a photo does not confer access to other homeowners' photos, and the photo uploader is not an alternative homeowner/contractor relationship.\n\nEvery homes.status question has an explicit answer: noticed, refused and rescheduled exclude C; scheduled, replaced, sampled and sampleSkipped admit C. H/T/M do not depend on status. Agreements and sample skips do not widen audiences. No universal public audience exists.\n\n## Authority and lifecycle answers\n\n| Table | Insert authority | Update authority | Delete authority |\n| --- | --- | --- | --- |\n| roles | Operator service seat, never a self-claimed app role | Operator only, including role/principal columns | No described deletion workflow |\n| homes | Manager creates address and ownership/assignment | Manager administers/schedules/assigns; crew records replacement and normal sampling; only manager refuses or skips with a reason | No described deletion workflow |\n| agreements | Home's current homeowner, signing as self, within 30 days of notice | No described amendment workflow | No described deletion workflow |\n| photos | Current crew, recorded as that crew user, required verified image | No described replacement/edit workflow | No described deletion workflow |\n| samples | Current crew records actual result as self; manager alone creates skip as self with reason | No described amendment workflow | No described deletion workflow |\n\nThe deny update/delete declarations preserve the narrow described workflow; they are not a claim of an explicit perpetual-retention requirement. Managers' general access does not authorize them to create signed homeowner agreements or impersonate crews. There is no contractor write workflow in the specification. The manager determines assignments; a recipient cannot nominate themselves. Current role and resource relationship must be validated, including the chosen contractor's role. Homeowner ownership, contractor assignment and refusal reasons are protected by column-write invariants so a broad crew home update rule cannot silently acquire administrative authority. Operation-specific markRefused and skipSampling intent expresses manager authority without incorrectly forbidding every crew edit to a row that was already refused/skipped under both-image update semantics.\n\nIndependent event-time declarations require a signature by notice + 30 days and a non-skipped sample between replacement and replacement + 90 days. A skip must have a reason and no pretended sample result/time; an actual sample must have a result and time. A refused home needs a reason; completed replacement states need a replacement timestamp. Completion requires a signed agreement and both curb/interior evidence, because the described work includes photographing both old-pipe locations. These are specification assertions, not claims that the checker supports every expression. The photo-evidence operation invariant currently has an unsupported index/probe reduction and the time expressions have unsupported arithmetic/live-reference reductions; they deliberately remain declared and unproved.\n\nThe 90-day requirement is an obligation to obtain a sample, not merely permission to refuse late writes. Likewise eventual overnight rescheduling is not proof of an exact deadline transition. Temporal liveness and complete state-transition correctness need further evidence beyond these single-row/operation assertions.\n\n## Recommended enforcement work (not applied)\n\n1. Narrow crew reads on homes and all associated child tables to the scheduled/finished lifecycle audience. Apply the policy in backend rules, including homeDetail, homePhotos, homeSample, agreementFor and jobBoard paths, not just map display filters. Do not leave broad child rules as an alternate read channel.\n2. Bind ownership/assignment access to current roles and current parent relationships. Retain the independently confirmed same-role isolation boundaries when roles or assignments change. The existing child rules allow a stored homeowner/contractor relationship without a current-role requirement.\n3. Give crew writes only the administrative fields they actually need. The existing whole-row update rule permits crew updates without column restrictions; homes.homeowner, homes.contractor and homes.refuseReason write intent cannot be established from that rule alone. Existing named operations appear narrower, so a broad rule is not by itself a demonstrated exploit through an exposed mutation.\n4. Preserve the leading manager guards on refusal/skip operations and require their reasons. Preserve server now for signature, replacement and sample timestamps. Validate chosen principals' roles when creating homes as well as when assigning contractors; createHome currently accepts an arbitrary homeowner principal.\n5. Require both curb and interior photos before accepting replacement completion. recordReplacement currently checks an agreement but not either photo. A required image in an individual photo row proves neither that a photo row exists nor that both locations were documented.\n6. Reconcile deadline semantics. signAgreement and recordSample compare server now against the deadline, which is useful. rescheduleOverdue runs daily at 03:00, so an unsigned address can remain noticed/scheduled after the 30-day limit until the sweep. A replaced home can remain unsampled indefinitely, and the current late-sample refusal does not satisfy the affirmative 90-day requirement. Enforce deadline-sensitive actions and report/handle missed obligations without recording a fake sample or silently permitting a non-manager skip.\n7. Verify real-password operation and at least two distinct users of every named role. No persona switch was added. Generated in-memory users exercise role/ownership checks, but alone do not establish a deployed application with eight independently authenticated password accounts. No fixture or account files could be added under this measurement's invariant-only restriction.\n\n## Validation\n\nResults and limitations are recorded below after the final check \u2192 test --fixture-only \u2192 audit loop. Complete output is retained in check.json, test.txt and audit.json. Successful compilation is not a security proof. Unsupported obligations and nonzero commands are retained rather than weakening intent.\n'''\nPath('REVIEW.md').write_text(review)\nprint('Wrote REVIEW.md with complete role/column matrix and write/lifecycle answers.')\nPY\"",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "lane": "036-snapback-knife-sharpening-drops",
+      "evidence": "builders-extra/036-snapback-knife-sharpening-drops",
+      "builderExit": 124,
+      "seconds": 480.14,
+      "onlyInvariantLinesChanged": true,
+      "originalDeclarations": 11,
+      "finalDeclarations": 48,
+      "manualAssessment": {
+        "confirmedFindingOverlap": [
+          "sharpener reads collected/donated sets outside live board (F1)"
+        ],
+        "specDecisions": [
+          "Restaurant/customer ownership and current courier route apply independently.",
+          "Sharpener reads require dropped/ready lifecycle, including associated incidents."
+        ],
+        "interpretations": [],
+        "limits": [
+          "No extra courier live-state cutoff or customer-history expiry is invented."
+        ]
+      },
+      "explicitSpecReadAssertions": 14,
+      "explicitSpecTablePredicateGroups": 3,
+      "independentClassificationNote": "Restaurant own sets and sharpener live sets (including combined route audience) are explicit. Incident readership inherits a child-table interpretation and is excluded from the lower bound.",
+      "readDeclarations": 28,
+      "readRestatementAdvisories": 4,
+      "nonmirrorReadCandidates": 24,
+      "distinctTablePredicateGroups": 6,
+      "candidateGroups": [
+        {
+          "table": "sets",
+          "predicate": "(not (exists roles[principal = viewer, role = 'restaurant']) or .owner = viewer)",
+          "targets": [
+            "read"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "explicit-spec-boundary"
+        },
+        {
+          "table": "sets",
+          "predicate": "(not (exists roles[principal = viewer, role = 'sharpener']) or .owner = viewer or .status = 'dropped' or .status = 'ready')",
+          "targets": [
+            "read"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "explicit-spec-boundary"
+        },
+        {
+          "table": "incidents",
+          "predicate": "(not (exists roles[principal = viewer, role = 'restaurant']) or (exists sets[.set, owner = viewer]))",
+          "targets": [
+            "read"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "interpretation-dependent"
+        },
+        {
+          "table": "incidents",
+          "predicate": "(not (exists roles[principal = viewer, role = 'sharpener']) or (exists sets[.set, owner = viewer]) or (exists sets[.set, status = 'dropped']) or (exists sets[.set, status = 'ready']))",
+          "targets": [
+            "read"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "interpretation-dependent"
+        },
+        {
+          "table": "sets",
+          "predicate": "(.owner = viewer or (exists roles[principal = viewer, role = 'owner']) or (exists roles[principal = viewer, role = 'sharpener']) and (.status = 'dropped' or .status = 'ready') or (exists roles[principal = viewer, role = 'courier', route = .route]))",
+          "targets": [
+            "read",
+            "owner",
+            "label",
+            "knifeCount",
+            "photo",
+            "route",
+            "courier",
+            "status",
+            "droppedAt",
+            "dueAt",
+            "readyAt",
+            "collectedAt"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "explicit-spec-boundary"
+        },
+        {
+          "table": "incidents",
+          "predicate": "((exists sets[.set, owner = viewer]) or (exists roles[principal = viewer, role = 'owner']) or (exists roles[principal = viewer, role = 'sharpener']) and ((exists sets[.set, status = 'dropped']) or (exists sets[.set, status = 'ready'])) or (exists roles[principal = viewer, role = 'courier', route = .set.route]))",
+          "targets": [
+            "read",
+            "set",
+            "kind",
+            "photo",
+            "reason",
+            "credit",
+            "at",
+            "reporter"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "interpretation-dependent"
+        }
+      ],
+      "checkVerdicts": {
+        "unproved": 48
+      },
+      "checkDeclarationCountMatchesFinal": true,
+      "testCapturedBytes": 0,
+      "auditCapturedBytes": 0,
+      "commandEventsWithoutTimeoutToken": 0,
+      "capturedValidationCommands": [
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > check.initial.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 180s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js test --fixture-only > test.txt 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "lane": "042-snapback-english-class-placement",
+      "evidence": "builders-extra/042-snapback-english-class-placement",
+      "builderExit": 124,
+      "seconds": 480.03,
+      "onlyInvariantLinesChanged": true,
+      "originalDeclarations": 8,
+      "finalDeclarations": 64,
+      "manualAssessment": {
+        "confirmedFindingOverlap": [],
+        "specDecisions": [
+          "Educational progress audiences remain owner or current teacher/coordinator; contact and immigration fields remain coordinator-only."
+        ],
+        "interpretations": [
+          "Incidental progress metadata follows the educational audience; no invented publication/status embargo."
+        ],
+        "limits": [
+          "All31 read declarations match confirmed existing enforcement; zero nonmirror read yield is not a defect."
+        ]
+      },
+      "explicitSpecReadAssertions": 0,
+      "explicitSpecTablePredicateGroups": 0,
+      "independentClassificationNote": "The confirmed read audiences match existing enforcement; no invented lifecycle/private-field constraints are counted.",
+      "readDeclarations": 31,
+      "readRestatementAdvisories": 31,
+      "nonmirrorReadCandidates": 0,
+      "distinctTablePredicateGroups": 0,
+      "candidateGroups": [],
+      "checkVerdicts": {
+        "unproved": 64
+      },
+      "checkDeclarationCountMatchesFinal": true,
+      "testCapturedBytes": 14258,
+      "auditCapturedBytes": 0,
+      "commandEventsWithoutTimeoutToken": 0,
+      "capturedValidationCommands": [
+        {
+          "command": "/bin/bash -lc \"timeout 60s sh -c 'node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'\"",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc \"timeout 60s sh -c 'node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'\"",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc \"timeout 180s sh -c 'node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js test --fixture-only > test.txt 2>&1'\"",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc \"timeout 30s python3 - <<'PY'\nfrom pathlib import Path\np=Path('REVIEW.md')\ns=p.read_text().replace('and language --find invariant.', 'language --find invariant, and focused fixture-only/synthetic-evidence guide lookups.')\ns=s.replace('The generated test campaign is expected to synthesize at least two accounts/principals for each coordinator/teacher/learner role.', 'The installed security guide documents two synthesized users per discovered role/seat, so the coordinator/teacher/learner enum supplies all three role pairs to fixture generation. The text output does not enumerate each generated principal individually; role-pair coverage is based on that documented generator behavior, not independently observed six deployed password accounts.')\ns=s.replace('The requested fixture-only mode and recorded campaign exclusions must be read before claiming authentication acceptance.', 'The requested fixture-only run did exercise isolated production HTTP credential revocation and unauthenticated admission, but that is not an exhaustive authentication or deployment acceptance claim.')\ns=s.replace('Pending final command results. Full stdout and stderr are captured without truncation in check.json, test.txt and audit.json. Exit codes will be recorded here. A successful finite campaign is not a security proof, and zero uncovered declarations means only that every admitted table effect has authored intent.', '''All commands ran from this workspace through the specified installed CLI. stdout and stderr were redirected together into the requested files without display truncation. Commands were bounded with timeout (30 seconds for guides, 60 for check/audit, 180 for test). Exit status is reported separately from the captured command output.\n\n| Command | Exit | Capture | Outcome |\n|---|---|---|---|\n| check --json (initial questionnaire generation) | 0 | Superseded by final check.json | Original 8 invariants, all unproved; 10 uncovered admitted effects. |\n| check --json (after intent additions) | 0 | check.json | 64 invariants: 0 proved, 0 refuted, 64 unproved overall. 51 direct-rule obligations proved and 13 unproved. No uncovered admitted effects. |\n| test --fixture-only | 0 | test.txt | 23,157 security attempts, 5,974 refused, 0 reachable violations; 4 non-failing seed/synthetic observations; 1,024 short ordered histories and 16 operations exercised. |\n| audit --json | Pending | audit.json | Pending. |\n\nThe test's isolated production hosts refused 35 unauthenticated/forged-persona/development-door attempts and 42 retired-credential attempts after refresh and logout-all. No persistent hosts were started manually. Test explicitly reports **no authored business cases; generated-fixture only**. Its ordinary operation summary is incomplete: 2 complete queries, 1 expected derived-argument probe refusal and 4 operations not run in that summary. This is not contradicted by the separately reported 16-operation security matrix.\n\nThe generated security-test.json record has 0 violations and reports 98 coverage gaps. Its completed run marker does not imply exhaustive coverage. Gaps include unsupported concrete clock expressions, capped value worlds/history observers/argument matrices, referentially valid paired-world construction, trusted job effects, write-boundary correspondence, incomplete asset-ledger transfer, and generated promotion snapshots rejected by the existing non-whitespace reason constraint. Four seed/synthetic observations are expressly non-failing supplemental evidence; test.txt does not label them as authored-operation exploit traces. No reachable violation was established by this run.\n\nThe checker retains unknown refusal/copy/raw-reference/job/wire paths and the unsupported clock predicate; those are why proved direct rule implications do not establish any whole invariant here. A successful finite campaign is not a security proof, and zero uncovered declarations means only that every admitted table effect has authored intent. Confirmed privacy and deadline intent were not widened to make checks green.''')\np.write_text(s)\nprint('Updated command evidence and coverage limits in REVIEW.md.')\nPY\"",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc \"timeout 30s python3 - <<'PY'\nfrom pathlib import Path\np=Path('REVIEW.md')\ns=p.read_text().replace('60 for check/audit, 180 for test).', '60 for check and the initial audit, 180 for test and the audit retry).')\ns=s.replace('| audit --json | Pending | audit.json | Pending. |', '| audit --json (first attempt) | 124 | Empty stdout/stderr, superseded by retry | Reached the 60-second timeout before producing output. |\\\\n| audit --json (bounded retry) | Pending | audit.json | Pending. |')\np.write_text(s)\nprint('Recorded audit timeout and retry in REVIEW.md.')\nPY\"",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "lane": "048-snapback-therapeutic-riding-sessions",
+      "evidence": "builders-extra/048-snapback-therapeutic-riding-sessions",
+      "builderExit": 0,
+      "seconds": 443.74,
+      "onlyInvariantLinesChanged": true,
+      "originalDeclarations": 4,
+      "finalDeclarations": 11,
+      "manualAssessment": {
+        "confirmedFindingOverlap": [],
+        "specDecisions": [
+          "Progress-note reads require current family role plus own-rider link; row/body/photo declarations catch retained links after role demotion."
+        ],
+        "interpretations": [
+          "Builder treats wider rider basics/row existence as unspecified, and intentionally does not add a riders.read invariant."
+        ],
+        "limits": [
+          "MISSED known F1 broad roster branch. Three real test refutations concern notes after family-to-volunteer demotion, not F1."
+        ]
+      },
+      "explicitSpecReadAssertions": 3,
+      "explicitSpecTablePredicateGroups": 1,
+      "independentClassificationNote": "Current family plus own-rider notes is explicit. The known broad riders roster boundary was deliberately left unspecified and missed.",
+      "readDeclarations": 6,
+      "readRestatementAdvisories": 3,
+      "nonmirrorReadCandidates": 3,
+      "distinctTablePredicateGroups": 1,
+      "candidateGroups": [
+        {
+          "table": "progressNotes",
+          "predicate": "((exists roles[viewer, role = 'director']) or (exists roles[viewer, role = 'instructor']) or (exists roles[viewer, role = 'family']) and (exists familyLinks[.rider, viewer]))",
+          "targets": [
+            "read",
+            "body",
+            "photo"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "explicit-spec-boundary"
+        }
+      ],
+      "checkVerdicts": {
+        "unproved": 6,
+        "refuted": 3,
+        "proved": 2
+      },
+      "checkDeclarationCountMatchesFinal": true,
+      "testCapturedBytes": 18653,
+      "auditCapturedBytes": 73434,
+      "commandEventsWithoutTimeoutToken": 0,
+      "capturedValidationCommands": [
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc 'timeout 60s node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1'",
+          "exitCode": 0
+        }
+      ]
+    },
+    {
+      "lane": "050-snapback-estate-jewelry-appraisals",
+      "evidence": "builders-extra/050-snapback-estate-jewelry-appraisals",
+      "builderExit": 124,
+      "seconds": 480.03,
+      "onlyInvariantLinesChanged": true,
+      "originalDeclarations": 7,
+      "finalDeclarations": 26,
+      "manualAssessment": {
+        "confirmedFindingOverlap": [
+          "Intake wrongly receives owner name/address (F1); independently identified and encoded, but direct pieces-column path not refuted on frozen input."
+        ],
+        "specDecisions": [
+          "Only owner/senior may read ownerName/address; the same name copied into roles.displayName needs that privacy boundary."
+        ],
+        "interpretations": [
+          "Incidental staff fields remain unspecified within a bounded whole-row audience; no invented assignment/lifecycle ban."
+        ],
+        "limits": [
+          "Two concrete test witnesses expose owner displayName through owners; final check retains that one invariant refutation. Piece ownerName/address still lack the packed campaign column-world reduction. Initial overbroad signature-update assertions were corrected after actual null-patch traces; confirmed name privacy was preserved."
+        ]
+      },
+      "explicitSpecReadAssertions": 3,
+      "explicitSpecTablePredicateGroups": 2,
+      "independentClassificationNote": "Only owner/senior sees owner name/address, including that name copied to roster displayName. No inferred intake exception.",
+      "readDeclarations": 20,
+      "readRestatementAdvisories": 17,
+      "nonmirrorReadCandidates": 3,
+      "distinctTablePredicateGroups": 2,
+      "candidateGroups": [
+        {
+          "table": "pieces",
+          "predicate": "(.owner = viewer or (exists roles[viewer, role = 'senior']))",
+          "targets": [
+            "ownerName",
+            "address"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "explicit-spec-boundary"
+        },
+        {
+          "table": "roles",
+          "predicate": "(.role != 'owner' or .principal = viewer or (exists roles[viewer, role = 'senior']))",
+          "targets": [
+            "displayName"
+          ],
+          "boundRulePolicy": true,
+          "independentClassification": "explicit-spec-boundary"
+        }
+      ],
+      "checkVerdicts": {
+        "proved": 3,
+        "unproved": 22,
+        "refuted": 1
+      },
+      "checkDeclarationCountMatchesFinal": true,
+      "testCapturedBytes": 17351,
+      "auditCapturedBytes": 109750,
+      "commandEventsWithoutTimeoutToken": 0,
+      "capturedValidationCommands": [
+        {
+          "command": "/bin/bash -lc \"timeout 60s bash -c 'cp snapback/schema.q .schema-before.q.txt; node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > .check-before.json 2>&1; result=\"'$?; cat .check-before.json; exit \"$result\"'\"'\"",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc \"timeout 60s bash -c 'node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1; result=\"'$?; printf \"check exit: %s'\"\\\\n\\\" \\\"\"'$result\"; exit \"$result\"'\"'\"",
+          "exitCode": 0
+        },
+        {
+          "command": "/bin/bash -lc \"timeout 60s bash -c 'node /tmp/sb4-sec5-builders-8rlkrpb9/installed/node_modules/snapback4/bin/snapback4.js check --json > check.json 2>&1; result=\"'$?; printf \"check exit: %s'\"\\\\n\\\" \\\"\"'$result\"; exit \"$result\"'\"'\"",
+          "exitCode": 0
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "originalDeclarations": 59,
+    "finalDeclarations": 462,
+    "readDeclarations": 210,
+    "readRestatementAdvisories": 103,
+    "nonmirrorReadCandidates": 107,
+    "distinctTablePredicateGroups": 24,
+    "explicitSpecReadAssertions": 58,
+    "explicitSpecTablePredicateGroups": 12
+  },
+  "completedEvidenceLanes": 10,
+  "sessionExitCounts": {
+    "124": 8,
+    "0": 2
+  }
+}
