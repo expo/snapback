@@ -6,12 +6,15 @@ use rusqlite::Connection;
 macro_rules! fixture_access {
     ($handle:ty) => {
         impl $handle {
+            /// Intended caller: consumer debug test fixtures.
             pub fn test_support_conn(&self) -> &Connection {
                 self.conn()
             }
+            /// Intended caller: consumer debug test fixtures.
             pub fn test_support_meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
                 self.meta(key)
             }
+            /// Intended caller: consumer debug test fixtures.
             pub fn test_support_set_meta(
                 &self,
                 key: &str,

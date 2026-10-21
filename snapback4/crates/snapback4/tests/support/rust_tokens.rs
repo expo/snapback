@@ -9,7 +9,8 @@ fn ident(byte: u8) -> bool {
 }
 
 // A deliberately small Rust lexer: punctuation stays separate; string/character
-// literals become one opaque token. Lifetimes remain punctuation + identifier.
+// literals become one opaque token. Raw identifiers keep their canonical name;
+// lifetimes remain punctuation + identifier.
 pub(super) fn tokens(source: &str) -> Vec<Token<'_>> {
     let bytes = source.as_bytes();
     let mut result = Vec::new();
@@ -99,14 +100,21 @@ pub(super) fn tokens(source: &str) -> Vec<Token<'_>> {
                 line: start_line,
             });
         } else {
-            i += 1;
-            if ident(bytes[start]) {
+            let name = if bytes[start..].starts_with(b"r#")
+                && bytes.get(start + 2).is_some_and(|b| b.is_ascii_alphabetic() || *b == b'_')
+            {
+                start + 2
+            } else {
+                start
+            };
+            i = name + 1;
+            if ident(bytes[name]) {
                 while i < bytes.len() && ident(bytes[i]) {
                     i += 1;
                 }
             }
             result.push(Token {
-                text: &source[start..i],
+                text: &source[name..i],
                 line: start_line,
             });
         }

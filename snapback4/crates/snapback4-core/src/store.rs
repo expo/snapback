@@ -75,6 +75,18 @@ pub mod timeline_launch;
 
 const STORE_VERSION: &str = "snapback4-store-1";
 
+// @ref LLP 3000.009.001.000#3.3 — public transaction controls cannot carry arbitrary SQL.
+fn validate_savepoint_name(name: &str) -> Result<(), RuntimeError> {
+    let mut bytes = name.bytes();
+    if bytes.next().is_some_and(|b| b.is_ascii_lowercase() || b == b'_')
+        && bytes.all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+    {
+        Ok(())
+    } else {
+        Err(RuntimeError::Store("internal: invalid savepoint name; expected [a-z_][a-z0-9_]*".into()))
+    }
+}
+
 #[cfg(unix)]
 fn file_identity(conn: &Connection) -> Result<Option<(u64, u64)>, RuntimeError> {
     use std::os::unix::fs::MetadataExt;
@@ -643,17 +655,20 @@ impl<'a> Tx<'a> {
     /// A savepoint, so a program can roll back its own writes and keep the
     /// enclosing bookkeeping (a refused mutation still records its outcome).
     pub fn savepoint(&self, name: &str) -> Result<(), RuntimeError> {
+        validate_savepoint_name(name)?;
         self.conn().execute_batch(&format!("SAVEPOINT {name}"))?;
         Ok(())
     }
 
     pub fn release(&self, name: &str) -> Result<(), RuntimeError> {
+        validate_savepoint_name(name)?;
         self.conn().execute_batch(&format!("RELEASE {name}"))?;
         Ok(())
     }
 
     /// Roll back the named savepoint and release it in the same operation.
     pub fn rollback_to(&self, name: &str) -> Result<(), RuntimeError> {
+        validate_savepoint_name(name)?;
         self.clear_activation_scan();
         self.changes.borrow_mut().widen();
         self.conn().execute_batch(&format!("ROLLBACK TO {name}; RELEASE {name}"))?;
@@ -723,6 +738,7 @@ impl<'a> Tx<'a> {
 
     /// A replacement loader has already cleared the rows and created its
     /// temporary index heap. It must install those indexes before any read.
+    /// Intended caller: `snapback4-device::sqlite`.
     // @ref LLP 3000.007#20.4 — native replacement sorts complete indexes inside the publication transaction.
     pub fn put_loading_indexes(&self, table_name: &str, table: &Table, row: &Value) -> Result<u64, RuntimeError> {
         self.put_indexed(table_name, table, row, None, "INSERT INTO temp._device_index_load(ti, k, id) VALUES (?1, ?2, ?3)")

@@ -99727,3 +99727,57 @@ bytes gzip within the unchanged 727,513 budget) and JavaScript package build
 supply the host suite's prerequisites. All 505 original scoped SQL literal
 spellings remain present. No functional uncertainty remains, no sub-agents or
 remote commands were used, `scripts/test.sh` was not run and nothing was pushed.
+
+## 2026-10-21 — P0-S8 fix round 1: raw-access enforcement and savepoint refusal
+
+Rebased the four S8 commits onto main-mirror `8cc2a5c737`. RFC and JOURNAL
+conflicts retain both histories and one RFC Revised line. The jobs conflict
+keeps main's current mutable contract and SQLite inspection; replay setters
+use its `write_schedule_shape`/`write_schedule_boundary` methods in the same
+transaction and order. The production allowance conflict takes per-file
+minimums (zero). Main's Postgres SQL and §9.1 records are retained.
+
+The public device methods now name `snapback4-device::sqlite` as their
+intended caller. The required lexical ratchet covers their dot, UFCS and
+method-reference spellings outside the device crate and adapters, plus the
+other arbitrary metadata-map installation variants, physical replacement
+loader, raw fixture hooks and generic DeviceStore/DeviceTx trait spellings.
+Raw-method scanning includes all workspace crate source trees. A source
+surface test pins every public device/fixture method to this matcher, and
+both production sites and their allowance are unconditionally zero, even
+while regenerating test counts. The expanded matcher counts eleven existing
+fixture lines: tests 95 → 106, production 0 → 0; no production exception.
+
+The core refuses `test-support` whenever debug assertions are disabled.
+Scripts and CI have no existing release-test path requiring an exception.
+The exact host release-feature invocation is pinned by a negative script
+that requires the core's guard diagnostic; the existing release guard runs
+it before the web-policy check and reports both failures when applicable.
+Savepoint, release and rollback-to identifiers must match
+`[a-z_][a-z0-9_]*` before SQL or transaction state changes. Regression cases
+refuse injection-shaped names and preserve metadata, the held savepoint and
+the enclosing writer. Valid ASCII spellings retain normal behavior.
+
+The complete core run passes 917 tests across 45 targets (five existing
+ignores), including both new savepoint regressions and all 17 doctests.
+The complete host `--no-fail-fast` run passes 1,376 tests across 69 targets
+(15 existing ignores). All four supplied baseline cases pass in this run,
+including the resolver SIGINT timing fixture; there are no other failures.
+
+The complete device run passes 1,569 tests across 103 targets (four existing
+ignores), including all paired-world replay, durable admission/outbox and
+sequence matrices on memory and SQLite. The host release-feature negative
+check observes the required compile error and passes. Regeneration and the
+final normal store-port/committer ratchet runs pass: seven plus three tests,
+zero store-port production sites and 106 test sites. The final shared lexer
+normalizes raw identifiers too, pinning escaped method calls and UFCS names.
+Explicit device calls inside consumer test modules remain production sites.
+
+The final ordinary binary build and root `ref-check --verbose` pass (564 LLP
+documents, zero errors or unchecked refs), as do whitespace and shell syntax
+checks. The RFC's single Revised line starts with this fix round; the lane
+report records conflict resolutions, all check results and log paths. The
+lowest observed free space is 28 GB. Every Cargo command used four jobs,
+disabled incremental compilation and the requested line-table debug settings;
+one Cargo command ran at a time. No Clippy or `scripts/test.sh` rerun, other
+worktree changes, git configuration changes, stash, push or publication.

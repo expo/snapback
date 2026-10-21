@@ -6,6 +6,12 @@
 //! Patterns: rusqlite::, postgres::, .conn(), .query_row(, .query_map(,
 //! .prepare(, .prepare_cached(, .execute(, .execute_batch(,
 //! unchecked_transaction, Transaction::new_unchecked, Connection::open.
+//! Raw Store/Tx device, installation and fixture methods count too, including
+//! UFCS calls and method references. Device calls belong only to snapback4-device
+//! and the adapters; renaming generic metadata access does not evade the port.
+//! Explicit device methods count as production even inside consumer test modules;
+//! those modules use the debug-only fixture hooks when raw access is needed.
+//! The DeviceStore/DeviceTx trait spellings (meta, set_meta, etc.) count as well.
 //! Transaction and Connection require exact type identifiers, excluding
 //! AuthorityTransaction and StepTransaction. Connection::open also includes
 //! open_* constructors (e.g. open_with_flags); literals exclude HTTP headers. The four generic
@@ -17,9 +23,10 @@
 //! with the same name and arguments can count. cfg(test) *inline modules* are
 //! separated by token brace depth (braces in comments/literals do not interfere).
 //! Other cfg expressions/functions and external module declarations are not
-//! interpreted. Rust files under tests/ or with "tests" in their filename are
-//! wholly test code. Only the two src trees are scanned; adapter exclusions apply
-//! to both categories. A mixed file can appear in both allowlists.
+//! interpreted. Rust files under tests/, with "tests" in their filename, or
+//! named test_cases.rs are wholly test code. Driver patterns scan the core and host src trees; raw
+//! Store/Tx methods scan every workspace crate's src tree except snapback4-device.
+//! Adapter exclusions apply to both categories. A mixed file can appear in both allowlists.
 //!
 //! From snapback4/: SNAPBACK4_RATCHET_UPDATE=1 cargo test -p snapback4
 //! --test store_port_ratchet. A count below its listed number only prints a note
@@ -38,7 +45,52 @@ const RULE: &str = "LLP 3000.009.001.000 §3.2";
 mod rust_tokens;
 use rust_tokens::{Token, starts, tokens};
 
+const RAW_STORE_METHODS: &[&str] = &[
+    "device_meta", "set_device_meta", "device_meta_prefix", "delete_device_meta",
+    "device_clear_rows", "device_replace_rows", "device_residency",
+    "initialize_device_storage", "device_outbox_insert", "device_outbox_upsert",
+    "device_outbox_delete", "device_outbox_get", "device_outbox_entries",
+    "device_outbox_max_seq", "device_base_remember", "device_base_entries",
+    "device_base_has_table", "device_base_id_after", "device_base_clear",
+    "device_staged_put", "device_staged_delete", "device_staged_after",
+    "device_staged_table_after", "device_staged_clear", "install_device",
+    "install_device_checked", "install_device_checked_with", "install_device_checked_with_finish",
+    "put_loading_indexes", "test_support_conn", "test_support_meta", "test_support_set_meta",
+    "meta", "set_meta", "meta_prefix", "delete_meta", "clear_rows", "replace_rows",
+    "install_checked", "install_open",
+];
+
+fn raw_store_site(tokens: &[Token<'_>]) -> bool {
+    // Store::install takes only a schema; the device trait's UFCS spelling also
+    // accepts arbitrary metadata. Do not count ordinary schema installation.
+    if starts(tokens, &["DeviceStore", ":", ":", "install"])
+        || starts(tokens, &["DeviceStore", ">", ":", ":", "install"])
+    {
+        return true;
+    }
+    let method = if starts(tokens, &["."]) {
+        tokens.get(1)
+    } else if starts(tokens, &[":", ":"]) {
+        tokens.get(2)
+    } else {
+        None
+    };
+    method.is_some_and(|method| RAW_STORE_METHODS.contains(&method.text))
+}
+
+fn restricted_device_site(tokens: &[Token<'_>]) -> bool {
+    // Generic trait spellings can also name a test fixture (e.g. Fixture::set_meta).
+    // They retain normal test classification; explicit device methods never do.
+    raw_store_site(tokens) && ![
+        "test_support_conn", "test_support_meta", "test_support_set_meta",
+        "meta", "set_meta", "meta_prefix", "delete_meta", "clear_rows", "replace_rows",
+    ].iter().any(|method| starts(tokens, &[".", method]) || starts(tokens, &[":", ":", method]))
+}
+
 fn database_site(tokens: &[Token<'_>]) -> bool {
+    if raw_store_site(tokens) {
+        return true;
+    }
     // Error values/conversions alone do not access a database. Exclude only
     // the bare driver Error type; Error constructors and other paths still count.
     let error_type = ["rusqlite", "postgres"].iter().any(|driver| {
@@ -79,16 +131,22 @@ fn test_file(path: &Path) -> bool {
             .unwrap()
             .to_string_lossy()
             .contains("tests")
+        || path.file_name().unwrap() == "test_cases.rs"
 }
 
 fn excluded(path: &Path) -> bool {
     let core = Path::new("crates/snapback4-core/src");
-    path == core.join("store.rs")
+    path.starts_with("crates/snapback4-device")
+        || path == core.join("store.rs")
         || path.starts_with(core.join("store"))
         || path.starts_with(core.join("engine/postgres"))
 }
 
 fn count_source(source: &str, all_test: bool) -> (usize, usize) {
+    count_matching(source, all_test, database_site)
+}
+
+fn count_matching(source: &str, all_test: bool, site: fn(&[Token<'_>]) -> bool) -> (usize, usize) {
     let tokens = tokens(source);
     let mut lines = [BTreeSet::new(), BTreeSet::new()];
     let (mut depth, mut test_depth) = (0, None);
@@ -108,8 +166,8 @@ fn count_source(source: &str, all_test: bool) -> (usize, usize) {
             cfg_test = false;
             module = false;
         }
-        if database_site(&tokens[i..]) {
-            let category = usize::from(all_test || test_depth.is_some());
+        if site(&tokens[i..]) {
+            let category = usize::from((all_test || test_depth.is_some()) && !restricted_device_site(&tokens[i..]));
             lines[category].insert(token.line);
         }
         if token.text == "}" {
@@ -126,6 +184,15 @@ fn count_source(source: &str, all_test: bool) -> (usize, usize) {
     (lines[0].len(), lines[1].len())
 }
 
+fn count_file(path: &Path, source: &str) -> (usize, usize) {
+    if excluded(path) {
+        return (0, 0);
+    }
+    let driver_scope = path.starts_with("crates/snapback4-core/src")
+        || path.starts_with("crates/snapback4/src");
+    count_matching(source, test_file(path), if driver_scope { database_site } else { raw_store_site })
+}
+
 fn walk(root: &Path, dir: &Path, counts: &mut [Counts; 2]) {
     for entry in fs::read_dir(dir).unwrap() {
         let path = entry.unwrap().path();
@@ -136,8 +203,7 @@ fn walk(root: &Path, dir: &Path, counts: &mut [Counts; 2]) {
         if path.is_dir() {
             walk(root, &path, counts);
         } else if path.extension().is_some_and(|ext| ext == "rs") {
-            let (production, test) =
-                count_source(&fs::read_to_string(&path).unwrap(), test_file(relative));
+            let (production, test) = count_file(relative, &fs::read_to_string(&path).unwrap());
             for (category, count) in [production, test].into_iter().enumerate() {
                 if count > 0 {
                     counts[category].insert(relative.to_str().unwrap().replace('\\', "/"), count);
@@ -198,9 +264,13 @@ fn store_port_ratchet() {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let root = manifest.parent().unwrap().parent().unwrap();
     let mut counts = [Counts::new(), Counts::new()];
-    for dir in ["crates/snapback4-core/src", "crates/snapback4/src"] {
-        walk(root, &root.join(dir), &mut counts);
+    for entry in fs::read_dir(root.join("crates")).unwrap() {
+        let dir = entry.unwrap().path().join("src");
+        if dir.is_dir() {
+            walk(root, &dir, &mut counts);
+        }
     }
+    assert!(counts[0].is_empty(), "{RULE}: production access must remain zero: {:?}", counts[0]);
     let update = enabled("SNAPBACK4_RATCHET_UPDATE");
     let may_raise = update && enabled("SNAPBACK4_RATCHET_ALLOW_RAISE");
     let paths = [
@@ -208,6 +278,7 @@ fn store_port_ratchet() {
         "store_port_ratchet.test-allow.txt",
     ]
     .map(|name| manifest.join("tests").join(name));
+    assert!(read_allowlist(&paths[0]).is_empty(), "{RULE}: production allowance must remain zero");
     let mut errors = Vec::new();
     for (actual, path) in counts.iter().zip(&paths) {
         let allowed = read_allowlist(path);
@@ -224,7 +295,7 @@ fn store_port_ratchet() {
     }
     // Validate both lists before writing either, so a refused raise changes neither.
     assert!(errors.is_empty(), "{}", errors.join("\n"));
-    for ((actual, path), category) in counts.iter().zip(&paths).zip(["non-test", "test"]) {
+    for ((actual, path), category) in counts.iter().zip(&paths).zip(["production", "test"]) {
         if update {
             let mut data = format!(
                 "# {RULE}; {category} matching source lines; paths relative to snapback4/\n"
@@ -281,6 +352,68 @@ fn matcher_counts_lines_and_exact_database_tokens() {
 }
 
 #[test]
+fn raw_device_and_fixture_access_cannot_reopen_the_host_port() {
+    for method in RAW_STORE_METHODS {
+        for source in [
+            format!("store.{method}(key, value);"),
+            format!("Store::{method}(&store, key, value);"),
+            format!("store.r#{method}(key, value);"),
+            format!("r#Store::r#{method}(&store, key, value);"),
+            format!("Tx :: {method} (tx, key);"),
+            format!("let operation = Store::{method};"),
+            format!("store\n . /* boundary */ {method}\n (key);"),
+        ] {
+            assert_eq!(count_source(&source, false), (1, 0), "{source}");
+            let fixture_or_trait = ["test_support_conn", "test_support_meta", "test_support_set_meta",
+                "meta", "set_meta", "meta_prefix", "delete_meta", "clear_rows", "replace_rows"].contains(method);
+            assert_eq!(count_source(&source, true), if fixture_or_trait { (0, 1) } else { (1, 0) }, "{source}");
+            for path in [
+                "crates/snapback4/src/serve.rs",
+                "crates/snapback4-core/src/engine/write.rs",
+                "crates/snapback4-sim/src/world.rs",
+            ] {
+                assert_eq!(count_file(Path::new(path), &source), (1, 0), "{path}: {source}");
+            }
+            for path in [
+                "crates/snapback4-device/src/sqlite.rs",
+                "crates/snapback4-core/src/store/device.rs",
+                "crates/snapback4-core/src/engine/postgres/identity.rs",
+            ] {
+                assert_eq!(count_file(Path::new(path), &source), (0, 0), "{path}: {source}");
+            }
+        }
+    }
+    let attack = "store.set_device_meta(\"release\", \"999\");";
+    assert_eq!(count_source(attack, false), (1, 0));
+    assert_eq!(count_source(&format!("#[cfg(test)] mod tests {{ {attack} }}"), false), (1, 0));
+    assert!(!differences(&BTreeMap::from([("serve.rs".into(), 1)]), &Counts::new(), true, false).is_empty());
+    assert_eq!(count_source("// store.device_meta(key)\nlet example = \"Store::set_device_meta\";", false), (0, 0));
+    assert_eq!(count_source("store.device_metadata_for_test_only(key);", false), (0, 0));
+    assert_eq!(count_source("runner.device_allowance = value; runner.device_work(work);", false), (0, 0));
+    assert_eq!(count_source("store.named_meta(key); store.set_dev_value(key, value);", false), (0, 0));
+    assert_eq!(count_source("DeviceStore::install(&mut store, schema, metadata, false);", false), (1, 0));
+    assert_eq!(count_source("let install = DeviceStore :: install;", false), (1, 0));
+    assert_eq!(count_source("<Store as DeviceStore>::install(&mut store, schema, metadata, false);", false), (1, 0));
+    assert_eq!(count_source("store.install(schema); Store::install(&mut store, schema);", false), (0, 0));
+}
+
+#[test]
+fn every_public_device_adapter_method_is_covered() {
+    let core = Path::new(env!("CARGO_MANIFEST_DIR")).join("../snapback4-core/src/store");
+    for file in ["device.rs", "test_support.rs", "activation.rs"] {
+        let source = fs::read_to_string(core.join(file)).unwrap();
+        let tokens = tokens(&source);
+        for window in tokens.windows(3) {
+            if starts(window, &["pub", "fn"])
+                && (file != "activation.rs" || window[2].text.starts_with("install_device"))
+            {
+                assert!(RAW_STORE_METHODS.contains(&window[2].text), "{file}: {} is missing from the raw-access ratchet", window[2].text);
+            }
+        }
+    }
+}
+
+#[test]
 fn comments_literals_and_cfg_test_modules_do_not_leak() {
     let source = r####"
 // rusqlite::Connection::open("ignored")
@@ -312,6 +445,7 @@ fn paths_separate_tests_and_exclude_only_adapters() {
     for path in [
         "crates/snapback4-core/src/engine/tests/a.rs",
         "crates/snapback4/src/serve_tests.rs",
+        "crates/snapback4-core/src/engine/job/test_cases.rs",
     ] {
         assert!(test_file(Path::new(path)));
     }
@@ -319,6 +453,7 @@ fn paths_separate_tests_and_exclude_only_adapters() {
         "crates/snapback4-core/src/engine/authority.rs"
     )));
     for path in [
+        "crates/snapback4-device/src/sqlite.rs",
         "crates/snapback4-core/src/store.rs",
         "crates/snapback4-core/src/store/a.rs",
         "crates/snapback4-core/src/engine/postgres/a.rs",

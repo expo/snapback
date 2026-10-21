@@ -5,6 +5,47 @@ use snapback4_core::schema::{ColumnDefault, row_image};
 use snapback4_core::value::{Value, object};
 
 #[test]
+fn savepoint_controls_refuse_injection_without_changing_the_transaction() {
+    for command in ["savepoint", "release", "rollback_to"] {
+        let mut store = snapback4_core::Store::memory().unwrap();
+        let tx = store.transaction().unwrap();
+        tx.test_support_set_meta("release", "original").unwrap();
+        tx.savepoint("held").unwrap();
+        for name in ["", "Upper", "1digit", "with space", "with-dash", "é", "held\0", "held--",
+            "held; UPDATE _meta SET value='999' WHERE key='release'", "held\"; DROP TABLE _meta; --"] {
+            let result = match command {
+                "savepoint" => tx.savepoint(name),
+                "release" => tx.release(name),
+                _ => tx.rollback_to(name),
+            };
+            let error = result.unwrap_err();
+            assert!(matches!(error, snapback4_core::RuntimeError::Store(_)), "{command}({name:?}): {error}");
+            assert!(error.to_string().contains("invalid savepoint name"));
+            assert_eq!(tx.test_support_meta("release").unwrap().as_deref(), Some("original"));
+        }
+        // All refusals leave both the held savepoint and its enclosing writer usable.
+        tx.test_support_set_meta("release", "temporary").unwrap();
+        tx.rollback_to("held").unwrap();
+        assert_eq!(tx.test_support_meta("release").unwrap().as_deref(), Some("original"));
+        tx.commit().unwrap();
+        assert_eq!(store.test_support_meta("release").unwrap().as_deref(), Some("original"));
+    }
+}
+
+#[test]
+fn savepoint_controls_accept_lowercase_ascii_identifiers() {
+    let mut store = snapback4_core::Store::memory().unwrap();
+    let tx = store.transaction().unwrap();
+    for name in ["a", "_", "_0", "savepoint_123", "abcdefghijklmnopqrstuvwxyz0123456789_"] {
+        tx.savepoint(name).unwrap();
+        tx.release(name).unwrap();
+        tx.savepoint(name).unwrap();
+        tx.rollback_to(name).unwrap();
+    }
+    tx.commit().unwrap();
+}
+
+#[test]
 fn memory_rows_counts_only_changed_index_entries() {
     let schema = common::schema();
     let table = schema.tables["writes"].clone();

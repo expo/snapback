@@ -7,7 +7,7 @@ publish = false
 description = "Snapback 4 core: the value model, schema, IR, SQLite store, rules, the runtime meter, the interpreter, and the partition log (LLP 3000 §5 week 2)."
 
 [features]
-# Raw fixture/corruption hooks; consumers enable this only in dev-dependencies.
+# Debug-only raw fixture/corruption hooks; consumers enable this only in dev-dependencies.
 test-support = ["sqlite"]
 # Typed standalone evaluator operations; never exports raw fixture handles.
 evaluation-support = ["sqlite"]

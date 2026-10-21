@@ -152,3 +152,116 @@ recorded below.
 The required checks are complete, with only the exact-base-reproduced Clippy
 failures above. No functional uncertainty remains. No Postgres implementation
 was added, `scripts/test.sh` was not run, and nothing was pushed.
+
+## P0-S8 fix round 1 — 2026-10-21
+
+Rebased the four lane commits onto fetched `origin/sb4-pg/main-mirror`
+`8cc2a5c737`. The resulting sequence is `f89bbe904b`, `06d8bb5262`,
+`b2ec2b5b90`, `916516fdfb`. Conflicts and resolutions:
+
+- RFC: union the revision history into one `Revised` line and retain both
+  lanes' body additions, including all Postgres family and §9.1 records.
+- JOURNAL: preserve both append-only histories, main first and S8 afterward.
+- `store/jobs.rs`: retain main's mutable jobs contract and SQLite inspection
+  methods; replay's typed setters delegate to `write_schedule_shape` and
+  `write_schedule_boundary`, preserving the caller's transaction and order.
+- Production store-port allowance: take the per-file minimum (the empty
+  list), then regenerate. All Postgres adapter SQL remains on main's version.
+  The rebased ordinary binary builds, and the final production census is zero;
+  no newly landed production connection or generic metadata access survives
+  outside the adapters.
+
+Review item 1: keep the independent DeviceStore/DeviceTx implementation on
+Store/Tx; introducing separate borrowed store and transaction wrapper types
+would also change the installation/open-recovery callbacks and device trait
+implementation. The required tool boundary covers every public native-device
+adapter method, device installation variants (which also take arbitrary
+metadata maps), the physical replacement loader, raw fixture hooks, and
+DeviceStore/DeviceTx's generic trait spellings. Every public device adapter
+method names `snapback4-device::sqlite` as its intended caller. Raw-method
+matching scans each workspace crate's `src`, with only the device crate and
+adapters exempt. Dot calls, UFCS, method references, raw identifiers, multiline spellings,
+comments/literals, unrelated device-policy names and a second consumer crate
+are pinned by `raw_device_and_fixture_access_cannot_reopen_the_host_port`.
+`every_public_device_adapter_method_is_covered` refuses a newly exposed device
+or fixture method missing from the matcher. Explicit device methods count as production even inside a consumer test
+module. Both actual production access and its allowance must be zero even
+when regeneration permits test increases.
+
+The production allowance remains **0**. Test allowances are **95 → 106**:
+five existing shared-job fixture setters, four existing owner fixture metadata
+lines, and two existing SQL-catalog fixture metadata lines are newly counted.
+`test_cases.rs` is the jobs family's explicitly `cfg(test)` external module;
+that exact filename now joins the ratchet's test-file classification. The
+initial regeneration correctly refused the newly counted test lines; after
+reviewing them, a test-only raise regenerated the census. No raw access site
+was added to production by this fix.
+
+Review item 2: `test-support` plus disabled debug assertions is a compile
+error in the core, including release/production/wasm profiles. A search of
+repository `scripts/`, Snapback 4 `scripts/`, and CI workflows found no release
+test path with the feature; the Rust suite uses the ordinary test profile and
+the release evaluator uses only `evaluation-support`. No narrower exception
+is needed. `scripts/check-test-support-guard.sh` runs the review's exact host
+release/feature combination and requires the explicit refusal diagnostic;
+an unrelated build failure cannot pass. The existing release guard invokes
+this check before its web-policy check.
+
+Review item 3: `savepoint`, `release`, and `rollback_to` validate
+`[a-z_][a-z0-9_]*` before SQL, activation-cache clearing, or change tracking.
+Invalid names return `RuntimeError::Store` with an internal-error message.
+The two new `rows` integration tests cover valid boundary spellings and all
+three invalid controls, including an UPDATE-shaped injection, quotes, NUL,
+Unicode, comments, spaces and invalid initial characters. They check metadata
+immediately after each refusal and prove the held savepoint, outer writer and
+persisted metadata remain intact.
+
+### Fix-round validation
+
+All Cargo commands use four jobs, `CARGO_INCREMENTAL=0`,
+`CARGO_PROFILE_DEV_DEBUG=line-tables-only` and
+`CARGO_PROFILE_TEST_DEBUG=line-tables-only`, one Cargo command at a time.
+Runtime tests use four threads; the device suite additionally uses its normal
+32 MiB test stack (`RUST_MIN_STACK=33554432`).
+
+- `cargo test -p snapback4-core`: **pass**, 917 tests across 45 targets,
+  five existing ignores, including all 17 doctests. Both new `rows` cases,
+  `savepoint_controls_refuse_injection_without_changing_the_transaction` and
+  `savepoint_controls_accept_lowercase_ascii_identifiers`, pass.
+- `cargo test -p snapback4 --no-fail-fast`: **pass**, 1,376 tests across
+  69 targets, 15 existing ignores. All listed baseline cases pass in this run:
+  `w11r1c_toolchain_why_explains_node_start_failure_too`,
+  `farm2_typescript_7_is_refused_by_version_not_crashed_on`,
+  `web_witness_help_and_invalid_input`, and
+  `stalled_resolver_sigint_is_bounded_journalled_and_drained`. No other failure.
+- `cargo test -p snapback4-device`: **pass**, 1,569 tests across 103 targets,
+  four existing ignores. This includes the complete memory/SQLite paired-world,
+  admission/outbox/settlement, persistence, acquisition and sequence matrices.
+- `bash scripts/check-test-support-guard.sh`: **pass**. The release host with
+  explicit `snapback4-core/test-support` fails with the required core guard
+  diagnostic; the script exits successfully only after observing that refusal.
+- Store-port regeneration with `SNAPBACK4_RATCHET_UPDATE=1`: **pass**, with
+  **0 production / 106 test sites**. The final regeneration needs no raise.
+  The production header now says `production`, reflecting the policy that an
+  explicit device call remains a production violation even in a consumer test.
+- Final ordinary `cargo test -p snapback4 --test store_port_ratchet --test
+  committer_ratchet`: **pass**, all seven store-port and three committer tests.
+  The shared lexer also normalizes raw identifiers, so `r#set_device_meta`
+  and raw UFCS spellings cannot bypass the matcher. No committer allowance
+  changes; its inherited 49 named publication sites still pass.
+- Final ordinary `cargo build -p snapback4`: **pass**; this builds the normal
+  dependency graph after the explicit release-feature refusal.
+- Final `./ref-check --verbose` from the repository root: **pass**, 564 LLP
+  documents, zero errors and zero unchecked references. There is no
+  `snapback4/ref-check`; the root command is the repository checker.
+- `git diff --check` and both release scripts' `bash -n`: **pass**.
+
+The lowest observed `df -h /home` reading was **28 GB free**, above the
+15 GB stop threshold. No other worktree, git configuration, stash, remote
+machine, push or publication was touched. `scripts/test.sh` and Clippy were
+not rerun in this fix round; all checks specifically requested for the round
+are complete and pass. Logs are under the ignored `snapback4/target/`:
+`p0-s8-fix-core.log`, `p0-s8-fix-host.log`, `p0-s8-fix-device.log`,
+`p0-s8-fix-test-support-guard.log`, `p0-s8-fix-ratchets-regenerate.log`,
+`p0-s8-fix-ratchets-final.log`, `p0-s8-fix-build-final.log`, and
+`p0-s8-fix-ref-check.log`.
