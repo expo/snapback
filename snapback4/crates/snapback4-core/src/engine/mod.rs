@@ -22,7 +22,7 @@ mod asset_uploads;
 #[cfg(feature = "sqlite")]
 pub(crate) mod committer;
 #[cfg(feature = "sqlite")]
-use committer::{Committed, Committer, Kind, Member};
+use committer::{Committed, Committer, Kind, Member, Pending};
 pub mod components;
 #[cfg(feature = "sqlite")]
 mod effect_steps;
@@ -597,16 +597,18 @@ impl Engine {
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         drop(self.ephemeral.lock()?);
-        let committed = Self::activate(&mut self.store, &schema, &programs, None, now, true, None, None)?;
-        Ok(committed.after_commit(|(generation, metadata)| {
-            self.timeline_schedule = timeline::Schedule::default();
-            self.schema = schema;
-            self.programs = programs;
-            self.generation = generation;
-            self.expiry_after.clear();
-            self.ephemeral.rebind_committed(metadata.store_id, generation, &self.schema);
-            generation
-        }).into_inner())
+        Ok(Committer::run_committed_with(self, |engine| {
+            Self::activate(&mut engine.store, &schema, &programs, None, now, true, None, None)
+                .map(|committed| committed.pending((schema, programs)))
+        }, |engine, (schema, programs), (generation, metadata)| {
+            engine.timeline_schedule = timeline::Schedule::default();
+            engine.schema = schema;
+            engine.programs = programs;
+            engine.generation = generation;
+            engine.expiry_after.clear();
+            engine.ephemeral.rebind_committed(metadata.store_id, generation, &engine.schema);
+            Ok(generation)
+        })?.into_inner())
     }
 
 
@@ -632,18 +634,18 @@ impl Engine {
         if expiring.is_empty() {
             return Ok(0);
         }
-        let (expiry_after, now, removed) = Committer::run(&mut self.store, Member::new(Kind::Engine, |tx| {
-            let now = tx.pin_writer_time(&self.schema, now)?;
+        Committer::run_with(self, |engine| Committer::run_pending(&mut engine.store, Member::new(Kind::Engine, |tx| {
+            let now = tx.pin_writer_time(&engine.schema, now)?;
             let seq = tx.next_seq()?;
-            let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            let mut runner = Runner::new(&tx, &engine.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
             let mut removed = 0_u64;
             let mut visited = 0_usize;
-            let mut expiry_after = self.expiry_after.clone();
+            let mut expiry_after = engine.expiry_after.clone();
             let due = crate::store::Bounds { gte: Some(Value::Int(i64::MIN)), lte: Some(Value::Int(now)), ..Default::default() };
             let expiring = through_activation::resume_expiry_tables(
                 expiring.into_iter().map(|(name, _)| name).collect(), &expiry_after,
             ).into_iter().map(|name| {
-                let index = self.schema.tables[&name].expiry_index().expect("expiring table").0.to_owned();
+                let index = engine.schema.tables[&name].expiry_index().expect("expiring table").0.to_owned();
                 (name, index)
             }).collect::<Vec<_>>();
             'tables: for (table_name, index) in &expiring {
@@ -693,10 +695,12 @@ impl Engine {
                 tx.append(seq, &events)?;
             }
             tx.complete((expiry_after, now, removed))
-        }))?;
-        self.expiry_after = expiry_after;
-        self.advance_time_audience(now)?;
-        Ok(removed)
+        }).pending(|(expiry_after, now, removed)| Pending::new(removed, (expiry_after, now)))), |engine, (expiry_after, now), removed| {
+            engine.expiry_after = expiry_after;
+            // Publication is a fresh submitted member, after cleanup durability.
+            engine.advance_time_audience(now)?;
+            Ok(removed)
+        })
     }
 
     /// The schema generation the store serves; a device holds a partition
@@ -943,7 +947,7 @@ impl Engine {
                 Err(error) => Err(error),
             };
         }
-        let (outcome, entropy) = Committer::run(&mut self.store, Member::new(Kind::Program, |tx| {
+        Committer::run_with(self, |engine| Committer::run_pending(&mut engine.store, Member::new(Kind::Program, |tx| {
             if let Some(op) = op
                 && let Some(outcome) = tx.replay_bound(&context.viewer, op, name, &wire_args)?
             {
@@ -952,9 +956,9 @@ impl Engine {
                 return tx.rollback((outcome, None));
             }
             if let Some(op)=op{tx.require_placement(&context.viewer,op,name,&wire_args)?;}
-            context.now = Some(tx.pin_writer_time(&self.schema, context.now.unwrap_or(0))?);
-            self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
-            let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
+            context.now = Some(tx.pin_writer_time(&engine.schema, context.now.unwrap_or(0))?);
+            engine.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
+            let program = engine.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
             if program.kind == ProgramKind::Query {
                 return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
             }
@@ -964,15 +968,15 @@ impl Engine {
             if program.kind == ProgramKind::Job {
                 return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
             }
-            if let Err(error) = validate::validate_inputs(&self.schema, &program, &mut context.args) {
+            if let Err(error) = validate::validate_inputs(&engine.schema, &program, &mut context.args) {
                 return Ok(tx.abort((MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }, None)));
             }
             if context.presence.is_none() {
-                context.presence = self.presence.clone();
+                context.presence = engine.presence.clone();
             }
-            context.entropy = self.entropy;
-            context.minter = self.minter.clone();
-            let ceilings = self.ceilings;
+            context.entropy = engine.entropy;
+            context.minter = engine.minter.clone();
+            let ceilings = engine.ceilings;
             let viewer = context.viewer.clone();
             let now = context.now.unwrap_or(0);
             // An `image`/`video` argument names an upload by id; the program
@@ -1002,7 +1006,7 @@ impl Engine {
                 }
             }
             tx.savepoint("program")?;
-            let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
+            let mut runner = Runner::new(&tx, &engine.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
             let ran = runner.run(&program).and_then(|value| {
                 runner.charge_output(&value)?;
                 Ok(value)
@@ -1027,27 +1031,27 @@ impl Engine {
                     // @ref LLP 3000.019#4 — P7 reports keep at-most-once custody.
                     // @ref LLP 3000.022#6 — a covered report keeps only a receipt at the committed head.
                     let receipt_only = rows_written == 0 && outbox.is_empty()
-                        && self.schema.delivery.iter().any(|binding| binding.mutation == name);
+                        && engine.schema.delivery.iter().any(|binding| binding.mutation == name);
                     let seq = tx.next_seq()? - u64::from(receipt_only);
                     read_tables.extend(tables.iter().cloned());
                     if !receipt_only {
                         tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
                         tx.append(seq, &events)?;
-                        tx.record_effects(&outbox, seq, now, self.dev_effects, &self.schema)?;
+                        tx.record_effects(&outbox, seq, now, engine.dev_effects, &engine.schema)?;
                     }
-                    MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events, &action_tables), replayed: false }
+                    MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&engine.schema, &events, &action_tables), replayed: false }
                 }
                 Err(error) if error.is_refusal() => {
                     tx.rollback_to("program")?;
                     let current = match &error {
                         RuntimeError::Conflict { current } => {
-                            let mut probe = Runner::new(&tx, &self.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
+                            let mut probe = Runner::new(&tx, &engine.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
                             let value = probe.get(current).ok();
                             value
                         }
                         _ => None,
                     };
-                    let why=seat_refusal(&self.schema,&error,&viewer);
+                    let why=seat_refusal(&engine.schema,&error,&viewer);
                     MutationOutcome { receipt_only: false, state: WriteState::Failed { why, current }, metered, tables: Vec::new(), events: 0, replayed: false }
                 }
                 Err(error) => {
@@ -1064,10 +1068,11 @@ impl Engine {
                 tx.bind_applied(&viewer, op, name, &wire_args, now)?;
             }
             tx.complete((outcome, Some(entropy)))
-        }))?;
-        // @ref LLP 3000.009.001.000.000#3.7 — entropy follows the durable COMMIT, not the member savepoint release.
-        if let Some(entropy) = entropy { self.entropy = entropy; }
-        Ok(outcome)
+        }).pending(|(outcome, entropy)| Pending::new(outcome, entropy))), |engine, entropy, outcome| {
+            // @ref LLP 3000.009.001.000.000#3.7 — entropy advances only in the durable member's continuation.
+            if let Some(entropy) = entropy { engine.entropy = entropy; }
+            Ok(outcome)
+        })
     }
 
     /// Write rows as the system principal: rules are bypassed, validation,

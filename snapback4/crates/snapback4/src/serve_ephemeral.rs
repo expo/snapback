@@ -75,9 +75,7 @@ impl Shared {
         self.publish_durable(engine, false);
     }
     fn publish_durable(&self, engine: &Engine, committed: bool) {
-        if let Ok(seq) = engine.seq() {
-            let store_id = engine.store().meta("store_id").unwrap_or(None);
-            let generation = engine.generation();
+        let _ = engine.continue_durable_publication(committed, |committed, seq, store_id, generation| {
             let mut current = lock(&self.seq);
             let mut wake = lock(&self.wake);
             let changed = wake.seq != seq || wake.store_id != store_id || wake.generation != generation;
@@ -91,7 +89,8 @@ impl Shared {
                 self.polls.notify_all();
                 self.committed.notify_all();
             }
-        }
+            Ok(())
+        });
     }
 }
 

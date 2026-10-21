@@ -8,7 +8,7 @@
 //! the job row.
 
 use crate::rows::Rows;
-use super::committer::{Committer, Kind, Member};
+use super::committer::{Committer, Kind, Member, Pending};
 
 use super::runner::{Flow, Runner};
 use super::validate::validate_inputs;
@@ -388,16 +388,16 @@ impl Engine {
     pub fn run_job_chunk_for(&mut self, now: i64, budget: std::time::Duration) -> Result<Option<JobRun>, RuntimeError> {
         let started = std::time::Instant::now();
         let presence = self.presence.clone();
-        let id = Committer::run(&mut self.store, Member::new(Kind::Engine, |tx| {
+        Committer::run_with(self, |engine| Committer::run_pending(&mut engine.store, Member::new(Kind::Engine, |tx| {
             // @ref LLP 3000.036.003#3.2 — a job's
             // runner, partition events and commit share the floor pinned inside
             // their writer transaction, for Quarry and native chunks alike.
-            let now = tx.pin_writer_time(&self.schema, now)?;
+            let now = tx.pin_writer_time(&engine.schema, now)?;
             let head = tx.head_job()?;
             let Some(mut head) = head else { return Ok(tx.abort(None)) };
-            let program = self.programs.get(&head.run.name).cloned();
+            let program = engine.programs.get(&head.run.name).cloned();
             #[cfg(feature = "native")]
-            let current_hash = program.as_ref().map(|program| job_admission_hash(program, self.native.as_deref().map(super::native::Module::digest)));
+            let current_hash = program.as_ref().map(|program| job_admission_hash(program, engine.native.as_deref().map(super::native::Module::digest)));
             #[cfg(not(feature = "native"))]
             let current_hash = program.as_ref().map(|program| job_admission_hash(program, None));
             let Some(program) = program.filter(|_| current_hash.as_deref() == Some(&head.program_hash)) else {
@@ -407,7 +407,7 @@ impl Engine {
             if program.native {
                 let id = head.run.id.clone();
                 #[cfg(feature = "native")]
-                let outcome = native_chunk(tx, &self.schema, self.native.as_deref(), &mut self.native_logs, self.minter.clone(), head, &program, now, self.dev_effects);
+                let outcome = native_chunk(tx, &engine.schema, engine.native.as_deref(), &mut engine.native_logs, engine.minter.clone(), head, &program, now, engine.dev_effects);
                 #[cfg(not(feature = "native"))]
                 let outcome = native_chunk(tx, head, &program, now);
                 return outcome.map(|disposition| disposition.map(|()| Some(id)));
@@ -450,10 +450,10 @@ impl Engine {
             loop {
                 tx.savepoint("job_chunk")?;
                 let seq = tx.next_seq()?;
-                let mut context = Context::system().at(now).with_presence(presence.clone()).with_minter(self.minter.clone());
+                let mut context = Context::system().at(now).with_presence(presence.clone()).with_minter(engine.minter.clone());
                 context.args = head.args.clone();
-                context = context.with_generation(self.generation);
-                let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
+                context = context.with_generation(engine.generation);
+                let mut runner = Runner::new(&tx, &engine.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
                 runner.job_read_scope = 1;
                 runner.insert_uses = Some(crate::ir::effects::Effects::variable_uses(&program.body));
 
@@ -461,7 +461,7 @@ impl Engine {
                 // inserts beyond it is never visited, so a sweep over its own
                 // table ends.
                 let site = format!("{}:{}", program.name, sweep + 1);
-                let authority = super::timeline_authority::Authority::purge(&self.schema, &program.name);
+                let authority = super::timeline_authority::Authority::purge(&engine.schema, &program.name);
                 let outcome = (|| {
                     // @ref LLP 3000.007#5.2 — replay setup for every chunk, in its transaction and under its meter.
                     if let Flow::Return(_) = runner.statements(setup, &format!("{site}:prelude"))? {
@@ -505,7 +505,7 @@ impl Engine {
                         if rows_written > 0 || !events.is_empty() || !outbox.is_empty() {
                             tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &tables, rows_written)?;
                             tx.append(seq, &events)?;
-                            tx.record_effects(&outbox, seq, now, self.dev_effects, &self.schema)?;
+                            tx.record_effects(&outbox, seq, now, engine.dev_effects, &engine.schema)?;
                         }
                         let (next_sweep, cursor, upper) = if chunk.finished { (sweeps.len(), None, None) } else if chunk.ended { (sweep + 1, None, None) } else { (sweep, chunk.last_key, upper) };
                         let state = if next_sweep >= sweeps.len() { JobState::Done } else { JobState::Running };
@@ -535,11 +535,9 @@ impl Engine {
                     }
                 }
             }
-        }))?;
-        match id {
-            Some(id) => self.job(&id),
-            None => Ok(None),
-        }
+        }).pending(|id| Pending::new(None, id))), |engine, id, _| {
+            match id { Some(id) => engine.job(&id), None => Ok(None) }
+        })
     }
 
     /// Queue the job of every schedule whose period boundary the clock has

@@ -26,6 +26,15 @@ impl<F> Member<F> {
     {
         Self { kind, run }
     }
+    pub(crate) fn pending<T, R, D>(
+        self,
+        map: impl FnOnce(T) -> Pending<R, D>,
+    ) -> Member<impl FnOnce(MemberTx<'_, '_>) -> Result<Disposition<Pending<R, D>>, RuntimeError>>
+    where
+        F: FnOnce(MemberTx<'_, '_>) -> Result<Disposition<T>, RuntimeError>,
+    {
+        Member::new(self.kind, |tx| (self.run)(tx).map(|d| d.map(map)))
+    }
 }
 
 /// Only a facade that has ended its frame can produce this token.
@@ -119,15 +128,40 @@ impl Drop for MemberTx<'_, '_> {
     }
 }
 
-/// A successful physical commit's acknowledgement across adapter/engine layers.
+/// Owned follow-up data and the value acknowledged after it runs.
+pub(crate) struct Pending<T, D = ()> {
+    value: T,
+    data: D,
+}
+impl<T, D> Pending<T, D> {
+    pub(crate) fn new(value: T, data: D) -> Self {
+        Self { value, data }
+    }
+}
+impl<T> Pending<T> {
+    pub(crate) fn value(value: T) -> Self {
+        Self::new(value, ())
+    }
+}
+
+/// A durable acknowledgement may cross adapter/engine continuation stages.
 pub(crate) struct Committed<T>(T);
 impl<T> Committed<T> {
-    pub(crate) fn after_commit<R>(self, hook: impl FnOnce(T) -> R) -> Committed<R> {
-        Committed(hook(self.0))
+    pub(crate) fn pending<D>(self, data: D) -> Resolution<T, D> {
+        Resolution {
+            committed: true,
+            pending: Pending::new(self.0, data),
+        }
     }
     pub(crate) fn into_inner(self) -> T {
         self.0
     }
+}
+
+/// Constructed only by the physical driver, before any continuation runs.
+pub(crate) struct Resolution<T, D = ()> {
+    committed: bool,
+    pending: Pending<T, D>,
 }
 
 pub(crate) struct Committer;
@@ -136,25 +170,75 @@ impl Committer {
         store: &mut Store,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> Result<Disposition<T>, RuntimeError>>,
     ) -> Result<T, RuntimeError> {
+        Self::run_pending(store, member.pending(Pending::value)).map(|r| r.pending.value)
+    }
+
+    pub(crate) fn run_pending<T, D>(
+        store: &mut Store,
+        member: Member<
+            impl FnOnce(MemberTx<'_, '_>) -> Result<Disposition<Pending<T, D>>, RuntimeError>,
+        >,
+    ) -> Result<Resolution<T, D>, RuntimeError> {
         let tx = store.transaction()?;
-        match Self::execute(&tx, member)? {
-            Disposition {
-                end: Frame::Complete,
-                value,
-            } => {
-                tx.commit()?;
-                Ok(value)
-            }
-            Disposition {
-                end: Frame::Abort,
-                value,
-            } => {
-                // Tx's drop issues ROLLBACK, as on the old normal early returns.
-                drop(tx);
-                Ok(value)
-            }
-            _ => unreachable!("execute validates the frame"),
+        let disposition = Self::execute(&tx, member)?;
+        let committed = disposition.end == Frame::Complete;
+        if committed {
+            tx.commit()?;
+        } else {
+            drop(tx);
         }
+        Ok(Resolution {
+            committed,
+            pending: disposition.value,
+        })
+    }
+
+    /// Host context is borrowed separately for the body and its continuation;
+    /// no transaction borrow can reach the continuation or its follow-on member.
+    // @ref LLP 3000.009.001.000.000#3.7 — acknowledge in submission order only after durable COMMIT and continuation.
+    pub(crate) fn run_with<H, T, D>(
+        host: &mut H,
+        prepare: impl FnOnce(&mut H) -> Result<Resolution<T, D>, RuntimeError>,
+        continuation: impl FnOnce(&mut H, D, T) -> Result<T, RuntimeError>,
+    ) -> Result<T, RuntimeError> {
+        let resolution = prepare(host)?;
+        Self::finish(host, resolution, continuation)
+    }
+
+    pub(crate) fn run_committed_with<H, T, D, R>(
+        host: &mut H,
+        prepare: impl FnOnce(&mut H) -> Result<Resolution<T, D>, RuntimeError>,
+        continuation: impl FnOnce(&mut H, D, T) -> Result<R, RuntimeError>,
+    ) -> Result<Committed<R>, RuntimeError> {
+        let resolution = prepare(host)?;
+        if !resolution.committed {
+            return Err(RuntimeError::Store(
+                "commit acknowledgement requires completion".into(),
+            ));
+        }
+        Self::continue_pending(host, resolution.pending, continuation).map(Committed)
+    }
+
+    fn finish<H, T, D>(
+        host: &mut H,
+        resolution: Resolution<T, D>,
+        continuation: impl FnOnce(&mut H, D, T) -> Result<T, RuntimeError>,
+    ) -> Result<T, RuntimeError> {
+        if resolution.committed {
+            Self::continue_pending(host, resolution.pending, continuation)
+        } else {
+            Ok(resolution.pending.value)
+        }
+    }
+
+    fn continue_pending<H, T, D, R>(
+        host: &mut H,
+        pending: Pending<T, D>,
+        continuation: impl FnOnce(&mut H, D, T) -> Result<R, RuntimeError>,
+    ) -> Result<R, RuntimeError> {
+        let Pending { value, data } = pending;
+        continuation(host, data, value)
+            .map_err(|source| RuntimeError::Continuation(Box::new(source)))
     }
 
     fn execute<T>(
@@ -162,7 +246,7 @@ impl Committer {
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> Result<Disposition<T>, RuntimeError>>,
     ) -> Result<Disposition<T>, RuntimeError> {
         let Member { kind, run } = member;
-        // No production batching, queue, revision allocation or retries in K0b.
+        // No production batching, queue, revision allocation or retries in K0c.
         let _kind = kind;
         *tx.changes.borrow_mut() = Default::default();
         tx.savepoint("member")?;
@@ -177,40 +261,25 @@ impl Committer {
         Ok(disposition)
     }
 
-    /// Reset has no normal abort result; acknowledge only after physical COMMIT.
-    pub(crate) fn run_committed<T>(
-        store: &mut Store,
-        member: Member<impl FnOnce(MemberTx<'_, '_>) -> Result<Disposition<T>, RuntimeError>>,
-    ) -> Result<Committed<T>, RuntimeError> {
-        Self::run(
-            store,
-            Member::new(member.kind, |tx| match (member.run)(tx)? {
-                disposition @ Disposition {
-                    end: Frame::Complete,
-                    ..
-                } => Ok(disposition),
-                _ => Err(RuntimeError::Store(
-                    "commit acknowledgement requires completion".into(),
-                )),
-            }),
-        )
-        .map(Committed)
-    }
-
     /// Activation and Following prepare one raw IMMEDIATE transaction over a
     /// candidate catalog. This administrative escape is explicitly solo.
-    pub(crate) fn run_solo<T>(
+    pub(crate) fn run_solo<T, D>(
         kind: Kind,
-        run: impl FnOnce(&mut Solo) -> Result<T, RuntimeError>,
-    ) -> Result<T, RuntimeError> {
+        run: impl FnOnce(&mut Solo) -> Result<Pending<T, D>, RuntimeError>,
+    ) -> Result<Resolution<T, D>, RuntimeError> {
         assert_eq!(
             kind,
             Kind::Administrative,
             "raw transactions are solo administrative members"
         );
-        run(&mut Solo {
+        let mut solo = Solo {
             opened: false,
             committed: false,
+        };
+        let pending = run(&mut solo)?;
+        Ok(Resolution {
+            committed: solo.committed,
+            pending,
         })
     }
 }
@@ -244,19 +313,25 @@ impl Solo {
         self.committed = true;
         Ok(())
     }
-    pub(crate) fn committed<T>(&self, value: T) -> Committed<T> {
-        assert!(
-            self.committed,
-            "commit acknowledgement requires a successful commit"
-        );
-        Committed(value)
-    }
-    pub(crate) fn after_commit<T>(&self, hook: impl FnOnce() -> T) -> T {
-        assert!(
-            self.committed,
-            "post-commit hook requires a successful commit"
-        );
-        hook()
+}
+
+impl super::Engine {
+    /// Publish the currently durable head and accepted engine identity to a
+    /// host's wake state. The host keeps its existing engine lock and wake
+    /// selection; this final continuation stage never opens a transaction.
+    pub fn continue_durable_publication<D, R>(
+        &self,
+        data: D,
+        publish: impl FnOnce(D, u64, Option<String>, u64) -> Result<R, RuntimeError>,
+    ) -> Result<R, RuntimeError> {
+        let seq = self.seq()?;
+        let store_id = self.store.meta("store_id").unwrap_or(None);
+        let pending = Pending::new((), (data, seq, store_id, self.generation));
+        Committer::continue_pending(
+            &mut (),
+            pending,
+            |_, (data, seq, store_id, generation), ()| publish(data, seq, store_id, generation),
+        )
     }
 }
 
@@ -282,68 +357,70 @@ mod tests {
     }
 
     #[test]
-    fn solo_opens_runs_commits_then_runs_hooks_in_order() {
-        let events = RefCell::new(Vec::new());
-        let value = Committer::run_solo(Kind::Administrative, |commit| {
-            let tx = commit.open_solo_with(|| {
-                events.borrow_mut().push("open");
-                Ok(Transaction(&events, true))
-            })?;
-            events.borrow_mut().push("body");
-            commit.commit(tx)?;
-            commit.after_commit(|| events.borrow_mut().push("first"));
-            commit.after_commit(|| events.borrow_mut().push("second"));
-            Ok(commit.committed(7))
-        })
+    fn solo_runs_owned_continuations_after_commit_in_order() {
+        let mut events = RefCell::new(Vec::new());
+        let value = Committer::run_with(
+            &mut events,
+            |events| {
+                Committer::run_solo(Kind::Administrative, |commit| {
+                    let tx = commit.open_solo_with(|| {
+                        events.borrow_mut().push("open");
+                        Ok(Transaction(events, true))
+                    })?;
+                    events.borrow_mut().push("body");
+                    commit.commit(tx)?;
+                    Ok(Pending::new(
+                        7,
+                        vec!["first", "second", "adapter", "engine"],
+                    ))
+                })
+            },
+            |events, data, value| {
+                events.borrow_mut().extend(data);
+                Ok(value)
+            },
+        )
         .unwrap();
-        let value = value
-            .after_commit(|value| {
-                events.borrow_mut().push("adapter hook");
-                value
-            })
-            .after_commit(|value| {
-                events.borrow_mut().push("engine hook");
-                value
-            })
-            .into_inner();
         assert_eq!(value, 7);
         assert_eq!(
             *events.borrow(),
             [
-                "open",
-                "body",
-                "commit",
-                "first",
-                "second",
-                "adapter hook",
-                "engine hook"
+                "open", "body", "commit", "first", "second", "adapter", "engine"
             ]
         );
     }
 
     #[test]
-    fn solo_has_no_hooks_on_drop_body_error_open_error_or_failed_commit() {
+    fn solo_has_no_continuation_on_abort_body_open_or_commit_error() {
         for mode in 0..4 {
-            let events = RefCell::new(Vec::new());
-            let result = Committer::run_solo(Kind::Administrative, |commit| {
-                let tx = commit.open_solo_with(|| {
-                    if mode == 2 {
-                        return Err(RuntimeError::Store("open failed".into()));
-                    }
-                    Ok(Transaction(&events, mode != 3))
-                })?;
-                if mode == 0 {
-                    return Ok(());
-                }
-                if mode == 1 {
-                    return Err(RuntimeError::Store("body failed".into()));
-                }
-                commit.commit(tx)?;
-                commit.after_commit(|| events.borrow_mut().push("hook"));
-                Ok(())
-            });
+            let mut events = RefCell::new(Vec::new());
+            let result = Committer::run_with(
+                &mut events,
+                |events| {
+                    Committer::run_solo(Kind::Administrative, |commit| {
+                        let tx = commit.open_solo_with(|| {
+                            if mode == 2 {
+                                return Err(RuntimeError::Store("open failed".into()));
+                            }
+                            Ok(Transaction(events, mode != 3))
+                        })?;
+                        if mode == 0 {
+                            return Ok(Pending::value(()));
+                        }
+                        if mode == 1 {
+                            return Err(RuntimeError::Store("body failed".into()));
+                        }
+                        commit.commit(tx)?;
+                        Ok(Pending::value(()))
+                    })
+                },
+                |events, (), ()| {
+                    events.borrow_mut().push("continuation");
+                    Ok(())
+                },
+            );
             assert_eq!(result.is_ok(), mode == 0);
-            assert!(!events.borrow().contains(&"hook"));
+            assert!(!events.borrow().contains(&"continuation"));
         }
     }
 }

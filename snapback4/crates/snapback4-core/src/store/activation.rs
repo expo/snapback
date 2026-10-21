@@ -5,7 +5,7 @@
 pub(super) use super::activation_walk::walk;
 use super::activation_walk::walk_metered;
 use super::*;
-use crate::engine::committer::{Committed, Committer, Kind};
+use crate::engine::committer::{Committed, Committer, Kind, Pending};
 use crate::ir::Program;
 use crate::schema::{Constraint, materialize_optional_fields};
 use crate::value::digest;
@@ -109,20 +109,20 @@ impl Store {
             for estimate in estimates.iter().filter(|e| e.sources != 0) { crate::diagnostic!("snapback4: atomic feed adoption: {}", estimate.summary()); }
         }
         report.phase("read-only advice", &mut phase);
-        Committer::run_solo(Kind::Administrative, |commit| {
-            self.check_ownership()?;
-            let sql = commit.open_solo_with(|| Ok(self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?))?;
+        Committer::run_committed_with(self, |store| Committer::run_solo(Kind::Administrative, |commit| {
+            store.check_ownership()?;
+            let sql = commit.open_solo_with(|| Ok(store.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?))?;
             // Low-level preparation may precede a writer-lock wait. Recheck all
             // opening admission under the lock that owns the upgrades.
             Self::check_version(&sql)?;
             let before = identity(&sql)?;
-            if before != self.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
+            if before != store.identity { return Err(RuntimeError::Generation("another engine activated this store; reopen it before activating source".into())); }
             check(&super::release::ReleaseCheck(&sql))?;
             // @ref LLP 3000.033#1.3 — physical upgrades roll back with adoption.
             // Rollback restores schema/rows and freelist count. It may leave
             // changed free-page contents or journal/WAL residue, not committed data.
             Self::initialize_schema(&sql)?;
-            let now=if self.server {
+            let now=if store.server {
                 now.max(sql.query_row("SELECT value FROM _meta WHERE key='time_audience_clock'",[],|r|r.get::<_,String>(0)).optional()?.and_then(|s|s.parse().ok()).unwrap_or(i64::MIN))
             }else{now};
             if programs.is_some() { Self::initialize_change_evidence(&sql)?; }
@@ -136,7 +136,7 @@ impl Store {
             let validated: Option<String> = sql.query_row("SELECT value FROM _meta WHERE key = 'index_keys_validated'", [], |r|r.get(0)).optional()?;
             let keys_validated = programs.is_some() && key_proof.is_some() && validated == key_proof;
             #[cfg(test)]
-            let keys_validated = keys_validated && !self.full_adoption;
+            let keys_validated = keys_validated && !store.full_adoption;
             // One bounded result, no row images. Fresh stores have no schema;
             // an explicit device reset discards the old entries in this transaction.
             if before.0.is_some() && !reset && !keys_validated {
@@ -175,8 +175,8 @@ impl Store {
             // Repeat source-count admission under the writer lock, before any candidate writes.
             let preflight_catalog = catalog.clone();
             let (launches, sql) = {
-                let preflight = Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size,
-                    server: self.server,
+                let preflight = Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
+                    server: store.server,
                     catalog: &preflight_catalog };
                 let launches = if programs.is_some() { super::timeline_launch::preflight(&preflight, schema, now, allow_launch)? } else { Vec::new() };
                 let Tx { tx: sql, .. } = preflight;
@@ -193,9 +193,9 @@ impl Store {
             }
             let activation_scan = programs.map(|_| Default::default());
             #[cfg(test)]
-            let activation_scan = if self.full_adoption { None } else { activation_scan };
-            let tx = Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size,
-                server: self.server,
+            let activation_scan = if store.full_adoption { None } else { activation_scan };
+            let tx = Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
+                server: store.server,
                 catalog: &catalog };
             let now = if schema.tables.values().any(|table| table.not_before.is_some()) {
                 tx.pin_time_audience_clock(now)?
@@ -264,7 +264,7 @@ impl Store {
                     .map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?
             } else { None };
             #[cfg(test)]
-            let previous = if self.full_adoption { None } else { previous };
+            let previous = if store.full_adoption { None } else { previous };
             // @ref LLP 3000.000.000#13-wave-13-preview-decisions — report interpreted literal fills from the committed candidate population.
             if let Some(previous) = &previous {
                 for (name, table) in &schema.tables {
@@ -312,7 +312,7 @@ impl Store {
                 // repeatedly dirtying scattered main-database pages for every row.
                 let ordered = programs.is_some() && plans.values().any(|plan| !plan.indexes.is_empty());
                 #[cfg(test)]
-                let ordered = ordered && !self.full_adoption;
+                let ordered = ordered && !store.full_adoption;
                 if ordered {
                     super::activation_index::create(&tx)?;
                 }
@@ -486,22 +486,23 @@ impl Store {
             super::live_activation::cleanup(&tx)?;
             report.phase("metadata", &mut phase);
             commit.commit(tx)?;
-            commit.after_commit(|| {
+            Ok(Pending::new((generation, result), (report, phase, catalog, after, changed)))
+        }), |store, (mut report, mut phase, mut catalog, after, changed), value| {
                 report.phase("commit", &mut phase);
                 // Reopening an unchanged backend must not announce a new adoption.
-                self.adoption_report = if changed || reset { report } else { Default::default() };
+                store.adoption_report = if changed || reset { report } else { Default::default() };
                 // Historical ordinals stay in _catalog, but no runtime transaction can address memory tables.
                 catalog.retain(|name,_| {
                     !schema.tables.iter().any(|(table,t)| {
                         t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))
                     })
                 });
-                self.catalog = catalog;
-                self.identity = after;
-                self.accept_open();
-            });
-            Ok(commit.committed((generation, result)))
+                store.catalog = catalog;
+                store.identity = after;
+                store.accept_open();
+            Ok(value)
         })
+
     }
 }
 

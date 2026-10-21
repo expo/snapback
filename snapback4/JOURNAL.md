@@ -99305,3 +99305,25 @@ check the actual facade's absent escapes and forged contradictory dispositions.
 The binary builds; continuation conversion and full verification follow in the
 next K0c commit. SAVEPOINT + RELEASE remains two SQLite statements per completed
 member, an accepted inherent cost, with a lone-member optimization deferred.
+
+
+## 2026-10-21 — K0c, owned continuations
+
+Every K0a/K0b hook now runs as a committer continuation with owned pending data.
+Job ids become status reads after COMMIT; expiry installs its cursor then submits
+a new publication member; timeline rotates and mutation installs entropy only
+for completed members. Solo activation carries its report/catalog/identity into
+acceptance, followed by narration and engine state acceptance. Reset carries its
+owned result into expiry/scheduler/ephemeral changes and the caller reply. The
+host's central durable wake body now runs through the same continuation runner,
+with its existing selection, guard, state update and notification order. This
+changes only that producer body in the host metadata lane's file.
+
+Continuation failures use a distinct `RuntimeError::Continuation` wrapper, with
+the original text, refusal envelope, retryability and busy classification. A
+body or COMMIT error never runs one. The committer borrows its host separately
+for execution and continuation, so a follow-on writer enters through a fresh
+member. Solo adapter/engine acknowledgement stages also enter the runner; no
+`after_commit` hook API remains. No production batching, queue or retry is added.
+The binary builds and the converted seam tests pass. Final batch-order/failure
+witnesses and complete required checks follow in the closing K0c commit.

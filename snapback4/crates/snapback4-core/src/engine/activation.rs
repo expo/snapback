@@ -71,6 +71,7 @@ impl Engine {
         }
         let prior_items = std::cell::RefCell::new(Vec::new());
         let population=std::cell::Cell::new(None);
+        Committer::run_committed_with(store, |store| {
         let outcome=store.activate_at_with_launch(schema, Some(programs), false, now, allow_feed_adoption, |release_check| {
             release_check.check_selected_release(expected_release)?;
             if let Some(backend) = expected_backend { release_check.check_backend(backend)?; }
@@ -197,15 +198,16 @@ impl Engine {
             }
             crate::store::opening::Metadata::read(tx)
         });
-        outcome.map(|committed| committed.after_commit(|value| {
-            if let Some((retained,restored))=population.get().filter(|(a,b)|*a>0 || *b>0) {
+        outcome.map(|committed| committed.pending((population.get(), release.is_some())))
+        }, |store, (population, has_release), value| {
+            if let Some((retained,restored))=population.filter(|(a,b)|*a>0 || *b>0) {
                 store.adoption_report.changes.insert(0,format!("{retained} newly dormant {}; {restored} narrowed {} restored", if retained == 1 { "row" } else { "rows" }, if restored == 1 { "row" } else { "rows" }));
             }
 
             if let Ok(items)=store.dormant_inventory(None,usize::MAX) {
-                if release.is_some() { store.adoption_report.changes.insert(0, crate::store::adoption_report::AdoptionReport::dormant(&items)); }
+                if has_release { store.adoption_report.changes.insert(0, crate::store::adoption_report::AdoptionReport::dormant(&items)); }
             }
-            value
-        }))
+            Ok(value)
+        })
     }
 }

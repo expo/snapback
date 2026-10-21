@@ -1342,6 +1342,7 @@ mod backfill_tests;
 impl RuntimeError {
     /// Whether opening/adopting encountered database contention.
     pub fn is_busy(&self) -> bool {
+        if let Self::Continuation(source) = self { return source.is_busy(); }
         matches!(self, Self::Sql(error) if matches!(error.sqlite_error_code(),
             Some(rusqlite::ErrorCode::DatabaseBusy | rusqlite::ErrorCode::DatabaseLocked)))
     }

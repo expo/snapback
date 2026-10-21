@@ -122,30 +122,33 @@ fn normal_abort_and_error_discard_pins_and_metadata_in_the_solo_driver() {
 #[test]
 fn acknowledgement_and_follow_on_writer_run_after_physical_commit() {
     let mut store = Store::memory().unwrap();
-    let committed = Committer::run_committed(
+    let value = Committer::run_with(
         &mut store,
-        Member::new(Kind::Engine, |tx| {
-            tx.set_meta("first", "committed")?;
-            tx.complete(7)
-        }),
-    )
-    .unwrap();
-    let value = committed
-        .after_commit(|value| {
+        |store| {
+            Committer::run_pending(
+                store,
+                Member::new(Kind::Engine, |tx| {
+                    tx.set_meta("first", "committed")?;
+                    tx.complete(Pending::new(7, String::from("first")))
+                }),
+            )
+        },
+        |store, key, value| {
             assert!(store.conn().is_autocommit());
-            assert_eq!(store.meta("first").unwrap().as_deref(), Some("committed"));
-            // The sweep's follow-on publication also opens another transaction.
+            assert_eq!(store.meta(&key)?.as_deref(), Some("committed"));
+            // A follow-on publication is submitted only after the first COMMIT.
             Committer::run(
-                &mut store,
+                store,
                 Member::new(Kind::Publication, |tx| {
+                    assert_eq!(tx.meta(&key)?.as_deref(), Some("committed"));
                     tx.set_meta("second", "committed")?;
                     tx.complete(())
                 }),
-            )
-            .unwrap();
-            value
-        })
-        .into_inner();
+            )?;
+            Ok(value)
+        },
+    )
+    .unwrap();
     assert_eq!(value, 7);
     assert_eq!(store.meta("second").unwrap().as_deref(), Some("committed"));
 }
@@ -165,19 +168,29 @@ fn failed_physical_commit_has_no_acknowledgement_or_hook() {
         .unwrap();
     let hooked = Cell::new(false);
     let released = Cell::new(false);
-    let result = Committer::run_committed(
+    let result = Committer::run_with(
         &mut store,
-        Member::new(Kind::Engine, |tx| {
-            tx.pin_time_audience_clock(40)?;
-            tx.set_meta("deferred_child", "1")?;
-            let complete = tx.complete(())?;
-            released.set(true);
-            Ok(complete) // Only the physical COMMIT refuses.
-        }),
-    )
-    .map(|committed| committed.after_commit(|()| hooked.set(true)));
+        |store| {
+            Committer::run_pending(
+                store,
+                Member::new(Kind::Engine, |tx| {
+                    tx.pin_time_audience_clock(40)?;
+                    tx.set_meta("deferred_child", "1")?;
+                    let complete = tx.complete(Pending::value(()))?;
+                    released.set(true);
+                    Ok(complete) // Only physical COMMIT refuses.
+                }),
+            )
+        },
+        |_, (), ()| {
+            hooked.set(true);
+            Ok(())
+        },
+    );
     assert!(released.get(), "the member savepoint release must succeed");
-    assert!(result.is_err());
+    assert!(
+        matches!(result, Err(RuntimeError::Sql(ref error)) if error.to_string().contains("FOREIGN KEY constraint failed"))
+    );
     assert!(!hooked.get());
     assert!(store.conn().is_autocommit());
     assert_eq!(store.meta("time_audience_clock").unwrap(), None);

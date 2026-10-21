@@ -1,6 +1,6 @@
 //! Development reset storage, in its original single transaction and order.
 // @ref LLP 3000.007#20.25 — preserve service seats and schema while rotating store identity.
-use crate::engine::committer::{Committed, Committer, Kind, Member, MemberTx};
+use crate::engine::committer::{Committer, Kind, Member, MemberTx, Pending, Resolution};
 use crate::rows::Rows;
 
 use super::*;
@@ -28,8 +28,8 @@ impl DevResetStore for Store {
         inventory_assets: impl FnOnce(&MemberTx<'_, '_>) -> Result<Vec<String>, RuntimeError>,
         prime_schedules: impl FnOnce(&MemberTx<'_, '_>, i64) -> Result<(), RuntimeError>,
         seed: impl FnOnce(&MemberTx<'_, '_>, u64, i64) -> Result<u64, RuntimeError>,
-    ) -> Result<Committed<ResetState>, RuntimeError> {
-        Committer::run_committed(
+    ) -> Result<Resolution<ResetState>, RuntimeError> {
+        Committer::run_pending(
             self,
             Member::new(Kind::Administrative, |tx| {
                 // @ref LLP 3000.000.000.000.000#2-fixture-semantics — a new identity cannot inherit the retired store's future clock.
@@ -53,7 +53,7 @@ impl DevResetStore for Store {
                     seeded,
                     assets,
                 })
-            }),
+            }).pending(Pending::value),
         )
     }
 }

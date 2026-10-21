@@ -21,7 +21,7 @@ pub(crate) trait DevResetStore {
         inventory_assets: impl FnOnce(&committer::MemberTx<'_, '_>) -> Result<Vec<String>, RuntimeError>,
         prime_schedules: impl FnOnce(&committer::MemberTx<'_, '_>, i64) -> Result<(), RuntimeError>,
         seed: impl FnOnce(&committer::MemberTx<'_, '_>, u64, i64) -> Result<u64, RuntimeError>,
-    ) -> Result<Committed<ResetState>, RuntimeError>;
+    ) -> Result<committer::Resolution<ResetState>, RuntimeError>;
 }
 
 /// What a development reset did. The caller unlinks `assets` after the
@@ -49,8 +49,9 @@ impl Engine {
     pub fn dev_reset_at(&mut self, rows: Vec<(String, Value)>, now: i64) -> Result<DevReset, RuntimeError> {
         // Like adoption: no ephemeral program runs across the identity change.
         drop(self.ephemeral.lock()?);
-        let schema = &self.schema;
-        let committed = self.store.dev_reset(
+        Ok(Committer::run_committed_with(self, |engine| {
+            let schema = &engine.schema;
+            engine.store.dev_reset(
             |tx| tx.pin_writer_time(schema, now),
             |tx| tx.asset_ids(),
             |tx, now| {
@@ -66,14 +67,14 @@ impl Engine {
                 tx.prepare_seed_inputs(schema)?;
                 tx.seed_rows(schema, rows, now)
             },
-        )?;
-        Ok(committed.after_commit(|ResetState { previous_store_id, store_id, seq, seeded, assets }| {
+            )
+        }, |engine, (), ResetState { previous_store_id, store_id, seq, seeded, assets }| {
             // A new store identity starts a fresh bounded expiry walk. Clear only
             // after commit so a refused reset keeps the old store's continuation.
-            self.expiry_after.clear();
-            self.timeline_schedule = timeline::Schedule::default();
-            self.ephemeral.rebind_committed(store_id.clone(), self.generation, &self.schema);
-            DevReset { previous_store_id, store_id, seq, seeded, assets: assets::AssetSweep::named(assets, self.store.assets_dir()) }
-        }).into_inner())
+            engine.expiry_after.clear();
+            engine.timeline_schedule = timeline::Schedule::default();
+            engine.ephemeral.rebind_committed(store_id.clone(), engine.generation, &engine.schema);
+            Ok(DevReset { previous_store_id, store_id, seq, seeded, assets: assets::AssetSweep::named(assets, engine.store.assets_dir()) })
+        })?.into_inner())
     }
 }

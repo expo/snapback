@@ -1,6 +1,6 @@
 //! Engine-owned delivery queue. Every bounded chunk and its cursor share a commit.
 // @ref LLP 3000.013#4-following-without-caps — derived delivery survives crashes and replay.
-use crate::engine::committer::{Committer, Kind, Member};
+use crate::engine::committer::{Committer, Kind, Member, Pending};
 
 use super::*;
 use crate::{engine::Engine, Context, Ceilings, meter::{Meter, Cut, Metered}};
@@ -193,11 +193,11 @@ impl Engine {
         for offset in 0..count {
             let index = if rotate { (self.timeline_schedule.next + offset) % count } else { offset };
             let timeline = self.schema.timelines[index].clone();
-            let chunk = Committer::run(&mut self.store, Member::new(Kind::Engine, |tx| {
-                let now = tx.pin_writer_time(&self.schema, now)?;
+            let chunk = Committer::run_with(self, |engine| Committer::run_pending(&mut engine.store, Member::new(Kind::Engine, |tx| {
+                let now = tx.pin_writer_time(&engine.schema, now)?;
                 tx.savepoint("timeline_chunk")?;
                 let seq = tx.next_seq()?;
-                let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now).with_minter(self.minter.clone()), Meter::new(Ceilings::job(), Cut::Abort), seq);
+                let mut runner = Runner::new(&tx, &engine.schema, Context::system().at(now).with_minter(engine.minter.clone()), Meter::new(Ceilings::job(), Cut::Abort), seq);
                 let mut runner = runner.timeline_scope(super::super::timeline_authority::Authority::Transition(timeline.name.clone()));
                 let pending = vec![Value::String("pending".into())];
                 let (mut rows, _) = runner.timeline_page(&timeline.table("Work"), "byStatusTime", pending, 1, false, None)?;
@@ -216,7 +216,7 @@ impl Engine {
                     Err(error) if error.is_refusal() => {
                         tx.rollback_to("timeline_chunk")?;
                         let seq = tx.next_seq()?;
-                        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now).with_minter(self.minter.clone()), Meter::new(Ceilings::job(), Cut::Abort), seq);
+                        let mut runner = Runner::new(&tx, &engine.schema, Context::system().at(now).with_minter(engine.minter.clone()), Meter::new(Ceilings::job(), Cut::Abort), seq);
                         let mut guard = runner.timeline_scope(super::super::timeline_authority::Authority::Transition(timeline.name.clone()));
                         let message: String = error.to_string().chars().take(4000).collect();
                         guard.update(&timeline.table("Work"), &field(&work, "id")?, object([("status", Value::String("parked".into())), ("error", Value::String(message))]).timeline_input(&super::TimelineInput(())))?;
@@ -230,9 +230,11 @@ impl Engine {
                     }
                     Err(error) => Err(error),
                 }
-            }))?;
+            }).pending(|chunk| Pending::new(chunk, (rotate, index, count)))), |engine, (rotate, index, count), chunk| {
+                if chunk.is_some() && rotate { engine.timeline_schedule.next = (index + 1) % count; }
+                Ok(chunk)
+            })?;
             if chunk.is_some() {
-                if rotate { self.timeline_schedule.next = (index + 1) % count; }
                 return Ok(chunk);
             }
         }

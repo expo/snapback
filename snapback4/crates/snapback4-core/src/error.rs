@@ -90,6 +90,11 @@ impl MeterKind {
 
 #[derive(Debug, Error)]
 pub enum RuntimeError {
+    /// The member is durable; its synchronous follow-up failed. Display and
+    /// refusal policy stay those of the original error for existing callers.
+    #[cfg(feature = "sqlite")]
+    #[error(transparent)]
+    Continuation(Box<RuntimeError>),
     #[cfg(feature = "server-search")]
     #[error("E_SEARCH_OPEN: {memberships} authorized membership keys discovered{unfinished}; opening exceeded this read's envelope ({ceiling} {resource} maximum) at {site}; use the grouped form in `snapback4 guide search`")]
     SearchOpening { site: String, memberships: usize, unfinished: &'static str, resource: &'static str, ceiling: u64, rewrite: Option<String> },
@@ -169,6 +174,8 @@ impl RuntimeError {
 
     pub fn code(&self) -> String {
         match self {
+            #[cfg(feature = "sqlite")]
+            Self::Continuation(source) => source.code(),
             #[cfg(feature = "server-search")]
             Self::SearchOpening { .. } => "E_SEARCH_OPEN".into(),
             Self::Structural { code, .. } => (*code).into(),
@@ -207,6 +214,8 @@ impl RuntimeError {
 
     pub fn family(&self) -> &'static str {
         match self {
+            #[cfg(feature = "sqlite")]
+            Self::Continuation(source) => source.family(),
             Self::Input(_) | Self::Value(_) | Self::AggregateOverflow { .. } => "input",
             Self::Structural { code: "E_WRITE_ID_REUSE" | "E_ID_REUSED", .. } => "input",
             #[cfg(feature = "sqlite")]
@@ -241,6 +250,8 @@ impl RuntimeError {
     /// Whether a program's refusal is the caller's to repair (as opposed to
     /// a store failure the caller should retry later).
     fn is_store_failure(&self) -> bool {
+        #[cfg(feature = "sqlite")]
+        if let Self::Continuation(source) = self { return source.is_store_failure(); }
         #[cfg(feature = "postgres")]
         if matches!(self, Self::Postgres(_)) {
             return true;
@@ -258,6 +269,8 @@ impl RuntimeError {
 
     // @ref LLP 3000.000.000.000.000#7 — structured messages omit the code rendered by Refusal Display.
     pub fn refusal(&self) -> Refusal {
+        #[cfg(feature = "sqlite")]
+        if let Self::Continuation(source) = self { return source.refusal(); }
         let text = self.to_string();
         let prefix = format!("{}: ", self.code());
         let message = text.strip_prefix(&prefix).unwrap_or(&text);
