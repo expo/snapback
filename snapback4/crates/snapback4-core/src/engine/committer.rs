@@ -14,6 +14,8 @@ pub(crate) enum Kind {
     Administrative,
 }
 
+type MemberResult<T> = Result<Disposition<T>, RuntimeError>;
+
 pub(crate) struct Member<F> {
     kind: Kind,
     run: F,
@@ -22,16 +24,16 @@ pub(crate) struct Member<F> {
 impl<F> Member<F> {
     pub(crate) fn new<T>(kind: Kind, run: F) -> Self
     where
-        F: FnOnce(MemberTx<'_, '_>) -> Result<Disposition<T>, RuntimeError>,
+        F: FnOnce(MemberTx<'_, '_>) -> MemberResult<T>,
     {
         Self { kind, run }
     }
     pub(crate) fn pending<T, R, D>(
         self,
         map: impl FnOnce(T) -> Pending<R, D>,
-    ) -> Member<impl FnOnce(MemberTx<'_, '_>) -> Result<Disposition<Pending<R, D>>, RuntimeError>>
+    ) -> Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<Pending<R, D>>>
     where
-        F: FnOnce(MemberTx<'_, '_>) -> Result<Disposition<T>, RuntimeError>,
+        F: FnOnce(MemberTx<'_, '_>) -> MemberResult<T>,
     {
         Member::new(self.kind, |tx| (self.run)(tx).map(|d| d.map(map)))
     }
@@ -67,7 +69,7 @@ pub(crate) struct MemberTx<'member, 'store> {
 }
 impl MemberTx<'_, '_> {
     /// Release this member; the driver still owes the physical COMMIT.
-    pub(crate) fn complete<T>(self, value: T) -> Result<Disposition<T>, RuntimeError> {
+    pub(crate) fn complete<T>(self, value: T) -> MemberResult<T> {
         self.tx.release("member")?;
         self.frame.set(Frame::Complete);
         Ok(Disposition {
@@ -77,7 +79,7 @@ impl MemberTx<'_, '_> {
     }
 
     /// Explicit rollback keeps its fallible contract, including replay paths.
-    pub(crate) fn rollback<T>(self, value: T) -> Result<Disposition<T>, RuntimeError> {
+    pub(crate) fn rollback<T>(self, value: T) -> MemberResult<T> {
         self.rollback_frame()?;
         Ok(Disposition {
             end: Frame::Abort,
@@ -168,16 +170,14 @@ pub(crate) struct Committer;
 impl Committer {
     pub(crate) fn run<T>(
         store: &mut Store,
-        member: Member<impl FnOnce(MemberTx<'_, '_>) -> Result<Disposition<T>, RuntimeError>>,
+        member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
     ) -> Result<T, RuntimeError> {
         Self::run_pending(store, member.pending(Pending::value)).map(|r| r.pending.value)
     }
 
     pub(crate) fn run_pending<T, D>(
         store: &mut Store,
-        member: Member<
-            impl FnOnce(MemberTx<'_, '_>) -> Result<Disposition<Pending<T, D>>, RuntimeError>,
-        >,
+        member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<Pending<T, D>>>,
     ) -> Result<Resolution<T, D>, RuntimeError> {
         let tx = store.transaction()?;
         let disposition = Self::execute(&tx, member)?;
@@ -243,8 +243,8 @@ impl Committer {
 
     fn execute<T>(
         tx: &Tx<'_>,
-        member: Member<impl FnOnce(MemberTx<'_, '_>) -> Result<Disposition<T>, RuntimeError>>,
-    ) -> Result<Disposition<T>, RuntimeError> {
+        member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
+    ) -> MemberResult<T> {
         let Member { kind, run } = member;
         // No production batching, queue, revision allocation or retries in K0c.
         let _kind = kind;
@@ -259,6 +259,33 @@ impl Committer {
             ));
         }
         Ok(disposition)
+    }
+
+    /// Test-only batch driver: production still submits exactly one member.
+    #[cfg(test)]
+    fn run_batch_with<T, D>(
+        store: &mut Store,
+        members: impl IntoIterator<
+            Item = Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<Pending<T, D>>>,
+        >,
+        mut continuation: impl FnMut(&mut Store, D, T) -> Result<T, RuntimeError>,
+    ) -> Result<Vec<Result<T, RuntimeError>>, RuntimeError> {
+        let tx = store.transaction()?;
+        let mut resolutions = Vec::new();
+        for member in members {
+            let disposition = Self::execute(&tx, member)?;
+            resolutions.push(Resolution {
+                committed: disposition.end == Frame::Complete,
+                pending: disposition.value,
+            });
+        }
+        tx.commit()?;
+        // A failed follow-up does not uncommit this or any later member, nor
+        // prevent another committed member's continuation from running.
+        Ok(resolutions
+            .into_iter()
+            .map(|r| Self::finish(store, r, &mut continuation))
+            .collect())
     }
 
     /// Activation and Following prepare one raw IMMEDIATE transaction over a

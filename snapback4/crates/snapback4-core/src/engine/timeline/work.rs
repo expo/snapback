@@ -209,7 +209,7 @@ impl Engine {
                 drop(runner);
                 match outcome {
                     Ok(()) => {
-                        tx.record_commit(seq, now, &format!("{}:delivery", timeline.name), crate::SYSTEM_PRINCIPAL, "job", &tables, metered.rows_written)?;
+                        tx.record_commit(seq, now, (&format!("{}:delivery", timeline.name), crate::SYSTEM_PRINCIPAL, "job"), &tables, metered.rows_written)?;
                         tx.append(seq, &events)?;
                         tx.complete(Some(metered))
                     }
@@ -224,7 +224,7 @@ impl Engine {
                         let events = guard.events.take();
                         let metered = guard.meter.used;
                         drop(guard); drop(runner);
-                        tx.record_commit(seq, now, &format!("{}:delivery", timeline.name), crate::SYSTEM_PRINCIPAL, "job", &tables, metered.rows_written)?;
+                        tx.record_commit(seq, now, (&format!("{}:delivery", timeline.name), crate::SYSTEM_PRINCIPAL, "job"), &tables, metered.rows_written)?;
                         tx.append(seq, &events)?;
                         tx.complete(Some(metered))
                     }

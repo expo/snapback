@@ -63,7 +63,7 @@ impl Engine {
             },
             |tx, head, now| {
                 let touched: Vec<String> = schema.visible_tables().map(|(name, _)| name.clone()).collect();
-                tx.record_commit(head + 1, now, "dev reset", crate::SYSTEM_PRINCIPAL, "reset", &touched, 0)?;
+                tx.record_commit(head + 1, now, ("dev reset", crate::SYSTEM_PRINCIPAL, "reset"), &touched, 0)?;
                 tx.prepare_seed_inputs(schema)?;
                 tx.seed_rows(schema, rows, now)
             },

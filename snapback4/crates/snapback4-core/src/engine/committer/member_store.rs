@@ -117,7 +117,6 @@ macro_rules! methods {
 impl MemberTx<'_, '_> {
     methods! {
         fn next_seq(&self) -> Result<u64, RuntimeError>;
-        fn record_commit(&self, seq: u64, at: i64, program: &str, principal: &str, kind: &str, touched: &[String], writes: u64) -> Result<(), RuntimeError>;
         fn record_applied(&self, principal: &str, id: &str, seq: u64, outcome: &str) -> Result<(), RuntimeError>;
         fn bind_applied(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value, at: i64) -> Result<(), RuntimeError>;
         fn replay_bound(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<String>, RuntimeError>;
@@ -144,6 +143,10 @@ impl MemberTx<'_, '_> {
         fn reset_clock(&self) -> Result<(), RuntimeError>;
         fn reset_tables(&self) -> Result<(), RuntimeError>;
         fn reset_identity(&self) -> Result<(), RuntimeError>;
+    }
+    /// Source is (program, principal, kind), matching the existing record.
+    pub(crate) fn record_commit(&self, seq: u64, at: i64, source: (&str, &str, &str), touched: &[String], writes: u64) -> Result<(), RuntimeError> {
+        self.tx.record_commit(seq, at, source.0, source.1, source.2, touched, writes)
     }
     pub(crate) fn pin_writer_time(&self, schema: &Schema, requested: i64) -> Result<i64, RuntimeError> {
         super::super::time_audience::pin_writer_time(schema, self.tx, requested)

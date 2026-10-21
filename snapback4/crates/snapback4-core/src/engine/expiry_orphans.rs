@@ -64,7 +64,7 @@ impl Engine {
             let written = runner.rows_written;
             drop(runner);
             if written > 0 {
-                tx.record_commit(seq, now, "repair expiry orphan", crate::SYSTEM_PRINCIPAL, &format!("{parent}:{id}"), &tables, written)?;
+                tx.record_commit(seq, now, ("repair expiry orphan", crate::SYSTEM_PRINCIPAL, &format!("{parent}:{id}")), &tables, written)?;
                 tx.append(seq, &events)?;
             }
             tx.complete(written)

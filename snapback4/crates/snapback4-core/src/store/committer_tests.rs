@@ -25,6 +25,8 @@ fn two_members_keep_the_first_on_second_rollback_drop_or_error() {
                     member.set_meta(name, "kept")?;
                     member.release(name)?;
                 }
+                // Keep a released nonzero counter across the next member.
+                member.set_sequence("parents", "kept", 7)?;
                 member.complete(1)
             }),
         )
@@ -40,6 +42,8 @@ fn two_members_keep_the_first_on_second_rollback_drop_or_error() {
             !tx.conn().is_autocommit(),
             "RELEASE is not a physical commit"
         );
+        tx.changes.borrow_mut().widen();
+        assert!(tx.change_footprint().unknown);
         let second = Committer::execute(
             &tx,
             Member::new(Kind::Engine, |member| {
@@ -49,6 +53,7 @@ fn two_members_keep_the_first_on_second_rollback_drop_or_error() {
                 member.set_meta("discarded", "second")?;
                 member.pin_time_audience_clock(20)?;
                 member.set_sequence("parents", "p", 100)?;
+                member.set_sequence("parents", "kept", 100)?;
                 // Leave an inner frame open: member rollback must discard it too.
                 member.savepoint("job_chunk")?;
                 member.set_meta("inner_discarded", "second")?;
@@ -78,8 +83,9 @@ fn two_members_keep_the_first_on_second_rollback_drop_or_error() {
         }
         assert!(!tx.conn().is_autocommit());
         assert_eq!(tx.sequence_value("parents", "p").unwrap(), 0);
-        // A lazy sequence table created by the aborted member is gone;
-        // the next use must recreate it rather than trust a stale cache.
+        assert_eq!(tx.sequence_value("parents", "kept").unwrap(), 7);
+        // The counter released by member 1 survives member 2's rollback.
+        // Inner frame rollbacks above separately exercise lazy-table repair.
         tx.set_sequence("parents", "p", 7).unwrap();
         tx.commit().unwrap();
         assert_eq!(store.meta("kept").unwrap().as_deref(), Some("first"));
@@ -241,6 +247,8 @@ fn facade_has_no_owner_connection_or_physical_control() {
     impl<T: std::ops::Deref> Ambiguous<DerefEscape> for T {}
     struct RefEscape;
     impl<'a, T: AsRef<Tx<'a>>> Ambiguous<RefEscape> for T {}
+    struct BorrowEscape;
+    impl<'a, T: std::borrow::Borrow<Tx<'a>>> Ambiguous<BorrowEscape> for T {}
     let _ = <MemberTx<'_, '_> as Ambiguous<_>>::absent;
 
     struct Missing;
@@ -272,4 +280,122 @@ fn facade_has_no_owner_connection_or_physical_control() {
         }),
     )
     .unwrap();
+}
+
+#[test]
+fn two_committed_continuations_run_in_submission_order_despite_failure() {
+    fn member(
+        id: u8,
+    ) -> Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<Pending<u8, String>>> {
+        Member::new(Kind::Engine, move |tx| {
+            tx.set_meta(&id.to_string(), "durable")?;
+            tx.complete(Pending::new(id, format!("member {id}")))
+        })
+    }
+    let mut store = Store::memory().unwrap();
+    let mut seen = Vec::new();
+    let results =
+        Committer::run_batch_with(&mut store, [member(1), member(2)], |store, data, id| {
+            assert!(store.conn().is_autocommit());
+            assert_eq!(store.meta("1")?.as_deref(), Some("durable"));
+            assert_eq!(store.meta("2")?.as_deref(), Some("durable"));
+            seen.push(data);
+            if id == 1 {
+                Err(RuntimeError::Store("follow-up failed".into()))
+            } else {
+                Ok(id)
+            }
+        })
+        .unwrap();
+    assert_eq!(seen, ["member 1", "member 2"]);
+    assert!(
+        matches!(&results[0], Err(RuntimeError::Continuation(source)) if source.to_string() == "E_STORE: follow-up failed")
+    );
+    assert_eq!(results[1].as_ref().unwrap(), &2);
+    assert_eq!(store.meta("1").unwrap().as_deref(), Some("durable"));
+}
+
+#[test]
+fn normal_abort_runs_no_continuation() {
+    let mut store = Store::memory().unwrap();
+    let mut ran = false;
+    let value = Committer::run_with(
+        &mut store,
+        |store| {
+            Committer::run_pending(
+                store,
+                Member::new(Kind::Direct, |tx| {
+                    tx.set_meta("aborted", "discard")?;
+                    Ok(tx.abort(Pending::new(7, String::from("unused"))))
+                }),
+            )
+        },
+        |_, _, value| {
+            ran = true;
+            Ok(value)
+        },
+    )
+    .unwrap();
+    assert_eq!(value, 7);
+    assert!(!ran);
+    assert_eq!(store.meta("aborted").unwrap(), None);
+}
+
+#[test]
+fn continuation_failure_keeps_the_original_error_policy_and_durable_writes() {
+    let mut store = Store::memory().unwrap();
+    let expected = RuntimeError::TimeAudiencePending;
+    let result = Committer::run_with(
+        &mut store,
+        |store| {
+            Committer::run_pending(
+                store,
+                Member::new(Kind::Engine, |tx| {
+                    tx.set_meta("durable", "yes")?;
+                    tx.complete(Pending::value(()))
+                }),
+            )
+        },
+        |_, (), ()| Err(RuntimeError::TimeAudiencePending),
+    );
+    let error = result.unwrap_err();
+    assert!(matches!(error, RuntimeError::Continuation(_)));
+    assert_eq!(error.to_string(), expected.to_string());
+    assert_eq!(error.refusal(), expected.refusal());
+    assert_eq!(error.is_refusal(), expected.is_refusal());
+    assert_eq!(error.is_busy(), expected.is_busy());
+    assert_eq!(store.meta("durable").unwrap().as_deref(), Some("yes"));
+}
+
+#[test]
+fn failed_batch_commit_runs_neither_continuation() {
+    let mut store = Store::memory().unwrap();
+    store
+        .conn()
+        .execute_batch(
+            "PRAGMA foreign_keys = ON;
+        CREATE TABLE parent(id INTEGER PRIMARY KEY);
+        CREATE TABLE child(id INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED);
+        CREATE TRIGGER fail_batch_commit AFTER INSERT ON _meta WHEN NEW.key = '2'
+        BEGIN INSERT INTO child VALUES (1); END;",
+        )
+        .unwrap();
+    let members = [1, 2].map(|id| {
+        Member::new(Kind::Engine, move |tx| {
+            tx.set_meta(&id.to_string(), "provisional")?;
+            tx.complete(Pending::new(id, String::from("must not run")))
+        })
+    });
+    let mut ran = Vec::new();
+    let result = Committer::run_batch_with(&mut store, members, |_, data, id| {
+        ran.push(data);
+        Ok(id)
+    });
+    assert!(
+        matches!(result, Err(RuntimeError::Sql(ref error)) if error.to_string().contains("FOREIGN KEY constraint failed"))
+    );
+    assert!(ran.is_empty());
+    assert!(store.conn().is_autocommit());
+    assert_eq!(store.meta("1").unwrap(), None);
+    assert_eq!(store.meta("2").unwrap(), None);
 }

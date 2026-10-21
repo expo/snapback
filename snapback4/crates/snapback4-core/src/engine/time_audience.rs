@@ -171,15 +171,7 @@ impl Engine {
                     opening.table
                 )));
             }
-            tx.record_commit(
-                seq,
-                now,
-                "time audience",
-                crate::SYSTEM_PRINCIPAL,
-                "time",
-                &tables,
-                0,
-            )?;
+            tx.record_commit(seq, now, ("time audience", crate::SYSTEM_PRINCIPAL, "time"), &tables, 0)?;
             tx.append(seq, &events)?;
             tx.complete(now)
         }))

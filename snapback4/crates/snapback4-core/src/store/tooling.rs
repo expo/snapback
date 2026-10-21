@@ -186,7 +186,7 @@ impl Store {
     ) -> Result<u64, RuntimeError> {
         crate::engine::committer::Committer::run(self, crate::engine::committer::Member::new(crate::engine::committer::Kind::Engine, |tx| {
         let seq = tx.next_seq()?;
-        tx.record_commit(seq, at(), "native-smoke", "system", "witness", &[], 0)?;
+        tx.record_commit(seq, at(), ("native-smoke", "system", "witness"), &[], 0)?;
         tx.complete(seq)
         }))
     }

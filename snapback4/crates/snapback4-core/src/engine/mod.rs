@@ -691,7 +691,7 @@ impl Engine {
             let written = runner.rows_written;
             drop(runner);
             if written > 0 {
-                tx.record_commit(seq, now, "expire", crate::SYSTEM_PRINCIPAL, "sweep", &tables, written)?;
+                tx.record_commit(seq, now, ("expire", crate::SYSTEM_PRINCIPAL, "sweep"), &tables, written)?;
                 tx.append(seq, &events)?;
             }
             tx.complete((expiry_after, now, removed))
@@ -1035,7 +1035,7 @@ impl Engine {
                     let seq = tx.next_seq()? - u64::from(receipt_only);
                     read_tables.extend(tables.iter().cloned());
                     if !receipt_only {
-                        tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
+                        tx.record_commit(seq, now, (name, &viewer, program.kind.word()), &tables, rows_written)?;
                         tx.append(seq, &events)?;
                         tx.record_effects(&outbox, seq, now, engine.dev_effects, &engine.schema)?;
                     }
@@ -1115,7 +1115,7 @@ impl Engine {
             let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
             drop(runner);
             if removed > 0 {
-                tx.record_commit(seq, now, "seed", crate::SYSTEM_PRINCIPAL, "seed", &tables, removed)?;
+                tx.record_commit(seq, now, ("seed", crate::SYSTEM_PRINCIPAL, "seed"), &tables, removed)?;
                 tx.append(seq, &events)?;
             }
             tx.complete(removed)
@@ -1193,7 +1193,7 @@ impl Engine {
             let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
             drop(runner);
             if count > 0 {
-                tx.record_commit(seq, now, "load", crate::SYSTEM_PRINCIPAL, "load", &tables, count)?;
+                tx.record_commit(seq, now, ("load", crate::SYSTEM_PRINCIPAL, "load"), &tables, count)?;
                 tx.append(seq, &events)?;
             }
             tx.complete(count)
@@ -1209,7 +1209,7 @@ impl Engine {
                 let now=tx.pin_writer_time(&self.schema,now)?;
                 let seq=tx.next_seq()?;
                 let (count,events,tables,seq)=live_bulk::restore(&tx,&self.schema,rows,seq,now)?;
-                if count>0 {tx.record_commit(seq,now,"restore",crate::SYSTEM_PRINCIPAL,"restore",&tables,count)?;tx.append(seq,&events)?;}
+                if count>0 {tx.record_commit(seq, now, ("restore", crate::SYSTEM_PRINCIPAL, "restore"), &tables, count)?;tx.append(seq,&events)?;}
                 tx.complete(count)
             }));
         }
@@ -1248,7 +1248,7 @@ impl Engine {
             let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
             drop(runner);
             if count > 0 {
-                tx.record_commit(seq, now, "load", crate::SYSTEM_PRINCIPAL, "load", &tables, count)?;
+                tx.record_commit(seq, now, ("load", crate::SYSTEM_PRINCIPAL, "load"), &tables, count)?;
                 tx.append(seq, &events)?;
             }
             tx.complete(count)

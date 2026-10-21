@@ -1065,15 +1065,7 @@ impl super::Engine {
                     // every public read. Advance the private cache by one bounded durable
                     // chunk without manufacturing redundant sequence/log activity.
                     if private { return tx.complete(Some(ViewChunk::Private)); }
-                    tx.record_commit(
-                        seq,
-                        now,
-                        &format!("{}:recount", m.target),
-                        crate::SYSTEM_PRINCIPAL,
-                        "job",
-                        &tables,
-                        metered.rows_written,
-                    )?;
+                    tx.record_commit(seq, now, (&format!("{}:recount", m.target), crate::SYSTEM_PRINCIPAL, "job"), &tables, metered.rows_written)?;
                     tx.append(seq, &events)?;
                     tx.complete(Some(ViewChunk::Published(metered)))
                 }))?;

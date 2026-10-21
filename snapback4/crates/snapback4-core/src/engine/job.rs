@@ -503,7 +503,7 @@ impl Engine {
                 match outcome {
                     Ok((chunk, upper)) => {
                         if rows_written > 0 || !events.is_empty() || !outbox.is_empty() {
-                            tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &tables, rows_written)?;
+                            tx.record_commit(seq, now, (&head.run.name, crate::SYSTEM_PRINCIPAL, "job"), &tables, rows_written)?;
                             tx.append(seq, &events)?;
                             tx.record_effects(&outbox, seq, now, engine.dev_effects, &engine.schema)?;
                         }
@@ -652,7 +652,7 @@ fn native_chunk(tx: super::committer::MemberTx<'_, '_>, schema: &crate::schema::
     match outcome.step {
         Ok(step) => {
             if outcome.rows_written > 0 || !outcome.events.is_empty() {
-                tx.record_commit(seq, now, &head.run.name, crate::SYSTEM_PRINCIPAL, "job", &outcome.tables, outcome.rows_written)?;
+                tx.record_commit(seq, now, (&head.run.name, crate::SYSTEM_PRINCIPAL, "job"), &outcome.tables, outcome.rows_written)?;
                 tx.append(seq, &outcome.events)?;
                 tx.record_effects(&outcome.outbox, seq, now, dev, schema)?;
             }

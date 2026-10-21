@@ -99327,3 +99327,47 @@ member. Solo adapter/engine acknowledgement stages also enter the runner; no
 `after_commit` hook API remains. No production batching, queue or retry is added.
 The binary builds and the converted seam tests pass. Final batch-order/failure
 witnesses and complete required checks follow in the closing K0c commit.
+
+
+## 2026-10-21 — K0c, closing witnesses and checks
+
+The twelve committer witnesses pass. The test-only batch driver releases two
+members inside one physical SQLite transaction, then runs their continuations
+in submission order. A failed first continuation leaves both writes durable and
+still runs the second; a failed physical COMMIT runs neither. A follow-on member
+reads the first member's committed state. Abort runs no continuation, and a
+follow-up error retains the original text/refusal/busy policy while exposing the
+new durable-outcome distinction. Negative type-checked assertions cover Deref,
+AsRef/Borrow of Tx, conn, abandon and physical commit; invalid savepoint names
+and both forged disposition contradictions refuse before COMMIT. The isolation
+witness preserves member 1's nonzero counter across member 2's rollback/drop/error
+and checks recorder reset from explicitly unknown evidence.
+
+The closing checks also grouped the facade's three labels describing a commit
+and named its member result type to avoid adding Clippy warnings. The adapter still
+receives the original arguments in the original order; no inherited lint was
+edited or suppressed in source. The single Revised line and §3.7/§9 of the
+committer RFC describe the final facade, pending results, continuation stages and
+the accepted SAVEPOINT + RELEASE cost of two statements per completed member.
+
+The required binary build and complete core suite pass, including all 17
+doctests. The complete host run executes every target with exactly the three
+expected inherited failures: w11r1c_toolchain_why_explains_node_start_failure_too
+and farm2_typescript_7_is_refused_by_version_not_crashed_on need TypeScript;
+web_witness_help_and_invalid_input needs built client JS. Both census ratchets
+pass, and no allowlist changed. The required default Clippy run retains
+while_immutable_condition in engine/read.rs and never_loop in engine/row_views.rs;
+both reproduce at 805fb4599a in a temporary local detached worktree. A complete
+comparison with lints capped to warnings has identical 493 diagnostic signatures
+and multiplicities (1,450 messages), with no new warnings. Current metadata was
+refreshed after the shared-target baseline comparison. ref-check and the complete
+branch's diff whitespace check pass.
+
+Commands used the supplied target, incremental-off and line-table debug settings
+and at most -j 32. Observed free space stayed above 25 GB. The temporary baseline
+checkout is removed after comparison. There was one worker, no remote command,
+clone, stash, push or scripts/test.sh. Production remains single-member, with no
+queue or retry; host wake selection retains its original caller boundary.
+Physical ROLLBACK I/O failures were not fault-injected, and K0b's inherited physical transaction
+drop error handling is unchanged. No performance measurement or optimization is
+claimed in this slice.
