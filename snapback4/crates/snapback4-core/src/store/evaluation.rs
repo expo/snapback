@@ -72,9 +72,6 @@ impl Snapshot {
 }
 
 impl Store {
-    // @ref LLP 3000.009.001.000#3.3 — standalone calibration keeps its original SQLite probes behind typed access.
-
-
     pub fn evaluation_rows(&self) -> Result<Vec<(String, String)>, String> {
         let mut statement = self
             .conn()

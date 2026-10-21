@@ -135,12 +135,6 @@ impl AnyTx<'_> {
             Ok(())
         } }
     }
-    pub(crate) fn finalize_restorations(&self) -> Result<(), RuntimeError> {
-        match self { Self::Sqlite(tx) => sqlite::release_history::finalize_restorations(tx) }
-    }
-    pub(crate) fn record_release_event(&self, operation: &str, release: Option<u64>, previous: Option<u64>, summary: serde_json::Value, items: &[sqlite::DormantItem]) -> Result<u64, RuntimeError> {
-        match self { Self::Sqlite(tx) => sqlite::release_history::event(tx, operation, release, previous, summary, items) }
-    }
     pub(crate) fn rewrite_legacy_maintained_references(&self, ids: &BTreeMap<String, BTreeMap<String, String>>) -> Result<u64, RuntimeError> {
         match self { Self::Sqlite(tx) => sqlite::dormant::rewrite_legacy_maintained_references(tx, ids) }
     }

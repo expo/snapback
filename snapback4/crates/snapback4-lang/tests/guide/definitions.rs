@@ -137,6 +137,8 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_STORE_UNSUPPORTED", "E_STORE_UNSUPPORTED names a family the selected store does not yet implement."),
+    ("E_STORE_GENERATION", "E_STORE_GENERATION means the persisted generation metadata is malformed, non-positive or outside the signed integer range."),
     ("E_IDENTITY_TIMEOUT", "E_IDENTITY_TIMEOUT is the internal sign-in deadline cause (SDK E_OFFLINE)."),
 
     ("E_COLUMN_READ", "Protected payloads cannot supply stored keys"),

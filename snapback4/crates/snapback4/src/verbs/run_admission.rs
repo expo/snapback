@@ -34,14 +34,14 @@ impl Source {
 
 #[derive(Debug)]
 pub(super) enum Error {
-    Store(RuntimeError),
+    Runtime(RuntimeError),
     Source(String),
     Busy { operation: String, elapsed: Duration, reason: RuntimeError },
 }
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Store(error) => error.fmt(f),
+            Self::Runtime(error) => error.fmt(f),
             Self::Source(reason) => write!(f, "E_RUN_SOURCE_CHANGED: {reason}; no operation was admitted; check the source and rerun with the intended arguments"),
             Self::Busy { operation, elapsed, reason } => write!(f,
                 "E_RUN_BUSY: run {operation} could not open/adopt the store after {} ms (15000 ms contention deadline): {reason}; no operation was admitted; inspect `snapback4 doctor` and the dev adoption log, wait for the writer or stop your dev host, then run once and restart dev; restart a --no-watch host after external adoption",
@@ -69,7 +69,7 @@ pub(super) fn open(project: &Project, owner: &crate::store_owner::Owner, bound: 
                     return Err(Error::Busy { operation: operation.into(), elapsed: started.elapsed(), reason });
                 }
                 engine.store().set_busy_timeout(Duration::from_secs(5))
-                    .map_err(Error::Store)?;
+                    .map_err(Error::Runtime)?;
                 if last.is_some() {
                     eprintln!("snapback4 run {operation}: open/adoption ready after {} ms; using generation {}", started.elapsed().as_millis(), engine.generation());
                 }
@@ -82,7 +82,7 @@ pub(super) fn open(project: &Project, owner: &crate::store_owner::Owner, bound: 
                 last = Some(error);
                 std::thread::sleep(POLL.min(WAIT.saturating_sub(started.elapsed())));
             }
-            Err(error) => return Err(Error::Store(error)),
+            Err(error) => return Err(Error::Runtime(error)),
         }
     }
 }

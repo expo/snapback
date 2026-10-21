@@ -21,7 +21,7 @@ pub struct ViewBuild {
 
 impl AdoptionReport {
     // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — current dormant storage is counted by unit; samples never mix units.
-    pub fn dormant(items: &[super::release_history::DormantItem]) -> String {
+    pub fn dormant(items: &[super::DormantItem]) -> String {
         let mut counts = [0u64; 3];
         let mut samples = std::collections::BTreeMap::<String, std::collections::BTreeSet<String>>::new();
         for item in items {
@@ -96,4 +96,3 @@ impl AdoptionReport {
         *start = Instant::now();
     }
 }
-

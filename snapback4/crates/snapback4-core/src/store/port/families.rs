@@ -398,6 +398,8 @@ mod activation {
     use super::*;
     use crate::activation::*;
     impl ActivationReader for AnyTx<'_> {
+        fn time_audience_clock(&self) -> Result<i64, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as ActivationReader>::time_audience_clock(inner) } }
+        fn opening_marker(&self, marker: crate::metadata::SchemaMarker) -> Result<Option<String>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as ActivationReader>::opening_marker(inner, marker) } }
         fn opening_backend(&self) -> Result<Backend, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as ActivationReader>::opening_backend(inner) } }
         fn check_selected_release(&self, expected: Option<u64>) -> Result<(), RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as ActivationReader>::check_selected_release(inner, expected) } }
         fn previous_schema(&self) -> Result<Option<String>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as ActivationReader>::previous_schema(inner) } }
@@ -440,6 +442,36 @@ mod release {
     impl ReleaseTransaction for AnyPreparation<'_> {
         fn selected_release(&self) -> Result<Option<String>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::release::ReleaseCheck<'_> as ReleaseTransaction>::selected_release(inner) } }
         fn release_revision(&self) -> Result<Option<String>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::release::ReleaseCheck<'_> as ReleaseTransaction>::release_revision(inner) } }
+    }
+}
+
+mod release_history {
+    use super::*;
+    use crate::release_history::{Event, ReleaseHistoryReader, ReleaseHistoryTransaction};
+    impl ReleaseHistoryReader for AnyTx<'_> {
+        fn release_events(&self, after: u64, limit: usize) -> Result<Vec<Event>, RuntimeError> {
+            match self { Self::Sqlite(inner) => inner.release_events(after, limit) }
+        }
+        fn release_event_items(&self, event: u64, after: Option<&str>, limit: usize) -> Result<Vec<crate::release_history::DormantItem>, RuntimeError> {
+            match self { Self::Sqlite(inner) => inner.release_event_items(event, after, limit) }
+        }
+        fn release_inventory(&self, after: Option<&str>, limit: usize) -> Result<Vec<crate::release_history::DormantItem>, RuntimeError> {
+            match self { Self::Sqlite(inner) => inner.release_inventory(after, limit) }
+        }
+        fn previous_active_release(&self) -> Result<Option<u64>, RuntimeError> {
+            match self { Self::Sqlite(inner) => inner.previous_active_release() }
+        }
+        fn release_workers(&self, limit: usize) -> Result<Vec<(String, String)>, RuntimeError> {
+            match self { Self::Sqlite(inner) => inner.release_workers(limit) }
+        }
+    }
+    impl ReleaseHistoryTransaction for AnyTx<'_> {
+        fn finalize_restorations(&self) -> Result<(), RuntimeError> {
+            match self { Self::Sqlite(inner) => inner.finalize_restorations() }
+        }
+        fn insert_release_event(&self, event: &Event, items: &[crate::release_history::DormantItem]) -> Result<u64, RuntimeError> {
+            match self { Self::Sqlite(inner) => inner.insert_release_event(event, items) }
+        }
     }
 }
 

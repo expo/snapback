@@ -100335,3 +100335,59 @@ failure names are in [the S10a report](./reports/20261021-s10a-sqlite-store-hand
 Final review also preserves ReleaseCheck's original adapter-only connection
 visibility: its conversion to AnyPreparation lives in the SQLite adapter. The
 normal binary rebuild after that visibility-only tightening passes.
+
+### 2026-10-21 — S10a fix round 1: rebase and close census/facade gaps
+
+Rebased S10a's four commits onto main mirror `4575a14e95`. Conflicts in the
+append-only journal and RFC metadata retain both histories with one Revised
+line. Activation keeps main's pre-writer validation, shared release-event
+policy and opening-marker reads on the enum handles. Explicit forwarding
+covers main's activation and release-history additions. Main's unknown change
+evidence remains unknown. The standalone experiment uses main's synchronous
+and SQLite-version methods; the duplicate evaluation wrappers are removed.
+
+The census now reads the complete core/host source export surfaces, follows
+renamed concrete imports and type aliases, and rejects both blind-review
+bypasses. Exact error-variant/foreign-type exclusions cannot hide imports
+renamed RuntimeError or wasmi. Run admission's private error variant was renamed
+without changing error/retry behavior. Explicit test filename conventions keep
+`contests.rs` in scope. The facade guard checks private fields and arbitrary
+handle-returning getters across its impls and macro declarations; mutation
+fixtures exercise public/crate-visible fields and borrowed AnyTx/SQLite Tx
+returns. The existing compiled facade checks remain in force.
+
+On rebased main the original census remains **123/37**, and on rebased S10a
+before fixes it remains **0/0**. The stronger tokens/declarations measure is
+**143/39 on main → 0/0 on fixed S10a**; the new declarations make its nonzero
+count a different measure. Store-port per-file minimums remain **0 production /
+95 fixture sites**. Full validation results follow in the same lane report.
+
+The expanded facade walk found one further census parser gap: a test-only field
+could swallow its following production impl. Field/variant delimiters and
+nested generic types now have regression fixtures, and the facade walk covers
+all core implementation files. The isolated facade rerun and all **14**
+ratchet/census tests pass, with **0 production / 95 fixture sites** and **49
+committer sites in 11 files**.
+
+Full guide qualification also refreshes the missing reviewed definition/action
+pins for main's two new store refusals, using the existing `why` paragraphs.
+The frozen JavaScript install plus local wasm/client builds restore the
+referenced generated artifacts. The complete guide suite passes **127/127**;
+the codec census passes **27/27** again. Wasm is **733,810 gzip bytes** against
+the unchanged **734,193** budget. No generated output or dependency lock change
+is committed.
+
+Final qualification passes: core **1,037 / 0 failed / 5 ignored**; host
+**1,404 / 0 / 15**; device **1,573 / 0 / 4**. All three supplied host baselines
+pass in this run. The binary build, core no-default and device web/wasm checks
+pass; the final concrete-handle census stays **0/0**. PostgreSQL qualification
+passes **58 experiment + 188 family + 19 corpus tests**, retaining the named
+corpus exclusions. The sole private cluster `/tmp/sb4-pg-eval.50psnR` is stopped:
+the script and an independent check both confirm status 3 and no
+postmaster.pid. No other cluster was stopped. The complete fix-round record is
+in [the S10a report](./reports/20261021-s10a-sqlite-store-handles.md).
+
+Root ref-check passes with **0 errors / 0 unchecked references**, and the diff
+passes whitespace validation. The fix is committed locally using the requested
+Codex author, Charlie Cheever committer and Codex co-author trailer; no push or
+stash, and no reviewer-worktree access.

@@ -49,7 +49,7 @@ ratchet now recognizes `with_authority_snapshot`, preserving the outstanding
 K0 opener count rather than hiding these reads. The device crate and the
 Postgres evaluator/adapters are unchanged. Five inherited raw SQLite
 calibration probes in the standalone experiment now call typed evaluation
-methods with the same SQL and order; its manifest enables the existing
+methods with the same SQL and order under the experiment's pre-existing
 `evaluation-support` feature.
 The experiment lockfile drops one stale direct device-to-rusqlite dependency
 edge to match its existing manifests; no dependency version changes.
@@ -120,3 +120,119 @@ local target directory. A transient duplicate-crate metadata conflict was
 resolved by rebuilding only this worktree's shared library artifacts, then
 running the complete differential suite sequentially from the main workspace.
 No oracle outcome was normalized or skipped to resolve that failure.
+
+## Fix round 1 and rebase — 2026-10-21
+
+Rebased the four lane commits onto `4575a14e95` from
+`origin/sb4-pg/main-mirror`, using the requested committer identity throughout.
+The resulting commits are `62e07b3127`, `fe3d38ccc0`, `cb3bc43b96`, and
+`ab3830965f`, in the original order. No push or stash. The reviewer worktree
+was not accessed.
+
+Actual conflicts were `JOURNAL.md`, engine `activation.rs` and `mod.rs`, the
+store-port RFC's Revised header, and the standalone experiment's `main.rs`.
+The journal keeps both histories; the RFC keeps main's complete revision
+history plus S10a in one Revised line. Engine activation keeps main's
+pre-writer release validation, shared release-event policy and opening-marker
+reads, with the neutral metadata/transaction handles. Enum family dispatch now
+forwards main's two new activation reads and the release-history reader and
+transaction methods. Dormant records use main's neutral home, and obsolete
+SQLite release-event bridges were removed. Main's explicit unknown change
+evidence is retained.
+
+The experiment uses main's `Store::use_full_synchronous()` and
+`Store::sqlite_version()` methods; the duplicate evaluation methods were
+removed. The per-file minimums of both store-port allowances match the rebased
+files: zero production sites and 95 fixture sites before regeneration.
+
+The census now reads both complete crate source trees for import/export and
+type-alias declarations, including `lib.rs`. It flattens grouped imports and
+follows renamed concrete types through aliases. Only the existing canonical
+`pub use store::Store` export is allowed; additional concrete exports from the
+adapters also count. Exact `RuntimeError::Store` and `wasmi::Store` exemptions
+refuse shadowing imports; generic `Error::Store`, `Error::Tx` and `Self::`
+exemptions are gone. The host's private run-admission wrapper variant is named
+`Runtime`, preserving its payload, Display text and retry behavior. Regression
+fixtures flag the review's module rename and renamed public export, grouped
+imports, crate aliases, type aliases and a hidden adapter alias exported under
+another name. Test-only fields/variants stop at their own delimiter rather than swallowing
+the following production impl; regression fixtures cover nested generic field
+types, visibility and const comparisons. Filename filtering follows explicit test filename conventions,
+so production names such as `contests.rs` remain in scope. This remains a
+conservative lexical guard, without a claim to resolve arbitrary generated Rust.
+
+The member-facade source guard complements the existing compiled negative
+surface test. It checks private fields and return types in MemberTx impls throughout the
+core source tree, including the forwarding macro's declarations. Mutation
+fixtures prove that `pub`, `pub(crate)` and `pub(super)` fields and arbitrary
+getters returning borrowed neutral or SQLite handles fail the guard.
+
+Read-only census snapshots (no checkout changes):
+
+| Source and matcher | Count / files |
+| --- | ---: |
+| Rebased main `4575a14e95`, original spelling matcher | 123 / 37 |
+| Rebased S10a before fixes, original spelling matcher | 0 / 0 |
+| Rebased main, strengthened tokens/declarations matcher | 143 / 39 |
+| Fixed S10a, strengthened matcher | 0 / 0 |
+
+The strengthened count includes import/export declarations beyond the original
+engine/host roots, so its nonzero total is a different measure. Both review
+bypasses are exercised as failing fixtures; the production zero has no raise
+allowance.
+
+The broader facade walk also exposed an inherited lexer skip bug: a
+`#[cfg(test)]` field could consume the following production impl. Test fields
+and enum variants now stop at their own delimiters, preserving subsequent
+production tokens. Fixtures cover private/crate-visible fields, nested generic
+commas, const-generic comparisons, function-pointer types, variants and
+test-only const comparisons. The facade walk covers the
+complete core source tree, so another implementation file cannot hide a getter.
+The isolated facade rerun and all 14 ratchet/census tests pass.
+
+The full 127-test guide suite found missing hand-reviewed definition/action
+pins for main's `E_STORE_UNSUPPORTED` and `E_STORE_GENERATION`, plus absent local
+client outputs. The two pins now quote the existing `why` definitions and
+recovery boundaries. The failing guide cases were rerun individually. Frozen
+Bun installation, the repository wasm build and the full client build restore
+the generated local assets; no lockfile or generated output is committed.
+The final guide suite passes **127/127**, and the codec census passes **27/27**
+again against the generated asset tree. The additional wasm build passes at
+**2,403,594 raw / 733,810 gzip bytes**, within the unchanged **734,193-byte**
+budget. All Cargo commands use the lane-owned target and ten jobs; the wasm
+script uses its existing size profile.
+
+Final fix-round qualification:
+
+| Check | Result |
+| --- | --- |
+| `cargo build -p snapback4` | Pass |
+| Core `--no-default-features` check | Pass |
+| Device web/wasm `--no-default-features --features web --target wasm32-unknown-unknown` check | Pass |
+| Full core suite and doctests | **1,037 passed / 0 failed / 5 ignored** |
+| Full host suite | **1,404 passed / 0 failed / 15 ignored** |
+| Full device suite | **1,573 passed / 0 failed / 4 ignored** |
+| Ratchets and census, final source | **14 passed**, concrete census **0/0**, committer **49/11**, store-port **0 production / 95 fixture sites** |
+| Full guide suite | **127 passed / 0 failed** |
+| Wasm codec census | **27 passed / 0 failed** |
+| `scripts/test-postgres.sh` | **58 experiment + 188 family + 19 corpus tests passed**; existing named corpus exclusions retained |
+
+All three supplied host baseline failures pass in this run:
+`w11r1c_toolchain_why_explains_node_start_failure_too`,
+`farm2_typescript_7_is_refused_by_version_not_crashed_on`, and
+`web_witness_help_and_invalid_input`. No other host failure required an
+isolated rerun. The transient facade failure and the two guide failures were
+rerun alone and corrected; final complete affected checks pass. Initial
+compilation attempts exposed the missing rebase forwarders, the stale report
+record path and a test-only error-variant reference; these were corrected
+before the qualified full runs above.
+
+The only private cluster created in this fix round was
+`/tmp/sb4-pg-eval.50psnR`. The script stopped it and confirmed status 3/no
+postmaster.pid; an independent post-script `pg_ctl status` check again returns
+**3**, with **no postmaster.pid**. Its data is retained for inspection. No
+existing cluster was stopped.
+
+Final root `./ref-check` passes: **564 LLP documents / 11,631 references /
+0 errors / 0 unchecked**. `git diff --check` passes. The fix remains local,
+with the requested author/committer identity and co-author trailer.

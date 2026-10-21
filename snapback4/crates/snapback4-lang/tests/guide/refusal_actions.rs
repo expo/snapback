@@ -2,6 +2,8 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_STORE_UNSUPPORTED", &["Postgres schema evolution currently refuses before activation preparation writes.", "Keep the current schema or use SQLite for the schema transition.", "Repeating the same activation cannot enable the missing family."]),
+    ("E_STORE_GENERATION", &["Opening refuses before trusting that value, and a failed read does not abort its transaction.", "Restore a known-good store backup before reopening; preserve the current store for operator inspection.", "Never delete the store to make adoption pass."]),
     ("E_IDENTITY_TIMEOUT", &["Signup outcome may be unknown: inspect before retrying.", "Increase timeoutMs to allow server retryAfterMs waits.", "seedAccounts maps it to E_STAGING_TIMEOUT"]),
 
     ("E_COLUMN_READ", &["ordinary public key", "separate entity"]),
