@@ -8,6 +8,9 @@ mod caps;
 mod contribution_upgrade;
 mod maintained_identity_upgrade;
 mod authority;
+mod identity;
+mod identity_schema;
+mod requests;
 mod prefetch;
 mod tail;
 mod through;
@@ -138,7 +141,10 @@ impl PostgresEngine {
             return Err(crate::rows::index_key_refusal(row.get(0), row.get(1), row.get::<_, i64>(2) as u64));
         }
         tx.batch("CREATE TABLE IF NOT EXISTS _sequences (parent TEXT NOT NULL, id TEXT NOT NULL, value BIGINT NOT NULL, PRIMARY KEY(parent, id));")?;
+        identity_schema::verify_existing(&tx)?;
         tx.batch(store::READ_SESSIONS_DDL)?;
+        tx.batch(identity::DDL)?;
+        requests::initialize(&tx)?;
         tx.batch("DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;")?;
         caps::install(&tx, &schema)?;
         let generation = contribution_upgrade::install(&tx, &mut schema)?;

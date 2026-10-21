@@ -1,5 +1,8 @@
 //! Row-keyed aggregate deltas and durable streaming recounts.
 // @ref LLP 3000.015#3 — a mark write commits even when its changed range needs background work.
+#[cfg(feature = "sqlite")]
+use super::committer::{Committer, Kind, Member};
+
 use super::{runner::Runner, write::Origin};
 use crate::{
     error::{MeterKind, RuntimeError},
@@ -1008,72 +1011,74 @@ impl super::Engine {
             .collect::<Vec<_>>()
         {
             loop {
-                let tx = self.store.transaction()?;
-                let now = super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
-                let Some((work, _)) = tx
-                    .scan(
-                        &m.work_table(),
-                        "byReady",
-                        &[Value::Bool(false)],
-                        &Bounds::default(),
-                        Dir::Asc,
-                        1,
-                    )?
-                    .pop()
-                else {
-                    break;
-                };
-                let private = m.row_count_needs_live_basis(&self.schema);
-                let seq = if private { 0 } else { tx.next_seq()? };
-                let mut runner = Runner::new(
-                    &tx,
-                    &self.schema,
-                    Context::system().at(now),
-                    Meter::new(Ceilings::job(), Cut::Abort),
-                    seq,
-                );
-                runner.recount_budget = Some((started, budget));
-                if let Err(error) = runner.recount_chunk(&m, &work) {
-                    if !matches!(
-                        error,
-                        RuntimeError::Structural {
-                            code: "E_VIEW_KEY",
-                            ..
+                let chunk = Committer::run(&mut self.store, Member::new(Kind::Engine, |tx| {
+                    let now = super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
+                    let Some((work, _)) = tx
+                        .scan(
+                            &m.work_table(),
+                            "byReady",
+                            &[Value::Bool(false)],
+                            &Bounds::default(),
+                            Dir::Asc,
+                            1,
+                        )?
+                        .pop()
+                    else {
+                        return Ok(tx.abort(None));
+                    };
+                    let private = m.row_count_needs_live_basis(&self.schema);
+                    let seq = if private { 0 } else { tx.next_seq()? };
+                    let mut runner = Runner::new(
+                        &*tx,
+                        &self.schema,
+                        Context::system().at(now),
+                        Meter::new(Ceilings::job(), Cut::Abort),
+                        seq,
+                    );
+                    runner.recount_budget = Some((started, budget));
+                    if let Err(error) = runner.recount_chunk(&m, &work) {
+                        if !matches!(
+                            error,
+                            RuntimeError::Structural {
+                                code: "E_VIEW_KEY",
+                                ..
+                            }
+                        ) {
+                            return Err(error);
                         }
-                    ) {
-                        return Err(error);
+                        // A no-progress chunk has made no writes. Park it durably so the
+                        // next tick can settle another member; a member edit retries it.
+                        let mut parked = work.as_object()?.clone();
+                        parked.insert("parked".into(), Value::Bool(true));
+                        runner.view_put(
+                            &m.work_table(),
+                            &Value::Row(parked.into()),
+                            Some(&work),
+                            true,
+                        )?;
                     }
-                    // A no-progress chunk has made no writes. Park it durably so the
-                    // next tick can settle another member; a member edit retries it.
-                    let mut parked = work.as_object()?.clone();
-                    parked.insert("parked".into(), Value::Bool(true));
-                    runner.view_put(
-                        &m.work_table(),
-                        &Value::Row(parked.into()),
-                        Some(&work),
-                        true,
+                    let events = runner.events.take();
+                    let tables = runner.written_tables.iter().cloned().collect::<Vec<_>>();
+                    let metered = runner.meter.used;
+                    drop(runner);
+                    // Expiring values are already certified from the live basis at
+                    // every public read. Advance the private cache by one bounded durable
+                    // chunk without manufacturing redundant sequence/log activity.
+                    if private { return tx.commit(Some(ViewChunk::Private)); }
+                    tx.record_commit(
+                        seq,
+                        now,
+                        &format!("{}:recount", m.target),
+                        crate::SYSTEM_PRINCIPAL,
+                        "job",
+                        &tables,
+                        metered.rows_written,
                     )?;
-                }
-                let events = runner.events.take();
-                let tables = runner.written_tables.iter().cloned().collect::<Vec<_>>();
-                let metered = runner.meter.used;
-                drop(runner);
-                // Expiring values are already certified from the live basis at
-                // every public read. Advance the private cache by one bounded durable
-                // chunk without manufacturing redundant sequence/log activity.
-                if private { tx.commit()?; return Ok(Some(ViewChunk::Private)); }
-                tx.record_commit(
-                    seq,
-                    now,
-                    &format!("{}:recount", m.target),
-                    crate::SYSTEM_PRINCIPAL,
-                    "job",
-                    &tables,
-                    metered.rows_written,
-                )?;
-                partition::append(&tx, seq, &events)?;
-                tx.commit()?;
-                return Ok(Some(ViewChunk::Published(metered)));
+                    partition::append(&*tx, seq, &events)?;
+                    tx.commit(Some(ViewChunk::Published(metered)))
+                }))?;
+                if chunk.is_some() { return Ok(chunk); }
+                break;
             }
         }
         Ok(None)

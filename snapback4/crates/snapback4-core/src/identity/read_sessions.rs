@@ -5,6 +5,12 @@ pub use crate::authority::SessionScope;
 pub type Capability = (String, String, SessionScope);
 
 pub(super) fn scoped_session(principal: &str, kind: &str, now: i64, scope: SessionScope) -> Result<Session, RuntimeError> {
+    validate_new_identity(principal, kind)?;
+    existing_scoped_session(principal, kind, now, scope)
+}
+
+// Rotation, narrowing and sign-in carry an already stored identity forward.
+pub(super) fn existing_scoped_session(principal: &str, kind: &str, now: i64, scope: SessionScope) -> Result<Session, RuntimeError> {
     let mut session = new_session(principal, kind, now, SESSION_DAYS)?;
     if scope == SessionScope::Read {
         if matches!(kind, "service" | "action") { return Err(RuntimeError::Auth("service and action sessions cannot be read sessions".into())); }
@@ -28,7 +34,7 @@ pub fn narrow_session(store: &mut Store, token: &str, sample: impl FnOnce() -> S
         || !supervisor_current(&tx, &parent.family, sample.supervisor_revision)? {
         return Err(RuntimeError::Auth("only an ordinary full session can narrow; service, action and supervised sessions cannot".into()));
     }
-    let mut session = scoped_session(&parent.principal, &parent.kind, sample.now, SessionScope::Read)?;
+    let mut session = existing_scoped_session(&parent.principal, &parent.kind, sample.now, SessionScope::Read)?;
     session.cap_expires_at = Some(parent.expires_at);
     session.expires_at = session.expires_at.min(parent.expires_at);
     tx.insert_read_session(&session, sample.now, None)?;
@@ -40,9 +46,13 @@ pub fn narrow_session(store: &mut Store, token: &str, sample: impl FnOnce() -> S
 // this family. A live at-cap credential may explicitly rotate without extending.
 pub(super) fn rotate(store: &impl IdentityStore, token: &str, now: i64) -> Result<Option<Session>, RuntimeError> {
     store.rotate_read_session(&digest(token), now, |record| {
-        let mut session = scoped_session(&record.principal, &record.kind, now, SessionScope::Read)?;
-        session.cap_expires_at = Some(record.cap);
-        session.expires_at = session.expires_at.min(record.cap);
-        Ok(session)
+        if record.expires_at <= now || record.cap_expires_at <= now
+            || record.principal_generation < record.current_generation {
+            return Ok(None);
+        }
+        let mut session = existing_scoped_session(&record.principal, &record.kind, now, SessionScope::Read)?;
+        session.cap_expires_at = Some(record.cap_expires_at);
+        session.expires_at = session.expires_at.min(record.cap_expires_at);
+        Ok(Some(session))
     })
 }

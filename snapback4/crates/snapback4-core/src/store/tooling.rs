@@ -184,11 +184,11 @@ impl Store {
         &mut self,
         at: impl FnOnce() -> i64,
     ) -> Result<u64, RuntimeError> {
-        let tx = self.transaction()?;
+        crate::engine::committer::Committer::run(self, crate::engine::committer::Member::new(crate::engine::committer::Kind::Engine, |tx| {
         let seq = tx.next_seq()?;
         tx.record_commit(seq, at(), "native-smoke", "system", "witness", &[], 0)?;
-        tx.commit()?;
-        Ok(seq)
+        tx.commit(seq)
+        }))
     }
     pub fn inspection_column_populated(
         &self,

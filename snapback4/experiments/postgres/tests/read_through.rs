@@ -31,9 +31,22 @@ impl scenarios::Backend for Pg {
     }
 }
 fn factory(source: &str) -> Box<dyn scenarios::Backend> {
+    factory_with_notes(source, false)
+}
+fn factory_with_maintain_note(source: &str) -> Box<dyn scenarios::Backend> {
+    factory_with_notes(source, true)
+}
+fn factory_with_notes(source: &str, maintain_note: bool) -> Box<dyn scenarios::Backend> {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
-    assert!(b.notes.is_empty(), "{:?}", b.notes);
+    // Match the SQLite/memory scenario's expected authorization note.
+    if maintain_note {
+        assert_eq!(b.notes.len(), 1, "{:?}", b.notes);
+        assert_eq!(b.notes[0].code, "N_MAINTAIN_AUTHORIZATION");
+        assert!(b.notes[0].message.contains("hidden hit or miss returns null"));
+    } else {
+        assert!(b.notes.is_empty(), "{:?}", b.notes);
+    }
     let queries = b
         .programs
         .iter()
@@ -59,7 +72,7 @@ fn four_level_chains() {
 #[test]
 #[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
 fn clique() {
-    scenarios::clique(factory);
+    scenarios::clique(factory_with_maintain_note);
 }
 #[test]
 #[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]

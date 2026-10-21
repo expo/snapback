@@ -17,6 +17,10 @@ pub mod admission;
 mod asset_columns;
 #[cfg(feature = "sqlite")]
 mod asset_uploads;
+#[cfg(feature = "sqlite")]
+pub(crate) mod committer;
+#[cfg(feature = "sqlite")]
+use committer::{Committed, Committer, Kind, Member};
 pub mod components;
 #[cfg(feature = "sqlite")]
 mod effect_steps;
@@ -420,7 +424,7 @@ impl Engine {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
-        let (generation, metadata) = Self::activate(&mut store, &schema, &programs, None, now, true, None, None)?;
+        let (generation, metadata) = Self::activate(&mut store, &schema, &programs, None, now, true, None, None)?.into_inner();
         let dev_effects = metadata.dev_effects;
         store.exclude_ephemeral(&schema);
         Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
@@ -477,7 +481,7 @@ impl Engine {
             && (!crate::rows::caps::required(&schema) || tx.schema_marker(crate::metadata::SchemaMarker::CapCounts)?.as_deref() == Some(&schema_hash))
             && (!schema.tables.values().any(|table| table.not_before.is_some())
                 || tx.schema_marker(crate::metadata::SchemaMarker::TimePublications)?.as_deref() == Some("1")) { (generation, Store::finish_open(tx)?) }
-            else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))? };
+            else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))?.into_inner() };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
         Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
@@ -591,14 +595,16 @@ impl Engine {
         }
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         drop(self.ephemeral.lock()?);
-        let (generation, metadata) = Self::activate(&mut self.store, &schema, &programs, None, now, true, None, None)?;
-        self.timeline_schedule = timeline::Schedule::default();
-        self.schema = schema;
-        self.programs = programs;
-        self.generation = generation;
-        self.expiry_after.clear();
-        self.ephemeral.rebind_committed(metadata.store_id, generation, &self.schema);
-        Ok(generation)
+        let committed = Self::activate(&mut self.store, &schema, &programs, None, now, true, None, None)?;
+        Ok(committed.after_commit(|(generation, metadata)| {
+            self.timeline_schedule = timeline::Schedule::default();
+            self.schema = schema;
+            self.programs = programs;
+            self.generation = generation;
+            self.expiry_after.clear();
+            self.ephemeral.rebind_committed(metadata.store_id, generation, &self.schema);
+            generation
+        }).into_inner())
     }
 
 
@@ -624,67 +630,68 @@ impl Engine {
         if expiring.is_empty() {
             return Ok(0);
         }
-        let tx = self.store.transaction()?;
-        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
-        let seq = tx.next_seq()?;
-        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-        let mut removed = 0_u64;
-        let mut visited = 0_usize;
-        let mut expiry_after = self.expiry_after.clone();
-        let due = crate::store::Bounds { gte: Some(Value::Int(i64::MIN)), lte: Some(Value::Int(now)), ..Default::default() };
-        let expiring = through_activation::resume_expiry_tables(
-            expiring.into_iter().map(|(name, _)| name).collect(), &expiry_after,
-        ).into_iter().map(|name| {
-            let index = self.schema.tables[&name].expiry_index().expect("expiring table").0.to_owned();
-            (name, index)
-        }).collect::<Vec<_>>();
-        'tables: for (table_name, index) in &expiring {
-            let mut bounds = due.clone();
-            bounds.after = expiry_after.get(table_name).cloned();
-            let mut wrapped = bounds.after.is_none();
-            loop {
-                let batch = (limit - visited).min(256);
-                if batch == 0 {
-                    break 'tables;
-                }
-                let rows = tx.scan(table_name, index, &[], &bounds, crate::store::Dir::Asc, batch)?;
-                let count = rows.len();
-                for (row, key) in rows {
-                    bounds.after = crate::key::decode(&key);
-                    if let Some(after) = &bounds.after { expiry_after.insert(table_name.clone(), after.clone()); }
-                    visited += 1;
-                    through_activation::mark_expiry_table(&mut expiry_after, table_name);
-                    if removed > 0 && started.elapsed() >= budget { break 'tables; }
-                    match runner.retire_expired_row(table_name, &row) {
-                        Ok(true) => removed += 1,
-                        Ok(false) => {},
-                        // An expected reference/read-through blocker retains
-                        // the logically expired root. Continue by key so it
-                        // cannot wedge cleanup of unrelated due rows.
-                        Err(RuntimeError::Structural { code: "E_REFERENCED" | "E_PARENT_HAS_CHILDREN", .. }) => {},
-                        Err(error) => return Err(error),
+        let (expiry_after, now, removed) = Committer::run(&mut self.store, Member::new(Kind::Engine, |tx| {
+            let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
+            let seq = tx.next_seq()?;
+            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            let mut removed = 0_u64;
+            let mut visited = 0_usize;
+            let mut expiry_after = self.expiry_after.clone();
+            let due = crate::store::Bounds { gte: Some(Value::Int(i64::MIN)), lte: Some(Value::Int(now)), ..Default::default() };
+            let expiring = through_activation::resume_expiry_tables(
+                expiring.into_iter().map(|(name, _)| name).collect(), &expiry_after,
+            ).into_iter().map(|name| {
+                let index = self.schema.tables[&name].expiry_index().expect("expiring table").0.to_owned();
+                (name, index)
+            }).collect::<Vec<_>>();
+            'tables: for (table_name, index) in &expiring {
+                let mut bounds = due.clone();
+                bounds.after = expiry_after.get(table_name).cloned();
+                let mut wrapped = bounds.after.is_none();
+                loop {
+                    let batch = (limit - visited).min(256);
+                    if batch == 0 {
+                        break 'tables;
                     }
-                }
-                if count < batch {
-                    expiry_after.remove(table_name);
-                    if !wrapped && visited < limit {
-                        bounds = due.clone();
-                        wrapped = true;
-                        continue;
+                    let rows = tx.scan(table_name, index, &[], &bounds, crate::store::Dir::Asc, batch)?;
+                    let count = rows.len();
+                    for (row, key) in rows {
+                        bounds.after = crate::key::decode(&key);
+                        if let Some(after) = &bounds.after { expiry_after.insert(table_name.clone(), after.clone()); }
+                        visited += 1;
+                        through_activation::mark_expiry_table(&mut expiry_after, table_name);
+                        if removed > 0 && started.elapsed() >= budget { break 'tables; }
+                        match runner.retire_expired_row(table_name, &row) {
+                            Ok(true) => removed += 1,
+                            Ok(false) => {},
+                            // An expected reference/read-through blocker retains
+                            // the logically expired root. Continue by key so it
+                            // cannot wedge cleanup of unrelated due rows.
+                            Err(RuntimeError::Structural { code: "E_REFERENCED" | "E_PARENT_HAS_CHILDREN", .. }) => {},
+                            Err(error) => return Err(error),
+                        }
                     }
-                    break;
+                    if count < batch {
+                        expiry_after.remove(table_name);
+                        if !wrapped && visited < limit {
+                            bounds = due.clone();
+                            wrapped = true;
+                            continue;
+                        }
+                        break;
+                    }
                 }
             }
-        }
-        let events = runner.events.take();
-        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-        let written = runner.rows_written;
-        drop(runner);
-        if written > 0 {
-            tx.record_commit(seq, now, "expire", crate::SYSTEM_PRINCIPAL, "sweep", &tables, written)?;
-            partition::append(&tx, seq, &events)?;
-        }
-        tx.commit()?;
+            let events = runner.events.take();
+            let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+            let written = runner.rows_written;
+            drop(runner);
+            if written > 0 {
+                tx.record_commit(seq, now, "expire", crate::SYSTEM_PRINCIPAL, "sweep", &tables, written)?;
+                partition::append(&*tx, seq, &events)?;
+            }
+            tx.commit((expiry_after, now, removed))
+        }))?;
         self.expiry_after = expiry_after;
         self.advance_time_audience(now)?;
         Ok(removed)
@@ -933,132 +940,134 @@ impl Engine {
                 Err(error) => Err(error),
             };
         }
-        let tx = self.store.transaction()?;
-        if let Some(op) = op
-            && let Some(outcome) = tx.replay_bound(&context.viewer, op, name, &wire_args)?
-        {
-            // Applied between the check above and this transaction.
-            let outcome = MutationOutcome::from_receipt(&outcome)?;
-            tx.rollback()?;
-            return Ok(outcome);
-        }
-        if let Some(op)=op{assets::require_placement(&tx,&context.viewer,op,name,&wire_args)?;}
-        context.now = Some(time_audience::pin_writer_time(
-            &self.schema,
-            &tx,
-            context.now.unwrap_or(0),
-        )?);
-        self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
-        let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
-        if program.kind == ProgramKind::Query {
-            return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
-        }
-        if program.kind == ProgramKind::Action {
-            return Err(RuntimeError::UnknownOp(format!("{name} is an action: call it with client.act")));
-        }
-        if program.kind == ProgramKind::Job {
-            return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
-        }
-        if let Err(error) = validate::validate_inputs(&self.schema, &program, &mut context.args) {
-            return Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
-        }
-        if context.presence.is_none() {
-            context.presence = self.presence.clone();
-        }
-        context.entropy = self.entropy;
-        context.minter = self.minter.clone();
-        let ceilings = self.ceilings;
-        let viewer = context.viewer.clone();
-        let now = context.now.unwrap_or(0);
-        // An `image`/`video` argument names an upload by id; the program
-        // reads the facts the server established (`clip.duration`), so
-        // they are put in place before it runs. An id that is not the
-        // writer's own upload stays as sent and the write refuses it.
-        for (name, kind) in &program.args {
-            let inner = match kind {
-                crate::ir::ArgType::Optional(inner) => inner.as_ref(),
-                other => other,
-            };
-            if !matches!(inner, crate::ir::ArgType::Image { .. } | crate::ir::ArgType::Video { .. } | crate::ir::ArgType::File { .. }) {
-                continue;
-            }
-            let Some(id) = asset_id(context.args.get(name)).map(str::to_owned) else { continue;
-            };
-            if let Some(asset) = tx.asset(&id)?
-                && (asset.owner == viewer || context.is_system())
+        let (outcome, entropy) = Committer::run(&mut self.store, Member::new(Kind::Program, |tx| {
+            if let Some(op) = op
+                && let Some(outcome) = tx.replay_bound(&context.viewer, op, name, &wire_args)?
             {
-                // @ref LLP 3000.038#3 — a file argument never reads an image's facts, nor an image argument a file's.
-                if (asset.kind == AssetKind::File) != matches!(inner, crate::ir::ArgType::File { .. }) {
-                    let wanted = if matches!(inner, crate::ir::ArgType::File { .. }) { "a file" } else { "an image or video" };
-                    let error = RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("{name} takes {wanted} and {id} is {}; upload it as {wanted}", asset.kind.word()) };
-                    return Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
-                }
-                context.args.insert(name.clone(), asset.column_value());
+                // Applied between the check above and this transaction.
+                let outcome = MutationOutcome::from_receipt(&outcome)?;
+                return tx.rollback((outcome, None));
             }
-        }
-        tx.savepoint("program")?;
-        let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
-        let ran = runner.run(&program).and_then(|value| {
-            runner.charge_output(&value)?;
-            Ok(value)
-        });
-        // Commit-end expiry can cascade or clear rows that an `after insert`
-        // witness names. Final obligations therefore inspect the actual
-        // provisional commit state, after every retirement action.
-        let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value))
-            .and_then(|value| runner.check_final_exists().map(|_| value));
-        let metered = runner.meter.used;
-        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-        let events: Vec<Event> = runner.events.take();
-        let action_tables = std::mem::take(&mut runner.action_tables);
-        let outbox = std::mem::take(&mut runner.outbox);
-        let rows_written = runner.rows_written;
-        let mut read_tables = runner.read_tables.clone();
-        self.entropy = runner.context.entropy;
-        drop(runner);
-        let outcome = match ran {
-            Ok(result) => {
-                tx.release("program")?;
-                // @ref LLP 3000.019#4 — P7 reports keep at-most-once custody.
-                // @ref LLP 3000.022#6 — a covered report keeps only a receipt at the committed head.
-                let receipt_only = rows_written == 0 && outbox.is_empty()
-                    && self.schema.delivery.iter().any(|binding| binding.mutation == name);
-                let seq = tx.next_seq()? - u64::from(receipt_only);
-                read_tables.extend(tables.iter().cloned());
-                if !receipt_only {
-                    tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
-                    partition::append(&tx, seq, &events)?;
-                    effects::record(&tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
-                }
-                MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events, &action_tables), replayed: false }
+            if let Some(op)=op{assets::require_placement(&*tx,&context.viewer,op,name,&wire_args)?;}
+            context.now = Some(time_audience::pin_writer_time(
+                &self.schema,
+                &tx,
+                context.now.unwrap_or(0),
+            )?);
+            self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
+            let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
+            if program.kind == ProgramKind::Query {
+                return Err(RuntimeError::UnknownOp(format!("{name} is a query, not a mutation")));
             }
-            Err(error) if error.is_refusal() => {
-                tx.rollback_to("program")?;
-                let current = match &error {
-                    RuntimeError::Conflict { current } => {
-                        let mut probe = Runner::new(&tx, &self.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
-                        let value = probe.get(current).ok();
-                        value
-                    }
-                    _ => None,
+            if program.kind == ProgramKind::Action {
+                return Err(RuntimeError::UnknownOp(format!("{name} is an action: call it with client.act")));
+            }
+            if program.kind == ProgramKind::Job {
+                return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
+            }
+            if let Err(error) = validate::validate_inputs(&self.schema, &program, &mut context.args) {
+                return Ok(tx.abort((MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }, None)));
+            }
+            if context.presence.is_none() {
+                context.presence = self.presence.clone();
+            }
+            context.entropy = self.entropy;
+            context.minter = self.minter.clone();
+            let ceilings = self.ceilings;
+            let viewer = context.viewer.clone();
+            let now = context.now.unwrap_or(0);
+            // An `image`/`video` argument names an upload by id; the program
+            // reads the facts the server established (`clip.duration`), so
+            // they are put in place before it runs. An id that is not the
+            // writer's own upload stays as sent and the write refuses it.
+            for (name, kind) in &program.args {
+                let inner = match kind {
+                    crate::ir::ArgType::Optional(inner) => inner.as_ref(),
+                    other => other,
                 };
-                let why=seat_refusal(&self.schema,&error,&viewer);
-                MutationOutcome { receipt_only: false, state: WriteState::Failed { why, current }, metered, tables: Vec::new(), events: 0, replayed: false }
+                if !matches!(inner, crate::ir::ArgType::Image { .. } | crate::ir::ArgType::Video { .. } | crate::ir::ArgType::File { .. }) {
+                    continue;
+                }
+                let Some(id) = asset_id(context.args.get(name)).map(str::to_owned) else { continue;
+                };
+                if let Some(asset) = tx.asset(&id)?
+                    && (asset.owner == viewer || context.is_system())
+                {
+                    // @ref LLP 3000.038#3 — a file argument never reads an image's facts, nor an image argument a file's.
+                    if (asset.kind == AssetKind::File) != matches!(inner, crate::ir::ArgType::File { .. }) {
+                        let wanted = if matches!(inner, crate::ir::ArgType::File { .. }) { "a file" } else { "an image or video" };
+                        let error = RuntimeError::Asset { code: "E_ASSET_TYPE", message: format!("{name} takes {wanted} and {id} is {}; upload it as {wanted}", asset.kind.word()) };
+                        return Ok(tx.abort((MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }, None)));
+                    }
+                    context.args.insert(name.clone(), asset.column_value());
+                }
             }
-            Err(error) => {
-                tx.rollback()?;
-                return Err(error);
-            }
-        };
-        if let Some(op) = op {
-            let seq = match &outcome.state {
-                WriteState::Sent { seq, .. } => *seq,
-                WriteState::Failed { .. } => tx.next_seq()? - 1,
+            tx.savepoint("program")?;
+            let mut runner = Runner::new(&*tx, &self.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
+            let ran = runner.run(&program).and_then(|value| {
+                runner.charge_output(&value)?;
+                Ok(value)
+            });
+            // Commit-end expiry can cascade or clear rows that an `after insert`
+            // witness names. Final obligations therefore inspect the actual
+            // provisional commit state, after every retirement action.
+            let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value))
+                .and_then(|value| runner.check_final_exists().map(|_| value));
+            let metered = runner.meter.used;
+            let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+            let events: Vec<Event> = runner.events.take();
+            let action_tables = std::mem::take(&mut runner.action_tables);
+            let outbox = std::mem::take(&mut runner.outbox);
+            let rows_written = runner.rows_written;
+            let mut read_tables = runner.read_tables.clone();
+            let entropy = runner.context.entropy;
+            drop(runner);
+            let outcome = match ran {
+                Ok(result) => {
+                    tx.release("program")?;
+                    // @ref LLP 3000.019#4 — P7 reports keep at-most-once custody.
+                    // @ref LLP 3000.022#6 — a covered report keeps only a receipt at the committed head.
+                    let receipt_only = rows_written == 0 && outbox.is_empty()
+                        && self.schema.delivery.iter().any(|binding| binding.mutation == name);
+                    let seq = tx.next_seq()? - u64::from(receipt_only);
+                    read_tables.extend(tables.iter().cloned());
+                    if !receipt_only {
+                        tx.record_commit(seq, now, name, &viewer, program.kind.word(), &tables, rows_written)?;
+                        partition::append(&*tx, seq, &events)?;
+                        effects::record(&*tx, &outbox, seq, now, self.dev_effects, &self.schema)?;
+                    }
+                    MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&self.schema, &events, &action_tables), replayed: false }
+                }
+                Err(error) if error.is_refusal() => {
+                    tx.rollback_to("program")?;
+                    let current = match &error {
+                        RuntimeError::Conflict { current } => {
+                            let mut probe = Runner::new(&*tx, &self.schema, Context::new(viewer.clone(), BTreeMap::new()).at(now), Meter::new(Ceilings::default(), Cut::Cap), 0);
+                            let value = probe.get(current).ok();
+                            value
+                        }
+                        _ => None,
+                    };
+                    let why=seat_refusal(&self.schema,&error,&viewer);
+                    MutationOutcome { receipt_only: false, state: WriteState::Failed { why, current }, metered, tables: Vec::new(), events: 0, replayed: false }
+                }
+                Err(error) => {
+                    tx.rollback(())?;
+                    return Err(error);
+                }
             };
-            tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.receipt(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
-            tx.bind_applied(&viewer, op, name, &wire_args, now)?;
-        }
-        tx.commit()?;
+            if let Some(op) = op {
+                let seq = match &outcome.state {
+                    WriteState::Sent { seq, .. } => *seq,
+                    WriteState::Failed { .. } => tx.next_seq()? - 1,
+                };
+                tx.record_applied(&viewer, op, seq, &serde_json::to_string(&outcome.receipt(Some(op))).map_err(|e| RuntimeError::Store(e.to_string()))?)?;
+                tx.bind_applied(&viewer, op, name, &wire_args, now)?;
+            }
+            tx.commit((outcome, Some(entropy)))
+        }))?;
+        // @ref LLP 3000.009.001.000.000#3.7 — entropy follows the durable COMMIT, not the member savepoint release.
+        if let Some(entropy) = entropy { self.entropy = entropy; }
         Ok(outcome)
     }
 
@@ -1071,11 +1080,11 @@ impl Engine {
     /// Development hosts supply their clock so seed commits share operation and stream time.
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
         let now = self.advance_time_audience(now)?;
-        let tx = self.store.transaction()?;
-        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
-        let count = seed_rows(&self.schema, &tx, rows, now)?;
-        tx.commit()?;
-        Ok(count)
+        Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
+            let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
+            let count = seed_rows(&self.schema, &tx, rows, now)?;
+            tx.commit(count)
+        }))
     }
 
     /// Delete a row as the system principal: constraints, aggregates and
@@ -1088,25 +1097,25 @@ impl Engine {
         self.schema.refuse_ephemeral_import(table)?;
         timeline::check_import(&self.schema, table)?;
         let now = self.advance_time_audience(now)?;
-        let tx = self.store.transaction()?;
-        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
-        let seq = tx.next_seq()?;
-        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(if crate::schema::live::has_live(&self.schema) {Ceilings::job()}else{Ceilings::unbounded()}, Cut::Abort), seq);
-        if crate::schema::live::has_live(&self.schema) {runner.reserve_bulk_source(table)?;}
-        let removed = match runner.delete(table, id) {
-            Ok(()) => 1,
-            Err(RuntimeError::Require { .. }) => 0,
-            Err(error) => return Err(error),
-        };
-        let events = runner.events.take();
-        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-        drop(runner);
-        if removed > 0 {
-            tx.record_commit(seq, now, "seed", crate::SYSTEM_PRINCIPAL, "seed", &tables, removed)?;
-            partition::append(&tx, seq, &events)?;
-        }
-        tx.commit()?;
-        Ok(removed)
+        Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
+            let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
+            let seq = tx.next_seq()?;
+            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(if crate::schema::live::has_live(&self.schema) {Ceilings::job()}else{Ceilings::unbounded()}, Cut::Abort), seq);
+            if crate::schema::live::has_live(&self.schema) {runner.reserve_bulk_source(table)?;}
+            let removed = match runner.delete(table, id) {
+                Ok(()) => 1,
+                Err(RuntimeError::Require { .. }) => 0,
+                Err(error) => return Err(error),
+            };
+            let events = runner.events.take();
+            let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+            drop(runner);
+            if removed > 0 {
+                tx.record_commit(seq, now, "seed", crate::SYSTEM_PRINCIPAL, "seed", &tables, removed)?;
+                partition::append(&*tx, seq, &events)?;
+            }
+            tx.commit(removed)
+        }))
     }
 
     /// Untrusted fixture import. All targets are installed before attribution
@@ -1127,64 +1136,64 @@ impl Engine {
         if mode == LoadMode::Import && self.schema.tables.values().any(|t| t.through.is_some()) { return self.seed(rows); }
         if mode == LoadMode::Restore || self.schema.tables.values().all(|table| table.recorded.is_empty() && table.maintained.is_empty()) { return self.load_stored_rows(rows, mode); }
         let now = self.advance_time_audience(crate::now_ms())?;
-        let tx = self.store.transaction()?;
-        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
-        let seq = tx.next_seq()?;
-        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-        let mut imported = BTreeMap::new();
-        let mut count = 0;
-        for (name, row) in rows {
-            self.schema.refuse_ephemeral_import(&name)?;
-            timeline::check_import(&self.schema, &name)?;
-            let table = self.schema.table(&name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
-            self.schema.refuse_private(&name)?;
-            let row = columns::write_result(table, row);
-            if mode == LoadMode::Import { recorded::refuse_fields(table, &name, &row)?; }
-            let old = tx.get(&name, row.field("id")?.as_str()?)?;
-            let row = runner.import_sequences(&name, row, old.as_ref(), false)?;
-            validate::validate_row(&self.schema, &name, &row)?;
-            // Importing an existing source cannot erase its contribution history.
-            let mut row = row;
-            if mode == LoadMode::Import && let (Some(old), Value::Row(fields) | Value::Map(fields)) = (&old, &mut row) {
-                for path in table.recorded.keys() { fields.insert(path.clone(), old.field(path).cloned().unwrap_or(Value::Null)); }
-                for field in table.recorded.values() {
-                    if crate::schema::row_image(old, table).field(&field.reference).ok() != crate::schema::row_image(&row, table).field(&field.reference).ok() { return Err(RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("{name}.{} cannot change after attribution capture; import a new source id (guide maintains)", field.reference) }); }
+        Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
+            let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
+            let seq = tx.next_seq()?;
+            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            let mut imported = BTreeMap::new();
+            let mut count = 0;
+            for (name, row) in rows {
+                self.schema.refuse_ephemeral_import(&name)?;
+                timeline::check_import(&self.schema, &name)?;
+                let table = self.schema.table(&name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
+                self.schema.refuse_private(&name)?;
+                let row = columns::write_result(table, row);
+                if mode == LoadMode::Import { recorded::refuse_fields(table, &name, &row)?; }
+                let old = tx.get(&name, row.field("id")?.as_str()?)?;
+                let row = runner.import_sequences(&name, row, old.as_ref(), false)?;
+                validate::validate_row(&self.schema, &name, &row)?;
+                // Importing an existing source cannot erase its contribution history.
+                let mut row = row;
+                if mode == LoadMode::Import && let (Some(old), Value::Row(fields) | Value::Map(fields)) = (&old, &mut row) {
+                    for path in table.recorded.keys() { fields.insert(path.clone(), old.field(path).cloned().unwrap_or(Value::Null)); }
+                    for field in table.recorded.values() {
+                        if crate::schema::row_image(old, table).field(&field.reference).ok() != crate::schema::row_image(&row, table).field(&field.reference).ok() { return Err(RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("{name}.{} cannot change after attribution capture; import a new source id (guide maintains)", field.reference) }); }
+                    }
                 }
+                tx.put(&name, table, &row, old.as_ref())?;
+                imported.entry((name, row.field("id")?.as_str()?.to_owned())).or_insert(old);
+                count += 1;
             }
-            tx.put(&name, table, &row, old.as_ref())?;
-            imported.entry((name, row.field("id")?.as_str()?.to_owned())).or_insert(old);
-            count += 1;
-        }
-        for ((name, id), old) in imported {
-            let mut row = tx.get(&name, &id)?.expect("imported row exists in the writing transaction");
-            let table = &self.schema.tables[&name];
-            if mode == LoadMode::Import && old.is_none() {
-                let captured = runner.record_insert(&name, row.clone())?;
-                validate::validate_row(&self.schema, &name, &captured)?;
-                tx.put(&name, table, &captured, Some(&row))?;
-                row = captured;
+            for ((name, id), old) in imported {
+                let mut row = tx.get(&name, &id)?.expect("imported row exists in the writing transaction");
+                let table = &self.schema.tables[&name];
+                if mode == LoadMode::Import && old.is_none() {
+                    let captured = runner.record_insert(&name, row.clone())?;
+                    validate::validate_row(&self.schema, &name, &captured)?;
+                    tx.put(&name, table, &captured, Some(&row))?;
+                    row = captured;
+                }
+                partition::row_changed(&mut runner, &name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
+                tx.track_time_audience(
+                    &name,
+                    table,
+                    &id,
+                    Some(&row),
+                    now,
+                    table.live(&row, now),
+                )?;
+                runner.written_tables.insert(name);
             }
-            partition::row_changed(&mut runner, &name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
-            tx.track_time_audience(
-                &name,
-                table,
-                &id,
-                Some(&row),
-                now,
-                table.live(&row, now),
-            )?;
-            runner.written_tables.insert(name);
-        }
-        if count > 0 { runner.rebuild_imported_columns()?; }
-        let events = runner.events.take();
-        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-        drop(runner);
-        if count > 0 {
-            tx.record_commit(seq, now, "load", crate::SYSTEM_PRINCIPAL, "load", &tables, count)?;
-            partition::append(&tx, seq, &events)?;
-        }
-        tx.commit()?;
-        Ok(count)
+            if count > 0 { runner.rebuild_imported_columns()?; }
+            let events = runner.events.take();
+            let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+            drop(runner);
+            if count > 0 {
+                tx.record_commit(seq, now, "load", crate::SYSTEM_PRINCIPAL, "load", &tables, count)?;
+                partition::append(&*tx, seq, &events)?;
+            }
+            tx.commit(count)
+        }))
     }
 
     // Persistence restoration and schemas without captures retain the streaming
@@ -1192,53 +1201,54 @@ impl Engine {
     fn load_stored_rows(&mut self, rows: impl IntoIterator<Item = (String, Value)>, mode: LoadMode) -> Result<u64, RuntimeError> {
         if crate::schema::live::has_live(&self.schema) {
             let now=self.advance_time_audience(crate::now_ms())?;
-            let tx=self.store.transaction()?;
-            let now=time_audience::pin_writer_time(&self.schema,&tx,now)?;
-            let seq=tx.next_seq()?;
-            let (count,events,tables,seq)=live_bulk::restore(&tx,&self.schema,rows,seq,now)?;
-            if count>0 {tx.record_commit(seq,now,"restore",crate::SYSTEM_PRINCIPAL,"restore",&tables,count)?;partition::append(&tx,seq,&events)?;}
-            tx.commit()?;return Ok(count);
+            return Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
+                let now=time_audience::pin_writer_time(&self.schema,&tx,now)?;
+                let seq=tx.next_seq()?;
+                let (count,events,tables,seq)=live_bulk::restore(&*tx,&self.schema,rows,seq,now)?;
+                if count>0 {tx.record_commit(seq,now,"restore",crate::SYSTEM_PRINCIPAL,"restore",&tables,count)?;partition::append(&*tx,seq,&events)?;}
+                tx.commit(count)
+            }));
         }
         let now = self.advance_time_audience(crate::now_ms())?;
-        let tx = self.store.transaction()?;
-        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
-        let mut seq = tx.next_seq()?;
-        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
-        let mut count = 0;
-        for (table_name, mut row) in rows {
-            self.schema.refuse_ephemeral_import(&table_name)?;
-            if let Some(table) = self.schema.table(&table_name) { table.recompute_deadline(&mut row)?; }
-            if mode == LoadMode::Import { timeline::check_import(&self.schema, &table_name)?; }
-            let old = tx.get(&table_name, row.field("id")?.as_str()?)?;
-            let row = runner.import_sequences(&table_name, row, old.as_ref(), mode == LoadMode::Restore)?;
-            validate::validate_row(&self.schema, &table_name, &row)?;
-            if mode == LoadMode::Restore { seq = seq.max(timeline::restored_sequence(&self.schema, &table_name, &row)?); }
-            let table = self.schema.table(&table_name).expect("validated").clone();
-            let id = row.field("id")?.as_str()?.to_owned();
-            let old = tx.get(&table_name, &id)?;
-            tx.put(&table_name, &table, &row, old.as_ref())?;
-            partition::row_changed(&mut runner, &table_name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
-            tx.track_time_audience(
-                &table_name,
-                &table,
-                &id,
-                Some(&row),
-                now,
-                table.live(&row, now),
-            )?;
-            if self.schema.visible(&table_name) { runner.written_tables.insert(table_name); }
-            count += 1;
-        }
-        through_activation::validate_restore(&tx,&self.schema,now)?;
-        let events = runner.events.take();
-        let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
-        drop(runner);
-        if count > 0 {
-            tx.record_commit(seq, now, "load", crate::SYSTEM_PRINCIPAL, "load", &tables, count)?;
-            partition::append(&tx, seq, &events)?;
-        }
-        tx.commit()?;
-        Ok(count)
+        Committer::run(&mut self.store, Member::new(Kind::Administrative, |tx| {
+            let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
+            let mut seq = tx.next_seq()?;
+            let mut runner = Runner::new(&*tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            let mut count = 0;
+            for (table_name, mut row) in rows {
+                self.schema.refuse_ephemeral_import(&table_name)?;
+                if let Some(table) = self.schema.table(&table_name) { table.recompute_deadline(&mut row)?; }
+                if mode == LoadMode::Import { timeline::check_import(&self.schema, &table_name)?; }
+                let old = tx.get(&table_name, row.field("id")?.as_str()?)?;
+                let row = runner.import_sequences(&table_name, row, old.as_ref(), mode == LoadMode::Restore)?;
+                validate::validate_row(&self.schema, &table_name, &row)?;
+                if mode == LoadMode::Restore { seq = seq.max(timeline::restored_sequence(&self.schema, &table_name, &row)?); }
+                let table = self.schema.table(&table_name).expect("validated").clone();
+                let id = row.field("id")?.as_str()?.to_owned();
+                let old = tx.get(&table_name, &id)?;
+                tx.put(&table_name, &table, &row, old.as_ref())?;
+                partition::row_changed(&mut runner, &table_name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
+                tx.track_time_audience(
+                    &table_name,
+                    &table,
+                    &id,
+                    Some(&row),
+                    now,
+                    table.live(&row, now),
+                )?;
+                if self.schema.visible(&table_name) { runner.written_tables.insert(table_name); }
+                count += 1;
+            }
+            through_activation::validate_restore(&*tx,&self.schema,now)?;
+            let events = runner.events.take();
+            let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
+            drop(runner);
+            if count > 0 {
+                tx.record_commit(seq, now, "load", crate::SYSTEM_PRINCIPAL, "load", &tables, count)?;
+                partition::append(&*tx, seq, &events)?;
+            }
+            tx.commit(count)
+        }))
     }
 
     /// One page of the snapshot a device takes before it follows the log:

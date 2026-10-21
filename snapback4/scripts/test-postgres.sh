@@ -21,9 +21,13 @@ if [[ -z "${SNAPBACK4_EVAL_POSTGRES:-}" ]]; then
   pg_ctl -D "$eval_dir/data" -l "$eval_dir/server.log" -o "-k $eval_dir -c listen_addresses= -p 55439" -w start >/dev/null
   export SNAPBACK4_EVAL_POSTGRES="host=$eval_dir port=55439 user=sb4_eval dbname=postgres"
 fi
-cargo test --locked --manifest-path experiments/postgres/Cargo.toml -- --include-ignored --nocapture
-cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests -- --include-ignored --nocapture
-cargo test --locked -p snapback4-core --features postgres --test corpus -- --nocapture
+# Report every stage even when an earlier fixture fails. In particular, an
+# experiment failure must not silently leave the gated family contracts unrun.
+status=0
+cargo test --locked --manifest-path experiments/postgres/Cargo.toml -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::tests -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4-core --features postgres --test corpus -- --nocapture || status=1
 if [[ "${1:-}" == "--bench" ]]; then
-  cargo run --locked --release --manifest-path experiments/postgres/Cargo.toml -- "${SNAPBACK4_EVAL_ITERATIONS:-200}"
+  cargo run --locked --release --manifest-path experiments/postgres/Cargo.toml -- "${SNAPBACK4_EVAL_ITERATIONS:-200}" || status=1
 fi
+exit "$status"

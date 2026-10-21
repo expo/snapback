@@ -17,10 +17,11 @@ fn postgres_snapshot_offline_queue_reopen_retry_stream_and_revocation_on_existin
     let mut cursor = None;
     let mut first = true;
     loop {
+        let after = cursor.as_ref().map(|c: &snapback4_core::partition::SnapshotCursor| c.encode());
         let page = pg.snapshot_page("bob", cursor, 7, 1_000).unwrap();
         let wire: StreamPage = serde_json::from_value(serde_json::json!({
-            "snapshot": true, "held": page.held, "watermark": page.watermark,
-            "more": page.next.is_some(), "next": page.next.as_ref().map(|c| c.encode()), "generation": 1,
+            "snapshot": true, "held": page.held, "watermark": page.watermark, "acquisitions": page.acquisitions,
+            "after": after, "more": page.next.is_some(), "next": page.next.as_ref().map(|c| c.encode()), "generation": 1,
             "events": page.events.iter().map(|e| serde_json::json!({"table":e.table,"kind":e.kind.word(),"id":e.id,"data":e.data.as_ref().map(wire::to_json)})).collect::<Vec<_>>()
         })).unwrap();
         device.apply(&wire, first).unwrap();
@@ -67,6 +68,7 @@ fn postgres_snapshot_offline_queue_reopen_retry_stream_and_revocation_on_existin
         let page = pg.stream("bob", device.state().unwrap().0, 1_000, 1_000).unwrap();
         let wire: StreamPage = serde_json::from_value(serde_json::json!({
             "snapshot":false,"watermark":page.watermark,"more":page.more,"joined":page.joined,"generation":1,
+            "acquisitions":page.acquisitions,"images_at":page.images_at,
             "events":page.events.iter().map(|e|serde_json::json!({"table":e.table,"kind":e.kind,"id":e.id,"data":e.data.as_ref().map(wire::to_json)})).collect::<Vec<_>>()
         })).unwrap();
         device.apply(&wire, false).unwrap();

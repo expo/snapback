@@ -97719,3 +97719,726 @@ A supplemental repository-wide caps audit retains inherited oversize/working-set
 violations, proven against both parents; its fixture tests pass. This merge
 introduces no oversized file and does not raise those limits. New main changes
 will be merged and checked at their affected scope before delivery.
+
+## 2026-10-20 — K0a: the reference committer seam (P0-S9, first slice)
+
+The crate-private `engine/committer.rs` now carries `Member`, the five member
+kinds and the reference `Committer`. A member runs in place, opens its original
+transaction through the committer and selects its original commit point.
+Explicit rollback errors and implicit drop on early normal returns remain
+distinct. Hooks execute synchronously after a successful commit, in submission
+order; `Committed<T>` carries those continuations across adapter/engine layers.
+There is no queue, batching, thread, retry or persisted revision in this slice.
+
+Mutation, expiry, seed (including trusted deletion), load/restore, job chunks,
+time-audience publication, timeline delivery, row views and expiry-orphan
+recovery use the seam. Activation rebuild and Following launch retain their
+shared raw immediate transaction, opened by the committer through the adapter's
+original preparation path. Reset and the host smoke barrier also enter through
+their existing adapter operations. `seed_sequences` remains a seed savepoint,
+not a separate transaction. The private clock pin also becomes a Direct member.
+Mutation's publication prelude, the evaluation Postgres `mutate_once`, host
+metadata and host wakeup positions are unchanged.
+
+Post-commit work now uses hooks: expiry continuation and follow-on audience
+advancement, committed job status reads, timeline rotation, activation reports
+and runtime catalog/identity acceptance, engine adoption/reset state, expiry
+continuation clearing and ephemeral rebind. Existing SQL and error strings are
+verbatim. The producer table and complete grouped K0b inventory are in
+`reports/20261020-k0a/REPORT.md`.
+
+The new production durable-opener ratchet shares the store-port lexer and has
+no raise override. Its base count is 62 lines in 15 files; K0a leaves 49 in 11
+files. Remaining candidates cover identity/session operations, action/route
+admission and lifecycle, claims/settlement/leases/presence, action/effect steps,
+asset intents/views/sweeps/receipt-only reports, job/schedule admission, opening
+upgrades and development replay metadata. Six matches are authority snapshots
+that only read/roll back today; adapter-internal transactions remain outside
+this lexical census and need K0b review too. The existing store-port allowlist
+falls from 11 to seven production lines by removing stale allowances (the base
+already has seven actual matches); its test count remains 95.
+
+Required checks ran with the requested target directory, incremental disabled,
+line-table debug information and at most `-j 32`. The binary build and complete
+core suite, integrations and doctests pass. The complete host run executes all
+targets, including both censuses; it has three inherited failures:
+`w11r1c_toolchain_why_explains_node_start_failure_too` and
+`farm2_typescript_7_is_refused_by_version_not_crashed_on` need the missing
+TypeScript installation; `web_witness_help_and_invalid_input` needs the missing
+built `packages/snapback4/dist/client.js`. Both failing targets reproduce all
+three failures in a second local worktree at `ce6c0d87da`. Clippy reproduces the
+base's `while_immutable_condition` in `engine/read.rs` and `never_loop` in
+`engine/row_views.rs`; final warning message/source-file comparisons find no
+new warnings. No inherited lint is suppressed or repaired.
+
+Final focused seam tests (two), Quarry/native time-audience tests (five), both
+ratchet targets (eight), the final build and `ref-check --verbose` pass. The
+second worktree was removed after comparison. No sub-agent, clone, remote
+machine, stash, push or `scripts/test.sh` run was used. K0a is an extraction;
+K0's queued stream and batching remain later work.
+## 2026-10-20 — P1-ID step 1: shared read-rotation policy
+
+Scoped LLP orientation: LLP 3000 §1 decision 4 permits this commissioned core
+lane; LLP 3000.009.001.000 §3.1–3.3 requires policy above the adapter and §10
+requires one family suite on both stores; LLP 3000.033 §1.3 governs immutable
+read caps, captured generations, no foreign sweep and missing-table refusal.
+The root is in `foundation/`; the port RFC is in `current/`. The read-only and
+services guide cards agree with these constraints. No new design question or
+LLP hand-off is needed.
+
+Read rotation now returns raw expiry, cap and captured/current generation facts
+to shared Rust while holding the existing SQLite IMMEDIATE transaction. The
+shared callback can refuse with `None` before deletion or minting. The SQL
+change removes only the validity predicates, selecting their operands instead;
+missing principal generations still become zero. Refusals retain the old row
+and do not install absent read storage. Shared cases separately cover expired,
+cap-expired, stale-generation and missing-table refusals, and assert invalid
+rows are actually returned as facts. Existing collision/token-generation
+rollback cases retain their behavior. This step changes only SQLite and shared
+policy, before implementing the Postgres family.
+
+Validation for this step: all 23 identity-filtered unit tests pass, including
+the seven shared SQLite cases. `ref-check --verbose` passes with zero errors
+and zero unchecked references. The complete SQLite core suite is running;
+its final result will be recorded with the lane's closing checks.
+
+## 2026-10-20 — P1-ID step 2: Postgres identity access
+
+The Postgres adapter implements `IdentityTransaction` on its existing `Tx` and
+`IdentityStore` on a borrowed `RefCell<&mut Store>` family view. This keeps the
+port's shared-reference contract while the driver keeps exclusive connection
+custody for transaction creation. Signup/login credential checks, full/read
+replacement, principal revocation and supervised-worker mint/clear/revoke use
+the existing serialized shared-head transaction. Transaction-level identity
+writes reuse authority's fence guard and refuse read-only/optimistic walks.
+Read-only credential and diagnostic expiry queries use ordinary snapshots.
+
+Attach adds principals, credentials, mint bindings (including scope) and worker
+metadata with `CREATE TABLE IF NOT EXISTS` after taking the existing head
+lock. Text lookup keys use `COLLATE "C"`; integer facts use `BIGINT`. Existing
+sessions, generations and read-session storage are reused. SQL preserves the
+SQLite statement order, NULL family fallback, principal insert-ignore and
+worker marker behavior. The versioned migration runner and P1b owner fence
+remain separate work; no new fence or production-host capability is claimed.
+
+Validation: `cargo check -p snapback4-core --features postgres` passes. Two
+Postgres smoke/fence tests are gated with the existing named isolated-database
+skip; their real-cluster result follows below. The shared-family parity suite
+is the next separately committed step.
+
+The two Postgres smoke/fence tests pass on the private PostgreSQL 16.15 cluster
+(2 passed, 0 skipped); that owned cluster was stopped by its exit trap. The
+first round trip includes an expiry beyond 32-bit integer range.
+
+## 2026-10-20 — P1-ID step 3: one identity contract on both adapters
+
+Fourteen adapter-neutral identity cases now cover transaction facts and family
+invalidation, credentials and read/full rotation rollback, each rotation
+refusal, principal insert-ignore, exact credential lookup and byte ordering,
+NULL family fallback, delete row counts, wide integer timestamps and captured
+generations, mint binding persistence/collision rollback, worker isolation and
+markers, and trusted/untrusted diagnostics. SQL and legacy-fixture setup stay
+inside adapters. Diagnostics delegate to the same shared policy helper on both
+stores; the public SQLite entry point and refusal text are unchanged.
+
+Postgres adds four adapter witnesses: session/logout round trip, rejection of
+every transaction-level write without the existing serialized head fence,
+waiting for the head before invoking a mint callback, and installing missing
+identity tables at attach/reopen while preserving session rows and explicit
+C collations on lookup keys. The existing three shared authority tests run
+alongside them. Every database test is explicitly ignored with a named reason
+by the ordinary harness and requires `SNAPBACK4_EVAL_POSTGRES` when opted in;
+missing environment or connection failure cannot count as a pass.
+
+The new worker-marker case reproduced a real translation difference: SQLite
+LIKE removes ASCII-case variants of `worker:family:` and `worker:status:`;
+Postgres LIKE leaves them. Postgres now uses ILIKE on its C-collated metadata
+key for these fixed ASCII prefixes. The case covers both variant family rows
+and variant status keys. Other exercised differences are translated with
+ON CONFLICT DO NOTHING, COALESCE, LEAST, u64 delete counts and BIGINT facts.
+Postgres wraps convenience writes in head-fenced transactions; SQLite's
+pre-existing non-atomic convenience insert/logout primitives retain autocommit.
+Failure atomicity of those primitives is not a shared guarantee; rollback
+assertions exercise the explicit atomic composites and caller-owned transactions.
+
+The first full Postgres-adapter run reached 52 passes and one fixture failure
+in `reopening_legacy_maintained_ids_rebuilds_before_publishing_the_generation`.
+The fixture loads an existing `groups` row and calls `put` with no old row,
+requesting an INSERT and hitting its primary key before the actual reopen
+assertions. Those lines are identical in base `4736ac7f42`. Corrected the
+fixture to pass the captured old row to `put`; no row-store implementation or
+maintained-identity policy changed. The separate planted worker-LIKE
+regression failed as expected before its translation fix.
+
+The complete SQLite core suite passes (integration targets and doctests),
+followed by 30 final identity-filtered passes, including all fourteen shared
+cases. The store-port ratchet passes all five tests. The requested stock
+Clippy command reports the two known deny-by-default lints in `engine/read.rs`
+and `engine/row_views.rs`. A supplementary run allowing just those two lints
+reached the tests and exposed a new fixture-placement warning, fixed by moving
+the test-only implementations before their test module. No code suppressions
+were added. Final Postgres and lint results follow below.
+
+All 53 Postgres adapter tests pass on the private PostgreSQL 16.15 cluster,
+including eighteen identity tests and three authority tests, with zero skips.
+The exact fixture and worker-LIKE fixes both pass. The lint follow-up allowing
+only the two known errors completes; no warning points into the new adapter
+or shared-case/fixture additions. `ref-check --verbose` passes with zero errors/unchecked refs.
+
+The first complete feature-enabled core run stopped before executing
+`tests/dev_reset.rs`: my `cargo clean -p snapback4` (after the host ratchet
+passed) removed the core executable with that shared test-target name while
+the core run was executing earlier targets. This was an agent cleanup error,
+not a failed product test. Rebuilding and rerunning the complete command with
+no further artifact cleanup in flight; the private cluster was stopped by
+its own trap, and the retry starts a new owned cluster.
+
+The complete feature-enabled core retry passes every target and all seventeen
+doctests; its owned PostgreSQL 16.15 cluster stops successfully. The ordinary
+feature run names 48 database-required ignored tests; all are covered by the
+explicit adapter run (53 passed, 0 failed, 0 skipped, including its five
+non-database tests). No absent-database result was counted as a pass. The
+ordinary harness's other ignored tests are pre-existing opt-in measurements
+and scale fixtures, not identity exclusions. No identity outcome remains
+uncertain in the covered cases. Versioned internal migrations, the P1b owner
+fence and a Postgres authentication host remain the separately scoped work
+noted above. No push was performed.
+
+
+## 2026-10-20 — P1-ID fix round 1: review corrections
+
+The rebased branch builds with Postgres enabled. The separate evaluation
+lockfile still recorded the local crates at 0.4.0 and omitted core's libc
+dependency; the stock locked Postgres runner refused before running tests.
+Refreshed only those local package records to match 0.4.34. Its first owned
+private cluster stopped through the exit trap.
+
+Read-session insertion now probes for absent storage before table/index DDL.
+The shared missing-storage case still installs it on the first insert. A real
+two-connection witness holds an insert and the head open while a peer reads
+expiry and authority, then acquires a compatible relation writer lock.
+Attach validates existing identity columns, types, nullability, primary and
+unique keys, and C-collated lookup keys before DDL. Wrong-shaped principals,
+credentials, mint bindings (missing scope), and read sessions fail closed with
+E_STORE / SNAPBACK_IDENTITY_SCHEMA naming the table. No migration is invented.
+Read-rotation None explicitly rolls back, matching SQLite, and transaction
+fence failures name the particular identity/authority operation.
+
+Shared policy refuses U+0000 in storage-bound email, principal, kind, service
+name, invocation/intent and family inputs. This deliberately changes SQLite's
+prior acceptance of NUL strings; it is the lead's small parity ruling. The
+shared case expects E_AUTH/E_INPUT instead of E_STORE and verifies no new
+principal/credential or expiry sweep. Family values read from storage are
+validated before a later write; generated tokens/digests/hashes are NUL-free.
+
+Convenience-write failure atomicity remains outside the shared contract and
+is now explicit on both trait methods and in the RFC parity note. The shared
+duplicate-insert case pins the conflict and surviving original bearer without
+asserting SQLite/Postgres's divergent sweep/principal residue. SQLite's
+autocommit statement order is unchanged. The literal full scope in
+record_session_mint predates the slice (confirmed at ce6c0d87da); both adapters
+retain it as requested. Validation results follow when the checks finish.
+
+The duplicate-digest review premise differed from the code: rusqlite 0.40.2
+query_row takes the first row, so SQLite did not already reject a digest in
+both tables. Treating the requested shared refusal as the intended contract,
+SQLite now uses query_one for that authority lookup, and Postgres returns the
+same RuntimeError::Sql(QueryReturnedMoreThanOneRow). This is a second small
+SQLite behavior correction, separate from convenience-write atomicity, which
+is untouched. The shared collision case pins E_STORE, message, store family
+and retryability and verifies cleanup of both rows.
+
+The stock Postgres script then exposed another stale evaluation fixture: its
+device snapshot pages omitted the request after cursor, which the current
+device continuation fence requires. The fixture now echoes that cursor, as
+the ordinary sync wire does; no device or snapshot policy changed.
+
+
+### P1-ID fix round 1 — completed verification
+
+The stock Postgres script also found Clique's stale no-notes assertion. Its
+SQLite/memory counterpart already expects N_MAINTAIN_AUTHORIZATION for
+unreadFor. The Postgres factory now expects that same single note only for
+Clique; all other scenarios still require no notes. The focused read-through
+rerun passes all seven cases.
+
+Final requested checks:
+
+- cargo test -p snapback4-core: passes every target, including 17 doctests.
+  The final affected identity follow-up passes 34 tests, including the new
+  ambiguous-digest case added after the full run's build.
+- cargo test -p snapback4 --no-fail-fast: passes every target after the fresh
+  worktree's JS prerequisites were restored; the store-port ratchet passes
+  all five tests with no allowlist increases.
+- scripts/test-postgres.sh: 136 passed, 0 failed, 0 ignored: 58 evaluation
+  tests, 59 core adapter tests, and 19 corpus harness tests. All 24 identity
+  tests and the three shared authority cases execute successfully. Corpus
+  unsupported-case reasons remain explicit; none is an identity exclusion.
+  The outer runner's owned private cluster /tmp/sb4-p1-fix.aM6TCi stops
+  successfully; its postmaster.pid is absent, as are those of all earlier
+  clusters started for this round.
+- The exact requested Clippy command reaches the two inherited default-deny
+  errors in engine/read.rs and engine/row_views.rs. Allowing just those
+  exposes three inherited not_unsafe_ptr_arg_deref errors in device/ffi.rs.
+  A follow-up allowing only those three lint classes completes. One new test
+  err_expect warning was fixed; the final run has no new warnings in this
+  change. No source suppressions were added.
+- Root ref-check passes: 564 LLP docs, 11,509 refs, 0 errors, 0 unchecked.
+
+Host prerequisite details: bun install --frozen-lockfile supplies the missing
+TypeScript dependency. The SDK TypeScript invocation emits the client JS
+needed by witness_web, though its full package build still reports missing
+generated wasm inputs; no package qualification is claimed. The full host
+rerun and final focused witness_web test both pass. An extra focused host
+build after the two Cargo workspaces shared this target directory exposed
+reused device artifacts with incompatible crate identities. After all full
+suites had finished, cleaning only this worktree's snapback4-device artifacts
+and rebuilding makes that focused test pass (1 passed, 0 failed, 0 ignored).
+This cleanup did not run during any test suite and touched no other lane.
+
+The RFC retains its single Revised line with P1-ID fix round 1 prepended.
+All corrections are new commits above d46f2a4ea5; the three rebased lane
+commits are unchanged. No push was performed.
+
+### 2026-10-21 — P1-ID fix round 2
+
+Continued the rebased sb4-pg/p1-identity lane above e2fc359151; built with
+snapback4-core/postgres before editing. Governing context: LLP 3000's fence,
+LLP 3000.009.001.000 §3.3 and §9.1 (current working set), and LLP 3000.033
+§1.3's legacy authority and lazy SQLite storage guarantees. No new design
+LLP, host wiring, owner-fence protocol or publication claim is introduced.
+
+New identity admission refuses NUL; stored SQLite identities remain exact
+through lookup/sign-in, full/read rotation, narrowing, family logout,
+worker-family retirement and principal-wide revoke/logout-all. The direct
+SQLite legacy fixtures seed a NUL principal, kind and family, authenticate
+it, revoke both scopes, check the generation advances twice, and prove the
+bearers no longer authenticate. The shared NUL test still pins pre-write
+refusal and now names the malformed worker principal; a bound-mint entry
+point test proves it refuses before sampling the clock.
+
+Attach rejects deferrable primary/unique constraints, extra UNIQUE
+constraints/standalone indexes, an incorrect scope default, and wrong-shaped
+same-name identity indexes. The drift fixture covers each category. Required
+index checks include table, keys, uniqueness, collation, direction, access
+method, predicate and included columns. Missing indexes are attach work.
+
+| §9.1 rule | Identity disposition and witness |
+| --- | --- |
+| 1 NUL | Fixed at admission boundaries; shared_nul_inputs_refused and legacy_nul_* SQLite fixtures. |
+| 2 total LIMIT ordering | Fixed: expiry DESC, digest ASC, scope ASC; shared_latest_family_ties includes reverse insertion and a cross-table digest tie. Claimed-session work lookup also orders by unique request id. |
+| 3 explicit projections | Compliant: no SELECT * in identity/authority statements on either adapter. |
+| 4 terminal statement errors | Compliant: atomic adapter errors abandon/roll back; principal insert-ignore expresses its conflict in SQL. Existing convenience-write atomicity exception remains explicit. |
+| 5 typed arguments/counts | Compliant: scalar text/integer inputs and optional family/generation pair; deletion counts u64; only fixed LIMIT 1, no signed caller limit or JSON-parsed list. |
+| 6 attach DDL | Fixed on Postgres: missing storage requires reattach; identity_missing_read_storage_requires_reattach_without_writer_ddl. SQLite retains first read mint and first bound-mint installation under LLP 3000.033 §1.3; changing it would change missing-table/refused-open schema behavior. Its existing-table read inserts now skip DDL. |
+| 7 adapter race | Fixed: identity_rotation_races_revoke_through_the_head_fence holds the adapter rotation callback at a barrier until a catalog observer proves the peer adapter revoke is blocked by that connection's head fence. Final deletion count, generation and both bearer absences equal SQLite's rotation-then-revoke order. |
+
+The four SQLite shared rotation-refusal tests now observe ROLLBACK with the
+authorizer, distinguishing it from an empty COMMIT without production
+instrumentation. Corrected the RFC's convenience-deletion note:
+close_identity_session has two autocommit deletes, but public logout_session
+invalidates its family in one IMMEDIATE transaction. The RFC keeps one
+Revised line, with P1-ID fix round 2 prepended. Final verification follows.
+
+### 2026-10-21 — P1-ID fix round 2 verification
+
+Fix commit: bd5018abc4. All work stayed in this worktree, with no additional
+worker, clone, remote-machine command, stash or push. The five rebased lane
+commits remain intact. Every Cargo invocation used the supplied target,
+incremental/debug settings and at most 24 build jobs.
+
+- Build first: cargo build --features snapback4-core/postgres passes.
+- cargo test -p snapback4-core passes every target, including all 17
+  doctests. The new legacy SQLite fixtures and shared NUL, family-tie and
+  rollback-versus-empty-commit witnesses pass.
+- cargo test -p snapback4 --no-fail-fast passes every target. All five
+  store-port ratchet tests pass; neither allowlist changed. No test failure
+  needs an exemption against main 6db797f530.
+- The unmodified full scripts/test-postgres.sh run passes: 138 passed,
+  0 failed, 0 ignored (58 evaluation, 61 core adapter, 19 corpus tests).
+  Both the barrier race and all incompatible attach fixtures execute and
+  pass. The only cluster started for this round was
+  /tmp/sb4-pg-eval.HfNOJx. Its cleanup completed, and an independent pg_ctl
+  status returned 3 (no server running); data/postmaster.pid is absent.
+- The requested Clippy command still fails on the inherited
+  while_immutable_condition in engine/read.rs:780 and never_loop in
+  engine/row_views.rs:1010. Those files and device/ffi.rs are unchanged
+  from 6db797f530. A full follow-up allowing only those two known lint
+  classes and the previously recorded not_unsafe_ptr_arg_deref class
+  completes with no new warnings in the changed code. No source lint
+  suppressions were added.
+- Root ref-check passes: 564 LLP documents, 11,511 references, 0 errors,
+  0 unchecked. The RFC still has exactly one Revised line.
+
+The required behaviors have witnesses on the relevant stores; no identity
+fix remains deferred. PostgreSQL host wiring, the internal migration runner
+and the owner lease fence remain outside this lane, as before. The retained
+SQLite lazy-install exception is a deliberate LLP 3000.033 compatibility
+constraint, not a new Postgres per-operation DDL path.
+## 2026-10-20 — P1-RQ task 1: Postgres request access
+
+Single-worker local lane `sb4-pg/p1-requests`, based on mirror
+`d6545aaf59`. The scoped orientation is LLP 3000 decision 4 (explicitly
+commissioned core lane), LLP 3000.009.001.000 §§3, 4.1, 9–10, the actions
+guide card, the shared request contract and the SQLite statements. The local
+`llp-orient` symlink has no installed target, so these constraints were read
+directly. No other machine, checkout, sub-agent, stash or push is used.
+
+`engine/postgres/requests.rs` implements all request access: insert/read,
+release metadata, due/expired selection, claim, retry, authority failure,
+settlement, cancellation, counts and the finish operation used by shared
+step parking. All writes require the existing serialized head fence, reused
+from the authority adapter. Claim selection and mutation stay in the same
+writer transaction; authority, lease limits and transitions remain shared
+Rust policy. No owner-fence scheme or public Postgres action API is added.
+
+Attach probes optional request columns and only alters missing ones under
+its existing head lock. `_meta` carries the same optional `release` key as
+SQLite; until the release adapter populates it, lookup returns None.
+Postgres BIGINT attempts are checked when converting to the public u32;
+optional query parameters are explicitly typed. The counts trait accepts a
+mutable receiver for Postgres's synchronous client, while SQLite implements
+it for a shared Store reference to retain `Engine::action_counts(&self)`.
+
+`cargo check -p snapback4-core --features postgres` passes. Task 2 will run
+the shared cases on both stores, including real database races and all
+requested final checks. This is adapter-family coverage only; public
+Postgres actions/routes and the other work families remain later slices.
+
+## 2026-10-20 — P1-RQ task 2: one request contract, two adapters
+
+Task 1 is local commit `95f897f659897316f7cfb780dc7362daec88a7fa`.
+The original SQLite request tests pass (2/2). The shared finish case now
+accepts a harness-provided delegated credential: SQLite still creates it
+through `identity::action_session`, while Postgres seeds the same facts
+without implementing or modifying the parallel identity lane.
+
+The shared cases exercise finish and credential revocation, settlement fence
+clearing, due ordering/name restrictions, rollback, legacy NULL columns and
+incomplete authority, JSON null versus absent result, signed-64-bit times,
+attempts across the i32 boundary and up to u32::MAX, rejection of negative or
+out-of-range attempts, missing-ID update no-ops, cancellation idempotence,
+native affected-row counts, and the production authority/lease functions.
+Both adapters also race two connections after both have observed the same
+candidate. They reselect under their ordinary writer fence: exactly one
+claim wins, its attempt is one, a separate competing conditional UPDATE
+reports affected counts [0, 1], and stale conditional updates cannot overwrite
+the claimed request. SQLite checks execute's count against changes();
+Postgres checks the actual RETURNING rows.
+
+Postgres adds witnesses for every request write rejecting read-only and
+unfenced serializable transactions, finish/session invalidation rolling back
+together, repeatable-read snapshots, durable reopen, upgrade of all optional
+columns on predecessor rows, absent/populated release metadata, and reopening
+while a reader holds a request-table lock. The ten request tests pass on an
+owned socket-only PostgreSQL 16.15 cluster: 10 passed, zero skipped. The seven
+SQLite request tests pass. After strengthening the concurrent conditional
+update assertions, both adapter race tests pass again (2 passed, zero skipped).
+No request outcome difference was found. Postgres uses BOOLEAN/BIGINT and
+RETURNING where SQLite uses integer booleans/dynamic integers and changes();
+the typed observations agree. Public Postgres action/route host wiring, action
+step storage and the later owner fence remain outside this request-only lane.
+
+Without explicit enablement the ten Postgres request tests are named ignored
+cases: `SKIP_POSTGRES_REQUESTS_DATABASE: requires private
+SNAPBACK4_EVAL_POSTGRES`. Enabling them without that environment fails with
+the same named diagnostic; missing database access never counts as a pass.
+
+The corpus run against the private cluster reports SQLite 210 passed / 85
+skipped and Postgres 207 passed / 88 skipped, zero disagreements. The Postgres
+skip census is: `legacy-asset-record` 10, `legacy-asset-upload` 15,
+`legacy-delivery` 19, `legacy-null-point` 2, `legacy-word-search` 7,
+`postgres-unsupported-capability` 3, `receipt-authority` 14,
+`receipt-coverage` 15, `receipt-replacement` 1,
+`shared-effect-id-supply` 1, `static-resource-price` 1. These named skips
+remain outside the request-family parity claim.
+
+The complete required `cargo test -p snapback4-core` and `cargo test -p
+snapback4-core --features postgres` both pass, including integration targets
+and doctests. The ordinary feature run keeps 43 database-dependent unit tests
+ignored; these are exercised separately with explicit enablement. The
+strengthened race assertions were added while the full runs were in progress
+and separately passed on both adapters afterward; product code did not change.
+The ratchet passes (5 tests), and `ref-check --verbose` passes with zero errors
+and zero unchecked references.
+
+The enabled Postgres module run executes 45 tests: 44 pass (including all ten
+request tests), zero skip, one fails. The failing existing case is
+`reopening_legacy_maintained_ids_rebuilds_before_publishing_the_generation`
+at `engine/postgres/tests.rs:123`, with SQLSTATE 23505: the fixture calls
+`tx.put("groups", ..., None)` for the `groups/group` row it already seeded.
+The group insertion implementation and this test body are unchanged by the
+request lane. A same-checkout base reproduction is being checked before the
+final report; this failure is not counted as a pass or silently excluded.
+
+The required Clippy command stops at the two acknowledged baseline errors
+(`while_immutable_condition`, `engine/read.rs:780`; `never_loop`,
+`engine/row_views.rs:1010`). No new library errors are reported. A diagnostic
+run allowing only those two lints will check the test code as well; no source
+suppression is added. The private cluster was stopped by the runner's owned
+cleanup trap. No push was made.
+
+Final audit: the maintained-ID failure is already tracked in
+[`20261017-snapback4-postgres-legacy-maintained-id-fixture-inserts-existing-group.md`](../issues/20261017-snapback4-postgres-legacy-maintained-id-fixture-inserts-existing-group.md),
+including a prior base reproduction. Comparing this lane against mirror base
+`d6545aaf594fb1c82482311e599ba7b4d8b0dc00` confirms the entire failing test
+body and `Rows::put` implementation are byte-for-byte identical. That existing
+base witness plus the unchanged source settles attribution; no additional
+checkout or base build was needed, and the unrelated fixture is unchanged.
+
+Clarification of the ordinary feature-run count above: its 43 ignored unit
+tests comprise 40 database-dependent cases and three native measurements,
+not 43 database cases. All 40 database cases were enabled in the separate
+45-test Postgres module run (five static tests plus 40 database tests).
+That run's final result remains 44 passed, one inherited fixture failure,
+zero skipped; all ten request cases passed. The ordinary full core runs also
+retain the existing ignored `m7_to_m8` scale fixture.
+
+The diagnostic Clippy run with only the two acknowledged lints allowed
+passes through library and test checking. Neither request adapter, the shared
+request cases nor the new Postgres request tests receive a diagnostic. The
+unchanged action policy retains its existing warnings. No source lint
+suppression was added. Final disk space is 79 GB free, well above the stop
+threshold. The owned private cluster is stopped. No request behavior or
+scope uncertainty remains within the tested contract; the known expanded
+fixture failure is the only failing product-test command. No push.
+
+
+## 2026-10-21 — P1-RQ fix round 1: request adapter parity
+
+Worked only in `sb4-pg-p1rq` on `sb4-pg/p1-requests`, after the lead's rebase
+of `85ecdaa750` and `0a536ea982` onto `6db797f530`. The initial `cargo build
+-j 24` passed; the rebase needed no build repair. Read the new store-port
+RFC §9.1 first and applied its seven rules to the requests family.
+
+Both adapters now order bounded expiry by `at, id`; `due_requests` already
+had that total order, and these are every LIMIT in the two request adapters.
+The shared mixed deadline/lease case pins both the chosen subset and the
+resulting terminal failure/requeue. Postgres request reads have explicit
+columns, with a witness that caches both reads on A, adds a column on B,
+and reuses A without reopening it. Name sets are typed slices; dialect
+encoding lives in the adapters. Unsigned limits saturate at `i64::MAX`,
+preserving the previous full-pass bound.
+
+Shared diagnostic policy replaces NUL before the existing 2,000-character
+settlement truncation. Shared cases cover terminal/retry failure, refusal,
+park, authority failure, acknowledged route refusal and escaped JSON args
+and results. Shared validation refuses NUL in all request names/ids,
+principals, authority families, worker/session keys and the remaining plain
+text bindings before storage. SQLite behavior changes are limited to these
+rule-1 NUL refusals/replacements and rule-2 bounded-expiry subset ordering.
+Other strings retain their existing limits and handling.
+
+The request trait now states that an adapter error ends its transaction.
+All production insert callers propagate it: action admission, route admission
+and scheduled actions. The duplicate-insert case rolls back then checks the
+absence of the earlier write and successful reuse from a new transaction.
+Postgres out-of-range attempts now report the same legacy Sql variant as
+SQLite; invalid-row tests roll back immediately after that adapter error.
+
+The previous claim race could pass sequentially. Its replacement starts
+both transactions before either takes a fence and uses the adapter's actual
+selection/claim. A second rendezvous keeps the first fence held as the other
+connection approaches it. SQLite splits BEGIN from writer reservation in a
+test-only seam, before any snapshot read; its production path is unchanged.
+Expiry/settlement runs with both fence orders and compares the complete final
+request with the ordinary serial SQLite outcome, including session revocation.
+No harness SQL performs either competing transition.
+
+Validation results will be appended after the required commands complete.
+No push is authorized or made; every private cluster started by this lane
+is stopped by its owning runner.
+
+
+The first required Postgres runner attempt could not resolve its locked
+experiment graph: it still named the local packages as 0.4.0 and omitted
+the core's libc dependency. Commit `2825bf5b7f` repairs only those local
+entries. After the experiment's device fixture stopped the original runner
+before request tests, the runner was changed to collect failure status across
+all three stages and still return nonzero. `bash -n scripts/test-postgres.sh`
+passes. This preserves every failure while ensuring every family test executes.
+
+The final serial Postgres script run (`/tmp/p1rq-postgres-verified.log`)
+reports experiment conformance **18 passed / 0 failed / 0 ignored**; the
+unchanged device snapshot fixture **0 / 1 / 0**; the full Postgres module
+**51 / 1 / 0**; and the corpus **19 / 0 / 0**. All **17 gated requests
+cases passed, 0 failed, 0 ignored**. The module's only red is the previously
+tracked maintained-ID duplicate insert:
+[`20261017-snapback4-postgres-legacy-maintained-id-fixture-inserts-existing-group.md`](../issues/20261017-snapback4-postgres-legacy-maintained-id-fixture-inserts-existing-group.md).
+The device fixture omits `after` on snapshot continuations and is recorded in
+[`20261021-snapback4-postgres-device-fixture-omits-snapshot-continuation.md`](../issues/20261021-snapback4-postgres-device-fixture-omits-snapshot-continuation.md).
+Its fixture and the device/Postgres snapshot implementation are unchanged from
+`6db797f530`; there was no separate base build for that observation.
+
+An intermediate mixed-workspace artifact mismatch disappeared after cleaning
+only this target's device package and running the Postgres script serially.
+That cleanup removed a pending executable from an already-running core test
+command, so that interrupted command is not counted as a passing full run;
+the complete core command was restarted after Postgres finished. All four
+private cluster attempts have stopped via their own cleanup traps.
+
+The store-port ratchet passes all five tests without raising or changing an
+allowlist. The required Clippy command reports only the two acknowledged
+baseline errors (`while_immutable_condition`, `engine/read.rs:780`, and
+`never_loop`, `engine/row_views.rs:1010`). A diagnostic run allowing only
+those two lints passes library and test checking, with no source suppression.
+`./ref-check` passes: 564 LLP documents, 11,514 references, zero errors and
+zero unchecked. The RFC retains one Revised line with this round prepended.
+
+
+Final verification: the restarted `cargo test -j 24 -p snapback4-core`
+completed successfully, including every integration binary and the doctests
+(`/tmp/p1rq-core-verified.log`). There were zero failures and five existing
+opt-in ignored tests (three unit measurements, `m7_to_m8`, `measure_history`).
+Its unit suite is 468 passed / 0 failed / 3 ignored. The final exact Clippy
+command again reports only the two acknowledged baseline errors; the final
+diagnostic run allowing only those two lints exits zero and reports no
+request-adapter or request-case warning (`/tmp/p1rq-clippy-verified.log`,
+`/tmp/p1rq-clippy-diagnostic-verified.log`). The final root `./ref-check`
+recheck passes with zero errors and zero unchecked references. The full
+Postgres script remains red on the two unrelated fixtures recorded above;
+no request test is failed or ignored. All four owned cluster directories
+have no `postmaster.pid`. Final observed disk availability is 113 GB.
+No push was made, and the two rebased commits were not rewritten.
+
+
+## 2026-10-21 — P1-RQ fix round 2: admission-only validation and observed contention
+
+The rebased lane builds with Postgres enabled; both attach families and all
+operation-named fence calls compile without repair. Request text validation
+now runs at new admission only. Both adapters and shared finish/settlement,
+replay and claim selection preserve existing keys. Five SQLite regressions
+seed `job\0one` and a NUL operation name directly, covering deadline and
+lease expiry (including exhausted attempts), an oldest-row claim with a
+healthy row behind it, done/refused/retry settlement, cancellation, replay
+and authority failure. Their existing outcomes and credential invalidation
+remain pinned; new request admission still refuses NUL.
+
+`store::test_race::FenceRace` replaces the request-specific barriers. Both
+adapter transactions BEGIN before the holder fences; the holder releases
+only after the contender's SQLite busy handler has fired or Postgres reports
+the holder in `pg_blocking_pids(contender)`. Postgres also verifies the
+waiting statement is the ordinary head fence. Claim and both expiry/settle
+orders use this helper on both stores. Unfenced-contender negative controls
+must time out with "contender never blocked" on each store.
+
+Focused validation: the Postgres-enabled SQLite store suite passes
+223/0/0, including the legacy request cases, both request race tests and
+the SQLite negative control. The gated Postgres cases are compiled; the
+full private-cluster run and required final checks follow. No ratchet
+allowlist changed and no push was made.
+
+
+## 2026-10-21 — P1-RQ fix round 2: share the identity fence witness
+
+P1-ID's landed rotation-versus-revocation case already observed its peer in
+`pg_blocking_pids` before allowing the holder to commit, so it did not have
+the request tests' serial-scheduling gap. In this separate commit it reuses
+`FenceRace` and adds the same after-BEGIN rendezvous. One-shot, thread-local
+test hooks coordinate the composite `IdentityStore` operations without
+replacing them with harness writes. The shared helper preserves the physical
+blocker and waiting-head-statement assertions; the resulting rotation/revoke
+state still compares against SQLite's witnessed serial order. The hook is
+compiled only for unit tests and leaves production transactions unchanged.
+Final required checks are recorded below when complete. No push is made.
+
+
+Final verification for P1-RQ fix round 2:
+
+- `cargo test -p snapback4-core` passes through every integration binary and
+  doctest. Unit suite: 495 passed, 0 failed, 3 ignored; five existing opt-in
+  tests are ignored across the full command. Log: `/tmp/p1rq-r2-core.log`.
+- `cargo test -p snapback4 --test store_port_ratchet --test committer_ratchet`
+  passes: 5 store-port and 3 committer tests, zero failures or ignores. Neither
+  allowlist changed. Log: `/tmp/p1rq-r2-ratchets.log`.
+- The complete `scripts/test-postgres.sh` exits zero: experiments 58/0/0,
+  core Postgres module 79/0/0, corpus test binary 19/0/0 (passed/failed/ignored),
+  totaling 156/0/0. The internal Postgres corpus has 207 passed and 88
+  explicitly skipped cases; SQLite's corpus has 210 passed, 85 skipped and
+  zero failed. Log: `/tmp/p1rq-r2-postgres.log`.
+- Both unfenced-contender negative controls pass by waiting at least their
+  100 ms bound and asserting "contender never blocked on the holder's fence".
+  The positive claim and both expiry/settlement orders pass on both stores;
+  `identity_rotation_races_revoke_through_the_head_fence` also passes.
+- The previously recorded
+  `reopening_legacy_maintained_ids_rebuilds_before_publishing_the_generation`
+  failure does not remain: it passes. The experiment's device snapshot fixture
+  passes too; neither recorded fixture is red in this run.
+- The exact `cargo clippy -p snapback4-core --features postgres --tests`
+  reports only the two acknowledged baseline errors: `while_immutable_condition`
+  at `engine/read.rs:780` and `never_loop` at `engine/row_views.rs:1013`.
+  A diagnostic run allowing only those lints passes library and test checking,
+  with no warning in the new helper or request regression files and no source
+  suppression. Logs: `/tmp/p1rq-r2-clippy.log` and
+  `/tmp/p1rq-r2-clippy-diagnostic.log`.
+- Root `./ref-check` passes: 564 LLP documents, 11,521 references, zero errors
+  and zero unchecked. Log: `/tmp/p1rq-r2-refcheck.log`. The RFC retains its
+  single Revised line, with this round prepended.
+
+Cargo used this worktree's target, incremental compilation disabled,
+`line-tables-only` dev/test debug information and at most 24 build jobs.
+Exactly one private Postgres cluster was started:
+`/tmp/sb4-pg-eval.bVtGOc/data`. Its script cleanup stopped it; an independent
+`pg_ctl status` returned 3 (no server running), and `postmaster.pid` is absent.
+No push was made and no pre-existing lane commit was rewritten.
+
+
+## 2026-10-21 — K0b: member savepoints and explicit disposition
+
+The reference committer owns the original fenced `BEGIN IMMEDIATE` transaction.
+Its body receives a borrowing `MemberTx` under `SAVEPOINT member`, retaining the
+existing Tx surface through dereference. `commit(value)` releases only that
+savepoint and selects Complete; `rollback(value)` selects Abort and rolls back
+that frame. Normal early returns select Abort, and facade drop rolls back the
+frame. Only the committer physically commits; Abort/error drops its owning Tx
+and rolls back. Activation and Following keep the explicitly administrative
+`run_solo` / `Solo::open_solo_with` path with their original shared transaction.
+
+Mutation replay and input/asset refusals, empty job/timeline/view attempts, and
+errors discard every provisional write, including the clock and metadata pins.
+Program refusals retain their original receipt commit after `program` rollback;
+job/timeline parking, private row-view chunks, clock-only/stale publication,
+expiry, seed/deletion, load/restore, orphan repair, reset and the smoke barrier
+retain their original commit points. All string literal multisets (including
+SQL and error text) match the base in the nine changed producer/adapter files.
+No host metadata caller, Postgres implementation or census allowance changes.
+
+Job status reads, expiry continuation and its follow-on publication, and
+timeline rotation run after the driver's physical COMMIT. Mutation's entropy
+assignment also moves behind COMMIT; the current runner never mutates that
+field, so its value is unchanged. Reset acknowledges only a Complete physical
+commit. Activation's existing hooks and all downstream engine hooks still run
+after COMMIT, including catalog/identity acceptance, narration, expiry state
+clearing and ephemeral rebind. A sweep's fallible follow-on can still start its
+own transaction and report failure after the sweep has durably committed.
+
+Four SQLite witnesses beside the adapter cover two members in one physical
+transaction, with member 1 completing and member 2 rolling back, dropping or
+erroring; member 1 survives and member 2's writes and clock do not. Every nested
+frame name is exercised, including lazy sequence-table rollback and member-local
+change recording. Other cases distinguish normal Ok/Abort from Complete,
+exercise a follow-on writer after COMMIT, and inject a deferred constraint
+failure after successful savepoint release: no acknowledgement or hook runs.
+The two solo hook tests remain. There is no production batching, continuation
+protocol, queue or retry in this slice.
+
+The required binary build and complete core run pass, including integrations
+and all 17 doctests. The six final seam tests pass. The complete host run
+executes every target with exactly the three expected inherited failures:
+`w11r1c_toolchain_why_explains_node_start_failure_too` and
+`farm2_typescript_7_is_refused_by_version_not_crashed_on` need TypeScript;
+`web_witness_help_and_invalid_input` needs the built client JS. Both ratchets
+pass with unchanged allowances (49 production openers; seven production and
+95 test store-port sites). No allowance was raised or raise override used.
+
+The required Clippy run retains the two errors reproduced at `94a91c9294` in
+a second local detached worktree: `while_immutable_condition` in
+`engine/read.rs` and `never_loop` in `engine/row_views.rs`. There are no new
+warning sites/categories; redundant facade dereferences were removed. The
+inherited native-helper argument-count lint falls from ten bindings to nine,
+and its redundant Ok/question-mark lint disappears. No inherited lint was
+suppressed or repaired. `ref-check` and `git diff --check` pass. Commands used
+the supplied Cargo target, incremental-off and line-table debug settings, with
+at most `-j 32`. No sub-agent, clone, remote machine, stash, push or
+`scripts/test.sh` was used. Continuations and batching remain later K0 slices;
+there is no unresolved functional concern from this slice.

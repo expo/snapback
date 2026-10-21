@@ -1,0 +1,12 @@
+# LLP 3000.009.001.000.000 §9 K0a; production matching source lines; paths relative to snapback4/
+crates/snapback4-core/src/engine/actions.rs 9
+crates/snapback4-core/src/engine/actions/steps.rs 3
+crates/snapback4-core/src/engine/asset_uploads.rs 11
+crates/snapback4-core/src/engine/effect_steps.rs 3
+crates/snapback4-core/src/engine/effects.rs 11
+crates/snapback4-core/src/engine/job.rs 2
+crates/snapback4-core/src/engine/mod.rs 1
+crates/snapback4-core/src/engine/routes.rs 2
+crates/snapback4-core/src/identity.rs 5
+crates/snapback4-core/src/identity/read_sessions.rs 1
+crates/snapback4/src/dev_replay.rs 1

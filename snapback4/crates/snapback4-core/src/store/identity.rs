@@ -71,7 +71,7 @@ pub(super) fn present(conn: &Connection) -> Result<bool, RuntimeError> {
     Ok(conn.prepare_cached("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type = 'table' AND name = '_read_sessions')")?.query_row([], |r| r.get(0))?)
 }
 
-// @ref LLP 3000.033#1.3 — separate storage and captured generations prevent downgrade resurrection.
+// @ref LLP 3000.033#1.3 — first mint installs storage; opening and refused operations preserve its absence.
 fn initialize_read(conn: &Connection) -> Result<(), RuntimeError> {
     conn.execute_batch("CREATE TABLE IF NOT EXISTS _read_sessions (
         token_digest TEXT PRIMARY KEY, principal TEXT NOT NULL, kind TEXT NOT NULL,
@@ -97,7 +97,7 @@ fn insert_read(
     now: i64,
     family: Option<(&str, i64)>,
 ) -> Result<(), RuntimeError> {
-    initialize_read(conn)?;
+    if !present(conn)? { initialize_read(conn)?; }
     let digest = digest(&session.token);
     let generation: i64 = match family {
         Some((_, generation)) => generation,
@@ -296,7 +296,7 @@ impl IdentityStore for Store {
         &self,
         digest: &str,
         now: i64,
-        mint: impl FnOnce(&ReadRotationRecord) -> Result<Session, RuntimeError>,
+        mint: impl FnOnce(&ReadRotationRecord) -> Result<Option<Session>, RuntimeError>,
     ) -> Result<Option<Session>, RuntimeError> {
         let tx = rusqlite::Transaction::new_unchecked(
             &self.conn,
@@ -306,14 +306,14 @@ impl IdentityStore for Store {
             return Ok(None);
         }
         let found = tx.query_row(
-            "SELECT principal, kind, family, cap_expires_at, principal_generation FROM _read_sessions r
-         WHERE token_digest = ?1 AND expires_at > ?2 AND cap_expires_at > ?2
-         AND principal_generation >= COALESCE((SELECT generation FROM _principal_generations WHERE principal = r.principal), 0)",
-            params![digest, now], |r| Ok(ReadRotationRecord { principal: r.get(0)?, kind: r.get(1)?, family: r.get(2)?, cap: r.get(3)?, generation: r.get(4)? })).optional()?;
+            "SELECT principal, kind, family, expires_at, cap_expires_at, principal_generation,
+         COALESCE((SELECT generation FROM _principal_generations WHERE principal = r.principal), 0)
+         FROM _read_sessions r WHERE token_digest = ?1",
+            params![digest], |r| Ok(ReadRotationRecord { principal: r.get(0)?, kind: r.get(1)?, family: r.get(2)?, expires_at: r.get(3)?, cap_expires_at: r.get(4)?, principal_generation: r.get(5)?, current_generation: r.get(6)? })).optional()?;
         let Some(record) = found else {
             return Ok(None);
         };
-        let session = mint(&record)?;
+        let Some(session) = mint(&record)? else { return Ok(None); };
         tx.execute(
             "DELETE FROM _read_sessions WHERE family = ?1 AND principal = ?2",
             params![record.family, record.principal],
@@ -322,7 +322,7 @@ impl IdentityStore for Store {
             &tx,
             &session,
             now,
-            Some((&record.family, record.generation)),
+            Some((&record.family, record.principal_generation)),
         )?;
         tx.commit()?;
         Ok(Some(session))
@@ -434,9 +434,134 @@ impl IdentityStore for Store {
 }
 
 #[cfg(test)]
+impl crate::identity::test_cases::RotationFixture for Store {
+    fn seed_read_family(&self, session: &Session, generation: i64) {
+        insert_read(&self.conn, session, 1_000, Some((&digest(&session.token), generation))).unwrap();
+    }
+    fn drop_read_sessions(&self) {
+        self.conn.execute_batch("DROP TABLE IF EXISTS _read_sessions").unwrap();
+    }
+    fn read_sessions_present(&self) -> bool { present(&self.conn).unwrap() }
+}
+
+#[cfg(test)]
+impl crate::identity::test_cases::IdentityFixture for Store {
+    type Transaction<'a> = Tx<'a>;
+    fn with_identity_tx<T>(&self, run: impl FnOnce(&Tx<'_>) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
+        let tx = self.authority_transaction()?;
+        let result = run(&tx)?;
+        tx.commit()?;
+        Ok(result)
+    }
+    fn principal_facts(&self, principal: &str) -> Option<(String, Option<String>, i64)> {
+        self.conn.query_row("SELECT kind,name,created_at FROM _principals WHERE id = ?1", [principal], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).optional().unwrap()
+    }
+    fn principal_ids(&self) -> Vec<String> {
+        self.conn.prepare("SELECT id FROM _principals ORDER BY id").unwrap().query_map([], |r| r.get(0)).unwrap().collect::<Result<_, _>>().unwrap()
+    }
+    fn null_full_family(&self, digest: &str) {
+        self.conn.execute("UPDATE _sessions SET family = NULL WHERE token_digest = ?1", [digest]).unwrap();
+    }
+    fn set_worker_meta(&self, key: &str, value: &str) { self.set_meta(key, value).unwrap(); }
+    fn worker_meta(&self, key: &str) -> Option<String> { self.meta(key).unwrap() }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::identity::test_cases;
+
+    #[test]
+    fn shared_digest_in_both_session_tables_refused() {
+        test_cases::assert_digest_in_both_session_tables_refused(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_nul_inputs_refused() {
+        test_cases::assert_nul_inputs_refused(&Store::memory().unwrap());
+    }
+    #[test]
+    fn shared_convenience_insert_conflict() {
+        test_cases::assert_convenience_insert_conflict(&Store::memory().unwrap());
+    }
+    #[test]
+    fn shared_missing_read_storage_created_on_insert() {
+        test_cases::assert_missing_read_storage_created_on_insert(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_read_rotation_expired_refusal() {
+        refusal_rolls_back(test_cases::RotationRefusal::Expired);
+    }
+    #[test]
+    fn shared_read_rotation_cap_expired_refusal() {
+        refusal_rolls_back(test_cases::RotationRefusal::CapExpired);
+    }
+    #[test]
+    fn shared_read_rotation_stale_generation_refusal() {
+        refusal_rolls_back(test_cases::RotationRefusal::StaleGeneration);
+    }
+    #[test]
+    fn shared_read_rotation_missing_table_refusal() {
+        refusal_rolls_back(test_cases::RotationRefusal::MissingTable);
+    }
+
+    #[test]
+    fn shared_diagnostics() {
+        test_cases::assert_diagnostics(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_latest_family_ties() {
+        test_cases::assert_latest_family_ties(&Store::memory().unwrap());
+    }
+
+    fn refusal_rolls_back(refusal: test_cases::RotationRefusal) {
+        use rusqlite::hooks::{AuthAction, AuthContext, Authorization, TransactionOperation};
+        use std::sync::{Arc, Mutex};
+        let store = Store::memory().unwrap();
+        let endings = Arc::new(Mutex::new(Vec::new()));
+        let observed = endings.clone();
+        store.conn.authorizer(Some(move |ctx: AuthContext<'_>| {
+            if let AuthAction::Transaction { operation } = ctx.action {
+                observed.lock().unwrap().push(operation);
+            }
+            Authorization::Allow
+        })).unwrap();
+        test_cases::assert_read_rotation_refusal(&store, refusal);
+        assert_eq!(endings.lock().unwrap().last(), Some(&TransactionOperation::Rollback),
+            "a refused rotation must ROLLBACK, including an unchanged transaction");
+    }
+
+    #[test]
+    fn shared_transaction_contract() {
+        test_cases::assert_transaction_contract(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_mint_bindings() {
+        test_cases::assert_mint_bindings(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_conflicts_and_collation() {
+        test_cases::assert_conflicts_and_collation(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_nulls_counts_and_timestamps() {
+        test_cases::assert_nulls_counts_and_timestamps(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_read_family_isolation() {
+        test_cases::assert_read_family_isolation(&Store::memory().unwrap());
+    }
+
+    #[test]
+    fn shared_worker_markers() {
+        test_cases::assert_worker_markers(&Store::memory().unwrap());
+    }
 
     #[test]
     fn shared_refresh_rollback_cases_run_on_sqlite() {
@@ -453,3 +578,6 @@ mod tests {
         test_cases::assert_worker_families(&Store::memory().unwrap());
     }
 }
+
+#[cfg(test)]
+mod legacy_tests;

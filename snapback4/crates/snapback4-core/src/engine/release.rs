@@ -102,7 +102,7 @@ impl Engine {
             allow_feed_adoption,
             None,
             None,
-        )?;
+        )?.into_inner();
         store.exclude_ephemeral(&schema);
         Ok(Self {
             timeline_schedule: timeline::Schedule::default(),
@@ -145,7 +145,7 @@ impl Engine {
         prepare(&mut schema)?;
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         drop(self.ephemeral.lock()?);
-        let (generation, metadata) = Self::activate(
+        let committed = Self::activate(
             &mut self.store,
             &schema,
             &programs,
@@ -155,16 +155,18 @@ impl Engine {
             None,
             None,
         )?;
-        self.store.exclude_ephemeral(&schema);
-        self.timeline_schedule = timeline::Schedule::default();
-        self.schema = schema;
-        self.programs = programs;
-        self.generation = generation;
-        self.expiry_after.clear();
-        self.dev_effects = false;
-        self.ephemeral
-            .rebind_committed(metadata.store_id, generation, &self.schema);
-        Ok(generation)
+        Ok(committed.after_commit(|(generation, metadata)| {
+            self.store.exclude_ephemeral(&schema);
+            self.timeline_schedule = timeline::Schedule::default();
+            self.schema = schema;
+            self.programs = programs;
+            self.generation = generation;
+            self.expiry_after.clear();
+            self.dev_effects = false;
+            self.ephemeral
+                .rebind_committed(metadata.store_id, generation, &self.schema);
+            generation
+        }).into_inner())
     }
     #[cfg(feature = "native")]
     pub fn set_prepared_native(&mut self, module: Option<std::sync::Arc<native::Module>>) {

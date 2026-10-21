@@ -7,7 +7,7 @@ use crate::{
 };
 
 const WORK_BY_ID: &str = "SELECT principal, state, claimed_by, session_digest, lease_until, deadline, family, principal_generation, admitted_expires_at, service_generation FROM _requests WHERE id = $1";
-const WORK_BY_SESSION: &str = "SELECT principal, state, claimed_by, session_digest, lease_until, deadline, family, principal_generation, admitted_expires_at, service_generation FROM _requests WHERE session_digest = $1 LIMIT 1";
+const WORK_BY_SESSION: &str = "SELECT principal, state, claimed_by, session_digest, lease_until, deadline, family, principal_generation, admitted_expires_at, service_generation FROM _requests WHERE session_digest = $1 ORDER BY id LIMIT 1";
 
 fn read_session(row: &postgres::Row) -> SessionRecord {
     SessionRecord {
@@ -48,15 +48,19 @@ impl AuthorityTransaction for Tx<'_> {
     }
 
     fn session_by_digest(&self, digest: &str) -> Result<Option<SessionRecord>, RuntimeError> {
-        Ok(self
-            .query(
+        let rows = self.query(
                 "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE token_digest = $1 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest = $1",
                 &[&digest],
-            )?
-            .first()
-            .map(read_session))
+            )?;
+        if rows.len() > 1 {
+            // Match SQLite's strict single-row lookup, including RuntimeError
+            // shape, instead of silently granting the full-session branch.
+            return Err(RuntimeError::Sql(rusqlite::Error::QueryReturnedMoreThanOneRow));
+        }
+        Ok(rows.first().map(read_session))
     }
 
+    // @ref LLP 3000.009.001.000#91-adapter-parity-rules — digest and scope break expiry ties across both tables.
     fn latest_live_family_member(
         &self,
         principal: &str,
@@ -65,7 +69,7 @@ impl AuthorityTransaction for Tx<'_> {
     ) -> Result<Option<SessionRecord>, RuntimeError> {
         Ok(self
             .query(
-                "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE principal = $1 AND COALESCE(family, token_digest) = $2 AND expires_at > $3 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE principal = $1 AND family = $2 AND expires_at > $3 ORDER BY expires_at DESC LIMIT 1",
+                "SELECT principal, COALESCE(family, token_digest), kind, token_digest, expires_at, 0, NULL::BIGINT, NULL::BIGINT FROM _sessions WHERE principal = $1 AND COALESCE(family, token_digest) = $2 AND expires_at > $3 UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE principal = $1 AND family = $2 AND expires_at > $3 ORDER BY expires_at DESC, token_digest ASC, 6 ASC LIMIT 1",
                 &[&principal, &family, &now],
             )?
             .first()
@@ -84,14 +88,14 @@ impl AuthorityTransaction for Tx<'_> {
     }
 
     fn invalidate_session(&self, digest: &str) -> Result<(), RuntimeError> {
-        self.require_serialized_head_fence()?;
+        self.require_serialized_head_fence("invalidate session")?;
         self.execute("DELETE FROM _sessions WHERE token_digest = $1", &[&digest])?;
         self.execute("DELETE FROM _read_sessions WHERE token_digest = $1", &[&digest])?;
         Ok(())
     }
 
     fn invalidate_family(&self, principal: &str, family: &str) -> Result<(), RuntimeError> {
-        self.require_serialized_head_fence()?;
+        self.require_serialized_head_fence("invalidate family")?;
         self.execute(
             "DELETE FROM _sessions WHERE principal = $1 AND COALESCE(family, token_digest) = $2",
             &[&principal, &family],
@@ -104,10 +108,10 @@ impl AuthorityTransaction for Tx<'_> {
 impl Tx<'_> {
     // @ref LLP 3000.009#4.4 — every durable authority mutation joins the
     // shared commit order; read-only and optimistic serializable walks cannot mutate it.
-    fn require_serialized_head_fence(&self) -> Result<(), RuntimeError> {
+    pub(super) fn require_serialized_head_fence(&self, operation: &str) -> Result<(), RuntimeError> {
         if !self.serialized_head.get() {
             return Err(RuntimeError::Store(
-                "Postgres authority invalidation requires the serialized shared-head fence".into(),
+                format!("Postgres {operation} requires the serialized shared-head fence"),
             ));
         }
         Ok(())

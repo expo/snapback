@@ -108,8 +108,18 @@ impl Store {
     }
 
     pub fn transaction(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
+        self.transaction_with_begin_hook(mode, || {
+            #[cfg(test)]
+            crate::store::test_race::after_adapter_begin();
+        })
+    }
+
+    // Tests rendezvous after BEGIN and before the ordinary head fence. Both
+    // transactions must exist before either may select or mutate request facts.
+    pub(super) fn transaction_with_begin_hook(&mut self, mode: Option<WriteMode>, after_begin: impl FnOnce()) -> Result<Tx<'_>, RuntimeError> {
         let generation_expected = self.generation;
         let tx = self.begin(mode)?;
+        after_begin();
         if mode == Some(WriteMode::Serialized) {
             // @ref LLP 3000#7-decisions-during-execution — a watermark covers commit order, not sequence allocation
             let head = tx.query("SELECT seq FROM _head WHERE singleton FOR UPDATE", &[])?[0].get::<_, i64>(0) as u64;

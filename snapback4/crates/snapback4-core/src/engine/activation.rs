@@ -12,7 +12,7 @@ impl Engine {
         allow_feed_adoption: bool,
         expected_release: Option<u64>,
         expected_backend: Option<&crate::activation::Backend>,
-    ) -> Result<(u64, crate::store::opening::Metadata), RuntimeError> {
+    ) -> Result<Committed<(u64, crate::store::opening::Metadata)>, RuntimeError> {
         schema.validate_column_owners()?;
         for program in programs.values() {
             crate::schema::ephemeral::admit_program(schema, program)?;
@@ -197,16 +197,15 @@ impl Engine {
             }
             crate::store::opening::Metadata::read(tx)
         });
-        if outcome.is_ok() {
+        outcome.map(|committed| committed.after_commit(|value| {
             if let Some((retained,restored))=population.get().filter(|(a,b)|*a>0 || *b>0) {
                 store.adoption_report.changes.insert(0,format!("{retained} newly dormant {}; {restored} narrowed {} restored", if retained == 1 { "row" } else { "rows" }, if restored == 1 { "row" } else { "rows" }));
             }
-        }
-        if outcome.is_ok() {
+
             if let Ok(items)=store.dormant_inventory(None,usize::MAX) {
                 if release.is_some() { store.adoption_report.changes.insert(0, crate::store::adoption_report::AdoptionReport::dormant(&items)); }
             }
-        }
-        outcome
+            value
+        }))
     }
 }

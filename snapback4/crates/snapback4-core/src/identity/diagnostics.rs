@@ -6,12 +6,16 @@ use super::*;
 /// Called only after authority refused the token. Diagnostic failure must not
 /// turn an authentication refusal into disclosure or a different authority result.
 pub fn refused(store: &Store, token: &str, now: i64, trusted_dev: bool) -> crate::error::Refusal {
+    refused_in(store, token, now, trusted_dev)
+}
+
+pub(super) fn refused_in(store: &impl IdentityStore, token: &str, now: i64, trusted_dev: bool) -> crate::error::Refusal {
     let generic = "this session is not live; sign in again";
     let message = if trusted_dev { explanation(store, token, now).unwrap_or(generic) } else { generic };
     crate::error::Refusal::new("E_AUTH", "auth", message).guide(if trusted_dev { "wire" } else { "personas" })
 }
 
-fn explanation(store: &Store, token: &str, now: i64) -> Result<&'static str, RuntimeError> {
+fn explanation(store: &impl IdentityStore, token: &str, now: i64) -> Result<&'static str, RuntimeError> {
     let expiry = store.identity_session_expiry(&digest(token))?;
     Ok(match expiry {
         Some(at) if at <= now => "this session expired on the server clock (a dev clock advance can expire sessions); sign in again",

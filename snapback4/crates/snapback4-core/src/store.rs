@@ -38,6 +38,8 @@ mod assets;
 mod partition;
 pub(crate) mod steps;
 mod requests;
+#[cfg(test)]
+pub(crate) mod test_race;
 mod outbox;
 mod change_evidence;
 mod release;
