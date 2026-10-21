@@ -35,7 +35,6 @@ mutation addNote(body: text):
 Implicit `id`; newest-first pages (`next` → `c`); atomic inserts default time.
 `not before .opensAt` sets a stored lower read lifetime; null is unbounded. With `expire at`, rows live in `[opensAt, expiresAt)`. See `guide timed disclosure`.
 
-
 `receipts chat by .conversation, .ordinal from .sender to members:` with field mappings generates reporting (`guide receipts`; expert recipe: `guide manual-receipts`).
 
 ## Limits
