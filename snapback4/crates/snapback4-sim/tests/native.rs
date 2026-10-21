@@ -216,7 +216,7 @@ fn a_legacy_declaration_only_native_hash_parks_without_executing() {
     engine.install_native(module()).unwrap();
     let run = engine.enqueue_job("rescore", BTreeMap::new(), NOW).unwrap();
     let legacy = snapback4_core::value::digest(engine.program("rescore").unwrap());
-    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _jobs SET program_hash = ?2 WHERE id = ?1", [&run, &legacy]).unwrap();
+    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _jobs SET program_hash = ?2 WHERE id = ?1", [&run, &legacy]).unwrap();
     let parked = engine.run_job_chunk(NOW + 1).unwrap().unwrap();
     assert_eq!((parked.state, parked.chunks, parked.rows_written), (JobState::Parked, 0, 0));
     assert!(parked.error.as_deref().unwrap_or("").starts_with("E_JOB_GENERATION:"), "{parked:?}");

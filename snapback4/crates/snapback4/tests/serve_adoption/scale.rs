@@ -35,7 +35,7 @@ fn scale_changes_waits_for_durable_adoption_while_query_and_sync_read() {
         let mut engine=lock(&shared.engine);
         lock(&shared.readers).begin_adoption(&candidate);
         let once=std::sync::atomic::AtomicBool::new(false);
-        (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().authorizer(Some(move|ctx:rusqlite::hooks::AuthContext<'_>|{
+        (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().authorizer(Some(move|ctx:rusqlite::hooks::AuthContext<'_>|{
             if matches!(ctx.action,rusqlite::hooks::AuthAction::Read{table_name:"_meta",..}) && !once.swap(true,Ordering::SeqCst) {
                 entered.send(()).unwrap();resumed.recv_timeout(Duration::from_secs(10)).unwrap();
             }

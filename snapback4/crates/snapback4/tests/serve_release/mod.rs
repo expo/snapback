@@ -35,7 +35,7 @@ fn hot_release_pinned_old_read_finishes_and_unpinned_reader_is_fenced() {
     let (resume, resumed) = mpsc::channel();
     let once = Arc::new(std::sync::atomic::AtomicBool::new(false));
     (match pinned
-        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
         .authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
             if matches!(
                 ctx.action,
@@ -99,7 +99,7 @@ fn failed_hot_commit_keeps_runtime_and_retry_cleans_prepared_pointer() {
         0,
     );
     (match lock(&host.shared.engine)
-        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
         .commit_hook(Some(|| true))
         .unwrap();
     let failure = release::apply(&host.shared, &directory.0, command.clone()).unwrap_err();
@@ -107,11 +107,11 @@ fn failed_hot_commit_keeps_runtime_and_retry_cleans_prepared_pointer() {
     {
         let engine = lock(&host.shared.engine);
         (match engine
-            .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+            .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
             .commit_hook(None::<fn() -> bool>)
             .unwrap();
         assert_eq!(engine.generation(), 1);
-        assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("release").unwrap(), None);
+        assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("release").unwrap(), None);
     }
     assert_eq!(*lock(&host.shared.generation), 1);
     release::apply(&host.shared, &directory.0, command).unwrap();
@@ -150,7 +150,7 @@ fn hot_release_cas_refuses_stale_aba_and_changed_artifact_digest() {
     );
     assert_eq!(
         (match lock(&host.shared.engine)
-            .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("release")
+            .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("release")
             .unwrap()
             .as_deref(),
         Some("1")
@@ -226,7 +226,7 @@ fn hot_release_discards_old_worker_preparation_before_minting() {
         resume.send(()).unwrap();
         task.join().unwrap();
         let engine = lock(&host.shared.engine);
-        let sessions:i64=(match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal IN ('service:worker','service:noop')",[],|r|r.get(0)).unwrap();
+        let sessions:i64=(match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal IN ('service:worker','service:noop')",[],|r|r.get(0)).unwrap();
         assert_eq!(
             sessions, 0,
             "stale preparation minted a current credential; named={named}"
@@ -248,7 +248,7 @@ fn post_commit_pointer_failure_keeps_new_runtime_and_database_recovery() {
     let (entered, waiting) = mpsc::channel();
     let (resume, resumed) = mpsc::channel();
     (match lock(&host.shared.engine)
-        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
         .commit_hook(Some(move || {
             entered.send(()).unwrap();
             resumed.recv_timeout(Duration::from_secs(10)).unwrap();
@@ -265,12 +265,12 @@ fn post_commit_pointer_failure_keeps_new_runtime_and_database_recovery() {
     assert!(error.contains("committed in database"), "{error}");
     let engine = lock(&host.shared.engine);
     (match engine
-        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
         .commit_hook(None::<fn() -> bool>)
         .unwrap();
     assert_eq!(engine.generation(), 2);
     assert_eq!(
-        (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("release").unwrap().as_deref(),
+        (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("release").unwrap().as_deref(),
         Some("2")
     );
     drop(engine);
@@ -314,7 +314,7 @@ fn concurrent_release_commands_share_cas_and_queued_write_uses_committed_generat
     let (entered, waiting) = mpsc::channel();
     let (resume, resumed) = mpsc::channel();
     (match lock(&host.shared.engine)
-        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
         .commit_hook(Some(move || {
             entered.send(()).unwrap();
             resumed.recv_timeout(Duration::from_secs(10)).unwrap();
@@ -332,7 +332,7 @@ fn concurrent_release_commands_share_cas_and_queued_write_uses_committed_generat
     let writer = thread::spawn(move || {
         let mut engine = lock(&shared.engine);
         (match engine
-            .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+            .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
             .commit_hook(None::<fn() -> bool>)
             .unwrap();
         let generation = engine.generation();
@@ -579,7 +579,7 @@ fn upload_preparation_refusal_stamps_the_generation_after_streamed_intake() {
 fn media_declaration_stamps_the_generation_after_streamed_intake() {
     let directory = ReaderTestDirectory::new();
     let host = directory.host();
-    let store_id = (match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap().unwrap();
+    let store_id = (match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("store_id").unwrap().unwrap();
     let payload = serde_json::json!({"digest":"a".repeat(64),"placement":{"op":"place","args":{},"argument":"asset"},"padding":"x".repeat(2048)}).to_string();
     let mut socket = TcpStream::connect(host.address).unwrap();
     socket.set_read_timeout(Some(Duration::from_secs(10))).unwrap();

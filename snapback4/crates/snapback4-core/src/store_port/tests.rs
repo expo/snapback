@@ -5,7 +5,7 @@ use crate::{RuntimeError, ledger::{LedgerReader, LedgerTransaction}, revocation:
 fn sqlite_asset_location_retains_paths_and_cleanup_policy_without_creating_files() {
     let store = AnyStore::memory().unwrap();
     let location = store.asset_location().unwrap();
-    let AnyStore::Sqlite(sqlite) = &store;
+    let AnyStore::Sqlite(sqlite) = &store else { panic!("SQLite fixture") };
     assert_eq!(location.directory(), sqlite.assets_dir());
     assert_eq!(location.path("asset-id"), sqlite.asset_path("asset-id"));
     assert_eq!(location.ephemeral(), sqlite.ephemeral_assets());

@@ -50,7 +50,7 @@ fn count(engine: &mut Engine, list: &str) -> Value {
 }
 
 fn dump(engine: &Engine, sql: &str) -> Vec<String> {
-    let mut statement = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare(sql).unwrap();
+    let mut statement = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().prepare(sql).unwrap();
     statement.query_map([], |row| row.get::<_, String>(0)).unwrap().collect::<Result<_, _>>().unwrap()
 }
 
@@ -65,14 +65,14 @@ fn a_reset_store_answers_like_a_new_store_under_a_new_identity() {
     assert_eq!(count(&mut engine, "L1"), Value::Int(3));
     let member = identity::custom_session(engine.store(), "member:1", "member", NOW, 1).unwrap();
     let worker = identity::service_session(engine.store(), "worker", NOW, 1).unwrap();
-    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_set_meta("schedule:nightly", "123").unwrap();
+    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_set_meta("schedule:nightly", "123").unwrap();
     let head = engine.store().seq().unwrap();
-    let previous = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap().unwrap();
+    let previous = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("store_id").unwrap().unwrap();
 
     let reset = engine.dev_reset_at(vec![list("L1")], NOW).unwrap();
     assert_eq!(reset.previous_store_id, previous);
     assert_ne!(reset.store_id, previous, "devices must see a new store identity");
-    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap().as_deref(), Some(reset.store_id.as_str()));
+    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("store_id").unwrap().as_deref(), Some(reset.store_id.as_str()));
     assert_eq!(reset.seeded, 1);
     assert_eq!(reset.seq, head + 2, "the reset and its reseed are two commits above the old head");
     assert_eq!(engine.store().seq().unwrap(), reset.seq);
@@ -100,7 +100,7 @@ fn a_reset_store_answers_like_a_new_store_under_a_new_identity() {
     // Accounts and their sessions go; a service seat (the dev worker, a `token`) stays.
     assert!(identity::resolve(engine.store(), &member.token, NOW).unwrap().is_none());
     assert!(identity::resolve(engine.store(), &worker.token, NOW).unwrap().is_some());
-    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("schedule:nightly").unwrap(), None, "a fresh store has no schedule boundary");
+    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("schedule:nightly").unwrap(), None, "a fresh store has no schedule boundary");
     // Nothing from before the reset remains in the commit log or the partition log.
     assert_eq!(dump(&engine, &format!("SELECT CAST(count(*) AS TEXT) FROM _commits WHERE seq <= {head}")), ["0"]);
     assert_eq!(dump(&engine, &format!("SELECT CAST(count(*) AS TEXT) FROM _log WHERE seq <= {head}")), ["0"]);
@@ -112,11 +112,11 @@ fn a_refused_reseed_leaves_the_store_untouched() {
     let mut engine = engine();
     engine.seed_at([list("L1")], NOW).unwrap();
     add(&mut engine, "L1", "a");
-    let before = (rows(&engine), engine.store().seq().unwrap(), (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap());
+    let before = (rows(&engine), engine.store().seq().unwrap(), (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("store_id").unwrap());
     let item = |id: &str| ("items".to_owned(), object([("id", Value::Id(id.into())), ("list", Value::Id("L1".into())), ("text", Value::String("same".into()))]));
     let refused = engine.dev_reset_at(vec![list("L1"), item("I1"), item("I2")], NOW).unwrap_err();
     assert!(refused.to_string().contains("unique") || refused.refusal().code == "E_CONSTRAINT", "{refused}");
-    assert_eq!((rows(&engine), engine.store().seq().unwrap(), (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap()), before);
+    assert_eq!((rows(&engine), engine.store().seq().unwrap(), (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("store_id").unwrap()), before);
     assert_eq!(count(&mut engine, "L1"), Value::Int(1));
 }
 

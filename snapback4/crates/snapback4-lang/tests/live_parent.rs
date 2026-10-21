@@ -180,7 +180,7 @@ fn manual_adoption_and_reverse_release_reconcile_dormant_cells() {
     assert!(!visible(&mut e, "alice"));
     assert!(visible(&mut e, "bob"));
     let arrays: i64 = (match &e
-        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
         .query_row(
             "SELECT COUNT(*) FROM _meta WHERE key LIKE 'activation_%_restored_ids:%'",
             [],
@@ -586,7 +586,7 @@ fn whole_dormant_live_table_restores_manual_authority_from_current_parent() {
     assert!(!visible(&mut e, "alice"));
     assert!(visible(&mut e, "bob"));
     let arrays: i64 = (match &e
-        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
         .query_row(
             "SELECT COUNT(*) FROM _meta WHERE key LIKE 'activation_%_restored_ids:%'",
             [],
@@ -883,7 +883,7 @@ fn mixed_captured_and_live_cells_keep_independent_origin_after_narrowed_restore(
         let narrow=wide.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'");let b=build(&narrow);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();
         let rows=[("projects",json!({"id":"p2","owner":"bob"})),("tasks",json!({"id":"c2","project":"p2","owner":"bob","status":"active","body":"private"}))].into_iter().map(|(n,row)|(n.into(),wire::row_from_json(&e.schema().tables[n],&row).unwrap())).collect::<Vec<_>>();e.seed(rows).unwrap();
         let manual=wide.replace("read through live .project","read <- .owner = viewer");let b=build(&manual);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();
-        {let tx=e.store_mut().transaction().unwrap();let flags:Vec<(String,i64)>=(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).test_support_conn().prepare("SELECT id,live_source FROM _dormant_values WHERE column_name='$project.owner' ORDER BY id").unwrap().query_map([],|r|Ok((r.get(0)?,r.get(1)?))).unwrap().collect::<Result<_,_>>().unwrap();assert_eq!(flags,vec![("c".into(),0),("c2".into(),1)]);tx.rollback().unwrap();}
+        {let tx=e.store_mut().transaction().unwrap();let flags:Vec<(String,i64)>=(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().prepare("SELECT id,live_source FROM _dormant_values WHERE column_name='$project.owner' ORDER BY id").unwrap().query_map([],|r|Ok((r.get(0)?,r.get(1)?))).unwrap().collect::<Result<_,_>>().unwrap();assert_eq!(flags,vec![("c".into(),0),("c2".into(),1)]);tx.rollback().unwrap();}
         let mut rows=vec![("projects".into(),snapback4_core::value::object([("id",Value::Id("p2".into())),("owner",Value::Id("carol".into()))])),("tasks".into(),snapback4_core::value::object([("id",Value::Id("c2".into())),("owner",Value::Id("carol".into()))]))];if changed_captured_parent {rows.push(("projects".into(),snapback4_core::value::object([("id",Value::Id("p".into())),("owner",Value::Id("dave".into()))])));}e.seed(rows).unwrap();
         let b=build(&captured);let out=e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(4,Some(3)),false);
         if changed_captured_parent {assert_eq!(out.unwrap_err().code(),"E_ADOPT");assert_eq!(e.generation(),3);}else{out.unwrap();for (who,yes) in [("alice",false),("bob",false),("carol",true)] {let out=e.query("one",Context::new(who,[("task".into(),Value::Id("c2".into()))].into())).unwrap();assert_eq!(out.data!=Value::Null,yes);}assert!(visible(&mut e,"alice"));}
@@ -893,7 +893,7 @@ fn mixed_captured_and_live_cells_keep_independent_origin_after_narrowed_restore(
 fn captured_only_store_adopts_live_after_dormant_cell_format_upgrade() {
     use snapback4_core::engine::release::ReleaseActivation;
     let mut e=seeded(&manual(),"alice",true);
-    {let tx=e.store_mut().transaction().unwrap();(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).test_support_conn().execute_batch("ALTER TABLE _dormant_values DROP COLUMN live_source").unwrap();tx.commit().unwrap();}
+    {let tx=e.store_mut().transaction().unwrap();(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("ALTER TABLE _dormant_values DROP COLUMN live_source").unwrap();tx.commit().unwrap();}
     let b=build(SOURCE);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();transfer(&mut e,"bob");
     let b=build(&manual());e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();assert!(!visible(&mut e,"alice"));assert!(visible(&mut e,"bob"));
 }
@@ -939,7 +939,7 @@ fn narrowed_manual_source_does_not_become_live_from_column_shape() {
     let wide=SOURCE.replace("  body: text <=80","  status: enum('active', 'draft') default 'draft'\n  body: text <=80");let mut e=seeded(&wide,"alice",true);
     let manual=manual().replace("  body: text <=80","  status: enum('active', 'draft') default 'draft'\n  body: text <=80");let b=build(&manual);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();
     let captured=wide.replace("read through live .project","read through .project").replace("  owner: principal\n  read","  owner: principal\n  immutable owner\n  read");let b=build(&captured.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'"));e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();
-    {let tx=e.store_mut().transaction().unwrap();let source:String=(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT definition FROM _dormant_narrow_rows WHERE id='c'",[],|r|r.get(0)).unwrap();let old:snapback4_core::schema::Table=serde_json::from_str(&source).unwrap();assert!(old.through.is_none());tx.rollback().unwrap();}
+    {let tx=e.store_mut().transaction().unwrap();let source:String=(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT definition FROM _dormant_narrow_rows WHERE id='c'",[],|r|r.get(0)).unwrap();let old:snapback4_core::schema::Table=serde_json::from_str(&source).unwrap();assert!(old.through.is_none());tx.rollback().unwrap();}
     // Reintroduce mutable parent writes while the row remains dormant.
     let b=build(&manual.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'"));e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(4,Some(3)),false).unwrap();transfer(&mut e,"bob");
     let b=build(&captured);assert_eq!(e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(5,Some(4)),false).unwrap_err().code(),"E_READ_THROUGH_ADOPT");assert_eq!(e.generation(),4);

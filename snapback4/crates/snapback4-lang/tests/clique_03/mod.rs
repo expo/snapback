@@ -134,5 +134,5 @@ pub fn run_fixture(full: bool) {
 fn drain(e: &mut Engine, now:i64) { while e.run_timeline_chunk(now).unwrap().is_some() {} assert_eq!(e.timeline_work_counts().unwrap()[0].2,0); }
 
 fn sqlite_store(engine: &Engine) -> &snapback4_core::Store {
-    match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }
+    match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(store) => store, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }
 }

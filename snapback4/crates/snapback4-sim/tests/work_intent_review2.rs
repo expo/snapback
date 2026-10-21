@@ -67,7 +67,7 @@ job sweep():
         if poison_suffix {
             // If the decoder runs ahead of the allowance, it reaches this
             // deliberately malformed final image and returns E_STORE instead.
-            (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE r SET data = 'malformed' WHERE id = 'e127'", []).unwrap();
+            (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE r SET data = 'malformed' WHERE id = 'e127'", []).unwrap();
         }
         let run = engine.run_job("sweep", BTreeMap::new(), 1).unwrap();
         assert_eq!(run.state, JobState::Parked, "{run:?}");
@@ -75,7 +75,7 @@ job sweep():
         assert!(run.error.as_ref().is_some_and(|error| error.starts_with("E_BOUND:") && error.contains("heap")), "suffix={poison_suffix}: {run:?}");
         assert_eq!(run.chunks, 0);
         assert!(engine.effects(None, 10).unwrap().is_empty());
-        let tables: i64 = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM sqlite_master WHERE name = '_effect_keys'", [], |r| r.get(0)).unwrap();
+        let tables: i64 = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT count(*) FROM sqlite_master WHERE name = '_effect_keys'", [], |r| r.get(0)).unwrap();
         assert_eq!(tables, 0, "refused first chunk rolls back the key table too");
         println!("inner domain, poisoned suffix={poison_suffix}: {run:?}");
     }

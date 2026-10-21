@@ -39,7 +39,7 @@ fn inherited_expiry_default_warns_before_retiring_one_thousand_children() {
     assert!(!message.contains("to recompute deadlines"), "{message}");
     e.adopt_at(next.schema, next.programs, 100).unwrap();
     assert!(e.store().rows("children").unwrap().is_empty());
-    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().query_row("SELECT count(*) FROM i JOIN _catalog c ON c.num=i.ti WHERE c.name LIKE 'children.%'", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().query_row("SELECT count(*) FROM i JOIN _catalog c ON c.num=i.ti WHERE c.name LIKE 'children.%'", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
 }
 
 #[test]
@@ -115,13 +115,13 @@ fn missing_identity_marker_rebuilds_a_principal_reference_and_max_text_group() {
     assert_eq!(before[0].field("value").unwrap(), &Value::Int(7));
     assert_eq!(expected.len(), 64);
 
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
     let next = compile(SOURCE);
     assert_eq!(preview(&mut e, &next.schema).aggregate_rows, 1);
     let generation = e.generation();
     e.adopt_at(next.schema, next.programs, 1).unwrap();
     assert!(e.generation() > generation);
-    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta(crate::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(crate::schema::MAINTAINED_ID_VERSION));
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta(crate::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(crate::schema::MAINTAINED_ID_VERSION));
     let after = e.store().rows("totals").unwrap();
     assert_eq!(after.len(), 1);
     assert_eq!(after[0].field("id").unwrap(), &Value::Id(expected));
@@ -141,7 +141,7 @@ fn identity_redeployment_rebuilds_the_ungrouped_empty_tuple() {
     assert_eq!(before[0].field("$global").unwrap(), &Value::Bool(true));
     assert_eq!(before[0].field("value").unwrap(), &Value::Int(1));
 
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
     let next = compile(SOURCE);
     assert_eq!(preview(&mut e, &next.schema).aggregate_rows, 1);
     let generation = e.generation();
@@ -201,7 +201,7 @@ fn identity_adoption_rekeys_sequence_history_without_reusing_deleted_ordinals() 
     tx.set_sequence("totals", &wrong_type7, 14).unwrap();
     tx.set_sequence("ordinary", &legacy7, 11).unwrap();
     tx.commit().unwrap();
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
 
     let next = compile(SOURCE);
     e.adopt_at(next.schema, next.programs, 1).unwrap();
@@ -245,7 +245,7 @@ fn sequence_identity_adoption_keeps_invalid_canonical_groups_opaque() {
     tx.set_sequence("labelTotals", &invalid_format, 7).unwrap();
     tx.set_sequence("ownerTotals", &invalid_reference, 8).unwrap();
     tx.commit().unwrap();
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
 
     let next = compile(SOURCE);
     e.adopt_at(next.schema, next.programs, 1).unwrap();
@@ -286,7 +286,7 @@ fn newly_maintained_ordinary_target_does_not_reinterpret_predecessor_custody() {
     let tx = e.store_mut().transaction().unwrap();
     tx.set_sequence("totals", &legacy, 4).unwrap();
     tx.commit().unwrap();
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
 
     let next = compile(NEW);
     e.adopt_at(next.schema, next.programs, 1).unwrap();
@@ -315,7 +315,7 @@ fn removing_an_aggregate_normalizes_retained_sequence_custody_before_marking_the
     tx.put("totals", &target, &row, None).unwrap();
     tx.set_sequence("totals", &legacy, 5).unwrap();
     tx.commit().unwrap();
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
 
     let removed = compile(WITHOUT_AGGREGATE);
     e.adopt_at(removed.schema, removed.programs, 1).unwrap();
@@ -323,7 +323,7 @@ fn removing_an_aggregate_normalizes_retained_sequence_custody_before_marking_the
     assert_eq!(tx.sequence_value("totals", &legacy).unwrap(), 0);
     assert_eq!(tx.sequence_value("totals", &digest).unwrap(), 5);
     tx.commit().unwrap();
-    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta(crate::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(crate::schema::MAINTAINED_ID_VERSION));
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta(crate::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(crate::schema::MAINTAINED_ID_VERSION));
 
     let restored = compile(SOURCE);
     e.adopt_at(restored.schema, restored.programs, 2).unwrap();
@@ -350,7 +350,7 @@ fn row_keyed_replacement_does_not_suppress_removed_aggregate_counter_migration()
     tx.put("totals", &target, &row, None).unwrap();
     tx.set_sequence("totals", &legacy, 5).unwrap();
     tx.commit().unwrap();
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
 
     let replacement = compile(ROW_KEYED);
     e.adopt_at(replacement.schema, replacement.programs, 1).unwrap();
@@ -358,7 +358,7 @@ fn row_keyed_replacement_does_not_suppress_removed_aggregate_counter_migration()
     assert_eq!(tx.sequence_value("totals", &legacy).unwrap(), 0);
     assert_eq!(tx.sequence_value("totals", &digest).unwrap(), 5, "a same-name row-keyed view cannot suppress predecessor aggregate custody migration");
     tx.commit().unwrap();
-    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta(crate::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(crate::schema::MAINTAINED_ID_VERSION));
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).meta(crate::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(crate::schema::MAINTAINED_ID_VERSION));
 
     let restored = compile(AGGREGATE);
     e.adopt_at(restored.schema, restored.programs, 2).unwrap();
@@ -377,7 +377,7 @@ fn counter_only_aggregate_reference_chains_rekey_to_the_final_digest() {
     let tx = e.store_mut().transaction().unwrap();
     tx.set_sequence("bTotals", &legacy_b, 9).unwrap();
     tx.commit().unwrap();
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
 
     let next = compile(SOURCE);
     e.adopt_at(next.schema, next.programs, 1).unwrap();
@@ -423,7 +423,7 @@ fn surviving_aggregate_identity_wins_over_a_counter_only_dependency() {
     tx.set_sequence("bTotals", &legacy_b, 7).unwrap();
     tx.set_sequence("cTotals", &legacy_c, 11).unwrap();
     tx.commit().unwrap();
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
 
     let next = compile(SOURCE);
     e.adopt_at(next.schema, next.programs, 1).unwrap();
@@ -489,7 +489,7 @@ fn legacy_identity_adoption_can_change_the_grouping_key() {
         tx.put("totals", &target, &legacy, None).unwrap();
     }
     tx.commit().unwrap();
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute(
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute(
         "DELETE FROM _meta WHERE key=?1",
         [crate::schema::MAINTAINED_ID_META],
     ).unwrap();
@@ -507,7 +507,7 @@ fn legacy_identity_adoption_can_change_the_grouping_key() {
 fn empty_source_does_not_hide_retained_target_cleanup() {
     let mut e = groups();
     // A legacy/imported target may outlive its source population.
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute_batch("DELETE FROM r WHERE t=(SELECT num FROM _catalog WHERE name='entries'); DELETE FROM i WHERE ti IN (SELECT num FROM _catalog WHERE name LIKE 'entries.%');").unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute_batch("DELETE FROM r WHERE t=(SELECT num FROM _catalog WHERE name='entries'); DELETE FROM i WHERE ti IN (SELECT num FROM _catalog WHERE name LIKE 'entries.%');").unwrap();
     let next = compile(&GROUPS.replace("count entries by", "count entries where .n < 0 by"));
     let estimate = preview(&mut e, &next.schema);
     assert_eq!(estimate.aggregate_rows, 0);
@@ -537,7 +537,7 @@ fn cap_occupancy_reset_is_visible_even_when_table_definition_is_unchanged() {
     let message = preview(&mut e, &next.schema).summary();
     assert!(message.contains("cap occupancy reset/rebuild (1 stored entries, 1 source rows)"), "{message}");
     // Legacy activation repairs missing occupancy metadata on unchanged schemas too.
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("DELETE FROM _meta WHERE key='cap_counts_schema'", []).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM _meta WHERE key='cap_counts_schema'", []).unwrap();
     let same = e.schema().clone();
     assert!(preview(&mut e, &same).summary().contains("cap occupancy reset/rebuild"));
 }
@@ -546,10 +546,10 @@ fn cap_occupancy_reset_is_visible_even_when_table_definition_is_unchanged() {
 fn asset_home_retirement_warns_even_without_application_rows() {
     let mut e = open("table entries:\n  photo: image <=1000 ?\n  public\n");
     // The activation ledger can outlive the home row; no asset bytes are needed.
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute_batch("INSERT INTO _assets(id,owner,kind,content_type,bytes,created_at,home_table,home_id,home_column) VALUES('a','alice','image','image/png',1,0,'entries','gone','photo');").unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute_batch("INSERT INTO _assets(id,owner,kind,content_type,bytes,created_at,home_table,home_id,home_column) VALUES('a','alice','image','image/png',1,0,'entries','gone','photo');").unwrap();
     let next = compile("table entries:\n  public\n");
     assert!(preview(&mut e, &next.schema).summary().contains("asset-home retirement entries.photo (1 ledger rows)"));
-    assert!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().query_row("SELECT released_at IS NULL FROM _assets WHERE id='a'", [], |r| r.get::<_, bool>(0)).unwrap());
+    assert!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().query_row("SELECT released_at IS NULL FROM _assets WHERE id='a'", [], |r| r.get::<_, bool>(0)).unwrap());
 }
 
 #[test]
@@ -557,7 +557,7 @@ fn legacy_live_sum_repair_is_visible_even_without_schema_change() {
     let source = "table entries:\n  n: int\n  until: time ?\n  expire at .until\n  public\nview totals: sum entries of .n by .n\n";
     let mut e = open(source);
     e.seed_at([("entries".into(), object([("id", Value::Id("e".into())), ("n", Value::Int(1)), ("until", Value::Int(50))]))], 0).unwrap();
-    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("DELETE FROM _meta WHERE key='live_sum_candidates'", []).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().execute("DELETE FROM _meta WHERE key='live_sum_candidates'", []).unwrap();
     let next = e.schema().clone();
     let estimate = preview(&mut e, &next);
     assert_eq!(estimate.retired_rows, 1);
@@ -578,7 +578,7 @@ fn row_view_rebuild_counts_retained_recount_and_basis_rows() {
         e.adopt_at(bound.schema, bound.programs, 1).unwrap();
         let hidden = if count == 1 { "$basis:unread" } else { "$recount:unread" };
         assert!(!e.store().rows(hidden).unwrap().is_empty(), "{hidden}");
-        let rows: i64 = (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().query_row("SELECT count(*) FROM r JOIN _catalog c ON c.num=r.t WHERE c.name IN ('unread','$basis:unread','$recount:unread')", [], |r| r.get(0)).unwrap();
+        let rows: i64 = (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().query_row("SELECT count(*) FROM r JOIN _catalog c ON c.num=r.t WHERE c.name IN ('unread','$basis:unread','$recount:unread')", [], |r| r.get(0)).unwrap();
         let next = compile(&SOURCE.replace("and not .tombstone", "and .tombstone"));
         let estimate = preview(&mut e, &next.schema);
         assert_eq!(estimate.retired_rows, rows as u64);

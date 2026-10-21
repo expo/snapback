@@ -375,7 +375,7 @@ fn sqlite_permissions_preserve_database_and_wal_locks() {
     // Opening an existing store in this process must not close a raw
     // descriptor on either inode. SQLite alone owns those descriptor lives.
     let second = snapback4_core::store_port::AnyStore::open(&path).unwrap();
-    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("BEGIN IMMEDIATE").unwrap();
+    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("BEGIN IMMEDIATE").unwrap();
     snapback4_core::private_fs::database_file(&path).unwrap();
     for suffix in ["", "-wal", "-shm"] {
         let path = dir.0.join(format!("store.sqlite{suffix}"));
@@ -384,7 +384,7 @@ fn sqlite_permissions_preserve_database_and_wal_locks() {
         assert_eq!(fs::metadata(path).unwrap().permissions().mode() & 0o777, 0o600);
     }
     let (status, log) = probe("locks", &dir); assert!(status.success(), "{log}");
-    drop(second); (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("ROLLBACK").unwrap();
+    drop(second); (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("ROLLBACK").unwrap();
     let symlink = dir.0.join("link"); std::os::unix::fs::symlink(&path, &symlink).unwrap();
     assert!(snapback4_core::private_fs::existing_file(&symlink).is_err());
     assert!(snapback4_core::private_fs::database_file(&symlink).is_err());
@@ -802,17 +802,17 @@ fn killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_child
     struct Orphan(u32);
     impl Drop for Orphan { fn drop(&mut self) { unsafe { libc::kill(self.0 as i32, libc::SIGKILL); } } }
     let orphan = Orphan(fs::read_to_string(dir.0.join("worker-pid")).unwrap().parse().unwrap());
-    let family = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("worker:session-family").unwrap().unwrap();
-    let lifetime: i64 = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT expires_at - created_at FROM _sessions WHERE family = ?1", [&family], |row| row.get(0)).unwrap();
+    let family = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("worker:session-family").unwrap().unwrap();
+    let lifetime: i64 = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT expires_at - created_at FROM _sessions WHERE family = ?1", [&family], |row| row.get(0)).unwrap();
     assert!(lifetime > 0 && lifetime <= 86_400_000);
     assert_eq!(host.signal(libc::SIGKILL).signal(), Some(libc::SIGKILL));
     drop(host);
     drop(orphan);
     // Startup sweeps the old session before automatically starting the captured worker.
     let mut restarted = Host::start(&dir, &["serve", release.to_str().unwrap()]);
-    let stale: i64 = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&family], |row| row.get(0)).unwrap();
+    let stale: i64 = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&family], |row| row.get(0)).unwrap();
     assert_eq!(stale, 0);
-    assert_ne!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("worker:session-family").unwrap().as_deref(), Some(family.as_str()), "the captured worker gets a fresh supervisor family");
+    assert_ne!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("worker:session-family").unwrap().as_deref(), Some(family.as_str()), "the captured worker gets a fresh supervisor family");
     assert!(snapback4_core::identity::resolve(&store, &manual.token, snapback4_core::now_ms()).unwrap().is_some(), "a manually issued seat is not the old supervisor's credential");
     restarted.signal(libc::SIGTERM);
 }

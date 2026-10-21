@@ -100920,3 +100920,13 @@ admission, the member-safe tail and real-Postgres witnesses follow. The public
 CLI and producer routing are unchanged. `cargo check -p snapback4-core --features
 postgres` and `cargo build -p snapback4` pass on the owned target with ten jobs.
 No push or stash.
+
+### 2026-10-22 — S10c: concrete SQLite fixture exhaustiveness
+
+SQLite corruption/inspection fixtures and the evaluator's SQLite control now
+explicitly reject the other enum variant. These test-only matches preserve
+the fixture's concrete-store precondition when the Postgres feature is linked;
+they add no owning bridge. This mechanical follow-up is a separate building
+commit to keep the dispatch and admission changes reviewable. The binary build
+and Postgres-feature library check pass; full feature-linked fixture compilation
+is being qualified with the private-cluster script.

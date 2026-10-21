@@ -82,7 +82,7 @@ fn declared_private_decode_reservation_covers_utf8_and_escaping() {
         let mut e = Engine::memory(schema, vec![]).unwrap();
         let row = wire::row_from_json(&e.schema().tables["records"], &serde_json::json!({"id":"row","owner":"bob","secret":text})).unwrap();
         e.seed([("records".into(), row)]).unwrap();
-        let tx = (match e.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).read_transaction().unwrap();
+        let tx = (match e.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).read_transaction().unwrap();
         let json_bytes = value::canonical_json(&tx.get("records", "row").unwrap().unwrap()).len();
         let (found, rust, native, _) = measured_sqlite(json_bytes, || tx.scan("records", "byId", &[Value::Id("row".into())], &rows::Bounds::default(), rows::Dir::Asc, 1).unwrap());
         assert_eq!(found.len(), 1);
@@ -252,7 +252,7 @@ fn sqlite_empty_scan_statement_storage_is_pinned_and_transient() {
     use rusqlite::StatementStatus::Run;
     configure_sqlite_probe();
     let mut engine = fixture::engine(vec![], 0);
-    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).read_transaction().unwrap();
+    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).read_transaction().unwrap();
     let page_size = tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
     let prefix = [value::Value::Int(0)];
     let bounds = Bounds::default();
@@ -308,7 +308,7 @@ fn sqlite_increasing_resident_preflight_charges_before_the_next_row() {
     let keys: Vec<_> = seed.iter().enumerate().map(|(n, (_, row))| rows::index_key(&fixture::schema().tables["messages"].indexes["byBucket"], row, &format!("m{n:05}"))).collect();
     let (min_json, max_json) = (jsons[0].len(), jsons[21].len());
     engine.seed(seed).unwrap();
-    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).read_transaction().unwrap();
+    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).read_transaction().unwrap();
     let page_size = tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
     assert_eq!((min_json, max_json, page_size), (720, 888, 4096));
     tx.conn().prepare_cached(PREFLIGHT).unwrap();
@@ -390,7 +390,7 @@ fn sqlite_payload_probe(storage: &str, body_bytes: usize) {
     let row = value::object([("id", value::Value::Id("m00000".into())), ("bucket", value::Value::Int(0)), ("body", value::Value::String("x".repeat(body_bytes)))]);
     let json_bytes = value::canonical_json(&row).len();
     engine.seed(vec![("messages".into(), row)]).unwrap();
-    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).read_transaction().unwrap();
+    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).read_transaction().unwrap();
     let page_size = tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
     let initial_runs = tx.conn().prepare_cached(SQL).unwrap().get_status(Run);
     let initial_preflight_runs = tx.conn().prepare_cached(PREFLIGHT).unwrap().get_status(Run);
@@ -483,7 +483,7 @@ fn store_guard_refuses_a_pathological_scan_with_its_own_code() {
     for (table, row) in &seed { memory.put(table, &fixture::schema().tables["messages"], row, None).unwrap(); }
     let mut engine = fixture::engine(vec![], 0);
     engine.seed(seed).unwrap();
-    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).read_transaction().unwrap();
+    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).read_transaction().unwrap();
     accounting::TEST_GUARD.with(|limit| limit.set(Some(64 << 10)));
     let mut charges = Vec::new();
     for store in [&tx as &dyn Rows, &memory] {
@@ -530,7 +530,7 @@ fn ordinary_ceilings_never_reach_the_store_guards() {
     let mut engine = fixture::engine(vec![], 0);
     engine.seed((0..128).map(|n| ("messages".into(), object([("id", Value::Id(format!("{n}"))),
         ("bucket", Value::Int(0)), ("body", Value::String(String::new()))]))).collect::<Vec<(String, Value)>>()).unwrap();
-    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }).read_transaction().unwrap();
+    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(store) => store, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).read_transaction().unwrap();
     let page_size = tx.conn().query_row("PRAGMA page_size", [], |r| r.get::<_, i64>(0)).unwrap() as u64;
     let mut meter = meter::Meter::new(Default::default(), meter::Cut::Cap);
     let rows = physical(&mut meter, |meter, scope| Rows::scan_metered(&tx, "messages", "byBucket", &[Value::Int(0)], &Bounds::default(), Dir::Asc, 128, scope, meter)).unwrap();

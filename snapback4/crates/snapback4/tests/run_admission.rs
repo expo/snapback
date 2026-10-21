@@ -98,7 +98,7 @@ fn changed_maintain_writer_and_backfill_outlast_the_old_five_second_wait() {
     let p = Project::new(); p.initialize();
     let old = bound(SOURCE);
     let mut engine = Engine::new(Store::open(&p.store()).unwrap(), old.schema, old.programs.into_iter().map(|p| p.program)).unwrap();
-    let (arrived, release) = pause_activation(match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner });
+    let (arrived, release) = pause_activation(match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") });
     let changed = SOURCE.replace("count items where .active by owner", "count items by owner");
     p.source(&changed); let new = bound(&changed);
     let adopter = std::thread::spawn(move || engine.adopt(new.schema, new.programs.into_iter().map(|p| p.program)).unwrap());

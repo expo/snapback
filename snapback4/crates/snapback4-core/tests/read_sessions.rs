@@ -6,8 +6,8 @@ const DAY: i64 = 86_400_000;
 fn sample(now: i64) -> ServiceSample { ServiceSample { now, supervisor_revision: 0 } }
 fn digest(token: &str) -> String { format!("{:x}", Sha256::digest(token.as_bytes())) }
 fn read_rows(store: &Store) -> Vec<String> {
-    if !(match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_read_sessions')", [], |r| r.get::<_, bool>(0)).unwrap() { return vec![]; }
-    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare("SELECT token_digest FROM _read_sessions ORDER BY token_digest").unwrap()
+    if !(match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_read_sessions')", [], |r| r.get::<_, bool>(0)).unwrap() { return vec![]; }
+    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().prepare("SELECT token_digest FROM _read_sessions ORDER BY token_digest").unwrap()
         .query_map([], |r| r.get(0)).unwrap().map(Result::unwrap).collect()
 }
 
@@ -19,7 +19,7 @@ fn cap_scope_family_and_foreign_expiry_survive_rotation() {
     assert!(read.token.starts_with("ro."));
     assert_eq!(read.cap_expires_at, Some(parent.expires_at));
     assert_eq!(read.expires_at, 200 + 7 * DAY);
-    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("INSERT INTO _sessions VALUES ('foreign','other','user',0,1,'foreign')", []).unwrap();
+    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("INSERT INTO _sessions VALUES ('foreign','other','user',0,1,'foreign')", []).unwrap();
     let cap = read.cap_expires_at.unwrap();
     for now in [300, 6 * DAY, 12 * DAY, 18 * DAY, 24 * DAY, cap - 1] {
         // Each iteration is within the previous session's current expiry.
@@ -29,11 +29,11 @@ fn cap_scope_family_and_foreign_expiry_survive_rotation() {
         assert_eq!(read.expires_at, (now + 7 * DAY).min(cap));
         assert!(identity::resolve(&store, &old, now).unwrap().is_none());
         assert_eq!(identity::resolve(&store, &read.token, now).unwrap().unwrap().2, SessionScope::Read);
-        let (stored_cap, generation): (i64, i64) = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest=?1", [digest(&read.token)], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
+        let (stored_cap, generation): (i64, i64) = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest=?1", [digest(&read.token)], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
         assert_eq!((stored_cap, generation), (cap, 0));
-        let count: i64 = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _sessions WHERE token_digest=?1", [digest(&read.token)], |r| r.get(0)).unwrap();
+        let count: i64 = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT count(*) FROM _sessions WHERE token_digest=?1", [digest(&read.token)], |r| r.get(0)).unwrap();
         assert_eq!(count, 0);
-        let foreign: i64 = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _sessions WHERE token_digest='foreign'", [], |r| r.get(0)).unwrap();
+        let foreign: i64 = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT count(*) FROM _sessions WHERE token_digest='foreign'", [], |r| r.get(0)).unwrap();
         assert_eq!(foreign, 1);
     }
     assert!(identity::rotate_session(&store, &read.token, cap).unwrap().is_none());
@@ -54,13 +54,13 @@ fn independent_logout_and_generation_revocation() {
     let mut store = Store::memory().unwrap();
     let parent = identity::open_session(&store, "bob", "member", 0).unwrap();
     let read = identity::narrow_session(&mut store, &parent.token, || sample(1)).unwrap();
-    let id = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap();
+    let id = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("store_id").unwrap();
     assert_eq!(identity::resolve(&store, &read.token, 2).unwrap().unwrap().2, SessionScope::Read);
     assert_eq!(identity::resolve_supervised(&store, &read.token, sample(2)).unwrap().unwrap().2, SessionScope::Read);
     assert_eq!(identity::resolve_read_only_supervised(&store, &read.token, sample(2), id.as_deref()).unwrap().unwrap().2, SessionScope::Read);
     assert_eq!(identity::resolve_read_only(&store, &read.token, 2, id.as_deref()).unwrap().unwrap().2, SessionScope::Read);
     // Exactly the old executable's revoke-principal transaction: it knows no read table.
-    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("BEGIN IMMEDIATE; INSERT INTO _principal_generations VALUES ('bob',1); DELETE FROM _sessions WHERE principal='bob'; COMMIT;").unwrap();
+    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("BEGIN IMMEDIATE; INSERT INTO _principal_generations VALUES ('bob',1); DELETE FROM _sessions WHERE principal='bob'; COMMIT;").unwrap();
     assert!(identity::resolve(&store, &read.token, 2).unwrap().is_none());
     assert!(identity::resolve_supervised(&store, &read.token, sample(2)).unwrap().is_none());
     assert!(identity::resolve_read_only_supervised(&store, &read.token, sample(2), id.as_deref()).unwrap().is_none());
@@ -79,7 +79,7 @@ fn eligibility_and_direct_signin_scope() {
         if narrowed.is_err() { assert_eq!(read_rows(&store), before, "refused narrowing committed no sibling"); }
     }
     let parent = identity::open_session(&store, "bob", "member", 0).unwrap();
-    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("INSERT INTO _meta(key,value) VALUES (?1,'0')", [format!("worker:family:{}", digest(&parent.token))]).unwrap();
+    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("INSERT INTO _meta(key,value) VALUES (?1,'0')", [format!("worker:family:{}", digest(&parent.token))]).unwrap();
     let before = read_rows(&store);
     assert!(identity::narrow_session(&mut store, &parent.token, || sample(1)).is_err());
     assert_eq!(read_rows(&store), before);
@@ -113,7 +113,7 @@ fn queued_narrow_samples_authority_after_writer_lock() {
         }
         let (entered, waiting) = std::sync::mpsc::channel();
         *WAITING.lock().unwrap()=Some(entered);
-        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().busy_handler(Some(busy)).unwrap();
+        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().busy_handler(Some(busy)).unwrap();
         let clock=std::sync::Arc::new(std::sync::atomic::AtomicI64::new(1));
         let worker_clock=clock.clone();
         let token = parent.token.clone();
@@ -142,7 +142,7 @@ fn signin_collects_foreign_read_expiry_but_read_refresh_does_not() {
         let read = identity::guest_scoped(&store, 0, &mut snapback4_core::ids::Mint::default(), SessionScope::Read).unwrap();
         // Both inclusive boundaries independently qualify; a still-live foreign row survives.
         for (id, expiry, cap) in [("expires", 10, 100), ("cap", 100, 10), ("live", 100, 100)] {
-            (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("INSERT INTO _read_sessions VALUES (?1,'foreign','user',?1,0,?2,?3,0)", params![id, expiry, cap]).unwrap();
+            (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("INSERT INTO _read_sessions VALUES (?1,'foreign','user',?1,0,?2,?3,0)", params![id, expiry, cap]).unwrap();
         }
         let rotated = identity::rotate_session(&store, &read.token, 10).unwrap().unwrap();
         let rows = read_rows(&store);
@@ -158,8 +158,8 @@ fn signin_collects_foreign_read_expiry_but_read_refresh_does_not() {
 fn absent_read_storage_is_empty_without_writes_and_full_logout_still_works() {
     let mut store = Store::memory().unwrap();
     let full = identity::open_session(&store, "bob", "member", 0).unwrap();
-    let changes = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().total_changes();
-    let store_id = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap();
+    let changes = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().total_changes();
+    let store_id = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("store_id").unwrap();
     assert!(identity::resolve(&store, "ro.absent", 1).unwrap().is_none());
     assert!(identity::resolve_read_only(&store, "ro.absent", 1, store_id.as_deref()).unwrap().is_none());
     assert!(identity::resolve_supervised(&store, "ro.absent", sample(1)).unwrap().is_none());
@@ -167,11 +167,11 @@ fn absent_read_storage_is_empty_without_writes_and_full_logout_still_works() {
     assert!(identity::rotate_session(&store, "ro.absent", 1).unwrap().is_none());
     identity::close_session(&store, "ro.absent").unwrap();
     assert!(identity::logout_session(&mut store, "ro.absent", || 1).is_err());
-    assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().total_changes(), changes);
+    assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().total_changes(), changes);
     assert_eq!(identity::resolve(&store, &full.token, 1).unwrap().unwrap().2, SessionScope::Full);
     identity::logout_session(&mut store, &full.token, || 1).unwrap();
     assert_eq!(identity::revoke_principal(&store, "bob").unwrap(), 0);
-    let installed: bool = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_read_sessions')", [], |r| r.get(0)).unwrap();
+    let installed: bool = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_read_sessions')", [], |r| r.get(0)).unwrap();
     assert!(!installed, "reads and full-session logout must never create read storage");
     let read = identity::guest_scoped(&store, 2, &mut snapback4_core::ids::Mint::default(), SessionScope::Read).unwrap();
     assert_eq!(identity::resolve(&store, &read.token, 3).unwrap().unwrap().2, SessionScope::Read);
@@ -182,8 +182,8 @@ fn absent_read_storage_is_empty_without_writes_and_full_logout_still_works() {
 #[test]
 fn malformed_read_storage_is_an_error_not_empty_authority() {
     let store = Store::memory().unwrap();
-    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("CREATE TABLE _read_sessions (wrong_column TEXT)").unwrap();
-    let store_id = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap();
+    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("CREATE TABLE _read_sessions (wrong_column TEXT)").unwrap();
+    let store_id = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("store_id").unwrap();
     assert!(identity::resolve_read_only(&store, "ro.absent", 1, store_id.as_deref()).is_err());
     assert!(identity::rotate_session(&store, "ro.absent", 1).is_err());
 }

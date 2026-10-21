@@ -28,7 +28,7 @@ fn mint(engine: &mut Engine, service: &identity::Session, lease: &str, id: &str,
     identity::bound_custom_session(engine.store_mut(), &service.token, &service.principal, lease, principal, kind, || now, days, &binding(id, replace))
 }
 fn binding_count(engine: &Engine, id: &str) -> i64 {
-    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation = ?1", [id], |row| row.get(0)).unwrap()
+    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation = ?1", [id], |row| row.get(0)).unwrap()
 }
 fn digest(token: &str) -> String { format!("{:x}", Sha256::digest(token.as_bytes())) }
 
@@ -50,11 +50,11 @@ fn initial_mint_replay_input_binding_and_family_recovery_are_exact() {
     assert_eq!(mint(&mut engine, &service, &lease, "", "member:alice", "member", 30, 1, false).unwrap_err().code(), "E_INPUT");
     let first = mint(&mut engine, &service, &lease, "mint", "member:alice", "member", 30, 1, false).unwrap();
     assert_eq!(binding_count(&engine, "mint"), 1);
-    let binding_columns: Vec<String> = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare("SELECT name FROM pragma_table_info('_session_mint_bindings')").unwrap()
+    let binding_columns: Vec<String> = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().prepare("SELECT name FROM pragma_table_info('_session_mint_bindings')").unwrap()
         .query_map([], |row| row.get(0)).unwrap().collect::<Result<_, _>>().unwrap();
     assert_eq!(binding_columns, ["invocation", "intent", "input_digest", "principal", "kind", "days", "expires_at", "family", "principal_generation", "scope"]);
-    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT scope FROM _session_mint_bindings", [], |row| row.get::<_, String>(0)).unwrap(), "full");
-    let persisted: String = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT invocation || intent || input_digest || principal || kind || days || expires_at || family || principal_generation FROM _session_mint_bindings", [], |row| row.get(0)).unwrap();
+    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT scope FROM _session_mint_bindings", [], |row| row.get::<_, String>(0)).unwrap(), "full");
+    let persisted: String = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT invocation || intent || input_digest || principal || kind || days || expires_at || family || principal_generation FROM _session_mint_bindings", [], |row| row.get(0)).unwrap();
     assert!(!persisted.contains(&first.token), "the binding never stores a raw session token");
     assert_eq!(mint(&mut engine, &service, &lease, "mint", "member:alice", "member", 30, 2, false).unwrap_err().code(), "E_INPUT");
     for (principal, kind, days) in [("member:bob", "member", 30), ("member:alice", "other", 30), ("member:alice", "member", 29)] {
@@ -74,15 +74,15 @@ fn initial_mint_replay_input_binding_and_family_recovery_are_exact() {
         assert_eq!(session.expires_at, 4 + clamped * 86_400_000, "bound integer days retain the legacy lifetime clamp");
     }
 
-    let family: String = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT family FROM _sessions WHERE token_digest = ?1", [digest(&first.token)], |row| row.get(0)).unwrap();
+    let family: String = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT family FROM _sessions WHERE token_digest = ?1", [digest(&first.token)], |row| row.get(0)).unwrap();
     let refreshed = identity::rotate_session(engine.store(), &first.token, 4).unwrap().unwrap();
     let overlap = identity::custom_session(engine.store(), "member:alice", "member", 5, 30).unwrap();
-    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _sessions SET family = ?2 WHERE token_digest = ?1", rusqlite::params![digest(&overlap.token), family]).unwrap();
+    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _sessions SET family = ?2 WHERE token_digest = ?1", rusqlite::params![digest(&overlap.token), family]).unwrap();
     let recovered = mint(&mut engine, &service, &lease, "mint", "member:alice", "member", 30, 6, true).unwrap();
     assert_eq!(recovered.expires_at, first.expires_at, "lost delivery cannot extend the original lifetime");
     for stale in [&first.token, &refreshed.token, &overlap.token] { assert!(identity::resolve(engine.store(), stale, 7).unwrap().is_none()); }
     assert!(identity::resolve(engine.store(), &recovered.token, 7).unwrap().is_some());
-    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = 'member:alice' AND family = ?1", [&family], |row| row.get::<_, i64>(0)).unwrap(), 1);
+    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = 'member:alice' AND family = ?1", [&family], |row| row.get::<_, i64>(0)).unwrap(), 1);
 }
 
 #[test]
@@ -146,15 +146,15 @@ fn family_tombstone_refuses_logout_revocation_generation_and_expiry() {
                 assert!(identity::resolve(engine.store(), &unrelated.token, 3).unwrap().is_some());
             }
             "expired" => {
-                (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _sessions SET expires_at = 2 WHERE principal = 'member:target'", []).unwrap();
-                (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _session_mint_bindings SET expires_at = 2 WHERE invocation = 'expired'", []).unwrap();
+                (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _sessions SET expires_at = 2 WHERE principal = 'member:target'", []).unwrap();
+                (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _session_mint_bindings SET expires_at = 2 WHERE invocation = 'expired'", []).unwrap();
             }
             _ => unreachable!(),
         }
         assert_eq!(mint(&mut engine, &service, &lease, mode, "member:target", "member", 1, 3, true).unwrap_err().code(), "E_ACTION_AUTHORITY");
         assert_eq!(binding_count(&engine, mode), 1, "revocation keeps the binding tombstone");
         assert!(identity::resolve(engine.store(), &target.token, 3).unwrap().is_none());
-        assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = 'member:target'", [], |row| row.get::<_, i64>(0)).unwrap(), if mode == "revoke" { 1 } else { 0 });
+        assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = 'member:target'", [], |row| row.get::<_, i64>(0)).unwrap(), if mode == "revoke" { 1 } else { 0 });
     }
 
     for mode in ["service-logout", "service-revoke", "service-expiry"] {
@@ -165,7 +165,7 @@ fn family_tombstone_refuses_logout_revocation_generation_and_expiry() {
         match mode {
             "service-logout" => identity::close_session(engine.store(), &service.token).unwrap(),
             "service-revoke" => { identity::revoke_principal(engine.store(), "service:worker").unwrap(); }
-            "service-expiry" => { (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _sessions SET expires_at = 2 WHERE token_digest = ?1", [digest(&service.token)]).unwrap(); }
+            "service-expiry" => { (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _sessions SET expires_at = 2 WHERE token_digest = ?1", [digest(&service.token)]).unwrap(); }
             _ => unreachable!(),
         }
         assert_eq!(mint(&mut engine, &service, &lease, mode, "member:new", "member", 1, 3, false).unwrap_err().code(), "E_AUTH");
@@ -185,8 +185,8 @@ fn admitting_family_logout_all_and_expiry_cannot_be_replaced_by_a_fresh_sign_in(
             "admitting-logout" => { identity::close_session(engine.store(), &owner.token).unwrap(); 1 }
             "admitting-all" => { identity::revoke_principal(engine.store(), &owner.principal).unwrap(); 1 }
             "admitting-expiry" => {
-                (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _sessions SET expires_at = 2 WHERE token_digest = ?1", [digest(&owner.token)]).unwrap();
-                (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _requests SET lease_until = 4 WHERE id = 'admitting-expiry'", []).unwrap();
+                (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _sessions SET expires_at = 2 WHERE token_digest = ?1", [digest(&owner.token)]).unwrap();
+                (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _requests SET lease_until = 4 WHERE id = 'admitting-expiry'", []).unwrap();
                 3
             }
             _ => unreachable!(),
@@ -209,7 +209,7 @@ fn a_cyclic_delegated_authority_chain_fails_closed() {
 
     // Corrupt the parent's admission edge to point back at the child. The
     // shared authority walk must retain the existing cycle refusal.
-    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute(
+    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute(
         "UPDATE _requests SET family = ?2 WHERE id = ?1",
         rusqlite::params!["cycle-parent", digest(&child)],
     ).unwrap();
@@ -250,8 +250,8 @@ fn two_connections_recheck_service_revocation_and_serialize_replacements() {
     assert_eq!(replacements.iter().filter(|session| identity::resolve(&check, &session.token, 4).unwrap().is_some()).count(), 1);
     assert!(identity::resolve(&check, &initial.token, 4).unwrap().is_none());
     assert!(replacements.iter().all(|session| session.expires_at == initial.expires_at));
-    let family: String = (match &check { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT family FROM _session_mint_bindings WHERE invocation = 'race'", [], |row| row.get(0)).unwrap();
-    assert_eq!((match &check { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&family], |row| row.get::<_, i64>(0)).unwrap(), 1);
+    let family: String = (match &check { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT family FROM _session_mint_bindings WHERE invocation = 'race'", [], |row| row.get(0)).unwrap();
+    assert_eq!((match &check { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&family], |row| row.get::<_, i64>(0)).unwrap(), 1);
 
     let gate = std::sync::Arc::new(std::sync::Barrier::new(3));
     let revoke = { let (path, gate) = (path.clone(), gate.clone()); std::thread::spawn(move || {
@@ -264,9 +264,9 @@ fn two_connections_recheck_service_revocation_and_serialize_replacements() {
     gate.wait();
     revoke.join().unwrap();
     if let Err(error) = recover.join().unwrap() { assert_eq!(error.code(), "E_ACTION_AUTHORITY"); }
-    assert_eq!((match &check { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = 'member:race'", [], |row| row.get::<_, i64>(0)).unwrap(), 0,
+    assert_eq!((match &check { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = 'member:race'", [], |row| row.get::<_, i64>(0)).unwrap(), 0,
         "revocation racing replacement must win finally without recreating the family");
-    assert_eq!((match &check { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation = 'race'", [], |row| row.get::<_, i64>(0)).unwrap(), 1);
+    assert_eq!((match &check { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation = 'race'", [], |row| row.get::<_, i64>(0)).unwrap(), 1);
     drop(check); drop(second); drop(engine);
     std::fs::remove_dir_all(root).unwrap();
 }
@@ -283,22 +283,22 @@ fn committed_order_logout_and_lost_delivery_replacement_are_serialized() {
     admit(&mut engine, "logout-first", 0);
     let first_lease = claim(&mut engine, 0);
     let first = mint(&mut engine, &service, &first_lease, "logout-first", "member:logout-first", "member", 1, 1, false).unwrap();
-    let first_family: String = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row(
+    let first_family: String = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row(
         "SELECT family FROM _session_mint_bindings WHERE invocation = 'logout-first'", [], |row| row.get(0)).unwrap();
     identity::logout_session(&mut logout_store, &first.token, || 2).unwrap();
     assert_eq!(mint(&mut engine, &service, &first_lease, "logout-first", "member:logout-first", "member", 1, 3, true).unwrap_err().code(), "E_ACTION_AUTHORITY");
-    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&first_family], |row| row.get::<_, i64>(0)).unwrap(), 0);
+    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&first_family], |row| row.get::<_, i64>(0)).unwrap(), 0);
     assert_eq!(binding_count(&engine, "logout-first"), 1, "logout keeps the binding tombstone that prevents resurrection");
 
     admit(&mut engine, "replace-first", 4);
     let second_lease = claim(&mut engine, 4);
     let second = mint(&mut engine, &service, &second_lease, "replace-first", "member:replace-first", "member", 1, 5, false).unwrap();
-    let second_family: String = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row(
+    let second_family: String = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row(
         "SELECT family FROM _session_mint_bindings WHERE invocation = 'replace-first'", [], |row| row.get(0)).unwrap();
     let replacement = mint(&mut engine, &service, &second_lease, "replace-first", "member:replace-first", "member", 1, 6, true).unwrap();
     assert_eq!(identity::logout_session(&mut logout_store, &second.token, || 7).unwrap_err().code(), "E_AUTH", "a stale delivered token cannot report logout success");
     assert!(identity::resolve(&logout_store, &replacement.token, 8).unwrap().is_some(), "stale-token logout must not close the replacement");
-    assert_eq!((match &logout_store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&second_family], |row| row.get::<_, i64>(0)).unwrap(), 1);
+    assert_eq!((match &logout_store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&second_family], |row| row.get::<_, i64>(0)).unwrap(), 1);
 
     drop(logout_store); drop(engine);
     std::fs::remove_dir_all(root).unwrap();
@@ -322,15 +322,15 @@ fn two_connection_writer_block_samples_authority_time_after_the_lock() {
         };
         let lease = claim(&mut engine, 0);
         match mode {
-            "service-expiry" => { (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _sessions SET expires_at = 10 WHERE token_digest = ?1", [digest(&service.token)]).unwrap(); }
-            "claim-lease-expiry" => { (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _requests SET lease_until = 10 WHERE id = ?1", [mode]).unwrap(); }
-            "claim-deadline-expiry" => { (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _requests SET deadline = 10 WHERE id = ?1", [mode]).unwrap(); }
-            "admitting-expiry" => { (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _sessions SET expires_at = 10 WHERE token_digest = ?1", [digest(admitting_token.as_deref().unwrap())]).unwrap(); }
+            "service-expiry" => { (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _sessions SET expires_at = 10 WHERE token_digest = ?1", [digest(&service.token)]).unwrap(); }
+            "claim-lease-expiry" => { (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _requests SET lease_until = 10 WHERE id = ?1", [mode]).unwrap(); }
+            "claim-deadline-expiry" => { (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _requests SET deadline = 10 WHERE id = ?1", [mode]).unwrap(); }
+            "admitting-expiry" => { (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _sessions SET expires_at = 10 WHERE token_digest = ?1", [digest(admitting_token.as_deref().unwrap())]).unwrap(); }
             _ => unreachable!(),
         }
 
         let mut blocked = Store::open(&path).unwrap();
-        (match &blocked { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().busy_handler(Some(witness_writer_blocked)).unwrap();
+        (match &blocked { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().busy_handler(Some(witness_writer_blocked)).unwrap();
         let mut blocker = Store::open(&path).unwrap();
         let held_writer = blocker.transaction().unwrap();
         let clock = Arc::new(AtomicI64::new(9));
@@ -354,8 +354,8 @@ fn two_connection_writer_block_samples_authority_time_after_the_lock() {
         let error = handle.join().unwrap().unwrap_err();
         assert_eq!(samples.load(Ordering::SeqCst), 1, "{mode}: authority time is sampled exactly once");
         assert_eq!(error.code(), if mode == "service-expiry" { "E_AUTH" } else { "E_ACTION_LEASE" }, "{mode}: {error}");
-        assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation = ?1", [mode], |row| row.get::<_, i64>(0)).unwrap(), 0, "{mode}: no stale-time binding");
-        assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = ?1", [&format!("member:{mode}")], |row| row.get::<_, i64>(0)).unwrap(), 0, "{mode}: no stale-time mint");
+        assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _session_mint_bindings WHERE invocation = ?1", [mode], |row| row.get::<_, i64>(0)).unwrap(), 0, "{mode}: no stale-time binding");
+        assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE principal = ?1", [&format!("member:{mode}")], |row| row.get::<_, i64>(0)).unwrap(), 0, "{mode}: no stale-time mint");
         drop(blocker); drop(engine);
         std::fs::remove_dir_all(root).unwrap();
     }
@@ -365,9 +365,9 @@ fn two_connection_writer_block_samples_authority_time_after_the_lock() {
     let path = root.join("store.sqlite");
     let store = Store::open(&path).unwrap();
     let session = identity::custom_session(&store, "member:logout-clock", "member", 0, 1).unwrap();
-    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _sessions SET expires_at = 10 WHERE token_digest = ?1", [digest(&session.token)]).unwrap();
+    (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _sessions SET expires_at = 10 WHERE token_digest = ?1", [digest(&session.token)]).unwrap();
     let mut blocked = Store::open(&path).unwrap();
-    (match &blocked { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().busy_handler(Some(witness_writer_blocked)).unwrap();
+    (match &blocked { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().busy_handler(Some(witness_writer_blocked)).unwrap();
     let mut blocker = Store::open(&path).unwrap();
     let held_writer = blocker.transaction().unwrap();
     let clock = Arc::new(AtomicI64::new(9));
@@ -386,7 +386,7 @@ fn two_connection_writer_block_samples_authority_time_after_the_lock() {
     drop(held_writer);
     assert_eq!(handle.join().unwrap().unwrap_err().code(), "E_AUTH", "an expired presented token cannot report logout success from stale pre-lock time");
     assert_eq!(samples.load(Ordering::SeqCst), 1, "logout authority time is sampled exactly once");
-    assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE token_digest = ?1", [digest(&session.token)], |row| row.get::<_, i64>(0)).unwrap(), 1, "the expired token was refused, not successfully logged out");
+    assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE token_digest = ?1", [digest(&session.token)], |row| row.get::<_, i64>(0)).unwrap(), 1, "the expired token was refused, not successfully logged out");
     drop(blocker); drop(store);
     std::fs::remove_dir_all(root).unwrap();
 }

@@ -33,10 +33,10 @@ mod tests {
         let session = open_session(&store, "guest:first", "guest", 1_000).unwrap();
         close_session(&store, &session.token).unwrap();
         let expired = open_session(&store, "guest:expired", "guest", 1_000).unwrap();
-        let schema = || (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().prepare("SELECT sql FROM sqlite_schema ORDER BY name").unwrap()
+        let schema = || (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().prepare("SELECT sql FROM sqlite_schema ORDER BY name").unwrap()
             .query_map([], |r| r.get::<_, Option<String>>(0)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
         let before = schema();
-        let changes = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().total_changes();
+        let changes = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().total_changes();
         for trusted in [true, false] {
             for token in ["unknown", &session.token, &expired.token] {
                 let message = refused(&store, token, expired.expires_at, trusted).message;
@@ -45,7 +45,7 @@ mod tests {
                 else { assert!(message.contains("unknown to this store") && message.contains("before this server started")); }
             }
         }
-        assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().total_changes(), changes);
+        assert_eq!((match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).conn().total_changes(), changes);
         assert_eq!(schema(), before);
     }
 }

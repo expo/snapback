@@ -62,7 +62,7 @@ fn cache(engine: &Engine) -> Json {
         // a statement nor changes row data. Reset only the diagnostic counter.
         let code = unsafe {
             rusqlite::ffi::sqlite3_db_status(
-                (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().handle(),
+                (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().handle(),
                 op,
                 &mut current,
                 &mut high,
@@ -94,7 +94,7 @@ fn main() {
     ] {
         if let Ok(value) = std::env::var(var) {
             (match engine
-                .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+                .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
                 .pragma_update(None, pragma, value.parse::<i64>().unwrap() * sign)
                 .unwrap();
         }
@@ -111,13 +111,13 @@ fn main() {
         (
             name.into(),
             (match engine
-                .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+                .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
                 .query_row(&format!("PRAGMA {name}"), [], |r| r.get(0))
                 .unwrap(),
         )
     })
     .collect();
-    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().trace_v2(
+    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().trace_v2(
         TraceEventCodes::SQLITE_TRACE_PROFILE | TraceEventCodes::SQLITE_TRACE_STMT,
         Some(trace),
     );
@@ -162,7 +162,7 @@ fn main() {
                 .filter(|s| s.starts_with("SELECT"))
                 .map(|s| {
                     let mut stmt = (match engine
-                        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
+                        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn()
                         .prepare(&format!("EXPLAIN QUERY PLAN {s}"))
                         .unwrap();
                     for i in 1..=stmt.parameter_count() {

@@ -38,7 +38,7 @@ fn seed(engine: &mut Engine, table: &str, n: usize, make: impl Fn(usize) -> Valu
 fn build(path: &std::path::Path) {
     let b = bound(false);
     let mut e = Engine::new_at(Store::open(path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program), NOW).unwrap();
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("PRAGMA cache_size = -131072").unwrap();
+    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("PRAGMA cache_size = -131072").unwrap();
     if std::env::var("SNAPBACK4_RESUME_SEED").as_deref()!=Ok("1") {
     seed(&mut e, "profiles", 1008, |n| object([("id", user(n)), ("principal",user(n)), ("handle",text(format!("user{n:04}"))), ("displayName",text("Scale user")), ("bio",text("")), ("location",text(""))]));
     // 23 readers follow the prolific author. Remaining edges are disjoint;
@@ -60,8 +60,8 @@ fn build(path: &std::path::Path) {
     }
     let settle=Instant::now(); let mut chunks=0;
     while e.run_timeline_chunk_for(NOW, std::time::Duration::from_secs(1)).unwrap().is_some() { chunks+=1; if chunks%5000==0 {eprintln!("settled {chunks} chunks in {} ms",settle.elapsed().as_millis());} }
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("PRAGMA cache_size = -2000").unwrap();
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE)").unwrap();
+    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("PRAGMA cache_size = -2000").unwrap();
+    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE)").unwrap();
 }
 
 #[test]
@@ -81,18 +81,18 @@ fn m7_to_m8() {
     // and digest do not depend on them and stay present in both generations.
     let b = bound(false);
     let prepared = Engine::new_at(Store::open(&baseline).unwrap(),b.schema,b.programs.into_iter().map(|p|p.program),NOW).unwrap();
-    (match prepared.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE)").unwrap();
+    (match prepared.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("PRAGMA wal_checkpoint(TRUNCATE)").unwrap();
     drop(prepared);
     let working=root.join("adopt.db");
     for suffix in ["", "-wal", "-shm"] { let _=std::fs::remove_file(format!("{}{suffix}",working.display())); }
     std::fs::copy(&baseline,&working).unwrap();
     let engine=Engine::open_at(Store::open(&working).unwrap(),NOW).unwrap();
-    let counts:(i64,i64)=(match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT (SELECT count(*) FROM r), (SELECT count(*) FROM i)",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
+    let counts:(i64,i64)=(match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT (SELECT count(*) FROM r), (SELECT count(*) FROM i)",[],|r|Ok((r.get(0)?,r.get(1)?))).unwrap();
     eprintln!("fixture rows={} indexes={}",counts.0,counts.1);
     let key_cost = std::env::var("SNAPBACK4_ADOPTION_KEY_GUARD_COST").as_deref() == Ok("1");
     if key_cost {
         // Collect the actual insertion workload separately from normal timings.
-        (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("CREATE TEMP TABLE rebuilt_keys (ti INTEGER, k BLOB, id TEXT);
+        (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("CREATE TEMP TABLE rebuilt_keys (ti INTEGER, k BLOB, id TEXT);
             CREATE TEMP TRIGGER collect_rebuilt_keys AFTER INSERT ON main.i
             BEGIN INSERT INTO rebuilt_keys VALUES (NEW.ti, NEW.k, NEW.id); END;").unwrap();
     }
@@ -108,7 +108,7 @@ fn m7_to_m8() {
         let b=bound(true);
         let mut e=owner.lock().unwrap();
         let once=AtomicBool::new(false);
-        (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+        (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
             // The identity SELECT has already pinned this BEGIN IMMEDIATE
             // transaction. Hold its first index read until the query finishes.
             if matches!(ctx.action,rusqlite::hooks::AuthAction::Read {table_name:"i",..})
@@ -152,7 +152,7 @@ fn m7_to_m8() {
 // This measures per-insert trigger cost, separately from evaluation and fsync.
 fn measure_key_guards(engine: &Engine) {
     use rusqlite::{config::DbConfig, params};
-    let conn = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn();
+    let conn = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn();
     conn.authorizer(None::<fn(rusqlite::hooks::AuthContext<'_>) -> rusqlite::hooks::Authorization>).unwrap();
     conn.execute_batch("DROP TRIGGER collect_rebuilt_keys;").unwrap();
     let keys: Vec<(i64, Vec<u8>, String)> = conn.prepare("SELECT ti, k, id FROM rebuilt_keys ORDER BY rowid").unwrap()

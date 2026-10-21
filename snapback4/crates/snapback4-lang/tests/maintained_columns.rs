@@ -457,14 +457,14 @@ fn adapter_failures_after_private_write_and_between_mirrors_roll_back_every_imag
         // BEFORE the private INSERT's matching parent write (first or second mirror).
         // r holds tagged row JSON. A failed adapter operation aborts the real transaction.
         let condition=if column=="likeCount" {"1"} else {"json_extract(NEW.data, '$.Row.likeCount.Int') = 1 AND json_extract(NEW.data, '$.Row.selected.Int') = 1"};
-        (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch(&format!("CREATE TRIGGER fail_mirror BEFORE UPDATE ON r WHEN NEW.t = (SELECT num FROM _catalog WHERE name = 'posts') AND {condition} BEGIN SELECT RAISE(ABORT, 'injected mirror failure'); END;")).unwrap();
+        (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch(&format!("CREATE TRIGGER fail_mirror BEFORE UPDATE ON r WHEN NEW.t = (SELECT num FROM _catalog WHERE name = 'posts') AND {condition} BEGIN SELECT RAISE(ABORT, 'injected mirror failure'); END;")).unwrap();
         let result=e.mutate("like",None,context(&[("id",id("l")),("postId",id("p")),("active",Value::Bool(true)),("amount",Value::Int(5))]));
         assert!(format!("{result:?}").contains("injected mirror failure"),"{result:?}");
         assert_eq!(e.seq().unwrap(),seq);
         assert_eq!(totals(&mut e,"p"),(0,0,0));
         assert!(e.store().rows("likes").unwrap().is_empty());
         for m in &e.schema().maintains {assert!(e.store().rows(&m.target).unwrap().is_empty());}
-        (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("DROP TRIGGER fail_mirror").unwrap();
+        (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("DROP TRIGGER fail_mirror").unwrap();
         assert_eq!(e.seq().unwrap(),seq);
         assert_eq!(totals(&mut e,"p"),(0,0,0));
         like(&mut e,"l",id("p"),true,5);
@@ -564,7 +564,7 @@ fn one_parent_image_per_commit_has_the_hand_kept_columns_log_cost() {
     post(&mut e,"p",1);
     let from=e.seq().unwrap();
     like(&mut e,"l",id("p"),true,4);
-    let rows:Vec<(String,String)>=(match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare("SELECT t,kind FROM _log WHERE seq > ?1 ORDER BY t").unwrap()
+    let rows:Vec<(String,String)>=(match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().prepare("SELECT t,kind FROM _log WHERE seq > ?1 ORDER BY t").unwrap()
         .query_map([from as i64],|r|Ok((r.get(0)?,r.get(1)?))).unwrap().map(Result::unwrap).collect();
     assert_eq!(rows.len(),2,"one source image and one full parent image: {rows:?}");
     assert_eq!(rows.iter().map(|(t,_)|t.as_str()).collect::<Vec<_>>(),["likes","posts"]);

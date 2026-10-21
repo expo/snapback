@@ -120,8 +120,8 @@ fn oversized_recipient_parks_without_a_partial_digest_or_emission_key() {
     assert_eq!(run.chunk_size, 1);
     assert!(run.error.as_ref().unwrap().starts_with("E_BOUND:"), "{run:?}");
     assert!(e.effects(None, 10).unwrap().is_empty());
-    let exists: i64 = (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM sqlite_master WHERE name='_effect_keys'", [], |r| r.get(0)).unwrap();
-    let keys: i64 = if exists == 0 { 0 } else { (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get(0)).unwrap() };
+    let exists: i64 = (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT count(*) FROM sqlite_master WHERE name='_effect_keys'", [], |r| r.get(0)).unwrap();
+    let keys: i64 = if exists == 0 { 0 } else { (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get(0)).unwrap() };
     assert_eq!(keys, 0);
     println!("M8 oversized recipient: {run:?}; effects=0; keys=0");
 }
@@ -135,7 +135,7 @@ fn copied_calibration_store_job_and_preview_match_independent_oracle() {
     let mut e = engine(Store::open(&path).unwrap());
     // The supplied development store suppresses effects. This isolated engine
     // has no worker or network; retain payloads here to verify complete totals.
-    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _meta SET value='false' WHERE key='dev:replay'", []).unwrap();
+    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("UPDATE _meta SET value='false' WHERE key='dev:replay'", []).unwrap();
     let profile = e.store().rows("profiles").unwrap().into_iter().find(|p| p.field("handle").unwrap() == &Value::String("u0500".into())).unwrap();
     let start = 14_921_360 * 120_000;
     witness(&mut e, &identity(&profile, "principal"), start, start + 119_998);

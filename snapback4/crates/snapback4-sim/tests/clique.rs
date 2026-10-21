@@ -1378,7 +1378,7 @@ fn action_admission_authority_survives_refresh_but_not_revocation_or_expiry() {
                 assert_eq!(claims[0].session.expires_at, now + 900_000);
             } else {
                 assert!(claims.is_empty(), "{service} {end}");
-                let (state, code, sessions): (String, String, i64) = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row(
+                let (state, code, sessions): (String, String, i64) = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row(
                     "SELECT state, error_code, (SELECT COUNT(*) FROM _sessions WHERE kind = 'action') FROM _requests WHERE id = 'bound'", [],
                     |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).unwrap();
                 assert_eq!((state.as_str(), code.as_str(), sessions), ("failed", "E_ACTION_AUTHORITY", 0));

@@ -30,7 +30,7 @@ fn generation_case(reader: bool, stream: bool) {
         lock(&host.shared.readers).replace(&engine, &bound.refusal_sites);
         *lock(&host.shared.generation) = generation;
         *lock(&host.shared.bound) = bound;
-        (generation, (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap().unwrap(), engine.seq().unwrap())
+        (generation, (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("store_id").unwrap().unwrap(), engine.seq().unwrap())
     };
     assert_eq!(generation, 2);
     lock(&sync::MATERIALIZATIONS).remove(&store_id);
@@ -115,7 +115,7 @@ fn assert_early_keys(reply: &Json) {
 fn generation_discovery_keeps_page_authorization() {
     for dev in [false, true] {
         let host = Host::new(dev);
-        let store_id = (match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap().unwrap();
+        let store_id = (match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("store_id").unwrap().unwrap();
         lock(&sync::MATERIALIZATIONS).remove(&store_id);
         for headers in ["", "Authorization: Bearer dead-token\r\n", "x-snapback-persona: bad!\r\n",
             "x-snapback-persona: alice\r\nAuthorization: Bearer dead-token\r\n"] {
@@ -146,13 +146,13 @@ fn generation_discovery_keeps_page_authorization() {
 #[test]
 fn failed_materialization_is_not_counted_and_unreadable_head_fails_discovery() {
     let host = Host::new(true);
-    let store_id = (match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap().unwrap();
+    let store_id = (match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_meta("store_id").unwrap().unwrap();
     lock(&sync::MATERIALIZATIONS).remove(&store_id);
     let bad = host.request("POST", "/sync", PERSONA, r#"{"generation":1,"after":"bad-cursor"}"#);
     assert_eq!(status(&bad), 400);
     assert_eq!(body(&bad)["denied"]["code"], "E_INPUT");
     assert_eq!(*lock(&sync::MATERIALIZATIONS).get(&store_id).unwrap_or(&0), 0);
-    (match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("DROP TABLE _commits", []).unwrap();
+    (match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("DROP TABLE _commits", []).unwrap();
     for stream in [false, true] {
         let response = host.request("POST", "/sync", PERSONA, &json!({ "generation": 0, "stream": stream }).to_string());
         assert_eq!(status(&response), 503);

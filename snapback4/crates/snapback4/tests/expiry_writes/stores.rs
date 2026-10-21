@@ -81,7 +81,7 @@ fn sqlite_reopen_upgrades_legacy_counts_without_changing_generation() {
     e.load([old]).unwrap();
     let generation = e.generation();
     let tx = e.store_mut().transaction().unwrap();
-    (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).test_support_conn().execute_batch("DROP TABLE _cap_counts; DELETE FROM _meta WHERE key = 'cap_counts_schema';").unwrap();
+    (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("DROP TABLE _cap_counts; DELETE FROM _meta WHERE key = 'cap_counts_schema';").unwrap();
     tx.commit().unwrap();
     drop(e);
     let mut e = Engine::open_at(Store::open(&path).unwrap(), 100).unwrap();

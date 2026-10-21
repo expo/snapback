@@ -81,7 +81,7 @@ fn varying_cost_retries_and_reopens_at_committed_cursor() {
     let run = engine.job(&id).unwrap().unwrap();
     assert_eq!(run.state, JobState::Done, "{run:?}");
     assert_eq!(engine.effects(None, 500).unwrap().len(), 80);
-    let rows = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare("SELECT data FROM r").unwrap().query_map([], |r| r.get::<_, String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+    let rows = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().prepare("SELECT data FROM r").unwrap().query_map([], |r| r.get::<_, String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
     for row in rows { assert!(row.contains("visits")); let v: Value = serde_json::from_str(&row).unwrap(); assert_eq!(v.field("visits").unwrap(), &Value::Int(1)); }
     drop(engine);
     std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
@@ -98,7 +98,7 @@ fn impossible_item_parks_without_committing_its_key_or_writes() {
     assert_eq!(run.retries, 6);
     assert!(run.error.unwrap().starts_with("E_BOUND:"));
     assert_eq!(engine.effects(None, 500).unwrap().len(), 64);
-    let keys: i64 = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get(0)).unwrap();
+    let keys: i64 = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get(0)).unwrap();
     assert_eq!(keys, 64);
 }
 
@@ -202,7 +202,7 @@ fn replay_consumes_canonical_keys_and_effect_names_have_separate_domains() {
     engine.store_mut().set_dev_value(snapback4_core::metadata::DevMetadata::Replay, "false").unwrap();
     assert_eq!(engine.run_job("sweep", BTreeMap::new(), 2).unwrap().state, JobState::Done);
     assert!(engine.effects(None, 10).unwrap().is_empty());
-    let value: String = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT data FROM r", [], |r| r.get(0)).unwrap();
+    let value: String = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT data FROM r", [], |r| r.get(0)).unwrap();
     assert_eq!(serde_json::from_str::<Value>(&value).unwrap().field("visits").unwrap(), &Value::Int(2));
     drop(engine);
     std::fs::remove_dir_all(path.parent().unwrap()).unwrap();
@@ -233,7 +233,7 @@ job sweep():
     let mut engine = Engine::open(Store::open(&path).unwrap()).unwrap();
     while engine.run_job_chunk(200).unwrap().is_some() {}
     assert_eq!(engine.job(&id).unwrap().unwrap().rows_written, 100, "the later clock must not extend the sweep");
-    let rows = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare("SELECT data FROM r ORDER BY id").unwrap().query_map([], |r| r.get::<_, String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
+    let rows = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().prepare("SELECT data FROM r ORDER BY id").unwrap().query_map([], |r| r.get::<_, String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap();
     for (i, row) in rows.iter().enumerate() {
         assert_eq!(serde_json::from_str::<Value>(row).unwrap().field("observed").unwrap(), &if i < 64 {Value::Int(100)} else if i < 100 {Value::Int(200)} else {Value::Null});
     }
@@ -387,16 +387,16 @@ mutation send():
   return true
 "#;
     let mut engine = memory(source);
-    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("CREATE TRIGGER fail_outbox BEFORE INSERT ON _outbox BEGIN SELECT RAISE(ABORT, 'injected outbox failure'); END;").unwrap();
+    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("CREATE TRIGGER fail_outbox BEFORE INSERT ON _outbox BEGIN SELECT RAISE(ABORT, 'injected outbox failure'); END;").unwrap();
     assert!(engine.mutate("send",Some("failed"),Context::system().at(1)).is_err());
-    let tables: i64 = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM sqlite_master WHERE name = '_effect_keys'",[],|r|r.get(0)).unwrap();
+    let tables: i64 = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().query_row("SELECT count(*) FROM sqlite_master WHERE name = '_effect_keys'",[],|r|r.get(0)).unwrap();
     assert_eq!(tables,0, "failed first emission rolls back the key table too");
-    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("DROP TRIGGER fail_outbox").unwrap();
+    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute_batch("DROP TRIGGER fail_outbox").unwrap();
     engine.mutate("send",Some("good"),Context::system().at(2)).unwrap();
     assert_eq!(engine.effects(None,10).unwrap().len(),3);
     engine.mutate("send",Some("again"),Context::system().at(3)).unwrap();
     assert_eq!(engine.effects(None,10).unwrap().len(),3);
-    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("DELETE FROM _outbox", []).unwrap();
+    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner, #[allow(unreachable_patterns)] _ => unreachable!("SQLite fixture") }).test_support_conn().execute("DELETE FROM _outbox", []).unwrap();
     engine.mutate("send",Some("after-removal"),Context::system().at(4)).unwrap();
     assert!(engine.effects(None,10).unwrap().is_empty(), "settled or removed outbox rows never release lifetime keys");
     let stmt = snapback4_core::ir::Stmt::Emit {effect:"notify".into(),payload:snapback4_core::ir::Expr::Literal(Value::Null),once:None};
