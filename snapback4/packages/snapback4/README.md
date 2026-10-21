@@ -110,7 +110,7 @@ Replace `App.tsx`. A refused sign-in returns `{ ok: false, why }`. A missing pro
 
 ```tsx
 // App.tsx
-import { useNativeSmokeGuest } from "./src/native-smoke";
+import { useNativeSmoke } from "snapback4-expo/native-smoke";
 import { useState } from "react";
 import { Button, Image, Text, TextInput, View } from "react-native";
 import { AppProvider, useAuth, useClient, useQuery, useMutation, useAsset } from "snapback4/react";
@@ -118,7 +118,7 @@ import { app } from "./src/client";
 import { api } from "./snapback/generated/api";
 export function App() { return <AppProvider app={app}><Account /></AppProvider>; }
 function Account() {
-  useNativeSmokeGuest();
+  useNativeSmoke(true);
   const auth = useAuth();
   const [email, setEmail] = useState(""), [password, setPassword] = useState("");
   const [problem, setProblem] = useState("");

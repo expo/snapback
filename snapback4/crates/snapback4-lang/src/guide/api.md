@@ -21,7 +21,7 @@ type and `Ops` the handles' types; `RowOf<typeof api.op>`, `ArgsOf<…>` and `Re
 | Subpath | For | Functions and hooks | Main types |
 |---|---|---|---|
 | `snapback4/app` | the app object: identity, client lifetime, pending writes | `createApp` | `App`, `AppOptions`, `AppAuth`, `AuthState`, `Online` |
-| `snapback4/react` | React and React Native hooks | `AppProvider`, `SignedIn`, `QueryRefusal`, `useAuth`, `useAppReady`, `useRelease`, `useClient`, `useViewer`, `useSignedInViewer`, `usePersonaApp`, `useSession`, `useQueryData`, `useQueryResult`, `useQuery`, `usePage`, `useFollowing`, `useMutation`, `useAction`, `useAsset`, `useSaveAsset`, `useUpload`, `useLink`, `useOnline`, `useNow`, `useAcquired`, `useAcquisition`, `usePendingWrite`, `usePendingWrites`, `usePendingItems`, `usePendingState`, `useSeen`, `useInspection`, `SnapbackProvider`; and the `snapback4/contract` guards | `UseQuery`, `UsePage`, `ReadHookOptions` (`{ keep, skip }`), `UseAction`, `UseMutation`, `WriteHook`, `MutationHook`, `Outcome`, `AssetState`, `PendingItem` |
+| `snapback4/react` | React and React Native hooks | `AppProvider`, `SignedIn`, `QueryRefusal`, `ReadState`, `useAuth`, `useAppReady`, `useRelease`, `useClient`, `useViewer`, `useSignedInViewer`, `usePersonaApp`, `useSession`, `useQueryData`, `useQueryResult`, `useQuery`, `usePage`, `useFollowing`, `useMutation`, `useAction`, `useAsset`, `useSaveAsset`, `useUpload`, `useLink`, `useOnline`, `useNow`, `useAcquired`, `useAcquisition`, `usePendingWrite`, `usePendingWrites`, `usePendingItems`, `usePendingState`, `useSeen`, `useInspection`, `SnapbackProvider`; and the `snapback4/contract` guards | `UseQuery`, `UsePage`, `ReadHookOptions` (`{ keep, skip }`), `UseAction`, `UseMutation`, `WriteHook`, `MutationHook`, `Outcome`, `AssetState`, `PendingItem` |
 | `snapback4/contract` | reading answers: the types every tier shares | `matchRead`, `matchReadList`, `otherwiseAll` (one fallback for every state the call does not name; named handlers win in any order), `isReady`, `isPresent`, `isLoading`, `isDenied`, `isFailed` (an outcome, a hook by its latest one, or an unknown value), `sentResult` (a write's fresh result, if any), `existence`, `readPresentation` | `Read`, `Ready`, `SettledRead`, `Refusal`, `Write`, `Outcome`, `PendingWrite`, `Query`, `Mutation`, `Action`, `RowOf`, `ArgsOf`, `ResultOf`, `Cursor`, `Principal`, `Client` |
 | `snapback4/client` | the online client without a device (scripts, tests, servers) | `createClient`, `mintId`, `idFrom`, `saveAsset` | `Client`, `ClientOptions`, `Session`, `Saved` |
 | `snapback4/web` | the device in the browser (wasm) | `webDevice`, `indexedDbPersistence`, `memoryPersistence` | `WebDeviceOptions`, `Persistence` |
@@ -33,6 +33,7 @@ type and `Ops` the handles' types; `RowOf<typeof api.op>`, `ArgsOf<…>` and `Re
 
 Expo: `snapback4-expo` exports `nativeDevice`, `nativeAvailable` and `saveAsset` (pass `device: nativeDevice` to
 `createApp`); `snapback4-expo/witness` has `smokeOrigin` for simulator proofs (`guide witness`).
+Expo starters load `snapback4-expo/metro` and `snapback4-expo/native-smoke` from the package.
 
 ## Server and tooling subpaths
 

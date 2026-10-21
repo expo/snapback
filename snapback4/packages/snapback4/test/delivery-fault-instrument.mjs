@@ -457,3 +457,7 @@ export function awaitBoundary() {
 // proof.ts adds native stop and read-only store-lock barrier waits, outside
 // application delivery. Packed DX4 covers worker-held locks and rate retries.
 // No delivery scope, required/optional recipe or custody site changes.
+
+// DX5: proof.ts adds an await to project clockCall().now for the staging clock.
+// It owns no client delivery, outbox or receipt work; existing fault sites and
+// recipes are unchanged. The boundary census is regenerated from merged sources.

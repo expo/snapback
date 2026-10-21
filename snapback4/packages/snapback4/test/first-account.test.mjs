@@ -76,7 +76,7 @@ for (const tier of ["online", "local"]) test(`README first account: ${tier}, gen
     target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext, moduleResolution: ts.ModuleResolutionKind.Bundler,
     baseUrl: pkg, paths: { "snapback4/*": ["dist/*"], "react": ["node_modules/@types/react/index.d.ts"], "react/*": ["node_modules/@types/react/*"],
       "react-native": [expo.resolve("react-native/types/index.d.ts")], "expo-secure-store": [expo.resolve("expo-secure-store/build/SecureStore.d.ts")],
-      "snapback4-expo": ["../snapback4-expo/src/index.ts"] } };
+      "snapback4-expo": ["../snapback4-expo/src/index.ts"], "snapback4-expo/*": ["../snapback4-expo/src/*"] } };
   const program = ts.createProgram(examples.map(b => join(dir, b.file)), options);
   const diagnostics = ts.getPreEmitDiagnostics(program);
   assert.equal(diagnostics.length, 0, ts.formatDiagnosticsWithColorAndContext(diagnostics, { getCurrentDirectory: () => dir, getCanonicalFileName: p => p, getNewLine: () => "\n" }));
