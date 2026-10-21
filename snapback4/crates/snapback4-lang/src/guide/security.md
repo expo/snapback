@@ -257,3 +257,18 @@ Rule-changing deploy and deploy --check lead with outstanding FIX/REVIEW items
 and the last test result, timestamp and age. Stale evidence is labeled explicitly.
 Deploy --strict refuses reachable refutations; unproved intent and advice still
 need review. A matching completed finite campaign is evidence, never proof.
+
+### E_SECURITY_REVIEW
+
+E_SECURITY_REVIEW means strict rule-changing deployment refused because reachable
+security intent is refuted. Repair enforcement to match independent intent and
+rerun test for the selected source and fixtures. Unproved notes and synthetic-only
+observations do not cause this refusal.
+
+### E_SESSION
+
+E_SESSION means a supplied client session is malformed. Pass the complete Session
+returned by guest, login, signup or your service, including principal, kind, token
+and positive integer expiresAt milliseconds; the online token option accepts a bare
+bearer. Constructors refuse before transport, storage, device or timer work.
+Shape validation grants no authority; the server still decides session validity.

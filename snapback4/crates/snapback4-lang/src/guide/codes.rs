@@ -1,4 +1,6 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_SECURITY_REVIEW", "strict rule-changing deployment refused reachable refuted security intent; repair enforcement and rerun test for the selected source and fixtures. Unproved notes and synthetic-only observations stay advisory. guide security."),
+    ("E_SESSION", "a supplied client session is malformed; pass a complete Session from guest/login/signup or service minting, including positive integer expiresAt milliseconds. The online token option accepts a bare bearer. guide security."),
     ("E_IDENTITY_TIMEOUT", "identity request deadline expired; signup outcome may be unknown. Inspect before retrying; raise timeoutMs for rate-limit waits. SDK reports E_OFFLINE; seedAccounts reports E_STAGING_TIMEOUT with partial-setup recovery. guide staging."),
     ("E_STAGING", "bulk password account setup requires serve on a store created with deploy --staging. Existing unmarked production/legacy stores cannot be relabelled. Use a separate fresh staging deployment, or explicitly provision intended production users with the local operator token. guide staging."),
     ("E_STAGING_INPUT", "invalid staging account plan; provide 1..100 accounts, named roles, a declared mutation handle and positive timeoutMs. guide staging."),
