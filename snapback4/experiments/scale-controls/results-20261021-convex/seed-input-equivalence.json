@@ -1,0 +1,62 @@
+{
+  "100000": {
+    "equal": true,
+    "tables": [
+      {
+        "table": "users",
+        "count": 256,
+        "sha256": "57d0581f551422a2db6b65466adccc285cc6d42d439b88e60709cc4603e93e13"
+      },
+      {
+        "table": "rooms",
+        "count": 1025,
+        "sha256": "c62f2d198fa9477c636d758e3bd586476108a6bcf5e9ea3c1bf33f89ff12977c"
+      },
+      {
+        "table": "memberships",
+        "count": 8448,
+        "sha256": "5c84b8d6d3bc3d02ffb2b0da36faf47a4f5b986b32a402a0b6608ae20bbff277"
+      },
+      {
+        "table": "counters",
+        "count": 257,
+        "sha256": "9ac118c607c5edf01186ff0be3dc8409aa9589e77ebc9f348facb9f17d684460"
+      },
+      {
+        "table": "messages",
+        "count": 100000,
+        "sha256": "adddaf13c95ef9fc3ac9b171ca8f0ee44606134339dfae02b8cbf0b1d00b36ac"
+      }
+    ]
+  },
+  "1000000": {
+    "equal": true,
+    "tables": [
+      {
+        "table": "users",
+        "count": 256,
+        "sha256": "95b4adad34fc48bb3f75bec1af8851d44c89b4c7899b908fd7e6c0958352810a"
+      },
+      {
+        "table": "rooms",
+        "count": 1025,
+        "sha256": "3d52270df822489222524a8bd1d190a8e31ac7413877ebb446c986d9768024a8"
+      },
+      {
+        "table": "memberships",
+        "count": 8448,
+        "sha256": "a4d4b3107245fb22f27f1b486ab0f648f2e44239b060fd5b7772c564260c98ff"
+      },
+      {
+        "table": "counters",
+        "count": 257,
+        "sha256": "9ac118c607c5edf01186ff0be3dc8409aa9589e77ebc9f348facb9f17d684460"
+      },
+      {
+        "table": "messages",
+        "count": 1000000,
+        "sha256": "f539eac171e96be3d30a2b05252a297869fa766ea1348553c240eaa7fd21b9ce"
+      }
+    ]
+  }
+}

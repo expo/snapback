@@ -1,5 +1,6 @@
 //! Historical reference attribution. Capture belongs to insertion/activation;
 //! every contribution evaluator continues to read the source row image.
+use crate::rows::Rows;
 // @ref LLP 3000.007.003#3.2 — captures survive target deletion and generation rebuilds.
 use super::runner::Runner;
 use crate::{error::{MeterKind, RuntimeError}, schema::Table, value::Value};

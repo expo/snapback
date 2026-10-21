@@ -64,7 +64,7 @@ fn a_pre_binding_store_opens_legacy_receipts_replay_and_sessions_refresh() {
     assert!(engine.replay_action("old-action", "member:alice", "old", &json!({"ignored": true}), i64::MAX).unwrap().is_some());
     assert_eq!(engine.replay_action("old-action", "member:alice", "other", &json!({}), 1).unwrap_err().code(), "E_ACTION_UNKNOWN");
     let rotated = identity::rotate_session(engine.store(), "old-token", 1).unwrap().unwrap();
-    let family: String = engine.store().test_support_conn().query_row("SELECT family FROM _sessions WHERE principal = 'member:alice'", [], |row| row.get(0)).unwrap();
+    let family: String = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT family FROM _sessions WHERE principal = 'member:alice'", [], |row| row.get(0)).unwrap();
     assert_eq!(family, digest, "a legacy session is its own family");
     assert!(identity::resolve(engine.store(), &rotated.token, 2).unwrap().is_some());
     drop(engine);
@@ -106,7 +106,7 @@ fn action_replay_binds_raw_arguments_before_defaults_and_across_declarations() {
 fn op_records_keep_only_binding_metadata_and_sizes_count_all_remaining_fields() {
     let mut engine = Engine::memory(Schema::default(), [program("answer")]).unwrap();
     engine.mutate("answer", Some("id"), context(987654)).unwrap();
-    let conn = engine.store().test_support_conn();
+    let conn = (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn();
     let columns: Vec<String> = conn.prepare("SELECT name FROM pragma_table_info('_ops')").unwrap().query_map([], |row| row.get(0)).unwrap().collect::<Result<_, _>>().unwrap();
     assert_eq!(columns, ["principal", "id", "seq", "outcome", "name", "args_digest", "at"]);
     let (receipt, digest): (String, String) = conn.query_row("SELECT outcome, args_digest FROM _ops", [], |row| Ok((row.get(0)?, row.get(1)?))).unwrap();

@@ -25,7 +25,7 @@ fn named_supervised_seats_keep_revision_fences_without_fencing_manual_seats() {
     let supervised = identity::service_session(engine.store(), "push", 0, 1).unwrap();
     let manual = identity::service_session(engine.store(), "push", 0, 1).unwrap();
     let family = format!("{:x}", Sha256::digest(supervised.token.as_bytes()));
-    engine.store().test_support_set_meta(&format!("worker:family:{family}"), "0").unwrap();
+    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_set_meta(&format!("worker:family:{family}"), "0").unwrap();
     assert_eq!(identity::current_service(engine.store(), &supervised.token, sample(1)).unwrap().as_deref(), Some("service:push"));
     let next = ServiceSample { now: 1, supervisor_revision: 1 };
     assert_eq!(identity::current_service(engine.store(), &supervised.token, next).unwrap(), None);
@@ -33,7 +33,7 @@ fn named_supervised_seats_keep_revision_fences_without_fencing_manual_seats() {
     assert!(identity::resolve_supervised(engine.store(), &supervised.token, sample(1)).unwrap().is_some());
     assert!(identity::resolve_supervised(engine.store(), &supervised.token, next).unwrap().is_none());
     assert!(identity::resolve_supervised(engine.store(), &manual.token, next).unwrap().is_some());
-    let store_id = engine.store().test_support_meta("store_id").unwrap();
+    let store_id = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap();
     assert!(identity::resolve_read_only_supervised(engine.store(), &supervised.token, sample(1), store_id.as_deref()).unwrap().is_some());
     assert!(identity::resolve_read_only_supervised(engine.store(), &supervised.token, next, store_id.as_deref()).unwrap().is_none());
     assert!(identity::resolve_read_only_supervised(engine.store(), &manual.token, next, store_id.as_deref()).unwrap().is_some());
@@ -46,7 +46,7 @@ fn adopt(engine: &mut Engine, settings: &str, legacy: bool) {
     engine.adopt(schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
 }
 fn outbox_snapshot(engine: &Engine, id: &str) -> Vec<rusqlite::types::Value> {
-    let mut statement = engine.store().test_support_conn().prepare("SELECT * FROM _outbox WHERE id = ?1").unwrap();
+    let mut statement = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().prepare("SELECT * FROM _outbox WHERE id = ?1").unwrap();
     let columns = statement.column_count();
     statement.query_row([id], |row| (0..columns).map(|column| row.get(column)).collect()).unwrap()
 }
@@ -113,7 +113,7 @@ fn generation_drift_parks_before_stale_lease_for_settle_and_every_step_verb() {
     ];
     assert!(errors.iter().all(|error| error.code() == "E_EFFECT_GENERATION"));
     for id in ids {
-        let row: (String, Option<String>, Option<String>, Option<i64>, Option<i64>, Option<String>, Option<i64>) = engine.store().test_support_conn().query_row(
+        let row: (String, Option<String>, Option<String>, Option<i64>, Option<i64>, Option<String>, Option<i64>) = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row(
             "SELECT state, error_code, error, settled_at, lease_until, claimed_by, next_at FROM _outbox WHERE id = ?1", [&id],
             |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?, row.get(5)?, row.get(6)?)),
         ).unwrap();
@@ -133,7 +133,7 @@ fn generation_drift_refuses_terminal_states_without_rewriting_their_evidence() {
         (emit(&mut engine, "parked", 4), "parked", 0, None, Some("parked-error"), Some("E_STEP_PARKED")),
     ];
     for (index, (id, state, cancelled, result, error, code)) in cases.iter().enumerate() {
-        engine.store().test_support_conn().execute(
+        (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute(
             "UPDATE _outbox SET state = ?2, cancelled = ?3, result = ?4, error = ?5, error_code = ?6, settled_at = ?7, lease_until = ?8, claimed_by = ?9, lease_digest = ?10, next_at = ?11 WHERE id = ?1",
             rusqlite::params![id, state, cancelled, result, error, code, 100 + index as i64, 200 + index as i64, format!("terminal-worker-{index}"), format!("terminal-lease-{index}"), 300 + index as i64],
         ).unwrap();
@@ -154,13 +154,13 @@ fn generation_drift_refuses_terminal_states_without_rewriting_their_evidence() {
 #[test]
 fn release_is_admission_provenance_not_effect_contract_generation() {
     let mut engine = engine("retry 2");
-    engine.store().test_support_set_meta("release", "A").unwrap();
+    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_set_meta("release", "A").unwrap();
     let admitted_under_a = emit(&mut engine, "release-a", 0);
-    let contract_a: String = engine.store().test_support_conn().query_row(
+    let contract_a: String = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row(
         "SELECT contract FROM _outbox WHERE id = ?1", [&admitted_under_a], |row| row.get(0),
     ).unwrap();
 
-    engine.store().test_support_set_meta("release", "B").unwrap();
+    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_set_meta("release", "B").unwrap();
     let service = service(&engine);
     let claimed = engine.claim_effects_strict(&service.token, None, 1, 1_000, true, None, || sample(1)).unwrap();
     assert_eq!(claimed.len(), 1);
@@ -169,7 +169,7 @@ fn release_is_admission_provenance_not_effect_contract_generation() {
     let declaration_a = claimed[0].declaration_contract.clone();
 
     let admitted_under_b = emit(&mut engine, "release-b", 2);
-    let (release_b, contract_b): (Option<String>, String) = engine.store().test_support_conn().query_row(
+    let (release_b, contract_b): (Option<String>, String) = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row(
         "SELECT release, contract FROM _outbox WHERE id = ?1", [&admitted_under_b], |row| Ok((row.get(0)?, row.get(1)?)),
     ).unwrap();
     assert_eq!(release_b.as_deref(), Some("B"));
@@ -232,9 +232,9 @@ fn declaration_fence_precedes_all_queue_mutation_and_absence_stays_compatible() 
     let current = subject.schema().effect_specs["mail"].effect_declaration_contract("mail");
     let first = subject.claim_effects_fenced("service:worker", Some("mail"), 1, 1_000, 0).unwrap().remove(0);
     assert_eq!((first.state.as_str(), first.attempts, first.lease_until), ("running", 1, Some(1_000)));
-    subject.store().test_support_conn().execute("INSERT INTO _effect_presence(principal, id, deadline) VALUES ('dev:pending', ?1, 10_000)", [&id]).unwrap();
+    (match &subject.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("INSERT INTO _effect_presence(principal, id, deadline) VALUES ('dev:pending', ?1, 10_000)", [&id]).unwrap();
     let before = outbox_snapshot(&subject, &id);
-    let counts_before: (i64, i64, i64) = subject.store().test_support_conn().query_row(
+    let counts_before: (i64, i64, i64) = (match &subject.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row(
         "SELECT COALESCE(SUM(attempts), 0), (SELECT COUNT(*) FROM _effect_steps),
                 (SELECT COUNT(*) FROM _effect_presence WHERE id = ?1)
          FROM _outbox", [&id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
@@ -242,7 +242,7 @@ fn declaration_fence_precedes_all_queue_mutation_and_absence_stays_compatible() 
     let error = subject.claim_effects_strict(&subject_service.token, Some("mail"), 1, 1_000, true, Some("stale-generated-contract"), || sample(1_001)).unwrap_err();
     assert_eq!(error.code(), "E_EFFECT_GENERATION");
     assert_eq!(outbox_snapshot(&subject, &id), before);
-    let counts_after: (i64, i64, i64) = subject.store().test_support_conn().query_row(
+    let counts_after: (i64, i64, i64) = (match &subject.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row(
         "SELECT COALESCE(SUM(attempts), 0), (SELECT COUNT(*) FROM _effect_steps),
                 (SELECT COUNT(*) FROM _effect_presence WHERE id = ?1)
          FROM _outbox", [&id], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
@@ -254,7 +254,7 @@ fn declaration_fence_precedes_all_queue_mutation_and_absence_stays_compatible() 
     assert_eq!(claim.attempts, 2, "the matching declaration must permit ordinary expiry, requeue and reclaim");
     assert_ne!(claim.lease_token, first.lease_token);
     assert_eq!(claim.declaration_contract.as_deref(), Some(current.as_str()));
-    assert_eq!(subject.store().test_support_conn().query_row("SELECT COUNT(*) FROM _effect_presence WHERE id = ?1", [&id], |row| row.get::<_, i64>(0)).unwrap(), 0);
+    assert_eq!((match &subject.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _effect_presence WHERE id = ?1", [&id], |row| row.get::<_, i64>(0)).unwrap(), 0);
     let claimed = outbox_snapshot(&subject, &id);
     assert_eq!(subject.claim_effects_strict(&subject_service.token, Some("missing"), 1, 1_000, true, Some(&current), || sample(1_002)).unwrap_err().code(), "E_EFFECT_GENERATION");
     assert_eq!(outbox_snapshot(&subject, &id), claimed, "a missing current named declaration must not maintain another row");
@@ -309,7 +309,7 @@ fn strict_status_samples_once_fences_running_authority_and_preserves_terminal_ev
     assert_eq!(expiry.effect_status_strict(&service.token, &id, claim.lease_token.as_deref().unwrap(), || sample(1_002)).unwrap_err().code(), "E_EFFECT_LEASE");
     assert_eq!(outbox_snapshot(&expiry, &id), before, "status must not requeue or grant a successor after lease loss");
     let unrelated_before = outbox_snapshot(&expiry, &unrelated);
-    assert_eq!(expiry.store().test_support_conn().execute("UPDATE _outbox SET cancelled = 1 WHERE id = ?1 AND state = 'running'", [&id]).unwrap(), 1);
+    assert_eq!((match &expiry.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _outbox SET cancelled = 1 WHERE id = ?1 AND state = 'running'", [&id]).unwrap(), 1);
     let cancelled = expiry.effect_status_strict(&service.token, &id, claim.lease_token.as_deref().unwrap(), || sample(1_003)).unwrap();
     assert_eq!((cancelled.state.as_str(), cancelled.cancelled, cancelled.error_code.as_deref()), ("failed", true, Some("E_EFFECT_CANCELLED")));
     assert_eq!(outbox_snapshot(&expiry, &unrelated), unrelated_before, "status cancellation must finalize only its target");
@@ -324,7 +324,7 @@ fn dev_jump_bridges_only_live_supervised_token_families() {
     let expired = identity::service_session(engine.store(), "old", 0, 1).unwrap();
     for session in [&supervised, &expired] {
         let family = format!("{:x}", Sha256::digest(session.token.as_bytes()));
-        engine.store().test_support_set_meta(&format!("worker:family:{family}"), "0").unwrap();
+        (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_set_meta(&format!("worker:family:{family}"), "0").unwrap();
     }
     let before = 86_400_000;
     engine.advance_worker_leases_at(49 * 3_600_000, before).unwrap();

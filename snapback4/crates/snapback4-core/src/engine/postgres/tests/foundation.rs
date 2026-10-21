@@ -441,7 +441,7 @@ fn change_evidence_shared_contract_and_boundaries() {
     let tx = e.store.transaction(None).unwrap();
     evidence_test_cases::check(&tx);
     let before = tx.calls.get();
-    assert!(tx.change_evidence(0, u64::MAX, |_| Some(())).is_none());
+    assert!(tx.change_evidence(0, u64::MAX, |_| Some(())).unwrap().is_none());
     assert_eq!(tx.calls.get(), before);
     tx.rollback().unwrap();
 }

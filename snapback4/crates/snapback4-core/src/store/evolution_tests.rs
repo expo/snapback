@@ -99,7 +99,7 @@ fn wave21_table_rename_preserves_carried_backfill_evidence_across_old_writes() {
 fn wave21_file_text_missing_bytes_and_invalid_utf8_refuse_atomically() {
     for bytes in [b"%PDF-1.4\n\xff".as_slice(),b"valid\n".as_slice()] {
         let mut e=engine(FILES);let id=upload_and_add(&mut e,bytes);let asset=crate::assets::asset_id(Some(&field(&mut e,"orders",&id,"names"))).unwrap().to_owned();
-        if !bytes.starts_with(b"%PDF-") {std::fs::remove_file(e.store().asset_path(&asset)).unwrap();}
+        if !bytes.starts_with(b"%PDF-") {std::fs::remove_file(e.store().asset_location().unwrap().path(&asset)).unwrap();}
         let new=FILES.replace("  names: file", "  quantity: int\n  names: file").replace("mutation add(names: file <=1000):\n  return insert orders {names}\n", "")+"backfill orders quantity(names: file <=1000): {quantity:nonemptyLines(fileText(names))}\n";
         let generation=e.generation();let error=adopt(&mut e,&new,2).unwrap_err().to_string();assert!(error.contains("fileText"),"{error}");assert_eq!(generation,e.generation());assert!(row(&mut e,"orders",&id).field("quantity").is_err());
     }

@@ -12,7 +12,7 @@ fn engine() -> Engine {
     let second = e.prepare_file("alice","application/pdf","a.pdf",9,1).unwrap().with_intent("u1","fingerprint").write(b"%PDF-1.7\n").unwrap();
     let asset = e.finish_asset(first).unwrap();
     assert_eq!(e.finish_asset(second).unwrap().id,asset.id);
-    assert_eq!(std::fs::read_dir(e.store().asset_path(&asset.id).parent().unwrap()).unwrap().count(),1);
+    assert_eq!(std::fs::read_dir(e.store().asset_location().unwrap().path(&asset.id).parent().unwrap()).unwrap().count(),1);
     assert_eq!(e.asset_intent("alice","u1","fingerprint").unwrap().unwrap().id,asset.id);
     assert!(e.asset_intent("bob","u1","fingerprint").unwrap().is_none());
     assert!(matches!(e.asset_intent("alice","u1","other"),Err(RuntimeError::Asset{code:"E_ASSET_INTENT_REUSE",..})));

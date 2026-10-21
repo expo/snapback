@@ -1,0 +1,67 @@
+{
+  "users": {
+    "actual": {
+      "count": 256,
+      "sum_sha256": "07192fa1d50432626604578d31e4931099d16b39897de1b543bbc797f5c8c0c3",
+      "xor_sha256": "89503a60dbd3562ca6254d3c5e87c9a0979872d21e97d12b60294b81475155e5"
+    },
+    "expected": {
+      "count": 256,
+      "sum_sha256": "07192fa1d50432626604578d31e4931099d16b39897de1b543bbc797f5c8c0c3",
+      "xor_sha256": "89503a60dbd3562ca6254d3c5e87c9a0979872d21e97d12b60294b81475155e5"
+    },
+    "equal": true
+  },
+  "rooms": {
+    "actual": {
+      "count": 1025,
+      "sum_sha256": "a42ac18e86947f3a6bfe72e873265026b1ff770234eaef519b3cb05d592b9aa6",
+      "xor_sha256": "d68f53b1c1311fd20c0328d3a969186add646163306ca0fb8a3baffe32cfc78c"
+    },
+    "expected": {
+      "count": 1025,
+      "sum_sha256": "a42ac18e86947f3a6bfe72e873265026b1ff770234eaef519b3cb05d592b9aa6",
+      "xor_sha256": "d68f53b1c1311fd20c0328d3a969186add646163306ca0fb8a3baffe32cfc78c"
+    },
+    "equal": true
+  },
+  "memberships": {
+    "actual": {
+      "count": 8448,
+      "sum_sha256": "d634fa87db7bbb5aa301e6b7592c9577ad9b319023583ff2e1e79d3af2568874",
+      "xor_sha256": "00343777ff0495a4f90f5020dc89581494b9afe35ff4bf99476c5b5f1243d9ca"
+    },
+    "expected": {
+      "count": 8448,
+      "sum_sha256": "d634fa87db7bbb5aa301e6b7592c9577ad9b319023583ff2e1e79d3af2568874",
+      "xor_sha256": "00343777ff0495a4f90f5020dc89581494b9afe35ff4bf99476c5b5f1243d9ca"
+    },
+    "equal": true
+  },
+  "counters": {
+    "actual": {
+      "count": 257,
+      "sum_sha256": "e3d07173e8b9f83734e5f714b7f1c25a611b25841676ede7ef5ba1924cfc6c44",
+      "xor_sha256": "a60051c1586e1a1d8e614beb64ab5e3681b8840f544fcf3aab393be3dca4eaac"
+    },
+    "expected": {
+      "count": 257,
+      "sum_sha256": "e3d07173e8b9f83734e5f714b7f1c25a611b25841676ede7ef5ba1924cfc6c44",
+      "xor_sha256": "a60051c1586e1a1d8e614beb64ab5e3681b8840f544fcf3aab393be3dca4eaac"
+    },
+    "equal": true
+  },
+  "messages": {
+    "actual": {
+      "count": 100000,
+      "sum_sha256": "372ca73419203092ea68b5f5fd94cebe0f224416d73ee5a3d5556505488973d9",
+      "xor_sha256": "5d6c637b76997ce384f5103edf4b3505c9657679adc8a5644263ecee91613cd3"
+    },
+    "expected": {
+      "count": 100000,
+      "sum_sha256": "372ca73419203092ea68b5f5fd94cebe0f224416d73ee5a3d5556505488973d9",
+      "xor_sha256": "5d6c637b76997ce384f5103edf4b3505c9657679adc8a5644263ecee91613cd3"
+    },
+    "equal": true
+  }
+}

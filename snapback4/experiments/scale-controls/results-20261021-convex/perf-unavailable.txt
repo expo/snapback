@@ -1,0 +1,2 @@
+perf_event_paranoid=4
+No privileged profiling attempted. Native process CPU and PostgreSQL waits were captured instead.

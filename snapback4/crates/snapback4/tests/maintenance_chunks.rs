@@ -125,7 +125,7 @@ fn asset_slices_reserve_only_their_prefix_and_forget_every_reserved_asset() {
     }
     let mut first = e.prepare_asset_sweep_for(86_400_000, Duration::ZERO).unwrap();
     assert_eq!(first.len(), 1);
-    assert_eq!(e.store().test_support_conn().query_row("SELECT count(*) FROM _asset_gc", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
+    assert_eq!((match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _asset_gc", [], |r| r.get::<_, i64>(0)).unwrap(), 1);
     first.remove_files().unwrap();
     assert_eq!(e.finish_asset_sweep_for(&mut first, Duration::ZERO).unwrap(), 1);
     assert!(first.is_empty());
@@ -137,5 +137,5 @@ fn asset_slices_reserve_only_their_prefix_and_forget_every_reserved_asset() {
         assert_eq!(rest.len(), remaining);
     }
     assert!(e.prepare_asset_sweep(86_400_000).unwrap().is_empty());
-    assert_eq!(e.store().test_support_conn().query_row("SELECT count(*) FROM _asset_gc", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
+    assert_eq!((match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _asset_gc", [], |r| r.get::<_, i64>(0)).unwrap(), 0);
 }

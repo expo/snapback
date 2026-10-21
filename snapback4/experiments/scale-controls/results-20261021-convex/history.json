@@ -1,0 +1,57 @@
+{
+  "final_source_commit": "75ef46117d",
+  "final_cells": 66,
+  "final_database_reset": {
+    "databases": [
+      "sb4scale_convex_100000",
+      "sb4scale_convex_1000000"
+    ],
+    "dropped": true,
+    "reason": "fresh identical synthetic seed; exclude historical retained versions from final run",
+    "cluster_reconfigured": false,
+    "time": 1792611245.2151885
+  },
+  "historical_runs": [
+    {
+      "directory": "matrix66",
+      "completed_cells": 41,
+      "selected_for_final_table": false,
+      "source_commit": "852fe18fc2b4d1ba3041e2242604b03839621d1f",
+      "cleanup": {
+        "children": 5119,
+        "alive": []
+      }
+    },
+    {
+      "directory": "matrix25",
+      "completed_cells": 13,
+      "selected_for_final_table": false,
+      "source_commit": "f189d93d8efe782cf44b34f53c4a964d9cb6f329",
+      "cleanup": {
+        "children": 4739,
+        "alive": []
+      }
+    },
+    {
+      "directory": "matrix12",
+      "completed_cells": 1,
+      "selected_for_final_table": false,
+      "source_commit": "75ef46117d12538c419e12e271c1c76f26a81ada",
+      "cleanup": {
+        "children": 544,
+        "alive": []
+      }
+    },
+    {
+      "directory": "uniform66",
+      "completed_cells": 2,
+      "selected_for_final_table": false,
+      "source_commit": "75ef46117d12538c419e12e271c1c76f26a81ada",
+      "cleanup": {
+        "children": 456,
+        "alive": []
+      }
+    }
+  ],
+  "selection": "All cells exclusively from final66; historical/partial runs excluded."
+}

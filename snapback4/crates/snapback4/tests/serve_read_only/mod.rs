@@ -15,7 +15,7 @@ fn host_with_store(store: Store) -> Host {
         ("id",Value::Id(format!("m{n}"))), ("chat",Value::Id("c1".into())), ("ordinal",Value::Int(n)),
         ("text",Value::String(format!("message {n}"))), ("owner",Value::Id("member:bob".into())), ("quote",Value::Null),
     ]))), NOW).unwrap();
-    e.store().test_support_conn().execute("INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES (?1,'member:bob','member',?2,?3,'full-family')", rusqlite::params![format!("{:x}",Sha256::digest(b"full")),NOW,NOW+10*86_400_000]).unwrap();
+    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at,family) VALUES (?1,'member:bob','member',?2,?3,'full-family')", rusqlite::params![format!("{:x}",Sha256::digest(b"full")),NOW,NOW+10*86_400_000]).unwrap();
     drop(e); h.shared.publish_engine(&lock(&h.shared.engine)); h
 }
 const ALICE: &str = "Authorization: Bearer alice\r\n";
@@ -26,7 +26,7 @@ fn narrowed(h: &Host) -> Json {
 }
 fn headers(session: &Json) -> String { format!("Authorization: Bearer {}\r\n", session["token"].as_str().unwrap()) }
 fn snapshot(h: &Host) -> String {
-    let e=lock(&h.shared.engine); let conn=e.store().test_support_conn();
+    let e=lock(&h.shared.engine); let conn=(match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn();
     // Includes application rows, receipts, views, effects/actions, full sessions and _ops.
     // Exclude only read-family auth state and store/schema metadata. Account rows
     // are identical deterministic fixtures, so they join the digest as well.
@@ -46,13 +46,13 @@ fn pre_upgrade_nul_principal_bearers_get_the_existing_auth_refusal() {
             identity::narrow_session(&mut store, &full.token, || ServiceSample { now: NOW, supervisor_revision: 0 }).unwrap().token
         };
         // Model a pre-upgrade SQLite identity, bypassing current admission.
-        store.test_support_conn().execute("UPDATE _principals SET id = ?1", ["member:\0legacy"]).unwrap();
+        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _principals SET id = ?1", ["member:\0legacy"]).unwrap();
         let table = if scope == SessionScope::Full { "_sessions" } else { "_read_sessions" };
-        store.test_support_conn().execute(&format!("UPDATE {table} SET principal = ?1"), ["member:\0legacy"]).unwrap();
+        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute(&format!("UPDATE {table} SET principal = ?1"), ["member:\0legacy"]).unwrap();
         let h = Host::with_store(false, store, super::SCHEMA);
         lock(&h.shared.clock).freeze(NOW);
         let before = snapshot(&h);
-        let changes = lock(&h.shared.engine).store().test_support_conn().total_changes();
+        let changes = (match lock(&h.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().total_changes();
         let header = format!("Authorization: Bearer {token}\r\n");
         for path in ["/q/who", "/auth/logout", "/auth/logout-all", "/auth/narrow", "/auth/refresh"] {
             let response = h.request("POST", path, &header, "{}");
@@ -61,7 +61,7 @@ fn pre_upgrade_nul_principal_bearers_get_the_existing_auth_refusal() {
             assert!(response.contains("this session is not live; sign in again"), "{response}");
         }
         assert_eq!(snapshot(&h), before);
-        assert_eq!(lock(&h.shared.engine).store().test_support_conn().total_changes(), changes);
+        assert_eq!((match lock(&h.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().total_changes(), changes);
     }
 }
 
@@ -141,7 +141,7 @@ fn read_sync_is_allow_listed_and_has_full_visibility_without_writes() {
 fn paired_deterministic_reader_runs_have_equal_application_digest() {
     fn run(observer: bool) -> String {
         let h=host(); assets::seed(&h);
-        lock(&h.shared.engine).store().test_support_conn().execute("INSERT INTO _sessions VALUES (?1,'member:alice','member',?2,?3,'alice-family')",rusqlite::params![format!("{:x}",Sha256::digest(b"alice")),NOW,NOW+10*86_400_000]).unwrap();
+        (match lock(&h.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("INSERT INTO _sessions VALUES (?1,'member:alice','member',?2,?3,'alice-family')",rusqlite::params![format!("{:x}",Sha256::digest(b"alice")),NOW,NOW+10*86_400_000]).unwrap();
         let room=body(&h.request("POST","/m/room",FULL,"{\"id\":\"seedRoom\",\"newIds\":[\"room1\",\"bobMember\",\"aliceMember\"],\"args\":{}}"));assert_eq!(room["state"],"sent","{room}");
         for n in 1..=6 {
             let sent=body(&h.request("POST","/m/sendTracked",ALICE,&json!({"id":format!("seed{n}"),"newIds":[format!("tracked{n}")],"args":{"text":format!("message {n}")}}).to_string()));assert_eq!(sent["state"],"sent","{sent}");
@@ -150,8 +150,8 @@ fn paired_deterministic_reader_runs_have_equal_application_digest() {
         { let e=lock(&h.shared.engine);
           // Fixed test-only Argon2id salt/hash for paired-test-password: both
           // stores have byte-identical credentials before the genuine HTTP login.
-          e.store().test_support_conn().execute("INSERT INTO _principals VALUES ('member:bob','member',NULL,?1)",[NOW]).unwrap();
-          e.store().test_support_conn().execute("INSERT INTO _credentials VALUES ('member:bob','bob@pair.test',?1)",["$argon2id$v=19$m=19456,t=2,p=1$Uk8tZGV0ZXJtaW5pc3RpYw$i8LnN/JKJ4neVisYT8/a7iNj+NIYY7lCwWb7WR6SQT0"]).unwrap();
+          (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("INSERT INTO _principals VALUES ('member:bob','member',NULL,?1)",[NOW]).unwrap();
+          (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("INSERT INTO _credentials VALUES ('member:bob','bob@pair.test',?1)",["$argon2id$v=19$m=19456,t=2,p=1$Uk8tZGV0ZXJtaW5pc3RpYw$i8LnN/JKJ4neVisYT8/a7iNj+NIYY7lCwWb7WR6SQT0"]).unwrap();
         }
         let session=observer.then(|| body(&h.request("POST","/auth/login","","{\"email\":\"bob@pair.test\",\"password\":\"paired-test-password\",\"scope\":\"read\"}"))["session"].clone());
         if let Some(session)=&session {
@@ -203,21 +203,21 @@ fn paired_deterministic_reader_runs_have_equal_application_digest() {
         lock(&h.shared.clock).advance(1000).unwrap();
         if let Some(session)=&session {
             let mut session=session.clone(); let cap=session["capExpiresAt"].as_i64().unwrap();
-            lock(&h.shared.engine).store().test_support_conn().execute("INSERT INTO _sessions VALUES ('foreign','other','user',0,1,'foreign')",[]).unwrap();
+            (match lock(&h.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("INSERT INTO _sessions VALUES ('foreign','other','user',0,1,'foreign')",[]).unwrap();
             for _ in 0..3 {
                 session=body(&h.request("POST","/auth/refresh",&headers(&session),"{}"))["session"].clone();
                 assert_eq!(session["scope"],"read"); assert_eq!(session["capExpiresAt"],cap);
                 let digest=format!("{:x}",Sha256::digest(session["token"].as_str().unwrap().as_bytes()));
                 let e=lock(&h.shared.engine);
-                assert_eq!(e.store().test_support_conn().query_row("SELECT cap_expires_at FROM _read_sessions WHERE token_digest=?1",[&digest],|r|r.get::<_,i64>(0)).unwrap(),cap);
-                assert_eq!(e.store().test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE token_digest=?1",[&digest],|r|r.get::<_,i64>(0)).unwrap(),0);
+                assert_eq!((match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT cap_expires_at FROM _read_sessions WHERE token_digest=?1",[&digest],|r|r.get::<_,i64>(0)).unwrap(),cap);
+                assert_eq!((match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _sessions WHERE token_digest=?1",[&digest],|r|r.get::<_,i64>(0)).unwrap(),0);
                 drop(e);
                 for path in ["/m/edit","/a/external"] { assert_eq!(status(&h.request("POST",path,&headers(&session),"{\"id\":\"refresh-write\",\"args\":{}}")),403); }
             }
             lock(&h.shared.clock).freeze(cap);
             assert_eq!(body(&h.request("POST","/auth/refresh",&headers(&session),"{}"))["denied"]["code"],"E_AUTH");
         } else {
-            lock(&h.shared.engine).store().test_support_conn().execute("INSERT INTO _sessions VALUES ('foreign','other','user',0,1,'foreign')",[]).unwrap();
+            (match lock(&h.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("INSERT INTO _sessions VALUES ('foreign','other','user',0,1,'foreign')",[]).unwrap();
             lock(&h.shared.clock).freeze(NOW+7*86_400_000);
         }
         snapshot(&h)
@@ -317,7 +317,7 @@ fn held_read_poll_rechecks_revoked_credential_at_completion() {
         *lock(&h.shared.poll_wait) = None;
         // Mutate authority directly while held, then publish a commit wake. Only
         // the completion recheck can refuse this already-authenticated poll.
-        lock(&h.shared.engine).store().test_support_conn().execute("DELETE FROM _read_sessions", []).unwrap();
+        (match lock(&h.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("DELETE FROM _read_sessions", []).unwrap();
         h.request("POST", "/m/edit", FULL, r#"{"id":"wake","args":{}}"#);
         let response = poll.join().unwrap();
         assert_eq!(status(&response), 401, "disk={disk}: {response}");

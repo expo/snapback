@@ -1,4 +1,5 @@
 //! Joins sharing a commit keep their own ordinals on every device host.
+use snapback4_core::partition::PartitionRows;
 use super::*;
 
 fn fixture(kind: &str, horizon: bool, split: bool, retained: bool) -> Json {

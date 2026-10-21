@@ -248,7 +248,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
 
 // @ref LLP 3000.019#3.6 — report each completed rebuild after atomic publication.
 pub(super) fn summary(engine: &snapback4_core::Engine) -> String {
-    engine.store().adoption_report.summary()
+    engine.store().adoption_report().summary()
 }
 
 pub(super) fn report(engine: &snapback4_core::Engine) {

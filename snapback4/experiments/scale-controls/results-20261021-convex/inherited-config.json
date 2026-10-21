@@ -1,0 +1,16 @@
+{
+  "source": "scripts/run.py Run.__init__, inherited by the native backend; secret values omitted",
+  "PGUSER": "sb4scale",
+  "PGHOST": "127.0.0.1",
+  "PGPORT": "61000 (observer only; native URL uses dispatcher 58081)",
+  "PGDATABASE": "postgres (native database derived from instance name)",
+  "PGAPPNAME": "sb4scale_observer (native driver does not apply this environment GUC)",
+  "LD_LIBRARY_PATH": "/home/ccheever/tools/pg16/usr/lib/x86_64-linux-gnu",
+  "CONVEX_SELF_HOSTED_URL": "http://127.0.0.1:58080",
+  "CONVEX_DISABLE_TELEMETRY": "1",
+  "DO_NOT_TRACK": "1",
+  "SCALE_PASSWORD_FILE": "/home/ccheever/sb4scale/pw",
+  "SCALE_JWT_TOKENS_FILE": "/home/ccheever/sb4scale/s1cx/tokens.json",
+  "SCALE_TUNNEL_PORTS": "61000..61256; first observer; remainder leased by dispatcher",
+  "S1CX_JWKS": "public data-URI key derived from the retained local issuer key; no external key server"
+}

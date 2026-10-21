@@ -1,3 +1,4 @@
+use snapback4_core::Rows;
 use super::*;
 use snapback4_core::assets::{Asset, AssetKind};
 pub(super) const SCHEMA: &str = r#"
@@ -14,8 +15,8 @@ pub(super) fn seed(h: &Host) {
     let mut rows: Vec<(String,Value)>=Vec::new();
     for (id,reader,until,once) in [("ordinary","member:bob",Value::Null,false),("once","member:bob",Value::Null,true),("hidden","other",Value::Null,true),("expired","member:bob",Value::Int(NOW-1),true),("released","member:bob",Value::Null,true)] {
         e.store().record_asset(&Asset{id:id.into(),owner:snapback4_core::SYSTEM_PRINCIPAL.into(),kind:AssetKind::Image,content_type:"image/png".into(),bytes:24,width:Some(1),height:Some(1),duration:None,created_at:NOW,home:None,released_at: None, name: None}).unwrap();
-        std::fs::create_dir_all(e.store().asset_path(id).parent().unwrap()).unwrap();
-        std::fs::write(e.store().asset_path(id), b"012345678901234567890123").unwrap();
+        std::fs::create_dir_all(e.store().asset_location().unwrap().path(id).parent().unwrap()).unwrap();
+        std::fs::write(e.store().asset_location().unwrap().path(id), b"012345678901234567890123").unwrap();
         let asset=e.store().asset(id).unwrap().unwrap().column_value();
         rows.push(("pictures".into(),object([("id",Value::Id(id.into())),("reader",Value::Id(reader.into())),("until",until),("ordinary",if once {Value::Null}else{asset.clone()}),("oncePhoto",if once {asset}else{Value::Null})])));
     }
@@ -27,7 +28,7 @@ pub(super) fn seed(h: &Host) {
         tx.claim_asset(id,snapback4_core::SYSTEM_PRINCIPAL,&name,id,if id=="ordinary" {"ordinary"} else {"oncePhoto"}).unwrap();
     }
     tx.commit().unwrap();
-    e.store().test_support_conn().execute("UPDATE _assets SET released_at=?1 WHERE id='released'",[NOW]).unwrap();
+    (match e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _assets SET released_at=?1 WHERE id='released'",[NOW]).unwrap();
 }
 fn fetch(h:&Host,id:&str,header:&str,range:bool)->String {
     h.request("GET",&format!("/assets/{id}"),&format!("{header}{}",if range {"Range: bytes=0-1\r\n"}else{""}),"")
@@ -45,7 +46,7 @@ pub(super) fn matrix(h:&Host,read:Option<&str>) {
         let before=snapshot(h);let response=fetch(h,"once",read,false);
         assert_eq!(status(&response),403);assert_eq!(body(&response)["denied"]["code"],"E_ASSET_READ_ONLY");assert_eq!(snapshot(h),before);
         // No file open precedes the read-only refusal, even if the bytes have vanished.
-        let path=lock(&h.shared.engine).store().asset_path("once");let bytes=std::fs::read(&path).unwrap();std::fs::remove_file(&path).unwrap();
+        let path=lock(&h.shared.engine).store().asset_location().unwrap().path("once");let bytes=std::fs::read(&path).unwrap();std::fs::remove_file(&path).unwrap();
         assert_eq!(status(&fetch(h,"once",read,false)),403);std::fs::write(path,bytes).unwrap();
     }
     assert_eq!(status(&fetch(h,"once",FULL,false)),200);

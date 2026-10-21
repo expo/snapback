@@ -105,9 +105,7 @@ pub fn adopt(e: &mut Engine, m: &Model) -> (Device<Store>, PathBuf) {
         .unwrap();
     let activation = start.elapsed().as_secs_f64();
     assert!(e.generation() > old);
-    let events: i64 = e
-        .store()
-        .test_support_conn()
+    let events: i64 = sqlite_store(&e).test_support_conn()
         .query_row(
             "SELECT count(*) FROM _log WHERE seq > ?1",
             [seq as i64],
@@ -120,7 +118,7 @@ pub fn adopt(e: &mut Engine, m: &Model) -> (Device<Store>, PathBuf) {
     let (rows, bytes) = acquire(e, &mut d, "u0005", m.now);
     let reacquisition_s = start.elapsed().as_secs_f64();
     let device_queries = compare(e, &mut d, m);
-    let server_counts = m.check_store(e.store());
+    let server_counts = m.check_store(sqlite_store(&e));
     let device_counts = m.check_store(d.store());
     println!(
         "CLIQUE_ADOPTION {}",
@@ -308,7 +306,7 @@ pub fn pending_restart(e: &mut Engine, m: &mut Model, d: Device<Store>, path: Pa
     assert!(d.queued().unwrap().is_empty());
     let device_queries = compare(e, &mut d, m);
     let counts = m.check_store(d.store());
-    m.check_store(e.store());
+    m.check_store(sqlite_store(&e));
     let reply = stored.iter().find(|q| q.op == "reply").unwrap();
     let like = stored.iter().find(|q| q.op == "like").unwrap();
     let (thread, _) = walk(
@@ -324,7 +322,7 @@ pub fn pending_restart(e: &mut Engine, m: &mut Model, d: Device<Store>, path: Pa
         .unwrap()
         + 1;
     assert_eq!(reply_position, 47);
-    for store in [e.store(), d.store()] {
+    for store in [sqlite_store(&e), d.store()] {
         let row = stored_row(store, "replies", &reply.new_ids[0]).unwrap();
         assert_eq!(field(&row, "body"), reply.args["body"].as_str().unwrap());
         assert_eq!(field(&row, "authorId"), reply.viewer);
@@ -375,11 +373,11 @@ pub fn removals(e: &mut Engine, m: &mut Model) {
     let args = [("postId", id("rank-003"))];
     sent(e, "repost", "u0005", &args, m.now, "lifecycle-repost");
     m.event("lifecycle-repost-event", "rank-003", "u0005", m.now, true);
-    let before = e.store().rows("reposts").unwrap();
-    let events_before = e.store().rows("feedPosts").unwrap();
+    let before = sqlite_store(&e).rows("reposts").unwrap();
+    let events_before = sqlite_store(&e).rows("feedPosts").unwrap();
     sent(e, "repost", "u0005", &args, m.now, "lifecycle-repeat");
-    let duplicate_idempotent = before == e.store().rows("reposts").unwrap()
-        && events_before == e.store().rows("feedPosts").unwrap();
+    let duplicate_idempotent = before == sqlite_store(&e).rows("reposts").unwrap()
+        && events_before == sqlite_store(&e).rows("feedPosts").unwrap();
     assert!(duplicate_idempotent);
     drain(e, m.now);
     assert!(m.like_counts()["rank-003"] > 0);
@@ -407,10 +405,10 @@ pub fn removals(e: &mut Engine, m: &mut Model) {
     for who in ["bob", "carol"] {
         sent(e, "unlike", who, &args, m.now, &format!("unlike-{who}"));
         m.likes.remove(&("rank-003".into(), who.into()));
-        m.check_store(e.store());
-        m.check_received_store(e.store());
+        m.check_store(sqlite_store(&e));
+        m.check_received_store(sqlite_store(&e));
     }
-    let unlike_zero = stored_row(e.store(), "posts", "rank-003")
+    let unlike_zero = stored_row(sqlite_store(&e), "posts", "rank-003")
         .unwrap()
         .field("likeCount")
         .unwrap()
@@ -427,7 +425,7 @@ pub fn removals(e: &mut Engine, m: &mut Model) {
         .unwrap()
         .clone();
     let table = timeline.table("RemovedEvents");
-    let tombstones = e.store().rows(&table).unwrap();
+    let tombstones = sqlite_store(&e).rows(&table).unwrap();
     let tombstone_ids: Vec<_> = tombstones
         .iter()
         .map(|r| field(r, "id").to_owned())
@@ -441,9 +439,9 @@ pub fn removals(e: &mut Engine, m: &mut Model) {
     assert!(!tombstone_ids.is_empty(), "purge must have real tombstones");
     let tombstones_present = tombstone_ids
         .iter()
-        .all(|id| stored_row(e.store(), &table, id).is_some());
+        .all(|id| stored_row(sqlite_store(&e), &table, id).is_some());
     assert!(tombstones_present);
-    let tasks_before=e.store().rows(&timeline.table("Work")).unwrap();
+    let tasks_before=sqlite_store(&e).rows(&timeline.table("Work")).unwrap();
     assert_eq!(tasks_before.iter().filter(|t|field(t,"kind")=="purge").count(),2);
     let mut chunks=0;
     while e.run_timeline_chunk(m.now).unwrap().is_some() { chunks+=1; assert!(chunks<100); }
@@ -451,7 +449,7 @@ pub fn removals(e: &mut Engine, m: &mut Model) {
     assert_eq!(e.timeline_work_counts().unwrap()[0].2,0);
     let purged = tombstone_ids
         .iter()
-        .all(|id| stored_row(e.store(), &table, id).is_none());
+        .all(|id| stored_row(sqlite_store(&e), &table, id).is_none());
     assert!(purged);
     m.check_following(e);
     println!(
@@ -522,8 +520,8 @@ pub fn arrival_days(e: &mut Engine, m: &mut Model) {
         arrival_gained_both,
         "arrival-day buckets did not gain both contributions"
     );
-    let like_at = stored_int(e.store(), "likes", "later-day-like", "at");
-    let reply_at = stored_int(e.store(), "replies", "later-day-reply", "at");
+    let like_at = stored_int(sqlite_store(&e), "likes", "later-day-like", "at");
+    let reply_at = stored_int(sqlite_store(&e), "replies", "later-day-reply", "at");
     assert_eq!(like_at, at);
     assert_eq!(reply_at, at);
     // check() queries every author over the seven-day window, post days, and an empty day.

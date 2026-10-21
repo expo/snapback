@@ -1,3 +1,4 @@
+use snapback4_core::partition::PartitionRows;
 #[path = "common/meter.rs"]
 mod common;
 use snapback4_core::rows::{Bounds, Dir, MemoryRows, Rows};

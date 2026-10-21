@@ -57,6 +57,26 @@ WHERE datname=current_database() AND application_name='sb4scale_raw'
 GROUP BY state,wait_event_type,wait_event) s;"""
 
 
+# @ref LLP 3000.009.001.002#6-method-and-metrics — counter witnesses span warm-up too; an unacknowledged warm-up write is an unknown outcome
+def counter_result(result, delta):
+    o=result['options']
+    cohort=(o['rate']*(o['warmup_ms']+o['duration_ms'])+999)//1000
+    acknowledged=result['total_success_including_warmup']
+    errors=cohort-acknowledged
+    if errors<result['error_count']: raise RuntimeError('invalid whole-cohort arrival accounting')
+    result['total_scheduled_including_warmup']=cohort
+    result['total_errors_including_warmup']=errors
+    result['warmup_error_count']=errors-result['error_count']
+    result['counter_check']={'delta':delta,'acknowledged_including_warmup':acknowledged,'ok':delta==acknowledged}
+    if delta!=acknowledged:
+        result['slo_pass']=False
+        # Measured errors alone omit warm-up timeouts. Equality remains mandatory;
+        # only explaining an excess commit as an unknown outcome is broadened.
+        if errors==0 or delta<acknowledged:
+            raise RuntimeError('counter mismatch without whole-cohort failures or acknowledged write lost')
+    return result
+
+
 class Run:
     db_prefix='sb4scale_raw'
     db_schema='public'
@@ -211,10 +231,7 @@ class Run:
         if db_monitor.returncode: raise RuntimeError('DB CPU monitor failed')
         # HTTP timeouts can leave an already admitted SQL write running. Drain
         # observed app statements before taking the counter/statistics snapshot.
-        deadline=time.monotonic()+10
-        while self.psql(f"SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND application_name='{self.app_name}' AND state<>'idle'").strip()!='0':
-            if time.monotonic()>deadline: raise RuntimeError('database work did not drain')
-            time.sleep(.1)
+        self.drain(directory,prefix)
         after=json.loads(self.psql(stats))
         write(directory/f'{prefix}.after.json',after)
         write(directory/f'{prefix}.resources.json',{'start':start,'end':time.time(),'clock_ticks':os.sysconf('SC_CLK_TCK'),'samples':samples})
@@ -222,17 +239,17 @@ class Run:
         if workload in ('W4','W5'):
             # No other writer is allowed in this serial campaign.
             delta=after['counters']['sum']-before['counters']['sum']
-            result['counter_check']={'delta':delta,'acknowledged_including_warmup':result['total_success_including_warmup'],'ok':delta==result['total_success_including_warmup']}
-            if not result['counter_check']['ok']:
-                result['slo_pass']=False
-                # Unknown outcomes at overload are retained, never counted as
-                # acknowledged throughput. Error-free mismatches are defects.
-                if result['error_count']==0 or delta<result['total_success_including_warmup']:
-                    raise RuntimeError('counter mismatch without timed-out writes')
+            counter_result(result,delta)
         result['command']=command
         write(directory/f'{prefix}.json',result)
         print(f'{directory.name} rate={rate} r={repeat} ok={result["slo_pass"]} achieved={result["achieved_per_s"]:.0f} p99={result["latency"]["p99_ms"]:.2f} errors={result["error_count"]}',flush=True)
         return result
+
+    def drain(self,directory,prefix):
+        deadline=time.monotonic()+10
+        while self.psql(f"SELECT count(*) FROM pg_stat_activity WHERE datname=current_database() AND application_name='{self.app_name}' AND state<>'idle'").strip()!='0':
+            if time.monotonic()>deadline: raise RuntimeError('database work did not drain')
+            time.sleep(.1)
 
     def app_pids(self):
         return [self.service[0].pid]

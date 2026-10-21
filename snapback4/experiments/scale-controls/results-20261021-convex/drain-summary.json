@@ -1,0 +1,7 @@
+{
+  "trials": 1206,
+  "all_request_commit_drains_pass": true,
+  "trials_with_background_sql_active": 605,
+  "max_background_sql_active": 5,
+  "max_drain_s": 0.7424607239663601
+}

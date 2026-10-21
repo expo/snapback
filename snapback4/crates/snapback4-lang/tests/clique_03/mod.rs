@@ -111,7 +111,7 @@ pub fn run_fixture(full: bool) {
     let stats = replay::seed(&mut e, &mut m, full);
     println!(
         "CLIQUE_SEED {}",
-        json!({"full":full,"elapsed_s":start.elapsed().as_secs_f64(),"replay":stats,"stored":m.source_counts(e.store())})
+        json!({"full":full,"elapsed_s":start.elapsed().as_secs_f64(),"replay":stats,"stored":m.source_counts(sqlite_store(&e))})
     );
     drain(&mut e, m.now);
     m.check_following(&mut e);
@@ -124,7 +124,7 @@ pub fn run_fixture(full: bool) {
     measure::writes(&mut e, &mut m, full);
     m.check(&mut e);
     measure::amplification();
-    let counts = m.source_counts(e.store());
+    let counts = m.source_counts(sqlite_store(&e));
     println!(
         "CLIQUE_OK {}",
         json!({"full":full,"elapsed_s":start.elapsed().as_secs_f64(),"posts":counts["posts"],"replies":counts["replies"],"likes":counts["likes"],"edges":counts["follows"]})
@@ -132,3 +132,7 @@ pub fn run_fixture(full: bool) {
 }
 
 fn drain(e: &mut Engine, now:i64) { while e.run_timeline_chunk(now).unwrap().is_some() {} assert_eq!(e.timeline_work_counts().unwrap()[0].2,0); }
+
+fn sqlite_store(engine: &Engine) -> &snapback4_core::Store {
+    match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(store) => store }
+}

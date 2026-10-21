@@ -1,4 +1,5 @@
 //! AnyStore-only member surface. No method returns a AnyTx or accepts a raw-AnyTx callback.
+use crate::receipts::ReceiptTransaction;
 use super::MemberTx;
 use crate::{RuntimeError, Value, store_port::AnyTx, rows::{Rows, Bounds, Dir}, schema::{Index, Table, Schema}};
 use crate::engine::job::{JobTransaction, Head, JobChunkUpdate};
@@ -120,10 +121,6 @@ impl MemberTx<'_, '_> {
         fn record_applied(&self, principal: &str, id: &str, seq: u64, outcome: &str) -> Result<(), RuntimeError>;
         fn bind_applied(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value, at: i64) -> Result<(), RuntimeError>;
         fn replay_bound(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value) -> Result<Option<String>, RuntimeError>;
-        #[cfg(test)]
-        fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError>;
-        #[cfg(test)]
-        fn set_meta(&self, key: &str, value: &str) -> Result<(), RuntimeError>;
         fn pin_time_audience_clock(&self, requested: i64) -> Result<i64, RuntimeError>;
         fn selected_time_audience(&self, table: &str, id: &str, now: i64) -> Result<Option<crate::store_port::TimeOpening>, RuntimeError>;
         fn due_time_audience(&self, now: i64) -> Result<Option<crate::store_port::TimeOpening>, RuntimeError>;

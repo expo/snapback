@@ -312,3 +312,103 @@ authoring surface or engine changes are made. Expected document updates
 are the result README, §9 progress note and append-only journal; hand-off:
 none. Advocate review, idle-host qualification, matched-pool controls and
 W6 remain open rather than being inferred from these results.
+
+## S1-CX: native Convex with Postgres persistence
+
+The Convex lane uses the official prebuilt release
+`precompiled-2026-10-10-72ce13c` (source
+`72ce13c379fe6dbdfc305bc8ad699c5663c68c2a`), rather than its Docker image.
+[`install-convex.py`](./scripts/install-convex.py) verifies the official asset
+SHA-256 before extraction into `~/sb4scale/bin`. The binary reports
+`local_backend unknown`; the release/source and executable hashes identify it.
+[`convex-app`](./convex-app) pins the CLI/SDK to 1.47.0. Install its dependencies
+with `cd convex-app && bun install --frozen-lockfile`; build this harness as above.
+No dashboard, action runner, hosted service or identity-provider server is needed.
+
+[`scripts/convex.py`](./scripts/convex.py) owns only its recorded child PIDs and
+`sb4scale_convex_100000` / `sb4scale_convex_1000000` databases. It connects to the
+existing cluster through the same independent SSH-stream dispatcher and S0
+per-direction proxy as Supabase. It creates no shared roles and changes no
+cluster settings. The cluster owner's existing credential is read from the
+mode-600 password file; the native Postgres driver requires the credential in
+its URL argument, so process command lines and environments must not be dumped.
+Only a redacted URL is saved. Instance secrets, admin keys and fixture signing
+keys/tokens stay mode 600 under `~/sb4scale/s1cx/`, outside Git and raw archives.
+
+The guide's `--db postgres-v5 SERVER_URL` selects Postgres persistence; the
+instance name with hyphens replaced by underscores selects the database.
+For example `sb4scale-convex-1000000` uses `sb4scale_convex_1000000`.
+`--do-not-require-ssl` permits the existing plaintext loopback/SSH database path;
+`--disable-beacon` suppresses telemetry. Ports are loopback 58080 (API),
+58081 (dispatcher), 58083 (unused HTTP actions). Local file/module/snapshot
+storage is retained under the instance directory outside Git; document and index
+persistence is Postgres. The published compose setting
+`DOCUMENT_RETENTION_DELAY=172800` is retained. Other native defaults stand;
+each cell publishes its explicit configuration.
+
+`POSTGRES_MAX_CONNECTIONS` is **32 for reads / C for writes**, matching the raw
+and Supabase-advocate upper budgets. Convex shares that pool with persistence
+background work; it does not have a one-connection-per-function execution model.
+`APPLICATION_MAX_CONCURRENT_QUERIES` and
+`APPLICATION_MAX_CONCURRENT_MUTATIONS` are also set to 32 / C. This raises the
+compose default 16 on large cells and lowers it on small cells. Background work,
+OCC retries and default function/index caches remain enabled. Observer sessions
+are outside the budgets. Pool counts are dynamic; capture actual connections
+and cache/retry metrics rather than claiming equivalent busy SQL connections.
+
+Public requests call `/api/query` and `/api/mutation` directly using reqwest,
+as documented by the [Convex HTTP API](https://docs.convex.dev/http-api/).
+There is no extra HTTP app or client-side retry. Float64 fixture numbers in
+Convex's JSON response are normalized to exact safe integers for the existing
+validator. An offline RS256 issuer supplies bearer JWTs (24-hour expiry);
+Convex verifies signatures, issuer, audience and expiry using its documented
+[custom JWT/data-URI JWKS provider](https://docs.convex.dev/auth/advanced/custom-jwt).
+Every measured function derives its principal from `ctx.auth`, then checks
+membership/ownership. Admin credentials are used only for deployment and
+before/after internal counter witnesses. Numeric fixture identities use indexed
+application fields alongside Convex's generated `_id`; indexes bound point,
+member, ordered-page and inbox reads. Posts atomically maintain room/sender
+totals; W4/W5 use ordinary read-modify-write mutations with Convex's own OCC.
+
+Run detached (record the returned supervisor PID), then poll its log and the
+cell summaries. All cell manifests retain a complete replay command. Examples:
+
+```sh
+python3 scripts/install-convex.py
+# Run each in its own setsid supervisor, with stdout/stderr redirected outside Git:
+python3 scripts/check-convex.py --out "$HOME/sb4scale/s1cx/checks-NEW" --rows 1000000
+python3 scripts/convex.py matrix --out "$HOME/sb4scale/s1cx/cells-NEW"
+# matrix = 66 cells: both read sizes, natural/+0.5 ms, writers 1–256.
+# all = all 132 S1-H cells, adding +0.2 and +1.0 ms.
+python3 scripts/convex.py cell --out "$HOME/sb4scale/s1cx/replay-NEW" \
+  --workload W4 --rows 1000000 --writers 32 --delay-us 500 --rates 400 800 1131 1600
+```
+
+The native backend stops after each cell and at runner exit. To restart it with
+owned SSH streams and the recorded settings, run a new detached supervisor:
+
+```sh
+setsid python3 scripts/convex.py serve --out "$HOME/sb4scale/s1cx/serve-NEW" \
+  --rows 1000000 --writers 32 --delay-us 0 >"$HOME/sb4scale/s1cx/serve-NEW.log" 2>&1 < /dev/null &
+# Immediately record $! outside Git. SIGINT to that exact supervisor triggers cleanup.
+```
+
+The [pinned self-hosting guide](https://github.com/convex/convex-backend/tree/72ce13c379fe6dbdfc305bc8ad699c5663c68c2a/self-hosted)
+explains native binaries, Postgres naming, admin keys and knobs.
+This measures **Convex/PG self-hosted**, not Convex Cloud or Convex's production
+storage path. Default query caching makes a hot read an application-cache test
+as well as a persistence test; no uncached per-request SQL interpretation is valid.
+
+The counter witness spans warm-up plus measurement. Whole-cohort failures are
+derived from the scheduler's exact arrival count and total acknowledgements;
+`warmup_error_count` is reported separately. A committed, timed-out warm-up
+request is an unknown outcome even when the measured window has zero errors.
+Counter inequality always disqualifies the trial; an excess with no failures
+anywhere in the cohort, or fewer commits than acknowledgements, still aborts.
+
+Convex's post-load drain uses its current outstanding-HTTP and unpublished-commit
+gauges: two consecutive zero samples 100 ms apart, with a 30 s bound. The
+committer gauge includes queued/prevalidation/persistence work. Persistence
+maintenance can keep SQL active after every request settles, so SQL-wide idle
+is not a Convex readiness condition. Raw PG/Supabase retain their existing
+application-SQL drain. Native drain samples remain in each raw trial record.

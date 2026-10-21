@@ -1,9 +1,9 @@
-#![cfg_attr(not(test), forbid(unsafe_code))]
-#![cfg_attr(test, deny(unsafe_code))]
 //! Snapback 4's core (LLP 3000 §5, week 2): the value model, the schema
 //! with `sync`, the program IR, the SQLite store with one key encoding, rule
 //! evaluation with hoisting, the runtime meter, the interpreter, and the
 //! partition log. Nothing here knows about HTTP, files, or a device.
+#![cfg_attr(not(test), forbid(unsafe_code))]
+#![cfg_attr(test, deny(unsafe_code))]
 
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — the native web-policy witness stays out of the published profiles (`production`, `wasm`); `scripts/check-release-guard.sh` builds this refusal.
 #[cfg(all(feature = "web-device-check", not(debug_assertions)))]
@@ -28,6 +28,7 @@ pub mod ids;
 pub mod inspection;
 pub mod ir;
 pub mod key;
+pub mod ledger;
 pub mod json_codec;
 pub mod meter;
 #[cfg(feature = "sqlite")]

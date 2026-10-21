@@ -1,5 +1,6 @@
 //! The verbs that do not serve: `check`, `run`, `types`, `why`, `doctor`,
 //! `init`, `data`, `test`. Each prints one honest answer and exits with it.
+use snapback4_core::Rows;
 
 use crate::project::{Project, persona_principal};
 use snapback4_core::engine::rules::scan_visibility;
@@ -1013,7 +1014,10 @@ pub fn doctor(options: &Options) -> i32 {
     // broken or destructive edits must leave the active generation usable.
     match snapback4_core::store_port::AnyStore::open_read_only(&work_records::store_path(options)) {
         Ok(store) => {
-            for status in store.inspection_worker_reports() { lines.push(format!("worker    last report: {status}")); }
+            match store.inspection_worker_reports() {
+                Ok(reports) => for status in reports { lines.push(format!("worker    last report: {status}")); },
+                Err(error) => { ok = false; lines.push(format!("worker    {error}")); }
+            }
             let generation = store.generation_value().ok().flatten().unwrap_or_else(|| "unrecorded".into());
             lines.push(format!("store     {} at seq {}, generation {}", work_records::store_path(options).display(), store.seq().unwrap_or(0), generation));
             if host.as_ref().is_some_and(|host| store.store_identity().ok().flatten().as_deref() != host["storeId"].as_str()) {

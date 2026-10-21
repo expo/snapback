@@ -1,4 +1,5 @@
 //! Retention is tested through the ordinary engine and its persisted store.
+use snapback4_core::rows::Rows;
 use super::*;
 use crate::engine::release::ReleaseActivation;
 use crate::{Context, Engine, WriteState, wire};
@@ -29,9 +30,8 @@ fn engine(source: &str) -> Engine {
 }
 fn activate(e: &mut Engine, source: &str, n: u64) -> Result<u64, RuntimeError> {
     let (s, p) = compile(source);
-    let previous = e
-        .store()
-        .meta("release")
+    let previous = (match &e
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta("release")
         .unwrap()
         .and_then(|s| s.parse().ok());
     e.adopt_release(s, p, &ReleaseActivation::new(n, previous), false)
@@ -204,8 +204,7 @@ fn sparse_defaults_are_captured_and_defaultless_forward_refuses_new_rows() {
     activate(&mut e, V1, 4).unwrap();
     // Delete the dormant values for one new row to model a required column
     // whose previous release had no default: restoration cannot invent it.
-    e.store()
-        .conn()
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn()
         .execute(
             "DELETE FROM _dormant_values WHERE id='new' AND column_name='extra'",
             [],
@@ -225,7 +224,7 @@ fn sparse_defaults_are_captured_and_defaultless_forward_refuses_new_rows() {
         failure.contains("new") && failure.contains("bridge"),
         "{failure}"
     );
-    assert_eq!(e.store().meta("release").unwrap().as_deref(), Some("4"));
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta("release").unwrap().as_deref(), Some("4"));
 }
 
 #[test]
@@ -257,9 +256,8 @@ fn dormant_reference_cannot_attach_to_identical_reused_parent() {
         failure.contains("c") && failure.contains("parent p") && failure.contains("lifetime"),
         "{failure}"
     );
-    let invalid: i64 = e
-        .store()
-        .conn()
+    let invalid: i64 = (match &e
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn()
         .query_row("SELECT invalid FROM _dormant_refs WHERE id='c'", [], |r| {
             r.get(0)
         })
@@ -270,9 +268,8 @@ fn dormant_reference_cannot_attach_to_identical_reused_parent() {
 #[test]
 fn revision_fences_aba_equal_content_and_native_only_generations() {
     let mut e = engine(V1);
-    let revision = e
-        .store()
-        .meta("release_revision")
+    let revision = (match &e
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta("release_revision")
         .unwrap()
         .unwrap()
         .parse()
@@ -323,7 +320,7 @@ fn dormant_unique_index_revalidates_older_writes_with_exact_population() {
     for text in ["rows.byExtra", "2 affected rows", "a", "new", "7"] {
         assert!(failure.contains(text), "{failure}");
     }
-    assert_eq!(e.store().meta("release").unwrap().as_deref(), Some("2"));
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta("release").unwrap().as_deref(), Some("2"));
 }
 
 #[test]
@@ -356,9 +353,8 @@ fn dormant_assets_cannot_be_fetched_or_collected_until_explicit_prune() {
         e.asset_access("alice", &asset.id, 103).unwrap_err().code(),
         "E_ASSET_UNKNOWN"
     );
-    let released: Option<i64> = e
-        .store()
-        .conn()
+    let released: Option<i64> = (match &e
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn()
         .query_row(
             "SELECT released_at FROM _assets WHERE id=?1",
             [&asset.id],
@@ -370,9 +366,8 @@ fn dormant_assets_cannot_be_fetched_or_collected_until_explicit_prune() {
     assert!(e.asset_access("alice", &asset.id, 104).is_ok());
     activate(&mut e, V1, 3).unwrap();
     e.store_mut().prune_dormant(true, None).unwrap();
-    let released: Option<i64> = e
-        .store()
-        .conn()
+    let released: Option<i64> = (match &e
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn()
         .query_row(
             "SELECT released_at FROM _assets WHERE id=?1",
             [&asset.id],
@@ -405,9 +400,9 @@ fn activation_expiry_invalidates_parent_lifetime_and_failed_commit_undoes_it() {
     .unwrap();
     e.seed_at([("children".into(), row)], 0).unwrap();
     let older = parent.replace("default 10", "default 20");
-    e.store().conn().commit_hook(Some(|| true)).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().commit_hook(Some(|| true)).unwrap();
     assert!(activate(&mut e, &older, 2).is_err());
-    e.store().conn().commit_hook(None::<fn() -> bool>).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().commit_hook(None::<fn() -> bool>).unwrap();
     assert_eq!(e.store().count("parents").unwrap(), 1);
     assert!(
         e.store_mut()
@@ -417,9 +412,8 @@ fn activation_expiry_invalidates_parent_lifetime_and_failed_commit_undoes_it() {
     );
     activate(&mut e, &older, 2).unwrap();
     assert_eq!(e.store().count("parents").unwrap(), 0);
-    let invalid: i64 = e
-        .store()
-        .conn()
+    let invalid: i64 = (match &e
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn()
         .query_row("SELECT invalid FROM _dormant_refs WHERE id='c'", [], |r| {
             r.get(0)
         })
@@ -495,7 +489,7 @@ fn release_refuses_durable_to_ephemeral_or_derived_ownership_with_population() {
             assert!(error.contains(detail), "{error}");
         }
         assert_eq!(e.store().count("rows").unwrap(), 1);
-        assert_eq!(e.store().meta("release").unwrap().as_deref(), Some("1"));
+        assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta("release").unwrap().as_deref(), Some("1"));
     }
 }
 
@@ -504,7 +498,7 @@ fn release_internal_names_refuse_and_development_keeps_legacy_format() {
     let (s, p) = compile(V1);
     let e = Engine::new(Store::memory().unwrap(), s.clone(), p.clone()).unwrap();
     assert_eq!(
-        e.store().meta("version").unwrap().as_deref(),
+        (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta("version").unwrap().as_deref(),
         Some("snapback4-store-1")
     );
     let mut injected = s;
@@ -532,9 +526,8 @@ fn joint_parent_child_retirement_preserves_lifetimes_in_both_name_orders() {
             serde_json::json!({"id":"c","parent":"p","body":"kept"}),
         );
         activate(&mut e, "query noop():\n  return 1\n", 2).unwrap();
-        let invalid: i64 = e
-            .store()
-            .conn()
+        let invalid: i64 = (match &e
+            .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn()
             .query_row(
                 "SELECT COALESCE(SUM(invalid),0) FROM _dormant_refs",
                 [],
@@ -763,7 +756,7 @@ fn dormant_through_deadline_refuses_retargeted_parent_reference() {
     ] {
         assert!(error.contains(detail), "{error}");
     }
-    assert_eq!(e.store().meta("release").unwrap().as_deref(), Some("2"));
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta("release").unwrap().as_deref(), Some("2"));
 }
 
 #[test]
@@ -818,13 +811,13 @@ fn legacy_aggregate_identity_migrates_dormant_references_before_restore() {
     tx.delete("totals", &target, &old_target).unwrap();
     tx.put("totals", &target, &legacy_target, None).unwrap();
     tx.commit().unwrap();
-    e.store().conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
 
     // Removing `saved` retains it outside the active namespace while the
     // aggregate target remains active. Identity adoption must rewrite both
     // the hidden row and its dormant-reference ledger before setting marker.
     activate(&mut e, BASE, 2).unwrap();
-    assert_eq!(e.store().meta(crate::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(crate::schema::MAINTAINED_ID_VERSION));
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta(crate::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(crate::schema::MAINTAINED_ID_VERSION));
     activate(&mut e, WITH_SAVED, 3).unwrap();
     let restored = e.store().rows("saved").unwrap();
     assert_eq!(restored.len(), 1);
@@ -973,7 +966,7 @@ fn partial_restoration_prunes_only_dormant_asset_homes() {
     assert_eq!(inventory.iter().find(|i|i.key=="rows:rows").unwrap().asset_bytes,dormant.bytes);
     e.store_mut().prune_dormant(true,None).unwrap();
     assert!(e.asset_access("alice",&active.id,103).is_ok(),"prune cannot release the active row's restored asset");
-    let released=|e:&Engine,id:&str|e.store().conn().query_row("SELECT released_at FROM _assets WHERE id=?1",[id],|r|r.get::<_,Option<i64>>(0)).unwrap();
+    let released=|e:&Engine,id:&str|(match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().query_row("SELECT released_at FROM _assets WHERE id=?1",[id],|r|r.get::<_,Option<i64>>(0)).unwrap();
     assert_eq!(released(&e,&active.id),None);
     assert!(released(&e,&dormant.id).is_some());
 }
@@ -986,12 +979,12 @@ fn release_store_2_keeps_deletion_evidence_before_its_next_upgrade() {
     seed(&mut e,"parents",serde_json::json!({"id":"p"}));
     seed(&mut e,"children",serde_json::json!({"id":"c","parent":"p"}));
     activate(&mut e,&old,2).unwrap();
-    e.store().conn().execute_batch("DROP TABLE _dormant_narrow_rows; UPDATE _meta SET value='snapback4-release-store-2' WHERE key='version';").unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute_batch("DROP TABLE _dormant_narrow_rows; UPDATE _meta SET value='snapback4-release-store-2' WHERE key='version';").unwrap();
     let table=e.schema().tables["parents"].clone();
     {let tx=e.store_mut().transaction().unwrap();let row=tx.get("parents","p").unwrap().unwrap();tx.delete("parents",&table,&row).unwrap();tx.commit().unwrap();}
     seed(&mut e,"parents",serde_json::json!({"id":"p"}));
     assert!(activate(&mut e,wide,3).unwrap_err().to_string().contains("lifetime"));
-    assert_eq!(e.store().meta("version").unwrap().as_deref(),Some("snapback4-release-store-2"),"failed upgrade must keep the old marker");
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta("version").unwrap().as_deref(),Some("snapback4-release-store-2"),"failed upgrade must keep the old marker");
 }
 
 #[test]
@@ -1065,7 +1058,7 @@ fn narrowing_restored_storage_keeps_deleted_parent_evidence_even_after_id_reuse(
         seed(&mut e,"parents",serde_json::json!({"id":"p"}));
         activate(&mut e,&narrow,3).unwrap();
         assert_eq!(e.store().count("children").unwrap(),0);
-        let invalid:i64=e.store().conn().query_row("SELECT invalid FROM _dormant_refs WHERE id='c' AND column_name='parent'",[],|r|r.get(0)).unwrap();
+        let invalid:i64=(match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().query_row("SELECT invalid FROM _dormant_refs WHERE id='c' AND column_name='parent'",[],|r|r.get(0)).unwrap();
         assert_eq!(invalid,1,"moving retained data into narrowed dormancy must not recapture the reused parent");
         activate(&mut e,wide,4).unwrap();
         assert_eq!(e.store().count("children").unwrap(),0);
@@ -1160,7 +1153,7 @@ fn removing_readthrough_cannot_revive_an_expired_narrowed_source_lifetime() {
     activate(&mut e,&wide.replace("enum('live','new')","enum('live')"),2).unwrap();
     activate(&mut e,&wide.replace("  read through .parent","  public").replace("  expire at .until\n",""),3).unwrap();
     assert_eq!(e.store().count("rows").unwrap(),0);
-    assert_eq!(e.store().conn().query_row("SELECT COUNT(*) FROM _dormant_narrow_rows",[],|r|r.get::<_,i64>(0)).unwrap(),0);
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().query_row("SELECT COUNT(*) FROM _dormant_narrow_rows",[],|r|r.get::<_,i64>(0)).unwrap(),0);
     let status=e.store_mut().release_status(0,None,None).unwrap();let event=status["events"].as_array().unwrap().last().unwrap();
     assert_eq!(event["summary"]["narrowed_restored"],0);
 }
@@ -1169,12 +1162,12 @@ fn removing_readthrough_cannot_revive_an_expired_narrowed_source_lifetime() {
 fn true_format_two_store_allows_deletion_before_its_first_upgrade() {
     let mut e=engine(V1);
     seed(&mut e,"rows",serde_json::json!({"id":"gone","n":1,"status":"active"}));
-    e.store().conn().execute_batch("UPDATE _meta SET value='snapback4-release-store-2' WHERE key='version'; DROP TABLE _dormant_narrow_rows;").unwrap();
+    (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute_batch("UPDATE _meta SET value='snapback4-release-store-2' WHERE key='version'; DROP TABLE _dormant_narrow_rows;").unwrap();
     mutate(&mut e,"remove","legacy-delete");
     assert_eq!(e.store().count("rows").unwrap(),0);
-    assert_eq!(e.store().meta("version").unwrap().as_deref(),Some("snapback4-release-store-2"));
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta("version").unwrap().as_deref(),Some("snapback4-release-store-2"));
     activate(&mut e,V1,1).unwrap();
-    assert_eq!(e.store().meta("version").unwrap().as_deref(),Some(dormant::VERSION));
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).meta("version").unwrap().as_deref(),Some(dormant::VERSION));
 }
 
 #[test]
@@ -1186,7 +1179,7 @@ fn direct_expiry_removal_cannot_revive_a_narrowed_source_lifetime() {
     activate(&mut e,&wide.replace("enum('live','new')","enum('live')"),2).unwrap();
     activate(&mut e,&wide.replace("  expire at .until\n",""),3).unwrap();
     assert_eq!(e.store().count("rows").unwrap(),0);
-    assert_eq!(e.store().conn().query_row("SELECT COUNT(*) FROM _dormant_narrow_rows",[],|r|r.get::<_,i64>(0)).unwrap(),0);
+    assert_eq!((match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().query_row("SELECT COUNT(*) FROM _dormant_narrow_rows",[],|r|r.get::<_,i64>(0)).unwrap(),0);
 }
 
 #[test]
@@ -1201,7 +1194,7 @@ fn whole_table_transfer_preserves_full_source_lifetime_until_classification() {
         let narrow=wide.replace("enum('live','new')","enum('live')").replace("  until: time default 50\n","").replace("  expire at .until\n","").replace("  read through .parent","  public");
         activate(&mut e,&narrow,3).unwrap();
         if until>50 {
-            let data:String=e.store().conn().query_row("SELECT data FROM _dormant_narrow_rows WHERE id='r'",[],|r|r.get(0)).unwrap();
+            let data:String=(match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().query_row("SELECT data FROM _dormant_narrow_rows WHERE id='r'",[],|r|r.get(0)).unwrap();
             let image:Value=serde_json::from_str(&data).unwrap();
             assert_eq!(image.field("until").unwrap(),&Value::Int(until));
             assert_eq!(image.field(crate::schema::through::DEADLINE).unwrap(),&Value::Int(until));
@@ -1308,9 +1301,9 @@ fn predicate_only_read_through_narrowing_preserves_the_captured_parent_image() {
     seed(&mut e,"children",serde_json::json!({"id":"c","parent":"p"}));
     let captured=e.store().rows("children").unwrap().remove(0);
     {
-        let tx=e.store_mut().transaction().unwrap();let t=tx.num("parents").unwrap();let mut parent=tx.get("parents","p").unwrap().unwrap();
+        let tx=e.store_mut().transaction().unwrap();let t=(match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).num("parents").unwrap();let mut parent=tx.get("parents","p").unwrap().unwrap();
         if let Value::Row(fields)|Value::Map(fields)=&mut parent {fields.insert("access".into(),Value::String("pending".into()));}
-        tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id='p'",rusqlite::params![crate::value::canonical_json(&parent),t]).unwrap();tx.commit().unwrap();
+        (match &tx { snapback4_core::store_port::AnyTx::Sqlite(inner) => inner }).conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id='p'",rusqlite::params![crate::value::canonical_json(&parent),t]).unwrap();tx.commit().unwrap();
     }
     activate(&mut e,&narrow,2).unwrap();
     assert_eq!(e.store().rows("children").unwrap(),vec![captured.clone()]);
@@ -1362,8 +1355,8 @@ fn narr_dormant_rows_cover_their_separately_retained_cells() {
     let after = e.store_mut().dormant_inventory(None, usize::MAX).unwrap();
     assert_eq!(after.iter().filter(|i|i.kind == "column").map(|i|i.rows).sum::<u64>(), 0);
     assert!(crate::store::adoption_report::AdoptionReport::dormant(&after).contains("3 rows, 0 cells"));
-    let actual:i64 = e.store().conn().query_row("SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_rows", [], |r|r.get(0)).unwrap();
-    let cells: i64 = e.store().conn().query_row("SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_values", [], |r|r.get(0)).unwrap();
+    let actual:i64 = (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().query_row("SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_rows", [], |r|r.get(0)).unwrap();
+    let cells: i64 = (match &e.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().query_row("SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_values", [], |r|r.get(0)).unwrap();
     assert_eq!(after.iter().filter(|i|i.kind == "table").map(|i|i.bytes).sum::<u64>(), (actual + cells) as u64);
     assert!(after.iter().filter(|i|i.kind == "column").all(|i|i.bytes == 0 && i.sample_ids.is_empty()));
     activate(&mut e, &v2(), 1).unwrap();

@@ -140,15 +140,15 @@ mutation send(n: int):
     for n in [1024, 1025] {
         let mut engine = memory(source);
         let result = engine.mutate("send", Some("metered"), Context::new("alice", [("n".into(), Value::Int(n))].into()).at(1)).unwrap();
-        let effects: i64 = engine.store().test_support_conn().query_row("SELECT count(*) FROM _outbox", [], |r| r.get(0)).unwrap();
+        let effects: i64 = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _outbox", [], |r| r.get(0)).unwrap();
         if n == 1025 {
             assert!(matches!(result.state, WriteState::Failed { ref why, .. } if why.code == "E_BOUND"), "{result:?}");
-            let tables: i64 = engine.store().test_support_conn().query_row("SELECT count(*) FROM sqlite_master WHERE name = '_effect_keys'", [], |r| r.get(0)).unwrap();
+            let tables: i64 = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM sqlite_master WHERE name = '_effect_keys'", [], |r| r.get(0)).unwrap();
             assert_eq!(tables, 0, "all permanent keys and their table from the refused first attempt roll back");
             assert_eq!(effects, 0);
         } else {
             assert!(!matches!(result.state, WriteState::Failed { .. }), "{result:?}");
-            let keys: i64 = engine.store().test_support_conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get(0)).unwrap();
+            let keys: i64 = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _effect_keys", [], |r| r.get(0)).unwrap();
             assert_eq!(keys, n);
             assert_eq!(effects, n);
         }

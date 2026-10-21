@@ -1,5 +1,6 @@
 //! One authority/projection scenario on both persistent device stores, plus
 //! the same engine assertions on in-memory and on-disk SQLite servers.
+use snapback4_core::partition::PartitionRows;
 mod common;
 use common::*;
 use serde_json::{json, Value as Json};

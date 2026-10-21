@@ -18,7 +18,7 @@
 //! prepare/execute methods require an argument: database APIs need one, whereas
 //! Records::prepare / records.prepare() and witness Run::execute() do not.
 //!
-//! This is a lexical ratchet, not type checking: aliases, macro-generated calls,
+//! This is a lexical ratchet, not type checking: macro-generated calls,
 //! and database APIs outside these spellings can escape it; a non-database method
 //! with the same name and arguments can count. cfg(test) *inline modules* are
 //! separated by token brace depth (braces in comments/literals do not interfere).
@@ -27,6 +27,8 @@
 //! named test_cases.rs are wholly test code. Driver patterns scan the core and host src trees; raw
 //! Store/Tx methods scan every workspace crate's src tree except snapback4-device.
 //! Adapter exclusions apply to both categories. A mixed file can appear in both allowlists.
+//! Crate renames through use/extern crate are followed within each source file.
+//! Cross-file alias re-exports and arbitrary type/macro resolution remain limits.
 //!
 //! From snapback4/: SNAPBACK4_RATCHET_UPDATE=1 cargo test -p snapback4
 //! --test store_port_ratchet. A count below its listed number only prints a note
@@ -143,10 +145,37 @@ fn excluded(path: &Path) -> bool {
 }
 
 fn count_source(source: &str, all_test: bool) -> (usize, usize) {
-    count_matching(source, all_test, database_site)
+    count_driver_source(source, all_test)
 }
 
-fn count_matching(source: &str, all_test: bool, site: fn(&[Token<'_>]) -> bool) -> (usize, usize) {
+fn count_driver_source(source: &str, all_test: bool) -> (usize, usize) {
+    let tokens = tokens(source);
+    let mut drivers: BTreeSet<&str> = ["rusqlite", "postgres"].into();
+    // Conservative at file scope: a driver-bearing use tree marks its renamed
+    // bindings too. Follow chained renames regardless of declaration order.
+    loop {
+        let before = drivers.len();
+        for (i, token) in tokens.iter().enumerate() {
+            if token.text != "use" && !starts(&tokens[i..], &["extern", "crate"]) { continue; }
+            let end = tokens[i..].iter().position(|t| t.text == ";").map_or(tokens.len(), |j| i + j);
+            let import = &tokens[i..end];
+            if import.iter().any(|t| drivers.contains(t.text)) {
+                for pair in import.windows(2).filter(|w| w[0].text == "as") {
+                    drivers.insert(pair[1].text);
+                }
+            }
+        }
+        if before == drivers.len() { break; }
+    }
+    count_matching(source, all_test, |site| {
+        database_site(site) || (site.first().is_some_and(|t| drivers.contains(t.text))
+            && starts(&site[1..], &[":", ":"])
+            && !(site.get(3).is_some_and(|t| t.text == "Error")
+                && site.get(4).is_none_or(|t| t.text != ":")))
+    })
+}
+
+fn count_matching(source: &str, all_test: bool, site: impl Fn(&[Token<'_>]) -> bool) -> (usize, usize) {
     let tokens = tokens(source);
     let mut lines = [BTreeSet::new(), BTreeSet::new()];
     let (mut depth, mut test_depth) = (0, None);
@@ -190,7 +219,8 @@ fn count_file(path: &Path, source: &str) -> (usize, usize) {
     }
     let driver_scope = path.starts_with("crates/snapback4-core/src")
         || path.starts_with("crates/snapback4/src");
-    count_matching(source, test_file(path), if driver_scope { database_site } else { raw_store_site })
+    if driver_scope { count_driver_source(source, test_file(path)) }
+    else { count_matching(source, test_file(path), raw_store_site) }
 }
 
 fn walk(root: &Path, dir: &Path, counts: &mut [Counts; 2]) {
@@ -342,6 +372,15 @@ fn matcher_counts_lines_and_exact_database_tokens() {
     }
     assert_eq!(count_source("Sql(#[from] rusqlite::Error), Postgres(#[from] postgres::Error)", false), (0, 0));
     assert_eq!(count_source("db\n . prepare\n (sql);", false), (1, 0));
+    for import in [
+        "use rusqlite as sql;", "extern crate rusqlite as sql;",
+        "use {rusqlite as sql};", "use sql as driver; use rusqlite as sql;",
+    ] {
+        let source = format!("{import}\nsql::Connection::execute_batch(db, sql_text);\n");
+        assert_eq!(count_source(&source, false), (1, 0), "{source}");
+    }
+    assert_eq!(count_source("use rusqlite as sql;\nuse sql as driver;\ndriver::Connection::execute_batch(db, text);", false), (1, 0));
+    assert_eq!(count_source("use postgres as pg;\npg::Client::connect(url);", false), (1, 0));
     assert_eq!(
         count_source(
             "records.prepare(); self.prepare(); run.execute(); AuthorityTransaction::new_unchecked(); StepTransaction::new_unchecked();",

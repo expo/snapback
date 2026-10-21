@@ -181,7 +181,7 @@ pub(crate) struct EvidenceRecord { pub seq: u64, pub footprint: Option<String> }
 
 #[cfg(feature = "sqlite")]
 pub(crate) trait ChangeEvidence {
-    fn change_evidence(&self, after: u64, through: u64, visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Option<()>;
+    fn change_evidence(&self, after: u64, through: u64, visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Result<Option<()>, crate::RuntimeError>;
 }
 
 /// Classify a complete interval. Unknown evidence certifies neither preservation nor revocation.
@@ -215,7 +215,7 @@ pub(crate) fn footprint_between(store: &impl ChangeEvidence, after: u64, through
         previous = seq;
         count += 1;
         Some(())
-    })?;
+    }).ok()??;
     (previous == through).then_some(footprint)
 }
 
@@ -335,9 +335,11 @@ pub(crate) mod evidence_test_cases {
 
     struct Memory;
     impl ChangeEvidence for Memory {
-        fn change_evidence(&self, after: u64, through: u64, mut visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Option<()> {
+        fn change_evidence(&self, after: u64, through: u64, mut visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Result<Option<()>, crate::RuntimeError> {
+            Ok((|| {
             for record in records().into_iter().filter(|r| r.seq > after && r.seq <= through).take(501) { visit(record)?; }
             Some(())
+            })())
         }
     }
 

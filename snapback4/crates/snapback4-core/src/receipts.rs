@@ -19,6 +19,13 @@ pub(crate) trait ReceiptReader {
     ) -> Result<Option<i64>, RuntimeError>;
 }
 
+// @ref LLP 3000.009.001.000#3.4 — receipt writes share the admitted transaction with the ledger.
+#[cfg(feature = "sqlite")]
+pub(crate) trait ReceiptTransaction: ReceiptReader {
+    fn record_applied(&self, principal: &str, id: &str, seq: u64, outcome: &str) -> Result<(), RuntimeError>;
+    fn bind_applied(&self, principal: &str, id: &str, name: &str, args: &serde_json::Value, at: i64) -> Result<(), RuntimeError>;
+}
+
 /// Decode the receipt state identically, without dialect-specific JSON coercions.
 pub(crate) fn sent_state(seq: i64, outcome: &str) -> Result<Option<i64>, RuntimeError> {
     let value: serde_json::Value =

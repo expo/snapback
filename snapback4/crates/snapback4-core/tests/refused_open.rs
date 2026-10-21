@@ -100,14 +100,14 @@ fn accepted_legacy_open_carries_the_new_identity_and_release_out_of_commit() {
             if entry == "repair" { db.execute("DELETE FROM _meta WHERE key='live_sum_candidates'", []).unwrap(); }
             drop(db);
             let engine = open(Store::open(&fixture.path()).unwrap(), entry, None).unwrap();
-            let identity = engine.store().test_support_meta("store_id").unwrap().unwrap();
+            let identity = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap().unwrap();
             assert_eq!(identity.len(), 32);
             assert_eq!(engine.ephemeral_hub().snapshot().unwrap().identity, identity);
-            assert_eq!(engine.store().test_support_meta("release").unwrap(), (entry == "release").then(|| "1".to_string()));
-            assert!(engine.store().test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_effect_steps')", [], |r| r.get::<_, bool>(0)).unwrap());
+            assert_eq!((match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("release").unwrap(), (entry == "release").then(|| "1".to_string()));
+            assert!((match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_effect_steps')", [], |r| r.get::<_, bool>(0)).unwrap());
             drop(engine);
             let reopened = Engine::open(Store::open(&fixture.path()).unwrap()).unwrap();
-            assert_eq!(reopened.store().test_support_meta("store_id").unwrap().as_deref(), Some(identity.as_str()));
+            assert_eq!((match &reopened.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("store_id").unwrap().as_deref(), Some(identity.as_str()));
         }
     }
 }
@@ -237,16 +237,16 @@ fn in_place_adoption_refuses_bad_metadata_or_a_poisoned_hub_before_commit() {
     for refusal in ["store_id", "release", "hub"] {
         let fixture = Fixture::new("DELETE");
         let mut engine = Engine::open(Store::open(&fixture.path()).unwrap()).unwrap();
-        engine.store().test_support_conn().execute_batch("DROP TABLE _effect_steps").unwrap();
+        (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("DROP TABLE _effect_steps").unwrap();
         if refusal == "hub" {
             let hub = engine.ephemeral_hub();
             assert!(std::thread::spawn(move || { let _held = hub.lock().unwrap(); panic!("test hub poison"); }).join().is_err());
         } else {
-            engine.store().test_support_conn().execute("INSERT OR REPLACE INTO _meta VALUES (?1,X'80')", [refusal]).unwrap();
+            (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("INSERT OR REPLACE INTO _meta VALUES (?1,X'80')", [refusal]).unwrap();
         }
-        let before = dump(engine.store().test_support_conn());
+        let before = dump((match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn());
         assert!(engine.adopt(Schema::default(), []).is_err());
-        assert_eq!(dump(engine.store().test_support_conn()), before);
+        assert_eq!(dump((match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()), before);
     }
 }
 
@@ -268,7 +268,7 @@ fn adoption_with_an_in_flight_ephemeral_reader_commits_in_delete_and_wal() {
         let (reading, at_read) = mpsc::sync_channel(1);
         let (resume, proceed) = mpsc::sync_channel(1);
         let mut paused = false;
-        reader.store().test_support_conn().authorizer(Some(move |context: AuthContext<'_>| {
+        (match &reader.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().authorizer(Some(move |context: AuthContext<'_>| {
             if !paused && matches!(context.action, AuthAction::Read { table_name: "_commits", .. }) {
                 // mutate_ephemeral has already established its SQLite snapshot
                 // and read identity/generation, but has not taken the hub yet.
@@ -281,8 +281,8 @@ fn adoption_with_an_in_flight_ephemeral_reader_commits_in_delete_and_wal() {
         let reading = std::thread::spawn(move || reader.mutate_ephemeral("setTyping", Context::new("alice", Default::default()).at(1000)));
         at_read.recv_timeout(Duration::from_secs(10)).unwrap();
         let (committing, at_commit) = mpsc::sync_channel(1);
-        engine.store().test_support_conn().busy_timeout(Duration::from_secs(2)).unwrap();
-        engine.store().test_support_conn().authorizer(Some(move |context: AuthContext<'_>| {
+        (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().busy_timeout(Duration::from_secs(2)).unwrap();
+        (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().authorizer(Some(move |context: AuthContext<'_>| {
             // rusqlite 0.40 maps COMMIT to Unknown. The authorizer runs before
             // SQLite tries to promote the writer lock; commit_hook is too late.
             if matches!(context.action, AuthAction::Transaction { operation: TransactionOperation::Unknown }) {
@@ -314,7 +314,7 @@ fn adoption_with_an_in_flight_ephemeral_reader_commits_in_delete_and_wal() {
         assert_eq!(result.unwrap(), generation + 1, "{mode}");
         if mode == "DELETE" { read_result.unwrap(); }
         else { assert_eq!(read_result.err().expect("stale WAL reader").code(), "E_GENERATION"); }
-        assert_eq!(engine.store().test_support_meta("generation").unwrap(), Some((generation + 1).to_string()));
+        assert_eq!((match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("generation").unwrap(), Some((generation + 1).to_string()));
         assert_eq!(hub.snapshot().unwrap().generation, generation + 1);
         let reopened = Engine::open(Store::open(&fixture.path()).unwrap()).unwrap();
         assert!(reopened.schema().tables["typing"].columns.contains_key("note"));
@@ -330,7 +330,7 @@ fn hub_poison_racing_acceptance_is_reset_without_post_commit_refusal() {
         let poisoning = hub.clone();
         let generation = engine.generation();
         let incarnation = hub.snapshot().unwrap().version.incarnation;
-        engine.store().test_support_conn().commit_hook(Some(move || {
+        (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().commit_hook(Some(move || {
             let hub = poisoning.clone();
             assert!(std::thread::spawn(move || { let _held = hub.lock().unwrap(); panic!("concurrent reader poisoned hub"); }).join().is_err());
             false
@@ -343,6 +343,6 @@ fn hub_poison_racing_acceptance_is_reset_without_post_commit_refusal() {
         let after = hub.snapshot().expect("replacement state clears poison");
         assert_eq!(after.generation, generation + 1);
         assert_ne!(after.version.incarnation, incarnation);
-        assert_eq!(engine.store().test_support_meta("generation").unwrap(), Some((generation + 1).to_string()));
+        assert_eq!((match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("generation").unwrap(), Some((generation + 1).to_string()));
     }
 }

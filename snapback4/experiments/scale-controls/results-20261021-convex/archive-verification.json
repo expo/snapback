@@ -1,0 +1,32 @@
+{
+  "pid": 2618815,
+  "archives": [
+    {
+      "archive": "s1cx-20261021-final66.tar.gz",
+      "sha256": "6cea5bbc94d236e37b078b0b654f3dfd4e2e823236d1798b4b348299fbf27241",
+      "files": 16476,
+      "final_cell_summaries": 66,
+      "credential_matches": [],
+      "sha256_verified": true,
+      "safe_paths": true
+    },
+    {
+      "archive": "s1cx-20261021-history.tar.gz",
+      "sha256": "093b1eaab66e098f4bac51b4aec5626e954555d9d85c808dde2e993d351c411d",
+      "files": 13078,
+      "final_cell_summaries": 0,
+      "credential_matches": [],
+      "sha256_verified": true,
+      "safe_paths": true
+    },
+    {
+      "archive": "s1cx-20261021-preflight.tar.gz",
+      "sha256": "a07ffe034d78b7bf1457b20bea6855bf9475221675db1f89349aa1a7d7310d1f",
+      "files": 530,
+      "final_cell_summaries": 0,
+      "credential_matches": [],
+      "sha256_verified": true,
+      "safe_paths": true
+    }
+  ]
+}

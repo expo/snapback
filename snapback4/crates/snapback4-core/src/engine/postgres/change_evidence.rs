@@ -45,7 +45,8 @@ impl ChangeEvidence for Tx<'_> {
         after: u64,
         through: u64,
         mut visit: impl FnMut(EvidenceRecord) -> Option<()>,
-    ) -> Option<()> {
+    ) -> Result<Option<()>, RuntimeError> {
+        Ok((|| {
         let (after, through) = revocation::evidence_bounds(after, through)?;
         let rows = self.query("SELECT c.seq,e.footprint FROM _commits c LEFT JOIN _change_evidence e ON e.seq=c.seq WHERE c.seq>$1 AND c.seq<=$2 ORDER BY c.seq LIMIT 501", &[&after,&through]).ok()?;
         for row in rows {
@@ -55,6 +56,7 @@ impl ChangeEvidence for Tx<'_> {
             })?;
         }
         Some(())
+        })())
     }
 }
 impl ChangeEvidence for RefCell<&mut Store> {
@@ -63,13 +65,15 @@ impl ChangeEvidence for RefCell<&mut Store> {
         after: u64,
         through: u64,
         visit: impl FnMut(EvidenceRecord) -> Option<()>,
-    ) -> Option<()> {
+    ) -> Result<Option<()>, RuntimeError> {
+        Ok((|| {
         revocation::evidence_bounds(after, through)?;
         let mut store = self.borrow_mut();
         let tx = store.transaction(None).ok()?;
-        let result = tx.change_evidence(after, through, visit);
+        let result = tx.change_evidence(after, through, visit).ok()?;
         // Failure also ends the snapshot; no statements follow a query error.
         tx.rollback().ok()?;
         result
+        })())
     }
 }

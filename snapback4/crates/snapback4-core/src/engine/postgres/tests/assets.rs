@@ -1,4 +1,5 @@
 //! One asset contract on both stores; attach, cache and head-fence witnesses here.
+use crate::assets::AssetPlacementReader;
 // @ref LLP 3000.009.001.000#9.1 — real adapter operations with observable physical contention.
 use super::super::{
     PostgresEngine, WriteMode,

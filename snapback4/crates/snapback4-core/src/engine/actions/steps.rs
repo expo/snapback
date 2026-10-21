@@ -5,7 +5,6 @@
 //! commit gap.
 
 use super::*;
-use crate::store_port::ActionStepTransaction;
 use crate::engine::steps::{self as step_core, StepClaim, StepOwner, Transition};
 
 pub use crate::engine::steps::Step as ActionStep;
@@ -25,7 +24,7 @@ impl Engine {
         let prepared = step_core::prepare_begin(owner, lease, name, input, reconcile, self.ceilings.heap_bytes)?;
         let tx = self.store.transaction()?;
         held_claim_authority(&tx, id, worker, lease, now)?;
-        let transition = step_core::begin(&mut ActionStepTransaction { tx: &tx }, owner, &prepared, now);
+        let transition = step_core::begin(&mut tx.action_steps(), owner, &prepared, now);
         apply(tx, transition)
     }
 
@@ -34,7 +33,7 @@ impl Engine {
         let prepared = step_core::prepare_result(lease, name, result, self.ceilings.output_bytes)?;
         let tx = self.store.transaction()?;
         held_claim_authority(&tx, id, worker, lease, now)?;
-        let transition = step_core::complete(&mut ActionStepTransaction { tx: &tx }, owner, &prepared, now);
+        let transition = step_core::complete(&mut tx.action_steps(), owner, &prepared, now);
         apply(tx, transition)
     }
 
@@ -43,7 +42,7 @@ impl Engine {
         let claim = StepClaim::from_token(lease);
         let tx = self.store.transaction()?;
         held_claim_authority(&tx, id, worker, lease, now)?;
-        let transition = step_core::park(&mut ActionStepTransaction { tx: &tx }, owner, claim, name, error, now);
+        let transition = step_core::park(&mut tx.action_steps(), owner, claim, name, error, now);
         apply(tx, transition)
     }
 }

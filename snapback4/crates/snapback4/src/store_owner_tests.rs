@@ -19,7 +19,7 @@ fn database_ownership_preserves_sqlites_posix_locks() {
         let path = dir.join(format!("{mode}.sqlite"));
         let mut owner = command(&path).unwrap();
         let store = owner.open_store(Duration::ZERO).unwrap();
-        store.test_support_conn().execute_batch(&format!("PRAGMA journal_mode = {mode}; BEGIN IMMEDIATE")).unwrap();
+        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch(&format!("PRAGMA journal_mode = {mode}; BEGIN IMMEDIATE")).unwrap();
         // Even rejected ownership attempts must be stat-only on the database:
         // closing a second raw descriptor would discard its POSIX locks.
         owner.path().unwrap();
@@ -36,7 +36,7 @@ fn database_ownership_preserves_sqlites_posix_locks() {
             assert!(output.status.success(), "{mode}: {output:?}");
         };
         run(true);
-        store.test_support_conn().execute_batch("ROLLBACK").unwrap();
+        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("ROLLBACK").unwrap();
         run(false); // The ownership flock does not replace SQLite's own locks.
         drop(store);
         drop(owner);
@@ -140,7 +140,7 @@ fn database_renamed_to_auxiliary_name_is_never_opened_or_truncated() {
         let path = dir.join("store.sqlite");
         let owner = command(&path).unwrap();
         let store = owner.open_store(Duration::ZERO).unwrap();
-        store.test_support_conn().execute_batch("PRAGMA journal_mode=DELETE; BEGIN IMMEDIATE").unwrap();
+        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("PRAGMA journal_mode=DELETE; BEGIN IMMEDIATE").unwrap();
         let target = dir.join(name);
         fs::rename(&path, &target).unwrap();
         assert!(address(&path).is_none());
@@ -154,7 +154,7 @@ fn database_renamed_to_auxiliary_name_is_never_opened_or_truncated() {
             .env("SNAPBACK4_TEST_SQLITE_OWNER_PATH", &target)
             .env("SNAPBACK4_TEST_SQLITE_EXPECT_BUSY", "1").output().unwrap();
         assert!(output.status.success(), "{name}: {output:?}");
-        store.test_support_conn().execute_batch("ROLLBACK").unwrap();
+        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("ROLLBACK").unwrap();
         drop(store); drop(owner);
         fs::remove_dir_all(dir).unwrap();
     }

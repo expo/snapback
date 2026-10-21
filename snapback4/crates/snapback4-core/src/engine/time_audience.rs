@@ -28,7 +28,7 @@ pub(super) fn pin_writer_time(
 /// transaction; an already-published row must not disappear in that gap.
 pub(super) fn observe_reader_time(
     schema: &Schema,
-    tx: &crate::store_port::AnyTx<'_>,
+    tx: &impl crate::activation::ActivationReader,
     requested: i64,
 ) -> Result<i64, RuntimeError> {
     if schema

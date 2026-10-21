@@ -220,14 +220,14 @@ mod candidate_tests {
         impl Drop for Cleanup {fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
         let _cleanup=Cleanup(root.clone());
         let store=snapback4_core::store_port::AnyStore::open(&root.join("store.sqlite")).unwrap();
-        store.test_support_conn().execute_batch("CREATE TABLE _release_events(release INTEGER,previous INTEGER)").unwrap();
+        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("CREATE TABLE _release_events(release INTEGER,previous INTEGER)").unwrap();
         for n in 1..=3 {fs::create_dir(root.join("releases").join(n.to_string())).unwrap();}
         drop(Candidate::new(&root,1));
         assert!(!root.join("releases/1").exists());
         // A server may commit after this history read. No observed row is not a completed refusal.
         let mut flight=Candidate::new(&root,2);flight.pending=true;drop(flight);
         assert!(root.join("releases/2").is_dir());
-        store.test_support_conn().execute("INSERT INTO _release_events VALUES(3,NULL)",[]).unwrap();
+        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("INSERT INTO _release_events VALUES(3,NULL)",[]).unwrap();
         drop(Candidate::new(&root,3));
         assert!(root.join("releases/3").is_dir());
     }

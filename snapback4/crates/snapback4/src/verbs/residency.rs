@@ -35,7 +35,7 @@ pub fn personas(bound: &Bound, options: &super::Options) -> Vec<String> {
 }
 
 // @ref LLP 3000.007#6.8 — cost-order the real cold snapshot, not stored table sizes or estimates.
-fn report(tx: &snapback4_core::store_port::AnyTx<'_>, schema: &snapback4_core::Schema, personas: &[String], verbose: bool) -> Result<String, snapback4_core::error::RuntimeError> {
+fn report(tx: &impl snapback4_core::partition::PartitionRows, schema: &snapback4_core::Schema, personas: &[String], verbose: bool) -> Result<String, snapback4_core::error::RuntimeError> {
     let mut counts = Vec::new();
     let mut totals = BTreeMap::new();
     let mut columns = BTreeMap::<(String,String), (u64,u64,u64)>::new();

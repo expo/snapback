@@ -21,7 +21,7 @@ fn seed(engine: &Engine, id: &str, at: i64, deadline: Option<i64>) {
     spec.work.policy.max_attempts = 2;
     // Bypass admission exactly as a pre-upgrade database would. No contract
     // was recorded on these legacy rows; their original policy still applies.
-    engine.store().conn().execute(
+    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute(
         "INSERT INTO _requests(id,name,args,principal,at,state,spec,deadline) VALUES (?1,?2,'{}','dev:alice',?3,'queued',?4,?5)",
         params![id, ACTION, at, serde_json::to_string(&spec).unwrap(), deadline],
     ).unwrap();
@@ -50,9 +50,8 @@ fn legacy_nul_request_deadline_and_lease_expiry_preserve_outcomes() {
         seed(&engine, LEGACY, 0, (case == "deadline").then_some(1_000));
         let claimed = claim(&mut engine, 0);
         if case == "attempts" {
-            engine
-                .store()
-                .conn()
+            (match &engine
+                .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn()
                 .execute("UPDATE _requests SET attempts = 2 WHERE id = ?1", [LEGACY])
                 .unwrap();
         }
@@ -109,7 +108,7 @@ fn legacy_nul_oldest_request_does_not_poison_claim_batch() {
 fn legacy_nul_request_replay_and_authority_failure_address_stored_keys() {
     let mut engine = engine();
     seed(&engine, LEGACY, 0, None);
-    let changes = engine.store().conn().total_changes();
+    let changes = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().total_changes();
     // The client invocation-id admission now refuses NUL via identity_fits.
     // Replaying a stored row remains an adapter/policy operation, not new
     // identity admission; pin both sides of that boundary.
@@ -122,8 +121,8 @@ fn legacy_nul_request_replay_and_authority_failure_address_stored_keys() {
         .unwrap().unwrap();
     assert_eq!(run.id, LEGACY);
     tx.rollback().unwrap();
-    assert_eq!(engine.store().conn().total_changes(), changes);
-    engine.store().conn().execute("UPDATE _requests SET family = 'revoked', principal_generation = 0, admitted_expires_at = 100 WHERE id = ?1", [LEGACY]).unwrap();
+    assert_eq!((match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().total_changes(), changes);
+    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn().execute("UPDATE _requests SET family = 'revoked', principal_generation = 0, admitted_expires_at = 100 WHERE id = ?1", [LEGACY]).unwrap();
     assert!(
         engine
             .claim_actions("service:worker", Some(ACTION), 1, 1_000, 60, 10)

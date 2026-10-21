@@ -1,0 +1,12 @@
+{
+  "source_commit": "72ce13c379fe6dbdfc305bc8ad699c5663c68c2a",
+  "files": {
+    "crates_postgres_src_lib.rs": "efe403c38a53b9464f560b81d05f2d82fd577c5e848e5db6134893723ed842f0",
+    "crates_postgres_src_connection.rs": "9f683ec611a08bfac85bdc41aab996384d35adb7d18ac27778de2a29626b3b79",
+    "crates_postgres_src_sql.rs": "0bc37ccd7c2ef8e77a90c42e022068f4d403e88d02296746cccd71d5358cad84",
+    "db_connection.rs": "76c8f45c17c7adf2737849735d0e2ae6f5d5256c745677a3f737cdce63416f77"
+  },
+  "synchronous_commit_or_fsync_overrides_found": false,
+  "cluster_settings": "postgres.txt",
+  "explicit_relaxation": false
+}

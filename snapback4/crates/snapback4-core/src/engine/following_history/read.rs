@@ -13,7 +13,7 @@ fn owned(t: &Timeline, suffix: &str, key: &[Value]) -> String {
 }
 
 pub(super) fn edge(
-    tx: &AnyTx<'_>,
+    tx: &impl FollowingHistoryReader,
     t: &Timeline,
     viewer: &str,
     lane: &Lane,
@@ -33,7 +33,7 @@ pub(super) fn edge(
 
 /// Fixed reservations precede all these probes, whether a witness is present,
 /// parked, done, missing, or carries a different private queue cursor/error.
-pub(super) fn live(tx: &AnyTx<'_>, t: &Timeline, s: &Session, h: &Head) -> Result<Live, RuntimeError> {
+pub(super) fn live(tx: &impl FollowingHistoryReader, t: &Timeline, s: &Session, h: &Head) -> Result<Live, RuntimeError> {
     if !edge(tx, t, &s.viewer, &h.lane)? {
         return Ok(Live::LaneGone);
     }
@@ -47,7 +47,7 @@ pub(super) fn live(tx: &AnyTx<'_>, t: &Timeline, s: &Session, h: &Head) -> Resul
 }
 
 pub(super) fn birth(
-    tx: &AnyTx<'_>,
+    tx: &impl FollowingHistoryReader,
     t: &Timeline,
     bound: &str,
     event: &Event,
@@ -87,7 +87,7 @@ pub(super) fn birth(
 }
 
 pub(super) fn next_edge(
-    tx: &AnyTx<'_>,
+    tx: &impl FollowingHistoryReader,
     t: &Timeline,
     s: &Session,
 ) -> Result<Option<Value>, RuntimeError> {
@@ -99,7 +99,7 @@ pub(super) fn next_edge(
     )
 }
 pub(super) fn next_event(
-    tx: &AnyTx<'_>,
+    tx: &impl FollowingHistoryReader,
     t: &Timeline,
     lane: &Lane,
 ) -> Result<Option<Event>, RuntimeError> {

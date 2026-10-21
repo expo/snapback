@@ -1,0 +1,32 @@
+{
+  "release_build": true,
+  "typescript": true,
+  "clippy_warnings_denied": true,
+  "ref_check_before": true,
+  "native_semantics": "checks.json",
+  "seed_export": "both sizes, all five application tables; cumulative counters validated structurally in repeated checks",
+  "initial_preflights": "Retained separately: missing native URL password; reserved by_id index name; Float64 normalization bug corrected before matrix; an overstrict 20/s preflight SLO assumption replaced with separate low-rate semantic checks. The matrix scheduler/SLOs are unchanged.",
+  "final_method": "One complete fresh-database matrix under 75ef46117d; historical trials excluded",
+  "warmup_regression": "warmup-regression.json",
+  "native_drain": "drain-summary.json",
+  "final_matrix_audit": true,
+  "exact_cell_coverage": 66,
+  "source_and_binary_commit_match": "source-proof.json",
+  "native_drains_all_pass": 1206,
+  "measurement_runner_children_exited": 7924,
+  "report_sidecar_fix": "Reporting now selects exact rate-N-rN.json files, excluding native drain sidecars. Raw timing and decisions unchanged.",
+  "ref_check_after": true,
+  "python_syntax": true,
+  "aggregate_json_and_svg_parse": true,
+  "scoped_doc_links_checked": 65,
+  "report_input_hashes_verified": true,
+  "archive_sha256_content_secret_audit": "archive-verification.json",
+  "plots_visually_checked": true,
+  "staged_credential_scan": {
+    "files": 52,
+    "matches": [],
+    "checks": "exact retained secrets, JWT shape, private PEM and SCRAM markers"
+  },
+  "whole_lane_cleanup": "final-process-audit.json",
+  "ref_check_summary": "564 LLP docs, 11643 refs in 42097 files; zero errors or unchecked targets"
+}

@@ -2,7 +2,7 @@
 use super::*;
 use crate::schema::{ColumnType, Effect, Index, RuleExpr, RuleTerm, public_table};
 
-pub(super) fn predicates(tx: &crate::store::Tx<'_>, schema: &Schema, c: Config, member: &Value,
+pub(super) fn predicates(tx: &impl crate::rows::Rows, schema: &Schema, c: Config, member: &Value,
     count: Option<i64>, now: i64, label: &str) -> usize {
     let mut comparisons = 0;
     for (field, kind) in &schema.tables["unread"].columns {

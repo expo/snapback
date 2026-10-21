@@ -1,0 +1,68 @@
+{
+  "source_commit": "75ef46117d12538c419e12e271c1c76f26a81ada",
+  "binary_sha256": "2d69d27eaee16faf5aac8de1404fe3231859cfc2b29038a3f77e5ba714f43c65",
+  "source_sha256": {
+    "scale-controls/Cargo.toml": "10d12a6d500b5dc44c0e22efd29fbf2075800b1d5f976de2824cb90ce6755710",
+    "scale-controls/Cargo.lock": "bd129641b2c3d719130944bc2a50b569f5695a1b6150f6bd0463f58d5bc6f94c",
+    "scale-controls/schema.sql": "bf74598a1c08f6e42e6f9843ddc9a0854eca5eb9b16d423f2b401e2e72149f46",
+    "scale-controls/seed.sql": "dd39965387d02efd8c3ee43d1d77b38387c3678e69cbb2f1a568c85ea4a59dd6",
+    "scale-controls/supabase-align.sql": "4fd7cbdac69c7c80d940121cf1473a26659c85ca29f496fc89e7f696b6c1c6e7",
+    "scale-controls/supabase-schema.sql": "ba413687d1706c7194defef0b5290a7b16b1f28c1c2c792696d14ea2e02f9f88",
+    "scale-controls/supabase.conf": "71c95b2966c96f2c1e9c0a035fba2a1fdc31de80eef32c4b2fbbce21e25351a8",
+    "scale-controls/postgresql.conf.delta": "b3f2534ba90a87b675c1d0a8f5343c30af9b54b14c223e4187e7b3ebf7133bda",
+    "scale-controls/src/convex.rs": "0922d069b14bc0335c2ff2ed5f8910c042000abdbcc8edf9b45f3d3157a3bda3",
+    "scale-controls/src/db.rs": "de7d8c841e45041694b709bdfb188faa49ce32116a562921d6b618202907d8fb",
+    "scale-controls/src/load.rs": "1ef88df1588ca144cb76d925485b520cacf86f275b1711e79809b1c97e9be930",
+    "scale-controls/src/main.rs": "8cc3f0781e5499a5758f1626674fc452ac4d8efad18f81ed667c686a0af48692",
+    "scale-controls/src/supabase.rs": "363836f645d2257615a4fcdf95368b3e5b83daba00a5b3f294719286350fb66a",
+    "scale-controls/scripts/archive.py": "e7f7450280ab0b81206ad4b9325bc44a31542faa5f559714b523e8261efa75fc",
+    "scale-controls/scripts/audit.py": "9f021b0be02ebf60272e6081469c21c828f426c6490cd431c3ee4b892482bb13",
+    "scale-controls/scripts/check-convex.py": "12342ded64f2d85dc9696a2333ad0d971a9718584be9c356d0286db59312b8b3",
+    "scale-controls/scripts/check-supabase.py": "6827a25c72c09d4f7ec0438afa9cb393318e5d861996d32b34be8596fdc095f6",
+    "scale-controls/scripts/check.py": "d38809028420b00c310bbc1636e0032936e1a13603dd2e52f42828464b87728e",
+    "scale-controls/scripts/compare.py": "ba1e0c19f94d8e3bdf7eaf1395cae2c6206ea39a7051c7b0095fb26da66876d3",
+    "scale-controls/scripts/convex.py": "7c3fa03ee1b40e4e2378ca32cbf10d714327189d60affd7d56a8a02a41d6a79d",
+    "scale-controls/scripts/db-monitor.py": "2f6e291bc211f7dbaf381f61068891be5b9aadac8f87a361b36d8002340745d2",
+    "scale-controls/scripts/install-convex.py": "72154a18f53753e106d7e4de34c34562ba2bb50f28836a4fa0eb3170f939b920",
+    "scale-controls/scripts/install-postgrest.py": "25451dd7d64e4db421e789ea104e50e633b0ec3588332c934a6069fa7b78084b",
+    "scale-controls/scripts/plot-convex-comparison.py": "905c97c52e24205ac7424299777000a2177f38f7c6002a340e573952ee9e2fc0",
+    "scale-controls/scripts/plot.py": "d133db78dea739b7da853cdeadf6cbb67e58d5db257a7ff9387acbf5dea12225",
+    "scale-controls/scripts/report-convex.py": "23b1f128d479dd301236b2729e2ca27f8ad833308e9d0f46fdd658605704e9bf",
+    "scale-controls/scripts/report.py": "d0d694f5fd7df78cefd6dedc2535e3793beb358bd59f95d5df5fe463d48fef28",
+    "scale-controls/scripts/run.py": "c6ead824ca6850de3d3656a91eae08231eda690929df79d2f0729c2923890a77",
+    "scale-controls/scripts/supabase.py": "7bb9c8e0e290663da1aba68b82f11822f93b0228d5f85e49a8835cb081d048d2",
+    "scale-controls/scripts/cluster.sh": "5bb7041e46cbce21f7693d256152e3cb9cbc94b21a050b44e03f06a03299010f",
+    "postgres-commit-path/src/proxy.rs": "448b9984b8716e85875c4dcf1715fe14f6bb3477fb5e4eaa4a8915e38291bae8"
+  },
+  "command": [
+    "python3",
+    "scripts/convex.py",
+    "matrix",
+    "--out",
+    "/home/ccheever/sb4scale/s1cx/final66"
+  ],
+  "pid": 2200230,
+  "nofile_limit": [
+    8192,
+    1048576
+  ],
+  "app_cores": "0-2,6-8",
+  "load_cores": "3-5,9-11",
+  "ssh_cores": "4-5,10-11",
+  "start_utc": "2026-10-21T19:34:26Z",
+  "convex_app_sha256": {
+    "package.json": "ed643a627e0acefa7db258b91721a7d7bd98c36d0cbdb058253a72282631dc7e",
+    "bun.lock": "513906264c56d64de3592422ada86ddfe1e440bfa95ec7a66d11028f298db1a4",
+    "convex/auth.config.ts": "d2e88787c9f9d87d80b85a4e163bf7f8f4492e1df0c4a42133ba1b743a215c98",
+    "convex/chat.ts": "e36387bb0fcb9de1a783ff68eb8a6a1e22171705ada7de70f626bbc81da4daa5",
+    "convex/schema.ts": "9b6c25ac457e3710a4bd4783bbaceb1edc46cf1f9979d0fc352f3821778be2b7"
+  },
+  "base_logger_command": [
+    "python3",
+    "scripts/run.py",
+    "matrix",
+    "--out",
+    "/home/ccheever/sb4scale/s1cx/final66"
+  ],
+  "command_note": "Native CLI name corrected from the inherited base logger; original argv preserved above."
+}

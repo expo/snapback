@@ -13,7 +13,7 @@ fn worker(host: &Host) -> String {
     format!("Authorization: Bearer {}\r\n", seat.token)
 }
 fn records(host: &Host) -> i64 {
-    lock(&host.shared.engine).store().test_support_conn().query_row("SELECT COUNT(*) FROM _requests", [], |row| row.get(0)).unwrap()
+    (match lock(&host.shared.engine).store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT COUNT(*) FROM _requests", [], |row| row.get(0)).unwrap()
 }
 fn raw_exchange(address: SocketAddr, wire: &[u8]) -> Vec<u8> {
     let mut stream = TcpStream::connect(address).unwrap();

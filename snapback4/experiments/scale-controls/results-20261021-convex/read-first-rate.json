@@ -1,0 +1,734 @@
+[
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 100000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w1-n100000-d0-c128-disjoint",
+        "--workload",
+        "W1",
+        "--rows",
+        "100000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1000,
+    "repetitions": [
+      {
+        "repeat": 0,
+        "p50_ms": 12.148735,
+        "p99_ms": 71.499775,
+        "p999_ms": 79.953919,
+        "errors": 0,
+        "slo_pass": false
+      },
+      {
+        "repeat": 1,
+        "p50_ms": 0.417279,
+        "p99_ms": 0.629759,
+        "p999_ms": 5.693439,
+        "errors": 0,
+        "slo_pass": true
+      },
+      {
+        "repeat": 2,
+        "p50_ms": 0.437759,
+        "p99_ms": 0.604671,
+        "p999_ms": 0.751615,
+        "errors": 0,
+        "slo_pass": true
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 100000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w1-n100000-d500-c128-disjoint",
+        "--workload",
+        "W1",
+        "--rows",
+        "100000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1000,
+    "repetitions": [
+      {
+        "repeat": 0,
+        "p50_ms": 16.539647,
+        "p99_ms": 104.071167,
+        "p999_ms": 111.935487,
+        "errors": 0,
+        "slo_pass": false
+      },
+      {
+        "repeat": 1,
+        "p50_ms": 0.445951,
+        "p99_ms": 0.603647,
+        "p999_ms": 1.057791,
+        "errors": 0,
+        "slo_pass": true
+      },
+      {
+        "repeat": 2,
+        "p50_ms": 0.426239,
+        "p99_ms": 0.583167,
+        "p999_ms": 0.865791,
+        "errors": 0,
+        "slo_pass": true
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w1-n1000000-d0-c128-disjoint",
+        "--workload",
+        "W1",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1000,
+    "repetitions": [
+      {
+        "repeat": 0,
+        "p50_ms": 12.460031,
+        "p99_ms": 74.448895,
+        "p999_ms": 100.728831,
+        "errors": 0,
+        "slo_pass": false
+      },
+      {
+        "repeat": 1,
+        "p50_ms": 0.405247,
+        "p99_ms": 0.749055,
+        "p999_ms": 2.623487,
+        "errors": 0,
+        "slo_pass": true
+      },
+      {
+        "repeat": 2,
+        "p50_ms": 0.371711,
+        "p99_ms": 0.683007,
+        "p999_ms": 1.606655,
+        "errors": 0,
+        "slo_pass": true
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w1-n1000000-d500-c128-disjoint",
+        "--workload",
+        "W1",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1000,
+    "repetitions": [
+      {
+        "repeat": 0,
+        "p50_ms": 24.035327,
+        "p99_ms": 137.232383,
+        "p999_ms": 157.024255,
+        "errors": 0,
+        "slo_pass": false
+      },
+      {
+        "repeat": 1,
+        "p50_ms": 0.434431,
+        "p99_ms": 0.656383,
+        "p999_ms": 6.361087,
+        "errors": 0,
+        "slo_pass": true
+      },
+      {
+        "repeat": 2,
+        "p50_ms": 0.443135,
+        "p99_ms": 0.578559,
+        "p999_ms": 0.949247,
+        "errors": 0,
+        "slo_pass": true
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 100000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w2-n100000-d0-c128-disjoint",
+        "--workload",
+        "W2",
+        "--rows",
+        "100000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1000,
+    "repetitions": [
+      {
+        "repeat": 0,
+        "p50_ms": 352.059391,
+        "p99_ms": 524.025855,
+        "p999_ms": 567.279615,
+        "errors": 0,
+        "slo_pass": false
+      },
+      {
+        "repeat": 1,
+        "p50_ms": 0.459263,
+        "p99_ms": 0.841727,
+        "p999_ms": 2.357247,
+        "errors": 0,
+        "slo_pass": true
+      },
+      {
+        "repeat": 2,
+        "p50_ms": 0.547327,
+        "p99_ms": 0.836607,
+        "p999_ms": 5.558271,
+        "errors": 0,
+        "slo_pass": true
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 100000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w2-n100000-d500-c128-disjoint",
+        "--workload",
+        "W2",
+        "--rows",
+        "100000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1000,
+    "repetitions": [
+      {
+        "repeat": 0,
+        "p50_ms": 475.004927,
+        "p99_ms": 696.254463,
+        "p999_ms": 742.916095,
+        "errors": 0,
+        "slo_pass": false
+      },
+      {
+        "repeat": 1,
+        "p50_ms": 0.591871,
+        "p99_ms": 0.849407,
+        "p999_ms": 1.065983,
+        "errors": 0,
+        "slo_pass": true
+      },
+      {
+        "repeat": 2,
+        "p50_ms": 0.416255,
+        "p99_ms": 0.714239,
+        "p999_ms": 1.057791,
+        "errors": 0,
+        "slo_pass": true
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w2-n1000000-d0-c128-disjoint",
+        "--workload",
+        "W2",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1000,
+    "repetitions": [
+      {
+        "repeat": 0,
+        "p50_ms": 350.224383,
+        "p99_ms": 531.890175,
+        "p999_ms": 575.668223,
+        "errors": 0,
+        "slo_pass": false
+      },
+      {
+        "repeat": 1,
+        "p50_ms": 0.618495,
+        "p99_ms": 0.975359,
+        "p999_ms": 6.172671,
+        "errors": 0,
+        "slo_pass": true
+      },
+      {
+        "repeat": 2,
+        "p50_ms": 0.644607,
+        "p99_ms": 0.885759,
+        "p999_ms": 1.088511,
+        "errors": 0,
+        "slo_pass": true
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w2-n1000000-d500-c128-disjoint",
+        "--workload",
+        "W2",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1000,
+    "repetitions": [
+      {
+        "repeat": 0,
+        "p50_ms": 456.654847,
+        "p99_ms": 694.681599,
+        "p999_ms": 743.964671,
+        "errors": 0,
+        "slo_pass": false
+      },
+      {
+        "repeat": 1,
+        "p50_ms": 0.510975,
+        "p99_ms": 0.864255,
+        "p999_ms": 1.165311,
+        "errors": 0,
+        "slo_pass": true
+      },
+      {
+        "repeat": 2,
+        "p50_ms": 0.539135,
+        "p99_ms": 0.879103,
+        "p999_ms": 1.361919,
+        "errors": 0,
+        "slo_pass": true
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 100000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w3-n100000-d0-c128-disjoint",
+        "--workload",
+        "W3",
+        "--rows",
+        "100000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1000,
+    "repetitions": [
+      {
+        "repeat": 0,
+        "p50_ms": 0.562175,
+        "p99_ms": 268.304383,
+        "p999_ms": 284.688383,
+        "errors": 0,
+        "slo_pass": false
+      },
+      {
+        "repeat": 1,
+        "p50_ms": 0.563711,
+        "p99_ms": 0.751103,
+        "p999_ms": 0.814591,
+        "errors": 0,
+        "slo_pass": true
+      },
+      {
+        "repeat": 2,
+        "p50_ms": 0.540671,
+        "p99_ms": 0.769023,
+        "p999_ms": 0.990207,
+        "errors": 0,
+        "slo_pass": true
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 100000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w3-n100000-d500-c128-disjoint",
+        "--workload",
+        "W3",
+        "--rows",
+        "100000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1000,
+    "repetitions": [
+      {
+        "repeat": 0,
+        "p50_ms": 0.571391,
+        "p99_ms": 518.782975,
+        "p999_ms": 551.026687,
+        "errors": 0,
+        "slo_pass": false
+      },
+      {
+        "repeat": 1,
+        "p50_ms": 0.570879,
+        "p99_ms": 0.807423,
+        "p999_ms": 1.007615,
+        "errors": 0,
+        "slo_pass": true
+      },
+      {
+        "repeat": 2,
+        "p50_ms": 0.547327,
+        "p99_ms": 0.783871,
+        "p999_ms": 0.827391,
+        "errors": 0,
+        "slo_pass": true
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 0,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w3-n1000000-d0-c128-disjoint",
+        "--workload",
+        "W3",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "0",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1000,
+    "repetitions": [
+      {
+        "repeat": 0,
+        "p50_ms": 0.636415,
+        "p99_ms": 252.837887,
+        "p999_ms": 266.993663,
+        "errors": 0,
+        "slo_pass": false
+      },
+      {
+        "repeat": 1,
+        "p50_ms": 0.410367,
+        "p99_ms": 0.775679,
+        "p999_ms": 1.044991,
+        "errors": 0,
+        "slo_pass": true
+      },
+      {
+        "repeat": 2,
+        "p50_ms": 0.514303,
+        "p99_ms": 0.761343,
+        "p999_ms": 0.952319,
+        "errors": 0,
+        "slo_pass": true
+      }
+    ]
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "scripts/convex.py",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1cx/replay-w3-n1000000-d500-c128-disjoint",
+        "--workload",
+        "W3",
+        "--rows",
+        "1000000",
+        "--delay-us",
+        "500",
+        "--writers",
+        "128",
+        "--keys",
+        "disjoint",
+        "--warmup-ms",
+        "500",
+        "--duration-ms",
+        "2000",
+        "--repeats",
+        "3"
+      ],
+      "rate_policy": "double/halve to bracket, one geometric midpoint; all repetitions must meet SLO"
+    },
+    "offered_per_s": 1000,
+    "repetitions": [
+      {
+        "repeat": 0,
+        "p50_ms": 0.591871,
+        "p99_ms": 538.443775,
+        "p999_ms": 564.133887,
+        "errors": 0,
+        "slo_pass": false
+      },
+      {
+        "repeat": 1,
+        "p50_ms": 0.594431,
+        "p99_ms": 0.749055,
+        "p999_ms": 0.871935,
+        "errors": 0,
+        "slo_pass": true
+      },
+      {
+        "repeat": 2,
+        "p50_ms": 0.549887,
+        "p99_ms": 0.778239,
+        "p999_ms": 0.983039,
+        "errors": 0,
+        "slo_pass": true
+      }
+    ]
+  }
+]

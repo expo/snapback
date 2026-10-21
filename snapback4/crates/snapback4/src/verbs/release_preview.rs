@@ -139,7 +139,7 @@ pub(super) fn preview(
     let mut rollback_visibility = None;
     let mut effects = super::release_safeguards::warnings(engine.store(),prior_schema.as_ref(),&candidate_schema,&candidate_programs,&items,release,!options.flags.contains_key("deploy-direction"))?;
     effects.append(&mut hazards); hazards=effects;
-    for fill in &engine.store().adoption_report.backfills { notes.push(format!("backfill: {fill}; confirm these historical values before selecting release {release}")); }
+    for fill in &engine.store().adoption_report().backfills { notes.push(format!("backfill: {fill}; confirm these historical values before selecting release {release}")); }
     steps.retain(|step|!step.message.contains("engine capture"));
     for step in &mut steps {
         if step.change==snapback4_core::successor::Change::Narrowing {
@@ -148,7 +148,7 @@ pub(super) fn preview(
         }
         if let Some(position)=step.path.strip_prefix("maintains[").and_then(|s|s.strip_suffix(']')).and_then(|s|s.parse::<usize>().ok()) {
             let label=candidate_schema.maintains[position].label();
-            let visits=engine.store().adoption_report.views.iter().find(|view|view.name==label).map(|v|v.rows).unwrap_or(0);
+            let visits=engine.store().adoption_report().views.iter().find(|view|view.name==label).map(|v|v.rows).unwrap_or(0);
             step.message=format!("maintain {label}: rebuilt from {visits} source rows");
             step.change=snapback4_core::successor::Change::Additive;
         }
@@ -209,7 +209,7 @@ pub(super) fn preview(
         eprintln!("bridge starter written to {path}; review its loosened target source and follow ROLLBACK-CHECKLIST.md before activation");
     }
     if options.json {
-        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"security":options.flags.get("security-summary"),"visibility":visibility,"rollbackVisibility":rollback_visibility,"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary(),"backfills":engine.store().adoption_report.backfills})).unwrap());
+        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"security":options.flags.get("security-summary"),"visibility":visibility,"rollbackVisibility":rollback_visibility,"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report().summary(),"backfills":engine.store().adoption_report().backfills})).unwrap());
     } else {
         if !options.flags.contains_key("deploy-direction") {
             for line in visibility.lines(held["release"].as_u64().unwrap_or(0),release) {println!("{line}");}
@@ -223,7 +223,7 @@ pub(super) fn preview(
             for note in notes { println!("  detail: note: {note}"); }
             for step in steps {println!("  {}: {}",step.path,step.message);}
             for item in &items { println!("  {}: {} {} dormant (restored on compatible forward); sample ids [{}]", item.key, item.rows, item.unit(), item.sample_ids.join(", ")); }
-            println!("{}", engine.store().adoption_report.summary());
+            println!("{}", engine.store().adoption_report().summary());
             if let Some(estimate) = estimate {
                 println!("{estimate}");
             }

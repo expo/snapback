@@ -358,26 +358,7 @@ impl crate::assets::AssetTransaction for Tx<'_> {
             .optional()?)
     }
 
-    fn placement_record(
-        &self,
-        owner: &str,
-        id: &str,
-    ) -> Result<Option<crate::assets::IntentRecord>, RuntimeError> {
-        Ok(self
-            .conn()
-            .query_row(
-                "SELECT placement,facts,state FROM _asset_intents WHERE owner=?1 AND intent=?2",
-                [owner, id],
-                |r| {
-                    Ok(crate::assets::IntentRecord {
-                        binding: r.get(0)?,
-                        facts: r.get(1)?,
-                        state: r.get(2)?,
-                    })
-                },
-            )
-            .optional()?)
-    }
+
 
     fn mutation_executed(&self, owner: &str, id: &str) -> Result<bool, RuntimeError> {
         crate::receipts::ReceiptReader::receipt_exists(self, owner, id)
@@ -475,3 +456,26 @@ mod tests {
 #[cfg(test)]
 #[path = "assets/parity_tests.rs"]
 mod parity_tests;
+
+impl crate::assets::AssetPlacementReader for Tx<'_> {
+    fn placement_record(
+        &self,
+        owner: &str,
+        id: &str,
+    ) -> Result<Option<crate::assets::IntentRecord>, RuntimeError> {
+        Ok(self
+            .conn()
+            .query_row(
+                "SELECT placement,facts,state FROM _asset_intents WHERE owner=?1 AND intent=?2",
+                [owner, id],
+                |r| {
+                    Ok(crate::assets::IntentRecord {
+                        binding: r.get(0)?,
+                        facts: r.get(1)?,
+                        state: r.get(2)?,
+                    })
+                },
+            )
+            .optional()?)
+    }
+}

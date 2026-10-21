@@ -100682,3 +100682,140 @@ remain intact. Installed-consumer and Exact evidence stays bound to 4b824a6fe6;
 this follow-up changes only cfg(test) fixture source and review/incident records.
 The final Linux repeat and affected Mac rerun include it. Both fresh final bridge
 reviewers returned READY; their verbatim artifacts are preserved.
+
+### 2026-10-21 — S10b: finish the SQLite-only semantic boundary
+
+Lane `sb4-pg/s10b`, base `1250ea3b3d`, local worktree `sb4-s10a` on
+expo-build-450a. Implements LLP 3000.009.001.000 §3.4 without adding a
+Postgres enum arm. Owning dereferences and `WriteStore` are removed; ledger,
+receipt writes, Following reads, placement lookup, snapshots, opening,
+ownership, inspection, activation, seed/release/time and asset operations
+have explicit semantic homes. Activation retains the same concrete SQLite
+transaction inside its adapter; committer member order, rollback and
+continuations retain their original boundaries. The existing missing-evidence
+correction remains; evidence access can now return a named unavailable-family
+error, which shared certification treats as unknown.
+
+Fixture probes select the SQLite arm explicitly where they inspect physical
+state. They add no raw access to the neutral handles or the member facade.
+The source delta is split into building commits; the following qualification
+entry records final census and test results. No push or stash is authorized.
+
+S10b fixture checkpoint: core and host physical witnesses now select the SQLite
+arm explicitly, and row/partition probes import their semantic traits. Existing
+assertions, SQL, transaction boundaries, counts and limits are retained. The
+binary's production inputs are unchanged from the passing first-commit build.
+The core library qualification passes **627 / 0 failed / 3 ignored**. Full
+crate runs and the cross-crate fixture/census qualification continue below.
+
+S10b final qualification: core **1,040 passed / 0 failed / 5 ignored**.
+The full host suite had **1,403 passed / 2 failed / 15 ignored**; both
+additional failures passed alone with their original timing bounds (clock
+expiry 28.07 seconds; run admission 4.67 seconds). The three supplied host
+baselines passed. Binary build, core no-default, device web/wasm, all workspace
+Rust test-target typechecks, the required guide case and all 27 wasm codec
+census cases pass. All 15 final ratchet/census cases pass: concrete handles
+**0 tokens/declarations in 0 files**, owning dereferences **0**, raw production
+access **0** (95 fixture sites in 13 files), committer **49 sites in 11 files**.
+No temporary S10a bridge remains and the member facade stays closed.
+
+The exact Postgres concurrency case passed alone, but both complete script
+runs returned the existing serializable-exhaustion failure, including the
+run with serialized test functions. All other 57 experiment tests, all 188
+core family tests and all 19 corpus tests passed; the full script is not
+claimed green. The existing filesystem issue records this observation. All
+four owned clusters were stopped and independently confirmed stopped. No
+retry policy, workload limit or semantic decision outside the RFC changed.
+Switching workspaces reproduced S10a's generated Cargo metadata collision;
+rebuilding only this lane's shared library artifacts restored the passing
+binary, isolated host case and final ratchets. Source, locks and test
+executables were retained. Full dispositions and final device results are in
+[the S10b report](./reports/20261021-s10b-semantic-store-boundary.md).
+
+The full device runtime tests finished **1,573 passed / 0 failed / 4 ignored**.
+The later doctest step still referenced a library hash removed during the
+earlier cache repair, so the full command exited nonzero on missing generated
+metadata. The failed doctest target rebuilt and passed alone (zero doc
+examples); no runtime test failure or assertion change is involved. Root
+ref-check and whitespace validation pass. Final free space is 188 GB; no
+push, stash or git configuration changes.
+
+### 2026-10-21 — S10b fix round 1: fallible asset locations and compiled handle isolation
+
+Rebased `sb4-pg/s10b` onto `sb4-pg/main-mirror` (`f72f6c5c92`) before editing.
+The journal conflict was resolved by union; main's activation recheck and
+measurement history are retained. Prior lane commits are now `3aa5d86aa0`,
+`217441b829` and `a5cf658c87`. The RFC keeps one Revised line, prepending
+`S10b fix round 1`, with a §3.4 review disposition.
+
+Removed infallible asset filesystem methods from `AnyStore` in favor of
+`Result<AssetLocation, RuntimeError>`. Upload staging, delivery, sweep and
+reset obtain the location before their first relevant effect; reset captures
+it before its physical transaction for post-commit file cleanup. Concrete
+SQLite paths and ephemeral cleanup policy are unchanged. S10c can return
+`StoreUnsupported { family: "assets" }` without inventing a path. The RFC
+also records S10c's safe refusals/capability answers for timeout, database
+path, ownership, backup and inspection interfaces.
+
+The new integration check tests actual non-test library implementations for
+all four public owning handles, with dependency-free negative trait overlap
+assertions. Temporary macro-generated `cfg(not(test))` Deref, AsRef and
+associated-type Borrow probes all fail in that check with E0283; the probes
+were removed. The lexical census remains and now follows associated types,
+member signature aliases and callback/where bounds. The raw matcher follows
+file-local driver crate renames. Its remaining macro/type-resolution limits
+are stated in the census headers and RFC.
+
+Binary build, core no-default, device web/wasm, all 27 wasm codec cases and
+initial reference validation pass. The full core command passes **1,042 test
+executions / 0 failed / 5 ignored**, including the new location regression and
+non-test trait target. The host and device targets compiled; the remaining
+full qualification is recorded in the following entry after it completes.
+This round uses the lane's own `snapback4/target` and ten build jobs, with
+Cargo's default debug/incremental profile settings. No push or stash, no
+reviewer-worktree access, and no sub-agents.
+
+### 2026-10-21 — S10b fix round 1: final qualification
+
+All requested checks pass: binary build, core no-default, device web/wasm,
+full core **1,042 / 0 failed / 5 ignored**, full host **1,406 / 0 / 15**, and
+full device **1,573 / 0 / 4**, including their doctests. All three supplied
+host baselines passed in the full run. Ratchets/census pass **16** cases;
+guide **127**, wasm codec **27**, affected simulator fixtures **44**, and
+affected language security histories **28** all pass. No test bound, assertion,
+workload or retry policy changed. No unexpected failure required isolation.
+
+The complete Postgres script exits zero: **58 experiment + 190 family + 19
+corpus tests pass**. The four-writer case passes in the full run, with no
+lost updates and 106 aggregate serializable retries. The sole private cluster,
+`/tmp/sb4-pg-eval.IK9iWs`, was stopped by the script and independently confirmed
+stopped (status 3, no `postmaster.pid`). Existing corpus exclusions remain.
+
+Concrete handles, owning dereferences and production raw sites remain **0**;
+fixture raw access remains **95 sites in 13 files**, and the committer census
+**49 sites in 11 files**. Only completed/superseded test executables in the
+owned target were reclaimed to maintain disk headroom; no libraries or
+metadata were removed. All full commands passed without the earlier round's
+metadata repair. About 52 GB remains free. Full results, rebase mapping and
+review dispositions are in [the S10b report](./reports/20261021-s10b-semantic-store-boundary.md),
+with transcripts under `/tmp/s10b-r1-checks`. Final reference and whitespace
+checks follow this append. No push, stash or reviewer-worktree changes.
+
+Final root `./ref-check` passes with 564 LLP documents, 11,645 references,
+zero errors and zero unchecked references. Diff whitespace validation passes.
+
+### 2026-10-22 — Integration 21 storage-port reconciliation, 0.4.37
+
+Merged origin/main S10b and the recorded S1 Convex/Postgres matrix into the
+qualified 0.4.37 integration. Both journal histories are retained. Activation
+keeps EVOL table/asset rename interpretation and its migration-only asset-root
+marker in the SQLite adapter transaction. New preview identity, visibility and
+asset-root operations dispatch through the neutral store port; no owning
+dereference or raw handle bridge is restored. An EVOL asset-loss fixture uses
+the fallible asset-location boundary. SEC5/SEC6 and DX5 behavior remains on the
+shared engine/host paths. Existing RFC decisions are unchanged.
+
+Locked Linux device: 2,405,869 B raw / 734,907 B gzip; budget 735,407 B is
+measurement + exactly 500 B. The whole-artifact gzip delta is +3 B against
+Integration 21, with unchanged raw size; no independent feature cost or runtime
+ceiling change is claimed. Final Linux qualification is recorded below.

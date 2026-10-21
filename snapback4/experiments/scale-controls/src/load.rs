@@ -29,7 +29,7 @@ pub struct Options {
     keys: String,
     #[arg(long, default_value_t = 1000)]
     deadline_ms: u64,
-    #[arg(long, default_value = "raw-pg", value_parser = ["raw-pg", "supabase"])]
+    #[arg(long, default_value = "raw-pg", value_parser = ["raw-pg", "supabase", "convex"])]
     target: String,
 }
 struct Arrival {
@@ -139,11 +139,13 @@ pub async fn run(options: Options) -> Result<()> {
         "unknown key mix"
     );
     let options = Arc::new(options);
-    let tokens = Arc::new(if options.target == "supabase" {
-        crate::supabase::tokens()?
-    } else {
-        Vec::new()
-    });
+    let tokens = Arc::new(
+        if options.target == "supabase" || options.target == "convex" {
+            crate::supabase::tokens()?
+        } else {
+            Vec::new()
+        },
+    );
     let client = reqwest::Client::builder()
         .pool_max_idle_per_host(options.workers)
         .timeout(Duration::from_millis(options.deadline_ms))
@@ -172,6 +174,8 @@ pub async fn run(options: Options) -> Result<()> {
                     }
                     let request = if o.target == "supabase" {
                         crate::supabase::request(&client, &o.url, &op, &tokens)
+                    } else if o.target == "convex" {
+                        crate::convex::request(&client, &o.url, &op, &tokens)
                     } else {
                         client.post(format!("{}/op", o.url)).json(&op)
                     };
@@ -184,6 +188,8 @@ pub async fn run(options: Options) -> Result<()> {
                                         Ok(value) => {
                                             let value = if o.target == "supabase" {
                                                 crate::supabase::normalize(&op, value)
+                                            } else if o.target == "convex" {
+                                                crate::convex::normalize(value)
                                             } else {
                                                 value
                                             };

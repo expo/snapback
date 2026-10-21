@@ -301,9 +301,9 @@ mod outbox_store {
 }
 
 mod receipts {
-    use super::*;
     use crate::receipts::*;
-    impl ReceiptReader for AnyTx<'_> {
+    use super::*;
+        impl ReceiptReader for AnyTx<'_> {
         fn receipt(&self, principal: &str, id: &str) -> Result<Option<ReceiptRecord>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as ReceiptReader>::receipt(inner, principal, id) } }
         fn receipt_exists(&self, principal: &str, id: &str) -> Result<bool, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as ReceiptReader>::receipt_exists(inner, principal, id) } }
         fn sent_sequence( &self, principal: &str, id: &str, through: i64, ) -> Result<Option<i64>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as ReceiptReader>::sent_sequence(inner, principal, id, through) } }
@@ -344,15 +344,14 @@ mod assets {
         fn asset_reserved(&self, id: &str) -> Result<bool, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as AssetTransaction>::asset_reserved(inner, id) } }
         fn place_asset(&self, id: &str, table: &str, row_id: &str, column: &str) -> Result<(), RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as AssetTransaction>::place_asset(inner, id, table, row_id, column) } }
         fn replay_record(&self, owner: &str, id: &str) -> Result<Option<IntentRecord>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as AssetTransaction>::replay_record(inner, owner, id) } }
-        fn placement_record(&self, owner: &str, id: &str) -> Result<Option<IntentRecord>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as AssetTransaction>::placement_record(inner, owner, id) } }
         fn mutation_executed(&self, owner: &str, id: &str) -> Result<bool, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as AssetTransaction>::mutation_executed(inner, owner, id) } }
     }
 }
 
 mod metadata {
-    use super::*;
     use crate::metadata::*;
-    impl MetadataReader for AnyTx<'_> {
+    use super::*;
+        impl MetadataReader for AnyTx<'_> {
         fn store_identity(&self) -> Result<Option<String>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as MetadataReader>::store_identity(inner) } }
         fn generation_value(&self) -> Result<Option<String>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as MetadataReader>::generation_value(inner) } }
         fn release_value(&self) -> Result<Option<String>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as MetadataReader>::release_value(inner) } }
@@ -487,10 +486,15 @@ mod evidence {
     use super::*;
     use crate::revocation::*;
     impl ChangeEvidence for AnyTx<'_> {
-        fn change_evidence(&self, after: u64, through: u64, visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Option<()> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as ChangeEvidence>::change_evidence(inner, after, through, visit) } }
+        fn change_evidence(&self, after: u64, through: u64, visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Result<Option<()>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as ChangeEvidence>::change_evidence(inner, after, through, visit) } }
+    }
+    impl ChangeEvidence for ReadSnapshot<'_> {
+        fn change_evidence(&self, after: u64, through: u64, visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Result<Option<()>, RuntimeError> {
+            self.tx.change_evidence(after, through, visit)
+        }
     }
     impl ChangeEvidence for AnyStore {
-        fn change_evidence(&self, after: u64, through: u64, visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Option<()> { match self { Self::Sqlite(inner) => <sqlite::Store as ChangeEvidence>::change_evidence(inner, after, through, visit) } }
+        fn change_evidence(&self, after: u64, through: u64, visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Result<Option<()>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Store as ChangeEvidence>::change_evidence(inner, after, through, visit) } }
     }
 }
 
@@ -523,5 +527,64 @@ mod reset {
     use crate::engine::{committer, dev_reset::{DevResetStore, ResetState}};
     impl DevResetStore for AnyStore {
         fn dev_reset( &mut self, pin_clock: impl FnOnce(&committer::MemberTx<'_, '_>) -> Result<i64, RuntimeError>, inventory_assets: impl FnOnce(&committer::MemberTx<'_, '_>) -> Result<Vec<String>, RuntimeError>, prime_schedules: impl FnOnce(&committer::MemberTx<'_, '_>, i64) -> Result<(), RuntimeError>, seed: impl FnOnce(&committer::MemberTx<'_, '_>, u64, i64) -> Result<u64, RuntimeError>, ) -> Result<committer::Resolution<ResetState>, RuntimeError> { match self { Self::Sqlite(inner) => DevResetStore::dev_reset(inner, pin_clock, inventory_assets, prime_schedules, seed) } }
+    }
+}
+
+mod snapshot_metadatareader {
+ use crate::metadata::*;
+ use super::*;
+      impl MetadataReader for ReadSnapshot<'_> {
+        fn store_identity(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::store_identity(&self.tx) }
+        fn generation_value(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::generation_value(&self.tx) }
+        fn release_value(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::release_value(&self.tx) }
+        fn release_native_digest(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::release_native_digest(&self.tx) }
+        fn time_audience_clock_value(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::time_audience_clock_value(&self.tx) }
+        fn worker_status(&self, worker: Option<&str>) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::worker_status(&self.tx, worker) }
+        fn release_revision_value(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::release_revision_value(&self.tx) }
+        fn schema_marker(&self, marker: SchemaMarker) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::schema_marker(&self.tx, marker) }
+        fn worker_session_family(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::worker_session_family(&self.tx) }
+        fn worker_session_revision(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::worker_session_revision(&self.tx) }
+        fn worker_family_revision(&self, family: &str) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::worker_family_revision(&self.tx, family) }
+        fn deployment_environment(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::deployment_environment(&self.tx) }
+        fn dev_value(&self, key: DevMetadata) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as MetadataReader>::dev_value(&self.tx, key) }
+    }
+}
+
+mod snapshot_receiptreader {
+ use crate::receipts::*;
+ use super::*;
+      impl ReceiptReader for ReadSnapshot<'_> {
+        fn receipt(&self, principal: &str, id: &str) -> Result<Option<ReceiptRecord>, RuntimeError> { <AnyTx<'_> as ReceiptReader>::receipt(&self.tx, principal, id) }
+        fn receipt_exists(&self, principal: &str, id: &str) -> Result<bool, RuntimeError> { <AnyTx<'_> as ReceiptReader>::receipt_exists(&self.tx, principal, id) }
+        fn sent_sequence( &self, principal: &str, id: &str, through: i64, ) -> Result<Option<i64>, RuntimeError> { <AnyTx<'_> as ReceiptReader>::sent_sequence(&self.tx, principal, id, through) }
+    }
+}
+
+mod snapshot_activation {
+ use super::*;
+ use crate::activation::*;
+    impl ActivationReader for ReadSnapshot<'_> {
+        fn time_audience_clock(&self) -> Result<i64, RuntimeError> { <AnyTx<'_> as ActivationReader>::time_audience_clock(&self.tx) }
+        fn opening_marker(&self, marker: crate::metadata::SchemaMarker) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as ActivationReader>::opening_marker(&self.tx, marker) }
+        fn opening_backend(&self) -> Result<Backend, RuntimeError> { <AnyTx<'_> as ActivationReader>::opening_backend(&self.tx) }
+        fn check_selected_release(&self, expected: Option<u64>) -> Result<(), RuntimeError> { <AnyTx<'_> as ActivationReader>::check_selected_release(&self.tx, expected) }
+        fn previous_schema(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as ActivationReader>::previous_schema(&self.tx) }
+        fn live_sum_marker(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as ActivationReader>::live_sum_marker(&self.tx) }
+        fn activation_population(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as ActivationReader>::activation_population(&self.tx) }
+        fn narrowed_retained(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as ActivationReader>::narrowed_retained(&self.tx) }
+        fn narrowed_restored(&self) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as ActivationReader>::narrowed_restored(&self.tx) }
+        fn restored_population( &self, kind: RestoredPopulation, path: &str, ) -> Result<Option<String>, RuntimeError> { <AnyTx<'_> as ActivationReader>::restored_population(&self.tx, kind, path) }
+        fn activation_inventory(&self) -> Result<Vec<DormantItem>, RuntimeError> { <AnyTx<'_> as ActivationReader>::activation_inventory(&self.tx) }
+        fn table_populated(&self, table: &str) -> Result<bool, RuntimeError> { <AnyTx<'_> as ActivationReader>::table_populated(&self.tx, table) }
+        fn any_table_image( &self, table: &str, survives: impl FnMut(&Value) -> bool, ) -> Result<bool, RuntimeError> { <AnyTx<'_> as ActivationReader>::any_table_image(&self.tx, table, survives) }
+        fn timeline_rebuild_exists(&self, table: &str, id: &str) -> Result<bool, RuntimeError> { <AnyTx<'_> as ActivationReader>::timeline_rebuild_exists(&self.tx, table, id) }
+    }
+}
+
+mod placement {
+    use super::*;
+    use crate::assets::{AssetPlacementReader, IntentRecord};
+    impl AssetPlacementReader for AnyTx<'_> {
+        fn placement_record(&self, owner: &str, id: &str) -> Result<Option<IntentRecord>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as AssetPlacementReader>::placement_record(inner, owner, id) } }
     }
 }

@@ -763,11 +763,17 @@ pub(crate) trait AssetIntentReader {
     fn asset_intent_exists(&self, owner: &str, id: &str) -> Result<bool, RuntimeError>;
 }
 
+// @ref LLP 3000.009.001.000#3.4 — even asset-free mutations must consult the real placement relation.
+#[cfg(feature = "sqlite")]
+pub(crate) trait AssetPlacementReader {
+    fn placement_record(&self, owner: &str, id: &str) -> Result<Option<IntentRecord>, RuntimeError>;
+}
+
 // @ref LLP 3000.009.001.000#3.1 — typed access only; upload policy stays above the adapter.
 /// An adapter error ends the transaction: callers must roll back or drop it.
 /// Expected publication conflicts are conditional no-ops, never statement errors.
 #[cfg(feature = "sqlite")]
-pub(crate) trait AssetTransaction: AssetIntentReader {
+pub(crate) trait AssetTransaction: AssetIntentReader + AssetPlacementReader {
     fn pinned_asset_bytes(&self, owner: &str) -> Result<i64, RuntimeError>;
     fn record_uploaded_intent(&self, record: &UploadedIntent<'_>) -> Result<(), RuntimeError>;
     fn intent_declaration(&self, owner: &str, id: &str) -> Result<Option<IntentDeclaration>, RuntimeError>;
@@ -783,7 +789,6 @@ pub(crate) trait AssetTransaction: AssetIntentReader {
     fn asset_reserved(&self, id: &str) -> Result<bool, RuntimeError>;
     fn place_asset(&self, id: &str, table: &str, row_id: &str, column: &str) -> Result<(), RuntimeError>;
     fn replay_record(&self, owner: &str, id: &str) -> Result<Option<IntentRecord>, RuntimeError>;
-    fn placement_record(&self, owner: &str, id: &str) -> Result<Option<IntentRecord>, RuntimeError>;
     fn mutation_executed(&self, owner: &str, id: &str) -> Result<bool, RuntimeError>;
 }
 
@@ -810,7 +815,7 @@ pub(crate) fn replay_intent(tx: &impl AssetTransaction, owner: &str, id: &str, f
 }
 
 #[cfg(feature="sqlite")]
-pub(crate) fn require_placement(tx:&impl AssetTransaction,owner:&str,id:&str,name:&str,args:&serde_json::Value)->Result<(),RuntimeError>{
+pub(crate) fn require_placement(tx:&impl AssetPlacementReader,owner:&str,id:&str,name:&str,args:&serde_json::Value)->Result<(),RuntimeError>{
     let record=tx.placement_record(owner,id)?;
     let Some(IntentRecord { binding, facts, state })=record else {return Ok(())};
     if state=="cancelled"{return Err(RuntimeError::Asset{code:"E_UPLOAD_CANCELLED",message:"this upload-and-place intent was cancelled".into()});}

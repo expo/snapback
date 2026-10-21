@@ -49,7 +49,7 @@ fn populated_media_maintained_and_expiring_fixtures_replay_without_reseeding(){
   ("reports".into(),row(&[("id",Value::Id("report".into())),("body",Value::String("private".into())),("photo",photo.clone()),("until",Value::Int(NOW+100_000))]))
  ],NOW).unwrap();
  let before=fixture.store().rows("reports").unwrap();let derived=fixture.store().rows("reportTotal").unwrap();
- let fork=fixture.store().fork_memory().unwrap();let directory=fork.assets_dir().to_path_buf();
+ let fork=fixture.store().fork_memory().unwrap();let directory=fork.asset_location().unwrap().directory().to_path_buf();
  assert_eq!(fork.rows("reportTotal").unwrap(),derived);assert_eq!(fork.rows("reports").unwrap(),before);assert!(directory.exists());drop(fork);assert!(!directory.exists(),"fork assets must clean up");
  let mut c=security::challenges::Campaign::default();security::challenges::operations(&b,&fixture,&mut c);
  assert!(c.sequences>0,"{c:?}");assert!(c.operations.contains_key("inspect"));

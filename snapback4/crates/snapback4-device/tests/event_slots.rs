@@ -1,4 +1,5 @@
 //! Revision 12 event state is carried by its source, on both device stores.
+use snapback4_core::Rows;
 mod common;
 use common::{args, id, BoundaryMetadata, Host, Memory, Sqlite, snapshot_pages};
 use serde_json::json;

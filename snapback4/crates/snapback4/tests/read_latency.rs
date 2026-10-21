@@ -51,7 +51,7 @@ fn create_read_latency_fixture() {
             ("ordinal", Value::Int(n)), ("at", Value::Int(now)), ("expiresAt", Value::Null), ("tombstone", Value::Bool(false)),
         ]))
     })).unwrap();
-    engine.store().test_support_conn().execute("VACUUM INTO ?1", [root.join(".snapback4/store.sqlite").to_str().unwrap()]).unwrap();
+    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("VACUUM INTO ?1", [root.join(".snapback4/store.sqlite").to_str().unwrap()]).unwrap();
     println!("read fixture: 1000 profiles, 50000 posts, 505 follows, 1000 memberships, 100000 messages; {}", root.display());
 }
 
@@ -76,8 +76,8 @@ fn idle_maintenance_read_latency() {
     engine.fire_schedules(now).unwrap();
     while engine.run_job_chunk_for(now, budget).unwrap().is_some() {}
     assert!(engine.timeline_work_counts().unwrap().iter().all(|(_, pending, parked)| *pending == 0 && *parked == 0));
-    assert_eq!(engine.store().test_support_conn().query_row("PRAGMA synchronous", [], |row| row.get::<_, i64>(0)).unwrap(), 2);
-    assert_eq!(engine.store().test_support_conn().query_row("PRAGMA wal_autocheckpoint", [], |row| row.get::<_, i64>(0)).unwrap(), 1000);
+    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("PRAGMA synchronous", [], |row| row.get::<_, i64>(0)).unwrap(), 2);
+    assert_eq!((match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("PRAGMA wal_autocheckpoint", [], |row| row.get::<_, i64>(0)).unwrap(), 1000);
     measure("delivery", || assert!(engine.run_timeline_chunk_for(now, budget).unwrap().is_none()));
     measure("expiry", || assert_eq!(engine.sweep_expired_for(now, 2000, budget).unwrap(), 0));
     measure("schedule", || assert!(engine.fire_schedules(now).unwrap().is_empty()));
@@ -89,5 +89,5 @@ fn idle_maintenance_read_latency() {
         sweep.remove_files().unwrap();
         while !sweep.is_empty() { engine.finish_asset_sweep_for(&mut sweep, budget).unwrap(); }
     });
-    measure("checkpoint-idle", || engine.store().test_support_conn().execute_batch("PRAGMA wal_checkpoint(PASSIVE)").unwrap());
+    measure("checkpoint-idle", || (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("PRAGMA wal_checkpoint(PASSIVE)").unwrap());
 }

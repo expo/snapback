@@ -533,7 +533,7 @@ fn never_live_rows_make_no_boundary_commit_and_future_unexpired_rows_are_not_swe
 #[test]
 fn expiry_deletes_only_rows_whose_timed_image_was_actually_published() {
     let del_count = |engine: &Engine, id: &str| {
-        engine.store().test_support_conn().query_row(
+        (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row(
             "SELECT count(*) FROM _log WHERE t = 'announcements' AND id = ?1 AND kind = 'del'",
             [id],
             |row| row.get::<_, i64>(0),
@@ -674,7 +674,7 @@ fn an_ordinary_schema_does_not_acquire_the_time_audience_clock_floor() {
         100,
     ).unwrap();
 
-    assert_eq!(engine.store().test_support_meta("time_audience_clock").unwrap(), None);
+    assert_eq!((match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("time_audience_clock").unwrap(), None);
     assert_eq!(engine.query("clock", Context::new("alice", Default::default()).at(100)).unwrap().data, Value::Int(100));
     assert_eq!(engine.query("clock", Context::new("alice", Default::default()).at(50)).unwrap().data, Value::Int(50));
 }
@@ -771,9 +771,9 @@ fn adoption_rebuilds_openings_and_group_authority_when_the_lower_lifetime_change
     assert!(before.iter().any(|event| event.table == "notes" && event.id == "note"));
 
     engine.adopt_at(timed.schema, timed.programs.into_iter().map(|program| program.program), 0).unwrap();
-    let pending = engine.store().test_support_conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap();
+    let pending = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(pending, 1, "adding a lower lifetime rebuilds the pending ledger");
-    let published = engine.store().test_support_conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
+    let published = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(published, 0, "a future image is not established by adoption");
     let (hidden, _) = engine.snapshot_at("alice", 0).unwrap();
     assert!(!hidden.iter().any(|event| event.table == "members" && event.id == "member"), "the future membership row is revoked by the new generation");
@@ -784,21 +784,21 @@ fn adoption_rebuilds_openings_and_group_authority_when_the_lower_lifetime_change
     assert!(opened.events.iter().any(|event| event.table == "members" && event.id == "member" && event.kind == "put"), "the opening publishes the membership row");
     assert!(opened.events.iter().any(|event| event.table == "notes" && event.id == "note" && event.kind == "put"), "the opening acquires the membership content");
     assert!(opened.events.iter().any(|event| event.table == "notes" && event.kind == "scope"), "a post-epoch acquisition first clears stale retained authority");
-    let published = engine.store().test_support_conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
+    let published = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(published, 1, "the successful opening records publication evidence");
 
     engine.adopt_at(rebound.schema, rebound.programs.into_iter().map(|program| program.program), 100).unwrap();
-    let pending = engine.store().test_support_conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap();
+    let pending = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(pending, 1, "rebinding the lower lifetime rebuilds the pending ledger");
-    let published = engine.store().test_support_conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
+    let published = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(published, 0, "rebinding to a future image clears old publication evidence");
     let (hidden, _) = engine.snapshot_at("alice", 100).unwrap();
     assert!(!hidden.iter().any(|event| event.table == "notes" && event.id == "note"), "rebinding to a future column revokes the old grant");
 
     engine.adopt_at(plain.schema, plain.programs.into_iter().map(|program| program.program), 100).unwrap();
-    let pending = engine.store().test_support_conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap();
+    let pending = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(pending, 0, "removing the lower lifetime clears its private ledger");
-    let published = engine.store().test_support_conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
+    let published = (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(published, 0, "removing the lower lifetime clears its publication evidence");
     let (visible, _) = engine.snapshot_at("alice", 100).unwrap();
     assert!(visible.iter().any(|event| event.table == "notes" && event.id == "note"), "the new generation derives the immediate grant");
@@ -827,7 +827,7 @@ fn publication_evidence_survives_an_ordinary_restart() {
     drop(engine);
 
     let mut reopened = Engine::open_at(Store::open(&path).unwrap(), 100).unwrap();
-    let published = reopened.store().test_support_conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
+    let published = (match &reopened.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(published, 1, "restart preserves the committed current-image marker");
     assert_eq!(reopened.sweep_expired(150, 10).unwrap(), 1);
     let delivered = reopened.stream_at("alice", watermark, 100, 150).unwrap();
@@ -865,9 +865,9 @@ fn publication_state_version_bootstraps_an_existing_live_image() {
     ).unwrap();
     drop(legacy);
     let reopened = Engine::open_at(Store::open(&path).unwrap(), 100).unwrap();
-    let published = reopened.store().test_support_conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
+    let published = (match &reopened.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(published, 1, "the active generation snapshot establishes the live legacy row");
-    assert_eq!(reopened.store().test_support_meta("time_audience_publications_v1").unwrap().as_deref(), Some("1"));
+    assert_eq!((match &reopened.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_meta("time_audience_publications_v1").unwrap().as_deref(), Some("1"));
     drop(reopened);
     std::fs::remove_dir_all(dir).unwrap();
 }
@@ -922,7 +922,7 @@ fn opening_admission_refuses_private_delivery_witness_walks_before_adoption() {
         0,
     ).unwrap_err();
     assert!(error.to_string().contains("probe-free read rule"), "{error}");
-    assert_eq!(engine.store().test_support_conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap(), 0);
+    assert_eq!((match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap(), 0);
 }
 
 #[test]
