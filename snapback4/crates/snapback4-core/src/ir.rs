@@ -319,6 +319,8 @@ pub enum Builtin {
     Count,
     Sum,
     CountCapped,
+    #[cfg(feature="sqlite")]
+    FileText,
     /// `connected[p]`: how many connections the principal holds open on the
     /// server now; `exists connected[p]` is `> 0`. A device answers 1.
     Connected,
@@ -329,7 +331,7 @@ impl Builtin {
         match self {
             Self::Text(f) => f.arity(),
             #[cfg(feature = "sqlite")]
-            Self::JobQuery { .. } => 1,
+            Self::JobQuery { .. } | Self::FileText => 1,
             #[cfg(feature = "sqlite")]
             Self::JobAs => 2,
             Self::ReceiptSettled { .. } | Self::Extremum { .. } | Self::ProjectFields { .. } | Self::OptionalField { fallback: false, .. } | Self::Calendar { .. } | Self::Civil(_) | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::RequireUncapped | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,

@@ -91,6 +91,14 @@ impl Store {
         }
         Ok(())
     }
+    /// Actual activation causes, grouped over only previously active hidden rows.
+    pub fn preview_hidden_causes(&self, name:&str)->Result<Vec<(String,u64)>,String> {
+        let mut stmt=self.conn.prepare("SELECT n.reason,count(*) FROM _dormant_narrow_rows n JOIN _release_preview_active p ON p.t=n.t AND p.id=n.id WHERE p.name=?1 AND NOT EXISTS(SELECT 1 FROM r WHERE r.t=p.t AND r.id=p.id) GROUP BY n.reason ORDER BY n.reason").map_err(|e|e.to_string())?;
+        let mut counts=std::collections::BTreeMap::<String,u64>::new();
+        let rows=stmt.query_map([name],|r|Ok((r.get::<_,String>(0)?,r.get::<_,i64>(1)? as u64))).map_err(|e|e.to_string())?;
+        for row in rows {let (text,n)=row.map_err(|e|e.to_string())?;let causes:Vec<String>=serde_json::from_str(&text).map_err(|e|format!("invalid activation visibility cause: {e}"))?;for cause in causes {*counts.entry(cause).or_default()+=n;}}
+        Ok(counts.into_iter().collect())
+    }
     pub fn preview_parent_dormant(&self, parent: &str, id: &str) -> Result<bool, String> {
         self.conn.query_row("SELECT EXISTS(SELECT 1 FROM _catalog c WHERE c.name=?1 AND (EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=c.num AND n.id=?2) OR EXISTS(SELECT 1 FROM _dormant_rows n WHERE n.t=c.num AND n.id=?2)) AND NOT EXISTS(SELECT 1 FROM r WHERE r.t=c.num AND r.id=?2))",[parent,id],|r|r.get(0)).map_err(|e|e.to_string())
     }

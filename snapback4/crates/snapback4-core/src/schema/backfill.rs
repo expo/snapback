@@ -101,6 +101,7 @@ fn body(stmts: &[Stmt], s: &Schema) -> bool {
 }
 fn expr(e: &Expr, s: &Schema) -> bool {
     match e {
+        Expr::Builtin{builtin:Builtin::FileText,args}=>args.len()==1 && args.iter().all(|e|expr(e,s)),
         Expr::Literal(_) | Expr::Variable(_) => true,
         Expr::Input(_) | Expr::Merge(_) => false,
         Expr::Scan(r) => s.table(&r.table).and_then(|t|t.index(&r.index)).is_some_and(|i|i.is_plain() && r.prefix.len()<=i.components.len() && (r.range.is_none() || r.prefix.len()<i.components.len())) && r.existence && r.after.is_none() && r.before.is_none() && r.prefix.iter().all(|k| k.scalar().is_some_and(|e|expr(e,s))) && r.filter.as_ref().is_none_or(|e|expr(e,s)) && r.range.as_ref().is_none_or(|r|[&r.gt,&r.gte,&r.lt,&r.lte].iter().all(|e|e.as_ref().is_none_or(|e|expr(e,s)))),

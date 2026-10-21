@@ -9,6 +9,12 @@ use std::collections::BTreeSet;
 #[derive(Serialize, Deserialize)]
 #[serde(remote = "Schema")]
 struct Wire {
+    #[cfg(feature = "sqlite")]
+    #[serde(default,skip_serializing_if="BTreeMap::is_empty")]
+    table_renames: BTreeMap<String,String>,
+    #[cfg(feature = "sqlite")]
+    #[serde(default,skip_serializing_if="BTreeMap::is_empty")]
+    asset_renames: BTreeMap<String,BTreeMap<String,String>>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[cfg(feature = "sqlite")]
     backfills: Vec<backfill::Backfill>,
@@ -59,6 +65,8 @@ struct Wire {
 // Add a capability and its schema predicate here in one line. This is both
 // the derivation and the decoder's allowlist; authors never declare it.
 const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
+    #[cfg(feature = "sqlite")]
+    ("release-table-renames-v1",|s|!s.table_renames.is_empty() || !s.asset_renames.is_empty()),
     ("column-read-v1", |s| s.tables.values().any(|t| !t.column_reads.is_empty())),
 
     // Table-bearing backend schemas carry this in the ordinary schema fence.

@@ -780,7 +780,6 @@ fn column_rename_refuses_different_declared_types_even_when_present_values_fit_b
 fn column_rename_rejects_protected_reference_asset_and_collection_types_before_adoption() {
  for declaration in [
   "table parents:\n  name: text <=40\n  public 'fixture'\n  online only\ntable items:\n  owner: parents renamed from legacyOwner\n  public 'fixture'\n  online only\n",
-  "table items:\n  photo: image <=1024 renamed from legacyPhoto\n  public 'fixture'\n  online only\n",
   "table items:\n  tags: [text <=20] <=5 renamed from legacyTags\n  public 'fixture'\n  online only\n",
  ] {
   let bound=snapback4_lang::compile(&[("schema.q".into(),declaration.into())]);

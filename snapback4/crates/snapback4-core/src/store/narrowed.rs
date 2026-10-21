@@ -39,6 +39,10 @@ pub(super) fn incompatible_column(tx: &Tx<'_>, table: &Table, name: &str, column
             if crate::engine::validate::validate_text(field, s, *min, *format).is_err()))))
 }
 
+fn migratable(kind:&ColumnType)->bool {
+    match kind {ColumnType::Optional(k)=>migratable(k),ColumnType::Image{..}|ColumnType::Video{..}|ColumnType::File{..}|ColumnType::List{..}|ColumnType::ListRange{..}|ColumnType::Ref{..}=>false,_=>true}
+}
+
 fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String, String)>) {
     match (kind, value) {
         (ColumnType::Optional(inner), v) => refs(inner, v, out),
@@ -112,7 +116,16 @@ pub(super) fn transition(
                 let native=super::backfills::native_absences(tx,t,id,&row)?;
                 let source=super::backfills::native_source(previous.and_then(|s|s.table(name)).unwrap_or(table),table,&native);
                 crate::schema::materialize_optional_fields(&mut row,source.as_ref());
-                let mut hidden = incompatible(tx,next, name, &row)?;
+                let mut causes=std::collections::BTreeSet::new();
+                for (column,kind) in &table.columns {
+                    if table.engine_field(column) || table.maintained.contains_key(column) {continue;}
+                    if let Ok(value)=row.field(column) {if incompatible_column(tx,table,name,column,kind,value)? {
+                        let value=match value {Value::Null=>"null".to_owned(),Value::Array(v)=>format!("a list of {} values",v.len()),_=>format!("a value outside {kind}")};
+                        let remedy=if migratable(kind) {"declare a truthful scalar down projection or use a loosened bridge"} else {"computed down cannot project files, images, collections or references; use a loosened bridge"};
+                        causes.insert(format!("{name}.{column} holds {value}, which does not fit {kind}; {remedy}"));
+                    }}
+                }
+                let mut hidden=!causes.is_empty();
                 for (column, kind) in &table.columns {
                     let mut edges = Vec::new();
                     if let Ok(value) = row.field(column) {
@@ -123,6 +136,7 @@ pub(super) fn transition(
                             || (!tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t=?1 AND id=?2)",params![tx.num(&parent)?,parent_id],|r|r.get::<_,bool>(0))?
                                 && reserved(tx, tx.num(&parent)?, &parent_id)?);
                         if missing {
+                            causes.insert(format!("{name}.{column} references hidden parent {parent}; preserve the parent's domain in a loosened bridge"));
                             hidden = true;
                         }
                     }
@@ -131,6 +145,7 @@ pub(super) fn transition(
                     return Ok(());
                 }
                 super::backfills::preserve_native_absence(&mut row,&native);
+                let reason=canonical_json(&causes);
                 let retained: bool = tx.conn().query_row(
                     "SELECT EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?1 AND id=?2)",
                     params![t, id],
@@ -149,6 +164,7 @@ pub(super) fn transition(
                     let definition=super::backfills::native_source(&original,table,&native);
                     tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?1,definition=?4 WHERE t=?2 AND id=?3",params![canonical_json(&archived),t,id,canonical_json(definition.as_ref())])?;
                 }
+                if retained {tx.conn().execute("UPDATE _dormant_narrow_rows SET reason=?3 WHERE t=?1 AND id=?2",params![t,id,reason])?;}
                 for c in &outputs {
                     // Candidate-typed new references are absent from the old
                     // definition. Never erase an already-invalid binding.
@@ -167,7 +183,7 @@ pub(super) fn transition(
                             id,
                             canonical_json(&row),
                             canonical_json(old),
-                            "type or dormant reference"
+                            reason
                         ],
                     )?;
                     for (column, kind) in &old.columns {

@@ -776,7 +776,7 @@ impl Binder<'_> {
                 }
                 Ok((Expr::Builtin { builtin: Builtin::Count, args: vec![e] }, Ty::Int))
             }
-            "before" | "after" | "beforeLast" | "afterLast" | "startsWith" | "allDigits" => {
+            "before" | "after" | "beforeLast" | "afterLast" | "startsWith" | "allDigits" | "nonemptyLines" => {
                 let function = snapback4_core::text::Function::named(name).unwrap();
                 arity(function.arity(), &format!("{name}(text, delimiter)"))?;
                 let mut values = Vec::new(); let mut maximum = 0;
@@ -786,7 +786,7 @@ impl Binder<'_> {
                     if values.is_empty() { maximum = max; }
                     values.push(value);
                 }
-                Ok((Expr::Builtin { builtin: Builtin::Text(function), args: values }, if function.boolean() { Ty::Bool } else { Ty::Text(maximum) }))
+                Ok((Expr::Builtin { builtin: Builtin::Text(function), args: values }, if function==snapback4_core::text::Function::NonemptyLines {Ty::Int} else if function.boolean() { Ty::Bool } else { Ty::Text(maximum) }))
             }
             "lower" | "trim" => {
                 arity(1, &format!("{name}(text)"))?;
@@ -796,6 +796,12 @@ impl Binder<'_> {
                 };
                 let (builtin, max) = if name == "lower" { (Builtin::Lower, max.saturating_mul(3)) } else { (Builtin::Trim, max) };
                 Ok((Expr::Builtin { builtin, args: vec![value] }, Ty::Text(max)))
+            }
+            "fileText" => {
+                arity(1,"fileText(file)")?;
+                if !self.historical {return Err(type_error(site,"fileText is a declarative release-migration input","use fileText inside a backfill or down declaration"));}
+                let(value,ty)=self.expr(&args[0],out)?;if ty!=Ty::File {return Err(type_error(site,"fileText takes a present file","narrow the optional file before reading its text"));}
+                Ok((Expr::Builtin{builtin:Builtin::FileText,args:vec![value]},Ty::Text(u32::MAX)))
             }
             "sha256" => {
                 arity(1, "sha256(text)")?;
