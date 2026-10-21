@@ -195,7 +195,7 @@ fn run_pair_variant(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>
                 }
                 if stability::implicit(bound,p).iter().any(|t|t==&inv.table||deps.contains(t)){out.unsupported.insert(format!("{}: implicit writes can change column policy before disclosure",p.name));continue;}
             }
-            let args_list=histories::fixture_cases(p,rows,&actors,out);
+            let args_list=histories::fixture_cases(bound,p,rows,&actors,out);
             for args in args_list{
                 if !reserve(out,12){return;}
                 let execute=|alternate:bool|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>,BTreeMap<String,Value>),String>{

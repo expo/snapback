@@ -430,7 +430,7 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
         let target=bound.schema.visible_tables().find(|(t,_)|super::audit::mentions(&serde_json::to_value(&p.program).unwrap(),t)).or_else(||bound.schema.visible_tables().next()).map(|(t,_)|t.clone());
         let Some(target)=target else{campaign.unsupported.insert(format!("{}: no table population for generated arguments",p.program.name));continue;};
         let dummy=Invariant{table:target,target:"read".into(),column:None,predicate:"allow".into(),site:crate::Site::default(),policy:Some(RuleExpr::Allow),operation:Some(p.program.name.clone()),requirements:Vec::new(),syntax:None,unsupported:None};
-        let cases=histories::fixture_cases(&p.program,&fixtures,&viewers,campaign);
+        let cases=histories::fixture_cases(bound,&p.program,&fixtures,&viewers,campaign);
         let mut exercised=0;
         'cases:for (variant,mut args) in cases.into_iter().enumerate(){
             let rows=if has_fixture{fixtures.clone()}else{match snapshot(bound,&dummy,variant){Ok(r)=>r,Err(e)=>{campaign.unsupported.insert(format!("{}: {e}",p.program.name));break;}}};

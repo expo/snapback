@@ -25,7 +25,7 @@ pub(super) fn actors(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>)->Vec<String
     }}}
     out
 }
-pub(super) fn fixture_cases(p:&Program,rows:&BTreeMap<String,Vec<Value>>,actors:&[String],out:&mut Campaign)->Vec<BTreeMap<String,Value>>{
+pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>,actors:&[String],out:&mut Campaign)->Vec<BTreeMap<String,Value>>{
     let args=&p.args;
     let mut literals=BTreeMap::<String,Vec<Value>>::new();
     fn collect(value:&serde_json::Value,out:&mut BTreeMap<String,Vec<Value>>){
@@ -146,7 +146,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
             // A typed authored row return is already a payload witness. It does
             // not require an invalid absent world that deletes referenced data.
             for bp in queries.iter().copied().filter(|p|typed_source(&p.result,&inv.table)){
-                let cases=fixture_cases(&bp.program,rows,actors,out);
+                let cases=fixture_cases(bound,&bp.program,rows,actors,out);
                 if cases.len()>32{out.unsupported.insert(format!("{}: typed read-observer arguments capped at 32",bp.program.name));}
                 for args in cases.into_iter().take(32){
                     if !reserve_observers(out,2){return;}
@@ -174,7 +174,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
             if policy_in(bound,inv,&absent_rows,viewer,None,row,&mut absent)!=Ok(false){continue;}
             for bp in queries.iter().copied().filter(|p|observing.iter().any(|t|super::super::audit::mentions(&serde_json::to_value(&p.program).unwrap(),t))){
                 let p=&bp.program;
-                let cases=fixture_cases(p,rows,actors,out);
+                let cases=fixture_cases(bound,p,rows,actors,out);
                 if cases.len()>32{out.unsupported.insert(format!("{}: read-observer arguments capped at 32; remaining combinations not covered",p.name));}
                 for args in cases.into_iter().take(32){
                     if !reserve_observers(out,4){return;}
@@ -297,7 +297,7 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
     let probes=Vec::new();
     let mut groups=Vec::new();
     for bp in bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Mutation&&!p.program.native&&!bound.schema.operations.get(&p.program.name).is_some_and(|f|f.ephemeral)){
-        let cases=fixture_cases(&bp.program,&initial,&actors,out);
+        let cases=fixture_cases(bound,&bp.program,&initial,&actors,out);
         let mut group=relationship_candidates(bound,&bp.program,&initial,&actors,&cases,fixture,out);
         group.extend(role_candidates(bound,&bp.program,&initial,&actors,&cases,fixture,out));
         // Diagonal order gives both actors and argument values an early turn.
