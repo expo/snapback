@@ -86,7 +86,7 @@ impl AnyStore {
             schema, programs, reset, now, allow_launch,
             |preparation| check(&AnyPreparation::from(preparation)),
             build, finish,
-        ), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "release-activation" }) }
+        ), #[cfg(feature = "postgres")] Self::Postgres(handle) => handle.activate(schema, programs, reset, now, check, build, finish) }
     }
 }
 
@@ -113,4 +113,13 @@ impl AnyTx<'_> {
     pub(crate) fn rewrite_legacy_maintained_references(&self, ids: &BTreeMap<String, BTreeMap<String, String>>) -> Result<u64, RuntimeError> {
         match self { Self::Sqlite(tx) => sqlite::dormant::rewrite_legacy_maintained_references(tx, ids), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "retained-authority" }) }
     }
+}
+
+#[cfg(not(feature = "postgres"))]
+impl AnyStore {
+    pub(crate) fn admit(&self, _: &Schema, _: &BTreeMap<String, Program>) -> Result<(), RuntimeError> { Ok(()) }
+}
+#[cfg(not(feature = "postgres"))]
+impl AnyTx<'_> {
+    pub(crate) fn admit(&self, _: &Schema, _: &BTreeMap<String, Program>) -> Result<(), RuntimeError> { Ok(()) }
 }

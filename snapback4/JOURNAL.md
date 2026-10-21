@@ -100930,3 +100930,18 @@ they add no owning bridge. This mechanical follow-up is a separate building
 commit to keep the dispatch and admission changes reviewable. The binary build
 and Postgres-feature library check pass; full feature-linked fixture compilation
 is being qualified with the private-cluster script.
+
+### 2026-10-22 — S10c: admission and opening foundation
+
+The internal library opener now initializes a fresh private Postgres namespace
+only after common-engine admission. Activation uses the common semantic builder,
+the landed opening/activation families and one solo transaction. Persisted open
+checks the admitted profile before upgrades; detached readers retain the same
+connection settings, validate identity/backend and skip write upgrades. Named
+refusals cover union sync, timed publication, assets beyond placement, jobs,
+actions, routes, schedules, native programs and unsupported maintained shapes.
+Ephemeral hubs stay admitted. Identity snapshots, typed metadata, the actual
+placement reader and insert-then-bind receipts dispatch through the enum.
+Schema evolution outside this initial subset refuses before preparation writes.
+The binary and Postgres-feature library builds pass. Real-cluster qualification
+and the tail/witness results are recorded after completion.

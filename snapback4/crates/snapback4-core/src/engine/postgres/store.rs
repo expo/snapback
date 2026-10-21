@@ -72,6 +72,7 @@ pub enum WriteMode {
 
 pub struct Store {
     pub generation: u64,
+    pub(crate) read_only: bool,
     pub client: Client,
     cache: BTreeMap<&'static str, Statement>,
     pub calls: Cell<u64>,
@@ -84,10 +85,11 @@ pub struct Store {
 
 impl Store {
     pub fn new(client: Client) -> Self {
-        Self { generation:1, client, cache: BTreeMap::new(), calls: Cell::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { generation:1, read_only: false, client, cache: BTreeMap::new(), calls: Cell::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     fn begin(&mut self, mode: Option<WriteMode>) -> Result<Tx<'_>, RuntimeError> {
+        if self.read_only && mode.is_some() { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
         self.calls.set(self.calls.get() + 1);
         self.page_reads.set(0);
         let isolation = match mode {

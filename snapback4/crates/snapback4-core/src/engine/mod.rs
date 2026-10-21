@@ -426,6 +426,8 @@ impl Engine {
     /// Activate using the owning host's clock for parent liveness and captures.
     pub fn new_at(store: impl Into<AnyStore>, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<Self, RuntimeError> {
         let mut store = store.into();
+        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
+        store.admit(&schema, &programs)?;
         columns::validate_before_prepare(&schema)?;
         schema.check_row_view_audiences()?;
         schema.prepare_contribution_indexes();
@@ -434,7 +436,6 @@ impl Engine {
         if let Some(issue) = issues.first() {
             return Err(RuntimeError::Schema(format!("{}: {}", issue.path, issue.message)));
         }
-        let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         let (generation, metadata) = Self::activate(&mut store, &schema, &programs, None, now, true, None, None)?.into_inner();
         let dev_effects = metadata.dev_effects;
         store.exclude_ephemeral(&schema);
@@ -477,6 +478,7 @@ impl Engine {
         timeline::check_no_rebuilds(&tx, &schema)?;
         schema.check_row_view_audiences()?;
         let programs = serde_json::from_str(&programs).map_err(|e| RuntimeError::Store(format!("invalid stored programs: {e}")))?;
+        tx.admit(&schema, &programs)?;
         let mut schema: Schema = schema;
         let stored_schema_hash = schema.hash();
         schema.prepare_contribution_indexes();

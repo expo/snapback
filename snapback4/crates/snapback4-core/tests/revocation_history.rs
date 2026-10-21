@@ -81,7 +81,7 @@ fn accepted_server_backend_migrates_evidence_before_commits() {
     let store = Store::open(&path).unwrap();
     assert!(!evidence_exists(&store), "low-level open must preserve the predecessor");
     let mut engine = snapback4_core::Engine::new(store, schema.clone(), []).unwrap();
-    let snapback4_core::store_port::AnyStore::Sqlite(store) = engine.store_mut();
+    let snapback4_core::store_port::AnyStore::Sqlite(store) = engine.store_mut() else { panic!("SQLite fixture") };
     assert!(evidence_exists(store), "accepted backend must migrate before commits can run");
     assert_eq!(stats(store).0, 0);
     assert!(store.preserved_between(&schema, 0, 1).is_none());
