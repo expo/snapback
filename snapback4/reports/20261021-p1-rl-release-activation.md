@@ -115,10 +115,11 @@ requested PATH/LD_LIBRARY_PATH/TMPDIR.
 ## S10d handoff and limits
 
 The adapters are reachable through the evaluator's explicit release methods.
-The ordinary `Engine`/HTTP host still owns SQLite. The supplied base has
-separate family shape verifiers; this lane factors the strict asset verifier
-into `engine/postgres/shape.rs` for reuse. The parallel foundation guard
-work needs normal integration; this lane did not inspect another checkout. S10a–c must forward the
+The ordinary `Engine`/HTTP host still owns SQLite. Fix round 1 integrates
+main's foundation guard: foundation, assets and release use the same exact
+column/key verifier in `engine/postgres/shape.rs`, which delegates relation
+checks to main's `ledger_schema.rs`. The earlier pending-integration handoff
+is closed. S10a–c must forward the
 neutral traits/records/typed metadata and retain the member-safe tail/ledger
 work; no implicit SQLite fallback is supplied by this lane.
 
@@ -147,3 +148,86 @@ new one; it is not a database crash/failover experiment. There is no known
 remaining failure in the tested minimal adapter profile. The unimplemented
 host/evolution layers and direct-Rust NUL bypass difference above remain
 explicitly unqualified.
+
+## Fix round 1 — 2026-10-21
+
+Rebased onto `1c838356f2` (`origin/main` at the requested fetch). The original
+lane commits were rewritten as follows:
+
+| Original | Rebased |
+| --- | --- |
+| `3936cad561` | `4e4e32c936` |
+| `3a9cf783ea` | `13a0729dea` |
+| `0c7564cfcb` | `3e0ca64b4e` |
+
+Conflicts covered the RFC, JOURNAL, Postgres assets/metadata/module declarations,
+SQLite metadata imports, Postgres test module declarations and the experiment
+executable. RFC/JOURNAL entries are unioned, with one Revised header. Main's
+metadata validation/readers/writers and explicit SQLite FULL durability/version
+calls are retained. The activation metadata helpers delegate to that adapter;
+duplicate schema-key helpers and module declarations are removed.
+
+| Review item | Change and regression evidence |
+| --- | --- |
+| 1: false repair completion | Cap installation clears and reconstructs occupancy when the table is absent or its schema marker is missing/stale; it stamps only after success. Live-sum opening rebuilds expiring-source sums, records resulting row/log changes and then stamps its marker. Both repairs share the opening writer transaction. One shared fixture on both adapters removes a live zero-sum candidate and proves its recreation; another retains one live row under cap 2, empties occupancy/removes the marker, then proves that only one further insert succeeds. |
+| 2: unguarded backend/head | Foundation, assets and release use one exact column/key checker, delegating relation checks to main's shared guard. Opening preflights backend, head, rows, indexes, log, sequences, cap counts and the commit ledger before trusting them; other families retain their guarded installers. The relation guard rejects user triggers and deferrable keys along with unsafe persistence/inheritance/partitioning/rules. Witnesses reject UNLOGGED backend/head/row/cap tables, backend/head triggers returning OLD, and a deferrable head key. Foundation's commit-ledger error retains precedence for paired commit/log persistence mutations. |
+| 3: evolution envelope | Schema-changing activation returns `E_STORE_UNSUPPORTED` with structured family `evolution`; tests assert code, family and unchanged persisted status. |
+| 4: dialect divergence | Both timeline readers skip malformed JSON. Shared timeline cases insert malformed text beside valid rows, including an escaped NUL status. Both activation readers parse generation metadata before binding; invalid/non-positive/out-of-range values return `E_STORE_GENERATION`. Shared cases restore generation 1 and reread in the same transaction, demonstrating that Postgres was not aborted by a cast. SQLite's backend recheck uses the same parser. |
+| 5: nits | RFC §4.1 lists persisted release state, and the union admission comment acknowledges stored epochs. Shared tests read back mixed-case scratch cleanup and exercise worker ordering/limits; the shape list drops `_catalog`'s unique number constraint. |
+
+Integration also records the opening transaction's held head fence before using
+main's validated metadata writer. Foundation's missing-value and metadata-shape
+fixtures explicitly clear bootstrap facts; otherwise the shape fixture's extra
+unique index fails during fixture DDL on repeated marker values, before attach.
+The first default script exposed these fixture/error-precedence integration
+issues (186 adapter passes, two failures); both are corrected in the final runs.
+The first focused SQLite run exposed a `t`/`ti` fixture typo, corrected before
+the complete core run. Neither was classified as a flake.
+
+Implementation and governing-doc commit: `331ad902f5`.
+
+The full host run then exposed two missing dedicated guide excerpts for the
+new refusal codes: `w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code`
+and `w11_why_every_registered_code_returns_its_dedicated_section`. Commit
+`967c596ebd` adds the excerpts, routes both codes to the refusals card, and
+names `evolution` in its family list. Both failures pass when rerun individually;
+`the_cards_state_the_engines_numbers_and_families` also passes. These are
+explicitly corrected failures, not flakes. No store implementation changed
+after its successful complete core/default-Postgres qualification.
+
+### Fix-round validation
+
+| Requested check | Result |
+| --- | --- |
+| `cargo test -p snapback4-core --no-fail-fast` | Pass: 1,036 tests/doctests, five existing ignores, across 45 binaries/doctest groups. Includes both shared SQLite reopening regressions. |
+| `cargo test -p snapback4 --no-fail-fast` | Completed, exit 101. The original run has the three declared baseline failures below plus the two guide failures corrected in `967c596ebd`; those two pass individually afterward. No other failure. |
+| Guide coverage reruns | Doctor renderer: one pass; all-code `why` CLI: one pass; guide family census: one pass. |
+| `cargo check -p snapback4-core --no-default-features` | Pass. |
+| Both ratchets | Pass: three committer tests and seven store-port tests. |
+| `cargo test -p snapback4-lang --test guide every_emitted_code_is_explained` | Pass. |
+| `node --test test/wasm-codec-census.test.mjs` in `packages/snapback4` | Pass: 27 tests. |
+| Complete default Postgres script, final rerun | Pass: 58 experiment tests, 188 adapter tests (including all 11 P1-RL cases), 19 corpus-harness tests; serialized corpus 207 passes / 88 named skips. |
+| Complete `SNAPBACK4_PG_LOCALE=en_US.utf8` Postgres script | Pass, same counts. |
+| Root `./ref-check` and `git diff --check` | Pass. |
+
+The remaining declared host baseline failures are
+`w11r1c_toolchain_why_explains_node_start_failure_too`,
+`farm2_typescript_7_is_refused_by_version_not_crashed_on`, and
+`web_witness_help_and_invalid_input`. The whole host suite was not repeated
+for the explanation-only change; both affected failing cases were rerun alone
+and passed, with the family/guide checks afterward. No failure is called a flake.
+
+Every cluster started this round is independently confirmed stopped with
+`pg_ctl status` exit 3 and no `postmaster.pid`:
+`/tmp/sb4-pg-eval.KNbIgO` (initial integration run),
+`/tmp/sb4-pg-eval.2OtxKL` (final default run), and
+`/tmp/sb4-pg-eval.qPzT9F` (locale run). Data is retained for inspection.
+No other cluster was stopped.
+
+Cargo used only `/home/ccheever/projects/sb4-pg-p1rl/snapback4/target`,
+`CARGO_INCREMENTAL=0`, dev/test debug `line-tables-only`, and at most 16 build
+jobs. All sampled free-space readings exceeded the 30 GB stop threshold;
+the final reading was approximately 164 GiB. Detailed current-round logs are
+`/tmp/p1rl-fix-*.log`; the machine-readable check and cluster receipts are
+`/tmp/p1rl-fix-results.json` and `/tmp/p1rl-fix-clusters.json`.
+No stash, push, publication, remote worker or sub-agent was used.
