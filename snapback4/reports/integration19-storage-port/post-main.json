@@ -1,0 +1,995 @@
+{
+  "jobsFollowup": {
+    "source": "cc8fd79fa9449cb3d87f836b53a5775922ccc8d7",
+    "main": "8cc2a5c737b12802d264fd9a89b1af22da7ada4f",
+    "sourceWithFinalBudget": "ae7adb2157",
+    "binary": {
+      "path": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/merge035-r4-pinned/snapback4",
+      "sha256": "0c36790984a8c259fa1ca065d02070a3aaee5fcf2fc01d9cb4dae290f80a5047",
+      "source": "cc8fd79fa9449cb3d87f836b53a5775922ccc8d7",
+      "version": "snapback4 0.4.35"
+    },
+    "tests": {
+      "jobs-lib": {
+        "passed": 21,
+        "failed": 0,
+        "ignored": 25
+      },
+      "job-time-audiences": {
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      "native-jobs": {
+        "passed": 12,
+        "failed": 0,
+        "ignored": 1
+      },
+      "cli-jobs": {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      "clock-admission-ratchets": {
+        "passed": 81,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    "commands": {
+      "jobs-lib": {
+        "label": "jobs-lib",
+        "command": [
+          "timeout",
+          "1800",
+          "env",
+          "CARGO_INCREMENTAL=0",
+          "CARGO_PROFILE_DEV_DEBUG=0",
+          "CARGO_PROFILE_TEST_DEBUG=0",
+          "cargo",
+          "test",
+          "-p",
+          "snapback4-core",
+          "--features",
+          "postgres",
+          "--lib",
+          "job",
+          "--no-fail-fast"
+        ],
+        "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+        "exit": 0,
+        "seconds": 65.959
+      },
+      "job-time-audiences": {
+        "label": "job-time-audiences",
+        "command": [
+          "timeout",
+          "1200",
+          "env",
+          "CARGO_INCREMENTAL=0",
+          "CARGO_PROFILE_DEV_DEBUG=0",
+          "CARGO_PROFILE_TEST_DEBUG=0",
+          "cargo",
+          "test",
+          "-p",
+          "snapback4-core",
+          "--test",
+          "job_time_audiences"
+        ],
+        "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+        "exit": 0,
+        "seconds": 32.24
+      },
+      "native-jobs": {
+        "label": "native-jobs",
+        "command": [
+          "timeout",
+          "1200",
+          "env",
+          "CARGO_INCREMENTAL=0",
+          "CARGO_PROFILE_DEV_DEBUG=0",
+          "CARGO_PROFILE_TEST_DEBUG=0",
+          "cargo",
+          "test",
+          "-p",
+          "snapback4-sim",
+          "--test",
+          "native"
+        ],
+        "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+        "exit": 0,
+        "seconds": 40.851
+      },
+      "cli-jobs": {
+        "label": "cli-jobs",
+        "command": [
+          "timeout",
+          "1200",
+          "env",
+          "CARGO_INCREMENTAL=0",
+          "CARGO_PROFILE_DEV_DEBUG=0",
+          "CARGO_PROFILE_TEST_DEBUG=0",
+          "cargo",
+          "test",
+          "-p",
+          "snapback4",
+          "--bin",
+          "snapback4",
+          "job"
+        ],
+        "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+        "exit": 0,
+        "seconds": 57.187
+      },
+      "clock-admission-ratchets": {
+        "label": "clock-admission-ratchets",
+        "command": [
+          "timeout",
+          "1800",
+          "env",
+          "CARGO_INCREMENTAL=0",
+          "CARGO_PROFILE_DEV_DEBUG=0",
+          "CARGO_PROFILE_TEST_DEBUG=0",
+          "env",
+          "SNAPBACK4_RATCHET_UPDATE=1",
+          "cargo",
+          "test",
+          "-p",
+          "snapback4",
+          "--test",
+          "clock",
+          "--test",
+          "run_admission",
+          "--test",
+          "store_port_ratchet",
+          "--test",
+          "committer_ratchet"
+        ],
+        "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+        "exit": 0,
+        "seconds": 65.912
+      },
+      "survey-250": {
+        "label": "survey-250",
+        "command": [
+          "timeout",
+          "2400",
+          "env",
+          "CARGO_INCREMENTAL=0",
+          "CARGO_PROFILE_DEV_DEBUG=0",
+          "CARGO_PROFILE_TEST_DEBUG=0",
+          "python3",
+          "snapback4/reports/integration19/survey.py",
+          "/home/ccheever/projects/snapback-sb4loop/snapback4/target/merge035-r4-pinned/snapback4",
+          "/home/ccheever/sb4-loop/merge035/r4/survey"
+        ],
+        "cwd": "/home/ccheever/projects/snapback-sb4loop",
+        "exit": 0,
+        "seconds": 25.166
+      },
+      "diff-build": {
+        "label": "diff-build",
+        "command": [
+          "timeout",
+          "1800",
+          "env",
+          "CARGO_INCREMENTAL=0",
+          "CARGO_PROFILE_DEV_DEBUG=0",
+          "CARGO_PROFILE_TEST_DEBUG=0",
+          "cargo",
+          "build",
+          "--release",
+          "-p",
+          "snapback4-difftest"
+        ],
+        "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+        "exit": 0,
+        "seconds": 57.984
+      },
+      "wasm-build": {
+        "label": "wasm-build",
+        "command": [
+          "timeout",
+          "1200",
+          "env",
+          "CARGO_INCREMENTAL=0",
+          "CARGO_PROFILE_DEV_DEBUG=0",
+          "CARGO_PROFILE_TEST_DEBUG=0",
+          "bash",
+          "scripts/build-wasm.sh"
+        ],
+        "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+        "exit": 0,
+        "seconds": 46.806
+      },
+      "wasm-measure": {
+        "label": "wasm-measure",
+        "command": [
+          "timeout",
+          "2400",
+          "env",
+          "CARGO_INCREMENTAL=0",
+          "CARGO_PROFILE_DEV_DEBUG=0",
+          "CARGO_PROFILE_TEST_DEBUG=0",
+          "env",
+          "PATH=/home/ccheever/sb4-loop/merge035/bin:/home/ccheever/.codex/packages/standalone/releases/0.162.1-x86_64-unknown-linux-musl/codex-path:/home/ccheever/.local/bin:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/bin:/home/ccheever/.local/bin:/home/ccheever/expose-build/tools/bin:/home/ccheever/expose-build/tools:/home/ccheever/.codex/tmp/arg0/codex-arg07kbNgQ:/home/ccheever/.codex/packages/standalone/releases/0.162.1-x86_64-unknown-linux-musl/codex-path:/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.cargo/bin:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/bin:/home/ccheever/.opencode/bin:/home/ccheever/.bun/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/expose-build/tools/bin:/home/ccheever/expose-build/tools:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/bin:/home/ccheever/.opencode/bin:/home/ccheever/.bun/bin:/home/ccheever/.cargo/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/expose-build/tools/bin:/home/ccheever/expose-build/tools:/home/ccheever/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+          "bash",
+          "scripts/measure-wasm.sh"
+        ],
+        "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+        "exit": 0,
+        "seconds": 50.67
+      },
+      "wasm-measure-final": {
+        "label": "wasm-measure-final",
+        "command": [
+          "timeout",
+          "2500",
+          "env",
+          "CARGO_INCREMENTAL=0",
+          "CARGO_PROFILE_DEV_DEBUG=0",
+          "CARGO_PROFILE_TEST_DEBUG=0",
+          "env",
+          "PATH=/home/ccheever/sb4-loop/merge035/bin:/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.cargo/bin:/home/ccheever/.local/bin:/usr/local/bin:/usr/bin:/bin",
+          "bash",
+          "scripts/measure-wasm.sh"
+        ],
+        "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+        "exit": 0,
+        "seconds": 40.908
+      }
+    },
+    "logSha256": {
+      "jobs-lib": "7808d012827111db94296d6faf3cb354380950ef948c0d5eed476099eb1600ee",
+      "job-time-audiences": "412cc2c44c945e1b3001b92dd63a8c8bc2006e90b018bfdff0239d6ec31ce538",
+      "native-jobs": "1c70c13a90fdb2063c2402e0670a8cb189543138a336ab3f45d7a8c848889bf6",
+      "cli-jobs": "eb6890e0d8b784da030fa69ad02a45736393ce9ee8f8083ddc1207884bf5cfc8",
+      "clock-admission-ratchets": "8a8ecaf510636d8d2b123150ae032e5f95546d8568e55c92c63f5429bda1ac3a",
+      "survey-250": "69bb51a481b776667b7540b11a60909a3c45e5027b22e63a5dc7d642ea3eb5fd",
+      "diff-build": "2f0655338411a0645cfef5e374f3a2aa54a826f3a18411aec826576e54c0f270",
+      "wasm-build": "45dee4354984c32625de182610aa5cdd5bca91bf243320acdbf89a44ad8c3da0",
+      "wasm-measure": "65161a255d6a1a7b4a0ab01cc79d02f99e7cd35683f48351f2edbb3cde974dae",
+      "wasm-measure-final": "9aba748f5d8776e1328182b21025f694fa44e93557a670d774e227e609691023"
+    },
+    "survey": {
+      "apps": 250,
+      "accepted": 250,
+      "falseRefusals": 0,
+      "allOriginalHashesUnchanged": true,
+      "binarySha256": "0c36790984a8c259fa1ca065d02070a3aaee5fcf2fc01d9cb4dae290f80a5047",
+      "logSha256": "9fc4ba8b52d7cb4dbd071958f52b5cf32ac53b60e59c8497f30868bbdbc325e0"
+    },
+    "difftest": {
+      "binary": {
+        "source": "cc8fd79fa9449cb3d87f836b53a5775922ccc8d7",
+        "binarySha256": "223ab152ed2dd259ab0630d967b77892239ba4dbacfecd6ba196489d686c221e"
+      },
+      "exactlyMatchesR2": true,
+      "summarySha256": "6ab039b979e0c247da46399a022127a790267ba7cc4fb103b630d10c72a88230",
+      "cases": {
+        "native": {
+          "cases": 20000,
+          "generated": 20000,
+          "executed": 1222111
+        },
+        "devices": {
+          "cases": 1000,
+          "generated": 1000,
+          "executed": 27922
+        },
+        "lean": {
+          "cases": 20000,
+          "generated": 20000,
+          "executed": 56917
+        }
+      }
+    },
+    "wasm": {
+      "at": "2026-10-21T01:04:41Z",
+      "sha": "ae7adb2157",
+      "dirty": false,
+      "wasm": {
+        "raw": 2404722,
+        "gzip": 733693,
+        "brotli": 552609
+      },
+      "glue": {
+        "raw": 16053,
+        "gzip": 3695,
+        "brotli": 3259
+      },
+      "wasmOpt": true,
+      "budget": 734193,
+      "over": 0
+    },
+    "scope": "Jobs/schedules main delta: shared SQLite job cases, native jobs, time audiences, CLI jobs, clock/admission, ratchets; Postgres-only cases compile and retain named ignores. No private Postgres or Mac claim. Three campaigns and 250-schema survey repeated after this merge."
+  },
+  "at": "2026-10-21T01:45:21.629328+00:00",
+  "sourceFullBattery": "3fe924cd9bc8b83e2f8faf1fceaa309e11b610ee",
+  "sourcePostMerge": "971a28ecd1170c630a6a15fa9eaeb1e3a4a67b73",
+  "mainMerged": "e2073e1b663516b2223854ab9c61e23e4f770b00",
+  "merge": "971a28ecd1170c630a6a15fa9eaeb1e3a4a67b73",
+  "experimentLock": "56acd9239a",
+  "commands": {
+    "core-host": {
+      "label": "core-host",
+      "command": [
+        "timeout",
+        "7500",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "-p",
+        "snapback4",
+        "--no-fail-fast"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 1435.281
+    },
+    "sim-lib": {
+      "label": "sim-lib",
+      "command": [
+        "timeout",
+        "1200",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-sim",
+        "--lib"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 42.006
+    },
+    "ratchets": {
+      "label": "ratchets",
+      "command": [
+        "timeout",
+        "1200",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "env",
+        "SNAPBACK4_RATCHET_UPDATE=1",
+        "cargo",
+        "test",
+        "-p",
+        "snapback4",
+        "--test",
+        "store_port_ratchet",
+        "--test",
+        "committer_ratchet"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 42.005
+    },
+    "docs-budget": {
+      "label": "docs-budget",
+      "command": [
+        "timeout",
+        "1200",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "node",
+        "scripts/docs-budget.mjs"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 18.655
+    },
+    "column-lean": {
+      "label": "column-lean",
+      "command": [
+        "timeout",
+        "1200",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "env",
+        "SNAPBACK4_REQUIRE_LEAN=1",
+        "SNAPBACK4_LEAN_ORACLE=/home/ccheever/projects/snapback-sb4loop/snapback4/lean/.lake/build/bin/quarry-oracle",
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-difftest",
+        "--test",
+        "column_reads_lean"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 6.529
+    },
+    "authoring-census": {
+      "label": "authoring-census",
+      "command": [
+        "timeout",
+        "1200",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-device",
+        "--test",
+        "readauth",
+        "census::authoring_census",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 53.679
+    },
+    "delivery-census": {
+      "label": "delivery-census",
+      "command": [
+        "timeout",
+        "150",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "node",
+        "/home/ccheever/sb4-loop/merge035/r3/delivery-census.mjs"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 0.715
+    },
+    "postgres-feature-lib": {
+      "label": "postgres-feature-lib",
+      "command": [
+        "timeout",
+        "1800",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "cargo",
+        "test",
+        "-p",
+        "snapback4-core",
+        "--features",
+        "postgres",
+        "--lib",
+        "--no-fail-fast"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 262.582
+    },
+    "survey-250": {
+      "label": "survey-250",
+      "command": [
+        "timeout",
+        "6300",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "python3",
+        "snapback4/reports/integration19/survey.py",
+        "/home/ccheever/projects/snapback-sb4loop/snapback4/target/merge035-r3-pinned/snapback4",
+        "/home/ccheever/sb4-loop/merge035/r3/survey"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop",
+      "exit": 0,
+      "seconds": 26.175
+    },
+    "affected-clients": {
+      "label": "affected-clients",
+      "command": [
+        "timeout",
+        "7100",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "node",
+        "scripts/run-client-tests.mjs",
+        "24",
+        "files",
+        "packages/snapback4/test/admit-before-identity.test.mjs",
+        "packages/snapback4/test/app-local-session.test.mjs",
+        "packages/snapback4/test/dormant-visibility.test.mjs",
+        "packages/snapback4/test/effectful-cancellation.test.mjs",
+        "packages/snapback4/test/expired-server-watch.test.mjs",
+        "packages/snapback4/test/expiry-reference-actions.test.mjs",
+        "packages/snapback4/test/expo-session-store.test.mjs",
+        "packages/snapback4/test/generated-effect-context.test.mjs",
+        "packages/snapback4/test/generated-effect-opt-in.test.mjs",
+        "packages/snapback4/test/identity-invitation-issuance.test.mjs",
+        "packages/snapback4/test/identity-organizations.test.mjs",
+        "packages/snapback4/test/identity-profile.test.mjs",
+        "packages/snapback4/test/identity-rate.test.mjs",
+        "packages/snapback4/test/identity-review.test.mjs",
+        "packages/snapback4/test/identity.test.mjs",
+        "packages/snapback4/test/keep-clock.test.mjs",
+        "packages/snapback4/test/online-session.test.mjs",
+        "packages/snapback4/test/query-publication-session.test.mjs",
+        "packages/snapback4/test/read-only-custody-server.test.mjs",
+        "packages/snapback4/test/read-only-server.test.mjs",
+        "packages/snapback4/test/release-activation.test.mjs",
+        "packages/snapback4/test/release-capabilities.test.mjs",
+        "packages/snapback4/test/release-react.test.mjs",
+        "packages/snapback4/test/release-transitions.test.mjs",
+        "packages/snapback4/test/schema-session.test.mjs",
+        "packages/snapback4/test/server-check.test.mjs",
+        "packages/snapback4/test/server-clock-browser.test.mjs",
+        "packages/snapback4/test/server-clock-live.test.mjs",
+        "packages/snapback4/test/server-clock-recovery.test.mjs",
+        "packages/snapback4/test/server-clock-regressions.test.mjs",
+        "packages/snapback4/test/server-clock-wire.test.mjs",
+        "packages/snapback4/test/server-clock.test.mjs",
+        "packages/snapback4/test/server-e2e.test.mjs",
+        "packages/snapback4/test/server-output.test.mjs",
+        "packages/snapback4/test/server-routes.test.mjs",
+        "packages/snapback4/test/server-runtime.test.mjs",
+        "packages/snapback4/test/session-reasons.test.mjs",
+        "packages/snapback4/test/session-security.test.mjs",
+        "packages/snapback4/test/wave14-release-preview.test.mjs",
+        "packages/snapback4/test/web-session-authority.test.mjs"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 324.167
+    },
+    "wasm-build": {
+      "label": "wasm-build",
+      "command": [
+        "timeout",
+        "1200",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "bash",
+        "scripts/build-wasm.sh"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 68.763
+    },
+    "wasm-measure": {
+      "label": "wasm-measure",
+      "command": [
+        "timeout",
+        "2400",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "env",
+        "PATH=/home/ccheever/sb4-loop/merge035/bin:/home/ccheever/.codex/packages/standalone/releases/0.162.1-x86_64-unknown-linux-musl/codex-path:/home/ccheever/.local/bin:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/bin:/home/ccheever/.local/bin:/home/ccheever/expose-build/tools/bin:/home/ccheever/expose-build/tools:/home/ccheever/.codex/tmp/arg0/codex-arg07kbNgQ:/home/ccheever/.codex/packages/standalone/releases/0.162.1-x86_64-unknown-linux-musl/codex-path:/home/ccheever/.bun-1.4.2/bin:/home/ccheever/.cargo/bin:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/bin:/home/ccheever/.opencode/bin:/home/ccheever/.bun/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/expose-build/tools/bin:/home/ccheever/expose-build/tools:/home/ccheever/.elan/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/bin:/home/ccheever/.opencode/bin:/home/ccheever/.bun/bin:/home/ccheever/.cargo/bin:/home/ccheever/.local/bin:/home/ccheever/.local/bin:/home/ccheever/expose-build/tools/bin:/home/ccheever/expose-build/tools:/home/ccheever/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+        "bash",
+        "scripts/measure-wasm.sh"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 72.428
+    },
+    "prepare-pack": {
+      "label": "prepare-pack",
+      "command": [
+        "timeout",
+        "3600",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "node",
+        "scripts/publish.mjs",
+        "--prepare-client",
+        "--prepare-directory",
+        "/home/ccheever/sb4-loop/merge035/r3/fresh-pack"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 41.313
+    },
+    "root-bootstrap": {
+      "label": "root-bootstrap",
+      "command": [
+        "timeout",
+        "1600",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "bash",
+        "-c",
+        "bun install --frozen-lockfile && node scripts/ensure-workspace-hoist.mjs && node scripts/generate-diagnostics-registry.mjs && node scripts/generate-guide-manifest.mjs"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop",
+      "exit": 0,
+      "seconds": 183.61
+    },
+    "root-checks-final": {
+      "label": "root-checks-final",
+      "command": [
+        "timeout",
+        "1700",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "bash",
+        "-c",
+        "node scripts/check-inventories.mjs && node scripts/check-guide.mjs && ./ref-check"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop",
+      "exit": 0,
+      "seconds": 428.783
+    },
+    "qualify-linux": {
+      "label": "qualify-linux",
+      "command": [
+        "timeout",
+        "14300",
+        "env",
+        "CARGO_INCREMENTAL=0",
+        "CARGO_PROFILE_DEV_DEBUG=0",
+        "CARGO_PROFILE_TEST_DEBUG=0",
+        "env",
+        "npm_config_cache=/home/ccheever/sb4-loop/merge035/r2/npm-cache",
+        "node",
+        "scripts/qualify-linux.mjs",
+        "--client",
+        "/home/ccheever/sb4-loop/merge035/r3/fresh-pack/snapback4-0.4.35.tgz",
+        "--expo",
+        "/home/ccheever/sb4-loop/merge035/r3/fresh-pack/snapback4-expo-0.4.35.tgz",
+        "--out",
+        "/home/ccheever/sb4-loop/merge035/r3/qualified",
+        "--consumer-only"
+      ],
+      "cwd": "/home/ccheever/projects/snapback-sb4loop/snapback4",
+      "exit": 0,
+      "seconds": 2090.887
+    }
+  },
+  "logSha256": {
+    "core-host": "6623f705c7a90a1e216e4fe5a12d0136d0b4ef3a91aba91f55328da1b7bb3355",
+    "sim-lib": "55cc9cf45393a0a49e34d909451ed9550051871c00e9d778dbed5abb889007ab",
+    "ratchets": "dbb9f710873261a00795e7fab1547b3c09b366ccac90ccaa62d38e4693b49903",
+    "docs-budget": "2be835b54f0991ca1dc8d5993011d72dfbb5e2a731e97866dc6aa408701fe415",
+    "column-lean": "ac751f00aee16227e47aa6a42b349639e1790b8aecd8ec589f86a0bda4af07b5",
+    "authoring-census": "2a1ce9e4aed77573f12fe5db033c3096eb6ab3f42643e0ae1f4ed8530d66c847",
+    "delivery-census": "239a8496efb5cf8504209fe4543fa0f7ed84fa1be8d6c86560b2a3e57abdba01",
+    "postgres-feature-lib": "169e06c39c4fa4b67a0d993d07bad37d0c77a6d507334c9eb3801eb355d60f44",
+    "survey-250": "69bb51a481b776667b7540b11a60909a3c45e5027b22e63a5dc7d642ea3eb5fd",
+    "affected-clients": "d9aadb86e35f742d64539d1b66fe7cef846a34411a06feb2cad6532cff3f73fa",
+    "wasm-build": "cec1678cdde3d6b2c937b8745f33742bf83294aa1a184ad9b00cbcc2d8d05542",
+    "wasm-measure": "4317ed4edea50095415085ce26af20d8f58fe6be597fe69ecc528d67d91f9968",
+    "prepare-pack": "7083c3a3eca35e2e7dffd3434d43c68264a87ba1ed1d7560ca134a739ec0657e",
+    "root-bootstrap": "77e3f61005c2da2081602429f2e248c3a42c509617e9f38533d78883d4e0b578",
+    "root-checks-final": "9a4c0795e1820641f80d900d0fcbe33bddfcd210fb6f0f351fbe94faf96ecdb3",
+    "qualify-linux": "aa579ace92f06b16ba2c2f08a05793abe92fdbb626a49d6e52a446a7064d84af"
+  },
+  "coreHost": {
+    "groups": 115,
+    "passed": 2346,
+    "failed": 0,
+    "ignored": 20
+  },
+  "affectedClients": {
+    "files": 40,
+    "counts": {
+      "tests": 556,
+      "pass": 553,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 3,
+      "todo": 0
+    },
+    "diagnosticIpcCounts": {
+      "tests": 556,
+      "pass": 553,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 3,
+      "todo": 0
+    },
+    "binary": {
+      "path": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/merge035-r3-pinned/snapback4",
+      "sha256": "fbff4d51e067fb082d1850e9725aebc6550f2c77e0b0136aae231243da3d9a26",
+      "source": "971a28ecd1170c630a6a15fa9eaeb1e3a4a67b73",
+      "version": "snapback4 0.4.35"
+    }
+  },
+  "survey": {
+    "apps": 250,
+    "accepted": 250,
+    "falseRefusals": 0,
+    "originalHashesUnchanged": true,
+    "binarySha256": "fbff4d51e067fb082d1850e9725aebc6550f2c77e0b0136aae231243da3d9a26",
+    "logSha256": "d6cd155c4e24c41e1e608b954e11d5860717257b704b362c917bc83c41a04fb1"
+  },
+  "census": {
+    "items": 872,
+    "bytes": 72262,
+    "byteIdentical": true,
+    "sha256": "2c5b14233ea0744571e705346d9ce2976038490740765076914bea4ad4fc95b9"
+  },
+  "deliveryCensus": {
+    "sourceFiles": 147,
+    "awaitExpressions": 1227,
+    "faultSites": 213,
+    "byteIdentical": true,
+    "sha256": "5fa6ec840dc6f1f8e21ff985b0f15b949b22c04812bd32e8b3167b29893fdfcc"
+  },
+  "qualification": {
+    "source": "8d2633e8c103708d9014ec283c1acad864a615c2",
+    "consumerSha256": "1456a294c4d47932a936925c47db8b05d0f511e2476bbcf0869429f3bc1a138a",
+    "binarySha256": "1b502c7f7a7269f48e8fdb9a58bc612fabddf1ecc164941a7af44eb44feddfae",
+    "clientIntegrity": "sha512-G2dF0gdY+Lwl8ZTgczNblP0YSUAVG3RzBbkDNwwT44hSfIe4xGX6B12jsOqAgJ+AviSYYoXSoVJzE2b3FYF2TQ==",
+    "expoIntegrity": "sha512-VG2aYE4ebdc/8Jnd73Oekep+68tJc+SpwtF9fwJG8V44ZJigrdupJSmkC/tMDSJhjOG1RfJzLPyBK1ZVYkACxQ==",
+    "publicationQualified": false
+  },
+  "wasm": {
+    "packedSource": "8d2633e8c103708d9014ec283c1acad864a615c2",
+    "measurement": {
+      "at": "2026-10-21T01:04:41Z",
+      "sha": "ae7adb2157",
+      "dirty": false,
+      "wasm": {
+        "raw": 2404722,
+        "gzip": 733693,
+        "brotli": 552609
+      },
+      "glue": {
+        "raw": 16053,
+        "gzip": 3695,
+        "brotli": 3259
+      },
+      "wasmOpt": true,
+      "budget": 734193,
+      "over": 0
+    },
+    "sha256": "48aa2aeb3f5ddd8ad481084205ff024cc5853a248483496352b069187123e0de",
+    "raw": 2404722,
+    "gzip": 733693,
+    "brotli": 552609,
+    "budget": 734193,
+    "headroom": 500,
+    "packedMatchesBuiltArtifact": true,
+    "compressionNumbersMatchCleanMeasurement": true
+  },
+  "difftest": {
+    "native": {
+      "cases": 20000,
+      "generated": 20000,
+      "executed": 1222111,
+      "by_oracle": {
+        "meter": {
+          "attempted": 545774,
+          "passed": 67880,
+          "unsupported": {
+            "examined-opening-no-position": 15543,
+            "heap_bytes-unwind-no-continuation": 148381,
+            "mutation-not-a-read": 3663,
+            "output_bytes-refusal-no-continuation": 13966,
+            "return-not-pageable": 43615,
+            "rule_probes-opening-no-position": 1573,
+            "steps-refusal-no-continuation": 217750,
+            "steps-unwind-no-continuation": 31032,
+            "timed-search-no-continuation": 410,
+            "uncut-refusal": 1961
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "repeat": {
+          "attempted": 20000,
+          "passed": 20000,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "rewrite-commute": {
+          "attempted": 20000,
+          "passed": 3160,
+          "unsupported": {
+            "rewrite-not-applicable": 16840
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 1683
+        },
+        "rewrite-declarations": {
+          "attempted": 20000,
+          "passed": 20000,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "rewrite-identity": {
+          "attempted": 20000,
+          "passed": 2751,
+          "unsupported": {
+            "rewrite-not-applicable": 17249
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 2751
+        },
+        "rewrite-lazy-and": {
+          "attempted": 20000,
+          "passed": 1145,
+          "unsupported": {
+            "rewrite-not-applicable": 18855
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 1145
+        },
+        "rewrite-lazy-or": {
+          "attempted": 20000,
+          "passed": 1250,
+          "unsupported": {
+            "rewrite-not-applicable": 18750
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 1250
+        },
+        "rewrite-let": {
+          "attempted": 20000,
+          "passed": 20000,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 20000
+        },
+        "timed-search-future-absence": {
+          "attempted": 415,
+          "passed": 415,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        }
+      }
+    },
+    "devices": {
+      "cases": 1000,
+      "generated": 1000,
+      "executed": 27922,
+      "by_oracle": {
+        "device-memory-converge": {
+          "attempted": 177,
+          "passed": 40,
+          "unsupported": {
+            "converge-observe-online-only-unknown-incomplete": 137
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-memory-cut": {
+          "attempted": 5700,
+          "passed": 5700,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-memory-read": {
+          "attempted": 823,
+          "passed": 448,
+          "unsupported": {
+            "online-only-unavailable": 75,
+            "online-only-unknown-incomplete": 300
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-memory-write": {
+          "attempted": 177,
+          "passed": 32,
+          "unsupported": {
+            "prediction-declined": 12,
+            "unpredictable-unsynced-table": 133
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-sqlite-converge": {
+          "attempted": 177,
+          "passed": 40,
+          "unsupported": {
+            "converge-observe-online-only-unknown-incomplete": 137
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-sqlite-cut": {
+          "attempted": 5700,
+          "passed": 5700,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-sqlite-read": {
+          "attempted": 823,
+          "passed": 448,
+          "unsupported": {
+            "online-only-unavailable": 75,
+            "online-only-unknown-incomplete": 300
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-sqlite-write": {
+          "attempted": 177,
+          "passed": 32,
+          "unsupported": {
+            "prediction-declined": 12,
+            "unpredictable-unsynced-table": 133
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        }
+      }
+    },
+    "lean": {
+      "cases": 20000,
+      "generated": 20000,
+      "executed": 56917,
+      "by_oracle": {
+        "lean": {
+          "attempted": 20000,
+          "passed": 16697,
+          "unsupported": {
+            "call-max": 319,
+            "call-min": 276,
+            "call-sum": 286,
+            "index-computed-or-words": 556,
+            "input-null": 2,
+            "loop": 449,
+            "now": 99,
+            "page-compound-where-branches": 22,
+            "page-static-key-expression": 12,
+            "prelude-now": 151,
+            "shape": 1001
+          },
+          "disagreeing": 130,
+          "signatures": {
+            "lean--code--E_RULE~NOT_FOUND": 3,
+            "lean--continuation-next--next~no-next": 35,
+            "lean--next--next~no-next": 67,
+            "lean--prelude-code--E_RULE~NOT_FOUND": 25
+          },
+          "meter_fields_omitted": 0
+        }
+      }
+    }
+  },
+  "scope": "Full core and host; sim library; targeted clients; PG-enabled library with database-specific cases explicitly ignored; fresh campaigns, survey, official pack and full consumer qualification. Full client models/compiler/device/simulator suites bind the preceding full battery and unchanged sources; no exact-HEAD full-battery claim. No Mac or publication claim."
+}

@@ -1,177 +1,131 @@
-# Integration 19 — Snapback 4 0.4.35
+# Integration 19 — merge main storage ports into 0.4.35
 
-Completed in `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
-Committed locally; **not pushed or published**. Qualification source:
-`a3f0274d4ed0f8e92a18097cb5443d03d2c6d3e1`. The final evidence commit changes reports only.
+Worktree: `/home/ccheever/projects/snapback-sb4loop`; branch `sb4-loop`.
+Current checkpoint: `8d2633e8c103708d9014ec283c1acad864a615c2`.
+**All requested Linux checks and post-main affected checks passed. Ready for the final fetch and authorized no-force push.**
 
-## Ordered integration and release
+## Changes and conflicts
 
-Started clean at `8b1b688190`, fetched origin, and ran the requested ff-only
-main merge. Each lane report was read before its no-ff merge. Root report
-conflicts kept the integration side; this report replaces all checkpoints.
+Started clean at `594aa970ab`. Read the incoming commit stats, governing port
+RFC/committer RFC, retained-storage law, journals and referenced issues before
+integration. Initial incoming main had 44 commits through `6db797f530`; later
+fetches brought 20 through `e2073e1b66`, then four jobs commits through `8cc2a5c737`.
+All integrations preserve main history with no-ff merges.
 
-| Lane | Merge | Integrated change |
+| Conflict | Resolution | Commit |
 | --- | --- | --- |
-| QRY | `15a2f9df83` | Partial-branch returns, shared return reservations and hidden lookup semantics. |
-| DX4 | `dca77a9be8` | Staging discovery, upgrade warnings, dev/upload/retry fixes and local production lifecycle. |
-| SEC4 | `1fef5e95e8` | Independent invariants, generated fixtures/campaigns, test discovery, audit/coverage, check speed and wave-19 security addendum. |
-| COLR | `04995606ae` | Column-level read rules, omitted protected properties, compiler/prover/audit/client support. |
-| DORM | `0634834e5b` | Reverse projections, dormant visibility, honest checks, forward backfills, SQL inspection, column rename and argument aliases. |
+| assets.rs | Keep the typed asset ledger/adapter structure and port .35 sniffing, upload and owner-home diagnostics into it. | `07b210d2ff` |
+| release_safeguards.rs | Keep typed tooling access; capture .35 active/dormant before-images in `store/tooling.rs`, in MAIN so activation's temp_store changes cannot erase them. Move the regression beside the adapter. | `07b210d2ff` |
+| sql.rs | Use Inspection; move dormant/retained schema and view generation into `store/inspect.rs`. Preserve modes, boolean inference, guards and authorizer custody. | `07b210d2ff` |
+| JOURNAL.md | Preserve both complete histories, including the later committer/identity merge. | `07b210d2ff`, `971a28ecd1` |
 
-The parallel public 0.4.33 records (`312e6def3d`) were merged in `b909b02cd9`.
-A later unrelated Postgres research commit on main was outside this integration.
-No publication worktree, forbidden publication output or other existing worktree
-was touched. The prescribed Exact scratch clone was used separately.
+Also moved newly introduced .35 release-visibility SQL into typed tooling
+operations. No port bypass or allowance raise. Final delta audit found two
+missed SQL host details: JSON inspection mode and misplaced retained flags.
+Expanded regression failed before correction and passed after `3fe924cd9b`.
+No further merge-resolution code fix was needed after that correction; later main changes were integrated separately.
 
-Separate bump **`9ec63002ee991a70dd5d028280262b5391c56e47`**:
-`snapback4 0.4.35: column privacy, reversible old views and invariant quality`.
-Its ten files/23 replacements match `77dd50092f`; the independent `log`
-dependency stays at 0.4.34. One coherent 0.4.35 CHANGELOG entry explains all lanes
-and upgrade effects. Existing apps do not acquire column policies, inverse
-backfills or privacy declarations automatically. The migration-history format-7
-custody is documented, including older-CLI refusal and backup expectations.
-LLP 3000.037 §20.3 extends the day-two bakeoff from the supplied wave-19 analysis
-and describes what 0.4.35 changes; historical timings are not claimed as .35 results.
+0.4.35 column read rules, dormant/reverse projection, reactivation, `sql --dormant`,
+invariants/campaigns, staging/dev behavior, lock waits and query semantics remain
+expressed through the new structure. Later committer savepoints/dispositions and
+identity/request/jobs parity changes retain their incoming boundaries. The jobs
+merge `cc8fd79fa9` was conflict-free.
 
-## Integration corrections and review
+## Version and generated records
 
-Integration `8dbe9ece2b`, release-precondition regression `7dff38691a`, and wasm
-ratchet/survey producer `1c59daa995` precede the review fixes:
-`138d61dcbf`, `fdd5b61fbb`, `5db382795c`, `8e1fa93bcd`, `2152289f46`,
-`f5d010c3f0`, `750c8fc94e`, `9a080a38b4`, `ffce9018f6`, `8f68ff23e0`.
+Original bump `9ec63002ee991a70dd5d028280262b5391c56e47` remains an ancestor.
+Snapback 4 public package/workspace version remains **0.4.35**; independent log dependency
+0.4.34 remains unchanged. `56acd9239a` producer-refreshes only the experiment
+lockfile's three local package versions; registry versions remain unchanged
+and locked resolution passes.
 
-Column rules and independent column invariants now share the prover, audit,
-privilege/effects analysis and generated campaigns. Omission is distinct from
-nullable storage through scalar reads, whole rows, nested spreads and defaults.
-Every accepted argument spelling participates in alias availability and old-client
-compatibility. Deploy/rollback previews combine security, client differences,
-backfills and visibility in one report. Local lifecycle fixes retain release-path
-lock and stop behavior.
+Diagnostics registry and guide-manifest/flat projections were regenerated by
+their producers, with no resulting source diff. Inventories pass: 365 package
+tests, 35 script tests, 31 demos and 487 publication leaves. Authoring census
+regenerates exactly 872 items / 72,262 bytes. Delivery census regenerates exactly
+147 files / 1,227 await expressions / 213 instrumented fault sites. Both ratchets
+pass in lowering-only producer mode: 7 production / 95 test store-port sites;
+49 production transaction openers. No generated file was hand-merged.
 
-Reverse migration repairs preserve newer-source staging, exact native preimages,
-inactive receipts, scalar-only custody, reference-input lifetimes, absent cells,
-narrowed/retired images and dormant overlays. Eligibility includes already-hidden
-rows; incoming native receipts take precedence over leaving projections. Native
-edits and expired/pruned evidence refuse rather than silently replace data.
-Source indexes rebuild lazily for applicable expressions; raw existence admission
-validates plain/prefix/range indexes. Governing LLP 3000.000.000 §19.1 and the
-current deploy guide explain the resulting contracts. All 111 migration tests pass,
-including the 64-seed, twelve-step, eight-variant release walk.
+## Linux verification
 
-Eleven independent review rounds produced verbatim Muse and fresh Codex artifacts
-with briefs and provenance in [llp/reviews/integration19](llp/reviews/integration19/).
-Round eleven marks the same product revision `8f68ff23e0` READY in both families.
-No author acceptance is inferred. `ad0309c8cd` subsequently corrects test witnesses
-and regenerates the delivery await census. `a3f0274d4e` only soft-wraps two guide
-paragraphs to satisfy the existing rules/deploy budgets (374/280 lines); paragraph
-words and every fenced program are identical. Equivalence records accompany the
-final evidence. The full source checks and packed consumers reran after that fix.
+| Scope | Source / evidence | Result |
+| --- | --- | --- |
+| Complete requested five-crate cargo test --no-fail-fast, after last SQL fix | `3fe924cd9b`; r2/cargo-final | **6,999 passed / 0 failed / 45 existing ignores**, 439 reported result groups. |
+| Full ordinary client pool, fixtures and both full models | r2; 423 ordinary files; 5,000 session / 3,000 online sequences | **7,845 passed / 0 failed / 56 platform skips**, 7,901 tests. Native TAP and actual file exits agree. Correct .35 CLI pinned inside this checkout. |
+| Complete affected core and host command after committer/identity/request main merge | `971a28ecd1`; r3/core-host | **2,346 passed / 0 failed / 20 existing ignores**, 115 reported groups; core unit suite 551/0/3. |
+| Affected clients on that new native binary | r3; 40 files | **553 passed / 0 failed / 3 platform skips**. |
+| Simulator library; required column Lean witnesses; docs budget | r3 | 17/0/0; 3/0/0; README 319/320 and named self-containment check pass. |
+| Postgres-feature library | r3 | **560 passed / 0 failed / 77 named ignores**. Real database cases are not claimed as executed. |
+| Jobs follow-up library cases | `cc8fd79fa9`; r4 | 21 passed / 0 failed / 25 named Postgres-only ignores. |
+| Job time audiences / native job fixtures / CLI jobs | r4 | 5/0/0; 12/0/1 existing ignore; 2/0/0. |
+| Clock, admission and both ratchets | r4 | 81 passed / 0 failed / 0 ignored. |
+| 250-schema survey | r2, r3, repeated r4 on the jobs-merged CLI | **250/250 accepted; zero refusals and false refusals**. Every original source hash unchanged. Waves 15=100; 16/18/19=50 each. |
 
-## Final Linux verification
+Native differential `run`: 20,000 cases / 1,222,111 executions / zero disagreements.
+Device `run-devices`: seeds 0–999 / 27,922 executions / zero disagreements.
+Lean `run-lean`: 20,000 cases / 56,917 executions; 16,697 pass, 3,173 unsupported,
+130 existing mismatches. All three campaigns were freshly repeated after the
+jobs merge and exactly match baseline by-oracle records. Four known Lean
+signatures/counts remain: E_RULE/NOT_FOUND code=3; continuation-next=35; next=67;
+prelude-code=25. **No new signature or count increase.**
 
-- Exact requested five-crate `cargo test ... --no-fail-fast`: **6975 passed,
-  0 failed, 45 existing ignores across 438 result groups.
-  This is one complete run after the last fix. Earlier interrupted/superseded
-  attempts are not counted. No flaky rerun is substituted for a red full run.
-- Full ordinary client pool: 423 files in one invocation, then both full models
-  (5,000 app-session / 3,000 online sequences), plus fixture wrapper tests.
-  Total **7845 passed, 0 failed, 56 platform skips** across
-  7901 tests. Native TAP and actual per-file exits agree. The final CLI
-  was pinned inside this checkout so upgrade helper lookup is exercised correctly.
-- Native differential `run`: 20,000 cases / 1,222,111 executions, zero disagreements.
-  `run-devices`: seeds 0–999 / 27,922 executions, zero disagreements.
-  `run-lean`: 20,000 cases / 56,917 executions; 16,697 pass, 3,173 unsupported,
-  130 mismatches. The exact base `8b1b688190` reproduces all four signatures and
-  counts: code E_RULE/NOT_FOUND 3; continuation-next 35; next 67; prelude-code 25.
-  **No new signature or count increase.** Required column-rule Lean witnesses: 3/3.
-- Fresh official `publish.mjs --prepare-client --prepare-directory` pack followed
-  by `qualify-linux.mjs --consumer-only`: green. Twelve frontend proofs, six
-  starters, actual Ubuntu 24.04 and Alpine consumers via proot, and every merged
-  production/regression/security/migration/staging/DX4/rule/client-recipe proof.
-  All eleven new dormant cases passed, including rename and old argument mapping.
-  Consumer-only avoids the explicitly forbidden full `scripts/test.sh`; the
-  five-crate/client suites are independently green. `publicationQualified` remains
-  false: this integration does not claim a publication receipt.
-- Root prescribed frozen Bun install, hoist and generated-artifact setup completed.
-  Inventories: 365 package tests / 35 script tests / 31 demos / 487 publication leaves.
-  Guide: 22 pass, 0 fail, 0 skip, 0 missing preconditions; 162 pages / 1,937 snippets.
-  Its 121 inherited warnings are recorded. Ref-check: 556 LLP docs / 12,144 refs,
-  zero errors and zero unchecked. Diagnostics registry and guide manifest were
-  producer-regenerated; final checks confirm the complete chain.
-- Docs budget: README 319/320 lines; exact named self-containment test ran and passed.
-  RULES4 authoring census producer: 872 items / 72,262 bytes, byte-identical.
-  Delivery await boundary regenerated for 147 source files; all 213 actual fault
-  sites remain unchanged. No generated file was hand-merged.
+The full battery is content-bound to its tested source; later main deltas were
+checked at affected scope. Client/compiler/device source trees are unchanged by
+those main follow-ups. There is no claim of a complete battery at every new HEAD.
+No isolated rerun substitutes for a red full Rust run; no product Rust flake
+appeared. Interrupted or superseded attempts are excluded.
 
-The initial unbound client attempt selected an old 0.4.28 CLI and is invalid as
-merged verification. That binary is preserved recoverably outside the source
-checkout. Superseded mixed/interrupted client logs are also excluded. The first
-packed attempt hit strace PTRACE_LISTEN EIO; subsequent complete qualification
-passed with listener auditing enabled. Test witness corrections retain their
-assertions (idempotent auth recipe, honest rollback wording, qualifier refusal
-mocks, and fresh HTTP connections after synchronous long CLI previews).
+## Packed consumers and wasm
 
-## Survey, upgrades and Exact
+R2 fresh official pack and complete `qualify-linux --consumer-only` passed,
+including strict listener audits, frontends/starters, production/security/
+migration/staging/release/dormant proofs and Ubuntu/Alpine userspaces. Final
+post-jobs official pack at `8d2633e8c1` also passes the entire qualification
+in 2,090.887 seconds, including both Ubuntu and Alpine consumers. This mode
+never produces a publication receipt.
 
-The final pinned merged binary accepted **250/250** unchanged original schemas:
-wave 15 = 100, waves 16/18/19 = 50 each. Zero refusals and zero false refusals.
-[survey.json](snapback4/reports/integration19/survey.json) records per-wave and total
-counts by code, distinct affected-app counts and original source hashes. All
-compilation occurred in owned scratch copies.
+Clean final measurement (`ae7adb2157`, committed record `8d2633e8c1`):
+**2,404,722 raw / 733,693 gzip / 552,609 Brotli bytes**.
+Budget **734,193 gzip bytes = measured + exactly 500** (`ae7adb2157`).
+Strict family/server-only/Unicode absence checks pass, dirty=false, over=0.
+Packed wasm matches the built artifact and all measured compression counts;
+SHA256 `48aa2aeb3f5ddd8ad481084205ff024cc5853a248483496352b069187123e0de`.
+This is whole-artifact evidence with no per-feature attribution or runtime
+ceiling change. Earlier merged measurement was 733,690 gzip; final change +3 B.
 
-The public registry supplied exact `snapback4@0.4.33` and
-`snapback4-expo@0.4.33` installs. A fresh Expo app was checked at .33, then the actual
-merged CLI `upgrade 0.4.35 --json` adopted the final prepared core/Expo/platform
-packs through a local metadata proxy (unpublished .35 bytes; all other metadata
-forwarded to the public registry). Exact .35 pins, check, TypeScript and the
-installed CLI without an override pass. Artifact hashes match final packed
-qualification. No package was published.
+The global npm-cache ENOENT was avoided with a private task cache. Two complete
+R2 attempts later hit malformed system-strace 6.8 records, after actual frontend
+proofs passed. Raw traces and exact isolated helper results were retained. The
+entire packed qualification passed after building task-local, official-source/
+hash-verified [strace 7.2](https://github.com/strace/strace/releases/tag/v7.2); the strict audit/parser was unchanged. Final qualification
+uses the same tracer/cache isolation. Reinstallable dependencies from the two
+failed attempts were removed for disk space; logs, fixtures and artifacts remain.
 
-The store upgrade used a read-only SQLite backup of wave-19 lane039 deploy plus
-its release history. Published .33 first rolled it back to release 1, creating
-dormant rows. The merged .35 build adopted it, performed honest checks and two
-forward/rollback cycles, restored authoritative rows exactly, and exposed 52
-dormant jobReviews rows through `sql --dormant`. The original store is untouched.
-See [upgrade.json](snapback4/reports/integration19/upgrade.json).
+## Limits, records and delivery
 
-Exact was cloned cleanly from Exact2 origin/main at
-`bacf31a8e0160908c9fd84b44bf8ac5b28f60683` under
-`~/sb4-loop/prewave19/exact2`, containing EX10 `contract migrate`. Its only local
-adaptation redirects core/device/lang dependencies to merged .35 source, with a
-lockfile refresh; the exact diff/digest is recorded. Fresh synced and online apps
-created in this session both pass the final binary/client recheck (two web tests
-each, including offline behavior and refused domain writes respectively).
+Mac checks were explicitly not required and were not run. No package publication,
+Mac result or private Postgres qualification is claimed. Upstream private-cluster
+records are context, not substitutes for this worktree's tests.
 
-For each app, the final commands were: parent `npm install` of the prepared core
-pack; in the app, `bun exact.mjs snapback --port PORT`,
-`bun exact.mjs contract migrate app.contract`,
-`bun exact.mjs contract types app.contract -o app.contract.d.ts`, then
-`bun exact.mjs test web --backend http://127.0.0.1:PORT` against the pinned merged
-`dev --port PORT --no-watch` backend. Ports: synced 26990, online 26991.
-[exact.json](snapback4/reports/integration19/exact.json) records exact commands,
-working directories, exits, binary/client digests and the manifest adaptation.
+A supplemental repository-wide caps audit at `3fe924cd9b` retained 15 inherited
+oversize/working-set violations; both-parent comparison proves their inheritance,
+and its fixture tests pass 18/18. No caps were relaxed or unrelated corpus
+rewritten. This is separate from the required root inventory/guide/ref checks.
+Final root checks pass 22 guide checks, zero skips/preconditions,
+162 pages/1,937 snippets, with 121 inherited warnings. Ref-check passes:
+564 LLP documents, 12,193 references, zero errors and zero unchecked.
 
-## Wasm, deferrals and evidence
+Full-battery evidence committed in `4767a19ecf` under
+`snapback4/reports/integration19-storage-port/`; `post-main.json` records the
+subsequent complete core/host and focused jobs tests, repeated campaigns/survey,
+final pack, runtime input hashes and full consumer/root results. Raw logs, packs and tool provenance are under
+`/home/ccheever/sb4-loop/merge035/` (r2, r3, r4); immutable CLI pins are under
+`snapback4/target/merge035-*-pinned/`. Every shell launch has a
+timeout; every Cargo command carries no-incremental and zero dev/test debug flags.
+Other worktrees were not touched.
 
-Final wasm: **2,404,722 raw bytes; 733,690 gzip bytes**.
-Budget: **734,190 gzip bytes = measurement + 500**.
-The whole-artifact change from Integration 18 is +18,880 raw / +6,677 gzip bytes:
-column omission/projection, shared query branch reservations, argument-alias
-metadata and the .35 stamp. Server-only reverse custody is absent from the device.
-Strict family/server-only/Unicode absence attribution passes; no runtime ceiling
-was raised.
-
-**Mac checks were not run.** The designated Mac Studio repeatedly timed out on
-SSH port 22 for well over the allowed one-hour threshold. Attempts are recorded
-in summary.json; no black M5 or alternate Mac was used. Darwin/platform-sensitive
-clients, affected Mac Cargo targets and the Expo native witness remain unverified
-for this integration. Lane evidence is not substituted. This is the sole required
-platform deferral under the explicit unreachable exception. Lean's reproduced
-baseline mismatches and existing platform skips/ignores are stated above.
-
-Sanitized, hash-bound summaries are in
-[snapback4/reports/integration19](snapback4/reports/integration19/).
-Raw logs, packs and private test-store copies remain in
-`/home/ccheever/sb4-loop/integ19/`. Every shell launch has a timeout; Final Cargo runs
-inherit no incremental compilation and zero dev/test debug settings. All local
-integration commits use the requested Charlie Cheever identity. No push was run.
+Delivery: evidence and this report are prepared for a final fetch and, if main
+has advanced, a normal merge plus affected checks; then the authorized
+`git push origin sb4-loop:main`, without force and with race retries.
+The final session message records the pushed commit. No package was published.

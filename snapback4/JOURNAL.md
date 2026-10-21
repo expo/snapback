@@ -98685,3 +98685,18 @@ from the earlier storage-port measurement. No runtime ceiling, independent
 per-feature attribution, Mac result or publication receipt is claimed. A clean
 measurement under this exact allowance and a fresh packed consumer qualification
 follow before delivery.
+
+
+## 2026-10-21 — Integration 19 storage-port integration: final packed Linux pass
+
+The new official 0.4.35 pack from 8d2633e8c1 passes the complete Linux
+consumer-only qualifier: production, release/dormant, security/invariants,
+migration/staging, recipes, all frontend/starter listener audits, and actual
+Ubuntu/Alpine consumers. Runtime 2,090.887 seconds; publicationQualified=false.
+The final pack's wasm matches the built artifact and clean measurement:
+2,404,722 raw / 733,693 gzip / 552,609 Brotli, allowance 734,193 = gzip + 500.
+Root producer outputs remain byte-identical; inventories and all 22 guide
+checks pass, with zero skips/preconditions. Ref-check passes 564 LLP documents
+and 12,193 references, zero errors and zero unchecked. Full-battery and later
+main-delta scopes are recorded separately in reports/integration19-storage-port/
+and WORKSTREAM-REPORT.md. No Mac/private-Postgres/publication claim is added.
