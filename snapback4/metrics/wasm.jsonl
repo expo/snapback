@@ -123,3 +123,4 @@
 {"at":"2026-10-21T09:18:04Z","sha":"6220e43d95","dirty":false,"wasm":{"raw":2404922,"gzip":733902,"brotli":0},"glue":{"raw":16053,"gzip":3695,"brotli":0},"wasmOpt":true,"budget":734193,"over":0}
 {"at":"2026-10-21T09:21:00Z","sha":"74abfb14d4","dirty":false,"wasm":{"raw":2404922,"gzip":733902,"brotli":553033},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":734402,"over":0}
 {"at":"2026-10-21T10:51:48Z","sha":"2ff08401e6","dirty":false,"wasm":{"raw":2404980,"gzip":733906,"brotli":552883},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":734402,"over":0}
+{"at":"2026-10-21T11:38:50Z","sha":"115822bc36","dirty":false,"wasm":{"raw":2404980,"gzip":733906,"brotli":552883},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":734406,"over":0}
