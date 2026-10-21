@@ -277,9 +277,4 @@ try {
 
 Storage, users and rows survive. Resolve reported conflicts through a truthful bridge.
 
-When table rules change, deploy and deploy --check print a short security exposure summary. Without a matching completed security campaign they demand `snapback4 test` for the selected source and fixtures (saved-source previews name `test --source`). Known refutations and coverage gaps remain visible; a finite campaign is not proof. This reminder does not change activation authority.
-Rule-changing deploy and deploy --check print outstanding security FIX/REVIEW
-items and the last test result with its age, including stale or missing evidence.
-Add --strict to refuse reachable refuted invariants before activation. Unproved
-intent and no-invariant advice remain review items; passing finite tests are not
-proof. Run guide security for the independent-intent loop.
+When table rules change, deploy and deploy --check lead with outstanding security FIX/REVIEW items, exposure counts and the last test result with its age; stale or missing evidence is explicit. Without a matching completed campaign they demand `snapback4 test` for the selected source and fixtures (saved-source previews name `test --source`). Add `--strict` to refuse reachable refuted intent before activation; unproved intent and no-invariant notes remain advisory. A finite campaign is evidence, not proof. See `guide security` for the independent-intent loop.
