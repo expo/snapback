@@ -1,0 +1,668 @@
+[
+  {
+    "wave": 15,
+    "lane": "016-day2-waste-accumulation-clock",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "containers.read: people.role='ehs' (`exists people[viewer, role = 'ehs']`), people.role='inspector' (`exists people[viewer, role = 'inspector']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 15,
+    "lane": "042-day2-bite-quarantine-checks",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "cases.read: staff.role='supervisor' (`exists staff[viewer, role = 'supervisor']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 15,
+    "lane": "050-day2-impound-release-desk",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "documents.read: staff.role='clerk' (`exists staff[viewer, role = 'clerk']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 15,
+    "lane": "062-day2-burn-permit-days",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "permits.read: roles.role='chief' (`exists roles[viewer, role = 'chief']`), roles.role='dispatcher' (`exists roles[viewer, role = 'dispatcher']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 16,
+    "lane": "001-snapback-ferry-deck-manifest",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "bookings.read: roles.role='captain' (`exists roles[viewer, role = 'captain']`), roles.role='deckhand' (`exists roles[viewer, role = 'deckhand']`), roles.role='operations_manager' (`exists roles[viewer, role = 'operations_manager']`), roles.role='purser' (`exists roles[viewer, role = 'purser']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 16,
+    "lane": "003-snapback-specimen-courier-chain",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "bags.read: staff.role='lab' (`exists staff[viewer, role = 'lab']`), staff.role='supervisor' (`exists staff[viewer, role = 'supervisor']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 16,
+    "lane": "005-snapback-kiln-firing-queue",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "pieces.read: memberships.role='manager' (`exists memberships[viewer, role = 'manager']`), memberships.role='tech' (`exists memberships[viewer, role = 'tech']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 16,
+    "lane": "010-snapback-allotment-water-turns",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "bookings.read: members.role='chair' (`exists members[viewer, role = 'chair']`), members.role='committee' (`exists members[viewer, role = 'committee']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 16,
+    "lane": "024-snapback-cycle-count-tasks",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "tasks.read: roles.role='lead' (`exists roles[viewer, role = 'lead']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 16,
+    "lane": "029-snapback-fire-lookout-shifts",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "sightings.read: staff.role='dispatcher' (`exists staff[viewer, role = 'dispatcher']`), staff.role='officer' (`exists staff[viewer, role = 'officer']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 16,
+    "lane": "031-snapback-piano-tuning-route",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "bookings.read: accounts.role='dispatcher' (`exists accounts[viewer, role = 'dispatcher']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 16,
+    "lane": "033-snapback-compounding-dual-check",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "preparations.read: staff.role='pharmacist' (`exists staff[viewer, role = 'pharmacist']`), staff.role='pharmacist_in_charge' (`exists staff[viewer, role = 'pharmacist_in_charge']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 16,
+    "lane": "034-snapback-marina-liveaboard-slips",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "applications.read: roles.role='harbormaster' (`exists roles[viewer, role = 'harbormaster']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 16,
+    "lane": "038-snapback-hotel-lost-property",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "claims.read: roles.role='duty_manager' (`exists roles[viewer, role = 'duty_manager']`), roles.role='staff' (`exists roles[viewer, role = 'staff']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 16,
+    "lane": "047-snapback-mural-wall-permits",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "applications.read: people.role='director' (`exists people[viewer, role = 'director']`), people.role='panelist' (`exists people[viewer, role = 'panelist']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 16,
+    "lane": "048-snapback-boiler-room-rounds",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "rounds.read: roles.role='manager' (`exists roles[viewer, role = 'manager']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "010-snapback-cobbler-repair-tickets",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "tickets.read: roles.role='bench' (`exists roles[viewer, role = 'bench']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "011-snapback-gem-lab-certificates",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "submissions.read: roles.role='director' (`exists roles[viewer, role = 'director']`), roles.role='intake' (`exists roles[viewer, role = 'intake']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "013-snapback-drawbridge-opening-log",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "requests.read: roles.role='supervisor' (`exists roles[viewer, role = 'supervisor']`), roles.role='tender' (`exists roles[viewer, role = 'tender']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "014-snapback-transfer-station-tickets",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "tickets.read: accounts.role='attendant' (`exists accounts[viewer, role = 'attendant']`), accounts.role='foreman' (`exists accounts[viewer, role = 'foreman']`), accounts.role='manager' (`exists accounts[viewer, role = 'manager']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "016-snapback-turbine-climb-permits",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "permits.read: people.role='siteLead' (`exists people[viewer, role = 'siteLead']`), people.role='siteManager' (`exists people[viewer, role = 'siteManager']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "023-snapback-donor-milk-batches",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "batches.read: accounts.role='director' (`exists accounts[viewer, role = 'director']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "024-snapback-teleradiology-read-queue",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "studies.read: accounts.role='director' (`exists accounts[viewer, role = 'director']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "032-snapback-squash-ladder-challenges",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "challenges.read: roles.role='captain' (`exists roles[viewer, role = 'captain']`), roles.role='staff' (`exists roles[viewer, role = 'staff']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "037-snapback-dairy-tanker-pickups",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "tankers.read: members.role='intake' (`exists members[viewer, role = 'intake']`), members.role='officer' (`exists members[viewer, role = 'officer']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "041-snapback-fire-watch-patrols",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "watches.read: users.role='marshal' (`exists users[viewer, role = 'marshal']`), users.role='supervisor' (`exists users[viewer, role = 'supervisor']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "042-snapback-datacenter-cage-escorts",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "visits.read: roles.role='operations' (`exists roles[viewer, role = 'operations']`), roles.role='security' (`exists roles[viewer, role = 'security']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "045-snapback-honor-guard-details",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "details.read: roles.role='commander' (`exists roles[viewer, role = 'commander']`), roles.role='scheduler' (`exists roles[viewer, role = 'scheduler']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 18,
+    "lane": "049-snapback-park-pavilion-deposits",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "bookings.read: people.role='supervisor' (`exists people[viewer, role = 'supervisor']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "010-snapback-cobbler-repair-tickets",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "tickets.read: roles.role='bench' (`exists roles[viewer, role = 'bench']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "011-snapback-gem-lab-certificates",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "submissions.read: roles.role='director' (`exists roles[viewer, role = 'director']`), roles.role='intake' (`exists roles[viewer, role = 'intake']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "013-snapback-drawbridge-opening-log",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "requests.read: roles.role='supervisor' (`exists roles[viewer, role = 'supervisor']`), roles.role='tender' (`exists roles[viewer, role = 'tender']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "014-snapback-transfer-station-tickets",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "tickets.read: accounts.role='attendant' (`exists accounts[viewer, role = 'attendant']`), accounts.role='foreman' (`exists accounts[viewer, role = 'foreman']`), accounts.role='manager' (`exists accounts[viewer, role = 'manager']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "016-snapback-turbine-climb-permits",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "permits.read: people.role='siteLead' (`exists people[viewer, role = 'siteLead']`), people.role='siteManager' (`exists people[viewer, role = 'siteManager']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "023-snapback-donor-milk-batches",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "batches.read: accounts.role='director' (`exists accounts[viewer, role = 'director']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "024-snapback-teleradiology-read-queue",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "studies.read: accounts.role='director' (`exists accounts[viewer, role = 'director']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "032-snapback-squash-ladder-challenges",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "challenges.read: roles.role='captain' (`exists roles[viewer, role = 'captain']`), roles.role='staff' (`exists roles[viewer, role = 'staff']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "037-snapback-dairy-tanker-pickups",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "tankers.read: members.role='intake' (`exists members[viewer, role = 'intake']`), members.role='officer' (`exists members[viewer, role = 'officer']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "038-snapback-dye-house-lab-dips",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "dips.read: roles.role='manager' (`exists roles[viewer, role = 'manager']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "041-snapback-fire-watch-patrols",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "watches.read: users.role='marshal' (`exists users[viewer, role = 'marshal']`), users.role='supervisor' (`exists users[viewer, role = 'supervisor']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "042-snapback-datacenter-cage-escorts",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "visits.read: roles.role='operations' (`exists roles[viewer, role = 'operations']`), roles.role='security' (`exists roles[viewer, role = 'security']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "045-snapback-honor-guard-details",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "details.read: roles.role='commander' (`exists roles[viewer, role = 'commander']`), roles.role='scheduler' (`exists roles[viewer, role = 'scheduler']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 19,
+    "lane": "049-snapback-park-pavilion-deposits",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "bookings.read: people.role='supervisor' (`exists people[viewer, role = 'supervisor']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "001-snapback-luthier-crack-repairs",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "instruments.read: roles.role='apprentice' (`exists roles[viewer, role = 'apprentice']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "002-snapback-bridal-alteration-fittings",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "gowns.address read: protected columns [address, phone, quotedPrice] admit roles.role='frontdesk', roles.role='owner' for every value of [stage]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 20,
+    "lane": "003-snapback-taxidermy-mount-orders",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "orders.read: roles.role='taxidermist' (`exists roles[viewer, role = 'taxidermist']`) branches read every value of [stage] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "004-snapback-antique-mall-booths",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "booths.read: roles.role='cashier' (`exists roles[viewer, role = 'cashier']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "004-snapback-antique-mall-booths",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "items.read: roles.role='cashier' (`exists roles[viewer, role = 'cashier']`), roles.role='manager' (`exists roles[viewer, role = 'manager']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "006-snapback-athletic-trainer-injuries",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "injuries.diagnosis read: protected columns [diagnosis, doctorNote, treatment] admit roles.role='physician', roles.role='trainer' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 20,
+    "lane": "008-snapback-kitchen-incubator-bookings",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "bookings.read: roles.role='attendant' (`exists roles[viewer, role = 'attendant']`), roles.role='manager' (`exists roles[viewer, role = 'manager']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "012-snapback-small-engine-repairs",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "machines.read: roles.role='mechanic' (`exists roles[viewer, role = 'mechanic']`), roles.role='shop_owner' (`exists roles[viewer, role = 'shop_owner']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "013-snapback-piano-competition-juries",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "entries.read: roles.role='chair' (`exists roles[viewer, role = 'chair']`), roles.role='office' (`exists roles[viewer, role = 'office']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "014-snapback-county-fair-livestock",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "animals.read: roles.role='office' (`exists roles[viewer, role = 'office']`), roles.role='superintendent' (`exists roles[viewer, role = 'superintendent']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "015-snapback-sailmaker-repair-orders",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "sails.read: roles.role='maker' (`exists roles[viewer, role = 'maker']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "016-snapback-auto-body-repairs",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "repairOrders.claimNumber read: protected columns [claimNumber, laborRate, partsMarkup, phone] admit appRoles.role='estimator', appRoles.role='owner' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 20,
+    "lane": "019-snapback-cremation-custody-chain",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "cases.read: roles.role='manager' (`exists roles[viewer, role = 'manager']`), roles.role='operator' (`exists roles[viewer, role = 'operator']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "022-snapback-picture-framing-orders",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "orders.read: roles.role='framer' (`exists roles[viewer, role = 'framer']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "023-snapback-coop-board-applications",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "applications.read: roles.role='agent' (`exists roles[viewer, role = 'agent']`), roles.role='board_member' (`exists roles[viewer, role = 'board_member']`), roles.role='president' (`exists roles[viewer, role = 'president']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "023-snapback-coop-board-applications",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "applications.bankStatement read: protected columns [bankStatement, creditReport, taxReturn] admit roles.role='agent' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 20,
+    "lane": "027-snapback-cabinet-install-punchlists",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "items.read: people.role='office' (`exists people[viewer, role = 'office']`), people.role='owner' (`exists people[viewer, role = 'owner']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "027-snapback-cabinet-install-punchlists",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "jobs.read: people.role='office' (`exists people[viewer, role = 'office']`), people.role='owner' (`exists people[viewer, role = 'owner']`) branches read every value of [phase] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "029-snapback-grape-crush-contracts",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "loads.read: roles.role='cellar' (`exists roles[viewer, role = 'cellar']`), roles.role='winemaker' (`exists roles[viewer, role = 'winemaker']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "030-snapback-funeral-service-arrangements",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "arrangements.read: roles.role='director' (`exists roles[viewer, role = 'director']`), roles.role='driver' (`exists roles[viewer, role = 'driver']`), roles.role='florist' (`exists roles[viewer, role = 'florist']`), roles.role='musician' (`exists roles[viewer, role = 'musician']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "030-snapback-funeral-service-arrangements",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "arrangements.causeOfDeath read: protected columns [causeOfDeath, contractTotal, paymentPlan] admit roles.role='director' for every value of [state]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 20,
+    "lane": "031-snapback-e-waste-data-wipes",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "devices.read: roles.role='compliance' (`exists roles[viewer, role = 'compliance']`), roles.role='technician' (`exists roles[viewer, role = 'technician']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "033-snapback-lead-service-swaps",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "homes.read: roles.role='crew' (`exists roles[viewer, role = 'crew']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "035-snapback-trophy-engraving-orders",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "orders.read: roles.role='engraver' (`exists roles[viewer, role = 'engraver']`), roles.role='owner' (`exists roles[viewer, role = 'owner']`) branches read every value of [stage] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "036-snapback-knife-sharpening-drops",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "sets.read: roles.role='sharpener' (`exists roles[viewer, role = 'sharpener']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "037-snapback-fine-art-crating",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "shipments.read: roles.role='driver' (`exists roles[viewer, role = 'driver']`), roles.role='handler' (`exists roles[viewer, role = 'handler']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "037-snapback-fine-art-crating",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "shipments.buyer read: protected columns [buyer, insuredValue, seller] admit roles.role='registrar' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 20,
+    "lane": "040-snapback-valet-parking-tickets",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "tickets.read: roles.role='runner' (`exists roles[viewer, role = 'runner']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "041-snapback-dock-appointment-slots",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "appointments.read: roles.role='dock_lead' (`exists roles[viewer, role = 'dock_lead']`), roles.role='dock_worker' (`exists roles[viewer, role = 'dock_worker']`), roles.role='manager' (`exists roles[viewer, role = 'manager']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "042-snapback-english-class-placement",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "learners.address read: protected columns [address, immigration, phone] admit roles.role='coordinator' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 20,
+    "lane": "043-snapback-bounce-house-rentals",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "bookings.read: roles.role='crew' (`exists roles[viewer, role = 'crew']`), roles.role='owner' (`exists roles[viewer, role = 'owner']`), roles.role='warehouse' (`exists roles[viewer, role = 'warehouse']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "044-snapback-livestock-auction-lots",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "lots.read: roles.role='buyer' (`exists roles[viewer, role = 'buyer']`), roles.role='crew' (`exists roles[viewer, role = 'crew']`), roles.role='manager' (`exists roles[viewer, role = 'manager']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "047-snapback-mattress-recycling-pickups",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "pickups.read: roles.role='manager' (`exists roles[viewer, role = 'manager']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 20,
+    "lane": "048-snapback-therapeutic-riding-sessions",
+    "code": "N_BROAD_READ",
+    "message": "riders.read: branch `exists roles[viewer]` lets every roles member (roles: director, family, instructor, volunteer) read every row, regardless of ownership"
+  },
+  {
+    "wave": 20,
+    "lane": "050-snapback-estate-jewelry-appraisals",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "pieces.address read: protected columns [address, ownerName] admit roles.role='intake', roles.role='senior' for every value of [location]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 20,
+    "lane": "050-snapback-estate-jewelry-appraisals",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "pieces.report read: protected columns [report, valueCents] admit roles.role='senior' for every value of [location]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 21,
+    "lane": "001-snapback-luthier-crack-repairs",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "instruments.read: roles.role='apprentice' (`exists roles[viewer, role = 'apprentice']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "002-snapback-bridal-alteration-fittings",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "gowns.address read: protected columns [address, phone, quotedPrice] admit roles.role='frontdesk', roles.role='owner' for every value of [stage]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 21,
+    "lane": "003-snapback-taxidermy-mount-orders",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "orders.read: roles.role='taxidermist' (`exists roles[viewer, role = 'taxidermist']`) branches read every value of [stage] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "004-snapback-antique-mall-booths",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "booths.read: roles.role='cashier' (`exists roles[viewer, role = 'cashier']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "004-snapback-antique-mall-booths",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "items.read: roles.role='cashier' (`exists roles[viewer, role = 'cashier']`), roles.role='manager' (`exists roles[viewer, role = 'manager']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "006-snapback-athletic-trainer-injuries",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "injuries.diagnosis read: protected columns [diagnosis, doctorNote, treatment] admit roles.role='physician', roles.role='trainer' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 21,
+    "lane": "008-snapback-kitchen-incubator-bookings",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "bookings.read: roles.role='attendant' (`exists roles[viewer, role = 'attendant']`), roles.role='manager' (`exists roles[viewer, role = 'manager']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "011-snapback-senior-ride-volunteers",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "privateDetails.emergencyContact read: protected columns [emergencyContact, medicalReason, phone] admit roles.role='coordinator' for every value of [coverageLabel]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 21,
+    "lane": "012-snapback-small-engine-repairs",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "machines.read: roles.role='mechanic' (`exists roles[viewer, role = 'mechanic']`), roles.role='shop_owner' (`exists roles[viewer, role = 'shop_owner']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "013-snapback-piano-competition-juries",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "entries.read: roles.role='chair' (`exists roles[viewer, role = 'chair']`), roles.role='office' (`exists roles[viewer, role = 'office']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "013-snapback-piano-competition-juries",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "identities.identityEvidenceLabel read: protected columns [identityEvidenceLabel] admit roles.role='office' for every value of [identityEvidenceLabel]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 21,
+    "lane": "014-snapback-county-fair-livestock",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "animals.read: roles.role='office' (`exists roles[viewer, role = 'office']`), roles.role='superintendent' (`exists roles[viewer, role = 'superintendent']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "015-snapback-sailmaker-repair-orders",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "sails.read: roles.role='maker' (`exists roles[viewer, role = 'maker']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "016-snapback-auto-body-repairs",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "repairOrders.claimNumber read: protected columns [claimNumber, laborRate, partsMarkup, phone] admit appRoles.role='estimator', appRoles.role='owner' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 21,
+    "lane": "019-snapback-cremation-custody-chain",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "cases.read: roles.role='manager' (`exists roles[viewer, role = 'manager']`), roles.role='operator' (`exists roles[viewer, role = 'operator']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "022-snapback-picture-framing-orders",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "orders.read: roles.role='framer' (`exists roles[viewer, role = 'framer']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "023-snapback-coop-board-applications",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "applications.read: roles.role='agent' (`exists roles[viewer, role = 'agent']`), roles.role='board_member' (`exists roles[viewer, role = 'board_member']`), roles.role='president' (`exists roles[viewer, role = 'president']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "023-snapback-coop-board-applications",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "applications.bankStatement read: protected columns [bankStatement, creditReport, taxReturn] admit roles.role='agent' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 21,
+    "lane": "025-snapback-boxing-bout-medicals",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "boxers.physicianNotes read: protected columns [physicianNotes, suspensionReason] admit roles.role='inspector', roles.role='physician' for every value of [experience]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 21,
+    "lane": "027-snapback-cabinet-install-punchlists",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "items.read: people.role='office' (`exists people[viewer, role = 'office']`), people.role='owner' (`exists people[viewer, role = 'owner']`) branches read every value of [route, state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "027-snapback-cabinet-install-punchlists",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "jobs.read: people.role='office' (`exists people[viewer, role = 'office']`), people.role='owner' (`exists people[viewer, role = 'owner']`) branches read every value of [phase] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "029-snapback-grape-crush-contracts",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "loads.read: roles.role='cellar' (`exists roles[viewer, role = 'cellar']`), roles.role='winemaker' (`exists roles[viewer, role = 'winemaker']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "030-snapback-funeral-service-arrangements",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "arrangements.read: roles.role='director' (`exists roles[viewer, role = 'director']`), roles.role='driver' (`exists roles[viewer, role = 'driver']`), roles.role='florist' (`exists roles[viewer, role = 'florist']`), roles.role='musician' (`exists roles[viewer, role = 'musician']`) branches read every value of [state] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "030-snapback-funeral-service-arrangements",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "arrangements.causeOfDeath read: protected columns [causeOfDeath, contractTotal, paymentPlan] admit roles.role='director' for every value of [state]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 21,
+    "lane": "030-snapback-funeral-service-arrangements",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "arrangements.photos read: protected columns [photos] admit roles.role='director', roles.role='driver', roles.role='musician' for every value of [state]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 21,
+    "lane": "031-snapback-e-waste-data-wipes",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "devices.read: roles.role='compliance' (`exists roles[viewer, role = 'compliance']`), roles.role='technician' (`exists roles[viewer, role = 'technician']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "033-snapback-lead-service-swaps",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "homes.read: roles.role='crew' (`exists roles[viewer, role = 'crew']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "033-snapback-lead-service-swaps",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "homes.photoCoverage read: protected columns [photoCoverage] admit roles.role='manager' for every value of [photoCoverage, status]; should these roles read all rows or only the spec's resource relationships and states?"
+  },
+  {
+    "wave": 21,
+    "lane": "035-snapback-trophy-engraving-orders",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "orders.read: roles.role='engraver' (`exists roles[viewer, role = 'engraver']`), roles.role='owner' (`exists roles[viewer, role = 'owner']`) branches read every value of [stage] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "036-snapback-knife-sharpening-drops",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "sets.read: roles.role='sharpener' (`exists roles[viewer, role = 'sharpener']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "037-snapback-fine-art-crating",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "shipments.read: roles.role='driver' (`exists roles[viewer, role = 'driver']`), roles.role='handler' (`exists roles[viewer, role = 'handler']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+  },
+  {
+    "wave": 21,
+    "lane": "037-snapback-fine-art-crating",
+    "code": "N_ROLE_WIDE_READ",
+    "message": "shipments.buyer read: protected columns [buyer, insuranceCheck, insuredValue, seller] admit roles.role='registrar' for every value of [insuranceCheck, status]; should these roles read all rows or only the spec's resource relationships and states?"
+  }
+]

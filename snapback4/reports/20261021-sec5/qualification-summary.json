@@ -1,0 +1,45 @@
+{
+  "format": 1,
+  "fullConsumerQualification": {
+    "source": "06dbfea6903a0c1a6173ed8562c8c85c5541223c",
+    "binarySha256": "85bd0bce87b40204d707597bebe59901b6adcf2ebc58c30b9c59c56117d7e753",
+    "publicationQualified": false,
+    "mode": "consumer-only"
+  },
+  "postQualificationRepair": {
+    "source": "9a2a3134f3",
+    "scope": "restore per-query preparation-error coverage; no worlds admitted; original negative test unchanged",
+    "tests": {
+      "cli": 35,
+      "guideAndSecurity": 166
+    },
+    "packedSecurity": "passed",
+    "artifacts": {
+      "clientSha256": "0d4c619ac9c1c9e0c43ca2b4483bcbfaef755e9092f9076272813df209aec302",
+      "platformSha256": "e01f227876e119201fa810e9f59b977a86e0b19d5ab280d61b2f8454d06754c6",
+      "binarySha256": "5216c3f55172de2049b7b98ba51f9f42479050fde80ae4637e69cff54c42f366"
+    }
+  },
+  "originalRedRunsPreserved": true,
+  "commandResults": {
+    "cargo-workspace-final": 124,
+    "cargo-remaining-crates": 101,
+    "cargo-core-device-doc": 0,
+    "final-cli-output-tests": 0,
+    "final-coverage-restoration-rerun": 0,
+    "final-musl-build": 0,
+    "qualify-linux-first-attempt": 1,
+    "qualify-linux-isolated-cache": 0,
+    "post-coverage-packed-security": 0,
+    "clientPool": 1,
+    "clientModels": 0
+  },
+  "cargoCoverage": {
+    "expectedTargets": 446,
+    "completedTargets": 446,
+    "latestPassedCases": 6124,
+    "latestIgnoredCases": 39,
+    "missing": [],
+    "unresolvedFailures": []
+  }
+}

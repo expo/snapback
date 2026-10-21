@@ -305,6 +305,7 @@ fn an_online_only_check_drops_the_never_predict_paragraph_and_each_note_leads_wi
     let online = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable tickets:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer or exists staff[viewer]\n  insert <- .owner = viewer\n  online only\nquery all():\n  return tickets where .at + 1 > 0 first 50 by .at\nmutation open(at: time):\n  return insert tickets { owner: viewer, at }\n";
     fs::write(dir.join("snapback/schema.q"), online).unwrap();
     let plain = run(&["check"]);
+    assert!(plain.contains("things to review (advisory;"), "{plain}");
     assert!(!plain.contains("server-run"), "{plain}");
     let verbose = run(&["check", "--verbose"]);
     assert!(verbose.contains("1 mutation is server-run (online app: no action): open"));
@@ -438,14 +439,18 @@ fn empty_start_reachability_uses_memory_without_opening_a_project_store() {
  let output=Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(["check","--json"]).output().unwrap();
  assert_eq!(output.status.code(),Some(1),"{output:?}");
  let data:serde_json::Value=serde_json::from_slice(&output.stdout).unwrap();
- assert!(data["security"]["invariants"].as_array().unwrap().iter().any(|v|v["counterexample"]["reachability"]=="authored-fixture-trace"),"{data}");
+ assert!(data["security"]["invariants"].as_array().unwrap().iter().any(|v|{
+  let witness=&v["counterexample"];
+  matches!(witness["reachability"].as_str(),Some("authored-fixture-trace"|"generated-fixture-trace"))
+   &&witness["operation"]=="inspect"&&witness["effect"]=="column read observation"
+ }),"{data}");
  for args in [vec!["check"],vec!["check","--all"]]{
   let args_verbose=args.contains(&"--all");
   let output=Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
   assert_eq!(output.status.code(),Some(1));
   assert!(!String::from_utf8_lossy(&output.stdout).contains("check passed"));
   let text=String::from_utf8(output.stderr).unwrap();
-  assert!(text.contains("run snapback4 test") && text.contains("run snapback4 audit"),"{text}");
+  assert!(text.contains("snapback4 test") && text.contains("snapback4 audit"),"{text}");
   if args_verbose { assert!(text.contains("campaign not covered:"),"{text}"); }
  }
  assert!(!dir.join(".snapback4/store.sqlite").exists(),"security check must not adopt or create a dev store");

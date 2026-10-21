@@ -59,33 +59,23 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
         if inv.operation.is_some()||inv.target=="always" {continue;}
         let Some(policy)=&inv.policy else{continue;};
         let table=&bound.schema.tables[&inv.table];
+        let mut admissions=Vec::new();
         let restates=super::effects(inv).iter().all(|word|{
             if matches!(*word,"insert"|"update")&&!table.written_by.is_empty(){return false;}
             let gate=if *word=="read"{super::columns::admission(table,inv.column.as_deref())}else if *word=="update"{super::images::stable(table,&table.update_rule_judged())}else{table.rules.for_effect(super::effect(word)).clone()};
             let intent=if *word=="update"{super::images::stable(table,&policy.old_and_next())}else{policy.clone()};
-            kernel::implies(&gate,&intent)==Ok(true)&&kernel::implies(&intent,&gate)==Ok(true)
+            let matches=super::intent::restates(bound,&inv.table,word,&gate,&intent);
+            admissions.push((word.to_string(),gate));
+            matches
         });
-        if restates {note(&mut notes,&inv.site,"N_INVARIANT_RESTATES_RULE",format!("{}: this invariant restates the rule and can't catch a mistake in it; state the spec's intent instead",inv.target_label()),"rewrite from the spec: who may see/do what, for which resource and lifecycle state? Declare sensitive-column intent and current-role/relationship conditions independently; review security-invariants.q.draft");}
+        if restates {
+            let target=inv.column.as_ref().map(|c|format!("{}.{c}",inv.table)).unwrap_or(inv.table.clone());
+            let questions=admissions.iter().map(|(word,gate)|super::intent::questions(bound,&target,word,gate)).collect::<Vec<_>>();
+            note(&mut notes,&inv.site,"N_INVARIANT_RESTATES_RULE",format!("{} matches or weakens current enforcement. {}",inv.target_label(),questions.join(" ")),"answer each audience question from the app specification; keep confirmed intent, and narrow unintended access in the rule. Review the per-role/per-column questionnaire in snapback/generated/security-invariants.q.draft; run check -> test -> audit");}
     }
+
     for (name,t) in bound.schema.visible_tables(){
-        if t.rules.read.is_uniformly_readable(){note(&mut notes,&Site::default(),"N_BROAD_READ",format!("{name} is readable by every signed-in user: {}",t.rules.read.quarry()),"confirm the spec permits these columns always, or only while a lifecycle condition holds, and declare read intent; snapback4 audit lists inherited grants and their writers");}
-        if let RuleExpr::Exists{table:roster,key,equalities,..}=&t.rules.read
-            && equalities.is_empty()&&key.iter().any(|k|matches!(k,RuleTerm::Viewer)) {
-            note(&mut notes,&Site::default(),"N_BROAD_READ",format!("{name} is readable by any signed-in user with a matching {roster} row; no particular role or row ownership is required"),"confirm that every roster member should see all these columns; declare intent from the privacy spec and inspect audit");
-        }
-        // A role-wide board branch returns the entire row, including private payload.
-        if t.columns.values().any(|kind|kind.contains_asset())||bound.invariants.iter().any(|i|i.table==*name&&i.target=="read"&&i.column.is_some()) {
-            for branch in t.rules.read.disjuncts() {
-                let parts=rule_parts(branch);
-                let role=parts.iter().any(|part|role_test(bound,part));
-                let row_filter=parts.iter().any(|part|matches!(part,RuleExpr::Eq(RuleTerm::Field(_),RuleTerm::Literal(_))|RuleExpr::Ne(RuleTerm::Field(_),RuleTerm::Literal(_))|RuleExpr::Eq(RuleTerm::Literal(_),RuleTerm::Field(_))|RuleExpr::Ne(RuleTerm::Literal(_),RuleTerm::Field(_))));
-                let unscoped=parts.iter().all(|part|match part{
-                    RuleExpr::Exists{key,equalities,..}=>key.iter().chain(equalities.iter().map(|(_,t)|t)).all(|t|matches!(t,RuleTerm::Viewer|RuleTerm::Literal(_))),
-                    _=>!part.has_reference(),
-                })&&reader_columns(branch).is_empty();
-                if role&&row_filter&&unscoped {note(&mut notes,&Site::default(),"N_ROLE_WIDE_READ",format!("{name}.read: role-wide branch `{}` returns private or media columns for every matching row",branch.quarry()),"publish a board/projection table containing only intended public fields; protect private columns with independent column-read intent");break;}
-            }
-        }
+        notes.extend(super::advice::read_notes(bound,name,t));
         for (column,kind) in &t.columns {
             use snapback4_core::schema::ColumnType as C;
             if kind.contains_asset() && (kind.is_optional() || matches!(kind.required(),C::List{..}|C::ListRange{min:0,..})) {
@@ -127,6 +117,7 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
     let mut out=Vec::new();
     let documents=sources.iter().map(|(file,source)|crate::parse_document(file,source).0).collect::<Vec<_>>();
     let catalog=super::super::catalog::Catalog::build(documents.clone(),&mut Vec::new());
+    out.extend(super::advice::source_notes(&documents,&catalog,bound));
     for doc in documents{
         for p in &doc.programs {
             let mut body=p.prelude.clone();body.extend(p.body.clone());

@@ -278,5 +278,5 @@ fn an_empty_trusted_store_can_reach_authored_disclosure() {
  for effect in ["read","column read observation"] {assert!(c.violations.iter().any(|v|v.effect==effect&&v.operation=="inspect"&&v.history.len()==1&&v.history[0].operation=="add"&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace),"{effect}: {c:?}");}
  let source=source.replace("mutation add():\n  return insert notes { owner: viewer, body: 'secret' }\n", "");
  let c=fixture_campaign(&source,vec![]);assert!(c.violations.is_empty(),"{c:?}");
- let b=compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut r=security::analyze(&b);let c=security::challenges::run(&b);security::challenges::apply(&mut r,&c);assert!(!c.violations.is_empty());assert!(!r.refuted());
+ let b=compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut r=security::analyze_rules(&b);let c=security::challenges::run(&b);security::challenges::apply(&mut r,&c);assert!(!c.violations.is_empty());assert!(!r.refuted());
 }

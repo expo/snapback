@@ -18,7 +18,7 @@ pub(crate) fn tier(code: &str) -> Tier {
     match code {
         "N_IMMUTABLE_PATCH" | "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_QUERY_FILTERED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_SWEEP_DEADLINE" | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
-        | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" | "N_PRIVILEGE_ESCALATION" | "N_ROLE_WIDE_READ" | "N_INVARIANT_RESTATES_RULE" | "N_ARGUMENT_GRANT" | "N_BROAD_READ" | "N_SECURITY_INTENT" | "N_INSERT_WRITE_INTENT" | "N_COLUMN_RESULT_EXPOSURE" => Tier::Review,
+        | "N_INSERT_WRITE_INTENT" | "N_COLUMN_RESULT_EXPOSURE" | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" | "N_PRIVILEGE_ESCALATION" | "N_SELF_CLAIMED_RELATIONSHIP" | "N_CALLER_TIME" | "N_ROLE_WIDE_READ" | "N_INVARIANT_RESTATES_RULE" | "N_ARGUMENT_GRANT" | "N_BROAD_READ" | "N_SECURITY_INTENT" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
         "N_SYNC_ORDER" | "N_NO_HORIZON" | "N_MAINTAIN_SYNCED" | "N_TIMELINE_COMPAT" | "N_NO_CURSOR" => Tier::Design,
         _ => Tier::Performance,
@@ -28,8 +28,8 @@ pub(crate) fn tier(code: &str) -> Tier {
 /// Security findings that can grant authority stay ahead of repeated advice.
 pub(crate) fn summary_order(code:&str)->(Tier,u8){
     (tier(code),match code{
-        "N_PRIVILEGE_ESCALATION"|"N_INSERT_WRITE_INTENT"|"N_COLUMN_RESULT_EXPOSURE"=>0,"N_ROLE_WIDE_READ"=>1,
-        "N_INVARIANT_RESTATES_RULE"=>3,"N_BROAD_READ"=>4,"N_SECURITY_INTENT"=>5,_=>2,
+        "N_INSERT_WRITE_INTENT" | "N_COLUMN_RESULT_EXPOSURE" | "N_PRIVILEGE_ESCALATION" | "N_SELF_CLAIMED_RELATIONSHIP"=>0,"N_ROLE_WIDE_READ" | "N_BROAD_READ"=>1,
+        "N_INVARIANT_RESTATES_RULE"=>3,"N_SECURITY_INTENT"=>5,_=>2,
     })
 }
 
@@ -38,6 +38,12 @@ pub(crate) fn summary_order(code:&str)->(Tier,u8){
 // @ref LLP 3000.036#17.7 — the verdict leads; the explanation follows it.
 pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
     match code {
+        "N_PRIVILEGE_ESCALATION" => "review: restrict authority assignment",
+        "N_SELF_CLAIMED_RELATIONSHIP" => "review: verify the relationship before granting access",
+        "N_CALLER_TIME" => "review: use server time or bound the supplied time",
+        "N_ROLE_WIDE_READ" | "N_BROAD_READ" => "review: confirm each admitted audience and row state",
+        "N_INVARIANT_RESTATES_RULE" => "review: answer the audience questions from the spec",
+        "N_SECURITY_INTENT" => "review: write independent intent from the spec",
         "N_NO_PRODUCTION_WRITER" if summary.starts_with("persona-only:") => "no action without use identity",
         "N_NO_PRODUCTION_WRITER" => "fix: add a production bootstrap writer",
         "N_FIXTURE_ARGUMENT_DRIFT" => "fix: update the fixture arguments",
@@ -105,6 +111,9 @@ pub(crate) fn compiled_form(code: &str, rewrite: &str) -> Option<(String, String
     (lead.ends_with(':') && body.trim_start().starts_with("query ")).then(|| (lead.to_owned(), body.trim_end().to_owned()))
 }
 
+// Audience questions and repairs differ per rule; repeated codes cannot hide them.
+fn per_rule_security(code:&str)->bool {matches!(code,"N_PRIVILEGE_ESCALATION"|"N_SELF_CLAIMED_RELATIONSHIP"|"N_CALLER_TIME"|"N_ROLE_WIDE_READ"|"N_BROAD_READ"|"N_INVARIANT_RESTATES_RULE")}
+
 /// The ranked block printed after `check: ok`; empty for no notes.
 pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
     if notes.is_empty() { return Vec::new(); }
@@ -121,7 +130,7 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
     let first_seen = |code: &str, unique: &[(Note, usize)]| unique.iter().position(|(n, _)| n.code == code).unwrap();
     let mut order: Vec<usize> = (0..unique.len()).collect();
     order.sort_by_key(|&i| (tier(&unique[i].0.code), first_seen(&unique[i].0.code, &unique), i));
-    let mut lines = vec![format!("{total} advisory note{} — notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):",
+    let mut lines = vec![format!("{total} thing{} to review (advisory; check --verbose explains each, snapback4 why <CODE> one):",
         if total == 1 { "" } else { "s" })];
     let mut current = None;
     let mut shown_codes = Vec::new();
@@ -152,7 +161,7 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
         let times = if *count > 1 { format!(" (×{count} at this site)") } else { String::new() };
         let new_form = note.form.as_ref().is_some_and(|(_, code)| !shown_forms.contains(code));
         let new_compact = note.compact.as_ref().is_some_and(|parts| !shown_compacts.contains(parts));
-        if shown_codes.contains(&note.code) && !new_form && !new_compact {
+        if shown_codes.contains(&note.code) && !new_form && !new_compact && !per_rule_security(&note.code) {
             // A repeat of a code already explained above: its subject and site, on the code's one line.
             let subject = format!("{} ({}){times}", subject(&note.summary), note.site);
             match repeats.iter_mut().find(|(code, _)| *code == note.code) {
@@ -181,7 +190,7 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
             shown_codes.push(note.code.clone());
             continue;
         }
-        if shown_codes.contains(&note.code) {
+        if shown_codes.contains(&note.code) && !per_rule_security(&note.code) {
             // A repeat that carries a form not printed yet keeps its own line, then the form.
             lines.push(format!("note: {} — {}: (as above) {}{times}", note.site, note.code, short(&note.summary)));
         } else {
@@ -231,6 +240,12 @@ fn short(summary: &str) -> String {
 mod tests {
     use super::*;
     fn note(site: &str, code: &str, summary: &str) -> Note { Note { site: site.into(), code: code.into(), summary: summary.into(), form: None, compact: None } }
+
+    #[test]
+    fn repeated_security_codes_keep_each_rules_audience_and_question() {
+        let text=render(vec![note("schema.q:2:1","N_INVARIANT_RESTATES_RULE","notes.read: should coach see other athletes?"),note("schema.q:8:1","N_INVARIANT_RESTATES_RULE","pieces.address: should intake see every owner address?")]).join("\n");
+        assert!(text.contains("should coach see other athletes?")&&text.contains("should intake see every owner address?"),"{text}");
+    }
 
     #[test]
     fn a_compiled_complete_form_prints_once_per_lead_by_default() {
@@ -296,7 +311,7 @@ mod tests {
             note("schema.q:104:1", "N_WRITE_DENIED", "mutation rangers inserts rows no caller may insert"),
             note("schema.q:104:1", "N_WRITE_DENIED", "mutation rangers inserts rows no caller may insert"),
         ]);
-        assert!(lines[0].starts_with("5 advisory notes — notes never block"), "{lines:?}");
+        assert!(lines[0].starts_with("5 things to review"), "{lines:?}");
         let body: Vec<&str> = lines[1..].iter().map(String::as_str).collect();
         assert_eq!(body, [
             "review — can cost correctness or completeness:",

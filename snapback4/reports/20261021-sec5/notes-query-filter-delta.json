@@ -1,0 +1,57 @@
+[
+  {
+    "wave": 15,
+    "lane": "005-arborist-hazard-tags",
+    "message": "approveJob: caller time dueAt flows into jobs.dueAt, which controls a server-clock deadline, without a dominating bound against now"
+  },
+  {
+    "wave": 15,
+    "lane": "008-day2-docket-deadline-calendar",
+    "message": "recordTrigger: caller time occurredAt flows into deadlines.dueAt, which controls a server-clock deadline, without a dominating bound against now"
+  },
+  {
+    "wave": 15,
+    "lane": "037-flavor-rotation-board",
+    "message": "addFlavor: caller time availableFrom flows into flavors.availableFrom, which controls a server-clock deadline, without a dominating bound against now"
+  },
+  {
+    "wave": 15,
+    "lane": "037-flavor-rotation-board",
+    "message": "addFlavor: caller time availableUntil flows into flavors.availableUntil, which controls a server-clock deadline, without a dominating bound against now"
+  },
+  {
+    "wave": 15,
+    "lane": "049-radiation-badge-doses",
+    "message": "issueBadge: caller time dueAt flows into badges.dueAt, which controls a server-clock deadline, without a dominating bound against now"
+  },
+  {
+    "wave": 15,
+    "lane": "065-medicine-cabinet-expiry",
+    "message": "addMedicine: caller time expiresAt flows into medicines.expiresAt, which controls a server-clock deadline, without a dominating bound against now"
+  },
+  {
+    "wave": 15,
+    "lane": "065-medicine-cabinet-expiry",
+    "message": "updateExpiry: caller time expiresAt flows into medicines.expiresAt, which controls a server-clock deadline, without a dominating bound against now"
+  },
+  {
+    "wave": 15,
+    "lane": "085-hymn-index-search",
+    "message": "createService: caller time date flows into services.date, which controls a server-clock deadline, without a dominating bound against now"
+  },
+  {
+    "wave": 16,
+    "lane": "015-snapback-foster-pet-handoffs",
+    "message": "scheduleVaccination: caller time dueAt flows into vaccinations.dueAt, which controls a server-clock deadline, without a dominating bound against now"
+  },
+  {
+    "wave": 20,
+    "lane": "017-snapback-search-rescue-callouts",
+    "message": "checkIn: caller time at flows into teams.lastRadioCheck, which controls a server-clock deadline, without a dominating bound against now"
+  },
+  {
+    "wave": 21,
+    "lane": "017-snapback-search-rescue-callouts",
+    "message": "checkIn: caller time at flows into teams.lastRadioCheck, which controls a server-clock deadline, without a dominating bound against now"
+  }
+]
