@@ -24,7 +24,7 @@ for (const keep of [undefined, true]) for (const operation of ['apply', 'admit',
     let now = 1000; t.mock.method(Date, 'now', () => now);
     const owner = Object.assign(new ReadObservation(keep), { presenceRefresh: null });
     t.after(() => owner.retire()); owner.publish(ready('A'));
-    new LocalReads().committed([owner], operation);
+    new LocalReads().committed([owner], operation, undefined, []);
     assert.equal(owner.snapshot.data, 'A', 'commit does not flash loading');
     assert.equal(episodeDeadline(owner.snapshot), undefined, 'commit queues the bound');
     owner.reload(); // The replacement attempt starts.
@@ -80,7 +80,7 @@ for (const keep of [undefined, true]) for (const failure of ['held', 'offline'])
   await until(() => watch.getSnapshot().loading, 'receipt withdrawal');
 });
 
-for (const host of ['online', 'process', 'wasm']) test(`${host}: ephemeral-only /changes bounds a held replacement`, async t => {
+for (const host of ['online', 'process', 'wasm']) test(`${host}: known ephemeral-only /changes bounds a held replacement`, async t => {
   const f = await server(t, undefined, ephemeralSource), change = gate(), held = gate();
   let holding = false, delivered = false, last;
   const post = (path, body) => fetch(f.url + path, { method: 'POST', headers: { 'x-snapback-persona': 'alice' }, body: JSON.stringify(body) });
@@ -91,7 +91,7 @@ for (const host of ['online', 'process', 'wasm']) test(`${host}: ephemeral-only 
       await Promise.race([change.release.promise, parked(init.signal)]);
       if (delivered) return parked(init.signal);
       delivered = true;
-      return Response.json({ seq: last.seq, tables: [], ephemeral: { ...last.ephemeral, epoch: last.ephemeral.epoch + 1, tables: ['typing'] } });
+      return Response.json({ seq: last.seq, tables: [], ephemeral: { ...last.ephemeral, epoch: last.ephemeral.epoch + 1, tables: ['typing'], preserved: [] } });
     }
     if (path === '/q/typingIn') {
       if (holding) { held.arrived.resolve(); await Promise.race([held.release.promise, parked(init.signal)]); }
@@ -252,7 +252,8 @@ for (const host of ['process', 'wasm']) test(`${host}: pre-change replica comple
   watch.close(); mode = 'old'; const seen = [];
   watch.subscribe(() => seen.push(watch.getSnapshot())); await old.arrived.promise;
   const receipt = await f.post('/m/remove', { id: 'remove', args: {} });
-  evidence = { seq: receipt.seq, tables: ['members', 'messages'] }; change.release.resolve();
+  assert.ok(Array.isArray(receipt.preserved), 'authored removal supplies known preservation evidence');
+  evidence = { seq: receipt.seq, tables: ['members', 'messages'], preserved: receipt.preserved }; change.release.resolve();
   await sync.arrived.promise; seen.length = 0; old.release.resolve();
   // The retired attempt cannot publish; its replacement starts the bound and
   // parks until sync rather than evaluating an already-known older replica.

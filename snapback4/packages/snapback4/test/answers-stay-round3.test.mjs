@@ -145,7 +145,8 @@ for (const host of ['process', 'wasm']) test(`${host}: quiet presence cannot pub
   const owner = answerObservation(watch.getSnapshot());
   let now = Date.now(); t.mock.method(Date, 'now', () => now);
   const receipt = await f.post('/m/remove', { id: 'remove', args: {} });
-  evidence = { seq: receipt.seq, tables: ['members'] };
+  assert.ok(Array.isArray(receipt.preserved), 'authored removal supplies known preservation evidence');
+  evidence = { seq: receipt.seq, tables: ['members'], preserved: receipt.preserved };
   const before = replies; phase = 'notified'; change.release.resolve(); await sync.arrived.promise;
   await until(() => replies > before && !owner.running, 'regular rerun rejected the older cut');
   const bound = episodeDeadline(watch.getSnapshot()); assert.equal(typeof bound, 'number');
@@ -167,14 +168,14 @@ for (const host of ['process', 'wasm']) test(`${host}: quiet presence cannot pub
 });
 
 for (const tables of [undefined, []]) for (const keep of [undefined, true]) for (const failure of [false, true]) {
-  test(`online: ${tables === undefined ? 'missing' : 'empty'} tables, keep=${keep}, failed=${failure}`, async t => {
+  test(`online: known nonpreservation with ${tables === undefined ? 'missing' : 'empty'} tables, keep=${keep}, failed=${failure}`, async t => {
     const change = gate(), reply = gate(), reads = new Map(); let sent = false;
     const client = createClient({ url: 'http://rl-unknown-tables.test', persona: 'bob', fetch: async (input, init) => {
       const path = new URL(input).pathname;
       if (path === '/changes') {
         await Promise.race([change.release.promise, parked(init.signal)]);
         if (sent) return parked(init.signal);
-        sent = true; return Response.json({ seq: 2, ...(tables === undefined ? {} : { tables }) });
+        sent = true; return Response.json({ seq: 2, preserved: [], ...(tables === undefined ? {} : { tables }) });
       }
       if (path === '/probe') return parked(init.signal);
       const name = path.slice('/q/'.length), count = (reads.get(name) ?? 0) + 1; reads.set(name, count);

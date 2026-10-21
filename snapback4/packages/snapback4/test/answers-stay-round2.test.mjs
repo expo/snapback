@@ -64,7 +64,8 @@ for (const host of ['process', 'wasm']) for (const name of ['item', 'mixed']) fo
     const watch = client.observe(q(name), name === 'mixed' ? { cutoff: Date.now() - 1000, deny: false } : {}, { keep });
     await until(() => watch.getSnapshot().data?.body === 'image-1');
     const receipt = await f.post('/m/remove', { id: 'remove', args: {} });
-    evidence = { seq: receipt.seq, tables: ['members'] };
+    assert.ok(Array.isArray(receipt.preserved), 'authored removal supplies known preservation evidence');
+    evidence = { seq: receipt.seq, tables: ['members'], preserved: receipt.preserved };
     let now = Date.now(); t.mock.method(Date, 'now', () => now);
     const seen = []; watch.subscribe(() => seen.push(watch.getSnapshot()));
     failing = true; change.release.resolve(); await sync.arrived.promise;
@@ -111,7 +112,8 @@ for (const host of ['process', 'wasm']) test(`${host}: only a server answer at t
   await client.sync(); const watch = client.observe(q('mixed'), { cutoff, deny: false });
   await until(() => watch.getSnapshot().data?.body === 'image-1');
   const receipt = await f.post('/m/remove', { id: 'remove', args: {} });
-  evidence = { seq: receipt.seq, tables: ['members'] };
+  assert.ok(Array.isArray(receipt.preserved), 'authored removal supplies known preservation evidence');
+  evidence = { seq: receipt.seq, tables: ['members'], preserved: receipt.preserved };
   const before = responses; mode = 'old'; change.release.resolve(); await sync.arrived.promise;
   await until(() => responses > before); await delay(20);
   assert.equal(watch.getSnapshot().revalidating, true, 'older server cut does not settle evidence');

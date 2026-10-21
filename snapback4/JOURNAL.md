@@ -100126,3 +100126,13 @@ KIT4_UPDATE_WIRE against the merged binary. The testing-page failed-write
 example now also shows preserved:null. These repairs align docs/test inputs
 with incoming main's policy; runtime authorization and retention code are
 unchanged by this integration repair.
+
+The complete client repeat found four further old notification/queue fixtures
+with the same missing-evidence assumption. Their known withdrawal cases now use
+the actual authored removal certificate, including its sequence; synthetic
+known events explicitly carry the list in their own durable or ephemeral
+envelope. Missing/empty touched-table cases remain distinct. No deadline,
+fairness, withdrawal or negative-control assertion was removed or widened.
+The complete pool and packed checks are repeated after this repair; scratch
+command logs left by a completed test are preserved outside the source tree
+before qualification, without weakening its clean-source check.

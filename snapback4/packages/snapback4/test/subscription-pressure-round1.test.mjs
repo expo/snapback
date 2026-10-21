@@ -177,11 +177,11 @@ for (const tier of ['wasm','process']) test(`${tier}: terminal change-feed refus
   assert.equal(history.getSnapshot().denied?.code,'E_TEST_TERMINAL','old queued work cannot restore data');
 });
 
-test('online scope-ambiguous change evidence expires while waiting for capacity', {timeout:hangBudget(8)},async t=>{
-  const f=await fixture(t), feed=Promise.withResolvers(), slots=Promise.withResolvers(); let changed=false;
+test('online known nonpreservation with ambiguous read scope expires while waiting for capacity', {timeout:hangBudget(8)},async t=>{
+  const f=await fixture(t), feed=Promise.withResolvers(), slots=Promise.withResolvers(); let changed=false, evidence;
   t.after(()=>{feed.resolve();slots.resolve();});
   const client=await open(t,f,'online',{fetch:async(input,init)=>{
-    if(new URL(input).pathname==='/changes'){await feed.promise; if(changed)return parked(init.signal); changed=true;return Response.json({seq:100,tables:['messages','members']});}
+    if(new URL(input).pathname==='/changes'){await feed.promise; if(changed)return parked(init.signal); changed=true;return Response.json({seq:evidence.seq,tables:['messages','members'],preserved:evidence.preserved});}
     return fetch(input,init);
   }});
   let work; const orig=ReadWork.prototype.schedule;
@@ -191,7 +191,7 @@ test('online scope-ambiguous change evidence expires while waiting for capacity'
   const owner=answerObservation(history.getSnapshot()), events=[]; history.subscribe(()=>events.push(history.getSnapshot()));
   for(let i=0;i<8;i++)work.schedule(Object.assign(new ReadObservation(),{op:q('held'),subscribers:new Set()}),()=>slots.promise);
   await until(()=>work.active.size===8);
-  await f.post('/m/remove',{id:'online-removal',args:{}}); feed.resolve();
+  evidence=await f.post('/m/remove',{id:'online-removal',args:{}}); assert.ok(Array.isArray(evidence.preserved),'authored removal supplies known preservation evidence'); feed.resolve();
   await until(()=>work.state(owner)==='queued');
   await until(()=>history.getSnapshot().loading===true);
   assert.ok(events.some(r=>'loading' in r)); assert.equal(work.active.size,8); assert.equal(work.state(owner),'queued');
