@@ -16,8 +16,8 @@ fn w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim() {
     let path = std::env::temp_dir().join(format!("sb4-doctor-{}-{}", std::process::id(), snapback4_core::now_ms()));
     std::fs::create_dir(&path).unwrap();
     let mut writer = Engine::new(Store::open(&path.join("store.sqlite")).unwrap(), Default::default(), []).unwrap();
-    writer.store().test_support_conn().execute_batch("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at) VALUES ('push',1,'push','null','queued',0,100,200); INSERT INTO _effect_presence(principal,id,deadline) VALUES ('alice','push',200);").unwrap();
-    writer.store().test_support_set_meta("dev:suppressed-effects", "7").unwrap();
+    (match writer.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at) VALUES ('push',1,'push','null','queued',0,100,200); INSERT INTO _effect_presence(principal,id,deadline) VALUES ('alice','push',200);").unwrap();
+    (match writer.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_set_meta("dev:suppressed-effects", "7").unwrap();
     let reader = Engine::open(Store::open_read_only(&path.join("store.sqlite")).unwrap()).unwrap();
     let EffectHealth { counts, deferred } = reader.effect_health(100).unwrap();
     assert_eq!(counts["queued"], 1); assert_eq!(counts["suppressed"], 7);
@@ -30,7 +30,7 @@ fn w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim() {
         finish.send(runs.len()).unwrap();
     });
     let fired = Arc::new(AtomicBool::new(false)); let observed = fired.clone();
-    reader.store().test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
+    (match reader.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().authorizer(Some(move |ctx: rusqlite::hooks::AuthContext<'_>| {
         if matches!(ctx.action, rusqlite::hooks::AuthAction::Read { table_name: "_effect_presence", .. }) && !observed.swap(true, Ordering::SeqCst) {
             claim.send(()).unwrap();
             assert_eq!(claimed.recv_timeout(std::time::Duration::from_secs(10)).unwrap(), 1);
@@ -83,7 +83,7 @@ fn w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code() {
 #[test]
 fn settled_handler_failures_remain_visible_including_retry_and_action() {
     let engine = Engine::new(Store::memory().unwrap(), Default::default(), []).unwrap();
-    engine.store().test_support_conn().execute_batch("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,error) VALUES ('e1',1,'scan','null','queued',1,100,'scanner unavailable'); INSERT INTO _requests(id,name,args,principal,at,state,attempts,error) VALUES ('a1','send','{}','user:a',101,'failed',2,'provider failed');").unwrap();
+    (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,error) VALUES ('e1',1,'scan','null','queued',1,100,'scanner unavailable'); INSERT INTO _requests(id,name,args,principal,at,state,attempts,error) VALUES ('a1','send','{}','user:a',101,'failed',2,'provider failed');").unwrap();
     let lines = super::work_records::handler_failures(engine.store()).unwrap();
     assert_eq!(lines.len(), 2);
     assert!(lines.iter().any(|line| line.contains("scan e1 queued") && line.contains("scanner unavailable")));

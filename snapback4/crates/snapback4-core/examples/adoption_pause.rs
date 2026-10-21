@@ -11,15 +11,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let now = args[4].parse()?;
     let mut engine = Engine::open_at(Store::open(std::path::Path::new(&args[1]))?, now)?;
     if let Ok(kib) = std::env::var("AP_CACHE_KIB") {
-        engine
-            .store()
-            .test_support_conn()
+        (match &engine
+            .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
             .pragma_update(None, "cache_size", -kib.parse::<i64>()?)?;
     }
     let start = Instant::now();
     let generation = engine.adopt_at(schema, programs.into_values(), now)?;
     let elapsed = start.elapsed();
-    let report = &engine.store().adoption_report;
+    let report = &engine.store().adoption_report();
     println!(
         "{}",
         serde_json::json!({
@@ -30,9 +29,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         })
     );
     let start = Instant::now();
-    engine
-        .store()
-        .test_support_conn()
+    (match &engine
+        .store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn()
         .execute_batch("PRAGMA wal_checkpoint(TRUNCATE)")?;
     eprintln!(
         "checkpoint_ms={:.3}",

@@ -23,14 +23,14 @@ fn following_commit_cost() {
         for checkpoint in [1000, 0] {
             let fixture = Fixture::new(&format!("commit-{synchronous}-{checkpoint}"));
             let mut engine = fixture.engine();
-            engine.store().test_support_conn().execute_batch(&format!("PRAGMA synchronous={synchronous}; PRAGMA wal_autocheckpoint={checkpoint};")).unwrap();
+            (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute_batch(&format!("PRAGMA synchronous={synchronous}; PRAGMA wal_autocheckpoint={checkpoint};")).unwrap();
             // Same 20-post store as the HTTP witness. Report steady-state cost.
             for n in 0..20 {
                 let result = engine.mutate("post", None, Context::new("dev:big", [("postId".into(), Value::Id(format!("preload-{n}"))), ("parentId".into(), Value::Null)].into()).at(2)).unwrap();
                 assert!(matches!(result.state, WriteState::Sent { .. }));
                 while engine.run_timeline_chunk_for(3, Duration::MAX).unwrap().is_some() {}
             }
-            engine.store().test_support_conn().trace_v2(TraceEventCodes::SQLITE_TRACE_STMT | TraceEventCodes::SQLITE_TRACE_PROFILE, Some(trace));
+            (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().trace_v2(TraceEventCodes::SQLITE_TRACE_STMT | TraceEventCodes::SQLITE_TRACE_PROFILE, Some(trace));
             for budget in [Duration::MAX, Duration::from_millis(1), Duration::from_millis(2)] {
                 let result = engine.mutate("post", None, Context::new("dev:big", [("postId".into(), Value::Id(format!("profile-{budget:?}"))), ("parentId".into(), Value::Null)].into()).at(4)).unwrap();
                 assert!(matches!(result.state, WriteState::Sent { .. }));

@@ -100590,3 +100590,10 @@ Fixture probes select the SQLite arm explicitly where they inspect physical
 state. They add no raw access to the neutral handles or the member facade.
 The source delta is split into building commits; the following qualification
 entry records final census and test results. No push or stash is authorized.
+
+S10b fixture checkpoint: core and host physical witnesses now select the SQLite
+arm explicitly, and row/partition probes import their semantic traits. Existing
+assertions, SQL, transaction boundaries, counts and limits are retained. The
+binary's production inputs are unchanged from the passing first-commit build.
+The core library qualification passes **627 / 0 failed / 3 ignored**. Full
+crate runs and the cross-crate fixture/census qualification continue below.

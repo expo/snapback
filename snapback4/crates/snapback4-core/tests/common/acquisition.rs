@@ -1,4 +1,6 @@
 //! The same server-generated mixed-rule pages feed core, both device stores and wasm.
+use snapback4_core::Rows;
+use snapback4_core::partition::PartitionRows;
 #[path = "meter.rs"]
 mod meter;
 use snapback4_core::{partition::{SnapshotPage, StreamPage}, schema::Schema, value::{Value, object}};

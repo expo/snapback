@@ -95,7 +95,7 @@ fn commit_wake_case(rowless: bool) {
     let effects = engine.effects(None, 100).unwrap();
     assert_eq!(effects.len(), 49);
     assert!(effects.iter().all(|e| e.next_at == Some(e.at + 5_000)));
-    let tx = engine.store_mut().read_transaction().unwrap();
+    let tx = (match engine.store_mut() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).read_transaction().unwrap();
     let counts: (i64, i64) = tx.test_support_conn().query_row("SELECT count(*), sum(reconnected) FROM _effect_presence", [], |r| Ok((r.get(0)?, r.get(1)?))).unwrap();
     tx.rollback().unwrap();
     assert_eq!(counts, (49, 49));

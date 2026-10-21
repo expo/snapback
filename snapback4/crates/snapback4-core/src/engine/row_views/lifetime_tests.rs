@@ -115,7 +115,7 @@ fn expected(c: Config, u: &Value, messages: &BTreeMap<usize, Value>, now: i64) -
         && m.field("senderId").unwrap() != u.field("principal").unwrap()
         && (!c.tombstones || m.field("tombstone").unwrap() == &Value::Bool(false))).count() as i64)
 }
-fn check_rows(tx: &crate::store::Tx<'_>, schema: &Schema, c: Config, members: &BTreeMap<usize, Value>, messages: &BTreeMap<usize, Value>, now: i64, label: &str) -> usize {
+fn check_rows(tx: &impl crate::partition::PartitionRows, schema: &Schema, c: Config, members: &BTreeMap<usize, Value>, messages: &BTreeMap<usize, Value>, now: i64, label: &str) -> usize {
     let views: Vec<_> = tx.scan("unread", "byId", &[], &Bounds::default(), Dir::Asc, 256).unwrap().into_iter().map(|(v,_)|v).collect();
     assert_eq!(views.len(), members.len(), "{label} materialized member count");
     let runner = || Runner::new(tx, schema, Context::new("reader", Default::default()).at(now), Meter::new(Ceilings::unbounded(), Cut::Cap), 0);

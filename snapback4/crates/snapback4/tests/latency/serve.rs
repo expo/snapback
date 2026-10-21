@@ -112,7 +112,7 @@ fn latency_release_requires_a_live_service_and_never_allows_reset() {
     let header = format!("Authorization: Bearer {}\r\n", service.token);
     assert_eq!(status(&host.request("GET", "/dev/latency", &header, "")), 200);
     assert_eq!(status(&host.request("POST", "/dev/latency/reset", &header, "")), 403);
-    { let engine = lock(&host.shared.engine); engine.store().test_support_conn().execute("UPDATE _sessions SET expires_at = 0", []).unwrap(); }
+    { let engine = lock(&host.shared.engine); (match engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().execute("UPDATE _sessions SET expires_at = 0", []).unwrap(); }
     assert_eq!(status(&host.request("GET", "/dev/latency", &header, "")), 401);
     assert_eq!(status(&host.request("GET", "/dev/latency", "Authorization: Bearer invalid\r\n", "")), 401);
 }

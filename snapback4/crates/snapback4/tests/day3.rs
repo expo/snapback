@@ -1,4 +1,5 @@
 //! Wave-13 saved source, contemporary fixtures and inherited scaffold regressions.
+use snapback4_core::Rows;
 use std::{fs, path::PathBuf, process::{Command, Output}, sync::atomic::{AtomicUsize, Ordering}};
 const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
 static NEXT: AtomicUsize = AtomicUsize::new(0);

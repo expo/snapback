@@ -718,6 +718,7 @@ fn dispatch(runner: &mut Runner<'_>, job: &str, op: &str, request: &Json) -> Res
 
 #[cfg(test)]
 mod tests {
+    use crate::rows::Rows;
     use super::*;
 
     /// Exports `sb4_jobs() -> (ptr=0,len=u32::MAX)`. The host must reject the

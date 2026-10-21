@@ -602,8 +602,7 @@ mod tests {
             resolve(&store, &expired.token, (SESSION_DAYS + 1) * DAY_MS).unwrap(),
             None
         );
-        let kept: i64 = store
-            .conn()
+        let kept: i64 = (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn()
             .query_row(
                 "SELECT COUNT(*) FROM _sessions WHERE token_digest = ?1",
                 [digest(&expired.token)],
@@ -636,8 +635,7 @@ mod tests {
         signup(&store, "a@example.com", "correct horse", 1, &mut crate::ids::Mint::default()).unwrap();
         let found = credential(&store, "a@example.com").unwrap().unwrap();
         verify_password(Some(&found), "correct horse").unwrap();
-        store
-            .conn()
+        (match &store { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).conn()
             .execute("DELETE FROM _credentials", [])
             .unwrap();
         assert!(matches!(

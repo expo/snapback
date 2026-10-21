@@ -4,6 +4,7 @@
 //! growth ratio between a commit and one four times larger: linear work grows
 //! about 4x, the old quadratic scan about 16x. The functional asserts check
 //! that each commit still logs its events.
+use snapback4_core::partition::PartitionRows;
 use snapback4_core::{Engine, value::{Value, object}};
 use std::time::{Duration, Instant};
 
@@ -36,7 +37,7 @@ fn engine() -> Engine {
 }
 
 fn logged(engine: &Engine) -> i64 {
-    engine.store().test_support_conn().query_row("SELECT count(*) FROM _log", [], |r| r.get(0)).unwrap()
+    (match &engine.store() { snapback4_core::store_port::AnyStore::Sqlite(inner) => inner }).test_support_conn().query_row("SELECT count(*) FROM _log", [], |r| r.get(0)).unwrap()
 }
 
 fn seed_rows(count: i64) -> Duration {
