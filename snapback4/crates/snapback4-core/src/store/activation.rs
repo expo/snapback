@@ -221,15 +221,15 @@ impl Store {
             super::live_activation::clear_stale(&tx)?;
             let mut retained_through=BTreeSet::new();
             let release_activation=programs.is_some() && tx.meta("activation_restore")?.is_some();
-            tx.set_meta("activation_asset_root",&store.assets_dir.to_string_lossy())?;
             if (schema_changed || release_activation) && programs.is_some() && !reset {
+                tx.set_meta("activation_asset_root",&store.assets_dir.to_string_lossy())?;
                 let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')", [], |r|r.get(0)).optional()?;
                 let previous: Option<Schema> = previous.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
                 let previous=previous.map(|s|super::table_renames::schema(s,&renamed_tables)).transpose()?.map(|s|super::asset_renames::schema(s,&renamed_columns));
                 let restore=tx.meta("activation_restore")?.as_deref()!=Some("false");
                 retained_through=super::dormant::transition(&tx,schema,previous.as_ref(),restore,now,&mut report)?;
+                tx.conn().execute("DELETE FROM _meta WHERE key='activation_asset_root'",[])?;
             }
-            tx.conn().execute("DELETE FROM _meta WHERE key='activation_asset_root'",[])?;
             let population_changed=tx.meta("activation_population")?.as_deref()==Some("true");
             changed |= population_changed;
             let rebuilding=schema_changed || population_changed;

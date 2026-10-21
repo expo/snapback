@@ -99677,3 +99677,10 @@ immutable asset directory as forward previews. Packed coverage now includes
 file-derived down for a native v2 record and the lost-guard checklist contract.
 The former day5 source-copy assertion is updated to the reviewed loosened-target
 contract, preserving guard warnings and the explicit restoration checklist.
+
+EVOL final full-suite catch: legacy native device residency must preserve the
+exact database bytes across open/inspection/refused adoption. The new temporary
+asset-root marker was being inserted/deleted even when no migration ran. The
+unchanged regression passes at pre-EVOL 86303f71df and failed on this branch;
+scoping the marker to the actual server transition restores all seven residency
+tests. File-derived migration context remains inside that same atomic transition.
