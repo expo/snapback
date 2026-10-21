@@ -398,3 +398,10 @@ explains native binaries, Postgres naming, admin keys and knobs.
 This measures **Convex/PG self-hosted**, not Convex Cloud or Convex's production
 storage path. Default query caching makes a hot read an application-cache test
 as well as a persistence test; no uncached per-request SQL interpretation is valid.
+
+The counter witness spans warm-up plus measurement. Whole-cohort failures are
+derived from the scheduler's exact arrival count and total acknowledgements;
+`warmup_error_count` is reported separately. A committed, timed-out warm-up
+request is an unknown outcome even when the measured window has zero errors.
+Counter inequality always disqualifies the trial; an excess with no failures
+anywhere in the cohort, or fewer commits than acknowledgements, still aborts.

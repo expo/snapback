@@ -21,6 +21,11 @@ for summary in sorted(root.glob('*/summary.json')):
             assert r['options']['rows']==cell['rows']
             assert r['scheduled']==r['success']+r['error_count']==r['latency']['count']
             assert sum(r['errors'].values())==r['error_count']
+            if 'total_errors_including_warmup' in r:
+                o=r['options'];cohort=(o['rate']*(o['warmup_ms']+o['duration_ms'])+999)//1000
+                assert r['total_scheduled_including_warmup']==cohort
+                assert r['total_errors_including_warmup']==cohort-r['total_success_including_warmup']
+                assert r['warmup_error_count']==r['total_errors_including_warmup']-r['error_count']>=0
             schedules+=r['scheduled']
             for key in ['latency','dispatch_lag','http_service']:
                 h=r[key]
