@@ -10,6 +10,7 @@
 - Security notes also review broad roster branches inside `or`, lifecycle-wide role reads, self-claimed relationships and caller time flowing into deadlines, without requiring invariants. Notes identify the rule or operation and its repair; they remain advisory.
 - `check` targets contradicted read intent with validated generated fixtures and actual authored reads. `test` preserves non-protected column values and shares verified asset ledgers between paired worlds. Refutations retain their fixture assumptions; finite passing campaigns remain finite evidence.
 - `audit` leads with fixes and ranked reviews; `snapback4 audit --all` and JSON retain full proof blockers and coverage details.
+- Unknown or absent preservation evidence keeps the previous read answer visible while refreshing; a known preservation list still bounds withdrawals for actual policy changes. Shared receipt decoding now rejects malformed stored JSON consistently, and new metadata keys/text refuse NUL while legacy SQLite metadata stays readable.
 - Existing applications retain their rules and data. New security notes are advisory; review them against the product specification. Regenerate declarations after upgrade and review `data --json` scripts and starter adaptations as described above.
 
 ## 0.4.35
