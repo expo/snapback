@@ -359,7 +359,7 @@ impl super::Engine {
         publish: impl FnOnce(D, u64, Option<String>, u64) -> Result<R, RuntimeError>,
     ) -> Result<R, RuntimeError> {
         let seq = self.seq()?;
-        let store_id = self.store.meta("store_id").unwrap_or(None);
+        let store_id = self.store.store_identity().unwrap_or(None);
         let pending = Pending::new((), (data, seq, store_id, self.generation));
         Committer::continue_pending(
             &mut (),
