@@ -66,7 +66,7 @@ fn sqlite_changes_reports_missing_or_unknown_evidence_as_null() {
         let path = format!("/changes?since={since}&wait=0");
         let known = body(&host.request("GET", &path, "x-snapback-persona: alice\r\n", ""));
         assert_eq!(known["preserved"], json!(["items"]));
-        lock(&host.shared.engine).store().conn().execute_batch(corruption).unwrap();
+        lock(&host.shared.engine).store().test_support_conn().execute_batch(corruption).unwrap();
         let unknown = body(&host.request("GET", &path, "x-snapback-persona: alice\r\n", ""));
         assert_eq!(unknown["seq"], since + 1);
         assert_eq!(unknown["tables"], json!(["items"]));
