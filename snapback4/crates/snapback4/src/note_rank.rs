@@ -16,7 +16,7 @@ pub(crate) enum Tier {
 
 pub(crate) fn tier(code: &str) -> Tier {
     match code {
-        "N_IMMUTABLE_PATCH" | "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_QUERY_FILTERED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
+        "N_IMMUTABLE_PATCH" | "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_FILTERED" | "N_UNIQUE_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_QUERY_FILTERED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_SWEEP_DEADLINE" | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
         | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" | "N_PRIVILEGE_ESCALATION" | "N_SELF_CLAIMED_RELATIONSHIP" | "N_CALLER_TIME" | "N_ROLE_WIDE_READ" | "N_INVARIANT_RESTATES_RULE" | "N_ARGUMENT_GRANT" | "N_BROAD_READ" | "N_SECURITY_INTENT" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
@@ -67,6 +67,8 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_REQUIRE_HIDDEN" => "fix: this require cannot see the rows it tests",
         "N_LOOKUP_NEVER_VISIBLE" => "fix: this nullable lookup is always null for the admitted callers",
         "N_LOOKUP_HIDDEN" => "review: a required read gate may hide rows from writers",
+        "N_LOOKUP_FILTERED" => "review: confirm lookup authority and the hidden-row outcome",
+        "N_UNIQUE_HIDDEN" => "review: hidden unique conflicts retain generic E_RULE",
         "N_PROBE_ONLY_READ" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" => "review: who can read this",
         "N_VACUOUS_RULE" => "review: who can write this",
         "N_IMMUTABLE_PATCH" => "review: readable conflicts require the original immutable value",
@@ -322,5 +324,17 @@ mod tests {
             "note: N_SYNC_ORDER (as above) also for query b (schema.q:87:10) — snapback4 why N_SYNC_ORDER",
         ]);
         assert!(render(Vec::new()).is_empty());
+    }
+}
+
+#[cfg(test)]
+mod integration20_tests {
+    use super::*;
+    #[test]
+    fn source_authority_advice_never_says_to_ignore_it_until_slow() {
+        for code in ["N_LOOKUP_FILTERED", "N_UNIQUE_HIDDEN"] {
+            assert_eq!(tier(code), Tier::Review);
+            assert!(verdict(code, "", false).starts_with("review:"));
+        }
     }
 }

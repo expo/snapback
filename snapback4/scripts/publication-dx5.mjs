@@ -17,6 +17,10 @@ export async function proveDX5(directory, client, platform, expo) {
       writeFileSync(join(cwd,"consumer.mjs"),readFileSync(join(root,`scripts/dx5-${name}-consumer.mjs`)));
       await run(["consumer.mjs"],cwd);
     }
+    // A CLI-only consumer has no React peer. Supply it explicitly so this
+    // packed proof cannot borrow React from an ancestor checkout's node_modules.
+    const reactVersion=JSON.parse(readFileSync(join(root,"node_modules/react/package.json"))).version;
+    await runToolchainCommand("npm",["install","--save-exact","--no-audit","--no-fund",`react@${reactVersion}`],{cwd:parent,env,timeout:300000});
     await run(["--test",join(root,"packages/snapback4/test/dx5-react.test.mjs")],root,{SNAPBACK4_CLIENT_DIST:join(parent,"node_modules/snapback4/dist")});
     // Retain proof commands and the dependency across an actual init-first adapt.
     const cwd=join(scratch,"adapt");mkdirSync(cwd);
