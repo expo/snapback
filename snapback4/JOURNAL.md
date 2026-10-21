@@ -100280,3 +100280,13 @@ fixture/device interoperability. Three engine authority snapshots use scoped
 callbacks with their original rollback/error behavior. The adapter-internal
 reset/witness producers keep their original openers through `WriteStore`;
 this is no K0 routing claim. `cargo build -p snapback4 -j 10` passes.
+
+S10a host/identity increment: host openings and stored reader handles use
+`AnyStore`; inspection uses `AnyInspection`, and identity's three remaining
+authority reads use scoped snapshots. The snapshot adapter still opens and
+rolls back once; failure still drops that same transaction. `InspectionRows`
+is now a neutral owned record. `cargo build -p snapback4 -j 10` passes.
+An independent run of the new census matcher against base `8beeb79c52`
+reproduces **79/16 engine + 44/21 host = 123 tokens/37 files**; the migrated
+production trees have **0 tokens/0 files**. The falling census and full
+qualification results follow in the final increment.

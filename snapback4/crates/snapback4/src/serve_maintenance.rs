@@ -548,7 +548,7 @@ mod tests {
     #[test]
     fn kit4_slow_advance_reports_only_windows_it_actually_admitted() {
         for each_boundary in [false, true] {
-            let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+            let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
                 "table rows:\n  n: int\n  cap 1\n  public 'fixture'\njob tick():\n  for row in rows:\n    update rows[row.id] {n:1}\nschedule pulse every 1m: tick\n");
             let shared = host.shared.clone();
             let initial = (snapback4_core::now_ms().div_euclid(60_000) + 2) * 60_000 - 100;
@@ -579,7 +579,7 @@ mod tests {
 
     #[test]
     fn kit4_clock_reply_samples_skew_before_a_delayed_drain() {
-        let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+        let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
             "use personas alice\nquery time():\n  return now\n");
         let shared = host.shared.clone();
         let (entered, resume) = shared.engine.pause_next_background(false);
@@ -611,7 +611,7 @@ mod tests {
         }
         // Signal state is isolated in this one-test child, never the suite.
         crate::lifecycle::install("dev").unwrap(); crate::lifecycle::managed_cleanup();
-        let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+        let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
             "use personas alice\ntable rows:\n  n: int\n  public 'fixture'\njob tick():\n  for row in rows:\n    update rows[row.id] {n:1}\n");
         let shared = host.shared.clone();
         let before = shared.now();
@@ -635,7 +635,7 @@ mod tests {
 
     #[test]
     fn aged_bulk_progresses_when_the_bulk_thread_never_runs() {
-        let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+        let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
             "table rows:\n  n: int\n  public\njob catchup():\n  for row in rows:\n    update rows[row.id] { n: 1 }\n");
         let shared = &host.shared;
         let job = lock(&shared.engine).enqueue_job("catchup", Default::default(), shared.now()).unwrap();
@@ -668,7 +668,7 @@ mod tests {
     }
 
     fn stalled_bulk(holding: bool) {
-        let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+        let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
             "table rows:\n  until: time\n  expire at .until\n  public\n");
         let shared = host.shared.clone();
         lock(&shared.engine).seed_at([("rows".into(), snapback4_core::value::object([
@@ -805,7 +805,7 @@ mod tests {
 
     #[test]
     fn clock_drain_unwind_releases_background_work() {
-        let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "table rows:\n  n: int\n  public\n");
+        let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(), "table rows:\n  n: int\n  public\n");
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             let _advancing = Advancing(&host.shared);
             lock(&host.shared.maintenance).advancing = true;

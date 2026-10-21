@@ -35,7 +35,7 @@ pub fn personas(bound: &Bound, options: &super::Options) -> Vec<String> {
 }
 
 // @ref LLP 3000.007#6.8 — cost-order the real cold snapshot, not stored table sizes or estimates.
-fn report(tx: &snapback4_core::store::Tx<'_>, schema: &snapback4_core::Schema, personas: &[String], verbose: bool) -> Result<String, snapback4_core::error::RuntimeError> {
+fn report(tx: &snapback4_core::store_port::AnyTx<'_>, schema: &snapback4_core::Schema, personas: &[String], verbose: bool) -> Result<String, snapback4_core::error::RuntimeError> {
     let mut counts = Vec::new();
     let mut totals = BTreeMap::new();
     let mut columns = BTreeMap::<(String,String), (u64,u64,u64)>::new();
@@ -126,7 +126,7 @@ pub fn at_check(project: &crate::project::Project, bound: &Bound, options: &supe
         return Ok(None);
     }
     // Inspect the persisted generation, never adopt current source or label a new maintain's absent rows as zero acquisition.
-    let mut store = snapback4_core::Store::open_read_only(&path).map_err(|e| e.to_string())?;
+    let mut store = snapback4_core::store_port::AnyStore::open_read_only(&path).map_err(|e| e.to_string())?;
     let tx = store.read_transaction().map_err(|e| e.to_string())?;
     let encoded: String = tx.inspection_schema_text()?;
     let schema = serde_json::from_str(&encoded).map_err(|e| e.to_string())?;

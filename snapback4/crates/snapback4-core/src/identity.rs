@@ -8,7 +8,7 @@
 use crate::metadata::MetadataReader;
 use crate::error::RuntimeError;
 use crate::authority::{self, AuthorityTransaction};
-use crate::store::{Store, Tx};
+use crate::store_port::{AnyStore, AnyTx};
 use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
 use argon2::Argon2;
 use sha2::{Digest, Sha256};
@@ -133,15 +133,15 @@ pub(crate) trait IdentityStore {
 }
 
 /// Whether a bearer belongs to a host-supervised family (manual seats survive).
-pub fn is_supervised_family(store: &Store, token_digest: &str) -> Result<bool, RuntimeError> {
+pub fn is_supervised_family(store: &AnyStore, token_digest: &str) -> Result<bool, RuntimeError> {
     store.is_supervised_family(token_digest)
 }
 
-pub fn clear_worker_families(store: &Store) -> Result<(), RuntimeError> {
+pub fn clear_worker_families(store: &AnyStore) -> Result<(), RuntimeError> {
     store.clear_worker_families()
 }
 
-pub fn revoke_worker_family(store: &Store, family: Option<&str>) -> Result<(), RuntimeError> {
+pub fn revoke_worker_family(store: &AnyStore, family: Option<&str>) -> Result<(), RuntimeError> {
     revoke_worker_family_in(store, family)
 }
 
@@ -152,7 +152,7 @@ fn revoke_worker_family_in(store: &impl IdentityStore, family: Option<&str>) -> 
 
 /// Mint a supervised service credential and its marker in one atomic unit.
 pub fn mint_supervised_child(
-    store: &Store,
+    store: &AnyStore,
     name: Option<&str>,
     now: i64,
     revision: usize,
@@ -191,7 +191,7 @@ pub struct ServiceSample {
 /// this is the supervised worker family. Manually provisioned seats retain
 /// their ordinary live-session semantics.
 // @ref LLP 3000.009#16 — the deployment-trusted worker credential is current only for its supervising revision.
-pub(crate) fn current_service_tx(tx: &Tx<'_>, token: &str, sample: ServiceSample) -> Result<Option<String>, RuntimeError> {
+pub(crate) fn current_service_tx(tx: &AnyTx<'_>, token: &str, sample: ServiceSample) -> Result<Option<String>, RuntimeError> {
     let token_digest = digest(token);
     let Some(session) = authority::live_session(tx, &token_digest, sample.now)? else { return Ok(None) };
     if session.scope != SessionScope::Full || session.kind != "service" || !is_service(&session.principal) { return Ok(None); }
@@ -215,7 +215,7 @@ pub(crate) fn supervisor_current(tx: &impl MetadataReader, family: &str, revisio
     Ok(true)
 }
 
-pub(crate) fn resolve_session_tx(tx: &Tx<'_>, token_digest: &str, now: i64, revision: Option<usize>) -> Result<Option<Capability>, RuntimeError> {
+pub(crate) fn resolve_session_tx(tx: &AnyTx<'_>, token_digest: &str, now: i64, revision: Option<usize>) -> Result<Option<Capability>, RuntimeError> {
     let Some(session) = authority::live_session(tx, token_digest, now)? else { return Ok(None); };
     if let Some(revision) = revision {
         if !supervisor_current(tx, &session.family, revision)? { return Ok(None); }
@@ -224,34 +224,34 @@ pub(crate) fn resolve_session_tx(tx: &Tx<'_>, token_digest: &str, now: i64, revi
 }
 
 /// Host authentication, including ordinary queries and mutations.
-pub fn resolve_supervised(store: &Store, token: &str, sample: ServiceSample) -> Result<Option<Capability>, RuntimeError> {
-    let tx = store.authority_transaction()?;
-    let resolved = resolve_session_tx(&tx, &digest(token), sample.now, Some(sample.supervisor_revision))?;
-    tx.rollback()?;
+pub fn resolve_supervised(store: &AnyStore, token: &str, sample: ServiceSample) -> Result<Option<Capability>, RuntimeError> {
+    store.with_authority_snapshot(|tx| {
+    let resolved = resolve_session_tx(tx, &digest(token), sample.now, Some(sample.supervisor_revision))?;
     Ok(resolved)
+    })
 }
 
-pub fn resolve_read_only_supervised(store: &Store, token: &str, sample: ServiceSample, expected_store_id: Option<&str>) -> Result<Option<Capability>, RuntimeError> {
+pub fn resolve_read_only_supervised(store: &AnyStore, token: &str, sample: ServiceSample, expected_store_id: Option<&str>) -> Result<Option<Capability>, RuntimeError> {
     store.resolve_session_snapshot(&digest(token), sample.now, expected_store_id, Some(sample.supervisor_revision))
 }
 
 /// Read-only wrapper for host doors that do not already own a writer
 /// transaction. Strict work transitions call `current_service_tx` directly.
-pub fn current_service(store: &Store, token: &str, sample: ServiceSample) -> Result<Option<String>, RuntimeError> {
-    let tx = store.authority_transaction()?;
-    let service = current_service_tx(&tx, token, sample)?;
-    tx.rollback()?;
+pub fn current_service(store: &AnyStore, token: &str, sample: ServiceSample) -> Result<Option<String>, RuntimeError> {
+    store.with_authority_snapshot(|tx| {
+    let service = current_service_tx(tx, token, sample)?;
     Ok(service)
+    })
 }
 
 pub use crate::authority::Authority;
 
-pub(crate) fn principal_generation(tx: &Tx<'_>, principal: &str) -> Result<i64, RuntimeError> {
+pub(crate) fn principal_generation(tx: &AnyTx<'_>, principal: &str) -> Result<i64, RuntimeError> {
     tx.principal_generation(principal)
 }
 
 /// Resolve the admitting credential inside the admission transaction.
-pub(crate) fn authority(tx: &Tx<'_>, token_digest: &str, principal: &str, now: i64) -> Result<Authority, RuntimeError> {
+pub(crate) fn authority(tx: &AnyTx<'_>, token_digest: &str, principal: &str, now: i64) -> Result<Authority, RuntimeError> {
     match authority::admission_authority(tx, token_digest, principal, now)? {
         authority::AdmissionStanding::SessionNotLive => Err(RuntimeError::Auth("the admitting session is no longer live".into())),
         authority::AdmissionStanding::AuthorityNotLive => Err(RuntimeError::Auth("the admitting session's authority is no longer live".into())),
@@ -302,7 +302,7 @@ fn new_session(principal: &str, kind: &str, now: i64, days: i64) -> Result<Sessi
 }
 
 /// Mint a session for a principal; returns the token exactly once.
-pub fn open_session(store: &Store, principal: &str, kind: &str, now: i64,
+pub fn open_session(store: &AnyStore, principal: &str, kind: &str, now: i64,
 ) -> Result<Session, RuntimeError> {
     let session = new_session(principal, kind, now, SESSION_DAYS)?;
     store.insert_identity_session(&session, now)?;
@@ -324,7 +324,7 @@ pub(crate) fn action_session(tx: &impl IdentityTransaction, principal: &str, now
 }
 
 /// The principal behind a bearer token, if the session is live.
-pub fn resolve(store: &Store, token: &str, now: i64) -> Result<Option<Capability>, RuntimeError> {
+pub fn resolve(store: &AnyStore, token: &str, now: i64) -> Result<Option<Capability>, RuntimeError> {
     let token_digest = digest(token);
     let resolved = resolve_digest(store, &token_digest, now)?;
     if resolved.is_none() { store.invalidate_expired_authority_session(&token_digest, now)?; }
@@ -335,18 +335,18 @@ pub fn resolve(store: &Store, token: &str, now: i64) -> Result<Option<Capability
 /// maintenance. Application catalog adoption does not revoke sessions; a store
 /// identity change does. The serving writer retains custody of cleanup.
 // @ref LLP 3000.017#3.3 — ephemeral-only poll wakes finish without the engine mutex.
-pub fn resolve_read_only(store: &Store, token: &str, now: i64, expected_store_id: Option<&str>) -> Result<Option<Capability>, RuntimeError> {
+pub fn resolve_read_only(store: &AnyStore, token: &str, now: i64, expected_store_id: Option<&str>) -> Result<Option<Capability>, RuntimeError> {
     store.resolve_session_snapshot(&digest(token), now, expected_store_id, None)
 }
 
-fn resolve_digest(store: &Store, token_digest: &str, now: i64) -> Result<Option<Capability>, RuntimeError> {
-    let tx = store.authority_transaction()?;
-    let resolved = authority::live_session(&tx, token_digest, now)?.map(|session| (session.principal, session.kind, session.scope));
-    tx.rollback()?;
+fn resolve_digest(store: &AnyStore, token_digest: &str, now: i64) -> Result<Option<Capability>, RuntimeError> {
+    store.with_authority_snapshot(|tx| {
+    let resolved = authority::live_session(tx, token_digest, now)?.map(|session| (session.principal, session.kind, session.scope));
     Ok(resolved)
+    })
 }
 
-pub fn close_session(store: &Store, token: &str) -> Result<(), RuntimeError> {
+pub fn close_session(store: &AnyStore, token: &str) -> Result<(), RuntimeError> {
     store.close_identity_session(&digest(token))
 }
 
@@ -354,7 +354,7 @@ pub fn close_session(store: &Store, token: &str) -> Result<(), RuntimeError> {
 /// transaction. This is the HTTP logout boundary; callers that already own a
 /// different authority boundary may continue to use `close_session`.
 // @ref LLP 3000.009#5.1 — logout and lost-delivery replacement serialize on the session family.
-pub fn logout_session(store: &mut Store, token: &str, now: impl FnOnce() -> i64) -> Result<(), RuntimeError> {
+pub fn logout_session(store: &mut AnyStore, token: &str, now: impl FnOnce() -> i64) -> Result<(), RuntimeError> {
     let token_digest = digest(token);
     let tx = store.transaction()?;
     // The successful immediate transaction is the authority linearization
@@ -371,7 +371,7 @@ pub fn logout_session(store: &mut Store, token: &str, now: impl FnOnce() -> i64)
 /// Replace one live bearer token atomically. The new token keeps the
 /// session's originally selected lifetime and starts that lifetime anew.
 pub fn rotate_session(
-    store: &Store,
+    store: &AnyStore,
     old_token: &str,
     now: i64,
 ) -> Result<Option<Session>, RuntimeError> {
@@ -399,10 +399,10 @@ fn rotate_session_in(store: &impl IdentityStore, old_token: &str, now: i64) -> R
 }
 
 /// A guest: a principal with no credential, minted on request.
-pub fn guest(store: &Store, now: i64, entropy: &mut crate::ids::Mint) -> Result<Session, RuntimeError> {
+pub fn guest(store: &AnyStore, now: i64, entropy: &mut crate::ids::Mint) -> Result<Session, RuntimeError> {
     guest_scoped(store, now, entropy, SessionScope::Full)
 }
-pub fn guest_scoped(store: &Store, now: i64, entropy: &mut crate::ids::Mint, scope: SessionScope) -> Result<Session, RuntimeError> {
+pub fn guest_scoped(store: &AnyStore, now: i64, entropy: &mut crate::ids::Mint, scope: SessionScope) -> Result<Session, RuntimeError> {
     let id = crate::ids::mint(now, entropy)?;
     let session = read_sessions::scoped_session(&format!("guest:{id}"), "guest", now, scope)?;
     store.insert_identity_session_atomic(&session, now)?;
@@ -466,14 +466,14 @@ pub fn prepare_signup(email: &str, password: &str) -> Result<PreparedSignup, Run
 
 /// The uniqueness check, account and initial session commit atomically.
 pub fn finish_signup(
-    store: &Store,
+    store: &AnyStore,
     prepared: PreparedSignup,
     now: i64,
     entropy: &mut crate::ids::Mint,
 ) -> Result<Session, RuntimeError> {
     finish_signup_scoped(store, prepared, now, entropy, SessionScope::Full)
 }
-pub fn finish_signup_scoped(store: &Store, prepared: PreparedSignup, now: i64, entropy: &mut crate::ids::Mint, scope: SessionScope) -> Result<Session, RuntimeError> {
+pub fn finish_signup_scoped(store: &AnyStore, prepared: PreparedSignup, now: i64, entropy: &mut crate::ids::Mint, scope: SessionScope) -> Result<Session, RuntimeError> {
     finish_signup_in(store, prepared, now, entropy, scope)
 }
 
@@ -491,7 +491,7 @@ fn finish_signup_in(store: &impl IdentityStore, prepared: PreparedSignup, now: i
 }
 
 pub fn signup(
-    store: &Store,
+    store: &AnyStore,
     email: &str,
     password: &str,
     now: i64,
@@ -500,7 +500,7 @@ pub fn signup(
     finish_signup(store, prepare_signup(email, password)?, now, entropy)
 }
 
-pub fn credential(store: &Store, email: &str) -> Result<Option<Credential>, RuntimeError> {
+pub fn credential(store: &AnyStore, email: &str) -> Result<Option<Credential>, RuntimeError> {
     credential_in(store, email)
 }
 
@@ -533,10 +533,10 @@ fn bad_login() -> RuntimeError {
 }
 
 /// Recheck the credential after verifying outside the database guard.
-pub fn finish_login(store: &Store, checked: Credential, now: i64) -> Result<Session, RuntimeError> {
+pub fn finish_login(store: &AnyStore, checked: Credential, now: i64) -> Result<Session, RuntimeError> {
     finish_login_scoped(store, checked, now, SessionScope::Full)
 }
-pub fn finish_login_scoped(store: &Store, checked: Credential, now: i64, scope: SessionScope) -> Result<Session, RuntimeError> {
+pub fn finish_login_scoped(store: &AnyStore, checked: Credential, now: i64, scope: SessionScope) -> Result<Session, RuntimeError> {
     finish_login_in(store, checked, now, scope)
 }
 
@@ -548,7 +548,7 @@ fn finish_login_in(store: &impl IdentityStore, checked: Credential, now: i64, sc
     })?;
     Ok(session)
 }
-pub fn login(store: &Store, email: &str, password: &str, now: i64,
+pub fn login(store: &AnyStore, email: &str, password: &str, now: i64,
 ) -> Result<Session, RuntimeError> {
     password_bound(password)?;
     let found = credential(store, email)?;
@@ -562,7 +562,7 @@ mod tests {
 
     #[test]
     fn sessions_resolve_until_closed() {
-        let store = Store::memory().unwrap();
+        let store = AnyStore::memory().unwrap();
         let mut entropy = crate::ids::Mint::default();
         let session = guest(&store, 1_000, &mut entropy).unwrap();
         assert!(session.principal.starts_with("guest:"));
@@ -575,7 +575,7 @@ mod tests {
 
     #[test]
     fn rotation_and_revoke_all_end_every_old_bearer() {
-        let store = Store::memory().unwrap();
+        let store = AnyStore::memory().unwrap();
         let original = open_session(&store, "user:one", "user", 1_000).unwrap();
         let rotated = rotate_session(&store, &original.token, 2_000)
             .unwrap()
@@ -615,7 +615,7 @@ mod tests {
 
     #[test]
     fn passwords_hash_and_verify() {
-        let store = Store::memory().unwrap();
+        let store = AnyStore::memory().unwrap();
         let mut entropy = crate::ids::Mint::default();
         let session = signup(&store, "Ann@Example.com", "correct horse", 1_000, &mut entropy,
         ).unwrap();
@@ -632,7 +632,7 @@ mod tests {
         let oversized = "x".repeat(PASSWORD_MAX_BYTES + 1);
         assert!(prepare_signup("a@example.com", &oversized).is_err());
         assert!(verify_password(None, &oversized).is_err());
-        let store = Store::memory().unwrap();
+        let store = AnyStore::memory().unwrap();
         signup(&store, "a@example.com", "correct horse", 1, &mut crate::ids::Mint::default()).unwrap();
         let found = credential(&store, "a@example.com").unwrap().unwrap();
         verify_password(Some(&found), "correct horse").unwrap();
@@ -670,7 +670,7 @@ fn valid_name(name: &str) -> bool {
 
 /// A session for the service `name`, `days` long: what `snapback4 token
 /// --service name` prints once and a worker keeps.
-pub fn service_session(store: &Store, name: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
+pub fn service_session(store: &AnyStore, name: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
     refuse_nul(&[(name, "a service name is 1–64 letters, digits, _ or -")])?;
     if !valid_name(name) {
         return Err(RuntimeError::Auth("a service name is 1–64 letters, digits, _ or -".into()));
@@ -683,7 +683,7 @@ pub fn service_session(store: &Store, name: &str, now: i64, days: i64) -> Result
 /// service mints it and hands the token to that user's device, which then
 /// talks to the server directly. The principal is the application's own
 /// name for the account (`member:42`), outside the engine's namespaces.
-pub fn custom_session(store: &Store, principal: &str, kind: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
+pub fn custom_session(store: &AnyStore, principal: &str, kind: &str, now: i64, days: i64) -> Result<Session, RuntimeError> {
     validate_custom_session(principal, kind)?;
     open_session_for(store, principal, kind, now, days)
 }
@@ -747,7 +747,7 @@ fn session_mint_authority_error(message: &str) -> RuntimeError {
 /// whose delivery was lost. The binding and token family change together.
 // @ref LLP 3000.009#5.1 — the identity handoff borrows the transaction-scoped service and action authorities.
 pub fn bound_custom_session(
-    store: &mut Store,
+    store: &mut AnyStore,
     service_token: &str,
     worker: &str,
     action_lease: &str,
@@ -836,7 +836,7 @@ pub(crate) fn bound_custom_session_tx(
 /// End every session of a principal: an account lifecycle event (a lost
 /// phone, a removed member) the application's service performs. Returns
 /// how many sessions ended.
-pub fn revoke_principal(store: &Store, principal: &str) -> Result<u64, RuntimeError> {
+pub fn revoke_principal(store: &AnyStore, principal: &str) -> Result<u64, RuntimeError> {
     revoke_principal_in(store, principal)
 }
 
@@ -851,7 +851,7 @@ mod service_tests {
 
     #[test]
     fn services_and_custom_accounts_have_sessions_of_their_own() {
-        let store = Store::memory().unwrap();
+        let store = AnyStore::memory().unwrap();
         let ranker = service_session(&store, "ranker", 1_000, 30).unwrap();
         assert_eq!((ranker.principal.as_str(), ranker.kind.as_str()), ("service:ranker", "service"));
         assert!(is_service(&ranker.principal));

@@ -1,7 +1,7 @@
 //! Human preview groups facts about one affected table/operation once.
 // @ref LLP 3000.000.000#15-wave-15-preview-and-rollback-day5 — full evidence remains available in JSON and verbose output.
 use std::collections::{BTreeMap, BTreeSet};
-use snapback4_core::{Schema, ir::Program, store::DormantItem, successor::Step};
+use snapback4_core::{Schema, ir::Program, store_port::DormantItem, successor::Step};
 struct Group { warnings: Vec<String>, notes: Vec<String>, priority: u8 }
 impl Default for Group { fn default() -> Self {Self {warnings:Vec::new(),notes:Vec::new(),priority:2}} }
 fn table_prefix(text: &str, tables: &BTreeSet<String>) -> Option<String> {

@@ -1,7 +1,7 @@
 //! Operator inspection, never an application result-collection endpoint.
 use super::*;
-use snapback4_core::{inspection::WorkRecordKind, store::inspect::Inspection};
-use snapback4_core::store::{canonical_payload, payload_digest};
+use snapback4_core::{inspection::WorkRecordKind, store_port::AnyInspection};
+use snapback4_core::store_port::{canonical_payload, payload_digest};
 
 pub(super) fn store_path(options: &Options) -> std::path::PathBuf {
     options.flags.get("release").map(|dir| Path::new(dir).join("store.sqlite"))
@@ -10,7 +10,7 @@ pub(super) fn store_path(options: &Options) -> std::path::PathBuf {
 
 pub(super) fn project(options: &Options) -> Result<Project, String> {
     let Some(dir) = options.flags.get("release") else { return Ok(project_or_exit()); };
-    let conn = Inspection::open(&store_path(options)).map_err(|(_, e)| e)?;
+    let conn = AnyInspection::open(&store_path(options)).map_err(|(_, e)| e)?;
     let release: String = conn.required_release().map_err(|(_, e)| e)?;
     Ok(Project { root: Path::new(dir).join("releases").join(release) })
 }
@@ -41,7 +41,7 @@ fn show(value: &Json) -> String {
 pub(super) fn explain(options: &Options, id: &str) -> Result<bool, String> {
     let path = store_path(options);
     if !path.is_file() { return Ok(false); }
-    let conn = Inspection::open(&path).map_err(|(_, e)| e)?;
+    let conn = AnyInspection::open(&path).map_err(|(_, e)| e)?;
     conn.begin_snapshot().map_err(|(_, e)| e)?;
     let values = options.flags.contains_key("values");
     let mut found = false;
@@ -91,6 +91,6 @@ pub(super) fn explain(options: &Options, id: &str) -> Result<bool, String> {
 }
 
 /// Keep successfully settled attempts visible even when they requeued for retry.
-pub(super) fn handler_failures(store: &snapback4_core::Store) -> Result<Vec<String>, String> {
+pub(super) fn handler_failures(store: &snapback4_core::store_port::AnyStore) -> Result<Vec<String>, String> {
     Ok(store.handler_failure_records()?.into_iter().map(|r| format!("{}    {} {} {} after {} attempt(s): {}", r.kind, r.name, r.id, r.state, r.attempts, serde_json::to_string(&r.error).unwrap_or_default())).collect())
 }

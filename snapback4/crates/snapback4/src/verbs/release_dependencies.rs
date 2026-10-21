@@ -288,7 +288,7 @@ fn domain_widens(current: &Schema,target: &Schema,table: &str,column: &str) -> b
 }
 // Null-only optional references cannot make the retained probe population
 // depend on their parent. Explicit reads/keys still collect the column normally.
-pub(super) fn null_references(store: &snapback4_core::Store,current: &Schema,target: &Schema) -> Result<NullReferences,String> {
+pub(super) fn null_references(store: &snapback4_core::store_port::AnyStore,current: &Schema,target: &Schema) -> Result<NullReferences,String> {
     use snapback4_core::schema::{ColumnType,ColumnDefault};
     let mut candidates=BTreeSet::new();
     for (schema,other) in [(current,target),(target,current)] {for (table,definition) in &schema.tables {for (column,kind) in &definition.columns {

@@ -114,7 +114,7 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
         let release_path = options.flags.get("release").map(|dir| std::path::PathBuf::from(dir).join("store.sqlite"));
         if release_path.is_some() && options.flags.contains_key("port") { return Err("clock --release does not accept --port".into()); }
         let (address, instance, token) = if let Some(path) = &release_path {
-            let store = snapback4_core::Store::open_read_only(path).map_err(|e|e.to_string())?;
+            let store = snapback4_core::store_port::AnyStore::open_read_only(path).map_err(|e|e.to_string())?;
             if store.deployment_environment().map_err(|e|e.to_string())?.as_deref() != Some("staging") { return Err(release().to_string()); }
             let address = crate::store_owner::inspector_address(path).ok_or("staging clock requires a running serve")?;
             let session = crate::serve::token::mint_live(path, "clock", 1).map_err(|(_,error)|error)?;

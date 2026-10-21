@@ -461,3 +461,27 @@ mod family_19 {
         fn change_evidence(&self, after: u64, through: u64, visit: impl FnMut(EvidenceRecord) -> Option<()>) -> Option<()> { match self { Self::Sqlite(inner) => <sqlite::Store as ChangeEvidence>::change_evidence(inner, after, through, visit) } }
     }
 }
+
+mod inspection {
+    use super::*;
+    use crate::store_port::AnyInspection;
+    use crate::inspection::*;
+    impl InspectionCatalog for AnyStore {
+        fn active_schema_record(&self) -> InspectionResult<(i64, String)> { match self { Self::Sqlite(inner) => <sqlite::Store as InspectionCatalog>::active_schema_record(inner) } }
+        fn inspection_row_count(&self, name: &str, limit: u64) -> InspectionResult<u64> { match self { Self::Sqlite(inner) => <sqlite::Store as InspectionCatalog>::inspection_row_count(inner, name, limit) } }
+        fn inspection_provenance(&self) -> InspectionResult<Option<(i64, String)>> { match self { Self::Sqlite(inner) => <sqlite::Store as InspectionCatalog>::inspection_provenance(inner) } }
+        fn inspection_adopted(&self) -> InspectionResult<bool> { match self { Self::Sqlite(inner) => <sqlite::Store as InspectionCatalog>::inspection_adopted(inner) } }
+    }
+    impl InspectionCatalog for AnyTx<'_> {
+        fn active_schema_record(&self) -> InspectionResult<(i64, String)> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as InspectionCatalog>::active_schema_record(inner) } }
+        fn inspection_row_count(&self, name: &str, limit: u64) -> InspectionResult<u64> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as InspectionCatalog>::inspection_row_count(inner, name, limit) } }
+        fn inspection_provenance(&self) -> InspectionResult<Option<(i64, String)>> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as InspectionCatalog>::inspection_provenance(inner) } }
+        fn inspection_adopted(&self) -> InspectionResult<bool> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as InspectionCatalog>::inspection_adopted(inner) } }
+    }
+    impl InspectionCatalog for AnyInspection {
+        fn active_schema_record(&self) -> InspectionResult<(i64, String)> { match self { Self::Sqlite(inner) => <sqlite::inspect::Inspection as InspectionCatalog>::active_schema_record(inner) } }
+        fn inspection_row_count(&self, name: &str, limit: u64) -> InspectionResult<u64> { match self { Self::Sqlite(inner) => <sqlite::inspect::Inspection as InspectionCatalog>::inspection_row_count(inner, name, limit) } }
+        fn inspection_provenance(&self) -> InspectionResult<Option<(i64, String)>> { match self { Self::Sqlite(inner) => <sqlite::inspect::Inspection as InspectionCatalog>::inspection_provenance(inner) } }
+        fn inspection_adopted(&self) -> InspectionResult<bool> { match self { Self::Sqlite(inner) => <sqlite::inspect::Inspection as InspectionCatalog>::inspection_adopted(inner) } }
+    }
+}

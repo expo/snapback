@@ -415,7 +415,7 @@ mod tests {
                 root
             };
             snapback4_core::private_fs::directory(&root).unwrap();
-            let _store = snapback4_core::Store::open(&root.join("store.sqlite")).unwrap();
+            let _store = snapback4_core::store_port::AnyStore::open(&root.join("store.sqlite")).unwrap();
             Self(root)
         }
     }
@@ -453,7 +453,7 @@ mod tests {
         let source=|n|format!("query q():\n  return {n}\n");
         let compile=|n|snapback4_lang::compile(&[("schema.q".into(),source(n))]);
         let first=compile(1);
-        let first=snapback4_core::Engine::new_release(snapback4_core::Store::open(&dir.0.join("store.sqlite")).unwrap(),first.schema,first.programs.into_iter().map(|p|p.program),1,None).unwrap();
+        let first=snapback4_core::Engine::new_release(snapback4_core::store_port::AnyStore::open(&dir.0.join("store.sqlite")).unwrap(),first.schema,first.programs.into_iter().map(|p|p.program),1,None).unwrap();
         drop(first);
         let root=dir.0.join("releases/2");fs::create_dir_all(root.join("snapback")).unwrap();fs::write(root.join("snapback/schema.q"),source(2)).unwrap();
         let listener=Listener::bind(&dir.0,&dir.0.join("store.sqlite")).unwrap();
@@ -466,16 +466,16 @@ mod tests {
             drop(stream); // Client loses its reply while the admitted work is still able to commit.
             blocked.recv_timeout(Duration::from_secs(5)).unwrap();
             let mut options=snapback4_core::engine::release::ReleaseActivation::new(2,Some(1));options.operation="deploy".into();
-            snapback4_core::Engine::new_release_prepared(snapback4_core::Store::open(&database).unwrap(),second.schema,second.programs.into_iter().map(|p|p.program),&options,false).unwrap().generation()
+            snapback4_core::Engine::new_release_prepared(snapback4_core::store_port::AnyStore::open(&database).unwrap(),second.schema,second.programs.into_iter().map(|p|p.program),&options,false).unwrap().generation()
         });
         let mut candidate=crate::release_files::Candidate::new(&dir.0,2);
         let result=request_observed(&dir.0,Command::Activate{release:2,expected_release:Some(1),expected_revision:1,digest:"test".into(),rollback:false,restore_dormant:false,allow_feed_adoption:false},|pending|candidate.pending=pending);
         assert!(result.is_err());assert!(candidate.pending);
-        let before=snapback4_core::Store::open_read_only(&dir.0.join("store.sqlite")).unwrap();assert_eq!(before.release_value().unwrap().as_deref(),Some("1"));drop(before);
+        let before=snapback4_core::store_port::AnyStore::open_read_only(&dir.0.join("store.sqlite")).unwrap();assert_eq!(before.release_value().unwrap().as_deref(),Some("1"));drop(before);
         drop(candidate);assert!(root.join("snapback/schema.q").is_file());
         resume.send(()).unwrap();assert_eq!(task.join().unwrap(),2);
         let recovered=crate::project::Project{root}.compile().unwrap();assert!(recovered.diagnostics.is_empty());
-        let mut restarted=snapback4_core::Engine::attach_release(snapback4_core::Store::open(&dir.0.join("store.sqlite")).unwrap(),2).unwrap();
+        let mut restarted=snapback4_core::Engine::attach_release(snapback4_core::store_port::AnyStore::open(&dir.0.join("store.sqlite")).unwrap(),2).unwrap();
         assert_eq!(&recovered.schema,restarted.schema());
         assert_eq!(restarted.query("q",snapback4_core::Context::new("user:a",Default::default())).unwrap().data,snapback4_core::Value::Int(2));
     }

@@ -11,7 +11,7 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
 pub(super) fn engine_at(project: &Project, bound: &Bound, options: &Options, now: i64) -> Result<Engine, String> {
     let Some(fixture) = options.flags.get("fixture") else {
         if options.flags.contains_key("source") {
-            let store = snapback4_core::Store::memory().map_err(|e| e.to_string())?;
+            let store = snapback4_core::store_port::AnyStore::memory().map_err(|e| e.to_string())?;
             return Engine::new_at(store, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), now).map_err(|e| e.to_string());
         }
         return project.open_engine(bound).map_err(|error| format!("cannot open the store: {error}"));
@@ -23,7 +23,7 @@ pub(super) fn engine_at(project: &Project, bound: &Bound, options: &Options, now
     // them once; column derives stay installed and maintain as rows insert.
     let residency = options.flags.contains_key("residency");
     if residency { schema.maintains.retain(|m| m.private.is_some()); }
-    let store = snapback4_core::Store::memory().map_err(|error| format!("cannot open a store: {error}"))?;
+    let store = snapback4_core::store_port::AnyStore::memory().map_err(|error| format!("cannot open a store: {error}"))?;
     let mut engine = Engine::new_at(store, schema, bound.programs.iter().map(|p| p.program.clone()), now).map_err(|error| format!("cannot open a store: {error}"))?;
     let mut names = Vec::new();
     for entry in std::fs::read_dir(fixture).map_err(|error| format!("cannot read fixture directory {label}: {error}"))? {

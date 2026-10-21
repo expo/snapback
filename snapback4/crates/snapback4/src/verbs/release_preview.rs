@@ -44,7 +44,7 @@ pub(super) fn preview(
     // SQLite VACUUM INTO takes a coherent read snapshot even with a live WAL writer.
     // Busy/disk errors refuse this preview; never fall back to copying database bytes.
     if store_path.exists() {
-    let source = snapback4_core::Store::open_read_only(store_path).map_err(|e| e.to_string())?;
+    let source = snapback4_core::store_port::AnyStore::open_read_only(store_path).map_err(|e| e.to_string())?;
     source
         .snapshot_to(&path)
         .map_err(|e| {
@@ -52,7 +52,7 @@ pub(super) fn preview(
         })?;
     drop(source);
     }
-    let mut store = snapback4_core::Store::open(&path).map_err(|e| e.to_string())?;
+    let mut store = snapback4_core::store_port::AnyStore::open(&path).map_err(|e| e.to_string())?;
     let held = store
         .release_status(0, None, None)
         .map_err(|e| e.to_string())?;
@@ -123,7 +123,7 @@ pub(super) fn preview(
             .map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
-    let items: Vec<snapback4_core::store::DormantItem> = serde_json::from_value(planned["items"].clone()).map_err(|e| e.to_string())?;
+    let items: Vec<snapback4_core::store_port::DormantItem> = serde_json::from_value(planned["items"].clone()).map_err(|e| e.to_string())?;
     let visibility = super::release_visibility::assess(engine.store(), prior_schema.as_ref(), &candidate_schema)?;
     let mut rollback_visibility = None;
     let mut effects = super::release_safeguards::warnings(engine.store(),prior_schema.as_ref(),&candidate_schema,&candidate_programs,&items,release,!options.flags.contains_key("deploy-direction"))?;
@@ -162,7 +162,7 @@ pub(super) fn preview(
             // Exact reverse adoption tests today's post-deploy image, separately from future-write risks.
             let reverse_path=snapshot.0.join("reverse.sqlite");
             engine.store().snapshot_to(&reverse_path).map_err(|e|e.to_string())?;
-            let reverse_store=snapback4_core::Store::open(&reverse_path).map_err(|e|e.to_string())?;
+            let reverse_store=snapback4_core::store_port::AnyStore::open(&reverse_path).map_err(|e|e.to_string())?;
             super::release_safeguards::capture(&reverse_store)?;
             let native=crate::native::prepare(&Project {root:old_root},&old).map_err(|e|e.to_string())?;
             let mut reverse=snapback4_core::engine::release::ReleaseActivation::new(current,Some(release));
@@ -205,7 +205,7 @@ pub(super) fn preview(
         println!("preview: release {release} would be current as generation {}; live release unchanged", engine.generation());
         super::release_summary::print(prior_schema.as_ref(), &candidate_schema, &candidate_programs, &hazards, &notes, &steps, &items);
         if !options.flags.contains_key("deploy-direction") { println!("  checklist: prove the named refusal cases and affected lists/counts as real accounts before release {release}; `--bridge <new-dir>` saves current source plus this app's ROLLBACK-CHECKLIST.md"); }
-        println!("  storage: {}",snapback4_core::store::adoption_report::AdoptionReport::dormant(&items));
+        println!("  storage: {}",snapback4_core::store_port::report::AdoptionReport::dormant(&items));
         if options.flags.contains_key("verbose") {
             for hazard in hazards { println!("  detail: WARNING {hazard}"); }
             for note in notes { println!("  detail: note: {note}"); }

@@ -102,7 +102,7 @@ fn inspect_current(dir: &Path) -> Result<u64, String> {
     // Immutable SQLite omits WAL reads: use it only for the checkpointed main
     // image. Existing WAL+SHM can be read normally under the same exclusion.
     uri.push_str(if has_wal { "?mode=ro" } else { "?mode=ro&immutable=1" });
-    let inspection = snapback4_core::store::inspect::Inspection::open_uri(&uri).map_err(|(_, e)|e)?;
+    let inspection = snapback4_core::store_port::AnyInspection::open_uri(&uri).map_err(|(_, e)|e)?;
     let release = inspection.optional_release().map_err(|(_, e)|e)?;
     let release = match release {
         Some(value) => value,
@@ -116,7 +116,7 @@ fn pointer_current(dir: &Path, database: &Path) -> Result<u64, String> {
     let pointer = std::fs::read_to_string(dir.join("current")).map_err(|_| missing())?;
     let pointer = pointer.trim().parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing)?;
     bound_at(dir.join("releases").join(pointer.to_string()))?;
-    let store = snapback4_core::Store::open_read_only(database).map_err(|e|e.to_string())?;
+    let store = snapback4_core::store_port::AnyStore::open_read_only(database).map_err(|e|e.to_string())?;
     match store.release_value().map_err(|e|e.to_string())? {
         Some(value) => value.parse::<u64>().ok().filter(|n|*n>0).ok_or_else(missing),
         None => Ok(pointer),
@@ -178,7 +178,7 @@ fn check_change(
 ) -> Result<(), String> {
     if !options.flags.contains_key("check") && let Some(n) = previous {
         let old = bound_at(dir.join("releases").join(n.to_string()))?;
-        let store = snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).map_err(|e| e.to_string())?;
+        let store = snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite")).map_err(|e| e.to_string())?;
         let target_label = target_release.map(|n| format!("release {n}")).unwrap_or_else(|| "the new release".into());
         let lines = super::release_narration::compatibility(&store, &old.schema, &bound.schema, n, &target_label, target_release.is_none())?;
         for line in lines {
@@ -362,7 +362,7 @@ pub fn deploy(options: &Options) -> i32 {
             }
             std::fs::create_dir_all(dir.join("releases")).map_err(|e| e.to_string())?;
             let held = if checking {
-                if dir.join("store.sqlite").exists() {snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).and_then(|mut s|s.release_status(0,None,None)).map_err(|e|e.to_string())?}
+                if dir.join("store.sqlite").exists() {snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite")).and_then(|mut s|s.release_status(0,None,None)).map_err(|e|e.to_string())?}
                 else {serde_json::json!({"release":null,"revision":0,"generation":1})}
             } else {held.expect("live activation target status")};
             let previous = if let Some(owner) = _deployment.as_ref() {
@@ -593,7 +593,7 @@ pub fn releases(options: &Options) -> i32 {
                 .map(|s| s.parse::<u64>().map_err(|_| "--event requires an event id"))
                 .transpose()?;
             // Read-only inspection needs no ownership handoff or source adoption.
-            let mut store = snapback4_core::Store::open_read_only(&dir.join("store.sqlite"))
+            let mut store = snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite"))
                 .map_err(|e| e.to_string())?;
             let mut result = store
                 .release_status(
@@ -832,7 +832,7 @@ mod tests {
     }
 }
 
-fn receipt(release:u64,generation:u64,report:&snapback4_core::store::adoption_report::AdoptionReport,options:&Options){
+fn receipt(release:u64,generation:u64,report:&snapback4_core::store_port::report::AdoptionReport,options:&Options){
     if options.json {println!("{}",serde_json::json!({"release":release,"generation":generation,"adoption":report.compact(),"details":report.summary(),"backfills":report.backfills}));}
     else {println!("release {release} is current as generation {generation}; {}",report.compact());for fill in &report.backfills {println!("  backfill: {fill}");}if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
 }
@@ -854,7 +854,7 @@ pub(super) fn check_release(options:&Options)->i32 {
 
 fn selectable(dir:&Path,release:u64)->Result<(),String> {
     let root=dir.join("releases").join(release.to_string());
-    let store=snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).map_err(|e|e.to_string())?;
+    let store=snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite")).map_err(|e|e.to_string())?;
     let history:bool=store.has_release_history()?;
     if history || root.join(".pending-adoption").exists() {
         let committed=if history {store.release_adopted(i64::try_from(release).map_err(|_|"release identity exceeds SQLite range")?)?} else {false};

@@ -2,7 +2,7 @@
 // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — source changes, dependency changes and absent behavior are separate facts.
 // @ref LLP 3000.000.000#14-wave-14-rollback-narration — rollback names lost safety/confidentiality and keeps Boolean grouping visible.
 use crate::project::Project;
-use snapback4_core::{Schema, Store, successor::{self, Change}};
+use snapback4_core::{Schema, store_port::AnyStore, successor::{self, Change}};
 use snapback4_lang::lexer::{self, Kind};
 use std::{collections::{BTreeMap, BTreeSet}, path::Path};
 
@@ -32,7 +32,7 @@ fn narrower(wide: &Schema, narrow: &Schema) -> BTreeSet<String> {
     paths
 }
 
-pub(super) fn compatibility(store: &Store, current: &Schema, target: &Schema, current_release: u64, target_label: &str, include_future: bool) -> Result<Vec<String>, String> {
+pub(super) fn compatibility(store: &AnyStore, current: &Schema, target: &Schema, current_release: u64, target_label: &str, include_future: bool) -> Result<Vec<String>, String> {
     let mut lines = Vec::new();
     for path in narrower(current, target) {
         let (name, column) = path.split_once('.').unwrap();
@@ -95,7 +95,7 @@ fn declarations(project: &Project) -> Result<BTreeMap<String, Vec<(Kind, String)
     Ok(out)
 }
 
-pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, target: &Schema, before_programs: &BTreeMap<String, snapback4_core::ir::Program>, after_programs: &BTreeMap<String, snapback4_core::ir::Program>, candidate: &Project, previous_release: Option<u64>, target_label: &str, rollback: bool) -> Result<(Vec<String>, Vec<String>), String> {
+pub(super) fn behavior(store_path: &Path, store: &AnyStore, current: &Schema, target: &Schema, before_programs: &BTreeMap<String, snapback4_core::ir::Program>, after_programs: &BTreeMap<String, snapback4_core::ir::Program>, candidate: &Project, previous_release: Option<u64>, target_label: &str, rollback: bool) -> Result<(Vec<String>, Vec<String>), String> {
     let null_refs=super::release_dependencies::null_references(store,current,target)?;
     let old_project = previous_release.and_then(|id| store_path.parent().map(|dir| Project { root: dir.join("releases").join(id.to_string()) }));
     let source_before = old_project.as_ref().and_then(|p| declarations(p).ok());

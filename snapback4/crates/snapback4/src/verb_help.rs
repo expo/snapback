@@ -95,7 +95,7 @@ Readiness and ownership:
   port of that inclusive range (E_ADDRINUSE only when every one is taken),
   for a host that assigns each builder a range. Read the URL from stdout.
 
-Store:
+AnyStore:
   (default)        .snapback4/store.sqlite, kept across runs; one host at a
                    time (a second dev, or a CLI writer, refuses E_STORE_BUSY
                    naming the owner's address and pid)

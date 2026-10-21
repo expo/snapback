@@ -5,7 +5,7 @@ use super::*;
 // @ref LLP 3000.007#20.2 — only trusted dev requests get read-only explanations; absent records remain ambiguous.
 /// Called only after authority refused the token. Diagnostic failure must not
 /// turn an authentication refusal into disclosure or a different authority result.
-pub fn refused(store: &Store, token: &str, now: i64, trusted_dev: bool) -> crate::error::Refusal {
+pub fn refused(store: &AnyStore, token: &str, now: i64, trusted_dev: bool) -> crate::error::Refusal {
     refused_in(store, token, now, trusted_dev)
 }
 
@@ -29,7 +29,7 @@ mod tests {
     use super::*;
     #[test]
     fn explanations_never_change_store_schema_or_data_and_absent_records_are_ambiguous() {
-        let store = Store::memory().unwrap();
+        let store = AnyStore::memory().unwrap();
         let session = open_session(&store, "guest:first", "guest", 1_000).unwrap();
         close_session(&store, &session.token).unwrap();
         let expired = open_session(&store, "guest:expired", "guest", 1_000).unwrap();

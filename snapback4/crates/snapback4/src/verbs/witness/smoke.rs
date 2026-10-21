@@ -28,7 +28,7 @@ impl Run {
         // the driver neither creates nor borrows an application credential.
         let host = super::super::adoption::request(address(self.options.port), "GET", "/dev/status")
             .ok_or_else(|| error("E_WITNESS_BACKEND", "cannot read the owned backend's generation"))?;
-        let db = snapback4_core::store::inspect::Inspection::open(Path::new(self.manifest["backend"]["store"].as_str().unwrap_or_default()))
+        let db = snapback4_core::store_port::AnyInspection::open(Path::new(self.manifest["backend"]["store"].as_str().unwrap_or_default()))
             .map_err(|_| error("E_WITNESS_BACKEND", "cannot inspect or advance owned backend; check its store and schema"))?;
         let (generation, schema, programs, store_id) = db.witness_generation()
             .map_err(|_| error("E_WITNESS_BACKEND", "cannot inspect or advance owned backend; check its store and schema"))?;
@@ -286,10 +286,10 @@ query required(id: heldRows):
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("store.sqlite");
         let bound = snapback4_lang::compile(&[("schema.q".into(), "table items:\n  value: int\n  read <- allow\n  sync public\n".into())]);
-        let mut engine = snapback4_core::Engine::new(snapback4_core::Store::open(&path).unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let mut engine = snapback4_core::Engine::new(snapback4_core::store_port::AnyStore::open(&path).unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         use snapback4_core::value::{Value, object};
         engine.seed([("items".into(), object([("id", Value::Id("sentinel".into())), ("value", Value::Int(42))]))]).unwrap();
-        let counts = |store: &snapback4_core::Store| ["r", "i", "_log", "_ops"].map(|table| {
+        let counts = |store: &snapback4_core::store_port::AnyStore| ["r", "i", "_log", "_ops"].map(|table| {
             store.test_support_conn().query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get::<_, i64>(0)).unwrap()
         });
         let held = counts(engine.store());
@@ -308,13 +308,13 @@ query required(id: heldRows):
             test_process::ForkHolder::new()
         };
         assert!(barrier(&path, &identity, before).unwrap_err().contains("cannot acquire backend store; stop its owner"),
-            "a fork still owns the sidecar after the explicit Owner and Store drop");
+            "a fork still owns the sidecar after the explicit Owner and AnyStore drop");
         let cause = crate::store_owner::command(&path).err().expect("fork retains ownership");
         assert!(cause.starts_with("E_STORE_BUSY at "), "{cause}");
         drop(inherited); // wait for the last known holder, not a scheduling delay
         let seq = barrier(&path, &identity, before).unwrap();
         assert!(seq > before);
-        let store = snapback4_core::Store::open(&path).unwrap();
+        let store = snapback4_core::store_port::AnyStore::open(&path).unwrap();
         assert_eq!(store.seq().unwrap(), seq);
         assert_eq!(counts(&store), held);
         assert_eq!(store.test_support_conn().query_row("SELECT data FROM r WHERE id = 'sentinel'", [], |r| r.get::<_, String>(0)).unwrap(), row);

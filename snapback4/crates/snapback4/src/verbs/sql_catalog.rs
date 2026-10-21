@@ -153,7 +153,7 @@ mod tests {
     use super::*;
     use rusqlite::Connection;
     use snapback4_core::schema::inspection::META_KEY;
-    use snapback4_core::{Engine, Store, wire};
+    use snapback4_core::{Engine, store_port::AnyStore, wire};
 
     const SOURCE: &str = "table messages:\n  body: text <=100\n  note: text ?\n  owner: principal\n  at: time default 0\n  unique body\n  search body\n  by byOwner: owner, id\n  by byBucket: bucket(at, 2h, 30m), at, id\n  by id: owner\n  public\n  online only\nmaintain counts: count messages by owner\n  read <- allow\n  online only\ntable typing:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  insert <- .principal = viewer\n  ephemeral 4s\nquery find(q: text <=20, c: cursor ?):\n  return messages matching q last 10 by .id after c\n";
 
@@ -173,7 +173,7 @@ mod tests {
         for (table, index) in source_declared { assert!(schema.tables[table].indexes.contains_key(index), "{table}.{index}"); }
     }
 
-    fn exercise(store: Store) {
+    fn exercise(store: AnyStore) {
         let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let mut engine = Engine::new(store, bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
@@ -218,13 +218,13 @@ mod tests {
     }
 
     #[test]
-    fn catalog_on_populated_memory_store() { exercise(Store::memory().unwrap()); }
+    fn catalog_on_populated_memory_store() { exercise(AnyStore::memory().unwrap()); }
 
     #[test]
     fn catalog_on_populated_sqlite_store() {
         let directory = std::env::temp_dir().join(format!("sb4-sx-catalog-{}", std::process::id()));
         std::fs::create_dir_all(&directory).unwrap();
-        exercise(Store::open(&directory.join("store.sqlite")).unwrap());
+        exercise(AnyStore::open(&directory.join("store.sqlite")).unwrap());
         std::fs::remove_dir_all(directory).unwrap();
     }
 
@@ -234,7 +234,7 @@ mod tests {
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let feeds: Vec<_> = bound.schema.timelines.iter().map(|t| t.table("Feed")).collect();
         assert!(!feeds.is_empty());
-        let engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let engine = Engine::new(AnyStore::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         let (_, schema) = active_schema(engine.store()).unwrap();
         let tables = inspect(engine.store(), &schema, Command::Tables).unwrap();
         for feed in feeds { assert!(tables.iter().any(|t| t["name"] == feed && t["kind"] == "timeline")); }
@@ -248,7 +248,7 @@ mod tests {
         let source = format!("{source}\ntable catalogRoots:\n  owner: principal\n  until: time\n  immutable owner, until\n  expire at .until\n  read <- .owner = viewer\n  insert <- allow\n  online only\ntable catalogChildren:\n  root: catalogRoots\n  immutable root\n  read through .root\n  insert <- allow\n  online only\ntable catalogSequence:\n  root: catalogRoots\n  ordinal: sequence by root\n  public\n  online only\n");
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let engine = Engine::new(AnyStore::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         let (_, schema) = active_schema(engine.store()).unwrap();
         assert_source_provenance(&schema, provenance(engine.store(), &schema).unwrap().as_ref(), &source);
         let describe = |name| inspect(engine.store(), &schema, Command::Describe(name)).unwrap().remove(0);
@@ -307,7 +307,7 @@ mod tests {
             assert!(schema.authored_indexes.0.is_none());
             assert_eq!(schema, bound.schema);
             assert_eq!(schema.hash(), bound.schema.hash());
-            let engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+            let engine = Engine::new(AnyStore::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
             let (generation, schema) = active_schema(engine.store()).unwrap();
             assert!(generation > 0);
             assert_source_provenance(&schema, provenance(engine.store(), &schema).unwrap().as_ref(), source);
@@ -329,7 +329,7 @@ mod tests {
         let projection = bound.schema.public_projection();
         assert!(projection.authored_indexes.0.is_none());
         assert!(serde_json::to_value(&projection).unwrap().get("authored_indexes").is_none());
-        let engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let engine = Engine::new(AnyStore::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         let conn = engine.store().test_support_conn();
         let (_, schema) = active_schema(engine.store()).unwrap();
         let declared = inspect(engine.store(), &schema, Command::Describe("counts")).unwrap();
@@ -348,7 +348,7 @@ mod tests {
     fn catalog_private_targets_name_the_parent_column() {
         let bound = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        let engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let engine = Engine::new(AnyStore::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         let (_, schema) = active_schema(engine.store()).unwrap();
         assert!(schema.maintains.iter().any(|m| m.private.is_some()));
         for maintain in schema.maintains.iter().filter(|m| m.private.is_some()) {
@@ -375,7 +375,7 @@ mod tests {
         let conn = Connection::open(&path).unwrap();
         conn.execute_batch(include_str!("../../../snapback4-core/tests/fixtures/capability-free-main.sql")).unwrap();
         drop(conn);
-        let mut engine = Engine::open(Store::open(&path).unwrap()).unwrap();
+        let mut engine = Engine::open(AnyStore::open(&path).unwrap()).unwrap();
         let (generation, schema) = active_schema(engine.store()).unwrap();
         assert_eq!(generation, 1);
         assert_eq!(serde_json::to_string(&schema).unwrap(), include_str!("../../../snapback4-core/tests/fixtures/capability-free.schema.json"));
@@ -390,7 +390,7 @@ mod tests {
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         assert_eq!(engine.adopt(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap(), generation);
         drop(engine);
-        let engine = Engine::open(Store::open(&path).unwrap()).unwrap();
+        let engine = Engine::open(AnyStore::open(&path).unwrap()).unwrap();
         let conn = engine.store().test_support_conn();
         let (after, schema) = active_schema(engine.store()).unwrap();
         assert_eq!(after, generation);
@@ -412,7 +412,7 @@ mod tests {
     #[test]
     fn catalog_side_record_is_atomic_and_rejects_stale_identity() {
         let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
-        let mut engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        let mut engine = Engine::new(AnyStore::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
         let table = engine.schema().tables["messages"].clone();
         engine.seed((0..2).map(|n| ("messages".into(), wire::row_from_json(&table,
             &json!({"id":format!("m{n}"), "body":format!("b{n}"), "owner":"alice"})).unwrap()))).unwrap();

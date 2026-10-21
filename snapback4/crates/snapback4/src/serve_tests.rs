@@ -35,7 +35,7 @@ mod staging_tests;
 #[test]
 fn unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_meters() {
     for dev in [true, false] {
-        let host = Host::with_store(dev, snapback4_core::Store::memory().unwrap(),
+        let host = Host::with_store(dev, snapback4_core::store_port::AnyStore::memory().unwrap(),
             "use identity\nquery costly():\n  text = ''\n  for n in range(0, 10000):\n    text = text + 'an allocation that stays bounded by the heap meter'\n  return [text]\n");
         let session = body(&host.request("POST", "/auth/guest", "", "{}"));
         let headers = format!("Authorization: Bearer {}\r\n", session["session"]["token"].as_str().unwrap());
@@ -61,13 +61,13 @@ pub(super) struct Host {
 }
 impl Host {
     fn new(dev: bool) -> Self {
-        Self::with_store(dev, snapback4_core::Store::memory().unwrap(), SCHEMA)
+        Self::with_store(dev, snapback4_core::store_port::AnyStore::memory().unwrap(), SCHEMA)
     }
 
-    pub(super) fn with_store(dev: bool, store: snapback4_core::Store, source: &str) -> Self {
+    pub(super) fn with_store(dev: bool, store: snapback4_core::store_port::AnyStore, source: &str) -> Self {
         Self::with_store_on(dev, store, source, "127.0.0.1")
     }
-    fn with_store_on(dev: bool, store: snapback4_core::Store, source: &str, bind: &str) -> Self {
+    fn with_store_on(dev: bool, store: snapback4_core::store_port::AnyStore, source: &str, bind: &str) -> Self {
         Self::with_evidence(dev, store, source, bind, None)
     }
     fn request(&self, method: &str, path: &str, headers: &str, body: &str) -> String {
@@ -175,13 +175,13 @@ fn wait_until(mut predicate: impl FnMut() -> bool) {
 fn raced_mutation_id_refusal_keeps_its_terminal_http_status() {
     // Exercise the post-preflight error classifier directly: a socket race
     // may otherwise happen to be caught by the earlier replay check.
-    assert_eq!(mutation_error_status(&snapback4_core::store::id_reused().refusal()), 200);
+    assert_eq!(mutation_error_status(&snapback4_core::store_port::id_reused().refusal()), 200);
     let mut transient = Refusal::new("E_STORE", "store", "retry later");
     transient.retryable = true;
     assert_eq!(mutation_error_status(&transient), 503);
     assert_eq!(mutation_error_status(&Refusal::new("E_STORE", "store", "failed")), 500);
 
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+    let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
         "use personas alice\nmutation answer(n: int):\n  return n\n");
     let gate = Arc::new(std::sync::Barrier::new(13));
     let threads: Vec<_> = (0..12).map(|n| {
@@ -209,7 +209,7 @@ fn raced_mutation_id_refusal_keeps_its_terminal_http_status() {
 
 #[test]
 fn oidc_terminal_codes_survive_http_settlement_and_public_recollection() {
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+    let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
         "use server\nuse personas alice\naction signIn()\n");
     let service = { let engine = lock(&host.shared.engine);
         snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
@@ -251,7 +251,7 @@ fn oidc_terminal_codes_survive_http_settlement_and_public_recollection() {
 
 #[test]
 fn bound_session_http_requires_exact_shape_and_current_action_lease() {
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use server\nuse personas alice\naction signIn()\n");
+    let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(), "use server\nuse personas alice\naction signIn()\n");
     let (service, other) = { let engine = lock(&host.shared.engine); let now = host.shared.now(); (
         snapback4_core::identity::service_session(engine.store(), "worker", now, 1).unwrap(),
         snapback4_core::identity::service_session(engine.store(), "other", now, 1).unwrap()) };
@@ -342,7 +342,7 @@ fn bound_session_http_requires_exact_shape_and_current_action_lease() {
 
 #[test]
 fn public_live_logout_keeps_the_bound_family_tombstone_authoritative() {
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use server\nuse personas alice\naction signIn()\n");
+    let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(), "use server\nuse personas alice\naction signIn()\n");
     let service = { let engine = lock(&host.shared.engine);
         snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
     let service_header = format!("Authorization: Bearer {}\r\n", service.token);
@@ -371,7 +371,7 @@ fn public_live_logout_keeps_the_bound_family_tombstone_authoritative() {
 
 #[test]
 fn bound_session_http_refuses_stale_and_cancelled_claims_without_minting() {
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use server\nuse personas alice\naction signIn()\n");
+    let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(), "use server\nuse personas alice\naction signIn()\n");
     let service = { let engine = lock(&host.shared.engine);
         snapback4_core::identity::service_session(engine.store(), "worker", host.shared.now(), 1).unwrap() };
     let service_header = format!("Authorization: Bearer {}\r\n", service.token);
@@ -651,7 +651,7 @@ fn a_poll_rechecks_session_liveness_after_waiting() {
 #[test]
 fn effect_http_strictly_validates_present_fields_without_mutating_work() {
     let source = "use personas alice\neffect mail retry 2\nmutation send():\n  emit mail {n: 1}\n";
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), source);
+    let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(), source);
     let malformed_claim = host.request("POST", "/effects/claim", "", "[]");
     assert_eq!(status(&malformed_claim), 400); assert_eq!(body(&malformed_claim)["denied"]["code"], "E_INPUT");
     let malformed_settle = host.request("POST", "/effects/not-yet/done", "", "[]");
@@ -1259,7 +1259,7 @@ fn opening_a_development_project_protects_its_data_directory_and_store() {
 fn a_refusal_names_the_cut_its_evaluation_read() {
     let directory = ReaderTestDirectory::new();
     let source = "use personas alice\nuse identity\ntable flags:\n  name: text <=40\n  unique name\n  read <- true\n  insert <- true\nmutation stop():\n  insert flags { name: 'stop' }\n  return true\nquery gate():\n  require not exists flags[name = 'stop'] else STOPPED\n  return true\n";
-    let host = Host::with_store(true, snapback4_core::Store::open(&directory.0.join("store.sqlite")).unwrap(), source);
+    let host = Host::with_store(true, snapback4_core::store_port::AnyStore::open(&directory.0.join("store.sqlite")).unwrap(), source);
     let alice = "x-snapback-persona: alice\r\n";
     let open = body(&host.request("POST", "/q/gate", alice, "{}"));
     assert_eq!(open["data"], true, "{open}");
@@ -1288,7 +1288,7 @@ impl ReaderTestDirectory {
         Self(path)
     }
     fn host(&self) -> Host {
-        Host::with_store(true, snapback4_core::Store::open(&self.0.join("store.sqlite")).unwrap(), READER_SCHEMA)
+        Host::with_store(true, snapback4_core::store_port::AnyStore::open(&self.0.join("store.sqlite")).unwrap(), READER_SCHEMA)
     }
 }
 impl Drop for ReaderTestDirectory {
@@ -1438,7 +1438,7 @@ fn sync_snapshot_encoding_preserves_plain_values_and_explicit_nulls() {
 
 #[test]
 fn sync_stream_encoding_preserves_sequences_scopes_and_empty_groups() {
-    use snapback4_core::{Value, store::LogEvent};
+    use snapback4_core::{Value, store_port::LogEvent};
     let events = vec![
         LogEvent { seq: 0, ord: 90, table: "items".into(), kind: "scope".into(), id: "".into(), data: Some(Value::Array(vec![Value::Id("group".into()), Value::Int(7)])) },
         LogEvent { seq: u64::MAX, ord: 91, table: "items".into(), kind: "del".into(), id: "gone".into(), data: None },
@@ -1467,7 +1467,7 @@ mod review_changes;
 #[test]
 fn a_presence_answer_asks_its_client_to_refresh() {
     let source = "use personas alice, bob\nuse identity\ntable flags:\n  name: text <=40\n  enabled: bool\n  unique name\n  read <- true\n  insert <- true\nquery online(p: principal):\n  return { online: exists connected[p], count: connected[p] }\nquery sum(a: principal, b: principal):\n  return connected[a] + connected[b]\nquery branch():\n  flag = flags[name = 'one']\n  if flag != null and flag.enabled = true:\n    return connected[viewer] * 0\n  return 0\nfn here(p: principal):\n  return exists connected[p]\nquery helper(p: principal):\n  return here(p)\nquery gate():\n  require exists connected['dev:bob'] else NOT_HERE\n  return true\nquery plain():\n  return 1\n";
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), source);
+    let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(), source);
     let alice = "x-snapback-persona: alice\r\n";
     let refresh = json!(snapback4_core::engine::PRESENCE_REFRESH.as_millis() as u64);
     for (op, args) in [("online", r#"{"args":{"p":"dev:bob"}}"#), ("sum", r#"{"args":{"a":"dev:bob","b":"dev:alice"}}"#), ("branch", "{}"), ("helper", r#"{"args":{"p":"dev:bob"}}"#), ("gate", "{}")] {
@@ -1498,7 +1498,7 @@ mod device_handshake_tests;
 #[test]
 fn kit3_memory_http_retries_publish_only_the_ordinary_prelude_and_encountered_rows() {
     use snapback4_core::Value;
-    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+    let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
         "use personas alice\ntable a_unrelated:\n  opens: time\n  by opening: opens\n  not before .opens\n  public 'fixture'\n  online only\ntable needed:\n  opens: time\n  by opening: opens\n  not before .opens\n  public 'fixture'\n  online only\nquery list():\n  return needed first 10 by .id\n");
     let now = host.shared.now();
     let rows = [("a_unrelated", 5), ("needed", 3)].into_iter().flat_map(|(table, n)| (0..n).map(move |id| {

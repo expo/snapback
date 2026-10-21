@@ -36,10 +36,10 @@ pub mod report;
 pub(crate) use bridges::WriteStore;
 
 // Temporary record/helper bridges; S10b completes semantic extraction.
-pub use sqlite::{adoption_estimate, timeline_launch, Sizes, DormantItem};
+pub use sqlite::{adoption_estimate, timeline_launch, Sizes, DormantItem, LogEvent};
 pub(crate) use sqlite::release_history;
-pub use sqlite::inspect::InspectionRows;
-pub use sqlite::{id_reused, payload_digest};
+pub use crate::inspection::InspectionRows;
+pub use sqlite::{id_reused, payload_digest, canonical_payload};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct TimeOpening {

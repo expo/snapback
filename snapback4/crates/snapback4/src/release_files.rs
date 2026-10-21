@@ -196,7 +196,7 @@ impl Drop for Candidate {
         if self.committed { return; }
         if self.pending {eprintln!("release {} result remains unknown; retained source while the server may still commit; inspect releases",self.release);return;}
         let probe=(|| -> Result<bool,String> {
-            let store=snapback4_core::Store::open_read_only(&self.dir.join("store.sqlite")).map_err(|e|e.to_string())?;
+            let store=snapback4_core::store_port::AnyStore::open_read_only(&self.dir.join("store.sqlite")).map_err(|e|e.to_string())?;
             let history:bool=store.has_release_history()?;
             if !history {return Ok(false);}
             store.release_referenced(self.release as i64)
@@ -219,7 +219,7 @@ mod candidate_tests {
         struct Cleanup(PathBuf);
         impl Drop for Cleanup {fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
         let _cleanup=Cleanup(root.clone());
-        let store=snapback4_core::Store::open(&root.join("store.sqlite")).unwrap();
+        let store=snapback4_core::store_port::AnyStore::open(&root.join("store.sqlite")).unwrap();
         store.test_support_conn().execute_batch("CREATE TABLE _release_events(release INTEGER,previous INTEGER)").unwrap();
         for n in 1..=3 {fs::create_dir(root.join("releases").join(n.to_string())).unwrap();}
         drop(Candidate::new(&root,1));
