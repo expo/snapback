@@ -1338,8 +1338,8 @@ impl crate::rows::Rows for Tx<'_> {
     fn time_audience_published(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
         self.time_audience_published(table_name, id)
     }
-    fn holds_assets(&self) -> bool {
-        true
+    fn holds_assets(&self) -> Result<bool, crate::RuntimeError> {
+        Ok(true)
     }
     fn asset(&self, id: &str) -> Result<Option<crate::assets::Asset>, RuntimeError> {
         Tx::asset(self, id)

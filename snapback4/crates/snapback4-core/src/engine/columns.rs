@@ -95,7 +95,7 @@ impl Runner<'_> {
         self.column_heap = price[4];
         self.column_prepaid = price[3] > 0;
         let assets = self.source_price(source, ASSETS)?;
-        if self.device || self.tx.holds_assets() {
+        if self.device || (self.schema.tables[source].columns.values().any(crate::schema::ColumnType::contains_asset) && self.tx.holds_assets()?) {
             self.charge_price(assets)?;
             self.column_heap = self.column_heap.saturating_add(assets[4]);
         }

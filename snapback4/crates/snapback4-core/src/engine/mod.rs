@@ -1050,6 +1050,10 @@ impl Engine {
                     }
                     MutationOutcome { receipt_only, state: WriteState::Sent { seq, result }, metered, tables, events: partition::disclosed_event_count(&engine.schema, &events, &action_tables), replayed: false }
                 }
+                Err(error @ RuntimeError::StoreUnsupported { .. }) => {
+                    tx.rollback(())?;
+                    return Err(error);
+                }
                 Err(error) if error.is_refusal() => {
                     tx.rollback_to("program")?;
                     let current = match &error {

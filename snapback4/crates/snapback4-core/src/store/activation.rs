@@ -94,7 +94,7 @@ impl Store {
     }
 
     pub(super) fn activate_transaction(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>) -> Result<u64, RuntimeError> {
-        self.activate_transaction_with(schema, programs, reset, now, allow_launch, |_| Ok(()), |tx, changed, report| { let crate::store_port::AnyTx::Sqlite(tx) = tx; build(tx, changed, report) }, |_| Ok(())).map(|committed| committed.into_inner().0)
+        self.activate_transaction_with(schema, programs, reset, now, allow_launch, |_| Ok(()), |tx, changed, report| { match tx { crate::store_port::AnyTx::Sqlite(tx) => build(tx, changed, report), #[cfg(feature = "postgres")] crate::store_port::AnyTx::Postgres(_) => unreachable!("SQLite activation owns a SQLite transaction") } }, |_| Ok(())).map(|committed| committed.into_inner().0)
     }
 
     fn activate_transaction_with<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl FnOnce(&super::release::ReleaseCheck<'_>) -> Result<(), RuntimeError>, build: impl FnOnce(&crate::store_port::AnyTx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl FnOnce(&crate::store_port::AnyTx<'_>) -> Result<R, RuntimeError>,
@@ -208,7 +208,7 @@ impl Store {
             let tx = crate::store_port::AnyTx::Sqlite(Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: store.page_size,
                 server: store.server,
                 catalog: &catalog });
-            let crate::store_port::AnyTx::Sqlite(sqlite_tx) = &tx;
+            let sqlite_tx = match &tx { crate::store_port::AnyTx::Sqlite(tx) => tx, #[cfg(feature = "postgres")] crate::store_port::AnyTx::Postgres(_) => unreachable!("SQLite activation owns a SQLite transaction") };
             let now = if schema.tables.values().any(|table| table.not_before.is_some()) {
                 sqlite_tx.pin_time_audience_clock(now)?
             } else {

@@ -93,7 +93,7 @@ impl Rows for MemberTx<'_, '_> {
     fn time_audience_published(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
         <AnyTx<'_> as Rows>::time_audience_published(self.tx, table_name, id)
     }
-    fn holds_assets(&self) -> bool {
+    fn holds_assets(&self) -> Result<bool, crate::RuntimeError> {
         <AnyTx<'_> as Rows>::holds_assets(self.tx)
     }
     fn asset(&self, id: &str) -> Result<Option<crate::assets::Asset>, RuntimeError> {

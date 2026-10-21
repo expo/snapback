@@ -360,8 +360,8 @@ pub trait Rows {
     /// Whether this store keeps the asset ledger. The server's does; a
     /// device holds none and keeps a row's asset value as it was sent, the
     /// server establishing the facts when the write arrives.
-    fn holds_assets(&self) -> bool {
-        false
+    fn holds_assets(&self) -> Result<bool, crate::RuntimeError> {
+        Ok(false)
     }
     fn asset(&self, _id: &str) -> Result<Option<Asset>, RuntimeError> {
         Ok(None)

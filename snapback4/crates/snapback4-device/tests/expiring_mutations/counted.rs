@@ -37,7 +37,7 @@ impl<T: DeviceTx> Rows for Tx<T> {
     fn cap_count(&self, _table: &str, _by: &[String], _group: &[Value]) -> Result<u64, RuntimeError> { self.inner.cap_count(_table, _by, _group) }
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { *self.visits.borrow_mut().entry((table_name.into(), "put".into())).or_default() += 1; self.inner.put(table_name, table, row, old) }
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { *self.visits.borrow_mut().entry((table_name.into(), "delete".into())).or_default() += 1; self.inner.delete(table_name, table, old) }
-    fn holds_assets(&self) -> bool { self.inner.holds_assets() }
+    fn holds_assets(&self) -> Result<bool, snapback4_core::RuntimeError> { self.inner.holds_assets() }
     fn asset(&self, _id: &str) -> Result<Option<Asset>, RuntimeError> { self.inner.asset(_id) }
     fn claim_asset(&self, id: &str, _by: &str, _table: &str, _row_id: &str, _column: &str) -> Result<Asset, RuntimeError> { self.inner.claim_asset(id, _by, _table, _row_id, _column) }
     fn release_asset(&self, id: &str, table: &str, row_id: &str, column: &str, now: i64) -> Result<(), RuntimeError> { self.inner.release_asset(id, table, row_id, column, now) }

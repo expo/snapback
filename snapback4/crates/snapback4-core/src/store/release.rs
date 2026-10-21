@@ -9,7 +9,7 @@ use rusqlite::{Connection, OptionalExtension};
 /// Borrowed before activation constructs its row-access transaction.
 pub(crate) struct ReleaseCheck<'a>(pub(super) &'a Connection);
 
-impl<'store> From<&ReleaseCheck<'store>> for crate::store_port::AnyPreparation<'store> {
+impl<'store> From<&ReleaseCheck<'store>> for crate::store_port::AnyPreparation<'store, '_> {
     fn from(check: &ReleaseCheck<'store>) -> Self {
         Self::Sqlite(ReleaseCheck(check.0))
     }

@@ -195,7 +195,7 @@ impl Rows for Layered<'_> {
         self.durable_write()?;
         unreachable!()
     }
-    fn holds_assets(&self) -> bool {
+    fn holds_assets(&self) -> Result<bool, crate::RuntimeError> {
         self.durable.holds_assets()
     }
     fn asset(&self, id: &str) -> Result<Option<crate::assets::Asset>, RuntimeError> {

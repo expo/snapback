@@ -25,7 +25,8 @@ impl Runner<'_> {
     }
     #[cfg(feature = "sqlite")]
     pub(super) fn reserve_assets(&mut self, table: &crate::schema::Table) -> Result<u64, RuntimeError> {
-        if !self.device && !self.tx.holds_assets() { return Ok(0); }
+        if !table.columns.values().any(crate::schema::ColumnType::contains_asset) { return Ok(0); }
+        if !self.device && !self.tx.holds_assets()? { return Ok(0); }
         let price = reservations::asset_price(table);
         self.charge_price(price)?;
         Ok(price[4])

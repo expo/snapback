@@ -100909,3 +100909,14 @@ owned PIDs; private app connections are zero. Only the handed-over durable
 PG17.9 cluster remains running, postmaster 2735539, with all three durability
 settings on. No push, stash, clone, sub-agents, sudo, Docker or paid services.
 [Matched report](./experiments/scale-controls/results-20261022-fairness/README.md).
+### 2026-10-22 — S10c: Postgres arm and named refusals
+
+The neutral handles now dispatch the landed Postgres family traits, with scoped
+shared-receiver borrows and explicit optional-family refusals. Asset capability
+checks are fallible and occur only for actual asset columns; capability errors
+abort the member before failed-program receipt handling. Read snapshots forward
+the adapter overrides. This is the first separately building commit; opening,
+admission, the member-safe tail and real-Postgres witnesses follow. The public
+CLI and producer routing are unchanged. `cargo check -p snapback4-core --features
+postgres` and `cargo build -p snapback4` pass on the owned target with ten jobs.
+No push or stash.

@@ -1,13 +1,17 @@
 //! Server store handles. The device continues to use the concrete SQLite API.
-// @ref LLP 3000.009.001.000#3.4 — one concrete engine, explicit enum dispatch; SQLite-only S10b.
+// @ref LLP 3000.009.001.000#3.4 — one concrete engine, explicit enum dispatch; Postgres admitted profile in S10c.
 use crate::{Value, store as sqlite};
 
 pub enum AnyStore {
     Sqlite(sqlite::Store),
+    #[cfg(feature = "postgres")]
+    Postgres(crate::engine::postgres::Handle),
 }
 
 pub enum AnyTx<'store> {
     Sqlite(sqlite::Tx<'store>),
+    #[cfg(feature = "postgres")]
+    Postgres(crate::engine::postgres::store::Tx<'store>),
 }
 
 /// A deferred read snapshot retains its physical transaction until closed.
@@ -15,12 +19,18 @@ pub struct ReadSnapshot<'store> {
     tx: AnyTx<'store>,
 }
 
-pub(crate) enum AnyPreparation<'store> {
-    Sqlite(sqlite::release::ReleaseCheck<'store>),
+pub(crate) enum AnyPreparation<'tx, 'store> {
+    Sqlite(sqlite::release::ReleaseCheck<'tx>),
+    #[cfg(feature = "postgres")]
+    Postgres(crate::engine::postgres::activation::Preparation<'tx, 'store>),
+    #[cfg(not(feature = "postgres"))]
+    Lifetime(std::convert::Infallible, std::marker::PhantomData<&'store ()>),
 }
 
 pub enum AnyInspection {
     Sqlite(sqlite::inspect::Inspection),
+    #[cfg(feature = "postgres")]
+    Postgres,
 }
 
 /// A local byte location, available only after the store admits asset storage.
@@ -107,9 +117,9 @@ pub(crate) struct EffectStepTransaction<'tx, 'store> { tx: &'tx AnyTx<'store> }
 #[path = "store/port/steps.rs"]
 mod steps;
 
-impl AnyTx<'_> {
-    pub(crate) fn action_steps(&self) -> ActionStepTransaction<'_, '_> { ActionStepTransaction { tx: self } }
-    pub(crate) fn effect_steps(&self) -> EffectStepTransaction<'_, '_> { EffectStepTransaction { tx: self } }
+impl<'store> AnyTx<'store> {
+    pub(crate) fn action_steps(&self) -> ActionStepTransaction<'_, 'store> { ActionStepTransaction { tx: self } }
+    pub(crate) fn effect_steps(&self) -> EffectStepTransaction<'_, 'store> { EffectStepTransaction { tx: self } }
 }
 
 #[cfg(test)]

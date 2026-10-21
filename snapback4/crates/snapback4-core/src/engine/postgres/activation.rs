@@ -311,7 +311,7 @@ impl ActivationTransaction for Tx<'_> {
 
 // A Postgres preparation borrows the owning activation transaction. It never
 // creates another writer, or exposes a driver handle to shared policy.
-pub(super) struct Preparation<'tx, 'store>(pub &'tx Tx<'store>);
+pub(crate) struct Preparation<'tx, 'store>(pub &'tx Tx<'store>);
 impl ReleaseTransaction for Preparation<'_, '_> {
     fn selected_release(&self) -> Result<Option<String>, RuntimeError> {
         self.0.meta("release")

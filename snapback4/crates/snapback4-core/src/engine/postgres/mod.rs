@@ -3,7 +3,7 @@
 //! jobs, actions, or effect worker. Callers are trusted hosts, as with Engine.
 //! @ref LLP 3000#7-decisions-during-execution — evaluate storage portability before productizing it
 mod log;
-mod store;
+pub(crate) mod store;
 mod caps;
 mod contribution_upgrade;
 mod maintained_identity_upgrade;
@@ -27,7 +27,7 @@ mod change_evidence;
 mod foundation_schema;
 mod ledger_schema;
 mod shape;
-mod activation;
+pub(crate) mod activation;
 mod activation_schema;
 mod release;
 mod release_schema;
@@ -553,3 +553,8 @@ fn refuse_maintained_columns(schema: &Schema) -> Result<(), RuntimeError> {
     }
     Ok(())
 }
+
+mod handle;
+pub use handle::Handle;
+
+mod semantic;

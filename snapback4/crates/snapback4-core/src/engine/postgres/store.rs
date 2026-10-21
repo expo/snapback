@@ -70,7 +70,7 @@ pub enum WriteMode {
     Serializable,
 }
 
-pub(super) struct Store {
+pub struct Store {
     pub generation: u64,
     pub client: Client,
     cache: BTreeMap<&'static str, Statement>,
@@ -143,7 +143,7 @@ impl Store {
     }
 }
 
-pub(super) struct Tx<'a> {
+pub struct Tx<'a> {
     inner: RefCell<Transaction<'a>>,
     bind_refused: Cell<bool>,
     cache: RefCell<&'a mut BTreeMap<&'static str, Statement>>,
@@ -214,7 +214,7 @@ fn guard_text_params(statement: &Statement, params: &[&(dyn ToSql + Sync)]) -> R
 
 impl Tx<'_> {
     // @ref LLP 3000.009.001.000#9.1 — a pre-bind refusal is terminal too; catching it cannot commit earlier writes without their tail.
-    fn ensure_active(&self) -> Result<(), RuntimeError> {
+    pub(super) fn ensure_active(&self) -> Result<(), RuntimeError> {
         if self.bind_refused.get() {
             return Err(RuntimeError::Input("transaction aborted by a refused Postgres parameter; roll back".into()));
         }
@@ -280,6 +280,14 @@ impl Tx<'_> {
         }
         self.calls.set(self.calls.get() + 1);
         self.inner.borrow_mut().batch_execute(sql)?;
+        Ok(())
+    }
+
+    pub(super) fn rollback_named(&self, name: &str) -> Result<(), RuntimeError> {
+        self.ensure_active()?;
+        self.rows_cache.borrow_mut().clear();
+        self.calls.set(self.calls.get() + 1);
+        self.inner.borrow_mut().batch_execute(&format!("ROLLBACK TO SAVEPOINT {name}; RELEASE SAVEPOINT {name}"))?;
         Ok(())
     }
 
