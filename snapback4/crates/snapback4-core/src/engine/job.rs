@@ -99,34 +99,166 @@ pub struct JobSummary {
 }
 
 /// Snapshot inspection of the work family. No policy or presentation lives here.
-// P1: implement every JobStore operation for the Postgres adapter.
+// @ref LLP 3000.009.001.000#10 — one jobs contract on SQLite and Postgres.
+// Inspection may open a driver snapshot; SQLite retains shared public accessors.
+#[allow(dead_code)] // P1a conformance seam; the mutable Postgres host joins in P1b.
 pub(crate) trait JobStore {
-    fn job(&self, id: &str) -> Result<Option<JobRun>, RuntimeError>;
-    fn jobs(&self, limit: usize) -> Result<Vec<JobRun>, RuntimeError>;
-    fn schedule_shape(&self, name: &str) -> Result<Option<String>, RuntimeError>;
-    fn schedule_boundary(&self, name: &str) -> Result<Option<i64>, RuntimeError>;
-    fn latest_schedule_boundary(&self) -> Result<Option<i64>, RuntimeError>;
-    fn job_summaries(&self, error_bytes: usize) -> Result<Vec<JobSummary>, RuntimeError>;
-    fn job_count(&self) -> Result<i64, RuntimeError>;
+    fn job(&mut self, id: &str) -> Result<Option<JobRun>, RuntimeError>;
+    /// Limits above i64::MAX clamp to i64::MAX.
+    fn jobs(&mut self, limit: usize) -> Result<Vec<JobRun>, RuntimeError>;
+    fn schedule_shape(&mut self, name: &str) -> Result<Option<String>, RuntimeError>;
+    fn schedule_boundary(&mut self, name: &str) -> Result<Option<i64>, RuntimeError>;
+    fn latest_schedule_boundary(&mut self) -> Result<Option<i64>, RuntimeError>;
+    fn job_summaries(&mut self, error_bytes: usize) -> Result<Vec<JobSummary>, RuntimeError>;
+    fn job_count(&mut self) -> Result<i64, RuntimeError>;
 }
 
 /// Access to job continuations and schedule watermarks in the caller's writer.
 /// Policy decides state, refusal text, chunk size and the order of these calls.
 // @ref LLP 3000.009.001.000#3.3 — the boundary and admitted job stay in one transaction.
-// P1: implement every JobTransaction operation for the Postgres adapter.
+// Postgres writes require the existing serialized shared-head fence.
 pub(crate) trait JobTransaction {
-    fn insert_job(&self, id: &str, name: &str, args: &BTreeMap<String, Value>, program_hash: &str, now: i64) -> Result<(), RuntimeError>;
+    fn insert_job(
+        &self,
+        id: &str,
+        name: &str,
+        args: &BTreeMap<String, Value>,
+        program_hash: &str,
+        now: i64,
+    ) -> Result<(), RuntimeError> {
+        validate_job_key(id)?;
+        validate_job_key(name)?;
+        self.insert_job_record(id, name, args, program_hash, now)
+    }
+    fn insert_job_record(
+        &self,
+        id: &str,
+        name: &str,
+        args: &BTreeMap<String, Value>,
+        program_hash: &str,
+        now: i64,
+    ) -> Result<(), RuntimeError>;
     fn head_job(&self) -> Result<Option<Head>, RuntimeError>;
-    fn park_job(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError>;
+    fn park_job(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError> {
+        self.park_job_record(id, &job_diagnostic(error), now)
+    }
+    fn park_job_record(&self, id: &str, error: &str, now: i64) -> Result<(), RuntimeError>;
     fn finish_job_sweeps(&self, id: &str, sweeps: usize, now: i64) -> Result<(), RuntimeError>;
-    fn record_job_chunk(&self, chunk: JobChunkUpdate<'_>) -> Result<(), RuntimeError>;
-    fn park_job_chunk(&self, id: &str, error: &str, now: i64, size: u32, retries: u64, heap_peak: u64) -> Result<(), RuntimeError>;
+    fn job_counters(&self, id: &str) -> Result<Option<(i64, i64)>, RuntimeError>;
+    fn record_job_chunk(&self, chunk: JobChunkUpdate<'_>) -> Result<(), RuntimeError> {
+        let Some((chunks, rows)) = self.job_counters(chunk.id)? else {
+            return Ok(());
+        };
+        let total = add_job_counter(rows, chunk.rows_written);
+        self.write_job_chunk(chunk, add_job_counter(chunks, 1), total)
+    }
+    fn write_job_chunk(
+        &self,
+        chunk: JobChunkUpdate<'_>,
+        chunks: i64,
+        rows: i64,
+    ) -> Result<(), RuntimeError>;
+    fn park_job_chunk(
+        &self,
+        id: &str,
+        error: &str,
+        now: i64,
+        size: u32,
+        retries: u64,
+        heap_peak: u64,
+    ) -> Result<(), RuntimeError> {
+        self.park_job_chunk_record(id, &job_diagnostic(error), now, size, retries, heap_peak)
+    }
+    fn park_job_chunk_record(
+        &self,
+        id: &str,
+        error: &str,
+        now: i64,
+        size: u32,
+        retries: u64,
+        heap_peak: u64,
+    ) -> Result<(), RuntimeError>;
     #[cfg(feature = "native")]
-    fn record_native_job_chunk(&self, id: &str, state: JobState, cursor: Option<&[u8]>, rows_written: u64, now: i64) -> Result<(), RuntimeError>;
+    fn record_native_job_chunk(
+        &self,
+        id: &str,
+        state: JobState,
+        cursor: Option<&[u8]>,
+        rows_written: u64,
+        now: i64,
+    ) -> Result<(), RuntimeError> {
+        let Some((chunks, rows)) = self.job_counters(id)? else {
+            return Ok(());
+        };
+        self.write_native_job_chunk(
+            id,
+            state,
+            cursor,
+            add_job_counter(chunks, 1),
+            add_job_counter(rows, rows_written),
+            now,
+        )
+    }
+    #[cfg(feature = "native")]
+    fn write_native_job_chunk(
+        &self,
+        id: &str,
+        state: JobState,
+        cursor: Option<&[u8]>,
+        chunks: i64,
+        rows: i64,
+        now: i64,
+    ) -> Result<(), RuntimeError>;
     fn schedule_shape(&self, name: &str) -> Result<Option<String>, RuntimeError>;
     fn schedule_boundary(&self, name: &str) -> Result<Option<i64>, RuntimeError>;
-    fn set_schedule_shape(&self, name: &str, shape: &str) -> Result<(), RuntimeError>;
-    fn set_schedule_boundary(&self, name: &str, boundary: i64) -> Result<(), RuntimeError>;
+    fn schedule_exists(&self, name: &str) -> Result<bool, RuntimeError>;
+    fn set_schedule_shape(&self, name: &str, shape: &str) -> Result<(), RuntimeError> {
+        if name.contains('\0') && !self.schedule_exists(name)? {
+            validate_job_key(name)?;
+        }
+        self.write_schedule_shape(name, shape)
+    }
+    fn set_schedule_boundary(&self, name: &str, boundary: i64) -> Result<(), RuntimeError> {
+        if name.contains('\0') && !self.schedule_exists(name)? {
+            validate_job_key(name)?;
+        }
+        self.write_schedule_boundary(name, boundary)
+    }
+    fn write_schedule_shape(&self, name: &str, shape: &str) -> Result<(), RuntimeError>;
+    fn write_schedule_boundary(&self, name: &str, boundary: i64) -> Result<(), RuntimeError>;
+}
+
+// @ref LLP 3000.009.001.000#9.1 — new keys reject NUL; stored keys remain addressable, diagnostics normalize before truncation.
+fn validate_job_key(key: &str) -> Result<(), RuntimeError> {
+    if key.contains('\0') {
+        return Err(RuntimeError::Input(
+            "job and schedule identifiers cannot contain U+0000".into(),
+        ));
+    }
+    Ok(())
+}
+fn job_diagnostic(error: &str) -> std::borrow::Cow<'_, str> {
+    if error.contains('\0') {
+        error.replace('\0', "\u{fffd}").into()
+    } else {
+        error.into()
+    }
+}
+
+// @ref LLP 3000.009.001.000#3.3 — accounting saturates at the signed storage maximum, before any adapter write.
+pub(crate) fn job_counter(value: u64) -> i64 {
+    value.min(i64::MAX as u64) as i64
+}
+fn add_job_counter(previous: i64, added: u64) -> i64 {
+    job_counter(previous as u64).saturating_add(job_counter(added))
+}
+/// Oversized unsigned inspection limits clamp to the largest signed value.
+pub(crate) fn job_limit(value: usize) -> i64 {
+    i64::try_from(value).unwrap_or(i64::MAX)
+}
+/// Summary prefix lengths use an explicit signed 32-bit bound on both stores.
+pub(crate) fn job_error_limit(value: usize) -> i64 {
+    job_limit(value).min(i64::from(i32::MAX))
 }
 
 /// Durable admission identity for a queued run. Quarry jobs retain their
@@ -228,12 +360,12 @@ impl Engine {
     }
 
     pub fn job(&self, id: &str) -> Result<Option<JobRun>, RuntimeError> {
-        JobStore::job(&self.store, id)
+        self.store.job(id)
     }
 
     /// The most recent runs, newest first.
     pub fn jobs(&self, limit: usize) -> Result<Vec<JobRun>, RuntimeError> {
-        JobStore::jobs(&self.store, limit)
+        self.store.jobs(limit)
     }
 
     /// One chunk of the head job (queued or running, oldest first): one
@@ -555,56 +687,4 @@ fn native_chunk(tx: super::committer::MemberTx<'_, '_>, head: Head, program: &cr
 
 /// Adapter-neutral cases: each adapter supplies its own transaction lifecycle.
 #[cfg(test)]
-pub(crate) mod test_cases {
-    use super::*;
-
-    pub(crate) fn queue_and_continue(tx: &impl JobTransaction) {
-        let args = BTreeMap::from([("periodEnd".into(), Value::Int(60_000))]);
-        tx.insert_job("b", "tick", &args, "hash", 10).unwrap();
-        tx.insert_job("a", "tick", &args, "hash", 10).unwrap();
-        // FIFO ties use the id; adapter row order must not pick insertion order.
-        assert_eq!(tx.head_job().unwrap().unwrap().run.id, "a");
-        tx.record_job_chunk(JobChunkUpdate {
-            id: "a", state: JobState::Running, sweep: 0,
-            cursor: Some(&[0, 127, 255]), upper: Some(&[255, 255]),
-            rows_written: 2, now: 20, size: 32, retries: 1, heap_peak: 1024, domain: None,
-        }).unwrap();
-        tx.set_schedule_shape("pulse", "shape").unwrap();
-        tx.set_schedule_boundary("pulse", 60_000).unwrap();
-        tx.park_job("b", "E_JOB_GENERATION: fixture", 20).unwrap();
-        assert_continuation(tx);
-    }
-
-    pub(crate) fn assert_continuation(tx: &impl JobTransaction) {
-        let head = tx.head_job().unwrap().unwrap();
-        assert_eq!(head.run.id, "a");
-        assert_eq!(head.run.state, JobState::Running);
-        assert_eq!((head.run.chunks, head.run.rows_written), (1, 2));
-        assert_eq!(head.cursor.as_deref(), Some([0, 127, 255].as_slice()));
-        assert_eq!(head.upper.as_deref(), Some([255, 255].as_slice()));
-        assert_eq!(head.args.get("periodEnd"), Some(&Value::Int(60_000)));
-        assert_eq!(tx.schedule_shape("pulse").unwrap().as_deref(), Some("shape"));
-        assert_eq!(tx.schedule_boundary("pulse").unwrap(), Some(60_000));
-    }
-
-    pub(crate) fn advance(tx: &impl JobTransaction) {
-        tx.record_job_chunk(JobChunkUpdate {
-            id: "a", state: JobState::Done, sweep: 1,
-            cursor: None, upper: None, rows_written: 7, now: 30,
-            size: 16, retries: 2, heap_peak: 2048, domain: None,
-        }).unwrap();
-        tx.set_schedule_boundary("pulse", 120_000).unwrap();
-        assert!(tx.head_job().unwrap().is_none());
-    }
-
-    pub(crate) fn assert_committed(store: &impl JobStore) {
-        assert_eq!(store.job_count().unwrap(), 2);
-        let runs = store.jobs(2).unwrap();
-        assert_eq!(runs.len(), 2);
-        let run = store.job("b").unwrap().unwrap();
-        assert_eq!(run.state, JobState::Parked);
-        assert_eq!(run.error.as_deref(), Some("E_JOB_GENERATION: fixture"));
-        assert_eq!(store.schedule_boundary("pulse").unwrap(), Some(60_000));
-        assert_eq!(store.latest_schedule_boundary().unwrap(), Some(60_000));
-    }
-}
+pub(crate) mod test_cases;

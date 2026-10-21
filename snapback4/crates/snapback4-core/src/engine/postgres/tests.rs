@@ -3,6 +3,7 @@ use crate::{authority::{AuthorityTransaction, test_cases}, rows::{Rows, Prefetch
 
 mod caps;
 mod identity;
+mod jobs;
 mod delivery;
 mod expiring_counts;
 mod refusals;
