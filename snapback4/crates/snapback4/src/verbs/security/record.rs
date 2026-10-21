@@ -3,8 +3,12 @@
 use super::*;
 use sha2::{Digest,Sha256};
 #[derive(serde::Serialize,serde::Deserialize)]
-pub(super) struct Record{pub fingerprint:String,pub complete:bool,pub attempted:usize,pub sequences:usize,pub coverage_gaps:usize,pub violations:Vec<security::challenges::Counterexample>}
-fn selected_fixture(project:&Project,options:&Options)->std::path::PathBuf{
+pub(super) struct Record{
+    #[serde(default)] pub recorded_at:Option<i64>,
+    #[serde(default)] pub last_completed_at:Option<i64>,
+    #[serde(default)] pub run_violations:Option<usize>,
+    pub fingerprint:String,pub complete:bool,pub attempted:usize,pub sequences:usize,pub coverage_gaps:usize,pub violations:Vec<security::challenges::Counterexample>}
+pub(super) fn selected_fixture(project:&Project,options:&Options)->std::path::PathBuf{
     let flag=if options.flags.contains_key("source"){"source"}else{"schema"};
     options.flags.get("fixture").map(std::path::PathBuf::from).unwrap_or_else(||{
         let saved=options.flags.get(flag).map(std::path::Path::new).map(|p|if p.is_dir(){p.join("fixtures")}else if p.file_name().is_some_and(|n|n=="schema.q"){p.parent().unwrap().join("fixtures")}else{p.with_file_name(format!("{}-fixtures",p.file_stem().unwrap_or_default().to_string_lossy()))});
@@ -32,8 +36,10 @@ fn fingerprint(project:&Project,options:&Options)->Result<String,String>{
 fn path(project:&Project)->std::path::PathBuf{project.root.join("snapback/generated/security-test.json")}
 pub(in crate::verbs) fn remember(project:&Project,options:&Options,campaign:&security::challenges::Campaign,complete:bool,consumed:&str)->Result<(),String>{
     if fingerprint(project,options)?!=consumed{return Err("source or fixtures changed during test; evidence was not saved; rerun snapback4 test".into());}
-    let mut record=Record{fingerprint:consumed.into(),complete,attempted:campaign.attempted,sequences:campaign.sequences,coverage_gaps:campaign.unsupported.len(),violations:campaign.violations.iter().filter(|c|c.reachability.is_reachable()).cloned().collect()};
-    let prior=matching_key(project,consumed).map(|r|r.violations).unwrap_or_default();
+    let previous=matching_key(project,consumed);
+    let now=snapback4_core::now_ms();
+    let mut record=Record{recorded_at:Some(now),last_completed_at:if complete{Some(now)}else{previous.as_ref().and_then(|r|r.last_completed_at)},run_violations:Some(campaign.violations.iter().filter(|c|c.reachability.is_reachable()).count()),fingerprint:consumed.into(),complete,attempted:campaign.attempted,sequences:campaign.sequences,coverage_gaps:campaign.unsupported.len(),violations:campaign.violations.iter().filter(|c|c.reachability.is_reachable()).cloned().collect()};
+    let prior=previous.map(|r|r.violations).unwrap_or_default();
     let mut seen=std::collections::BTreeSet::new();
     record.violations=prior.into_iter().chain(record.violations).filter(|v|v.reachability.is_reachable()&&seen.insert(serde_json::to_string(&(&v.invariant_site,&v.viewer,&v.operation,&v.effect,&v.reachability)).unwrap())).collect();
     let path=path(project);std::fs::create_dir_all(path.parent().unwrap()).map_err(|e|e.to_string())?;
@@ -44,9 +50,11 @@ pub(in crate::verbs) fn remember(project:&Project,options:&Options,campaign:&sec
 pub(super) fn matching(project:&Project,options:&Options,sources:&[(String,String)])->Option<Record>{
     matching_key(project,&capture(sources,Some(&selected_fixture(project,options))).ok()?)
 }
+pub(super) fn latest(project:&Project)->Option<Record>{
+    serde_json::from_slice(&std::fs::read(path(project)).ok()?).ok()
+}
 fn matching_key(project:&Project,key:&str)->Option<Record>{
-    let path=path(project);
-    let record:Record=serde_json::from_slice(&std::fs::read(path).ok()?).ok()?;
+    let record=latest(project)?;
     (record.fingerprint==key).then_some(record)
 }
 
@@ -74,4 +82,32 @@ mod tests{
   assert!(super::super::release_notice(&project,&selected,&other,&options).contains("run `snapback4 test"));
   assert!(super::super::release_notice(&project,&bound,&[("schema.q".into(),source.into())],&options).contains("matching test campaign recorded"));
  }
+ #[test]
+ fn review_labels_missing_stale_and_incomplete_evidence_and_strict_refuses_only_reachable_intent(){
+  let path=std::env::temp_dir().join(format!("sb4-sec6-review-{}",std::process::id()));
+  struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
+  let _scratch=Scratch(path.clone());std::fs::create_dir_all(path.join("snapback")).unwrap();
+  let source="table docs:\n  owner: principal\n  read <- allow\n  online only\ninvariant docs.read only .owner = viewer\n";
+  std::fs::write(path.join("snapback/schema.q"),source).unwrap();let project=Project{root:path};
+  let sources=vec![("schema.q".into(),source.into())];let bound=snapback4_lang::compile(&sources);
+  let options=Options{positionals:Vec::new(),flags:Default::default(),json:false};
+  assert!(super::super::release_notice(&project,&bound,&sources,&options).contains("NEVER RECORDED"));
+  let key=fingerprint(&project,&options).unwrap();
+  remember(&project,&options,&Default::default(),true,&key).unwrap();
+  let completed=matching(&project,&options,&sources).unwrap().last_completed_at;
+  remember(&project,&options,&Default::default(),false,&key).unwrap();
+  let later=matching(&project,&options,&sources).unwrap();assert_eq!(later.last_completed_at,completed);assert!(!later.complete);
+  let notice=super::super::release_notice(&project,&bound,&sources,&options);assert!(notice.contains("incomplete")&&notice.contains("age "),"{notice}");
+  let stale=vec![("schema.q".into(),format!("{source}-- edit\n"))];assert!(super::super::release_notice(&project,&bound,&stale,&options).contains("STALE"));
+  let mut c=security::challenges::Campaign::default();
+  let mut e=snapback4_core::Engine::memory(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();
+  e.seed_at([("docs".into(),snapback4_core::Value::Row([("id".into(),snapback4_core::Value::Id("doc".into())),("owner".into(),snapback4_core::Value::Id("dev:owner".into()))].into_iter().collect()))],security::challenges::NOW).unwrap();
+  security::challenges::fixture_observers(&bound,&e,&mut c);assert!(!c.violations.is_empty());
+  remember(&project,&options,&c,true,&key).unwrap();
+  let mut strict=options.clone();strict.flags.insert("strict".into(),String::new());
+  let denied=super::super::release_loop(&project,&bound,&sources,None,&strict).unwrap_err();assert!(denied.contains("E_SECURITY_REVIEW"));
+  let advisory=super::super::release_loop(&project,&bound,&sources,None,&options).unwrap().unwrap();assert!(advisory.contains("FIX")&&advisory.contains("FAILED"));
+  assert!(super::super::release_loop(&project,&bound,&sources,Some(&bound),&strict).unwrap().is_none());
+ }
+
 }

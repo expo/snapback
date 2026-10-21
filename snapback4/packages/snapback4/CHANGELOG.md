@@ -1,5 +1,12 @@
 # Snapback 4 behavior changes
 
+## 0.4.37
+
+- Security intent covers every executed insert/update/delete in committed multi-write mutations. Column write intent includes creation and both upsert arms. New advisory notes identify creation/edit authority asymmetry and columns omitted by query projections that reach another return, write result or refusal. Column read campaigns inspect actual typed mutation results; query projections alone are not privacy.
+- Rule-changing deploy and deploy --check lead with outstanding security review items and dated test evidence, explicitly labeling stale/missing records. Deploy --strict refuses reachable refuted intent before activation; unproved intent and notes remain advisory. Finite passing tests never prove security.
+- Online and local clients reject malformed supplied sessions before transport, storage, device or timer work, with E_SESSION and guidance to pass a complete Session. Supplied primitive fields are copied so later caller mutation cannot corrupt refresh scheduling. Existing scope-less sessions and online bare-token clients remain supported.
+- EVOL owns release adoption, migration expressiveness and rollback fidelity in this release.
+
 ## 0.4.35
 
 - Column privacy: append `read <- policy` to a column or share `read (a, b) <- policy`. Effective authority intersects row, column and owner-private rules for queries, write results and downloads. Whole rows omit hidden properties; explicit selections return null and generated read properties are optional. Row-local cells sync; witness-dependent cells stay server-side with automatic online fallback. Protected payloads cannot supply structural keys, authority, lifetimes or maintained inputs (E_COLUMN_READ). Existing fields keep their audience until a rule is declared; old clients receive compatibility advice for newly optional results.
