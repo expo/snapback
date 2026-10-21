@@ -142,7 +142,7 @@ export async function proveProduction(client, platform, expo, directory) {
     SNAPBACK4_BIN: join(web.cwd, "node_modules", `snapback4-${process.platform}-${process.arch}`, "snapback4"),
     SNAPBACK4_PRODUCTION_WEB_APP: join(web.cwd, "node_modules/snapback4/dist/recipes/production/web/App.tsx"),
     SNAPBACK4_PRODUCTION_EXPO_APP: join(native.cwd, "node_modules/snapback4/dist/recipes/production/expo/App.tsx"),
-    SNAPBACK4_PRODUCTION_NATIVE_SMOKE: join(native.cwd, "src/native-smoke.ts"),
+    SNAPBACK4_PRODUCTION_NATIVE_SMOKE: join(native.cwd, "node_modules/snapback4-expo/src/native-smoke.ts"),
     SNAPBACK4_PRODUCTION_CLIENT_DIST: join(web.cwd, "node_modules/snapback4/dist"),
   });
   const cli = join(web.cwd, "node_modules/snapback4/bin/snapback4.js");
