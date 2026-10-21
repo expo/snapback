@@ -19,6 +19,7 @@ import { proveProduction } from "./publication-production.mjs";
 import { proveProofKit } from "./publication-proof-kit.mjs";
 import { proveMigrations } from "./publication-migrations.mjs";
 import { proveDX4 } from "./publication-dx4.mjs";
+import { proveDX5 } from "./publication-dx5.mjs";
 import { proveStaging } from "./publication-staging.mjs";
 import { proveSecurity } from "./publication-security.mjs";
 import { proveClientRecipes } from "./publication-client-recipes.mjs";
@@ -109,6 +110,8 @@ export async function qualify(args = process.argv.slice(2)) {
     const day2Proof = await proveDay2(client, tarball, out);
     save(join(out, "day2-proof.json"), day2Proof);
     save(join(out, "dx4-proof.json"), await proveDX4(day2Proof.directory));
+    const dx5Proof = await proveDX5(day2Proof.directory, client, tarball, expo);
+    save(join(out, "dx5-proof.json"), dx5Proof);
     const regressions = await proveExpoUpgrades(client, tarball, expo, out);
     save(join(out, "regressions.json"), regressions);
     const day4Proof = await proveDay4(day2Proof.directory);
@@ -149,7 +152,7 @@ export async function qualify(args = process.argv.slice(2)) {
         throw new Error("release source or client changed during consumer qualification");
       copyFileSync(tarball, join(out, packed.filename));
       const evidence = { format: 1, mode: "consumer-only", source, version, route: runtime,
-        clientIntegrity, expoIntegrity, platform, binarySha256, elf, regressions, day2Proof, day4Proof, day5Proof, productionProofs, proofKit, clientRecipes, ruleRecipes, frontendProofs, starterProofs, stagingProof, migrationProof, securityProof, proofs,
+        clientIntegrity, expoIntegrity, platform, binarySha256, elf, regressions, day2Proof, dx5Proof, day4Proof, day5Proof, productionProofs, proofKit, clientRecipes, ruleRecipes, frontendProofs, starterProofs, stagingProof, migrationProof, securityProof, proofs,
         suite: { status: "not-run" }, publicationQualified: false };
       save(join(out, "consumer.json"), evidence);
       console.log(JSON.stringify(evidence, null, 2));
@@ -157,7 +160,7 @@ export async function qualify(args = process.argv.slice(2)) {
     }
     if (!suitePassed) throw new Error(`Linux source suite failed: ${summary ?? result.error?.message ?? result.status}; see ${log}; consumer evidence in proofs.json (no qualification receipt)`);
     const cc = process.env.SNAPBACK4_MUSL_CC ?? join(process.env.HOME, ".local/share/snapback4-musl-1.2.5/bin/musl-gcc");
-    const receipt = { format: 1, route: runtime, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, regressions, day2Proof, day4Proof, day5Proof, productionProofs, proofKit, clientRecipes, ruleRecipes, frontendProofs, starterProofs, stagingProof, migrationProof, securityProof, elf, platform, binarySha256, clientIntegrity, expo: artifact(expo, "snapback4-expo", version) };
+    const receipt = { format: 1, route: runtime, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, regressions, day2Proof, dx5Proof, day4Proof, day5Proof, productionProofs, proofKit, clientRecipes, ruleRecipes, frontendProofs, starterProofs, stagingProof, migrationProof, securityProof, elf, platform, binarySha256, clientIntegrity, expo: artifact(expo, "snapback4-expo", version) };
     if (cleanSource(root) !== source || sri(client) !== clientIntegrity || sri(expo) !== expoIntegrity) throw new Error("release source or client changed during Linux qualification");
     validateLinux(receipt, tarball, { version, integrity: clientIntegrity }, source);
     copyFileSync(tarball, join(out, packed.filename));

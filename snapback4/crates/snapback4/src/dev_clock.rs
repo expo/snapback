@@ -139,6 +139,9 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
             }
         }
         if let Some(denied) = json.get("denied") {
+            if json.get("now").is_some() {
+                eprintln!("clock: incomplete advance report (time already moved): {}", serde_json::json!({"now":json["now"],"fired":json["fired"],"held":json["held"]}));
+            }
             let clock = json["message"].as_str().map(|message| format!("; time remains advanced: {message}")).unwrap_or_default();
             return Err(format!("{}: {}{clock}\n  guide: clock", denied["code"].as_str().unwrap_or("E_CLOCK_INPUT"), denied["message"].as_str().unwrap_or("clock advance failed")));
         }

@@ -236,25 +236,25 @@ assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deploymen
     writeFileSync(join(cwd, "snapback/schema.q"), `use identity guests\ntable notes:\n  owner: principal\n  title: text <=80\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nquery mine():\n  return notes where .owner = viewer first 20 by .id\nmutation add(title: text <=80):\n  return insert notes { owner: viewer, title }\n`);
     const inheritedTodoProof=readFileSync(join(cwd,"scripts/frontend-proof.mjs"),"utf8");
     await run(cli, ["init", "--adapt", "--apply"], cwd);
-    assert.equal(existsSync(join(cwd,"scripts/frontend-proof.mjs")),false,"adapted Home has no todo proof");
+    assert.equal(existsSync(join(cwd,"scripts/frontend-proof.mjs")),true,"adapted Home retains a runnable scaffold");
+    assert.match(readFileSync(join(cwd,"scripts/frontend-proof.mjs"),"utf8"),/E_FRONTEND_SCENARIO/);
     const adaptedPackage=JSON.parse(readFileSync(join(cwd,"package.json"),"utf8"));
-    assert.ok(Object.values(adaptedPackage.scripts).every(value=>value!=="node scripts/frontend-proof.mjs"));
+    assert.equal(adaptedPackage.scripts["frontend:proof"],"node scripts/frontend-proof.mjs");
+    assert.equal(adaptedPackage.scripts["proof:web"],adaptedPackage.scripts["frontend:proof"]);
     await build();
     let negativeProof;
     if (browserProofs) {
-      // Deliberately reintroduce the original todo proof as a negative control;
-      // it is not part of the adapted starter.
-      writeFileSync(join(cwd,"scripts/frontend-proof.mjs"),inheritedTodoProof);
+      // Execute the retained scaffold unchanged: rendering is not a write proof.
       const guard = join(cwd, "negative-proof.mjs");
       const tracerVersion = process.platform === "linux" ? (await import("./proof-listener-audit.mjs")).requireListenerTracer() : undefined;
       const negativeTrace = join(cwd, "negative-listener-audit.trace");
-      writeFileSync(guard, `import {spawnSync} from 'node:child_process'; import assert from 'node:assert/strict'; const r=spawnSync(${JSON.stringify(process.platform === 'linux' ? 'strace' : process.execPath)},${JSON.stringify([...(process.platform === 'linux' ? ['-f','-q','-z','-yy','-e','trace=listen','-e','signal=none','-o',negativeTrace,process.execPath] : []),'scripts/frontend-proof.mjs'])},{encoding:'utf8',timeout:60000,env:process.env}); process.stdout.write(r.stdout); process.stderr.write(r.stderr); assert.notEqual(r.status,0); assert.match(r.stderr,/no write scenario: replace the Home assertions/);`);
+      writeFileSync(guard, `import {spawnSync} from 'node:child_process'; import assert from 'node:assert/strict'; const r=spawnSync(${JSON.stringify(process.platform === 'linux' ? 'strace' : process.execPath)},${JSON.stringify([...(process.platform === 'linux' ? ['-f','-q','-z','-yy','-e','trace=listen','-e','signal=none','-o',negativeTrace,process.execPath] : []),'scripts/frontend-proof.mjs'])},{encoding:'utf8',timeout:240000,env:process.env}); process.stdout.write(r.stdout); process.stderr.write(r.stderr); assert.notEqual(r.status,0); assert.match(r.stderr,/E_FRONTEND_SCENARIO: frontend rendered/);`);
       const negativeAudit = join(cwd, "negative-listener-audit.json");
       await run(process.execPath, [guard], cwd, {PORT_LO:"30000",PORT_HI:"30020"});
       const listenerAudit = process.platform === "linux" ? (await import("./proof-listener-audit.mjs")).auditListenerTrace(readFileSync(negativeTrace,"utf8"),30000,30020) : {status:"not-run",reason:"listener audit belongs to Linux qualification"};
       if (process.platform === "linux") { assert.equal(listenerAudit.status,"passed"); assert.ok(listenerAudit.samples>0); listenerAudit.tracerVersion = tracerVersion; }
       writeFileSync(negativeAudit, JSON.stringify(listenerAudit));
-      negativeProof = {status:"passed", expected:"no write scenario: replace the Home assertions", listenerAudit};
+      negativeProof = {status:"passed", expected:"E_FRONTEND_SCENARIO: frontend rendered", listenerAudit};
     }
     rmSync(join(cwd,"scripts/frontend-proof.mjs"),{force:true});
     installCustomWriteScenario(cwd,kind,inheritedTodoProof);
