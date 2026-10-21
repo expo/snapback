@@ -18,7 +18,7 @@ if [[ -z "${SNAPBACK4_EVAL_POSTGRES:-}" ]]; then
     echo "Evaluation cluster stopped; data retained at $eval_dir" >&2
   }
   trap cleanup EXIT
-  pg_ctl -D "$eval_dir/data" -l "$eval_dir/server.log" -o "-k $eval_dir -c listen_addresses= -p 55439" -w start >/dev/null
+  pg_ctl -D "$eval_dir/data" -l "$eval_dir/server.log" -o "-k $eval_dir -c listen_addresses= -c max_connections=400 -p 55439" -w start >/dev/null
   export SNAPBACK4_EVAL_POSTGRES="host=$eval_dir port=55439 user=sb4_eval dbname=postgres"
 fi
 # Report every stage even when an earlier fixture fails. In particular, an
